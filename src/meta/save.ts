@@ -9,6 +9,7 @@ export interface Meta {
   totalKills: number;
   muted: boolean;
   reducedFx: boolean;
+  fxChosen: boolean; // true dès que le joueur a touché au réglage : sinon `prefers-reduced-motion` décide
 }
 const KEY = 'ruee-meta';
 export const DEFAULT_META: Meta = {
@@ -19,6 +20,7 @@ export const DEFAULT_META: Meta = {
   totalKills: 0,
   muted: false,
   reducedFx: false,
+  fxChosen: false,
 };
 
 export async function loadMeta(): Promise<Meta> {

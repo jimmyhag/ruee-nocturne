@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { STEP, WEAPON_MAX } from '../balance';
 import { spawnEnemy } from '../spawner';
 import { startRun, step } from '../step';
-import { Ev } from '../types';
+import { Ev, HitSrc } from '../types';
 import type { Input, PassiveKey, WeaponKey } from '../types';
 import { World } from '../world';
 import { PASSIVES, PASSIVE_KEYS, WEAPONS, WEAPON_KEYS } from './defs';
@@ -134,5 +134,44 @@ describe('comportement sur un monde minimal', () => {
     }
     expect(pulses).toBeGreaterThanOrEqual(4); // période 0,45 s → 4 ou 5 pulsations en 2 s
     expect(pulses).toBeLessThanOrEqual(5);
+  });
+});
+
+// Règle 3 de CLAUDE.md : chaque coup porté produit un feedback. Côté sim, l'événement Hit porte tout ce qu'il
+// faut au rendu (dégâts, source, direction du recul) et l'ennemi touché flashe. Chaque arme seule, 30 s simulées.
+describe('feedback de chaque coup', () => {
+  const SRC: Record<WeaponKey, HitSrc> = {
+    orbe: HitSrc.Orbe,
+    aura: HitSrc.Aura,
+    lames: HitSrc.Lames,
+    foudre: HitSrc.Foudre,
+  };
+  it.each(WEAPON_KEYS)('%s seule, 30 s : chaque Hit porte sa source, des dégâts et un recul unitaire', (k) => {
+    const w = new World(21);
+    startRun(w);
+    w.weapons = { [k]: 2 };
+    w.player.maxHp = w.player.hp = 1e9;
+    w.player.need = 1e9; // jamais de montée de niveau : l'arme reste seule
+    let hits = 0;
+    for (let f = 0; f < 1800; f++) {
+      step(w, still, STEP);
+      for (let e = 0; e < w.eventCount; e++) {
+        const ev = w.events[e];
+        if (ev.type !== Ev.Hit) continue;
+        hits++;
+        expect(ev.x2).toBe(SRC[k]);
+        expect(ev.v).toBeGreaterThan(0);
+        expect(ev.y2 * ev.y2 + ev.z2 * ev.z2).toBeCloseTo(1, 6);
+      }
+    }
+    expect(hits).toBeGreaterThan(20);
+  });
+  it('un ennemi touché flashe (0,1 s) et recule, sauf le boss', () => {
+    const w = new World(22);
+    w.weapons = { lames: 1 };
+    const i = spawnEnemy(w, 2, 0, 2.5); // Brute sur l'orbite des lames
+    for (let f = 0; f < 30 && w.enemies[i].flash <= 0; f++) step(w, still, STEP);
+    expect(w.enemies[i].flash).toBeGreaterThan(0);
+    expect(w.enemies[i].kx * w.enemies[i].kx + w.enemies[i].kz * w.enemies[i].kz).toBeGreaterThan(0);
   });
 });

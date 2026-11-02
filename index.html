@@ -78,6 +78,10 @@
         opacity: 0;
         transition: opacity 0.25s;
       }
+      #flash.gold {
+        background: radial-gradient(ellipse at center, transparent 30%, var(--gold) 120%);
+        transition: opacity 0.08s;
+      }
       #hud {
         position: fixed;
         inset: 0 0 auto;
@@ -614,6 +618,22 @@
         border-color: var(--gold);
         transform: translateY(-3px);
       }
+      .card.picked {
+        animation: cardpick 0.22s ease-out forwards;
+      }
+      @keyframes cardpick {
+        0% {
+          border-color: var(--paper);
+          background: var(--paper);
+          color: var(--ink);
+          transform: scale(1.04);
+        }
+        100% {
+          border-color: var(--gold);
+          background: var(--ink-2);
+          transform: scale(1);
+        }
+      }
       .card .top {
         display: flex;
         align-items: center;
@@ -695,6 +715,9 @@
         font-weight: 800;
       }
       @media (max-width: 480px) {
+        #banner {
+          top: 42%; /* en portrait le HUD (kit sur plusieurs lignes) et la barre de boss descendent : la bannière ne doit pas les recouvrir */
+        }
         #perf {
           font-size: 13px;
           background: #1c1226f2;
