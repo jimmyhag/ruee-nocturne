@@ -247,21 +247,23 @@ describe('élites, coffres, or', () => {
 
 describe('boss et Faucheur', () => {
   it('Gardien à 5:00, Essaim-mère à 10:00, Colosse à 15:00, Faucheur à 20:00', () => {
+    // on saute à 0,5 s avant chaque échéance (72 000 steps sous coverage dépassaient le délai en CI)
     const w = new World(42);
     god(w);
     startRun(w);
     const seen: number[] = [];
     const at: number[] = [];
-    let frame = 0;
-    while (w.t < 1201) {
-      // on nettoie la masse chaque seconde (sinon le pool sature en 20 min sans arme) ; les boss restent
-      if (++frame % 60 === 0) for (let i = 0; i < w.enemyCount; i++) if (!ENEMIES[w.enemies[i].type].boss) hitEnemy(w, i, 1e9, 0, 0, 0);
-      step(w, still, STEP);
-      for (let i = 0; i < w.eventCount; i++)
-        if (w.events[i].type === Ev.BossSpawn) {
-          seen.push(w.events[i].x2);
-          at.push(Math.round(w.t));
-        }
+    for (const target of [SPAWN.bossPeriod, SPAWN.bossPeriod * 2, SPAWN.bossPeriod * 3, SPAWN.reaperAt]) {
+      w.t = target - 0.5;
+      for (let i = 0; i < w.enemyCount; i++) if (!ENEMIES[w.enemies[i].type].boss) hitEnemy(w, i, 1e9, 0, 0, 0);
+      for (let f = 0; f < 60; f++) {
+        step(w, still, STEP);
+        for (let i = 0; i < w.eventCount; i++)
+          if (w.events[i].type === Ev.BossSpawn) {
+            seen.push(w.events[i].x2);
+            at.push(Math.round(w.t));
+          }
+      }
     }
     expect(seen).toEqual([BOSS_TYPE, SWARM_TYPE, COLOSSUS_TYPE, REAPER_TYPE]);
     expect(at).toEqual([300, 600, 900, 1200]);
