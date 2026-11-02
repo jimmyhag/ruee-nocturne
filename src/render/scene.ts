@@ -343,7 +343,7 @@ export class GameScene {
           def.y + hop,
           ez,
           e.face,
-          s * 0.95,
+          s,
           col,
           Math.sin(now * 5 + e.bob) * 0.2,
           0,

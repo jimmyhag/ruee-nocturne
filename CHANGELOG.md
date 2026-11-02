@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## Non publié — phase 2, correctifs
+
+### Modifié
+
+- Squash & stretch fortement atténué après retour de Jimmy sur iPhone (« écrasé ou étiré ») : ennemis sans écrasement latéral et étirés à 1,04 (1,1), coup 1,12 (1,18), joueur 1,04 en saut (1,08) et 0,92 à l'atterrissage (0,85). Valeurs dans .
+
 ## Non publié — phase 2 « Game feel »
 
 Application de la checklist du skill `game-feel` : chaque coup porté produit flash, recul, son, chiffre et particules. `src/sim/balance.ts` intact ; les constantes de ressenti vivent dans `src/render/feel.ts`.

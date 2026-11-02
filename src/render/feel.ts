@@ -24,12 +24,12 @@ export const FEEL = {
     bossPullback: 0.1, // recul de 10 % pendant un boss
   },
   squash: {
-    jumpStretch: 1.08, // scale Y à l'envol
-    landSquash: 0.85, // scale Y à l'atterrissage
+    jumpStretch: 1.04, // scale Y à l'envol (1,08 du skill : « écrasé ou étiré » sur iPhone, retour de Jimmy)
+    landSquash: 0.92, // scale Y à l'atterrissage (0,85 du skill, atténué : même retour)
     landSpring: 0.12, // ressort amorti (s)
     shootR: 0.14, // tir : (1+r, 1−0,8r, 1+r), r de 0,14 → 0 en 140 ms (porté par Player.recoil côté sim)
-    enemyStretch: 1.1, // étirement des ennemis vers leur déplacement
-    hitScale: 1.18,
+    enemyStretch: 1.04, // étirement des ennemis vers leur déplacement (1,1 du skill, atténué ; plus d'écrasement latéral)
+    hitScale: 1.12, // 1,18 du skill, atténué
     gemPop: 0.12, // apparition des gemmes 0 → 1,3 → 1 en 120 ms
   },
   particles: {
