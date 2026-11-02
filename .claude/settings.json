@@ -1,0 +1,80 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npx vitest*)",
+      "Bash(npx playwright*)",
+      "Bash(npx tsc*)",
+      "Bash(npx eslint*)",
+      "Bash(npx prettier*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git checkout*)",
+      "Bash(git switch*)",
+      "Bash(git branch*)",
+      "Bash(git push origin *)",
+      "Bash(gh pr *)",
+      "Bash(gh run *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf *)",
+      "Bash(firebase deploy*)",
+      "Edit(prototype/**)",
+      "Write(prototype/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts|*.tsx) cd \"$CLAUDE_PROJECT_DIR\" && npx prettier --write \"$f\" >/dev/null 2>&1; npx tsc --noEmit -p tsconfig.json 2>&1 | head -20 ;; esac",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in */src/sim/*) if grep -nE \"from ['\\\"]three|document\\.|window\\.\" \"$f\" >/dev/null 2>&1; then echo 'ERREUR: src/sim/ ne doit importer ni three ni le DOM (PLAN.md §4.2)'; exit 2; fi ;; esac",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "c=$(jq -r '.tool_input.command // empty'); case \"$c\" in *\"npm run dev\"*|*\"vite preview\"*|*\"npm run preview\"*) if [ \"$(jq -r '.tool_input.run_in_background // false')\" != \"true\" ]; then echo 'Lance les serveurs avec run_in_background: true (CLAUDE.md)'; exit 2; fi ;; esac",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && if [ -n \"$(git status --porcelain 2>/dev/null)\" ]; then echo 'Rappel : modifications non commitées.'; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

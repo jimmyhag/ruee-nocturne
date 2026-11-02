@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-single/
+shots/
+/sim/
+playwright-report/
+.DS_Store
+coverage/
+test-results/
+.lighthouseci/
+.firebase/
+*.local
+# fichier personnel sans rapport avec le jeu
+all time frame.docx
+firebase-debug.log
