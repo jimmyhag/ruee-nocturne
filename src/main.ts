@@ -5,6 +5,7 @@ import type { Input } from './sim/types';
 import { World } from './sim/world';
 import { GameScene } from './render/scene';
 import { PAL } from './render/palette';
+import { FEEL, HitStop } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, fmtTime, renderCards } from './ui/hud';
@@ -35,8 +36,7 @@ let app: AppMode = 'menu';
 let world: World | null = null;
 let meta: Meta = { ...DEFAULT_META };
 let hurtT = 0;
-let timeScale = 1; // hit-stop
-let hitStopT = 0;
+const hitStop = new HitStop(); // borné : voir render/feel.ts
 let perfOn = location.search.includes('debug');
 const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
 
@@ -83,7 +83,8 @@ function startGame(variant?: number): void {
   scene.dmg.clear();
   scene.snapCamera(world);
   hurtT = 0;
-  timeScale = 1;
+  hitStop.reset();
+  hitStop.enabled = !meta.reducedFx;
   $('update').hidden = true; // jamais de bannière de mise à jour en jeu
   last = performance.now();
 }
@@ -176,6 +177,7 @@ $('soundBtn').onclick = () => {
 };
 $('fxBtn').onclick = () => {
   meta.reducedFx = !meta.reducedFx;
+  hitStop.enabled = !meta.reducedFx;
   $('fxBtn').textContent = 'Effets : ' + (meta.reducedFx ? 'réduits' : 'complets');
   saveMeta(meta);
 };
@@ -258,7 +260,7 @@ function handleEvents(w: World, now: number): void {
       case Ev.Kill:
         scene.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (6 * fxMul) | 0, 6, 7);
         audio.kill();
-        if (!meta.reducedFx) hitStop(0.04, 0.15);
+        hitStop.request(FEEL.hitStop.kill.duration, FEEL.hitStop.kill.scale);
         break;
       case Ev.BossKill:
         scene.particles.burst(e.x, e.y, e.z, PAL.enemy[3], (50 * fxMul) | 0, 10, 9);
@@ -266,7 +268,7 @@ function handleEvents(w: World, now: number): void {
         scene.shake = meta.reducedFx ? 0 : 0.6;
         hud.banner('Gardien vaincu');
         audio.kill(true);
-        hitStop(0.12, 0.1);
+        hitStop.request(FEEL.hitStop.boss.duration, FEEL.hitStop.boss.scale, 2);
         break;
       case Ev.Shoot:
         scene.particles.burst(e.x, e.y, e.z, PAL.proj, 3, 3, 2, false);
@@ -290,10 +292,8 @@ function handleEvents(w: World, now: number): void {
       case Ev.PlayerHurt:
         hurtT = 0.15;
         if (Math.random() < 0.12) audio.hurt();
-        if (!meta.reducedFx) {
-          scene.shake = Math.max(scene.shake, 0.25);
-          hitStop(0.06, 0.3);
-        }
+        if (!meta.reducedFx) scene.shake = Math.max(scene.shake, 0.25);
+        hitStop.request(FEEL.hitStop.hurt.duration, FEEL.hitStop.hurt.scale, 1);
         break;
       case Ev.Wave:
         hud.banner('La horde encercle !');
@@ -313,11 +313,6 @@ function handleEvents(w: World, now: number): void {
     }
   }
 }
-function hitStop(duration: number, scale: number): void {
-  hitStopT = Math.max(hitStopT, duration);
-  timeScale = Math.min(timeScale, scale);
-}
-
 // ---------- boucle principale : pas fixe + interpolation ----------
 let last = performance.now();
 let acc = 0;
@@ -330,6 +325,9 @@ let frameIdx = 0;
 let fpsT0 = 0;
 let fpsFrames = 0;
 let fps = 0;
+// ratio temps de jeu / temps réel sur la même fenêtre : vérifie que le hit-stop reste borné (≈ 0,9–1 attendu en jeu)
+let simT0 = 0;
+let simRatio = 1;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
@@ -339,12 +337,8 @@ function frame(nowMs: number): void {
   const t0 = performance.now();
 
   if (app === 'play' && world) {
-    // hit-stop : ralentit le temps de jeu (sim et rendu), déterminisme intact (pas fixe)
-    if (hitStopT > 0) {
-      hitStopT -= realDt;
-      if (hitStopT <= 0) timeScale = 1;
-    }
-    acc += realDt * timeScale;
+    // hit-stop borné : ralentit le temps réel injecté dans l'accumulateur, le pas fixe reste déterministe
+    acc += hitStop.advance(realDt);
     let n = 0;
     while (acc >= STEP && n < 4) {
       input.poll(inp);
@@ -366,7 +360,7 @@ function frame(nowMs: number): void {
 
   if (world && app !== 'menu') {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
-    scene.render(world, alpha, realDt * (app === 'play' ? timeScale : 0.2), now, hurtT > 0);
+    scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
   } else {
     scene.renderIdle(now, realDt);
@@ -378,10 +372,13 @@ function frame(nowMs: number): void {
     if (fpsT0 === 0) {
       fpsT0 = nowMs;
       fpsFrames = 0;
+      simT0 = world ? world.t : 0;
     } else if (nowMs - fpsT0 >= 2000) {
       fps = (fpsFrames * 1000) / (nowMs - fpsT0);
+      if (world && app === 'play') simRatio = ((world.t - simT0) * 1000) / (nowMs - fpsT0);
       fpsT0 = nowMs;
       fpsFrames = 0;
+      simT0 = world ? world.t : 0;
     }
     if (frameIdx % 10 === 0) {
       frameSorted.set(frameTimes);
@@ -391,6 +388,7 @@ function frame(nowMs: number): void {
       const info = scene.info();
       hud.perf(
         `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
+          `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'}\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}\n` : '') +
           `voix audio ${audio.voiceCount}/${audio.maxVoices}\n` +

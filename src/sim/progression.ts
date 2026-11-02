@@ -85,6 +85,7 @@ export function tickGems(w: World, dt: number): void {
   const P = w.player;
   for (let i = w.gemCount - 1; i >= 0; i--) {
     const g = w.gems[i];
+    g.age += dt;
     const dx = P.x - g.x,
       dz = P.z - g.z;
     const d2 = dx * dx + dz * dz;

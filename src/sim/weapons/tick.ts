@@ -1,6 +1,6 @@
 import { ENEMIES } from '../balance';
 import { hitEnemy } from '../combat';
-import { Ev } from '../types';
+import { Ev, HitSrc } from '../types';
 import type { World } from '../world';
 import { WEAPONS } from './defs';
 
@@ -100,7 +100,7 @@ export function tickWeapons(w: World, dt: number): void {
       S.auraT = s.period * P.cdMul;
       S.auraPulse = 1;
       const n = w.grid.query(w.enemies, P.x, P.z, s.r, MAX_ENEMY_R, hits);
-      for (let k = 0; k < n; k++) hitEnemy(w, hits[k], s.dmg, 1.5, P.x, P.z);
+      for (let k = 0; k < n; k++) hitEnemy(w, hits[k], s.dmg, 1.5, P.x, P.z, HitSrc.Aura);
       w.emit(Ev.AuraPulse, P.x, 0, P.z, s.r);
     }
   }
@@ -120,7 +120,7 @@ export function tickWeapons(w: World, dt: number): void {
         const e = w.enemies[hits[k]];
         if (w.t - e.lastBlade > 0.4) {
           e.lastBlade = w.t;
-          hitEnemy(w, hits[k], s.dmg, 5, P.x, P.z);
+          hitEnemy(w, hits[k], s.dmg, 5, P.x, P.z, HitSrc.Lames);
         }
       }
     }
@@ -155,7 +155,7 @@ export function tickWeapons(w: World, dt: number): void {
           const e = w.enemies[cur];
           const cy = ENEMIES[e.type].y;
           w.emit(Ev.Bolt, px, py, pz, 0, e.x, cy, e.z);
-          hitEnemy(w, cur, s.dmg, 2, e.x + 0.01, e.z);
+          hitEnemy(w, cur, s.dmg, 2, e.x + 0.01, e.z, HitSrc.Foudre);
           px = e.x;
           py = cy;
           pz = e.z;
@@ -201,7 +201,7 @@ export function tickProjectiles(w: World, dt: number): void {
       else if (p.hit1 < 0) p.hit1 = id;
       else p.hit2 = id;
       p.pierce--;
-      hitEnemy(w, j, p.dmg, 2.5, p.x - p.vx, p.z - p.vz);
+      hitEnemy(w, j, p.dmg, 2.5, p.x - p.vx, p.z - p.vz, HitSrc.Orbe);
     }
     if (p.life <= 0 || p.pierce <= 0) w.freeProj(i);
   }
