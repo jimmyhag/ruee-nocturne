@@ -6,7 +6,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 ### Modifié
 
-- Squash & stretch fortement atténué après retour de Jimmy sur iPhone (« écrasé ou étiré ») : ennemis sans écrasement latéral et étirés à 1,04 (1,1), coup 1,12 (1,18), joueur 1,04 en saut (1,08) et 0,92 à l'atterrissage (0,85). Valeurs dans .
+- Squash & stretch retiré à la demande de Jimmy (iPhone : ennemis et joueur « écrasés ou étirés ») : plus d'étirement ni d'écrasement des ennemis, du joueur en saut ou à l'atterrissage, ni de grossissement au coup. Le code reste, les valeurs sont neutres dans `src/render/feel.ts` ; le coup se lit au flash blanc, aux particules et au chiffre. Le pop des gemmes et l'écrasement au tir (phase 1) sont conservés.
 
 ## Non publié — phase 2 « Game feel »
 
