@@ -36,6 +36,10 @@ Projet Firebase : `ruee-nocturne` (créé le 2 nov. 2026, site Hosting par défa
    ```
 
    ```bash
+   gcloud projects add-iam-policy-binding ruee-nocturne --member serviceAccount:github-action-hosting@ruee-nocturne.iam.gserviceaccount.com --role roles/serviceusage.serviceUsageViewer
+   ```
+
+   ```bash
    gcloud iam service-accounts keys create "$TEMP/firebase-sa.json" --iam-account github-action-hosting@ruee-nocturne.iam.gserviceaccount.com
    ```
 
@@ -47,7 +51,7 @@ Projet Firebase : `ruee-nocturne` (créé le 2 nov. 2026, site Hosting par défa
    rm "$TEMP/firebase-sa.json"
    ```
 
-   Les trois rôles sont ceux documentés par `FirebaseExtended/action-hosting-deploy` (Hosting Admin pour déployer, API Keys Viewer et Cloud Run Viewer pour les preview channels). La clé ne doit jamais être commitée ni collée dans une conversation : seul `gh secret set` la lit.
+   Les trois premiers rôles sont ceux documentés par `FirebaseExtended/action-hosting-deploy` (Hosting Admin pour déployer, API Keys Viewer et Cloud Run Viewer pour les preview channels). Service Usage Viewer est nécessaire en plus : sans lui, firebase-tools échoue en 403 sur `serviceusage.services.get` (constaté le 2 nov. 2026). Fait pour `ruee-nocturne` le 2 nov. 2026 : compte `github-action-hosting`, secret et variable posés. La clé ne doit jamais être commitée ni collée dans une conversation : seul `gh secret set` la lit.
 
    Alternative sans `gcloud` : `firebase init hosting:github` (interactif, crée le compte de service et pose le secret lui-même ; refuser l'écriture des workflows proposés, les nôtres existent déjà).
 
