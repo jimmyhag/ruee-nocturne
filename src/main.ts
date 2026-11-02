@@ -118,7 +118,6 @@ function toMenu(): void {
   $('hud').hidden = true;
   $('keys').hidden = true;
   $('touch').hidden = true;
-  audio.stopMusic();
   updateBestLine();
   showUpdateBanner();
 }
@@ -188,7 +187,6 @@ function gameOver(): void {
   scene.particles.burst(world.player.x, 1, world.player.z, PAL.accent, 30, 8, 8);
   if (!reducedFx()) scene.shake = 0.5;
   audio.death();
-  audio.stopMusic();
   setTimeout(() => {
     if (app !== 'over') return;
     showOnly('over');
@@ -427,8 +425,6 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.LevelUp) openLevelUp();
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);
-    // musique : intensité = min(1, ennemis / 120), 1 pendant un boss (skill game-feel §7)
-    audio.setIntensity(world.bossIndex >= 0 ? 1 : Math.min(1, world.enemyCount / 120), realDt);
   } else if (app === 'levelup') {
     // clavier / manette : touches 1-3 (parité avec le tap sur la carte)
     const pick = input.takePick();
