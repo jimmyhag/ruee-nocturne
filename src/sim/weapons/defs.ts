@@ -42,6 +42,13 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   },
 };
 export const WEAPON_KEYS = Object.keys(WEAPONS) as WeaponKey[];
+// stats(lv) est appelée à chaque step (sim) et à chaque frame (rendu) : mémoïsée par niveau, le résultat est
+// partagé et ne doit jamais être modifié par l'appelant.
+for (const k of WEAPON_KEYS) {
+  const raw = WEAPONS[k].stats;
+  const cache: Record<string, number>[] = [];
+  WEAPONS[k].stats = (lv) => (cache[lv] ??= raw(lv));
+}
 
 export interface PassiveDef {
   name: string;

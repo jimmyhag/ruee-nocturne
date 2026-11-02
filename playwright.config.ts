@@ -2,7 +2,7 @@
 // Deux projets : desktop 1280×720 et mobile iPhone 13 tactile, tous deux sur Chromium (SwiftShader en headless).
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4173;
+const PORT = +(process.env.PW_PORT ?? 4173); // PW_PORT : autre port quand un preview tourne déjà (worktrees en parallèle)
 const CHROMIUM_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 
 export default defineConfig({

@@ -86,6 +86,7 @@ export const ENEMIES: EnemyDef[] = [
   { name: 'Gardien', hp: 900, speed: 2.3, r: 2.0, dmg: 40, xp: 40, y: 2.2, kbMul: 0, boss: true },
 ];
 export const BOSS_TYPE = 3;
+export const ELITE_TYPE = 2; // Brute : seul « élite » de la V1 (gerbe, shake et son de kill renforcés)
 export const ENEMY_SEPARATION = 3.2;
 export const KNOCKBACK_DECAY = 0.004; // facteur par seconde
 

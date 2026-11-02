@@ -27,6 +27,8 @@ export function debugEnabled(): boolean {
 export interface DebugRuntime {
   /** Mode stress : maintient `stressTarget` ennemis vivants, joueur invincible. Appelé une fois par frame en jeu. */
   onFrame(world: World): void;
+  /** Facteur appliqué au temps réel de la boucle (captures : 0 fige sim, particules et caméra sans écran de pause). */
+  speed: number;
 }
 
 export function installDebugHooks(host: DebugHost): DebugRuntime | null {
@@ -79,6 +81,25 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     seed(n: number): void {
       host.start(n);
     },
+    /** Pose un ennemi de type `type` à `dist` u avec `hp` PV : la prochaine arme qui le touche le tue (captures de kill). */
+    weak(type: number, dist = 2, hp = 1): void {
+      const world = w();
+      if (!world) return;
+      const i = spawnEnemy(world, type, 0, dist);
+      if (i >= 0) world.enemies[i].hp = hp;
+    },
+    /** Rapproche le boss vivant à `dist` u devant le joueur (captures). */
+    pullBoss(dist = 6): void {
+      const world = w();
+      if (!world || world.bossIndex < 0) return;
+      const b = world.enemies[world.bossIndex];
+      b.x = b.px = world.player.x;
+      b.z = b.pz = world.player.z - dist;
+    },
+    /** Vitesse de la boucle : 1 normal, 0 figé (sim, particules, caméra). */
+    speed(s: number): void {
+      runtime.speed = Math.max(0, s);
+    },
     /** Fixe le nombre d'ennemis à maintenir (0 = arrêt). Équivaut à `?stress=n`. */
     stress(n: number): void {
       stressTarget = Math.min(CAPS.enemies, Math.max(0, n | 0));
@@ -90,6 +111,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
   };
 
   const runtime: DebugRuntime = {
+    speed: 1,
     onFrame(world) {
       if (stressTarget <= 0) return;
       if (stressWorld !== world) {

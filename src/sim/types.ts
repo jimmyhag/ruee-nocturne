@@ -45,6 +45,15 @@ export interface Gem {
   v: number;
   mag: boolean;
   s: number;
+  age: number; // s depuis l'apparition (rendu : pop 0 → 1,3 → 1)
+}
+
+/** Source d'un coup (Ev.Hit, champ x2) : couleur des particules et du son côté rendu. */
+export const enum HitSrc {
+  Orbe = 0,
+  Aura,
+  Lames,
+  Foudre,
 }
 
 export const enum Ev {
@@ -71,9 +80,9 @@ export interface GameEvent {
   x: number;
   y: number;
   z: number;
-  x2: number;
-  y2: number;
-  z2: number;
+  x2: number; // Hit : source (HitSrc) · Bolt : point d'arrivée
+  y2: number; // Hit : direction du recul (x) · Bolt : point d'arrivée
+  z2: number; // Hit : direction du recul (z) · Bolt : point d'arrivée
   v: number; // valeur (dégâts, xp, type d'ennemi…)
 }
 

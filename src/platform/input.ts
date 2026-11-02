@@ -131,6 +131,13 @@ export class InputManager {
     this.pickQueued = -1;
   }
 
+  /** En mode level-up : index de carte demandé au clavier (1-4) ou à la manette, −1 sinon. Consomme la demande. */
+  takePick(): number {
+    const p = this.pickQueued;
+    this.pickQueued = -1;
+    return p;
+  }
+
   /** En mode level-up, « saut » (A / Espace) vaut « carte 1 ». */
   takePickFromJump(): boolean {
     if (this.jumpQueued) {

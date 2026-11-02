@@ -223,7 +223,7 @@ function makeProj(): Projectile {
   return { alive: false, x: 0, y: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, age: 0, dmg: 0, pierce: 1, hit0: -1, hit1: -1, hit2: -1 };
 }
 function makeGem(): Gem {
-  return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0 };
+  return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };
 }
 
 export const NO_INPUT: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
