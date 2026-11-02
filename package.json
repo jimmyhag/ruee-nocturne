@@ -40,5 +40,8 @@
     "vite-plugin-pwa": "^2.0.0",
     "vite-plugin-singlefile": "^2.3.4",
     "vitest": "^5.0.5"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npm run lint && npm run typecheck && npm test"
   }
 }
