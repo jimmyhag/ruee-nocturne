@@ -34,6 +34,17 @@ async function freezeAfterKill(page: Page, afterMs: number): Promise<void> {
   );
 }
 
+/** Prend la carte 1 au clavier tant qu'un choix est affiché (niveaux en attente, coffres), puis attend le jeu. */
+async function pickUntilPlay(page: Page): Promise<void> {
+  for (let i = 0; i < 12; i++) {
+    const app = await page.evaluate(() => (window as any).__game.app as string);
+    if (app === 'play') return;
+    if (app === 'levelup') await page.keyboard.press('Digit1');
+    await page.waitForTimeout(250);
+  }
+  await page.waitForFunction(() => (window as any).__game.app === 'play', null, { timeout: 3000 });
+}
+
 test('menu, jeu à 3 min, montée de niveau, mort', async ({ page }, info) => {
   const p = info.project.name;
   await openGame(page);
@@ -86,17 +97,12 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   await expect(page.locator('#levelup')).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot(shot('levelup-feel', p));
-  await page.keyboard.press('Digit1'); // parité clavier : touche 1 = carte 1
-  await page.waitForFunction(() => (window as any).__game.app === 'play', null, { timeout: 3000 });
+  await pickUntilPlay(page); // parité clavier : touche 1 = carte 1 (plusieurs niveaux ou un coffre peuvent être en attente)
 
   // boss : saut à 4:59,5 puis la boucle réelle fait apparaître le Gardien (bannière, son, shake passent par
   // handleEvents, pas par warp) ; ramené à 6 u devant le joueur
   await page.evaluate(() => (window as any).__game.debug.warp(299.5 - (window as any).__game.world.t));
-  const appNow = await page.evaluate(() => (window as any).__game.app as string);
-  if (appNow === 'levelup') {
-    await page.keyboard.press('Digit1');
-    await page.waitForFunction(() => (window as any).__game.app === 'play', null, { timeout: 3000 });
-  }
+  await pickUntilPlay(page);
   await page.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 8000 });
   await page.evaluate(() => (window as any).__game.debug.pullBoss(6));
   await page.waitForTimeout(400);
