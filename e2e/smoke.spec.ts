@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { DEBUG_URL, collectConsoleErrors, openGame } from './helpers';
+import { collectConsoleErrors, openGame } from './helpers';
 
 test('la page charge, une partie démarre, le rendu tient le budget', async ({ page }) => {
   const errors = collectConsoleErrors(page);
@@ -33,18 +33,28 @@ test('la page charge, une partie démarre, le rendu tient le budget', async ({ p
 test('le service worker est enregistré et la page se recharge hors ligne', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'service worker : Chromium seulement');
   await openGame(page);
-  await page.waitForFunction(async () => {
-    const reg = await navigator.serviceWorker.getRegistration();
-    return !!reg?.active;
-  });
-  // laisse le précache se remplir
-  await page.waitForFunction(async () => {
-    const keys = await caches.keys();
-    return keys.some((k) => k.startsWith('workbox-precache'));
-  });
-  await context.setOffline(true);
-  await page.goto(DEBUG_URL);
+  await page.waitForFunction(
+    async () => {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const keys = await caches.keys();
+      return reg?.active?.state === 'activated' && keys.some((k) => k.startsWith('workbox-precache'));
+    },
+    null,
+    { polling: 200 },
+  );
+  // second chargement : la page est contrôlée par le service worker (sans clients.claim, il faut une navigation)
+  let controlled = false;
+  for (let tries = 0; tries < 3 && !controlled; tries++) {
+    await page.reload();
+    await page.waitForTimeout(500);
+    controlled = await page.evaluate(() => !!navigator.serviceWorker.controller);
+  }
+  expect(controlled, 'page contrôlée par le service worker').toBe(true);
+  // « hors ligne » : tout ce qui atteint le réseau est coupé. Les requêtes servies par le service worker
+  // depuis le précache ne passent pas par ici (context.setOffline coupe aussi la navigation avant le SW).
+  await context.route('**/*', (route) => route.abort('internetdisconnected'));
+  await page.reload();
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await expect(page.locator('#playBtn')).toBeVisible();
-  await context.setOffline(false);
+  await context.unroute('**/*');
 });
