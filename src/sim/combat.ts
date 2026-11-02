@@ -1,5 +1,5 @@
-import { BOSS_TYPE, ENEMIES, XP } from './balance';
-import { Ev, HitSrc } from './types';
+import { ELITE, ENEMIES, GOLD, REAPER_TYPE, XP } from './balance';
+import { Ev, HitSrc, Mode } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
 
@@ -26,7 +26,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
     e.kx += ux * k;
     e.kz += uz * k;
   }
-  w.emit(Ev.Hit, e.x, def.y, e.z, dealt, src, ux, uz);
+  w.emit(Ev.Hit, e.x, e.y, e.z, dealt, src, ux, uz);
   if (e.hp <= 0) {
     killEnemy(w, i);
     return true;
@@ -38,13 +38,21 @@ export function killEnemy(w: World, i: number): void {
   const e = w.enemies[i];
   const def = ENEMIES[e.type];
   w.kills++;
-  dropGem(w, e.x, e.z, def.xp);
-  if (e.type === BOSS_TYPE) {
+  const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
+  w.gold += GOLD.perKill * goldMul * w.player.goldMul;
+  dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul : 1));
+  if (def.boss) {
     w.player.hp = w.player.maxHp;
     for (let g = 0; g < w.gemCount; g++) w.gems[g].mag = true;
-    w.emit(Ev.BossKill, e.x, def.y, e.z, e.type);
+    dropChest(w, e.x, e.z, true);
+    w.emit(Ev.BossKill, e.x, e.y, e.z, e.type);
+    if (e.type === REAPER_TYPE) {
+      w.mode = Mode.Won;
+      w.emit(Ev.Victory, e.x, e.y, e.z, w.t);
+    }
   } else {
-    w.emit(Ev.Kill, e.x, def.y, e.z, e.type);
+    if (e.elite) dropChest(w, e.x, e.z, false);
+    w.emit(Ev.Kill, e.x, e.y, e.z, e.type, e.elite ? 1 : 0);
   }
   // marque mort ; le retrait du pool se fait en fin de step (indices stables pendant le step)
   e.alive = false;
@@ -67,6 +75,20 @@ export function dropGem(w: World, x: number, z: number, v: number): void {
   g.age = 0;
 }
 
+/** Coffre au sol (élite : 1/3/5 cartes, boss : 3–5). Pool plein : le plus ancien est remplacé. */
+export function dropChest(w: World, x: number, z: number, boss: boolean): void {
+  let c = w.allocChest();
+  if (!c) {
+    let oldest = 0;
+    for (let i = 1; i < w.chestCount; i++) if (w.chests[i].age > w.chests[oldest].age) oldest = i;
+    c = w.chests[oldest];
+  }
+  c.x = x;
+  c.z = z;
+  c.age = 0;
+  c.boss = boss;
+}
+
 /** Retire du pool tous les ennemis marqués morts (swap-remove, ordre non préservé). */
 export function compactEnemies(w: World): void {
   for (let i = w.enemyCount - 1; i >= 0; i--) {
@@ -78,5 +100,5 @@ export function compactEnemies(w: World): void {
 }
 
 export function enemyY(e: Enemy): number {
-  return ENEMIES[e.type].y;
+  return e.y;
 }

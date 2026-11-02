@@ -11,8 +11,8 @@ import { PASSIVES, PASSIVE_KEYS, WEAPONS, WEAPON_KEYS } from './defs';
 const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
 
 describe('fiches d’armes', () => {
-  it('quatre armes, stats définies et textes non vides à chaque niveau', () => {
-    expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre']);
+  it('six armes, stats définies et textes non vides à chaque niveau', () => {
+    expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines']);
     for (const k of WEAPON_KEYS) {
       const d = WEAPONS[k];
       expect(d.name.length).toBeGreaterThan(2);
@@ -82,8 +82,9 @@ describe('comportement sur un monde minimal', () => {
     const i = spawnEnemy(w, 0, 0, 5);
     const id = w.enemies[i].id;
     let hit = 0;
+    const walk: Input = { ...still, mz: 1 }; // les Mines se posent sur le passage : le joueur marche vers l'ennemi
     for (let f = 0; f < steps; f++) {
-      step(w, still, STEP);
+      step(w, weapon === 'mines' ? walk : still, STEP);
       for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit) hit++;
     }
     let dead = true;
@@ -145,6 +146,8 @@ describe('feedback de chaque coup', () => {
     aura: HitSrc.Aura,
     lames: HitSrc.Lames,
     foudre: HitSrc.Foudre,
+    boomerang: HitSrc.Boomerang,
+    mines: HitSrc.Mines,
   };
   it.each(WEAPON_KEYS)('%s seule, 30 s : chaque Hit porte sa source, des dégâts et un recul unitaire', (k) => {
     const w = new World(21);
@@ -153,8 +156,11 @@ describe('feedback de chaque coup', () => {
     w.player.maxHp = w.player.hp = 1e9;
     w.player.need = 1e9; // jamais de montée de niveau : l'arme reste seule
     let hits = 0;
+    const circle: Input = { ...still };
     for (let f = 0; f < 1800; f++) {
-      step(w, still, STEP);
+      circle.mx = Math.cos(f / 90); // en mouvement : les Mines se posent sur le passage
+      circle.mz = Math.sin(f / 90);
+      step(w, circle, STEP);
       for (let e = 0; e < w.eventCount; e++) {
         const ev = w.events[e];
         if (ev.type !== Ev.Hit) continue;
@@ -164,7 +170,7 @@ describe('feedback de chaque coup', () => {
         expect(ev.y2 * ev.y2 + ev.z2 * ev.z2).toBeCloseTo(1, 6);
       }
     }
-    expect(hits).toBeGreaterThan(20);
+    expect(hits).toBeGreaterThan(5); // le seuil mesure le feedback, pas le DPS (boomerang et mines dépendent du mouvement)
   });
   it('un ennemi touché flashe (0,1 s) et recule, sauf le boss', () => {
     const w = new World(22);

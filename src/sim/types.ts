@@ -2,11 +2,13 @@ export interface Enemy {
   alive: boolean;
   id: number; // identifiant unique (les indices bougent au compactage)
   type: number;
+  elite: boolean; // variante dorée : ×6 PV, ×3 XP, lâche un coffre
   r: number;
   x: number;
   z: number;
   px: number; // position au step précédent (interpolation du rendu)
   pz: number;
+  y: number; // hauteur (Volant : vol / plongée ; les autres : 0)
   hp: number;
   max: number;
   kx: number; // vitesse de recul
@@ -14,13 +16,28 @@ export interface Enemy {
   face: number;
   flash: number;
   lastBlade: number;
+  lastBoom: number; // dernier coup de boomerang (un par passage)
   spd: number;
   dmgMul: number;
   bob: number;
+  // scripts (Volant, Cracheur, boss) : état et minuteur, cible mémorisée
+  state: number;
+  timer: number;
+  aim: number; // Cracheur : progression de la visée 0 → 1 (ligne de visée côté rendu)
+  tx: number;
+  tz: number;
+  phase2: boolean; // boss : phase à 50 % PV déclenchée
+}
+
+export const enum ProjKind {
+  Orbe = 0,
+  Boomerang,
+  Mine,
 }
 
 export interface Projectile {
   alive: boolean;
+  kind: ProjKind;
   x: number;
   y: number;
   z: number;
@@ -36,6 +53,29 @@ export interface Projectile {
   hit0: number;
   hit1: number;
   hit2: number;
+  ret: boolean; // boomerang : phase de retour
+  r: number; // mine : rayon d'explosion ; boomerang : portée
+  armed: boolean; // mine : amorcée (explose au prochain step)
+}
+
+export const enum ShotKind {
+  Spit = 0, // crachat du Cracheur : au sol, lent, esquivable
+  Zone, // Colosse : cercle rouge immobile qui explose à la fin de `life`
+}
+
+/** Projectile ennemi : ne touche jamais un joueur en l'air (airborneSafeY). */
+export interface Shot {
+  alive: boolean;
+  kind: ShotKind;
+  r: number; // rayon de l'impact
+  x: number;
+  z: number;
+  px: number;
+  pz: number;
+  vx: number;
+  vz: number;
+  life: number;
+  dmg: number;
 }
 
 export interface Gem {
@@ -48,12 +88,23 @@ export interface Gem {
   age: number; // s depuis l'apparition (rendu : pop 0 → 1,3 → 1)
 }
 
+/** Coffre lâché par une élite ou un boss : 1, 3 ou 5 cartes, évolution garantie si disponible. */
+export interface Chest {
+  alive: boolean;
+  x: number;
+  z: number;
+  age: number;
+  boss: boolean; // coffre de boss : 3 à 5 cartes
+}
+
 /** Source d'un coup (Ev.Hit, champ x2) : couleur des particules et du son côté rendu. */
 export const enum HitSrc {
   Orbe = 0,
   Aura,
   Lames,
   Foudre,
+  Boomerang,
+  Mines,
 }
 
 export const enum Ev {
@@ -68,11 +119,20 @@ export const enum Ev {
   LevelUp,
   PlayerHurt,
   Wave,
-  BossSpawn,
+  BossSpawn, // v = index du boss (1..), x2 = type
   Bolt, // éclair : (x,y,z) → (x2,y2,z2)
   AuraPulse,
   Death,
-  Evolve,
+  Evolve, // v = index de l'arme évoluée (WEAPON_KEYS)
+  Chest, // coffre ramassé : v = nombre de cartes
+  Telegraph, // cercle rouge au sol : v = rayon, x2 = durée
+  BossRoar, // charge du Gardien : télégraphe
+  Spit, // crachat : (x,z) → direction (x2,z2)
+  Dive, // Volant : début de plongée
+  Throw, // boomerang lancé
+  MineBlast, // v = rayon
+  ZoneBlast, // Colosse : fin d'un cercle rouge, v = rayon
+  Victory, // Faucheur vaincu
 }
 
 export interface GameEvent {
@@ -98,13 +158,14 @@ export const enum Mode {
   Play = 0,
   LevelUp = 1,
   Dead = 2,
+  Won = 3, // Faucheur vaincu
 }
 
-export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre';
-export type PassiveKey = 'vitesse' | 'coeur' | 'regen' | 'aimant' | 'force' | 'cadence';
+export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines';
+export type PassiveKey = 'vitesse' | 'coeur' | 'regen' | 'aimant' | 'force' | 'cadence' | 'trefle' | 'bourse';
 
 export interface Card {
-  kind: 'w' | 's' | 'heal';
+  kind: 'w' | 's' | 'heal' | 'e'; // e : évolution d'arme (key = arme)
   key: WeaponKey | PassiveKey | '';
   lv: number;
 }
@@ -127,6 +188,8 @@ export interface Player {
   magnet: number;
   dmgMul: number;
   cdMul: number;
+  luck: number; // Trèfle : niveaux
+  goldMul: number; // Bourse
   level: number;
   xp: number;
   need: number;

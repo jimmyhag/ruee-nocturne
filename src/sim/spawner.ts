@@ -1,26 +1,35 @@
-import { BOSS_TYPE, CAPS, ENEMIES, SPAWN } from './balance';
+import { BOSSES, CAPS, ELITE, ENEMIES, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
 const TAU = Math.PI * 2;
 
-export function spawnEnemy(w: World, type: number, ang: number, dist: number): number {
+export function spawnEnemy(w: World, type: number, ang: number, dist: number, elite = false): number {
   const e = w.allocEnemy();
   if (!e) return -1;
   const def = ENEMIES[type];
-  const scale = SPAWN.hpScale(w.t) * (type === BOSS_TYPE ? 1 + w.bossCount * 0.8 : 1);
+  let scale = SPAWN.hpScale(w.t) * (def.boss ? 1 + w.bossCount * 0.8 : 1);
+  if (elite) scale *= ELITE.hpMul;
   e.type = type;
-  e.r = def.r;
+  e.elite = elite;
+  e.r = def.r * (elite ? ELITE.rMul : 1);
   e.x = e.px = w.player.x + Math.sin(ang) * dist;
   e.z = e.pz = w.player.z + Math.cos(ang) * dist;
+  e.y = type === VOLANT_TYPE ? VOLANT.hover : def.y; // Volant : hauteur de vol, les autres : hauteur de rendu
   e.hp = e.max = def.hp * scale;
   e.kx = e.kz = 0;
   e.flash = 0;
   e.lastBlade = -9;
+  e.lastBoom = -9;
   e.face = 0;
   e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.t);
   e.dmgMul = SPAWN.dmgScale(w.t);
   e.bob = w.rng.range(0, TAU);
+  e.state = 0;
+  e.timer = type === VOLANT_TYPE ? w.rng.range(0.5, VOLANT.divePeriod) : 0; // plongées désynchronisées
+  e.aim = 0;
+  e.tx = e.tz = 0;
+  e.phase2 = false;
   return w.enemyCount - 1;
 }
 
@@ -50,19 +59,36 @@ export function tickSpawner(w: World, dt: number): void {
       spawnEnemy(w, type, w.rng.range(0, TAU), w.rng.range(SPAWN.ringMin, SPAWN.ringMax));
     }
   }
+  // élite : variante dorée d'un type de masse, lâche un coffre
+  if (t >= w.nextElite) {
+    w.nextElite += SPAWN.elitePeriod;
+    const type = SPAWN.pick(t, w.rng.next());
+    spawnEnemy(w, type === 5 ? 2 : type, w.rng.range(0, TAU), SPAWN.ringMin, true); // jamais un Cracheur élite (il fuit)
+  }
   if (t >= w.nextWave) {
     w.nextWave += SPAWN.wavePeriod;
     const n = SPAWN.waveCount(t);
     for (let i = 0; i < n && w.enemyCount < CAPS.enemies; i++) spawnEnemy(w, t > SPAWN.waveDardAfter ? 1 : 0, (i / n) * TAU, SPAWN.waveDist);
     w.emit(Ev.Wave, w.player.x, 0, w.player.z, n);
   }
-  if (t >= w.nextBoss) {
+  if (t >= w.nextBoss && w.nextBoss <= SPAWN.bossPeriod * BOSSES.length) {
     w.nextBoss += SPAWN.bossPeriod;
-    const i = spawnEnemy(w, BOSS_TYPE, w.rng.range(0, TAU), SPAWN.bossDist);
+    const type = BOSSES[Math.min(w.bossCount, BOSSES.length - 1)];
+    if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0); // un boss a toujours sa place
+    const i = spawnEnemy(w, type, w.rng.range(0, TAU), SPAWN.bossDist);
     if (i >= 0) {
       w.bossIndex = i;
       w.bossCount++;
-      w.emit(Ev.BossSpawn, w.enemies[i].x, 2, w.enemies[i].z, w.bossCount);
+      w.emit(Ev.BossSpawn, w.enemies[i].x, 2, w.enemies[i].z, w.bossCount, type);
+    }
+  }
+  if (t >= SPAWN.reaperAt && !w.reaperSpawned) {
+    w.reaperSpawned = true;
+    if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0);
+    const i = spawnEnemy(w, REAPER_TYPE, w.rng.range(0, TAU), SPAWN.bossDist);
+    if (i >= 0) {
+      w.bossIndex = i;
+      w.emit(Ev.BossSpawn, w.enemies[i].x, 2, w.enemies[i].z, w.bossCount + 1, REAPER_TYPE);
     }
   }
 }
