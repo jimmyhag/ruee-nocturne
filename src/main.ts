@@ -10,6 +10,7 @@ import { AudioBus } from './platform/audio';
 import { Hud, fmtTime, renderCards } from './ui/hud';
 import { loadMeta, saveMeta, DEFAULT_META } from './meta/save';
 import type { Meta } from './meta/save';
+import { installDebugHooks } from './debug';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const VERSION = '0.1.0';
@@ -59,11 +60,12 @@ function updateBestLine(): void {
 const DECOR_SEED = 20261102;
 let decorBuilt = false;
 
-function startGame(): void {
+function startGame(variant?: number): void {
   audio.init();
   world = new World(DECOR_SEED); // même décor à chaque run ; la variété vient du spawner (rng avancé par le temps réel ci-dessous)
   // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
-  const skips = (Date.now() % 1000) | 0;
+  // `variant` (debug/tests) remplace l'horloge : partie reproductible, décor identique
+  const skips = (variant ?? Date.now() % 1000) | 0;
   for (let i = 0; i < skips; i++) world.rng.next();
   startRun(world);
   if (!decorBuilt) {
@@ -154,9 +156,9 @@ function gameOver(): void {
 }
 
 // ---------- boutons ----------
-$('playBtn').onclick = startGame;
-$('againBtn').onclick = startGame;
-$('restartBtn').onclick = startGame;
+$('playBtn').onclick = () => startGame();
+$('againBtn').onclick = () => startGame();
+$('restartBtn').onclick = () => startGame();
 $('menuBtn').onclick = toMenu;
 $('quitBtn').onclick = toMenu;
 $('pauseBtn').onclick = pauseGame;
@@ -370,31 +372,19 @@ hud.showPerf(perfOn);
 requestAnimationFrame(frame);
 
 // hooks de debug / tests (jamais en prod sans ?debug=1)
-if (import.meta.env.DEV || location.search.includes('debug')) {
-  (window as unknown as { __game: unknown }).__game = {
-    get world() {
-      return world;
-    },
-    get app() {
-      return app;
-    },
-    start: startGame,
-    scene,
-    warp(seconds: number) {
-      if (!world) return;
-      const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
-      const maxHp = world.player.maxHp;
-      world.player.maxHp = world.player.hp = 1e9; // la régén. clampe sur maxHp : il faut lever les deux
-      const target = world.t + seconds;
-      while (world.t < target && world.mode !== Mode.Dead) step(world, still, STEP);
-      world.player.maxHp = maxHp;
-      world.player.hp = maxHp;
-      hud.kit(world);
-      if (world.mode === Mode.LevelUp) openLevelUp();
-    },
-    kill() {
-      if (world) world.player.hp = 0;
-    },
-    ready: true,
-  };
-}
+installDebugHooks({
+  get world() {
+    return world;
+  },
+  get app() {
+    return app;
+  },
+  scene,
+  start: startGame,
+  afterSimJump() {
+    if (!world) return;
+    hud.kit(world);
+    if (world.mode === Mode.LevelUp) openLevelUp();
+  },
+  audioVoices: () => audio.voiceCount,
+});

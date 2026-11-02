@@ -8,6 +8,10 @@ export class AudioBus {
   private voices = 0;
   private readonly MAX_VOICES = 24;
   muted = false;
+  /** Voix SFX actives (onglet perf, tests : ne doit jamais dépasser MAX_VOICES). */
+  get voiceCount(): number {
+    return this.voices;
+  }
   private lastGem = 0;
   private gemCombo = 0;
   private hitAcc = 0;
