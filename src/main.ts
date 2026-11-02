@@ -1,4 +1,4 @@
-import { STEP } from './sim/balance';
+import { ELITE_TYPE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode } from './sim/types';
 import type { Input } from './sim/types';
@@ -298,9 +298,17 @@ function handleEvents(w: World, now: number): void {
         audio.hit(e.v, now);
         break;
       case Ev.Kill:
-        if (e.v === 2) {
+        if (e.v === ELITE_TYPE) {
           // élite (Brute) : grosse gerbe ennemi + or, shake
-          scene.particles.burst(e.x, e.y, e.z, PAL.enemy[2], (PT.elite.n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
+          scene.particles.burst(
+            e.x,
+            e.y,
+            e.z,
+            PAL.enemy[ELITE_TYPE],
+            (PT.elite.n * 0.5 * fx) | 0,
+            PT.elite.speed,
+            PT.elite.up,
+          );
           scene.particles.burst(e.x, e.y, e.z, PAL.gold, (PT.elite.n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
           if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.elite);
         } else

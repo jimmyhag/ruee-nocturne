@@ -171,8 +171,10 @@ export class Bolts {
         continue;
       }
       for (let k = 0; k < 6 && v < BOLT_CAP - 2; k++) {
-        this.pos.set(b.pts.subarray(k * 3, k * 3 + 3), v * 3);
-        this.pos.set(b.pts.subarray(k * 3 + 3, k * 3 + 6), v * 3 + 3);
+        // copie indexée (pas de subarray : zéro vue TypedArray par frame)
+        const src = k * 3,
+          dst = v * 3;
+        for (let c = 0; c < 6; c++) this.pos[dst + c] = b.pts[src + c];
         v += 2;
       }
     }
@@ -188,6 +190,7 @@ interface DmgItem {
   y: number;
   z: number;
   v: number;
+  op: number; // dernière opacité écrite (évite une écriture DOM par frame tant que le chiffre est opaque)
 }
 const DMG_CAP = 48;
 const MERGE_SLOTS = 16;
@@ -208,7 +211,7 @@ export class DamageNumbers {
       const el = document.createElement('span');
       el.hidden = true;
       layer.appendChild(el);
-      this.items.push({ el, life: 0, x: 0, y: 0, z: 0, v: 0 });
+      this.items.push({ el, life: 0, x: 0, y: 0, z: 0, v: 0, op: 1 });
     }
   }
   add(x: number, y: number, z: number, v: number): void {
@@ -235,6 +238,10 @@ export class DamageNumbers {
     d.v = v;
     d.el.textContent = String(Math.round(v));
     d.el.className = v >= D.bigAbove ? 'big' : '';
+    if (d.op !== 1) {
+      d.op = 1;
+      d.el.style.opacity = '1';
+    }
     d.el.hidden = false;
     if (this.frameN < MERGE_SLOTS) this.frame[this.frameN++] = i;
   }
@@ -251,11 +258,14 @@ export class DamageNumbers {
       }
       d.y += dt * D.rise;
       this.v.set(d.x, d.y, d.z).project(camera);
-      const a = Math.min(1, d.life / D.fadeFor);
+      const a = Math.round(Math.min(1, d.life / D.fadeFor) * 20) / 20;
       const popT = Math.max(0, (d.life - (D.life - D.popFor)) / D.popFor); // 1 → 0 sur les 100 premières ms
       const pop = 1 + 0.35 * popT;
       d.el.style.transform = `translate(${(((this.v.x + 1) / 2) * w).toFixed(1)}px,${(((1 - this.v.y) / 2) * h).toFixed(1)}px) translate(-50%,-50%) scale(${pop.toFixed(3)})`;
-      d.el.style.opacity = a.toFixed(2);
+      if (a !== d.op) {
+        d.op = a;
+        d.el.style.opacity = String(a);
+      }
     }
   }
   clear(): void {
