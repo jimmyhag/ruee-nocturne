@@ -13,12 +13,7 @@ export class InputManager {
   onConfirm: (() => void) | null = null;
   gamepadUsed = false;
 
-  constructor(
-    stick: HTMLElement,
-    knob: HTMLElement,
-    jumpBtn: HTMLElement,
-    dashBtn: HTMLElement,
-  ) {
+  constructor(stick: HTMLElement, knob: HTMLElement, jumpBtn: HTMLElement, dashBtn: HTMLElement) {
     addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
       if (e.repeat) return;

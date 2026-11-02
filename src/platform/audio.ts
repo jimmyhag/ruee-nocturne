@@ -8,6 +8,13 @@ export class AudioBus {
   private voices = 0;
   private readonly MAX_VOICES = 24;
   muted = false;
+  /** Voix SFX actives (onglet perf, tests : ne doit jamais dépasser MAX_VOICES). */
+  get voiceCount(): number {
+    return this.voices;
+  }
+  get maxVoices(): number {
+    return this.MAX_VOICES;
+  }
   private lastGem = 0;
   private gemCombo = 0;
   private hitAcc = 0;
@@ -22,7 +29,8 @@ export class AudioBus {
       return;
     }
     try {
-      const C = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const C =
+        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new C();
     } catch {
       this.ctx = null;

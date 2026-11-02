@@ -11,7 +11,8 @@ import { makeBot } from './bots';
 import { TARGETS, checkTargets } from './targets';
 
 const args = new Map<string, string>();
-for (let i = 2; i < process.argv.length; i += 2) args.set(process.argv[i].replace(/^--/, ''), process.argv[i + 1] ?? '1');
+for (let i = 2; i < process.argv.length; i += 2)
+  args.set(process.argv[i].replace(/^--/, ''), process.argv[i + 1] ?? '1');
 const RUNS = +(args.get('runs') ?? 50);
 const BOT = args.get('bot') ?? 'average';
 const SEED = +(args.get('seed') ?? 42);
@@ -115,20 +116,49 @@ const summary = {
   survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
-  killsAt10p50: at10.length ? pct(at10.map((r) => r.killsAt10), 50) : -1,
-  levelAt10p50: at10.length ? pct(at10.map((r) => r.levelAt10), 50) : -1,
+  killsAt10p50: at10.length
+    ? pct(
+        at10.map((r) => r.killsAt10),
+        50,
+      )
+    : -1,
+  levelAt10p50: at10.length
+    ? pct(
+        at10.map((r) => r.levelAt10),
+        50,
+      )
+    : -1,
   pickPct: Object.fromEntries(Object.entries(picks).map(([k, v]) => [k, Math.round((100 * v) / RUNS)])),
-  deathBy: Object.fromEntries(Object.entries(deaths).map(([k, v]) => [k, Math.round((100 * v) / Math.max(1, RUNS - results.filter((r) => r.reachedEnd).length))])),
-  aliveCurve: Array.from({ length: Math.ceil(UNTIL / 60) }, (_, m) => Math.round((100 * results.filter((r) => r.time >= (m + 1) * 60).length) / RUNS)),
+  deathBy: Object.fromEntries(
+    Object.entries(deaths).map(([k, v]) => [
+      k,
+      Math.round((100 * v) / Math.max(1, RUNS - results.filter((r) => r.reachedEnd).length)),
+    ]),
+  ),
+  aliveCurve: Array.from({ length: Math.ceil(UNTIL / 60) }, (_, m) =>
+    Math.round((100 * results.filter((r) => r.time >= (m + 1) * 60).length) / RUNS),
+  ),
   runsPerMin: Math.round((RUNS / elapsed) * 60),
 };
 
 const lines: string[] = [];
 lines.push(`runs ${RUNS} · bot ${BOT} · seed ${SEED} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`);
-lines.push(`survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`);
-lines.push(`morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`);
-lines.push(`picks       ${Object.entries(summary.pickPct).map(([k, v]) => `${k} ${v} %`).join(' · ')}`);
-lines.push(`cause mort  ${Object.entries(summary.deathBy).map(([k, v]) => `${k} ${v} %`).join(' · ')}`);
+lines.push(
+  `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
+);
+lines.push(
+  `morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`,
+);
+lines.push(
+  `picks       ${Object.entries(summary.pickPct)
+    .map(([k, v]) => `${k} ${v} %`)
+    .join(' · ')}`,
+);
+lines.push(
+  `cause mort  ${Object.entries(summary.deathBy)
+    .map(([k, v]) => `${k} ${v} %`)
+    .join(' · ')}`,
+);
 lines.push(`vivants/min ${summary.aliveCurve.join(' ')}`);
 const checks = checkTargets(summary, TARGETS);
 lines.push(`cibles      ${checks.map((c) => `${c.ok ? '✔' : '✘'} ${c.name} (${c.value})`).join('  ')}`);

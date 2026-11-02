@@ -1,0 +1,19 @@
+dist/
+dist-single/
+dev-dist/
+node_modules/
+prototype/
+shots/
+sim/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+# documents rédigés par Jimmy : on ne les reformate pas
+PLAN.md
+CLAUDE.md
+PROMPT_CLAUDE_CODE.md
+README.md
+# skills et agents : texte de Jimmy
+.claude/**/*.md
+.firebaserc

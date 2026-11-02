@@ -102,8 +102,12 @@ export class Hud {
 
   kit(w: World): void {
     const parts: string[] = [];
-    for (const k in w.weapons) parts.push(`<span>${WEAPONS[k as keyof typeof WEAPONS].name} ${w.weapons[k as keyof typeof WEAPONS]}</span>`);
-    for (const k in w.passives) parts.push(`<span style="color:var(--muted)">${PASSIVES[k as keyof typeof PASSIVES].name} ${w.passives[k as keyof typeof PASSIVES]}</span>`);
+    for (const k in w.weapons)
+      parts.push(`<span>${WEAPONS[k as keyof typeof WEAPONS].name} ${w.weapons[k as keyof typeof WEAPONS]}</span>`);
+    for (const k in w.passives)
+      parts.push(
+        `<span style="color:var(--muted)">${PASSIVES[k as keyof typeof PASSIVES].name} ${w.passives[k as keyof typeof PASSIVES]}</span>`,
+      );
     this.els.kit.innerHTML = parts.join('');
   }
 

@@ -22,7 +22,8 @@ gc?.();
 const heap0 = process.memoryUsage().heapUsed;
 const times: number[] = [];
 for (let i = 0; i < 600; i++) {
-  inp.mx = Math.cos(i / 60); inp.mz = Math.sin(i / 60);
+  inp.mx = Math.cos(i / 60);
+  inp.mz = Math.sin(i / 60);
   w.player.hp = 1e9;
   const t0 = performance.now();
   step(w, inp, STEP);
@@ -34,7 +35,9 @@ const heap1 = process.memoryUsage().heapUsed;
 times.sort((a, b) => a - b);
 const p = (q: number) => times[Math.floor(q * times.length)].toFixed(3);
 const heapMb = (heap1 - heap0) / 1048576;
-console.log(`steps 600 · ennemis ~${w.enemyCount} · p50 ${p(0.5)} ms · p95 ${p(0.95)} ms · max ${times[times.length - 1].toFixed(3)} ms · tas ${heapMb >= 0 ? '+' : ''}${heapMb.toFixed(2)} Mo`);
+console.log(
+  `steps 600 · ennemis ~${w.enemyCount} · p50 ${p(0.5)} ms · p95 ${p(0.95)} ms · max ${times[times.length - 1].toFixed(3)} ms · tas ${heapMb >= 0 ? '+' : ''}${heapMb.toFixed(2)} Mo`,
+);
 const ok = +p(0.95) <= 6 && heapMb <= 2;
 console.log(ok ? 'BENCH OK' : 'BENCH ÉCHEC (p95 ≤ 6 ms, tas ≤ +2 Mo)');
 process.exit(ok ? 0 : 1);

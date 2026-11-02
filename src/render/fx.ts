@@ -29,10 +29,15 @@ export class Particles {
   private next = 0; // remplacement circulaire quand plein : on ne saute jamais un effet
 
   constructor(scene: THREE.Scene) {
-    this.mesh = makeInstanced(new THREE.BoxGeometry(0.17, 0.17, 0.17), new THREE.MeshBasicMaterial({ color: 0xffffff }), PART_CAP);
+    this.mesh = makeInstanced(
+      new THREE.BoxGeometry(0.17, 0.17, 0.17),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      PART_CAP,
+    );
     scene.add(this.mesh);
     this.w = new InstanceWriter(this.mesh);
-    for (let i = 0; i < PART_CAP; i++) this.items.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, max: 1, c: new THREE.Color(), grav: true });
+    for (let i = 0; i < PART_CAP; i++)
+      this.items.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, max: 1, c: new THREE.Color(), grav: true });
   }
   burst(x: number, y: number, z: number, color: number, n: number, speed: number, up: number, grav = true): void {
     for (let i = 0; i < n; i++) {

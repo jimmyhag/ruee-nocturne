@@ -10,6 +10,8 @@ import { AudioBus } from './platform/audio';
 import { Hud, fmtTime, renderCards } from './ui/hud';
 import { loadMeta, saveMeta, DEFAULT_META } from './meta/save';
 import type { Meta } from './meta/save';
+import { installDebugHooks } from './debug';
+import { Pwa } from './platform/pwa';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const VERSION = '0.1.0';
@@ -48,7 +50,10 @@ function showOnly(id: AppMode | null): void {
   for (const s of ['menu', 'levelup', 'pause', 'over'] as const) $(s).hidden = s !== id;
 }
 function updateBestLine(): void {
-  $('bestLine').textContent = meta.bestTime > 0 ? `Record : ${fmtTime(meta.bestTime)} · ${meta.bestKills} vaincus · ${meta.runs} run${meta.runs > 1 ? 's' : ''}` : 'Aucun record pour l\'instant';
+  $('bestLine').textContent =
+    meta.bestTime > 0
+      ? `Record : ${fmtTime(meta.bestTime)} · ${meta.bestKills} vaincus · ${meta.runs} run${meta.runs > 1 ? 's' : ''}`
+      : "Aucun record pour l'instant";
 }
 
 // ---------- décor : construit une fois pour la seed de décor fixe ----------
@@ -56,11 +61,12 @@ function updateBestLine(): void {
 const DECOR_SEED = 20261102;
 let decorBuilt = false;
 
-function startGame(): void {
+function startGame(variant?: number): void {
   audio.init();
   world = new World(DECOR_SEED); // même décor à chaque run ; la variété vient du spawner (rng avancé par le temps réel ci-dessous)
   // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
-  const skips = (Date.now() % 1000) | 0;
+  // `variant` (debug/tests) remplace l'horloge : partie reproductible, décor identique
+  const skips = (variant ?? Date.now() % 1000) | 0;
   for (let i = 0; i < skips; i++) world.rng.next();
   startRun(world);
   if (!decorBuilt) {
@@ -78,6 +84,7 @@ function startGame(): void {
   scene.snapCamera(world);
   hurtT = 0;
   timeScale = 1;
+  $('update').hidden = true; // jamais de bannière de mise à jour en jeu
   last = performance.now();
 }
 function toMenu(): void {
@@ -89,6 +96,7 @@ function toMenu(): void {
   $('touch').hidden = true;
   audio.stopMusic();
   updateBestLine();
+  showUpdateBanner();
 }
 function pauseGame(): void {
   if (app !== 'play') return;
@@ -138,20 +146,24 @@ function gameOver(): void {
   $('oLvl').textContent = String(world.player.level);
   $('oKills').textContent = String(world.kills);
   $('oBest').textContent = fmtTime(meta.bestTime);
-  $('oMsg').innerHTML = rec ? '<span class="newrec">Nouveau record</span>' : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record`;
+  $('oMsg').innerHTML = rec
+    ? '<span class="newrec">Nouveau record</span>'
+    : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record`;
   scene.particles.burst(world.player.x, 1, world.player.z, PAL.accent, 30, 8, 8);
   scene.shake = 0.5;
   audio.death();
   audio.stopMusic();
   setTimeout(() => {
-    if (app === 'over') showOnly('over');
+    if (app !== 'over') return;
+    showOnly('over');
+    showUpdateBanner();
   }, 700);
 }
 
 // ---------- boutons ----------
-$('playBtn').onclick = startGame;
-$('againBtn').onclick = startGame;
-$('restartBtn').onclick = startGame;
+$('playBtn').onclick = () => startGame();
+$('againBtn').onclick = () => startGame();
+$('restartBtn').onclick = () => startGame();
 $('menuBtn').onclick = toMenu;
 $('quitBtn').onclick = toMenu;
 $('pauseBtn').onclick = pauseGame;
@@ -197,6 +209,14 @@ document.addEventListener('visibilitychange', () => {
 });
 $('version').textContent = `v${VERSION}`;
 
+// PWA : mise à jour proposée uniquement au menu ou à l'écran de mort (skill pwa-release §2)
+const pwa = new Pwa();
+function showUpdateBanner(): void {
+  $('update').hidden = !(pwa.needRefresh && (app === 'menu' || app === 'over'));
+}
+pwa.onNeedRefresh = showUpdateBanner;
+$('updateBtn').onclick = () => pwa.update();
+
 // PWA : installation
 let deferredInstall: (Event & { prompt: () => Promise<void> }) | null = null;
 addEventListener('beforeinstallprompt', (e) => {
@@ -212,7 +232,8 @@ $('installBtn').onclick = async () => {
 };
 {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone;
+  const standalone =
+    matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone;
   if (ios && !standalone && location.protocol.startsWith('http')) $('iosHint').hidden = false;
 }
 
@@ -293,9 +314,11 @@ function hitStop(duration: number, scale: number): void {
 // ---------- boucle principale : pas fixe + interpolation ----------
 let last = performance.now();
 let acc = 0;
-const frameTimes: number[] = [];
+// onglet perf : anneau de 120 frames (2 s à 60 Hz) et copie triée préallouée : aucune allocation par frame
+const PERF_WINDOW = 120;
+const frameTimes = new Float64Array(PERF_WINDOW).fill(16);
+const frameSorted = new Float64Array(PERF_WINDOW);
 let frameIdx = 0;
-for (let i = 0; i < 60; i++) frameTimes.push(16);
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
@@ -338,14 +361,18 @@ function frame(nowMs: number): void {
   }
 
   if (perfOn) {
-    frameTimes[frameIdx++ % 60] = performance.now() - t0;
+    frameTimes[frameIdx++ % PERF_WINDOW] = performance.now() - t0;
     if (frameIdx % 10 === 0) {
-      const sorted = [...frameTimes].sort((a, b) => a - b);
+      frameSorted.set(frameTimes);
+      frameSorted.sort(); // tri numérique natif des Float64Array, en place
+      const p50 = frameSorted[PERF_WINDOW >> 1];
+      const p95 = frameSorted[(PERF_WINDOW * 0.95) | 0];
       const info = scene.info();
       hud.perf(
-        `frame p50 ${sorted[30].toFixed(2)} ms  p95 ${sorted[57].toFixed(2)} ms\n` +
+        `frame p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}\n` : '') +
+          `voix audio ${audio.voiceCount}/${audio.maxVoices}\n` +
           `res ${scene.renderer.domElement.width}×${scene.renderer.domElement.height}`,
       );
     }
@@ -364,31 +391,19 @@ hud.showPerf(perfOn);
 requestAnimationFrame(frame);
 
 // hooks de debug / tests (jamais en prod sans ?debug=1)
-if (import.meta.env.DEV || location.search.includes('debug')) {
-  (window as unknown as { __game: unknown }).__game = {
-    get world() {
-      return world;
-    },
-    get app() {
-      return app;
-    },
-    start: startGame,
-    scene,
-    warp(seconds: number) {
-      if (!world) return;
-      const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
-      const maxHp = world.player.maxHp;
-      world.player.maxHp = world.player.hp = 1e9; // la régén. clampe sur maxHp : il faut lever les deux
-      const target = world.t + seconds;
-      while (world.t < target && world.mode !== Mode.Dead) step(world, still, STEP);
-      world.player.maxHp = maxHp;
-      world.player.hp = maxHp;
-      hud.kit(world);
-      if (world.mode === Mode.LevelUp) openLevelUp();
-    },
-    kill() {
-      if (world) world.player.hp = 0;
-    },
-    ready: true,
-  };
-}
+installDebugHooks({
+  get world() {
+    return world;
+  },
+  get app() {
+    return app;
+  },
+  scene,
+  start: startGame,
+  afterSimJump() {
+    if (!world) return;
+    hud.kit(world);
+    if (world.mode === Mode.LevelUp) openLevelUp();
+  },
+  audioVoices: () => audio.voiceCount,
+});

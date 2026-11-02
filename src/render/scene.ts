@@ -56,7 +56,10 @@ export class GameScene {
     this.scene.add(sun);
 
     // sol
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2), new THREE.MeshLambertMaterial({ map: groundTexture() }));
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2),
+      new THREE.MeshLambertMaterial({ map: groundTexture() }),
+    );
     ground.rotation.x = -Math.PI / 2;
     this.scene.add(ground);
 
@@ -65,7 +68,10 @@ export class GameScene {
     this.pBody.position.y = 0.75;
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.62, 0.72), lam(PAL.paper));
     head.position.y = 1.45;
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.13, 0.06), new THREE.MeshBasicMaterial({ color: PAL.ink }));
+    const visor = new THREE.Mesh(
+      new THREE.BoxGeometry(0.52, 0.13, 0.06),
+      new THREE.MeshBasicMaterial({ color: PAL.ink }),
+    );
     visor.position.set(0, 1.45, 0.37);
     const plume = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.34, 0.5), lam(PAL.hp));
     plume.position.set(0, 1.9, -0.05);
@@ -76,12 +82,20 @@ export class GameScene {
     this.pLegR.position.set(0.2, 0.22, 0);
     this.player.add(this.pBody, head, visor, plume, this.pLegL, this.pLegR);
     this.scene.add(this.player);
-    this.blob = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), new THREE.MeshBasicMaterial({ color: PAL.ink, transparent: true, opacity: 0.4, depthWrite: false }));
+    this.blob = new THREE.Mesh(
+      new THREE.CircleGeometry(0.6, 12),
+      new THREE.MeshBasicMaterial({ color: PAL.ink, transparent: true, opacity: 0.4, depthWrite: false }),
+    );
     this.blob.rotation.x = -Math.PI / 2;
     this.scene.add(this.blob);
 
     // ennemis
-    const geos = [new THREE.IcosahedronGeometry(0.55, 0), new THREE.ConeGeometry(0.4, 1.0, 4), new THREE.DodecahedronGeometry(1.0, 0), new THREE.OctahedronGeometry(2.0, 0)];
+    const geos = [
+      new THREE.IcosahedronGeometry(0.55, 0),
+      new THREE.ConeGeometry(0.4, 1.0, 4),
+      new THREE.DodecahedronGeometry(1.0, 0),
+      new THREE.OctahedronGeometry(2.0, 0),
+    ];
     const caps = [450, 450, 120, 4];
     for (let t = 0; t < 4; t++) {
       const m = makeInstanced(geos[t], new THREE.MeshLambertMaterial({ color: 0xffffff }), caps[t]);
@@ -90,23 +104,52 @@ export class GameScene {
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
     }
     // projectiles, traînées, gemmes
-    this.projW = new InstanceWriter(makeInstanced(new THREE.IcosahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 250));
-    this.trailW = new InstanceWriter(
-      makeInstanced(new THREE.IcosahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }), 1000),
+    this.projW = new InstanceWriter(
+      makeInstanced(new THREE.IcosahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 250),
     );
-    this.gemW = new InstanceWriter(makeInstanced(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 900));
+    this.trailW = new InstanceWriter(
+      makeInstanced(
+        new THREE.IcosahedronGeometry(0.22, 0),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.6,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+        1000,
+      ),
+    );
+    this.gemW = new InstanceWriter(
+      makeInstanced(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 900),
+    );
     this.scene.add(this.projW.mesh, this.trailW.mesh, this.gemW.mesh);
 
     // armes
-    this.aura = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40), new THREE.MeshBasicMaterial({ color: PAL.xp, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }));
+    this.aura = new THREE.Mesh(
+      new THREE.RingGeometry(0.86, 1, 40),
+      new THREE.MeshBasicMaterial({
+        color: PAL.xp,
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
     this.aura.rotation.x = -Math.PI / 2;
     this.aura.visible = false;
-    this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: PAL.xp, transparent: true, opacity: 0.08, depthWrite: false }));
+    this.auraDisc = new THREE.Mesh(
+      new THREE.CircleGeometry(1, 40),
+      new THREE.MeshBasicMaterial({ color: PAL.xp, transparent: true, opacity: 0.08, depthWrite: false }),
+    );
     this.auraDisc.rotation.x = -Math.PI / 2;
     this.auraDisc.visible = false;
     this.scene.add(this.aura, this.auraDisc);
     for (let i = 0; i < 6; i++) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.1, 0.26), new THREE.MeshBasicMaterial({ color: PAL.paper }));
+      const b = new THREE.Mesh(
+        new THREE.BoxGeometry(1.0, 0.1, 0.26),
+        new THREE.MeshBasicMaterial({ color: PAL.paper }),
+      );
       b.visible = false;
       this.scene.add(b);
       this.blades.push(b);
@@ -123,7 +166,11 @@ export class GameScene {
     const trees = makeInstanced(new THREE.ConeGeometry(1, 2.8, 5), lam(PAL.tree), 380);
     const trunks = makeInstanced(new THREE.CylinderGeometry(0.18, 0.22, 0.8, 5), lam(0x5a3d3a), 380);
     const rocks = makeInstanced(new THREE.DodecahedronGeometry(0.8, 0), lam(PAL.rock), 240);
-    const lamps = makeInstanced(new THREE.OctahedronGeometry(0.3, 0), new THREE.MeshBasicMaterial({ color: PAL.gold }), 160);
+    const lamps = makeInstanced(
+      new THREE.OctahedronGeometry(0.3, 0),
+      new THREE.MeshBasicMaterial({ color: PAL.gold }),
+      160,
+    );
     const green = new THREE.Color(PAL.tree);
     for (let i = 0; i < 380; i++) {
       const o = w.obstacles[i];
@@ -221,7 +268,14 @@ export class GameScene {
     for (let i = 0; i < w.gemCount; i++) {
       const g = w.gems[i];
       const big = g.v >= 10 ? 2.2 : g.v >= 4 ? 1.5 : 1;
-      this.gemW.put(g.x, 0.4 + Math.sin(now * 3 + g.x) * 0.1, g.z, now * 2 + g.z, big, g.v >= 10 ? this.cGem[2] : g.v >= 4 ? this.cGem[1] : this.cGem[0]);
+      this.gemW.put(
+        g.x,
+        0.4 + Math.sin(now * 3 + g.x) * 0.1,
+        g.z,
+        now * 2 + g.z,
+        big,
+        g.v >= 10 ? this.cGem[2] : g.v >= 4 ? this.cGem[1] : this.cGem[0],
+      );
     }
     this.gemW.end();
 
