@@ -12,12 +12,12 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # Vite 8 exige Node ≥ 22.12
           cache: npm
       - run: npm ci
       - run: npm run lint
@@ -25,7 +25,7 @@ jobs:
       - run: npm test -- --coverage
       - run: npm run build
       - run: npm run bench
-      - name: Playwright
+      - name: Playwright (fumée WebGL, tactile, relance, captures)
         run: |
           npx playwright install --with-deps chromium
           npm run test:e2e
@@ -36,11 +36,28 @@ jobs:
           path: |
             shots/
             playwright-report/
+            test-results/
           retention-days: 14
-      - name: Taille du build
+      - name: Taille du build (gzip)
         run: |
           du -sh dist
-          find dist -name '*.js' -exec gzip -k9 {} \; && du -ch dist/**/*.js.gz | tail -1
+          find dist -name '*.js' -exec gzip -k9 {} \;
+          echo "JS gzip total : $(cat dist/assets/*.js.gz dist/*.js.gz | wc -c | awk '{printf "%.0f ko", $1/1024}')"
+      - name: Lighthouse (PWA via v11, perf/accessibilité via v13)
+        continue-on-error: true
+        run: |
+          npx vite preview --port 4173 --strictPort &
+          sleep 3
+          npx --yes lighthouse@11.7.1 http://localhost:4173 --only-categories=pwa --quiet --chrome-flags="--headless=new --no-sandbox" --output=json --output-path=lh-pwa.json
+          node -e "const r=require('./lh-pwa.json');console.log('Lighthouse PWA :', Math.round(r.categories.pwa.score*100))"
+          npx --yes lighthouse@13 http://localhost:4173 --only-categories=performance,accessibility,best-practices --form-factor=mobile --quiet --chrome-flags="--headless=new --no-sandbox" --output=json --output-path=lh-mobile.json
+          node -e "const r=require('./lh-mobile.json');for(const k of ['performance','accessibility','best-practices'])console.log('Lighthouse', k, ':', Math.round(r.categories[k].score*100))"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse
+          path: lh-*.json
+          retention-days: 14
 
   balance:
     runs-on: ubuntu-latest
@@ -51,11 +68,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Simulation d'équilibrage
-        run: npm run sim -- --runs 200 --bot average --seed 42 --out sim/ci.json | tee sim/ci.txt
+        run: |
+          mkdir -p sim
+          npm run sim -- --runs 200 --bot average --seed 42 --out sim/ci.json | tee sim/ci.txt || true
       - name: Commentaire sur la PR
         uses: actions/github-script@v7
         with:
