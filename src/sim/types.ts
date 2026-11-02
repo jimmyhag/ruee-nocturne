@@ -133,6 +133,7 @@ export const enum Ev {
   MineBlast, // v = rayon
   ZoneBlast, // Colosse : fin d'un cercle rouge, v = rayon
   Victory, // Faucheur vaincu
+  Revive, // réanimation (boutique) : v = réanimations restantes
 }
 
 export interface GameEvent {
@@ -162,6 +163,14 @@ export const enum Mode {
 }
 
 export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines';
+export type CharacterKey = 'eclaireuse' | 'bucheron' | 'sorciere';
+
+/** Ce que la méta injecte dans la sim à la création du monde (jamais lu depuis le stockage par la sim). */
+export interface WorldOptions {
+  character?: CharacterKey; // défaut : Éclaireuse
+  upgrades?: number[]; // palier acheté par ligne de boutique (ordre de SHOP.lines), défaut 0
+  unlocked?: WeaponKey[]; // armes proposables ; undefined = toutes
+}
 export type PassiveKey = 'vitesse' | 'coeur' | 'regen' | 'aimant' | 'force' | 'cadence' | 'trefle' | 'bourse';
 
 export interface Card {
@@ -190,6 +199,8 @@ export interface Player {
   cdMul: number;
   luck: number; // Trèfle : niveaux
   goldMul: number; // Bourse
+  revives: number; // réanimations restantes (boutique)
+  dashTime: number; // durée du dash (personnage)
   level: number;
   xp: number;
   need: number;

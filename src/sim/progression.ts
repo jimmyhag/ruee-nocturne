@@ -42,6 +42,7 @@ export function rollChoices(w: World, fromChest = false): void {
     const lv = w.weapons[k] ?? 0;
     if (lv >= WEAPON_MAX) continue;
     if (lv === 0 && nW >= MAX_WEAPONS) continue;
+    if (lv === 0 && w.unlocked && !w.unlocked.has(k)) continue; // arme pas encore débloquée (succès)
     const c = pool[n++];
     c.kind = 'w';
     c.key = k;

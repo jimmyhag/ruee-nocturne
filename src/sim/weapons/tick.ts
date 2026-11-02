@@ -136,7 +136,7 @@ export function tickWeapons(w: World, dt: number): void {
   if (lvL > 0) {
     const s = WEAPONS.lames.stats(lvL);
     const evo = w.evolved.lames;
-    const r = s.r * (evo ? EVOLVE.tempete.rMul : 1);
+    const r = s.r * (evo ? EVOLVE.tempete.rMul : 1) * w.bladeRangeMul;
     const dmg = s.dmg * (evo ? EVOLVE.tempete.dmgMul : 1);
     S.bladeA += s.spd * (evo ? EVOLVE.tempete.spdMul : 1) * dt;
     const window = evo ? EVOLVE.tempete.hitWindow : 0.4;
