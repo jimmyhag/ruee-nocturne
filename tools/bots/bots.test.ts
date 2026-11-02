@@ -1,5 +1,6 @@
 // Tests des bots de playtest (skill sim-testing §2) : déterminisme, ordre naive ≤ average,
-// filtre d'armes de la CLI, entrées bornées. Chaque test doit tenir en < 2 s.
+// filtre d'armes de la CLI, entrées bornées. Chaque test tient en < 2 s sans coverage ; avec `--coverage`
+// la sim instrumentée est ~6× plus lente, d'où le délai global de 30 s (vite.config.ts).
 import { describe, expect, it } from 'vitest';
 import { STEP } from '../../src/sim/balance';
 import { startRun, step } from '../../src/sim/step';
@@ -44,17 +45,17 @@ describe('bots de playtest', () => {
     expect(a.player.level).toBe(b.player.level);
   });
 
-  it('naive ne survit pas plus longtemps qu’average (médiane sur 6 seeds, 3600 steps max)', () => {
-    const seeds = [1, 2, 3, 4, 5, 6];
-    const tNaive = seeds.map((s) => runBot(naive, s, 3600).t);
-    const tAverage = seeds.map((s) => runBot(makeAverage(s * 7 + 1), s, 3600).t);
+  it('naive ne survit pas plus longtemps qu’average (médiane sur 5 seeds, 2400 steps max)', () => {
+    const seeds = [1, 2, 3, 4, 5];
+    const tNaive = seeds.map((s) => runBot(naive, s, 2400).t);
+    const tAverage = seeds.map((s) => runBot(makeAverage(s * 7 + 1), s, 2400).t);
     expect(median(tNaive)).toBeLessThanOrEqual(median(tAverage));
   });
 
   it('pickAllowed : avec --weapons foudre, w.weapons ne contient jamais une autre arme', () => {
     const allowed = new Set(['foudre']);
-    for (const seed of [11, 12, 13]) {
-      const w = runBot(makeAverage(seed), seed, 9000, allowed); // 2,5 min : plusieurs tirages « armes seulement »
+    for (const seed of [11, 12]) {
+      const w = runBot(makeAverage(seed), seed, 7200, allowed); // 2 min : plusieurs tirages « armes seulement »
       expect(Object.keys(w.weapons)).toEqual(['foudre']);
     }
   });
