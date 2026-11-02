@@ -48,6 +48,8 @@ function cardValue(w: World, c: Card): number {
   return base[c.key] ?? 5;
 }
 
+const ACCEPT_ALL = (): boolean => true; // constante : pas de closure allouée à chaque pick
+
 /** Index de la carte de plus grande valeur parmi celles qui passent le filtre (ou -1 si aucune). */
 function bestCard(w: World, cards: Card[], accept: (c: Card) => boolean): number {
   let best = -1,
@@ -196,10 +198,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
     },
     pick(w, cards) {
       if (r.next() < randomness) return r.int(cards.length);
-      return Math.max(
-        0,
-        bestCard(w, cards, () => true),
-      );
+      return Math.max(0, bestCard(w, cards, ACCEPT_ALL));
     },
   };
 }

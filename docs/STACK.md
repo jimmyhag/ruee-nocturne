@@ -39,6 +39,6 @@
 ## Reste pour franchir les portes
 
 - Phase 0 : secret `FIREBASE_SERVICE_ACCOUNT` + variable `FIREBASE_PROJECT_ID` sur GitHub, CI verte, test d'installation Android/iOS par Jimmy (voir `docs/GATES.md`).
-- Phase 1 : franchie (60 fps à 400 ennemis sur le téléphone de Jimmy, 2 nov. 2026). Suivis : vitesse de la sim 40 runs/min (cible 50, coût de `step()` à 400 ennemis), cible « pick max » de `tools/targets.ts` inopérante (`max: 100`), hit-stop continu à forte densité.
+- Phase 1 : franchie (60 fps à 400 ennemis sur le téléphone de Jimmy, 2 nov. 2026). Suivis : vitesse de la sim 40 runs/min sous charge (61 runs/min sur machine libre, revue perf : cible 50 tenue), cible « pick max » de `tools/targets.ts` inopérante (`max: 100`), hit-stop continu à forte densité.
 - Phase 2 : checklist game-feel (traînée de dash, hit-stop bornable, GIF), musique réelle.
 - Phase 3 : Boomerang, Mines, évolutions, Volant, Cracheur, élites, coffres, 3 boss, zones de terrain, équilibrage aux cibles (survie p50 9–13 min, fin de run 8–15 %).
