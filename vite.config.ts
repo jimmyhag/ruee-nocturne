@@ -68,8 +68,9 @@ export default defineConfig({
   ],
   build: { target: 'es2022', sourcemap: false, minify: 'esbuild' },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tools/**/*.test.ts'],
     environment: 'node',
+    testTimeout: 30_000, // sous --coverage la sim instrumentée est ~6× plus lente (CI : 3600 steps ≈ 3 s)
     coverage: {
       // seuil de la porte de phase 1 (PLAN.md §5) : la sim est testée comme un backend
       provider: 'v8',

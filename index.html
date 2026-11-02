@@ -695,6 +695,13 @@
         font-weight: 800;
       }
       @media (max-width: 480px) {
+        #perf {
+          font-size: 13px;
+          background: #1c1226f2;
+          top: auto;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 120px);
+          transform: none;
+        }
         .stats {
           grid-template-columns: repeat(2, 1fr);
         }
@@ -822,6 +829,7 @@
         <div class="btnrow">
           <button class="ghost" id="soundBtn">Son : activé</button
           ><button class="ghost" id="fxBtn">Effets : complets</button
+          ><button class="ghost" id="perfBtn">Perf : masquée</button
           ><button class="ghost" id="restartBtn">Recommencer</button><button class="ghost" id="quitBtn">Menu</button>
         </div>
       </div>

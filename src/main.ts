@@ -37,7 +37,7 @@ let meta: Meta = { ...DEFAULT_META };
 let hurtT = 0;
 let timeScale = 1; // hit-stop
 let hitStopT = 0;
-let perfOn = location.search.includes('debug') ? true : false;
+let perfOn = location.search.includes('debug');
 const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
 
 function resize(): void {
@@ -197,13 +197,20 @@ input.onTouchDetected = () => {
     $('keys').hidden = true;
   }
 };
+// onglet perf : F3 au clavier, bouton « Perf » de l'écran de pause au doigt (parité clavier/tactile)
+function setPerf(on: boolean): void {
+  perfOn = on;
+  hud.showPerf(on);
+  $('perfBtn').textContent = 'Perf : ' + (on ? 'affichée' : 'masquée');
+  fpsT0 = 0; // nouvelle fenêtre de mesure
+}
 addEventListener('keydown', (e) => {
   if (e.code === 'F3') {
     e.preventDefault();
-    perfOn = !perfOn;
-    hud.showPerf(perfOn);
+    setPerf(!perfOn);
   }
 });
+$('perfBtn').onclick = () => setPerf(!perfOn);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseGame();
 });
@@ -319,6 +326,10 @@ const PERF_WINDOW = 120;
 const frameTimes = new Float64Array(PERF_WINDOW).fill(16);
 const frameSorted = new Float64Array(PERF_WINDOW);
 let frameIdx = 0;
+// fps réels : frames rAF comptées sur une fenêtre de 2 s (ce que voit le joueur, pas seulement notre temps JS)
+let fpsT0 = 0;
+let fpsFrames = 0;
+let fps = 0;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
@@ -344,6 +355,7 @@ function frame(nowMs: number): void {
       if (world.mode !== Mode.Play) break;
     }
     if (n === 4) acc = 0; // on ne rattrape pas : évite la spirale de la mort
+    if (debugRt) debugRt.onFrame(world); // mode stress (debug uniquement) ; null en prod
     if (world.mode === Mode.Dead) gameOver();
     else if (world.mode === Mode.LevelUp) openLevelUp();
     hurtT -= realDt;
@@ -362,6 +374,15 @@ function frame(nowMs: number): void {
 
   if (perfOn) {
     frameTimes[frameIdx++ % PERF_WINDOW] = performance.now() - t0;
+    fpsFrames++;
+    if (fpsT0 === 0) {
+      fpsT0 = nowMs;
+      fpsFrames = 0;
+    } else if (nowMs - fpsT0 >= 2000) {
+      fps = (fpsFrames * 1000) / (nowMs - fpsT0);
+      fpsT0 = nowMs;
+      fpsFrames = 0;
+    }
     if (frameIdx % 10 === 0) {
       frameSorted.set(frameTimes);
       frameSorted.sort(); // tri numérique natif des Float64Array, en place
@@ -369,7 +390,7 @@ function frame(nowMs: number): void {
       const p95 = frameSorted[(PERF_WINDOW * 0.95) | 0];
       const info = scene.info();
       hud.perf(
-        `frame p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
+        `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}\n` : '') +
           `voix audio ${audio.voiceCount}/${audio.maxVoices}\n` +
@@ -387,11 +408,11 @@ loadMeta().then((m) => {
   $('fxBtn').textContent = 'Effets : ' + (meta.reducedFx ? 'réduits' : 'complets');
   updateBestLine();
 });
-hud.showPerf(perfOn);
+setPerf(perfOn);
 requestAnimationFrame(frame);
 
 // hooks de debug / tests (jamais en prod sans ?debug=1)
-installDebugHooks({
+const debugRt = installDebugHooks({
   get world() {
     return world;
   },

@@ -1,13 +1,14 @@
 // CLI d'équilibrage : fait jouer un bot N fois, imprime des percentiles, compare aux cibles.
-//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json]
+//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { STEP, ENEMIES } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { Ev, Mode } from '../src/sim/types';
-import type { Input } from '../src/sim/types';
+import type { Input, WeaponKey } from '../src/sim/types';
+import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
-import { makeBot } from './bots';
+import { enforceAllowed, makeBot, pickAllowed } from './bots';
 import { TARGETS, checkTargets } from './targets';
 
 const args = new Map<string, string>();
@@ -18,6 +19,28 @@ const BOT = args.get('bot') ?? 'average';
 const SEED = +(args.get('seed') ?? 42);
 const UNTIL = +(args.get('until') ?? 1200);
 const OUT = args.get('out');
+// --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
+const WEAPONS_ARG = args.get('weapons');
+const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
+  ? (WEAPONS_ARG.split(',')
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0) as WeaponKey[])
+  : null;
+if (WEAPONS) {
+  const unknown = WEAPONS.filter((k) => !(WEAPON_KEYS as string[]).includes(k));
+  if (WEAPONS.length === 0) {
+    console.error(`--weapons : liste vide. Clés valides : ${WEAPON_KEYS.join(', ')}`);
+    process.exit(2);
+  }
+  if (unknown.length > 0) {
+    const pl = unknown.length > 1 ? 's' : '';
+    console.error(
+      `--weapons : clé${pl} inconnue${pl} « ${unknown.join(', ')} ». Clés valides : ${WEAPON_KEYS.join(', ')}`,
+    );
+    process.exit(2);
+  }
+}
+const ALLOWED: ReadonlySet<string> | null = WEAPONS ? new Set(WEAPONS) : null;
 
 interface RunResult {
   seed: number;
@@ -35,6 +58,7 @@ interface RunResult {
 
 function runOnce(seed: number): RunResult {
   const w = new World(seed);
+  if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
   const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
@@ -46,7 +70,7 @@ function runOnce(seed: number): RunResult {
   const maxFrames = UNTIL / STEP;
   while (frame < maxFrames) {
     if (w.mode === Mode.LevelUp) {
-      inp.pick = bot.pick(w, w.cards);
+      inp.pick = pickAllowed(bot, w, w.cards, ALLOWED);
       inp.mx = inp.mz = 0;
       inp.jump = inp.dash = false;
     } else {
@@ -55,6 +79,7 @@ function runOnce(seed: number): RunResult {
       frame++;
     }
     step(w, inp, STEP);
+    if (inp.pick >= 0) enforceAllowed(w, ALLOWED);
     for (let i = 0; i < w.eventCount; i++) {
       const e = w.events[i];
       if (e.type === Ev.PlayerHurt && frame % 15 === 0) {
@@ -113,6 +138,7 @@ const summary = {
   runs: RUNS,
   bot: BOT,
   seed: SEED,
+  weapons: WEAPONS,
   survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
@@ -142,7 +168,9 @@ const summary = {
 };
 
 const lines: string[] = [];
-lines.push(`runs ${RUNS} · bot ${BOT} · seed ${SEED} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`);
+lines.push(
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+);
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
 );
@@ -162,6 +190,7 @@ lines.push(
 lines.push(`vivants/min ${summary.aliveCurve.join(' ')}`);
 const checks = checkTargets(summary, TARGETS);
 lines.push(`cibles      ${checks.map((c) => `${c.ok ? '✔' : '✘'} ${c.name} (${c.value})`).join('  ')}`);
+if (!checks.every((c) => c.ok)) lines.push('cibles non atteintes : attendu avant la phase 3 (équilibrage)');
 console.log(lines.join('\n'));
 
 if (OUT) {

@@ -1,4 +1,4 @@
-import type { Card, Input } from '../../src/sim/types';
+import type { Card, Input, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { WEAPONS } from '../../src/sim/weapons/defs';
 import { Rng } from '../../src/sim/rng';
@@ -48,11 +48,73 @@ function cardValue(w: World, c: Card): number {
   return base[c.key] ?? 5;
 }
 
-/** Fuit le centre de masse des ennemis proches, dash en danger, saute si entouré. 30 % d'aléa dans les choix. */
-export function makeAverage(seed: number, randomness = 0.3): Bot {
+/** Index de la carte de plus grande valeur parmi celles qui passent le filtre (ou -1 si aucune). */
+function bestCard(w: World, cards: Card[], accept: (c: Card) => boolean): number {
+  let best = -1,
+    bv = -1e9;
+  for (let i = 0; i < cards.length; i++) {
+    if (!accept(cards[i])) continue;
+    const v = cardValue(w, cards[i]);
+    if (v > bv) {
+      bv = v;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/**
+ * Choix du bot restreint à une liste d'armes autorisées (option `--weapons` de la CLI).
+ * Si le bot prend une carte d'arme hors liste, on la remplace par la meilleure carte
+ * autorisée (passif, soin ou arme de la liste) ; si aucune n'est autorisée, carte 0 quand même.
+ * `allowed` à null = aucune restriction.
+ */
+export function pickAllowed(bot: Bot, w: World, cards: Card[], allowed: ReadonlySet<string> | null): number {
+  const idx = bot.pick(w, cards);
+  if (!allowed) return idx;
+  const isAllowed = (c: Card) => c.kind !== 'w' || allowed.has(c.key);
+  const chosen = cards[idx];
+  if (chosen && isAllowed(chosen)) return idx;
+  const alt = bestCard(w, cards, isAllowed);
+  return alt >= 0 ? alt : 0;
+}
+
+/**
+ * Garde-fou de `--weapons` : si le tirage n'offrait que des armes hors liste (garantie « au moins une arme »
+ * de la progression), la carte prise est retirée après coup. Le monde reste déterministe : même seed, même retrait.
+ */
+export function enforceAllowed(w: World, allowed: ReadonlySet<string> | null): void {
+  if (!allowed) return;
+  for (const k of Object.keys(w.weapons)) if (!allowed.has(k)) delete w.weapons[k as WeaponKey];
+}
+
+/** Réglages du bot « average » ; « greedy » n'en est qu'une variante plus gourmande. */
+export interface AverageOptions {
+  /** Nom affiché dans la CLI. */
+  name?: string;
+  /** Part d'aléa dans les choix de cartes (0 = pick optimal). */
+  randomness?: number;
+  /** Rayon (u) dans lequel la gemme la plus proche attire le bot, même en fuite. */
+  gemRadius?: number;
+  /** Poids de l'attraction vers la gemme pendant une fuite. */
+  gemPullFleeing?: number;
+  /** Poids de l'attraction vers la gemme hors danger. */
+  gemPullFree?: number;
+}
+
+/**
+ * Bot de référence (skill sim-testing §2) : fuit le centre de masse des ennemis dans 8 u,
+ * dash quand ≥ 6 ennemis à < 2 u, saute si entouré, pick = meilleur gain de DPS avec 30 % d'aléa.
+ */
+export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
+  const name = opts.name ?? 'average';
+  const randomness = opts.randomness ?? 0.3;
+  const gemR2 = (opts.gemRadius ?? 7) ** 2;
+  const pullFleeing = opts.gemPullFleeing ?? 0.6;
+  const pullFree = opts.gemPullFree ?? 1.2;
   const r = new Rng(seed);
   return {
-    name: 'average',
+    name,
     decide(w, _frame, out) {
       const P = w.player;
       let cx = 0,
@@ -103,10 +165,10 @@ export function makeAverage(seed: number, randomness = 0.3): Bot {
           out.mz = 0;
         }
       }
-      // attiré par la gemme la plus proche dans 7 u (même en fuyant)
+      // attiré par la gemme la plus proche dans gemRadius (même en fuyant)
       let gx = 0,
         gz = 0,
-        gd = 49;
+        gd = gemR2;
       for (let i = 0; i < w.gemCount; i++) {
         const g = w.gems[i];
         const d = (g.x - P.x) ** 2 + (g.z - P.z) ** 2;
@@ -116,35 +178,39 @@ export function makeAverage(seed: number, randomness = 0.3): Bot {
           gz = g.z - P.z;
         }
       }
-      if (gd < 49) {
+      if (gd < gemR2) {
         const l = Math.sqrt(gd) || 1;
-        const k = n > 0 ? 0.6 : 1.2;
+        const k = n > 0 ? pullFleeing : pullFree;
         out.mx += (gx / l) * k;
         out.mz += (gz / l) * k;
       }
-      out.dash = close >= 5 && P.dashCd <= 0;
+      // borne l'entrée à un vecteur unitaire (la sim normalise de toute façon au-delà de 1)
+      const ml = Math.sqrt(out.mx * out.mx + out.mz * out.mz);
+      if (ml > 1) {
+        out.mx /= ml;
+        out.mz /= ml;
+      }
+      out.dash = close >= 6 && P.dashCd <= 0;
+      // TODO phase 3 : Volant — sauter quand un Volant est à < 3 u (l'ennemi n'existe pas encore)
       out.jump = close >= 3 && P.onGround && !out.dash;
     },
     pick(w, cards) {
       if (r.next() < randomness) return r.int(cards.length);
-      let best = 0,
-        bv = -1e9;
-      for (let i = 0; i < cards.length; i++) {
-        const v = cardValue(w, cards[i]);
-        if (v > bv) {
-          bv = v;
-          best = i;
-        }
-      }
-      return best;
+      return Math.max(
+        0,
+        bestCard(w, cards, () => true),
+      );
     },
   };
 }
 
+/**
+ * Plafond : même pilotage qu'« average » mais va chercher les gemmes de plus loin et plus fort,
+ * pick optimal sans aléa.
+ * TODO phase 3 : coffres — aller les ramasser quand ils existeront.
+ */
 export function makeGreedy(seed: number): Bot {
-  const b = makeAverage(seed, 0);
-  b.name = 'greedy';
-  return b;
+  return makeAverage(seed, { name: 'greedy', randomness: 0, gemRadius: 14, gemPullFleeing: 1.0, gemPullFree: 1.6 });
 }
 
 export function makeBot(name: string, seed: number): Bot {
