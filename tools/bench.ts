@@ -7,8 +7,10 @@ import { World } from '../src/sim/world';
 const w = new World(1);
 startRun(w);
 w.t = 400; // mi-partie : armes dangereuses, ennemis costauds
-w.weapons = { orbe: 4, aura: 3, lames: 3, foudre: 2 };
-for (let i = 0; i < 390; i++) spawnEnemy(w, i % 3, (i / 390) * Math.PI * 2, 6 + (i % 17));
+w.weapons = { orbe: 5, aura: 3, boomerang: 3, mines: 3 }; // 4 armes (max) dont les deux de phase 3
+w.evolved = { orbe: true }; // Nova : 8 projectiles par salve, le cas le plus chargé
+// masse + Volants + Cracheurs : types 0,1,2 puis 4 et 5 (le modulo 5 ignore le Gardien, type 3)
+for (let i = 0; i < 390; i++) spawnEnemy(w, [0, 1, 2, 4, 5][i % 5], (i / 390) * Math.PI * 2, 6 + (i % 17));
 const inp = { mx: 0.7, mz: 0.3, jump: false, dash: false, pick: 0 };
 w.player.maxHp = 1e9; // invincible : on mesure le coût du step, pas la survie
 const gc = (globalThis as any).gc as (() => void) | undefined;
@@ -28,7 +30,8 @@ for (let i = 0; i < 600; i++) {
   const t0 = performance.now();
   step(w, inp, STEP);
   times.push(performance.now() - t0);
-  if (w.enemyCount < 380) for (let k = w.enemyCount; k < 400; k++) spawnEnemy(w, k % 3, k, 8 + (k % 13));
+  if (w.enemyCount < 380)
+    for (let k = w.enemyCount; k < 400; k++) spawnEnemy(w, [0, 1, 2, 4, 5][k % 5], k, 8 + (k % 13));
 }
 gc?.();
 const heap1 = process.memoryUsage().heapUsed;

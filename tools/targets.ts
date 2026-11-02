@@ -21,16 +21,18 @@ export const TARGETS: Target[] = [
     fmt: (v) => v + ' %',
   },
   {
-    name: 'pick max ≤ 35 %… hors arme de départ',
+    name: 'pick max ≤ 35 % (hors arme de départ)',
     min: 0,
-    max: 100,
-    get: (s) =>
-      Math.max(
-        ...Object.entries<number>(s.pickPct)
-          .filter(([k]) => k !== 'orbe')
-          .map(([, v]) => v),
-      ),
+    max: 35,
+    get: (s) => Math.max(...Object.values<number>(s.pickPct)),
     fmt: (v) => v + ' %',
+  },
+  {
+    name: 'variance kills inter-builds < 3×',
+    min: 0,
+    max: 3,
+    get: (s) => s.killsVarianceRatio ?? 1,
+    fmt: (v) => '×' + v.toFixed(1),
   },
 ];
 export function checkTargets(summary: any, targets: Target[]) {

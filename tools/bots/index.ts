@@ -2,7 +2,7 @@ import type { Card, Input, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { WEAPONS } from '../../src/sim/weapons/defs';
 import { Rng } from '../../src/sim/rng';
-import { ENEMIES } from '../../src/sim/balance';
+import { ENEMIES, VOLANT_TYPE } from '../../src/sim/balance';
 
 export interface Bot {
   name: string;
@@ -36,6 +36,10 @@ function dpsOf(key: string, lv: number): number {
       return s.n * s.dmg * 1.6;
     case 'foudre':
       return ((s.chain + 1) * s.dmg) / s.cd;
+    case 'boomerang':
+      return (s.n * s.dmg * 2 * 2.5) / s.cd; // aller + retour, ≈ 2,5 ennemis sur la ligne
+    case 'mines':
+      return (s.dmg * 2.2 * 0.5) / s.cd; // ≈ 2,2 ennemis par explosion, une mine sur deux déclenchée
   }
   return 0;
 }
@@ -43,8 +47,18 @@ function dpsOf(key: string, lv: number): number {
 /** Valeur d'une carte pour un bot : gain de DPS théorique, passifs valorisés par règle simple. */
 function cardValue(w: World, c: Card): number {
   if (c.kind === 'heal') return w.player.hp / w.player.maxHp < 0.4 ? 100 : 5;
+  if (c.kind === 'e') return 200; // une évolution ≈ ×2,5 : toujours prise
   if (c.kind === 'w') return dpsOf(c.key, c.lv) - dpsOf(c.key, c.lv - 1) + (c.lv === 1 ? 6 : 0);
-  const base: Record<string, number> = { force: 14, cadence: 12, vitesse: 10, coeur: 9, aimant: 7, regen: 6 };
+  const base: Record<string, number> = {
+    force: 14,
+    cadence: 12,
+    vitesse: 10,
+    coeur: 9,
+    aimant: 7,
+    regen: 6,
+    trefle: 6,
+    bourse: 3,
+  };
   return base[c.key] ?? 5;
 }
 
@@ -100,6 +114,8 @@ export interface AverageOptions {
   gemPullFleeing?: number;
   /** Poids de l'attraction vers la gemme hors danger. */
   gemPullFree?: number;
+  /** Rayon (u) dans lequel un coffre attire le bot (greedy : de loin). */
+  chestRadius?: number;
 }
 
 /**
@@ -112,6 +128,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
   const gemR2 = (opts.gemRadius ?? 7) ** 2;
   const pullFleeing = opts.gemPullFleeing ?? 0.6;
   const pullFree = opts.gemPullFree ?? 1.2;
+  const chestR2 = (opts.chestRadius ?? 10) ** 2;
   const r = new Rng(seed);
   return {
     name,
@@ -120,12 +137,15 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       let cx = 0,
         cz = 0,
         n = 0,
-        close = 0;
+        close = 0,
+        diving = false;
       for (let i = 0; i < w.enemyCount; i++) {
         const e = w.enemies[i];
         const dx = e.x - P.x,
           dz = e.z - P.z,
           d2 = dx * dx + dz * dz;
+        // Volant qui s'apprête à plonger à < 3 u : on saute au bon moment (survivor-design §6)
+        if (e.type === VOLANT_TYPE && e.state === 1 && e.timer < 0.2 && d2 < 9) diving = true;
         if (d2 < 64) {
           const danger = ENEMIES[e.type].dmg * (1 + e.r); // le Gardien pèse 10× un Spectre
           const wgt = danger / (d2 + 0.5);
@@ -165,6 +185,25 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           out.mz = 0;
         }
       }
+      // un coffre à portée attire plus qu'une gemme (évolutions, 3–5 cartes)
+      let kx = 0,
+        kz = 0,
+        kd = chestR2;
+      for (let i = 0; i < w.chestCount; i++) {
+        const c = w.chests[i];
+        const d = (c.x - P.x) ** 2 + (c.z - P.z) ** 2;
+        if (d < kd) {
+          kd = d;
+          kx = c.x - P.x;
+          kz = c.z - P.z;
+        }
+      }
+      if (kd < chestR2) {
+        const l = Math.sqrt(kd) || 1;
+        const k = n > 0 ? pullFleeing * 1.5 : pullFree * 1.5;
+        out.mx += (kx / l) * k;
+        out.mz += (kz / l) * k;
+      }
       // attiré par la gemme la plus proche dans gemRadius (même en fuyant)
       let gx = 0,
         gz = 0,
@@ -191,8 +230,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         out.mz /= ml;
       }
       out.dash = close >= 6 && P.dashCd <= 0;
-      // TODO phase 3 : Volant — sauter quand un Volant est à < 3 u (l'ennemi n'existe pas encore)
-      out.jump = close >= 3 && P.onGround && !out.dash;
+      out.jump = (diving || close >= 3) && P.onGround && !out.dash;
     },
     pick(w, cards) {
       if (r.next() < randomness) return r.int(cards.length);
@@ -205,12 +243,18 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
 }
 
 /**
- * Plafond : même pilotage qu'« average » mais va chercher les gemmes de plus loin et plus fort,
+ * Plafond : même pilotage qu'« average » mais va chercher gemmes et coffres de plus loin et plus fort,
  * pick optimal sans aléa.
- * TODO phase 3 : coffres — aller les ramasser quand ils existeront.
  */
 export function makeGreedy(seed: number): Bot {
-  return makeAverage(seed, { name: 'greedy', randomness: 0, gemRadius: 14, gemPullFleeing: 1.0, gemPullFree: 1.6 });
+  return makeAverage(seed, {
+    name: 'greedy',
+    randomness: 0,
+    gemRadius: 14,
+    gemPullFleeing: 1.0,
+    gemPullFree: 1.6,
+    chestRadius: 22,
+  });
 }
 
 export function makeBot(name: string, seed: number): Bot {
