@@ -22,7 +22,8 @@ export class AudioBus {
       return;
     }
     try {
-      const C = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const C =
+        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new C();
     } catch {
       this.ctx = null;

@@ -21,7 +21,18 @@ export class InstanceWriter {
   begin(): void {
     this.n = 0;
   }
-  put(x: number, y: number, z: number, ry: number, s: number, color: THREE.Color, rx = 0, rz = 0, sy = s, sz = s): void {
+  put(
+    x: number,
+    y: number,
+    z: number,
+    ry: number,
+    s: number,
+    color: THREE.Color,
+    rx = 0,
+    rz = 0,
+    sy = s,
+    sz = s,
+  ): void {
     if (this.n >= this.mesh.instanceMatrix.count) return;
     const d = this.d;
     d.position.set(x, y, z);

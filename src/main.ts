@@ -48,7 +48,10 @@ function showOnly(id: AppMode | null): void {
   for (const s of ['menu', 'levelup', 'pause', 'over'] as const) $(s).hidden = s !== id;
 }
 function updateBestLine(): void {
-  $('bestLine').textContent = meta.bestTime > 0 ? `Record : ${fmtTime(meta.bestTime)} · ${meta.bestKills} vaincus · ${meta.runs} run${meta.runs > 1 ? 's' : ''}` : 'Aucun record pour l\'instant';
+  $('bestLine').textContent =
+    meta.bestTime > 0
+      ? `Record : ${fmtTime(meta.bestTime)} · ${meta.bestKills} vaincus · ${meta.runs} run${meta.runs > 1 ? 's' : ''}`
+      : "Aucun record pour l'instant";
 }
 
 // ---------- décor : construit une fois pour la seed de décor fixe ----------
@@ -138,7 +141,9 @@ function gameOver(): void {
   $('oLvl').textContent = String(world.player.level);
   $('oKills').textContent = String(world.kills);
   $('oBest').textContent = fmtTime(meta.bestTime);
-  $('oMsg').innerHTML = rec ? '<span class="newrec">Nouveau record</span>' : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record`;
+  $('oMsg').innerHTML = rec
+    ? '<span class="newrec">Nouveau record</span>'
+    : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record`;
   scene.particles.burst(world.player.x, 1, world.player.z, PAL.accent, 30, 8, 8);
   scene.shake = 0.5;
   audio.death();
@@ -212,7 +217,8 @@ $('installBtn').onclick = async () => {
 };
 {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone;
+  const standalone =
+    matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone;
   if (ios && !standalone && location.protocol.startsWith('http')) $('iosHint').hidden = false;
 }
 

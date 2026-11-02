@@ -11,7 +11,15 @@ export interface Meta {
   reducedFx: boolean;
 }
 const KEY = 'ruee-meta';
-export const DEFAULT_META: Meta = { version: 1, bestTime: 0, bestKills: 0, runs: 0, totalKills: 0, muted: false, reducedFx: false };
+export const DEFAULT_META: Meta = {
+  version: 1,
+  bestTime: 0,
+  bestKills: 0,
+  runs: 0,
+  totalKills: 0,
+  muted: false,
+  reducedFx: false,
+};
 
 export async function loadMeta(): Promise<Meta> {
   try {
