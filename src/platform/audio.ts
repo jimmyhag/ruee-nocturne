@@ -1,5 +1,6 @@
-// Audio procédural Web Audio : 3 bus (SFX −6 dB, UI −8 dB, musique −12 dB), limiteur, pool de 24 voix à priorité,
-// musique à 3 couches (nappe, rythme, intensité) pilotée par la densité d'ennemis. Aucun fichier à charger.
+// Audio procédural Web Audio : 3 bus (SFX −6 dB, UI −8 dB, musique −12 dB), limiteur, pool de 24 voix à priorité.
+// Aucun fichier à charger. Pas de musique : la musique procédurale à 3 couches (nappe, rythme, intensité) a été
+// retirée à la demande de Jimmy (« pas ouf ») ; le bus musique reste pour de vraies pistes CC0 en phase 5.
 
 /** Priorité d'une voix (skill game-feel §7) : joueur touché > niveau > boss > kill > hit > ramassage. */
 const PRIO = { hurt: 6, levelUp: 5, boss: 4, kill: 3, move: 3, hit: 2, pickup: 1, shoot: 0, ui: 5 } as const;
@@ -49,10 +50,6 @@ export class AudioBus {
   private killTimes = new Float64Array(8); // instants des derniers kills (anneau) : combo ≥ 5 en 1 s
   private killIdx = 0;
   private lastCombo = 0;
-  // musique : 3 couches, gains pilotés par l'intensité
-  private layers: GainNode[] = [];
-  private layerGain = [0, 0, 0];
-  intensity = 0;
 
   constructor() {
     for (let i = 0; i < MAX_VOICES; i++) this.slots.push({ osc: null, prio: 0, end: 0 });
@@ -87,110 +84,12 @@ export class AudioBus {
     this.sfx.connect(this.master);
     this.ui.connect(this.master);
     this.music.connect(this.master);
-    this.buildMusic(c);
   }
 
-  /**
-   * Trois couches synthétiques, toutes pilotées par des LFO natifs (aucun timer JS, aucune allocation par frame) :
-   * nappe (drones A1/E2/A2), rythme (basse pulsée à 2,2 Hz), intensité (deux dents de scie détunées en trémolo rapide).
-   */
-  private buildMusic(c: AudioContext): void {
-    for (let i = 0; i < 3; i++) {
-      const g = c.createGain();
-      g.gain.value = 0;
-      g.connect(this.music);
-      this.layers.push(g);
-    }
-    // couche 1 : nappe
-    const notes = [55, 82.41, 110];
-    const types: OscillatorType[] = ['sine', 'triangle', 'sawtooth'];
-    for (let i = 0; i < 3; i++) {
-      const osc = c.createOscillator();
-      osc.type = types[i];
-      osc.frequency.value = notes[i];
-      const lp = c.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 300 + i * 200;
-      const g = c.createGain();
-      g.gain.value = i === 2 ? 0.35 : 0.6;
-      osc.connect(lp);
-      lp.connect(g);
-      g.connect(this.layers[0]);
-      osc.start();
-    }
-    // couche 2 : rythme — basse carrée hachée par un LFO carré (trémolo 0 ↔ 1)
-    {
-      const bass = c.createOscillator();
-      bass.type = 'square';
-      bass.frequency.value = 55;
-      const lp = c.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 220;
-      const trem = c.createGain();
-      trem.gain.value = 0.5;
-      const lfo = c.createOscillator();
-      lfo.type = 'square';
-      lfo.frequency.value = 2.2;
-      const depth = c.createGain();
-      depth.gain.value = 0.5;
-      lfo.connect(depth);
-      depth.connect(trem.gain);
-      bass.connect(lp);
-      lp.connect(trem);
-      trem.connect(this.layers[1]);
-      bass.start();
-      lfo.start();
-    }
-    // couche 3 : intensité — deux dents de scie détunées, passe-haut, trémolo rapide
-    {
-      const trem = c.createGain();
-      trem.gain.value = 0.5;
-      const lfo = c.createOscillator();
-      lfo.type = 'triangle';
-      lfo.frequency.value = 8.8;
-      const depth = c.createGain();
-      depth.gain.value = 0.5;
-      lfo.connect(depth);
-      depth.connect(trem.gain);
-      const hp = c.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = 400;
-      for (const f of [220, 330.5]) {
-        const o = c.createOscillator();
-        o.type = 'sawtooth';
-        o.frequency.value = f;
-        o.detune.value = f > 300 ? 7 : -5;
-        o.connect(hp);
-        o.start();
-      }
-      hp.connect(trem);
-      trem.connect(this.layers[2]);
-      lfo.start();
-    }
-  }
   setMuted(m: boolean): void {
     this.muted = m;
     if (this.master) this.master.gain.value = m ? 0 : 1;
   }
-  /** Mixage musique : intensité ∈ [0,1] suit min(1, ennemis / 120) ; boss ⇒ 1. Lissé pour éviter les sauts. */
-  setIntensity(v: number, dt: number): void {
-    if (!this.ctx) return;
-    this.intensity += (v - this.intensity) * Math.min(1, dt * 2);
-    const i = this.intensity;
-    this.setLayer(0, 0.5);
-    this.setLayer(1, Math.max(0, i - 0.15) * 0.8);
-    this.setLayer(2, Math.max(0, i - 0.5) * 0.9);
-  }
-  private setLayer(k: number, g: number): void {
-    if (Math.abs(this.layerGain[k] - g) < 0.002) return;
-    this.layerGain[k] = g;
-    this.layers[k].gain.value = g;
-  }
-  stopMusic(): void {
-    for (let k = 0; k < 3; k++) this.setLayer(k, 0);
-    this.intensity = 0;
-  }
-
   /** Joue une note sur le pool : prend une voix libre, sinon coupe la moins prioritaire si `prio` est supérieure. */
   private tone(
     bus: GainNode,
