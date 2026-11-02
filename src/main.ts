@@ -301,9 +301,11 @@ function hitStop(duration: number, scale: number): void {
 // ---------- boucle principale : pas fixe + interpolation ----------
 let last = performance.now();
 let acc = 0;
-const frameTimes: number[] = [];
+// onglet perf : anneau de 120 frames (2 s à 60 Hz) et copie triée préallouée : aucune allocation par frame
+const PERF_WINDOW = 120;
+const frameTimes = new Float64Array(PERF_WINDOW).fill(16);
+const frameSorted = new Float64Array(PERF_WINDOW);
 let frameIdx = 0;
-for (let i = 0; i < 60; i++) frameTimes.push(16);
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
@@ -346,14 +348,18 @@ function frame(nowMs: number): void {
   }
 
   if (perfOn) {
-    frameTimes[frameIdx++ % 60] = performance.now() - t0;
+    frameTimes[frameIdx++ % PERF_WINDOW] = performance.now() - t0;
     if (frameIdx % 10 === 0) {
-      const sorted = [...frameTimes].sort((a, b) => a - b);
+      frameSorted.set(frameTimes);
+      frameSorted.sort(); // tri numérique natif des Float64Array, en place
+      const p50 = frameSorted[PERF_WINDOW >> 1];
+      const p95 = frameSorted[(PERF_WINDOW * 0.95) | 0];
       const info = scene.info();
       hud.perf(
-        `frame p50 ${sorted[30].toFixed(2)} ms  p95 ${sorted[57].toFixed(2)} ms\n` +
+        `frame p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}\n` : '') +
+          `voix audio ${audio.voiceCount}/${audio.maxVoices}\n` +
           `res ${scene.renderer.domElement.width}×${scene.renderer.domElement.height}`,
       );
     }

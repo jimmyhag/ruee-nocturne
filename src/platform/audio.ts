@@ -12,6 +12,9 @@ export class AudioBus {
   get voiceCount(): number {
     return this.voices;
   }
+  get maxVoices(): number {
+    return this.MAX_VOICES;
+  }
   private lastGem = 0;
   private gemCombo = 0;
   private hitAcc = 0;
