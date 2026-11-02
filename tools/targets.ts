@@ -17,14 +17,14 @@ export const TARGETS: Target[] = [
     name: 'pick min ≥ 8 %',
     min: 8,
     max: 100,
-    get: (s) => Math.min(...Object.values<number>(s.pickPct)),
+    get: (s) => (Object.keys(s.pickPct).length ? Math.min(...Object.values<number>(s.pickPct)) : 100), // --weapons à une arme : rien à mesurer
     fmt: (v) => v + ' %',
   },
   {
     name: 'pick max ≤ 35 % (hors arme de départ)',
     min: 0,
     max: 35,
-    get: (s) => Math.max(...Object.values<number>(s.pickPct)),
+    get: (s) => (Object.keys(s.pickPct).length ? Math.max(...Object.values<number>(s.pickPct)) : 0),
     fmt: (v) => v + ' %',
   },
   {

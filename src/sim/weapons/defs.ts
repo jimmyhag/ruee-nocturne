@@ -35,7 +35,8 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
     name: 'Lames orbitales',
     glyph: '✦',
     color: '#fff1db',
-    stats: (lv) => ({ n: lv + 1, dmg: 12 + 5 * (lv - 1), r: 2.3 + 0.15 * lv, spd: 3 + 0.35 * lv }),
+    // r 1,8 + 0,15·lv (2,3 avant) : avec 2,45 u un Dard collé au joueur passait sous l'anneau (80 % de morts < 3 min en solo)
+    stats: (lv) => ({ n: lv + 1, dmg: 12 + 5 * (lv - 1), r: 1.8 + 0.15 * lv, spd: 3 + 0.35 * lv }),
     text: (s) => `${s.n} lames tournent autour de toi, ${s.dmg} dégâts et recul`,
   },
   foudre: {

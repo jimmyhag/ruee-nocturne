@@ -73,9 +73,9 @@ export const GOLD = {
 export const SPAWN = {
   // ennemis/s : 0.7 au départ, ~2 à 5:00, ~3 à 10:00, ~7 à 15:00, ~11 à 20:00.
   // Calé sur la croissance du DPS d'une build moyenne (≈ kills/s égal au spawn). L'ancienne courbe (6/s à 2:00) noyait tout le monde à 2:30.
-  rate: (t: number) => Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 200), // ≈ 8,7/s à 20:00 ; /120 : 15:00–17:00 perdait 17 points de survie, 3–6 % de fin atteinte
+  rate: (t: number) => Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260), // ≈ 7,2/s à 20:00 ; /120 : 15:00–17:00 perdait 17 points de survie ; /200 : fin atteinte 7,5 % sur deux seeds
   hpScale: (t: number) => 1 + t / 150, // ×2 à 2:30, ×9 à 20:00 (t/120 : falaise 3:00–6:00, p50 5:31 en phase 3)
-  dmgScale: (t: number) => 1 + t / 400, // ×4 à 20:00
+  dmgScale: (t: number) => 1 + t / 450, // ×3,7 à 20:00 ; t/400 : fin atteinte 5–9 % selon la seed, trop près du plancher 8 %
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
   ringMax: 30, // hors écran (fog à 16–44)

@@ -117,6 +117,7 @@ test('contenu : évolutions, Colosse, lac', async ({ page }, info) => {
   await page.evaluate(() => {
     const g = (window as any).__game;
     g.debug.god();
+    g.world.player.need = 1e9; // pas de montée de niveau pendant la capture : l'écran de choix figerait la sim
     g.debug.evolve('aura');
     g.debug.evolve('lames');
     g.debug.give('boomerang', 5);
