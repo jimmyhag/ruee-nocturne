@@ -1,4 +1,5 @@
-import { ELITE_TYPE, STEP } from './sim/balance';
+import { BOSS_TYPE, COLOSSUS_TYPE, ELITE_TYPE, REAPER_TYPE, STEP, SWARM_TYPE } from './sim/balance';
+import { EVOLUTIONS, WEAPON_KEYS } from './sim/weapons/defs';
 import { startRun, step } from './sim/step';
 import { Ev, Mode } from './sim/types';
 import type { Input } from './sim/types';
@@ -168,7 +169,7 @@ function choose(i: number): void {
   if (reducedFx()) apply();
   else setTimeout(apply, 160);
 }
-function gameOver(): void {
+function gameOver(won = false): void {
   if (!world) return;
   app = 'over';
   const rec = world.t > meta.bestTime;
@@ -181,12 +182,17 @@ function gameOver(): void {
   $('oLvl').textContent = String(world.player.level);
   $('oKills').textContent = String(world.kills);
   $('oBest').textContent = fmtTime(meta.bestTime);
-  $('oMsg').innerHTML = rec
-    ? '<span class="newrec">Nouveau record</span>'
-    : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record`;
-  scene.particles.burst(world.player.x, 1, world.player.z, PAL.accent, 30, 8, 8);
+  $('oGold').textContent = String(Math.round(world.gold));
+  $('oTitle').textContent = won ? 'Victoire !' : "La horde t'a eu";
+  $('oTitle').classList.toggle('win', won);
+  $('oMsg').innerHTML = won
+    ? '<span class="newrec">Le Faucheur est tombé</span>'
+    : rec
+      ? '<span class="newrec">Nouveau record</span>'
+      : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record`;
+  scene.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) scene.shake = 0.5;
-  audio.death();
+  if (!won) audio.death();
   setTimeout(() => {
     if (app !== 'over') return;
     showOnly('over');
@@ -281,7 +287,13 @@ $('installBtn').onclick = async () => {
 
 // ---------- événements de la sim → effets ----------
 // Règle 3 de CLAUDE.md : chaque coup porté produit flash (sim), recul (sim), son, chiffre et particules.
-const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt]; // HitSrc : Orbe, Aura, Lames, Foudre
+const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt, PAL.boomerang, PAL.mine]; // HitSrc
+const BOSS_BANNER: Record<number, string> = {
+  [BOSS_TYPE]: 'Le Gardien approche',
+  [SWARM_TYPE]: "L'Essaim-mère approche",
+  [COLOSSUS_TYPE]: 'Le Colosse approche',
+  [REAPER_TYPE]: 'Le Faucheur arrive',
+};
 function handleEvents(w: World, now: number): void {
   const reduced = reducedFx();
   const fx = reduced ? 0.5 : 1; // particules ÷2 en mode réduit
@@ -308,18 +320,11 @@ function handleEvents(w: World, now: number): void {
         audio.hit(e.v, now);
         break;
       case Ev.Kill:
-        if (e.v === ELITE_TYPE) {
-          // élite (Brute) : grosse gerbe ennemi + or, shake
-          scene.particles.burst(
-            e.x,
-            e.y,
-            e.z,
-            PAL.enemy[ELITE_TYPE],
-            (PT.elite.n * 0.5 * fx) | 0,
-            PT.elite.speed,
-            PT.elite.up,
-          );
-          scene.particles.burst(e.x, e.y, e.z, PAL.gold, (PT.elite.n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
+        if (e.x2 === 1 || e.v === ELITE_TYPE) {
+          // élite (dorée) ou Brute : grosse gerbe ennemi + or, shake
+          const n = e.x2 === 1 ? PT.elite.n : PT.elite.n * 0.5;
+          scene.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
+          scene.particles.burst(e.x, e.y, e.z, PAL.gold, (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
           if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.elite);
         } else
           scene.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.kill.n * fx) | 0, PT.kill.speed, PT.kill.up);
@@ -327,10 +332,18 @@ function handleEvents(w: World, now: number): void {
         hitStop.request(FEEL.hitStop.kill.duration, FEEL.hitStop.kill.scale);
         break;
       case Ev.BossKill:
-        scene.particles.burst(e.x, e.y, e.z, PAL.enemy[3], (PT.elite.n * fx) | 0, PT.elite.speed + 2, PT.elite.up);
+        scene.particles.burst(
+          e.x,
+          e.y,
+          e.z,
+          PAL.enemy[e.v | 0],
+          (PT.elite.n * fx) | 0,
+          PT.elite.speed + 2,
+          PT.elite.up,
+        );
         scene.particles.burst(e.x, e.y, e.z, PAL.gold, (PT.elite.n * 0.6 * fx) | 0, PT.elite.speed, PT.elite.up);
         if (!reduced) scene.shake = FEEL.shake.boss;
-        hud.banner('Gardien vaincu');
+        hud.banner(e.v === REAPER_TYPE ? 'Le Faucheur est vaincu' : 'Boss vaincu');
         hud.flash('gold');
         audio.kill(true);
         hitStop.request(FEEL.hitStop.boss.duration, FEEL.hitStop.boss.scale, 2);
@@ -338,6 +351,19 @@ function handleEvents(w: World, now: number): void {
       case Ev.Shoot:
         scene.particles.burst(e.x, e.y, e.z, PAL.proj, PT.shoot.n, PT.shoot.speed, PT.shoot.up, false);
         audio.shoot();
+        break;
+      case Ev.Throw:
+        audio.throwSound();
+        break;
+      case Ev.MineBlast:
+        scene.particles.burst(e.x, e.y, e.z, PAL.mine, (12 * fx) | 0, 6, 6);
+        scene.particles.ring(e.x, 0.2, e.z, PAL.gold, (10 * fx) | 0, e.v * 2.5, 1);
+        audio.blast();
+        break;
+      case Ev.ZoneBlast:
+        scene.particles.ring(e.x, 0.2, e.z, PAL.telegraph, (16 * fx) | 0, e.v * 3, 4);
+        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.hurt);
+        audio.blast();
         break;
       case Ev.Jump:
         audio.jump();
@@ -355,6 +381,19 @@ function handleEvents(w: World, now: number): void {
       case Ev.LevelUp:
         scene.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
         break;
+      case Ev.Chest:
+        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
+        hud.banner(e.v > 1 ? `Coffre : ${e.v} améliorations` : 'Coffre');
+        audio.chest();
+        break;
+      case Ev.Evolve:
+        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
+        scene.particles.ring(e.x, 0.5, e.z, PAL.paper, (20 * fx) | 0, 4, 10);
+        hud.banner(`${EVOLUTIONS[WEAPON_KEYS[e.v | 0]]?.name ?? 'Évolution'} !`);
+        hud.flash('gold');
+        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.evolve);
+        audio.evolve();
+        break;
       case Ev.PlayerHurt:
         hurtT = 0.15;
         if (Math.random() < 0.12) audio.hurt();
@@ -365,17 +404,29 @@ function handleEvents(w: World, now: number): void {
         hud.banner('La horde encercle !');
         break;
       case Ev.BossSpawn:
-        hud.banner('Le Gardien approche');
+        hud.banner(BOSS_BANNER[e.x2 | 0] ?? 'Un boss approche');
         audio.boss();
+        if (!reduced) scene.shake = Math.max(scene.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
+        break;
+      case Ev.BossRoar:
+        audio.roar();
         if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.elite);
+        break;
+      case Ev.Spit:
+        scene.particles.burst(e.x, e.y, e.z, PAL.spit, (3 * fx) | 0, 2, 2, false);
+        audio.spit();
+        break;
+      case Ev.Dive:
+        audio.dive();
         break;
       case Ev.Bolt:
         scene.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2);
         scene.particles.burst(e.x2, e.y2, e.z2, PAL.bolt, (4 * fx) | 0, 4, 3);
         if (i % 3 === 0) audio.bolt();
         break;
+      case Ev.Telegraph:
       case Ev.AuraPulse:
-      case Ev.Evolve:
+      case Ev.Victory:
       case Ev.Death:
         break;
     }
@@ -422,6 +473,7 @@ function frame(nowMs: number): void {
     if (n === 4) acc = 0; // on ne rattrape pas : évite la spirale de la mort
     if (debugRt) debugRt.onFrame(world); // mode stress (debug uniquement) ; null en prod
     if (world.mode === Mode.Dead) gameOver();
+    else if (world.mode === Mode.Won) gameOver(true);
     else if (world.mode === Mode.LevelUp) openLevelUp();
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);

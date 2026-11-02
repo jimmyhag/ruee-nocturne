@@ -183,6 +183,40 @@ export class Bolts {
   }
 }
 
+const AIM_CAP = 64;
+/** Lignes de visée des Cracheurs (télégraphe 0,6 s) : segments rouges dont la longueur suit la progression. */
+export class AimLines {
+  private pos = new Float32Array(AIM_CAP * 6);
+  private geo = new THREE.BufferGeometry();
+  private n = 0;
+  constructor(scene: THREE.Scene) {
+    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    this.geo.setDrawRange(0, 0);
+    const lines = new THREE.LineSegments(this.geo, new THREE.LineBasicMaterial({ color: PAL.telegraph }));
+    lines.frustumCulled = false;
+    scene.add(lines);
+  }
+  begin(): void {
+    this.n = 0;
+  }
+  /** Segment de (ax,ay,az) vers (bx,by,bz), tracé sur la fraction `f` ∈ [0,1] de sa longueur. */
+  add(ax: number, ay: number, az: number, bx: number, by: number, bz: number, f: number): void {
+    if (this.n >= AIM_CAP) return;
+    const o = this.n * 6;
+    this.pos[o] = ax;
+    this.pos[o + 1] = ay;
+    this.pos[o + 2] = az;
+    this.pos[o + 3] = ax + (bx - ax) * f;
+    this.pos[o + 4] = ay + (by - ay) * f;
+    this.pos[o + 5] = az + (bz - az) * f;
+    this.n++;
+  }
+  end(): void {
+    this.geo.setDrawRange(0, this.n * 2);
+    (this.geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+  }
+}
+
 interface DmgItem {
   el: HTMLSpanElement;
   life: number;

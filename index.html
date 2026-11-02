@@ -580,6 +580,9 @@
       .h2.dead {
         color: var(--hp);
       }
+      .h2.dead.win {
+        color: var(--gold);
+      }
       .cards {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -672,6 +675,11 @@
         background: var(--gold);
         color: var(--ink);
       }
+      .badge.evo {
+        background: var(--paper);
+        color: var(--ink);
+        box-shadow: 0 0 0 2px var(--gold);
+      }
       .card p {
         margin: 0;
         font-size: 13.5px;
@@ -686,7 +694,7 @@
       }
       .stats {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 8px;
         width: 100%;
       }
@@ -726,7 +734,7 @@
           transform: none;
         }
         .stats {
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(3, 1fr);
         }
         .time {
           font-size: 22px;
@@ -789,7 +797,7 @@
         </div>
       </div>
       <div id="bossbar" hidden>
-        <span>LE GARDIEN</span>
+        <span id="bossname">LE GARDIEN</span>
         <div><i id="bossfill"></i></div>
       </div>
     </div>
@@ -860,11 +868,12 @@
 
     <section id="over" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2 dead">La horde t'a eu</h2>
+        <h2 class="h2 dead" id="oTitle">La horde t'a eu</h2>
         <div class="stats">
           <div><b id="oTime">0:00</b><span>Temps</span></div>
           <div><b id="oLvl">1</b><span>Niveau</span></div>
           <div><b id="oKills">0</b><span>Vaincus</span></div>
+          <div><b id="oGold">0</b><span>Or</span></div>
           <div><b id="oBest">0:00</b><span>Record</span></div>
         </div>
         <p class="note" id="oMsg"></p>

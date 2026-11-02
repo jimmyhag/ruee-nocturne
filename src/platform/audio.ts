@@ -202,6 +202,40 @@ export class AudioBus {
   death(): void {
     this.tone(this.ui, 200, 0.6, 'sawtooth', 0.4, -150, PRIO.hurt);
   }
+  /** Coffre ramassé : arpège montant 3 notes. */
+  chest(): void {
+    this.tone(this.ui, 523, 0.1, 'triangle', 0.26, 0, PRIO.levelUp);
+    this.tone(this.ui, 659, 0.1, 'triangle', 0.26, 0, PRIO.levelUp, 0.08);
+    this.tone(this.ui, 784, 0.2, 'triangle', 0.3, 0, PRIO.levelUp, 0.16);
+  }
+  /** Évolution d'arme : accord grave + brillance. */
+  evolve(): void {
+    this.tone(this.ui, 110, 0.6, 'sawtooth', 0.35, 110, PRIO.levelUp);
+    this.tone(this.ui, 440, 0.5, 'triangle', 0.3, 0, PRIO.levelUp, 0.1);
+    this.tone(this.ui, 660, 0.5, 'triangle', 0.25, 0, PRIO.levelUp, 0.1);
+    this.tone(this.ui, 1320, 0.4, 'sine', 0.2, 0, PRIO.levelUp, 0.2);
+  }
+  /** Rugissement du Gardien avant la charge. */
+  roar(): void {
+    this.tone(this.sfx, 60, 0.7, 'sawtooth', 0.45, 40, PRIO.boss);
+    this.tone(this.sfx, 90, 0.5, 'square', 0.2, -30, PRIO.boss, 0.05);
+  }
+  /** Crachat du Cracheur (court, grave). */
+  spit(): void {
+    this.tone(this.sfx, 240, 0.08, 'square', 0.14, -120, PRIO.hit);
+  }
+  /** Plongée d'un Volant : sifflement descendant. */
+  dive(): void {
+    this.tone(this.sfx, 1200, 0.3, 'sine', 0.12, -700, PRIO.hit);
+  }
+  /** Lancer de boomerang. */
+  throwSound(): void {
+    this.tone(this.sfx, 700, 0.12, 'triangle', 0.14, -300, PRIO.shoot);
+  }
+  /** Explosion (mine, cercle du Colosse). */
+  blast(): void {
+    this.tone(this.sfx, 70, 0.25, 'square', 0.3, -40, PRIO.kill);
+  }
   /** Sélection d'une carte : son distinct par type (nouvelle arme, arme, passif, soin). */
   select(kind: 'w' | 'wnew' | 's' | 'heal' = 'w'): void {
     const s = CARD_SOUNDS[kind];
