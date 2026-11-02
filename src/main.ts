@@ -482,7 +482,6 @@ loadMeta().then((m) => {
   updateBestLine();
 });
 setPerf(perfOn);
-requestAnimationFrame(frame);
 
 // hooks de debug / tests (jamais en prod sans ?debug=1)
 const debugRt = installDebugHooks({
@@ -501,3 +500,5 @@ const debugRt = installDebugHooks({
   },
   audioVoices: () => audio.voiceCount,
 });
+// la boucle démarre après l'installation des hooks : `debugRt` est défini avant la première frame
+requestAnimationFrame(frame);

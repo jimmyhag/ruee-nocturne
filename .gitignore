@@ -13,3 +13,4 @@ test-results/
 # fichier personnel sans rapport avec le jeu
 all time frame.docx
 firebase-debug.log
+.claude/worktrees/

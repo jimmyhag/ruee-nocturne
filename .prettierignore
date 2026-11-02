@@ -17,3 +17,5 @@ README.md
 # skills et agents : texte de Jimmy
 .claude/**/*.md
 .firebaserc
+# worktrees créés par l'app Claude
+.claude/worktrees/
