@@ -1,8 +1,10 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, STEP } from './sim/balance';
+import { CAPS, STEP, WEAPON_MAX } from './sim/balance';
+import { dropChest } from './sim/combat';
 import { spawnEnemy } from './sim/spawner';
+import { EVOLUTIONS } from './sim/weapons/defs';
 import { step } from './sim/step';
 import { Mode } from './sim/types';
 import type { Input, WeaponKey } from './sim/types';
@@ -80,6 +82,29 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     },
     seed(n: number): void {
       host.start(n);
+    },
+    /** Arme au niveau max + passif associé + évolution appliquée (captures, tests). */
+    evolve(weapon: WeaponKey): void {
+      const world = w();
+      const ev = EVOLUTIONS[weapon];
+      if (!world || !ev) return;
+      world.weapons[weapon] = WEAPON_MAX;
+      world.passives[ev.passive] = Math.max(1, world.passives[ev.passive] ?? 0);
+      world.evolved[weapon] = true;
+      host.afterSimJump();
+    },
+    /** Téléporte le joueur (captures : lac, bois). */
+    teleport(x: number, z: number): void {
+      const world = w();
+      if (!world) return;
+      world.player.x = world.player.px = x;
+      world.player.z = world.player.pz = z;
+      host.scene.snapCamera(world);
+    },
+    /** Pose un coffre sous le joueur (boss : 3 à 5 cartes). */
+    chest(boss = false): void {
+      const world = w();
+      if (world) dropChest(world, world.player.x, world.player.z + 0.3, boss);
     },
     /** Pose un ennemi de type `type` à `dist` u avec `hp` PV : la prochaine arme qui le touche le tue (captures de kill). */
     weak(type: number, dist = 2, hp = 1): void {

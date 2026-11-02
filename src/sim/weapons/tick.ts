@@ -1,10 +1,12 @@
-import { ENEMIES } from '../balance';
+import { BOOMERANG, EVOLVE, MINES } from '../balance';
 import { hitEnemy } from '../combat';
-import { Ev, HitSrc } from '../types';
+import { Ev, HitSrc, ProjKind } from '../types';
+import type { Projectile } from '../types';
 import type { World } from '../world';
 import { WEAPONS } from './defs';
 
-const MAX_ENEMY_R = 2.0; // Gardien
+const MAX_ENEMY_R = 2.6; // Colosse
+const TAU = Math.PI * 2;
 // tampons réutilisés (zéro allocation)
 const near = new Int32Array(8);
 const nearD = new Float64Array(8);
@@ -48,11 +50,10 @@ function nearest(w: World, n: number, range: number): number {
   return count;
 }
 
-function fire(w: World, targetIdx: number, dmg: number, pierce: number, speed: number, spread: number): void {
-  const e = w.enemies[targetIdx];
+function fireAngle(w: World, a: number, dmg: number, pierce: number, speed: number): Projectile | null {
   const p = w.allocProj();
-  if (!p) return;
-  const a = Math.atan2(e.x - w.player.x, e.z - w.player.z) + spread;
+  if (!p) return null;
+  p.kind = ProjKind.Orbe;
   p.x = p.px = w.player.x;
   p.z = p.pz = w.player.z;
   p.y = w.player.y + 1;
@@ -63,73 +64,102 @@ function fire(w: World, targetIdx: number, dmg: number, pierce: number, speed: n
   p.dmg = dmg;
   p.pierce = pierce;
   p.hit0 = p.hit1 = p.hit2 = -1;
+  p.ret = false;
+  p.armed = false;
+  return p;
+}
+
+function fire(w: World, targetIdx: number, dmg: number, pierce: number, speed: number, spread: number): void {
+  const e = w.enemies[targetIdx];
+  fireAngle(w, Math.atan2(e.x - w.player.x, e.z - w.player.z) + spread, dmg, pierce, speed);
 }
 
 export function tickWeapons(w: World, dt: number): void {
   const P = w.player,
     S = w.wstate;
 
-  // ---- Orbe filante ----
+  // ---- Orbe filante / Nova ----
   const lvO = w.weapons.orbe ?? 0;
   if (lvO > 0) {
     const s = WEAPONS.orbe.stats(lvO);
     S.orbeT -= dt;
     if (S.orbeT <= 0) {
-      const found = nearest(w, s.n, 15);
-      if (found > 0) {
-        S.orbeT = s.cd * P.cdMul;
-        for (let i = 0; i < s.n; i++) {
-          const spread = i >= found ? (i - found + 1) * 0.35 : 0;
-          fire(w, near[i % found], s.dmg, s.pierce, s.speed, spread);
-        }
-        const t = w.enemies[near[0]];
-        const a = Math.atan2(t.x - P.x, t.z - P.z);
-        P.recoil = 0.14;
-        w.emit(Ev.Shoot, P.x + Math.sin(a) * 0.6, P.y + 1, P.z + Math.cos(a) * 0.6);
-      } else S.orbeT = 0.15;
+      if (w.evolved.orbe) {
+        // Nova : salve circulaire, pas besoin de cible
+        if (w.enemyCount > 0) {
+          S.orbeT = s.cd * P.cdMul;
+          const n = EVOLVE.nova.n;
+          for (let i = 0; i < n; i++) fireAngle(w, (i / n) * TAU + S.bladeA * 0.1, s.dmg, s.pierce, s.speed);
+          P.recoil = 0.14;
+          w.emit(Ev.Shoot, P.x, P.y + 1, P.z, n);
+        } else S.orbeT = 0.15;
+      } else {
+        const found = nearest(w, s.n, 15);
+        if (found > 0) {
+          S.orbeT = s.cd * P.cdMul;
+          for (let i = 0; i < s.n; i++) {
+            const spread = i >= found ? (i - found + 1) * 0.35 : 0;
+            fire(w, near[i % found], s.dmg, s.pierce, s.speed, spread);
+          }
+          const t = w.enemies[near[0]];
+          const a = Math.atan2(t.x - P.x, t.z - P.z);
+          P.recoil = 0.14;
+          w.emit(Ev.Shoot, P.x + Math.sin(a) * 0.6, P.y + 1, P.z + Math.cos(a) * 0.6, s.n);
+        } else S.orbeT = 0.15;
+      }
     }
   }
 
-  // ---- Halo brûlant ----
+  // ---- Halo brûlant / Soleil noir ----
   const lvA = w.weapons.aura ?? 0;
   if (lvA > 0) {
     const s = WEAPONS.aura.stats(lvA);
+    const evo = w.evolved.aura;
+    const r = s.r * (evo ? EVOLVE.soleil.rMul : 1);
+    const dmg = s.dmg * (evo ? EVOLVE.soleil.dmgMul : 1);
     S.auraT -= dt;
     S.auraPulse = Math.max(0, S.auraPulse - dt * 3);
     if (S.auraT <= 0) {
       S.auraT = s.period * P.cdMul;
       S.auraPulse = 1;
-      const n = w.grid.query(w.enemies, P.x, P.z, s.r, MAX_ENEMY_R, hits);
-      for (let k = 0; k < n; k++) hitEnemy(w, hits[k], s.dmg, 1.5, P.x, P.z, HitSrc.Aura);
-      w.emit(Ev.AuraPulse, P.x, 0, P.z, s.r);
+      const n = w.grid.query(w.enemies, P.x, P.z, r, MAX_ENEMY_R, hits);
+      for (let k = 0; k < n; k++) {
+        if (hitEnemy(w, hits[k], dmg, 1.5, P.x, P.z, HitSrc.Aura) && evo)
+          P.hp = Math.min(P.maxHp, P.hp + EVOLVE.soleil.healPerKill); // Soleil noir : soin par kill
+      }
+      w.emit(Ev.AuraPulse, P.x, 0, P.z, r);
     }
   }
 
-  // ---- Lames orbitales ----
+  // ---- Lames orbitales / Tempête ----
   const lvL = w.weapons.lames ?? 0;
   if (lvL > 0) {
     const s = WEAPONS.lames.stats(lvL);
-    S.bladeA += s.spd * dt;
-    const TAU = Math.PI * 2;
+    const evo = w.evolved.lames;
+    const r = s.r * (evo ? EVOLVE.tempete.rMul : 1);
+    const dmg = s.dmg * (evo ? EVOLVE.tempete.dmgMul : 1);
+    S.bladeA += s.spd * (evo ? EVOLVE.tempete.spdMul : 1) * dt;
+    const window = evo ? EVOLVE.tempete.hitWindow : 0.4;
     for (let i = 0; i < s.n; i++) {
       const a = S.bladeA + (i * TAU) / s.n;
-      const bx = P.x + Math.sin(a) * s.r,
-        bz = P.z + Math.cos(a) * s.r;
+      const bx = P.x + Math.sin(a) * r,
+        bz = P.z + Math.cos(a) * r;
       const n = w.grid.query(w.enemies, bx, bz, 0.55, MAX_ENEMY_R, hits);
       for (let k = 0; k < n; k++) {
         const e = w.enemies[hits[k]];
-        if (w.t - e.lastBlade > 0.4) {
+        if (w.t - e.lastBlade > window) {
           e.lastBlade = w.t;
-          hitEnemy(w, hits[k], s.dmg, 5, P.x, P.z, HitSrc.Lames);
+          hitEnemy(w, hits[k], dmg, 5, P.x, P.z, HitSrc.Lames);
         }
       }
     }
   }
 
-  // ---- Foudre en chaîne ----
+  // ---- Foudre en chaîne / Orage ----
   const lvF = w.weapons.foudre ?? 0;
   if (lvF > 0) {
     const s = WEAPONS.foudre.stats(lvF);
+    const evo = w.evolved.foudre;
     S.foudreT -= dt;
     if (S.foudreT <= 0) {
       // cible initiale : un ennemi aléatoire à < 13 u (tirage par rejet borné, déterministe)
@@ -145,15 +175,16 @@ export function tickWeapons(w: World, dt: number): void {
         }
       }
       if (cur >= 0) {
-        S.foudreT = s.cd * P.cdMul;
+        S.foudreT = (s.cd * P.cdMul) / (evo ? EVOLVE.orage.cdDiv : 1);
+        const chain = s.chain + (evo ? EVOLVE.orage.chainPlus : 0);
         let seenN = 0;
         let px = w.enemies[cur].x,
           py = 10,
           pz = w.enemies[cur].z;
-        for (let c = 0; c <= s.chain && cur >= 0; c++) {
+        for (let c = 0; c <= chain && cur >= 0 && seenN < seen.length; c++) {
           seen[seenN++] = cur;
           const e = w.enemies[cur];
-          const cy = ENEMIES[e.type].y;
+          const cy = e.y;
           w.emit(Ev.Bolt, px, py, pz, 0, e.x, cy, e.z);
           hitEnemy(w, cur, s.dmg, 2, e.x + 0.01, e.z, HitSrc.Foudre);
           px = e.x;
@@ -181,17 +212,125 @@ export function tickWeapons(w: World, dt: number): void {
       } else S.foudreT = 0.3;
     }
   }
+
+  // ---- Boomerang : part dans la direction du regard, revient, traverse ----
+  const lvB = w.weapons.boomerang ?? 0;
+  if (lvB > 0) {
+    const s = WEAPONS.boomerang.stats(lvB);
+    S.boomT -= dt;
+    if (S.boomT <= 0 && w.enemyCount > 0) {
+      S.boomT = s.cd * P.cdMul;
+      const base = Math.atan2(P.dirX, P.dirZ);
+      for (let i = 0; i < s.n; i++) {
+        const p = fireAngle(w, base + (i === 0 ? 0 : Math.PI), s.dmg, 999, s.speed); // le second part dans le dos
+        if (!p) break;
+        p.kind = ProjKind.Boomerang;
+        p.r = s.range;
+        p.life = BOOMERANG.safetyLife;
+        p.y = P.y + 0.9;
+      }
+      w.emit(Ev.Throw, P.x, P.y + 0.9, P.z, s.n);
+    }
+  }
+
+  // ---- Mines : posées sur le passage, explosent au contact ----
+  const lvM = w.weapons.mines ?? 0;
+  if (lvM > 0) {
+    const s = WEAPONS.mines.stats(lvM);
+    S.mineT -= dt;
+    S.mineDist += Math.sqrt(P.vx * P.vx + P.vz * P.vz) * dt;
+    if (S.mineT <= 0 && S.mineDist >= MINES.spacing) {
+      let count = 0;
+      for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === ProjKind.Mine) count++;
+      if (count < s.n) {
+        S.mineT = s.cd * P.cdMul;
+        S.mineDist = 0;
+        const p = w.allocProj();
+        if (p) {
+          p.kind = ProjKind.Mine;
+          p.x = p.px = P.x;
+          p.z = p.pz = P.z;
+          p.y = 0.2;
+          p.vx = p.vz = 0;
+          p.life = MINES.life;
+          p.age = 0;
+          p.dmg = s.dmg;
+          p.pierce = s.chain; // 1 : explosion en chaîne (niveau 5)
+          p.r = s.r;
+          p.armed = false;
+          p.hit0 = p.hit1 = p.hit2 = -1;
+        }
+      }
+    }
+  }
 }
 
 export function tickProjectiles(w: World, dt: number): void {
+  const P = w.player;
   for (let i = w.projCount - 1; i >= 0; i--) {
     const p = w.projs[i];
     p.px = p.x;
     p.pz = p.z;
-    p.x += p.vx * dt;
-    p.z += p.vz * dt;
     p.life -= dt;
     p.age += dt;
+    if (p.kind === ProjKind.Mine) {
+      if (p.armed) {
+        // explosion : zone, recul, puis chaîne (les mines à 3 u s'amorcent)
+        const n = w.grid.query(w.enemies, p.x, p.z, p.r, MAX_ENEMY_R, hits);
+        for (let k = 0; k < n; k++) hitEnemy(w, hits[k], p.dmg, 4, p.x, p.z, HitSrc.Mines);
+        w.emit(Ev.MineBlast, p.x, 0.2, p.z, p.r);
+        if (p.pierce > 0)
+          for (let j = 0; j < w.projCount; j++) {
+            const o = w.projs[j];
+            if (o !== p && o.kind === ProjKind.Mine && !o.armed) {
+              const dx = o.x - p.x,
+                dz = o.z - p.z;
+              if (dx * dx + dz * dz < MINES.chainR * MINES.chainR) o.armed = true;
+            }
+          }
+        w.freeProj(i);
+        continue;
+      }
+      if (p.life <= 0) {
+        w.freeProj(i);
+        continue;
+      }
+      if (p.age > MINES.armDelay && w.grid.query(w.enemies, p.x, p.z, MINES.triggerR, MAX_ENEMY_R, hits) > 0)
+        p.armed = true; // explose au prochain step
+      continue;
+    }
+    if (p.kind === ProjKind.Boomerang) {
+      if (!p.ret) {
+        const dx = p.x - P.x,
+          dz = p.z - P.z;
+        if (dx * dx + dz * dz >= p.r * p.r) p.ret = true;
+      } else {
+        const dx = P.x - p.x,
+          dz = P.z - p.z,
+          d = Math.sqrt(dx * dx + dz * dz) || 1;
+        const sp = Math.sqrt(p.vx * p.vx + p.vz * p.vz);
+        p.vx = (dx / d) * sp;
+        p.vz = (dz / d) * sp;
+        if (d < 0.9 || p.life <= 0) {
+          w.freeProj(i);
+          continue;
+        }
+      }
+      p.x += p.vx * dt;
+      p.z += p.vz * dt;
+      const n = w.grid.query(w.enemies, p.x, p.z, 0.6, MAX_ENEMY_R, hits);
+      for (let k = 0; k < n; k++) {
+        const e = w.enemies[hits[k]];
+        if (w.t - e.lastBoom > BOOMERANG.rehit) {
+          e.lastBoom = w.t;
+          hitEnemy(w, hits[k], p.dmg, 3, p.x - p.vx, p.z - p.vz, HitSrc.Boomerang);
+        }
+      }
+      continue;
+    }
+    // orbe
+    p.x += p.vx * dt;
+    p.z += p.vz * dt;
     const n = w.grid.query(w.enemies, p.x, p.z, 0.3, MAX_ENEMY_R, hits);
     for (let k = 0; k < n; k++) {
       const j = hits[k];

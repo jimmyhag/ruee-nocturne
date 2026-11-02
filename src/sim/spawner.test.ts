@@ -76,8 +76,11 @@ describe('spawner', () => {
     expect(SPAWN.pick(0, 0.01)).toBe(0);
     expect(SPAWN.pick(0, 0.99)).toBe(0);
     expect(SPAWN.pick(60, 0.1)).toBe(1);
-    expect(SPAWN.pick(60, 0.5)).toBe(0);
+    expect(SPAWN.pick(60, 0.9)).toBe(0);
     expect(SPAWN.pick(120, 0.01)).toBe(2);
+    expect(SPAWN.pick(200, 0.02)).toBe(4); // Volant après 3:00
+    expect(SPAWN.pick(400, 0.02)).toBe(5); // Cracheur après 6:00
+    expect(SPAWN.pick(170, 0.02)).not.toBe(4);
   });
   it('respawnNear replace un ennemi trop loin devant le joueur', () => {
     const w = new World(6);

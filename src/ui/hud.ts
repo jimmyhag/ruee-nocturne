@@ -1,10 +1,11 @@
-import { PLAYER } from '../sim/balance';
+import { ENEMIES, PLAYER } from '../sim/balance';
 import type { Card } from '../sim/types';
 import { cardText, cardTitle } from '../sim/progression';
-import { PASSIVES, WEAPONS } from '../sim/weapons/defs';
+import { EVOLUTIONS, PASSIVES, WEAPONS } from '../sim/weapons/defs';
 import type { World } from '../sim/world';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+const BOSS_NAMES = ENEMIES.map((d) => d.name.toUpperCase()); // précalculé : aucune chaîne par frame
 export const fmtTime = (s: number) => {
   s = Math.floor(s);
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
@@ -26,6 +27,7 @@ export class Hud {
     kills: $('kills'),
     killsBox: $('killsBox'),
     bossbar: $('bossbar'),
+    bossname: $('bossname'),
     bossfill: $('bossfill'),
     kit: $('kit'),
     dashbar: $('dashbar'),
@@ -101,6 +103,7 @@ export class Hud {
     if (bossOn) {
       const b = w.enemies[w.bossIndex];
       this.width('bossfill', b.hp / b.max);
+      this.text('bossname', BOSS_NAMES[b.type]);
     }
     const cd = P.dashCd > 0 ? 1 - P.dashCd / PLAYER.dashCd : 1;
     const cdv = cd.toFixed(2);
@@ -187,6 +190,13 @@ export function renderCards(container: HTMLElement, cards: Card[]): void {
         glyph = d.glyph;
         color = d.color;
         badge = `<span class="badge">Niv ${c.lv}</span>`;
+      } else if (c.kind === 'e') {
+        const d = EVOLUTIONS[c.key as keyof typeof EVOLUTIONS];
+        if (d) {
+          glyph = d.glyph;
+          color = d.color;
+        }
+        badge = '<span class="badge evo">Évolution</span>';
       }
       return `<button class="card" data-i="${i}"><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div>${badge}<p>${cardText(c)}</p></button>`;
     })

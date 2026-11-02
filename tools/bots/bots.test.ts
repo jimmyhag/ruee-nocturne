@@ -2,7 +2,9 @@
 // filtre d'armes de la CLI, entrées bornées. Chaque test tient en < 2 s sans coverage ; avec `--coverage`
 // la sim instrumentée est ~6× plus lente, d'où le délai global de 30 s (vite.config.ts).
 import { describe, expect, it } from 'vitest';
-import { STEP } from '../../src/sim/balance';
+import { STEP, VOLANT_TYPE } from '../../src/sim/balance';
+import { dropChest } from '../../src/sim/combat';
+import { spawnEnemy } from '../../src/sim/spawner';
 import { startRun, step } from '../../src/sim/step';
 import { Mode } from '../../src/sim/types';
 import type { Input, WeaponKey } from '../../src/sim/types';
@@ -89,5 +91,22 @@ describe('bots de playtest', () => {
         if (w.mode === Mode.Play) step(w, inp, STEP);
       }
     }
+  });
+
+  it('phase 3 : greedy va chercher un coffre à 15 u, average saute quand un Volant pique', () => {
+    const w = new World(7);
+    dropChest(w, w.player.x + 15, w.player.z, false);
+    const greedy = makeBot('greedy', 1);
+    const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+    greedy.decide(w, 0, inp);
+    expect(inp.mx).toBeGreaterThan(0.5); // vers le coffre (+x)
+
+    const w2 = new World(8);
+    const i = spawnEnemy(w2, VOLANT_TYPE, 0, 2);
+    w2.enemies[i].state = 1; // télégraphe de plongée presque fini
+    w2.enemies[i].timer = 0.1;
+    const avg = makeBot('average', 1);
+    avg.decide(w2, 0, inp);
+    expect(inp.jump).toBe(true);
   });
 });

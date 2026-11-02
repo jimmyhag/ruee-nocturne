@@ -34,6 +34,17 @@ async function freezeAfterKill(page: Page, afterMs: number): Promise<void> {
   );
 }
 
+/** Prend la carte 1 au clavier tant qu'un choix est affiché (niveaux en attente, coffres), puis attend le jeu. */
+async function pickUntilPlay(page: Page): Promise<void> {
+  for (let i = 0; i < 12; i++) {
+    const app = await page.evaluate(() => (window as any).__game.app as string);
+    if (app === 'play') return;
+    if (app === 'levelup') await page.keyboard.press('Digit1');
+    await page.waitForTimeout(250);
+  }
+  await page.waitForFunction(() => (window as any).__game.app === 'play', null, { timeout: 3000 });
+}
+
 test('menu, jeu à 3 min, montée de niveau, mort', async ({ page }, info) => {
   const p = info.project.name;
   await openGame(page);
@@ -86,17 +97,12 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   await expect(page.locator('#levelup')).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot(shot('levelup-feel', p));
-  await page.keyboard.press('Digit1'); // parité clavier : touche 1 = carte 1
-  await page.waitForFunction(() => (window as any).__game.app === 'play', null, { timeout: 3000 });
+  await pickUntilPlay(page); // parité clavier : touche 1 = carte 1 (plusieurs niveaux ou un coffre peuvent être en attente)
 
   // boss : saut à 4:59,5 puis la boucle réelle fait apparaître le Gardien (bannière, son, shake passent par
   // handleEvents, pas par warp) ; ramené à 6 u devant le joueur
   await page.evaluate(() => (window as any).__game.debug.warp(299.5 - (window as any).__game.world.t));
-  const appNow = await page.evaluate(() => (window as any).__game.app as string);
-  if (appNow === 'levelup') {
-    await page.keyboard.press('Digit1');
-    await page.waitForFunction(() => (window as any).__game.app === 'play', null, { timeout: 3000 });
-  }
+  await pickUntilPlay(page);
   await page.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 8000 });
   await page.evaluate(() => (window as any).__game.debug.pullBoss(6));
   await page.waitForTimeout(400);
@@ -106,4 +112,50 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   await expect(page.locator('#bossbar')).toBeVisible();
   await page.screenshot(shot('boss', p));
   await page.evaluate(() => (window as any).__game.debug.speed(1));
+});
+
+// Porte de phase 3 : armes évoluées, Colosse et ses cercles rouges, lac.
+test('contenu : évolutions, Colosse, lac', async ({ page }, info) => {
+  const p = info.project.name;
+  await openGame(page);
+  await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
+  await startRun(page, 11);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.world.player.need = 1e9; // pas de montée de niveau pendant la capture : l'écran de choix figerait la sim
+    g.debug.evolve('aura');
+    g.debug.evolve('lames');
+    g.debug.give('boomerang', 5);
+    g.debug.give('mines', 5);
+    g.debug.spawn(2, 6, 4); // des Brutes autour pour voir les coups
+  });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => (window as any).__game.debug.speed(0));
+  await page.waitForTimeout(100);
+  await page.screenshot(shot('evolutions', p));
+  await page.evaluate(() => (window as any).__game.debug.speed(1));
+
+  // Colosse à 8 u : cercles rouges télégraphiés 1 s sous le joueur
+  await page.evaluate(() => (window as any).__game.debug.spawn(7, 1, 8));
+  await page.waitForFunction(() => (window as any).__game.world.shotCount > 0, null, { timeout: 8000 });
+  await page.waitForTimeout(450);
+  await page.evaluate(() => (window as any).__game.debug.speed(0));
+  await page.waitForTimeout(100);
+  await page.screenshot(shot('colosse', p));
+  await page.evaluate(() => (window as any).__game.debug.speed(1));
+
+  // lac : le joueur est ralenti et l'eau est visible
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    const l = g.world.lakes[0];
+    g.debug.teleport(l.x, l.z);
+  });
+  await page.waitForTimeout(600);
+  const speed = await page.evaluate(() => {
+    const g = (window as any).__game;
+    return g.world.speedAt(g.world.player.x, g.world.player.z) as number;
+  });
+  expect(speed).toBeLessThan(1);
+  await page.screenshot(shot('lac', p));
 });

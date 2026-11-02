@@ -1,13 +1,15 @@
-import { BOSS_TYPE, ENEMIES, ENEMY_SEPARATION, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN } from './balance';
+import { CRACHEUR_TYPE, ENEMIES, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE } from './balance';
+import { ignoresGround, tickBoss, tickFlyer, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
-import { applyCard, rollChoices, tickGems } from './progression';
+import { applyCard, rollChoices, tickChests, tickGems } from './progression';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { Ev, Mode } from './types';
+import { Ev, Mode, ShotKind } from './types';
 import type { Input } from './types';
 import { tickProjectiles, tickWeapons } from './weapons/tick';
 import type { World } from './world';
 
 const out2 = new Float64Array(2);
+const mv = new Float64Array(2);
 const nb = new Int32Array(64);
 const TAU = Math.PI * 2;
 
@@ -22,7 +24,7 @@ export function startRun(w: World): void {
  */
 export function step(w: World, input: Input, dt: number): void {
   w.clearEvents();
-  if (w.mode === Mode.Dead) return;
+  if (w.mode === Mode.Dead || w.mode === Mode.Won) return;
   if (w.mode === Mode.LevelUp) {
     if (input.pick >= 0) applyCard(w, input.pick);
     return;
@@ -32,17 +34,22 @@ export function step(w: World, input: Input, dt: number): void {
   tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
   stepEnemies(w, dt);
+  tickShots(w, dt);
   tickWeapons(w, dt);
   tickProjectiles(w, dt);
   compactEnemies(w);
   tickGems(w, dt);
-  if (w.player.hp <= 0) {
+  tickChests(w, dt);
+  if ((w.mode as Mode) === Mode.Won) {
+    w.gold += w.t * GOLD.perSecond * w.player.goldMul;
+  } else if (w.player.hp <= 0) {
     w.player.hp = 0;
     w.mode = Mode.Dead;
+    w.gold += w.t * GOLD.perSecond * w.player.goldMul; // bonus de fin : secondes survécues / 10
     w.emit(Ev.Death, w.player.x, 1, w.player.z, w.t);
   } else if (w.pending > 0) {
     w.mode = Mode.LevelUp;
-    rollChoices(w);
+    rollChoices(w, w.chestCards > 0);
   }
 }
 
@@ -74,7 +81,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.invul = Math.max(P.invul, PLAYER.dashInvul);
     w.emit(Ev.Dash, P.x, P.y, P.z);
   }
-  let sp = P.speed;
+  let sp = P.speed * (P.onGround ? w.speedAt(P.x, P.z) : 1); // lac : ralentit au sol seulement
   if (P.dashT > 0) {
     P.dashT -= dt;
     sp *= PLAYER.dashMul;
@@ -110,6 +117,7 @@ function stepEnemies(w: World, dt: number): void {
   const decay = Math.pow(KNOCKBACK_DECAY, dt);
   let hurt = 0;
   const grid = w.grid;
+  const airborne = P.y >= PLAYER.airborneSafeY;
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (!e.alive) continue;
@@ -120,27 +128,41 @@ function stepEnemies(w: World, dt: number): void {
       dz = P.z - e.z;
     const d2 = dx * dx + dz * dz;
     const d = d2 > 1e-8 ? Math.sqrt(d2) : 1;
-    if (d > SPAWN.despawnDist && e.type !== BOSS_TYPE) {
+    if (d > SPAWN.despawnDist && !def.boss) {
       respawnNear(w, i);
       continue;
     }
-    let mx = (dx / d) * def.speed * e.spd,
-      mz = (dz / d) * def.speed * e.spd;
-    if (e.type !== BOSS_TYPE) {
-      // séparation avec les voisins (9 cellules)
-      const nn = grid.neighbors(i, nb);
-      for (let k = 0; k < nn; k++) {
-        const o = w.enemies[nb[k]];
-        if (!o.alive) continue;
-        const sx = e.x - o.x,
-          sz = e.z - o.z,
-          rr = e.r + o.r,
-          dd = sx * sx + sz * sz;
-        if (dd < rr * rr && dd > 1e-6) {
-          const dl = Math.sqrt(dd),
-            push = ((rr - dl) / rr) * ENEMY_SEPARATION;
-          mx += (sx / dl) * push;
-          mz += (sz / dl) * push;
+    // déplacement voulu selon le rôle
+    if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
+    else if (e.type === VOLANT_TYPE) tickFlyer(w, e, dt, dx, dz, d, mv);
+    else if (e.type === CRACHEUR_TYPE) tickSpitter(w, e, dt, dx, dz, d, mv);
+    else {
+      const sp = def.speed * e.spd;
+      mv[0] = (dx / d) * sp;
+      mv[1] = (dz / d) * sp;
+    }
+    let mx = mv[0],
+      mz = mv[1];
+    if (!ignoresGround(e.type)) {
+      const slow = w.speedAt(e.x, e.z);
+      mx *= slow;
+      mz *= slow;
+      if (!def.boss) {
+        // séparation avec les voisins (9 cellules)
+        const nn = grid.neighbors(i, nb);
+        for (let k = 0; k < nn; k++) {
+          const o = w.enemies[nb[k]];
+          if (!o.alive || ignoresGround(o.type)) continue;
+          const sx = e.x - o.x,
+            sz = e.z - o.z,
+            rr = e.r + o.r,
+            dd = sx * sx + sz * sz;
+          if (dd < rr * rr && dd > 1e-6) {
+            const dl = Math.sqrt(dd),
+              push = ((rr - dl) / rr) * ENEMY_SEPARATION;
+            mx += (sx / dl) * push;
+            mz += (sz / dl) * push;
+          }
         }
       }
     }
@@ -150,10 +172,52 @@ function stepEnemies(w: World, dt: number): void {
     e.kz *= decay;
     e.face = Math.atan2(dx, dz);
     if (e.flash > 0) e.flash -= dt;
-    if (d < e.r + PLAYER.radius && P.y < PLAYER.airborneSafeY && P.invul <= 0) {
+    // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
+    const canHurt = e.type === VOLANT_TYPE ? e.state === 2 : true;
+    if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       const dmg = def.dmg * e.dmgMul * dt;
       P.hp -= dmg;
       hurt += dmg;
+    }
+  }
+  if (hurt > 0) {
+    w.lastAction = w.t;
+    w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);
+  }
+}
+
+/** Projectiles ennemis : crachats (mobiles) et cercles du Colosse (immobiles, explosent à la fin). */
+function tickShots(w: World, dt: number): void {
+  const P = w.player;
+  const airborne = P.y >= PLAYER.airborneSafeY;
+  let hurt = 0;
+  for (let i = w.shotCount - 1; i >= 0; i--) {
+    const s = w.shots[i];
+    s.px = s.x;
+    s.pz = s.z;
+    s.x += s.vx * dt;
+    s.z += s.vz * dt;
+    s.life -= dt;
+    const dx = P.x - s.x,
+      dz = P.z - s.z,
+      rr = s.r + PLAYER.radius;
+    const inside = dx * dx + dz * dz < rr * rr;
+    if (s.kind === ShotKind.Spit) {
+      if (inside && !airborne && P.invul <= 0) {
+        P.hp -= s.dmg;
+        hurt += s.dmg;
+        w.freeShot(i);
+        continue;
+      }
+      if (s.life <= 0) w.freeShot(i);
+    } else if (s.life <= 0) {
+      // zone : explose
+      w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
+      if (inside && !airborne && P.invul <= 0) {
+        P.hp -= s.dmg;
+        hurt += s.dmg;
+      }
+      w.freeShot(i);
     }
   }
   if (hurt > 0) {

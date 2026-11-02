@@ -52,6 +52,7 @@ interface RunResult {
   levelAt10: number;
   weapons: Record<string, number>;
   passives: Record<string, number>;
+  evolved: string[];
   deathBy: string;
   aliveAtMinute: number[];
 }
@@ -112,6 +113,7 @@ function runOnce(seed: number): RunResult {
     levelAt10,
     weapons: { ...w.weapons } as Record<string, number>,
     passives: { ...w.passives } as Record<string, number>,
+    evolved: Object.keys(w.evolved),
     deathBy: w.mode === Mode.Dead ? lastHurtType : '—',
     aliveAtMinute: alive,
   };
@@ -129,8 +131,39 @@ for (let i = 0; i < RUNS; i++) results.push(runOnce(SEED * 1000 + i));
 const elapsed = (Date.now() - t0) / 1000;
 
 const times = results.map((r) => r.time);
+// taux de pick = part des prises de cartes d'arme (somme 100 %), arme de départ exclue (survivor-design §9)
+const startWeapon = WEAPONS ? WEAPONS[0] : 'orbe';
 const picks: Record<string, number> = {};
-for (const r of results) for (const k of Object.keys(r.weapons)) picks[k] = (picks[k] ?? 0) + 1;
+let totalPicks = 0;
+for (const r of results)
+  for (const k of Object.keys(r.weapons)) {
+    if (k === startWeapon) continue;
+    picks[k] = (picks[k] ?? 0) + 1;
+    totalPicks++;
+  }
+const evolutions: Record<string, number> = {};
+for (const r of results) for (const k of r.evolved) evolutions[k] = (evolutions[k] ?? 0) + 1;
+// variance inter-builds : médiane de kills@10 par arme principale (la plus haute hors départ) ; max / min des groupes ≥ 5 runs
+const byBuild: Record<string, number[]> = {};
+for (const r of results) {
+  if (r.killsAt10 < 0) continue;
+  let main: string = startWeapon,
+    best = -1;
+  for (const [k, lv] of Object.entries(r.weapons)) {
+    if (k === startWeapon || lv <= best) continue;
+    best = lv;
+    main = k;
+  }
+  (byBuild[main] ??= []).push(r.killsAt10);
+}
+const buildMedians = Object.fromEntries(
+  Object.entries(byBuild)
+    .filter(([, v]) => v.length >= 5)
+    .map(([k, v]) => [k, pct(v, 50)]),
+);
+const medianValues = Object.values(buildMedians);
+const killsVarianceRatio =
+  medianValues.length > 1 ? Math.max(...medianValues) / Math.max(1, Math.min(...medianValues)) : 1;
 const deaths: Record<string, number> = {};
 for (const r of results) if (!r.reachedEnd) deaths[r.deathBy] = (deaths[r.deathBy] ?? 0) + 1;
 const at10 = results.filter((r) => r.killsAt10 >= 0);
@@ -154,7 +187,12 @@ const summary = {
         50,
       )
     : -1,
-  pickPct: Object.fromEntries(Object.entries(picks).map(([k, v]) => [k, Math.round((100 * v) / RUNS)])),
+  pickPct: Object.fromEntries(
+    Object.entries(picks).map(([k, v]) => [k, Math.round((100 * v) / Math.max(1, totalPicks))]),
+  ),
+  evolutionPct: Object.fromEntries(Object.entries(evolutions).map(([k, v]) => [k, Math.round((100 * v) / RUNS)])),
+  buildMedians,
+  killsVarianceRatio,
   deathBy: Object.fromEntries(
     Object.entries(deaths).map(([k, v]) => [
       k,
@@ -181,6 +219,20 @@ lines.push(
   `picks       ${Object.entries(summary.pickPct)
     .map(([k, v]) => `${k} ${v} %`)
     .join(' · ')}`,
+);
+lines.push(
+  `évolutions  ${
+    Object.entries(summary.evolutionPct).length
+      ? Object.entries(summary.evolutionPct)
+          .map(([k, v]) => `${k} ${v} %`)
+          .join(' · ')
+      : 'aucune'
+  }`,
+);
+lines.push(
+  `kills@10/build ${Object.entries(summary.buildMedians)
+    .map(([k, v]) => `${k} ${v}`)
+    .join(' · ')}  (écart ×${summary.killsVarianceRatio.toFixed(1)})`,
 );
 lines.push(
   `cause mort  ${Object.entries(summary.deathBy)

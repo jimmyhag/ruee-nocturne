@@ -1,8 +1,8 @@
-import { CAPS, PLAYER, SPAWN, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF } from './balance';
+import { CAPS, DECOR, PLAYER, SPAWN, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Ev, Mode } from './types';
-import type { Card, Enemy, GameEvent, Gem, Input, PassiveKey, Player, Projectile, WeaponKey } from './types';
+import { Ev, Mode, ProjKind, ShotKind } from './types';
+import type { Card, Chest, Enemy, GameEvent, Gem, Input, PassiveKey, Player, Projectile, Shot, WeaponKey } from './types';
 
 export interface Obstacle {
   x: number;
@@ -16,15 +16,21 @@ export class World {
   t = 0;
   mode: Mode = Mode.Play;
   kills = 0;
-  pending = 0; // montées de niveau en attente
+  gold = 0;
+  pending = 0; // montées de niveau (ou cartes de coffre) en attente
+  chestCards = 0; // > 0 : les `pending` en cours viennent d'un coffre (bannière « Coffre ×n »)
   player: Player;
 
   enemies: Enemy[] = [];
   enemyCount = 0;
   projs: Projectile[] = [];
   projCount = 0;
+  shots: Shot[] = [];
+  shotCount = 0;
   gems: Gem[] = [];
   gemCount = 0;
+  chests: Chest[] = [];
+  chestCount = 0;
 
   events: GameEvent[] = [];
   eventCount = 0;
@@ -35,8 +41,10 @@ export class World {
   spawnAcc = 0;
   nextWave = SPAWN.wavePeriod;
   nextBoss = SPAWN.bossPeriod;
+  nextElite = SPAWN.eliteAfter;
   bossCount = 0;
   bossIndex = -1; // index de l'ennemi boss vivant, -1 sinon
+  reaperSpawned = false;
   nextId = 1;
   lastAction = 0; // dernier coup donné ou reçu
   boredomUntil = 0;
@@ -44,11 +52,15 @@ export class World {
   // armes et passifs
   weapons: Partial<Record<WeaponKey, number>> = { orbe: 1 };
   passives: Partial<Record<PassiveKey, number>> = {};
-  wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0 };
+  evolved: Partial<Record<WeaponKey, boolean>> = {};
+  wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0, boomT: 0.8, mineT: 0, mineDist: 0 };
   cards: Card[] = [];
 
-  // décor (généré par seed, collisions)
+  // décor (généré par seed, collisions) et zones
   obstacles: Obstacle[] = [];
+  treeCount = 0; // obstacles[0..treeCount) = arbres, puis rochers
+  lakes: Obstacle[] = [];
+  woods: Obstacle[] = [];
   private obstacleGrid = new Map<number, number[]>();
 
   constructor(seed: number) {
@@ -57,9 +69,13 @@ export class World {
     this.player = makePlayer();
     for (let i = 0; i < CAPS.enemies; i++) this.enemies.push(makeEnemy());
     for (let i = 0; i < CAPS.projectiles; i++) this.projs.push(makeProj());
+    for (let i = 0; i < CAPS.shots; i++) this.shots.push(makeShot());
     for (let i = 0; i < CAPS.gems; i++) this.gems.push(makeGem());
+    for (let i = 0; i < CAPS.chests; i++) this.chests.push({ alive: false, x: 0, z: 0, age: 0, boss: false });
     for (let i = 0; i < CAPS.events; i++) this.events.push({ type: Ev.Hit, x: 0, y: 0, z: 0, x2: 0, y2: 0, z2: 0, v: 0 });
-    this.generateObstacles();
+    const r = new Rng(this.seed ^ 0x9e3779b9);
+    this.generateZones(r);
+    this.generateObstacles(r);
   }
 
   // ---------- événements ----------
@@ -114,6 +130,21 @@ export class World {
     }
     this.projs[last].alive = false;
   }
+  allocShot(): Shot | null {
+    if (this.shotCount >= CAPS.shots) return null;
+    const s = this.shots[this.shotCount++];
+    s.alive = true;
+    return s;
+  }
+  freeShot(i: number): void {
+    const last = --this.shotCount;
+    if (i !== last) {
+      const a = this.shots[i];
+      this.shots[i] = this.shots[last];
+      this.shots[last] = a;
+    }
+    this.shots[last].alive = false;
+  }
   allocGem(): Gem | null {
     if (this.gemCount >= CAPS.gems) return null;
     const g = this.gems[this.gemCount++];
@@ -129,27 +160,84 @@ export class World {
     }
     this.gems[last].alive = false;
   }
+  allocChest(): Chest | null {
+    if (this.chestCount >= CAPS.chests) return null;
+    const c = this.chests[this.chestCount++];
+    c.alive = true;
+    return c;
+  }
+  freeChest(i: number): void {
+    const last = --this.chestCount;
+    if (i !== last) {
+      const a = this.chests[i];
+      this.chests[i] = this.chests[last];
+      this.chests[last] = a;
+    }
+    this.chests[last].alive = false;
+  }
 
-  // ---------- décor ----------
-  private generateObstacles(): void {
-    const r = new Rng(this.seed ^ 0x9e3779b9);
+  // ---------- zones et décor ----------
+  /** Lacs (ralentissent) et bois denses (couloirs), loin du départ. */
+  private generateZones(r: Rng): void {
+    const place = (n: number, rMin: number, rMax: number, out: Obstacle[]) => {
+      for (let i = 0; i < n; i++) {
+        let x: number, z: number;
+        do {
+          x = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8);
+          z = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8);
+        } while (x * x + z * z < ZONES.minFromCenter * ZONES.minFromCenter);
+        out.push({ x, z, r: r.range(rMin, rMax) });
+      }
+    };
+    place(ZONES.lakes, ZONES.lakeRMin, ZONES.lakeRMax, this.lakes);
+    place(ZONES.woods, ZONES.woodR, ZONES.woodR, this.woods);
+  }
+  /** Multiplicateur de vitesse au sol en (x, z) : 0,55 dans un lac, 1 ailleurs. O(nombre de lacs). */
+  speedAt(x: number, z: number): number {
+    for (let i = 0; i < this.lakes.length; i++) {
+      const l = this.lakes[i];
+      const dx = x - l.x,
+        dz = z - l.z;
+      if (dx * dx + dz * dz < l.r * l.r) return ZONES.lakeSpeed;
+    }
+    return 1;
+  }
+  private inLake(x: number, z: number): boolean {
+    return this.speedAt(x, z) < 1;
+  }
+  private generateObstacles(r: Rng): void {
+    const addOne = (x: number, z: number, radius: number) => {
+      this.obstacles.push({ x, z, r: radius });
+      const k = Math.floor(x / TREE_CELL) * 65536 + Math.floor(z / TREE_CELL);
+      let arr = this.obstacleGrid.get(k);
+      if (!arr) this.obstacleGrid.set(k, (arr = []));
+      arr.push(this.obstacles.length - 1);
+    };
     const add = (n: number, sMin: number, sMax: number, baseR: number) => {
       for (let i = 0; i < n; i++) {
         let x: number, z: number;
         do {
           x = r.range(-WORLD_HALF, WORLD_HALF);
           z = r.range(-WORLD_HALF, WORLD_HALF);
-        } while (x * x + z * z < 64);
-        const s = r.range(sMin, sMax);
-        this.obstacles.push({ x, z, r: baseR * s });
-        const k = Math.floor(x / TREE_CELL) * 65536 + Math.floor(z / TREE_CELL);
-        let arr = this.obstacleGrid.get(k);
-        if (!arr) this.obstacleGrid.set(k, (arr = []));
-        arr.push(this.obstacles.length - 1);
+        } while (x * x + z * z < 64 || this.inLake(x, z));
+        addOne(x, z, baseR * r.range(sMin, sMax));
       }
     };
-    add(380, 0.8, 1.7, 0.7); // arbres (indices 0..379)
-    add(240, 0.5, 1.4, 0.75); // rochers
+    add(DECOR.trees, 0.8, 1.7, 0.7); // arbres (indices 0..379)
+    // bois denses : arbres supplémentaires dans les disques de bois, en laissant des couloirs (anneaux)
+    for (let i = 0; i < DECOR.woodTrees; i++) {
+      const wd = this.woods[i % this.woods.length];
+      const a = r.range(0, Math.PI * 2);
+      const d = Math.sqrt(r.next()) * wd.r;
+      const x = wd.x + Math.sin(a) * d,
+        z = wd.z + Math.cos(a) * d;
+      // couloir : on évite une bande radiale de 3 u autour de 0,5·r, et le lac
+      if (Math.abs(d - wd.r * 0.5) < 1.5 || this.inLake(x, z) || Math.abs(x) > WORLD_HALF || Math.abs(z) > WORLD_HALF)
+        continue;
+      addOne(x, z, 0.7 * r.range(0.9, 1.6));
+    }
+    this.treeCount = this.obstacles.length;
+    add(DECOR.rocks, 0.5, 1.4, 0.75); // rochers
   }
   /** Repousse (x,z) hors des obstacles proches. Écrit dans out[0], out[1]. */
   resolveObstacles(x: number, z: number, pad: number, out: Float64Array): void {
@@ -204,6 +292,8 @@ export function makePlayer(): Player {
     magnet: PLAYER.magnet,
     dmgMul: 1,
     cdMul: 1,
+    luck: 0,
+    goldMul: 1,
     level: 1,
     xp: 0,
     need: XP.needFor(1),
@@ -217,10 +307,61 @@ export function makePlayer(): Player {
   };
 }
 function makeEnemy(): Enemy {
-  return { alive: false, id: 0, type: 0, r: 0.5, x: 0, z: 0, px: 0, pz: 0, hp: 1, max: 1, kx: 0, kz: 0, face: 0, flash: 0, lastBlade: -9, spd: 1, dmgMul: 1, bob: 0 };
+  return {
+    alive: false,
+    id: 0,
+    type: 0,
+    elite: false,
+    r: 0.5,
+    x: 0,
+    z: 0,
+    px: 0,
+    pz: 0,
+    y: 0,
+    hp: 1,
+    max: 1,
+    kx: 0,
+    kz: 0,
+    face: 0,
+    flash: 0,
+    lastBlade: -9,
+    lastBoom: -9,
+    spd: 1,
+    dmgMul: 1,
+    bob: 0,
+    state: 0,
+    timer: 0,
+    aim: 0,
+    tx: 0,
+    tz: 0,
+    phase2: false,
+  };
 }
 function makeProj(): Projectile {
-  return { alive: false, x: 0, y: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, age: 0, dmg: 0, pierce: 1, hit0: -1, hit1: -1, hit2: -1 };
+  return {
+    alive: false,
+    kind: ProjKind.Orbe,
+    x: 0,
+    y: 0,
+    z: 0,
+    px: 0,
+    pz: 0,
+    vx: 0,
+    vz: 0,
+    life: 0,
+    age: 0,
+    dmg: 0,
+    pierce: 1,
+    hit0: -1,
+    hit1: -1,
+    hit2: -1,
+    ret: false,
+    r: 0,
+    armed: false,
+  };
+}
+function makeShot(): Shot {
+  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0 };
 }
 function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };
