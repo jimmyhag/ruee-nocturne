@@ -1,5 +1,6 @@
 import type { Card, Input, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
+import { ShotKind } from '../../src/sim/types';
 import { WEAPONS } from '../../src/sim/weapons/defs';
 import { Rng } from '../../src/sim/rng';
 import { ENEMIES, VOLANT_TYPE } from '../../src/sim/balance';
@@ -153,6 +154,20 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           cz += dz * wgt;
           n++;
           if (d2 < 4) close++;
+        }
+      }
+      // cercles rouges du Colosse : un joueur moyen lit le télégraphe et sort de la zone
+      for (let i = 0; i < w.shotCount; i++) {
+        const s = w.shots[i];
+        if (s.kind !== ShotKind.Zone) continue;
+        const dx = s.x - P.x,
+          dz = s.z - P.z,
+          d2 = dx * dx + dz * dz;
+        if (d2 < (s.r + 1.5) ** 2) {
+          const wgt = 60 / (d2 + 0.5);
+          cx += dx * wgt;
+          cz += dz * wgt;
+          n++;
         }
       }
       if (n > 0) {

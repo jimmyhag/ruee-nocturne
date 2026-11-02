@@ -93,6 +93,14 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       world.evolved[weapon] = true;
       host.afterSimJump();
     },
+    /** Téléporte le joueur (captures : lac, bois). */
+    teleport(x: number, z: number): void {
+      const world = w();
+      if (!world) return;
+      world.player.x = world.player.px = x;
+      world.player.z = world.player.pz = z;
+      host.scene.snapCamera(world);
+    },
     /** Pose un coffre sous le joueur (boss : 3 à 5 cartes). */
     chest(boss = false): void {
       const world = w();

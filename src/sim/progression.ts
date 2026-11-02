@@ -24,7 +24,7 @@ export function availableEvolution(w: World): WeaponKey | null {
 function completesEvolution(w: World, p: PassiveKey): boolean {
   for (const k of WEAPON_KEYS) {
     const ev = EVOLUTIONS[k];
-    if (ev && ev.passive === p && (w.weapons[k] ?? 0) >= 3 && !w.evolved[k]) return true;
+    if (ev && ev.passive === p && (w.weapons[k] ?? 0) >= CHOICE.evolveFrom && !w.evolved[k]) return true;
   }
   return false;
 }

@@ -21,15 +21,15 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
   switch (e.type) {
     case BOSS_TYPE: {
       // Gardien : approche, puis recul + rugissement 0,8 s, puis charge en ligne 1 s. Phase 2 : charges 2× plus fréquentes.
-      if (e.state === 0 && e.timer <= 0 && d < 14) {
+      if (e.state === 0 && e.timer <= 0 && d < BOSS.chargeRange) {
         e.state = 1;
         e.timer = BOSS.chargeTelegraph;
         e.tx = ux;
         e.tz = uz;
         w.emit(Ev.BossRoar, e.x, e.y, e.z, BOSS.chargeTelegraph, e.tx, 0, e.tz);
       } else if (e.state === 1) {
-        mv[0] = -e.tx * 1.5; // recul
-        mv[1] = -e.tz * 1.5;
+        mv[0] = -e.tx * BOSS.chargeBack; // recul
+        mv[1] = -e.tz * BOSS.chargeBack;
         if (e.timer <= 0) {
           e.state = 2;
           e.timer = BOSS.chargeTime;
@@ -56,8 +56,8 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
         for (let i = 0; i < n; i++) spawnEnemy(w, DARD_TYPE, (i / n) * TAU, BOSS.swarmDist);
         w.player.x = px;
         w.player.z = pz;
-        e.state = 1; // pulsation côté rendu (state 1 pendant 0,3 s)
-        e.aim = 0.3;
+        e.state = 1; // pulsation côté rendu
+        e.aim = BOSS.swarmPulse;
       }
       if (e.aim > 0) {
         e.aim -= dt;
@@ -120,8 +120,8 @@ export function tickFlyer(w: World, e: Enemy, dt: number, dx: number, dz: number
     }
   } else if (e.state === 1) {
     // télégraphe : ralentit, vise la position mémorisée
-    mv[0] = (dx / d) * sp * 0.3;
-    mv[1] = (dz / d) * sp * 0.3;
+    mv[0] = (dx / d) * sp * VOLANT.telegraphSlow;
+    mv[1] = (dz / d) * sp * VOLANT.telegraphSlow;
     if (e.timer <= 0) {
       e.state = 2;
       e.timer = VOLANT.diveTime;
@@ -157,13 +157,13 @@ export function tickSpitter(w: World, e: Enemy, dt: number, dx: number, dz: numb
     mv[0] = -ux * sp;
     mv[1] = -uz * sp;
   } else {
-    mv[0] = -uz * sp * 0.4; // tourne autour
-    mv[1] = ux * sp * 0.4;
+    mv[0] = -uz * sp * C.orbit; // tourne autour
+    mv[1] = ux * sp * C.orbit;
   }
   e.timer -= dt;
   if (e.state === 0) {
     e.aim = 0;
-    if (e.timer <= 0 && d < C.keepMax + 3) {
+    if (e.timer <= 0 && d < C.keepMax + C.fireMargin) {
       e.state = 1;
       e.timer = C.aim;
     }

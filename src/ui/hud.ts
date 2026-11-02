@@ -5,6 +5,7 @@ import { EVOLUTIONS, PASSIVES, WEAPONS } from '../sim/weapons/defs';
 import type { World } from '../sim/world';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+const BOSS_NAMES = ENEMIES.map((d) => d.name.toUpperCase()); // précalculé : aucune chaîne par frame
 export const fmtTime = (s: number) => {
   s = Math.floor(s);
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
@@ -102,7 +103,7 @@ export class Hud {
     if (bossOn) {
       const b = w.enemies[w.bossIndex];
       this.width('bossfill', b.hp / b.max);
-      this.text('bossname', ENEMIES[b.type].name.toUpperCase());
+      this.text('bossname', BOSS_NAMES[b.type]);
     }
     const cd = P.dashCd > 0 ? 1 - P.dashCd / PLAYER.dashCd : 1;
     const cdv = cd.toFixed(2);

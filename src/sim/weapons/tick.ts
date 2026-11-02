@@ -1,4 +1,4 @@
-import { EVOLVE } from '../balance';
+import { BOOMERANG, EVOLVE, MINES } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind } from '../types';
 import type { Projectile } from '../types';
@@ -226,7 +226,7 @@ export function tickWeapons(w: World, dt: number): void {
         if (!p) break;
         p.kind = ProjKind.Boomerang;
         p.r = s.range;
-        p.life = 6; // sécurité : libéré bien avant par le retour
+        p.life = BOOMERANG.safetyLife;
         p.y = P.y + 0.9;
       }
       w.emit(Ev.Throw, P.x, P.y + 0.9, P.z, s.n);
@@ -239,7 +239,7 @@ export function tickWeapons(w: World, dt: number): void {
     const s = WEAPONS.mines.stats(lvM);
     S.mineT -= dt;
     S.mineDist += Math.sqrt(P.vx * P.vx + P.vz * P.vz) * dt;
-    if (S.mineT <= 0 && S.mineDist >= 1.2) {
+    if (S.mineT <= 0 && S.mineDist >= MINES.spacing) {
       let count = 0;
       for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === ProjKind.Mine) count++;
       if (count < s.n) {
@@ -252,7 +252,7 @@ export function tickWeapons(w: World, dt: number): void {
           p.z = p.pz = P.z;
           p.y = 0.2;
           p.vx = p.vz = 0;
-          p.life = 14; // une mine jamais déclenchée expire
+          p.life = MINES.life;
           p.age = 0;
           p.dmg = s.dmg;
           p.pierce = s.chain; // 1 : explosion en chaîne (niveau 5)
@@ -285,7 +285,7 @@ export function tickProjectiles(w: World, dt: number): void {
             if (o !== p && o.kind === ProjKind.Mine && !o.armed) {
               const dx = o.x - p.x,
                 dz = o.z - p.z;
-              if (dx * dx + dz * dz < 9) o.armed = true;
+              if (dx * dx + dz * dz < MINES.chainR * MINES.chainR) o.armed = true;
             }
           }
         w.freeProj(i);
@@ -295,7 +295,8 @@ export function tickProjectiles(w: World, dt: number): void {
         w.freeProj(i);
         continue;
       }
-      if (p.age > 0.3 && w.grid.query(w.enemies, p.x, p.z, 1.2, MAX_ENEMY_R, hits) > 0) p.armed = true; // explose au prochain step
+      if (p.age > MINES.armDelay && w.grid.query(w.enemies, p.x, p.z, MINES.triggerR, MAX_ENEMY_R, hits) > 0)
+        p.armed = true; // explose au prochain step
       continue;
     }
     if (p.kind === ProjKind.Boomerang) {
@@ -320,7 +321,7 @@ export function tickProjectiles(w: World, dt: number): void {
       const n = w.grid.query(w.enemies, p.x, p.z, 0.6, MAX_ENEMY_R, hits);
       for (let k = 0; k < n; k++) {
         const e = w.enemies[hits[k]];
-        if (w.t - e.lastBoom > 0.45) {
+        if (w.t - e.lastBoom > BOOMERANG.rehit) {
           e.lastBoom = w.t;
           hitEnemy(w, hits[k], p.dmg, 3, p.x - p.vx, p.z - p.vz, HitSrc.Boomerang);
         }
