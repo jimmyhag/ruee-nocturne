@@ -11,6 +11,7 @@ import { Hud, fmtTime, renderCards } from './ui/hud';
 import { loadMeta, saveMeta, DEFAULT_META } from './meta/save';
 import type { Meta } from './meta/save';
 import { installDebugHooks } from './debug';
+import { Pwa } from './platform/pwa';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const VERSION = '0.1.0';
@@ -83,6 +84,7 @@ function startGame(variant?: number): void {
   scene.snapCamera(world);
   hurtT = 0;
   timeScale = 1;
+  $('update').hidden = true; // jamais de bannière de mise à jour en jeu
   last = performance.now();
 }
 function toMenu(): void {
@@ -94,6 +96,7 @@ function toMenu(): void {
   $('touch').hidden = true;
   audio.stopMusic();
   updateBestLine();
+  showUpdateBanner();
 }
 function pauseGame(): void {
   if (app !== 'play') return;
@@ -151,7 +154,9 @@ function gameOver(): void {
   audio.death();
   audio.stopMusic();
   setTimeout(() => {
-    if (app === 'over') showOnly('over');
+    if (app !== 'over') return;
+    showOnly('over');
+    showUpdateBanner();
   }, 700);
 }
 
@@ -203,6 +208,14 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseGame();
 });
 $('version').textContent = `v${VERSION}`;
+
+// PWA : mise à jour proposée uniquement au menu ou à l'écran de mort (skill pwa-release §2)
+const pwa = new Pwa();
+function showUpdateBanner(): void {
+  $('update').hidden = !(pwa.needRefresh && (app === 'menu' || app === 'over'));
+}
+pwa.onNeedRefresh = showUpdateBanner;
+$('updateBtn').onclick = () => pwa.update();
 
 // PWA : installation
 let deferredInstall: (Event & { prompt: () => Promise<void> }) | null = null;

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Icône de Ruée Nocturne. Le contenu important reste dans le cercle central (marge 12 % : icône maskable). -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1226"/>
+      <stop offset="1" stop-color="#3d2b52"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <!-- étoiles -->
+  <g fill="#fff1db" opacity="0.8">
+    <rect x="96" y="92" width="8" height="8"/>
+    <rect x="392" y="140" width="6" height="6"/>
+    <rect x="150" y="160" width="5" height="5"/>
+    <rect x="430" y="90" width="5" height="5"/>
+    <rect x="300" y="70" width="6" height="6"/>
+  </g>
+  <!-- lune -->
+  <circle cx="330" cy="150" r="78" fill="#ffcc4d"/>
+  <circle cx="362" cy="128" r="70" fill="#1c1226"/>
+  <circle cx="362" cy="128" r="70" fill="url(#sky)" opacity="0.9"/>
+  <!-- collines -->
+  <path d="M0 372 Q 110 300 230 344 T 512 336 V512 H0 Z" fill="#2b1d3a"/>
+  <path d="M0 420 Q 140 372 256 404 T 512 392 V512 H0 Z" fill="#1c1226"/>
+  <!-- sapins -->
+  <g fill="#2b1d3a">
+    <path d="M60 372 L92 300 L124 372 Z"/>
+    <path d="M404 352 L440 268 L476 352 Z"/>
+  </g>
+  <!-- spectres (ennemis) -->
+  <g fill="#ff5470">
+    <path d="M118 330 L142 306 L166 330 L142 354 Z"/>
+    <path d="M372 318 L392 298 L412 318 L392 338 Z"/>
+  </g>
+  <!-- héroïne qui saute par-dessus la horde -->
+  <g>
+    <rect x="236" y="196" width="44" height="40" rx="6" fill="#fff1db"/>
+    <rect x="236" y="196" width="44" height="12" rx="4" fill="#ff5470"/>
+    <rect x="246" y="216" width="24" height="5" fill="#1c1226"/>
+    <rect x="224" y="238" width="68" height="60" rx="10" fill="#ff8a3d"/>
+    <rect x="232" y="298" width="20" height="26" rx="5" fill="#fff1db" transform="rotate(-18 242 311)"/>
+    <rect x="264" y="298" width="20" height="26" rx="5" fill="#fff1db" transform="rotate(18 274 311)"/>
+  </g>
+  <!-- orbe filante -->
+  <circle cx="330" cy="262" r="14" fill="#ffcc4d"/>
+  <circle cx="300" cy="270" r="7" fill="#ffcc4d" opacity="0.6"/>
+  <circle cx="278" cy="276" r="4" fill="#ffcc4d" opacity="0.35"/>
+</svg>

@@ -9,6 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Ruée" />
     <title>Ruée Nocturne</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -278,6 +280,34 @@
         pointer-events: none;
         white-space: pre;
         font-variant-numeric: tabular-nums;
+      }
+      #update {
+        position: fixed;
+        left: 50%;
+        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        transform: translateX(-50%);
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px 8px 14px;
+        border-radius: 12px;
+        border: 2px solid var(--ink);
+        background: var(--gold);
+        color: var(--ink);
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 4px 0 var(--ink);
+        white-space: nowrap;
+      }
+      #update button {
+        font-family: var(--f-display);
+        font-size: 15px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        border: 2px solid var(--ink);
+        background: var(--paper);
+        color: var(--ink);
       }
       #dmg {
         position: fixed;
@@ -739,6 +769,7 @@
     </div>
     <div id="dmg" aria-hidden="true"></div>
     <div id="banner"></div>
+    <div id="update" hidden><span>Nouvelle version disponible</span><button id="updateBtn">Recharger</button></div>
 
     <div id="touch" hidden>
       <div id="stick"><div id="knob"></div></div>
