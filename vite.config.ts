@@ -68,7 +68,7 @@ export default defineConfig({
   ],
   build: { target: 'es2022', sourcemap: false, minify: 'esbuild' },
   test: {
-    include: ['src/**/*.test.ts', 'tools/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tools/**/*.test.ts'], // src/meta inclus : la méta est pure (pas de DOM)
     environment: 'node',
     testTimeout: 30_000, // sous --coverage la sim instrumentée est ~6× plus lente (CI : 3600 steps ≈ 3 s)
     coverage: {
