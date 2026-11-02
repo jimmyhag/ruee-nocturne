@@ -10,6 +10,8 @@ export const fmtTime = (s: number) => {
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 };
 
+export type FlashKind = 'hurt' | 'gold';
+
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
 export class Hud {
   private cache: Record<string, string | number | boolean> = {};
@@ -34,10 +36,22 @@ export class Hud {
   };
   private bannerT = 0;
   private lastKillTens = 0;
+  private killPopT = 0;
+  private lastXp = 0;
+  private lastSweep = 0;
+  private flashT = 0; // flash d'écran ponctuel (doré) en cours
+  private flashKind: FlashKind = 'hurt';
+  /** Atténuation des flashs (mode « réduction des effets ») : 1 = plein, 0,4 = atténué. */
+  flashMul = 1;
 
   reset(): void {
     this.cache = {};
     this.lastKillTens = 0;
+    this.killPopT = 0;
+    this.lastXp = 0;
+    this.lastSweep = 0;
+    this.flashT = 0;
+    this.els.killsBox.classList.remove('pop');
   }
   private text(k: keyof typeof this.els, v: string): void {
     if (this.cache[k] !== v) {
@@ -53,11 +67,18 @@ export class Hud {
     }
   }
 
-  update(w: World, hurtT: number, now: number): void {
+  update(w: World, hurtT: number, now: number, dt: number): void {
     const P = w.player;
     this.width('xpfill', P.xp / P.need);
+    // éclat blanc qui balaie la barre à un gain notable (≥ 5 % du niveau), au plus toutes les 300 ms
+    const xpRatio = P.xp / P.need;
+    if (xpRatio - this.lastXp >= 0.05 && now - this.lastSweep > 0.3) {
+      this.lastSweep = now;
+      this.xpSweep();
+    }
+    if (xpRatio < this.lastXp || now - this.lastSweep > 0.3) this.lastXp = xpRatio;
     this.width('hpfill', P.hp / P.maxHp);
-    // fantôme de PV : rattrape lentement (lisibilité de la perte)
+    // fantôme de PV : rattrape en 400 ms (transition CSS) → lisibilité de la quantité perdue
     this.width('hpghost', P.hp / P.maxHp);
     this.text('hptxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
     this.text('lvl', String(P.level));
@@ -66,8 +87,11 @@ export class Hud {
     const tens = Math.floor(w.kills / 10);
     if (tens !== this.lastKillTens) {
       this.lastKillTens = tens;
+      this.killPopT = 0.15;
       this.els.killsBox.classList.add('pop');
-      setTimeout(() => this.els.killsBox.classList.remove('pop'), 150);
+    } else if (this.killPopT > 0) {
+      this.killPopT -= dt;
+      if (this.killPopT <= 0) this.els.killsBox.classList.remove('pop');
     }
     const bossOn = w.bossIndex >= 0 && w.enemies[w.bossIndex].alive;
     if (this.cache.boss !== bossOn) {
@@ -85,12 +109,32 @@ export class Hud {
       this.els.btnDash.style.setProperty('--cd', cdv);
       this.els.dashbar.style.width = cd * 100 + '%';
     }
-    const fl = hurtT > 0 ? 1 : 0;
-    if (this.cache.fl !== fl) {
-      this.cache.fl = fl;
-      this.els.flash.style.opacity = fl ? '0.55' : '0';
+    // flash d'écran : rouge tant que le joueur est touché, sinon flash ponctuel (doré) en fondu
+    let op = 0;
+    if (hurtT > 0) {
+      op = 0.55 * this.flashMul;
+      this.setFlashKind('hurt');
+    } else if (this.flashT > 0) {
+      this.flashT -= dt;
+      op = Math.max(0, this.flashT / 0.35) * 0.5 * this.flashMul;
+      this.setFlashKind(this.flashKind);
     }
-    void now;
+    const opv = Math.round(op * 20) / 20;
+    if (this.cache.fl !== opv) {
+      this.cache.fl = opv;
+      this.els.flash.style.opacity = String(opv);
+    }
+  }
+  private setFlashKind(k: FlashKind): void {
+    if (this.cache.flk !== k) {
+      this.cache.flk = k;
+      this.els.flash.classList.toggle('gold', k === 'gold');
+    }
+  }
+  /** Flash d'écran ponctuel (boss vaincu : doré). */
+  flash(kind: FlashKind): void {
+    this.flashKind = kind;
+    this.flashT = 0.35;
   }
 
   xpSweep(): void {
@@ -147,4 +191,10 @@ export function renderCards(container: HTMLElement, cards: Card[]): void {
       return `<button class="card" data-i="${i}"><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div>${badge}<p>${cardText(c)}</p></button>`;
     })
     .join('');
+}
+
+/** Flash de sélection d'une carte (classe CSS `picked`), avant la fermeture de l'écran. */
+export function flashCard(container: HTMLElement, i: number): void {
+  const el = container.children[i] as HTMLElement | undefined;
+  el?.classList.add('picked');
 }

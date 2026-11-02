@@ -78,6 +78,10 @@
         opacity: 0;
         transition: opacity 0.25s;
       }
+      #flash.gold {
+        background: radial-gradient(ellipse at center, transparent 30%, var(--gold) 120%);
+        transition: opacity 0.08s;
+      }
       #hud {
         position: fixed;
         inset: 0 0 auto;
@@ -613,6 +617,22 @@
       .card:focus-visible {
         border-color: var(--gold);
         transform: translateY(-3px);
+      }
+      .card.picked {
+        animation: cardpick 0.22s ease-out forwards;
+      }
+      @keyframes cardpick {
+        0% {
+          border-color: var(--paper);
+          background: var(--paper);
+          color: var(--ink);
+          transform: scale(1.04);
+        }
+        100% {
+          border-color: var(--gold);
+          background: var(--ink-2);
+          transform: scale(1);
+        }
       }
       .card .top {
         display: flex;
