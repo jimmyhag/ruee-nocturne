@@ -38,4 +38,18 @@ test.describe('tactile', () => {
     const jumped = await player(page);
     expect(jumped.y).toBeGreaterThan(0);
   });
+
+  test('le bouton Perf de la pause affiche et masque l’onglet perf (parité F3)', async ({ page }) => {
+    await page.goto('/'); // sans ?debug : l'onglet est masqué au départ, comme pour un joueur
+    await page.locator('#playBtn').tap();
+    await page.waitForFunction(() => document.getElementById('hud')?.hidden === false);
+    await page.locator('#pauseBtn').tap();
+    await expect(page.locator('#pause')).toBeVisible();
+    await expect(page.locator('#perf')).toBeHidden();
+    await page.locator('#perfBtn').tap();
+    await expect(page.locator('#perf')).toBeVisible();
+    await expect(page.locator('#perfBtn')).toHaveText('Perf : affichée');
+    await page.locator('#perfBtn').tap();
+    await expect(page.locator('#perf')).toBeHidden();
+  });
 });

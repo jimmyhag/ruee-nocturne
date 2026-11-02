@@ -1,7 +1,7 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { STEP } from './sim/balance';
+import { CAPS, STEP } from './sim/balance';
 import { spawnEnemy } from './sim/spawner';
 import { step } from './sim/step';
 import { Mode } from './sim/types';
@@ -23,10 +23,20 @@ export function debugEnabled(): boolean {
   return import.meta.env.DEV || location.search.includes('debug');
 }
 
-export function installDebugHooks(host: DebugHost): void {
-  if (!debugEnabled()) return;
+/** Ce que la boucle principale appelle quand les hooks sont installés (null en prod : aucun coût). */
+export interface DebugRuntime {
+  /** Mode stress : maintient `stressTarget` ennemis vivants, joueur invincible. Appelé une fois par frame en jeu. */
+  onFrame(world: World): void;
+}
+
+export function installDebugHooks(host: DebugHost): DebugRuntime | null {
+  if (!debugEnabled()) return null;
   const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
   const w = () => host.world;
+  // ?stress=400 : mesure de fps à N ennemis (porte de phase 1), N borné par la capacité du pool
+  const stressParam = new URLSearchParams(location.search).get('stress');
+  let stressTarget = stressParam ? Math.min(CAPS.enemies, Math.max(0, +stressParam | 0)) : 0;
+  let stressWorld: World | null = null; // monde déjà passé en god mode
 
   const debug = {
     /** Avance la sim de `seconds` secondes, joueur invincible, cartes prises automatiquement. */
@@ -69,6 +79,30 @@ export function installDebugHooks(host: DebugHost): void {
     seed(n: number): void {
       host.start(n);
     },
+    /** Fixe le nombre d'ennemis à maintenir (0 = arrêt). Équivaut à `?stress=n`. */
+    stress(n: number): void {
+      stressTarget = Math.min(CAPS.enemies, Math.max(0, n | 0));
+      stressWorld = null;
+    },
+    get stressTarget() {
+      return stressTarget;
+    },
+  };
+
+  const runtime: DebugRuntime = {
+    onFrame(world) {
+      if (stressTarget <= 0) return;
+      if (stressWorld !== world) {
+        stressWorld = world;
+        world.player.maxHp = world.player.hp = 1e9; // on mesure le rendu, pas la survie
+      }
+      // recomplète par paquets : les armes tuent en continu, l'anneau reste hors écran (14–24 u)
+      const missing = stressTarget - world.enemyCount;
+      if (missing <= 0) return;
+      const n = Math.min(20, missing);
+      const base = world.rng.next() * Math.PI * 2;
+      for (let i = 0; i < n; i++) spawnEnemy(world, i % 3, base + (i / n) * Math.PI * 2, 14 + (i % 5) * 2.5);
+    },
   };
 
   (window as unknown as { __game: unknown }).__game = {
@@ -92,4 +126,5 @@ export function installDebugHooks(host: DebugHost): void {
     kill: debug.kill,
     ready: true,
   };
+  return runtime;
 }
