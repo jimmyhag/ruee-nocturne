@@ -51,10 +51,22 @@ function applyFx(): void {
 let perfOn = location.search.includes('debug');
 const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
 
+// Taille du rendu : l'événement `resize` ne suffit pas (écran pliable ouvert au lancement, rotation, barres iOS,
+// fenêtre redimensionnée avant la première frame) → on compare aussi la taille à chaque frame (zéro coût, zéro
+// allocation) et on écoute le viewport visuel et l'orientation. Une taille fausse = image écrasée ou étirée.
+let sizeW = 0;
+let sizeH = 0;
 function resize(): void {
-  scene.resize(innerWidth, innerHeight);
+  const w = innerWidth,
+    h = innerHeight;
+  if (w === sizeW && h === sizeH) return;
+  sizeW = w;
+  sizeH = h;
+  scene.resize(w, h);
 }
 addEventListener('resize', resize);
+addEventListener('orientationchange', resize);
+visualViewport?.addEventListener('resize', resize);
 resize();
 
 function showOnly(id: AppMode | null): void {
@@ -390,6 +402,7 @@ let simRatio = 1;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
+  if (innerWidth !== sizeW || innerHeight !== sizeH) resize();
   let realDt = Math.min(0.1, (nowMs - last) / 1000);
   last = nowMs;
   if (debugRt) realDt *= debugRt.speed; // captures et tests uniquement (null en prod)
