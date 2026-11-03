@@ -43,26 +43,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-css',
-              expiration: { maxEntries: 8, maxAgeSeconds: 365 * 24 * 3600 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-files',
-              expiration: { maxEntries: 16, maxAgeSeconds: 365 * 24 * 3600 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+        // polices auto-hébergées dans public/fonts (précachées par globPatterns) : plus aucune origine externe
       },
     }),
   ],

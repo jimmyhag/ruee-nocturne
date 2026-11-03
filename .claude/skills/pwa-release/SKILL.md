@@ -14,7 +14,7 @@ description: Livraison du jeu en PWA installable (Android, iOS, desktop) — man
 ## 2. Service worker (Workbox via le plugin)
 - Stratégie `generateSW`, `registerType: 'prompt'` : on **ne force pas** la mise à jour en pleine partie.
 - Précache : app shell, JS, CSS, polices, icônes, sons essentiels. `globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ogg,m4a,json}']`, `maximumFileSizeToCacheInBytes: 4 Mo`.
-- Runtime : polices Google en `CacheFirst` (1 an) ; rien d'autre n'est externe.
+- Runtime : rien n’est externe. Les polices (Lilita One, Rubik ; SIL OFL) sont auto-hébergées dans `public/fonts/` et précachées : pas de CSS bloquante venant d’une autre origine (phase 5, Lighthouse).
 - UI de mise à jour : bannière « Nouvelle version disponible — Recharger », affichée **uniquement** au menu ou à l'écran de mort, jamais en jeu. `updateSW(true)` au clic.
 - `navigateFallback: '/index.html'`, `cleanupOutdatedCaches: true`.
 

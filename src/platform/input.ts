@@ -80,8 +80,9 @@ export class InputManager {
     };
     addEventListener('pointerup', end);
     addEventListener('pointercancel', end);
-    // bloque le scroll/zoom iOS
+    // bloque le scroll/zoom iOS (le viewport n'a plus user-scalable=no : touch-action: none + ces deux écouteurs)
     document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gesturestart', (e) => e.preventDefault()); // pincement Safari (événement propriétaire)
   }
 
   private prevPadButtons = { jump: false, dash: false, pause: false, pick: -1 };
