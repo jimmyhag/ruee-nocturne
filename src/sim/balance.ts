@@ -83,8 +83,8 @@ export const SPAWN = {
   midFrom: 420,
   midTo: 900,
   rate: (t: number) =>
-    Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 150), // ≈ 10,4/s à 20:00
-  hpScale: (t: number) => 1 + t / 150 + Math.max(0, Math.min(t, 900) - 420) / 100, // ×2 à 2:30, ×8 à 12:00, ×13,8 à 20:00
+    Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
+  hpScale: (t: number) => 1 + t / 150 + Math.max(0, Math.min(t, 900) - 420) / 70, // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
   dmgScale: (t: number) => 1 + t / 450, // ×3,7 à 20:00 ; t/400 : fin atteinte 5–9 % selon la seed, trop près du plancher 8 %
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
@@ -314,8 +314,9 @@ export const SHOP = {
   ] as ShopLine[],
 };
 export const REVIVE = {
-  hpFrac: 0.5, // on revient à 50 % des PV max
-  invul: 2, // s d'invulnérabilité pour sortir de la masse
+  // phase 8 (relecture) : à 50 % et 2 s, la Réanimation à 200 or valait +4 min à elle seule (5:29 → 9:33) et sautait la falaise 2–6 min
+  hpFrac: 0.25, // on revient à 25 % des PV max
+  invul: 1, // s d'invulnérabilité pour sortir de la masse
 };
 
 export const WEAPON_MAX = 5;
