@@ -5,6 +5,15 @@ import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { WEAPONS } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
+import {
+  Fireflies,
+  GRASS,
+  firGeometry,
+  grassGeometry,
+  lampHeadGeometry,
+  lampPostGeometry,
+  roundTreeGeometry,
+} from './decor';
 import { buildEnemyGeometries } from './enemies';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -97,6 +106,8 @@ export class GameScene {
   private writers: InstanceWriter[] = []; // tous les InstanceWriter dynamiques (remise à zéro au menu)
 
   private aura: THREE.Mesh;
+  private fireflies: Fireflies;
+  private night = 0; // 0 crépuscule/aube → 1 pleine nuit (lucioles)
   private auraDisc: THREE.Mesh;
   private lakeMeshes: THREE.Mesh[] = [];
 
@@ -249,6 +260,7 @@ export class GameScene {
     );
 
     this.particles = new Particles(this.scene);
+    this.fireflies = new Fireflies(this.scene);
     this.bolts = new Bolts(this.scene);
     this.aims = new AimLines(this.scene);
     this.dmg = new DamageNumbers(dmgLayer);
@@ -259,27 +271,34 @@ export class GameScene {
     const d = new THREE.Object3D();
     const nTrees = w.treeCount;
     const treeCap = DECOR.trees + DECOR.woodTrees;
-    const trees = makeInstanced(new THREE.ConeGeometry(1, 2.8, 5), lam(PAL.tree), treeCap);
-    const trunks = makeInstanced(new THREE.CylinderGeometry(0.18, 0.22, 0.8, 5), lam(0x5a3d3a), treeCap);
+    const vc = () => new THREE.MeshLambertMaterial({ vertexColors: true });
+    // deux essences (sapin, feuillu) à couleurs par sommet : la couleur d'instance ne porte que la variation de teinte
+    const firs = makeInstanced(firGeometry(), vc(), treeCap);
+    const rounds = makeInstanced(roundTreeGeometry(), vc(), treeCap);
     const rocks = makeInstanced(new THREE.DodecahedronGeometry(0.8, 0), lam(PAL.rock), DECOR.rocks);
-    const lamps = makeInstanced(
-      new THREE.OctahedronGeometry(0.3, 0),
-      new THREE.MeshBasicMaterial({ color: PAL.gold }),
+    const posts = makeInstanced(lampPostGeometry(), vc(), DECOR.lamps);
+    const lamps = makeInstanced(lampHeadGeometry(), new THREE.MeshBasicMaterial({ color: PAL.gold }), DECOR.lamps);
+    const halos = makeInstanced(
+      new THREE.CircleGeometry(2.4, 18).rotateX(-Math.PI / 2),
+      additive(PAL.gold, 0.1),
       DECOR.lamps,
     );
-    const green = new THREE.Color(PAL.tree);
+    const grass = makeInstanced(grassGeometry(), vc(), GRASS);
+    const tint = new THREE.Color();
+    let nf = 0,
+      nr = 0;
     for (let i = 0; i < nTrees; i++) {
       const o = w.obstacles[i];
       const s = o.r / 0.7;
-      d.position.set(o.x, 1.4 * s, o.z);
+      const round = i % 3 === 2;
+      const m = round ? rounds : firs;
+      const k = round ? nr++ : nf++;
+      d.position.set(o.x, 0, o.z);
       d.rotation.set(0, (i * 2.399) % TAU, 0);
-      d.scale.setScalar(s);
+      d.scale.set(s, s * (0.9 + ((i * 11) % 7) * 0.04), s);
       d.updateMatrix();
-      trees.setMatrixAt(i, d.matrix);
-      trees.setColorAt(i, green.clone().offsetHSL(0, 0, ((i * 7) % 10) * 0.012 - 0.06));
-      d.position.y = 0.4 * s;
-      d.updateMatrix();
-      trunks.setMatrixAt(i, d.matrix);
+      m.setMatrixAt(k, d.matrix);
+      m.setColorAt(k, tint.setScalar(0.86 + ((i * 7) % 10) * 0.03));
     }
     for (let i = 0; i < DECOR.rocks; i++) {
       const o = w.obstacles[nTrees + i];
@@ -290,19 +309,44 @@ export class GameScene {
       d.updateMatrix();
       rocks.setMatrixAt(i, d.matrix);
     }
-    // lanternes : positions dérivées des arbres (pas de collision)
+    // lanternes : positions dérivées des arbres (pas de collision) ; pied, tête lumineuse, halo au sol
     for (let i = 0; i < DECOR.lamps; i++) {
       const o = w.obstacles[(i * 37) % nTrees];
-      d.position.set(o.x + 2.2, 0.5, o.z + 1.3);
+      d.position.set(o.x + 2.2, 0, o.z + 1.3);
       d.rotation.set(0, 0, 0);
       d.scale.setScalar(0.9);
       d.updateMatrix();
+      posts.setMatrixAt(i, d.matrix);
       lamps.setMatrixAt(i, d.matrix);
+      d.position.y = 0.06;
+      d.updateMatrix();
+      halos.setMatrixAt(i, d.matrix);
     }
-    trees.count = trunks.count = nTrees;
+    // herbe : touffes autour des arbres, jamais dans un lac
+    let ng = 0;
+    for (let i = 0; i < GRASS; i++) {
+      const o = w.obstacles[(i * 53) % nTrees];
+      const ang = (i * 2.399) % TAU;
+      const dist = o.r + 0.8 + ((i * 13) % 9) * 0.35;
+      const x = o.x + Math.sin(ang) * dist,
+        z = o.z + Math.cos(ang) * dist;
+      let wet = false;
+      for (const l of w.lakes) if ((x - l.x) * (x - l.x) + (z - l.z) * (z - l.z) < l.r * l.r) wet = true;
+      if (wet || Math.abs(x) > WORLD_HALF - 1 || Math.abs(z) > WORLD_HALF - 1) continue;
+      d.position.set(x, 0, z);
+      d.rotation.set(0, (i * 1.3) % TAU, 0);
+      d.scale.setScalar(1.2 + ((i * 5) % 6) * 0.16);
+      d.updateMatrix();
+      grass.setMatrixAt(ng, d.matrix);
+      grass.setColorAt(ng, tint.setScalar(0.85 + ((i * 3) % 7) * 0.04));
+      ng++;
+    }
+    firs.count = nf;
+    rounds.count = nr;
     rocks.count = DECOR.rocks;
-    lamps.count = DECOR.lamps;
-    for (const m of [trees, trunks, rocks, lamps]) {
+    posts.count = lamps.count = halos.count = DECOR.lamps;
+    grass.count = ng;
+    for (const m of [firs, rounds, rocks, posts, lamps, halos, grass]) {
       m.instanceMatrix.needsUpdate = true;
       m.instanceColor!.needsUpdate = true;
       this.scene.add(m);
@@ -383,6 +427,7 @@ export class GameScene {
     this.hemi.intensity = lerp(a.hemi, b.hemi, f);
     this.sun.color.copy(this.cSun);
     this.sun.intensity = lerp(a.sunI, b.sunI, f);
+    this.night = Math.min(1, t < 480 ? t / 300 : Math.max(0, 1 - (t - 480) / 720) * 1.2);
   }
 
   /** Dessine le monde interpolé entre le step précédent et le courant (alpha ∈ [0,1]). */
@@ -393,6 +438,7 @@ export class GameScene {
       pz = lerp(P.pz, P.z, alpha),
       py = lerp(P.py, P.y, alpha);
     this.lightCycle(w.t);
+    this.fireflies.update(px, pz, now, this.night);
 
     // joueur
     this.player.position.set(px, py, pz);
@@ -687,6 +733,7 @@ export class GameScene {
   /** Caméra d'attente (menu) : tourne autour de l'origine. */
   renderIdle(now: number, dt: number): void {
     this.lightCycle(0);
+    this.fireflies.update(0, 0, now, 0.6);
     this.player.visible = true;
     this.player.position.set(0, 0, 0);
     this.player.scale.set(1, 1, 1);
@@ -725,20 +772,44 @@ export class GameScene {
 }
 
 function groundTexture(): THREE.Texture {
+  // damier discret (repère de mouvement) + bruit : brins clairs, mottes sombres, quelques cailloux et fleurs
+  const N = 128;
+  const TILE = 12; // unités monde par répétition
   const c = document.createElement('canvas');
-  c.width = c.height = 64;
+  c.width = c.height = N;
   const g = c.getContext('2d')!;
-  for (let y = 0; y < 8; y++)
-    for (let x = 0; x < 8; x++) {
-      const b = (x + y) % 2 ? PAL.grass1 : PAL.grass2;
-      const n = ((x * 31 + y * 17) % 13) - 6;
-      g.fillStyle = `rgb(${b[0] + n},${b[1] + n},${b[2] + n})`;
-      g.fillRect(x * 8, y * 8, 8, 8);
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const px = (x: number, y: number, r: number, gr: number, b: number) => {
+    g.fillStyle = `rgb(${r | 0},${gr | 0},${b | 0})`;
+    g.fillRect(x, y, 1, 1);
+  };
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const base = ((x >> 5) + (y >> 5)) % 2 ? PAL.grass1 : PAL.grass2;
+      const n = (rnd() - 0.5) * 10;
+      px(x, y, base[0] + n, base[1] + n, base[2] + n);
     }
+  for (let i = 0; i < 420; i++) {
+    // brins clairs (2 px verticaux)
+    const x = (rnd() * N) | 0,
+      y = (rnd() * N) | 0;
+    px(x, y, 96, 146, 112);
+    px(x, (y + 1) % N, 84, 132, 104);
+  }
+  for (let i = 0; i < 90; i++) {
+    // mottes sombres
+    const x = (rnd() * N) | 0,
+      y = (rnd() * N) | 0;
+    px(x, y, 48, 82, 70);
+    px((x + 1) % N, y, 52, 86, 72);
+  }
+  for (let i = 0; i < 14; i++) px((rnd() * N) | 0, (rnd() * N) | 0, 138, 128, 150); // cailloux
+  for (let i = 0; i < 10; i++) px((rnd() * N) | 0, (rnd() * N) | 0, 255, 200, 120); // fleurs
   const t = new THREE.CanvasTexture(c);
   t.magFilter = t.minFilter = THREE.NearestFilter;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set((WORLD_HALF * 2) / 3.6, (WORLD_HALF * 2) / 3.6);
+  t.repeat.set((WORLD_HALF * 2) / TILE, (WORLD_HALF * 2) / TILE);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }

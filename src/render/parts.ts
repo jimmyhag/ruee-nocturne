@@ -10,24 +10,27 @@ export interface Prim {
   size: number[];
   pos: [number, number, number];
   rot?: [number, number, number];
+  /** segments radiaux (cyl, cone, sphere) ; 7 par défaut, moins pour ce qui est instancié en masse */
+  seg?: number;
 }
 
 /** Géométrie non indexée d'une primitive, déjà placée. */
 export function primGeometry(p: Prim): THREE.BufferGeometry {
   const s = p.size;
+  const seg = p.seg ?? 7;
   let g: THREE.BufferGeometry;
   switch (p.shape) {
     case 'box':
       g = new THREE.BoxGeometry(s[0], s[1], s[2]);
       break;
     case 'cyl':
-      g = new THREE.CylinderGeometry(s[0], s[1], s[2], 7);
+      g = new THREE.CylinderGeometry(s[0], s[1], s[2], seg);
       break;
     case 'cone':
-      g = new THREE.ConeGeometry(s[0], s[1], 7);
+      g = new THREE.ConeGeometry(s[0], s[1], seg);
       break;
     case 'sphere':
-      g = new THREE.SphereGeometry(s[0], 7, 5);
+      g = new THREE.SphereGeometry(s[0], seg, Math.max(3, seg - 2));
       break;
     case 'ico':
       g = new THREE.IcosahedronGeometry(s[0], 0);

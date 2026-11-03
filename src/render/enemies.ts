@@ -18,22 +18,24 @@ const SHADE: Record<Shade, [number, number, number]> = {
 };
 type EPart = Prim & { shade?: Shade };
 const eyes = (x: number, y: number, z: number, s = 0.12): EPart[] => [
-  { shape: 'box', size: [s, s, s * 0.5], pos: [-x, y, z], shade: 'eye' },
-  { shape: 'box', size: [s, s, s * 0.5], pos: [x, y, z], shade: 'eye' },
+  { shape: 'octa', size: [s * 0.7], pos: [-x, y, z], shade: 'eye' },
+  { shape: 'octa', size: [s * 0.7], pos: [x, y, z], shade: 'eye' },
 ];
+// ennemis de masse (450 instances) : 5 segments suffisent à cette taille à l'écran
+const S5 = { seg: 5 } as const;
 
 // index = type (ENEMIES). Origine = centre de rendu (ENEMIES[].y au-dessus du sol) ; +Z = face au joueur.
 const LOOKS: EPart[][] = [
   // 0 Spectre : fantôme rond à traîne effilée, deux yeux
   [
-    { shape: 'sphere', size: [0.5], pos: [0, 0.1, 0] },
-    { shape: 'cone', size: [0.5, 0.8], pos: [0, -0.35, 0], rot: [Math.PI, 0, 0] },
+    { shape: 'sphere', size: [0.5], pos: [0, 0.1, 0], ...S5 },
+    { shape: 'cone', size: [0.5, 0.8], pos: [0, -0.35, 0], rot: [Math.PI, 0, 0], ...S5 },
     ...eyes(0.17, 0.18, 0.44, 0.13),
   ],
   // 1 Dard : fuseau pointé vers +Z, ailes claires, dard sombre
   [
-    { shape: 'cone', size: [0.36, 0.95], pos: [0, 0, 0.1], rot: [Math.PI / 2, 0, 0] },
-    { shape: 'cone', size: [0.1, 0.32], pos: [0, 0, 0.72], rot: [Math.PI / 2, 0, 0], shade: 'dark' },
+    { shape: 'cone', size: [0.36, 0.95], pos: [0, 0, 0.1], rot: [Math.PI / 2, 0, 0], ...S5 },
+    { shape: 'cone', size: [0.1, 0.32], pos: [0, 0, 0.72], rot: [Math.PI / 2, 0, 0], shade: 'dark', seg: 4 },
     { shape: 'box', size: [0.55, 0.04, 0.34], pos: [-0.42, 0.14, -0.1], rot: [0, 0.4, 0.25], shade: 'bright' },
     { shape: 'box', size: [0.55, 0.04, 0.34], pos: [0.42, 0.14, -0.1], rot: [0, -0.4, -0.25], shade: 'bright' },
     ...eyes(0.14, 0.1, 0.3, 0.1),
@@ -59,16 +61,16 @@ const LOOKS: EPart[][] = [
   ],
   // 4 Volant : chauve-souris — petit corps, deux ailes, oreilles
   [
-    { shape: 'sphere', size: [0.34], pos: [0, 0, 0] },
+    { shape: 'sphere', size: [0.34], pos: [0, 0, 0], ...S5 },
     { shape: 'box', size: [1.1, 0.05, 0.5], pos: [-0.72, 0.08, 0], rot: [0, 0, 0.22], shade: 'mid' },
     { shape: 'box', size: [1.1, 0.05, 0.5], pos: [0.72, 0.08, 0], rot: [0, 0, -0.22], shade: 'mid' },
-    { shape: 'cone', size: [0.1, 0.3], pos: [-0.16, 0.4, 0], shade: 'dark' },
-    { shape: 'cone', size: [0.1, 0.3], pos: [0.16, 0.4, 0], shade: 'dark' },
+    { shape: 'cone', size: [0.1, 0.3], pos: [-0.16, 0.4, 0], shade: 'dark', seg: 4 },
+    { shape: 'cone', size: [0.1, 0.3], pos: [0.16, 0.4, 0], shade: 'dark', seg: 4 },
     ...eyes(0.12, 0.06, 0.3, 0.1),
   ],
   // 5 Cracheur : crapaud trapu, gueule sombre, yeux globuleux
   [
-    { shape: 'cyl', size: [0.5, 0.65, 1.1], pos: [0, -0.1, 0] },
+    { shape: 'cyl', size: [0.5, 0.65, 1.1], pos: [0, -0.1, 0], ...S5 },
     { shape: 'box', size: [0.7, 0.22, 0.3], pos: [0, 0.05, 0.5], shade: 'dark' },
     { shape: 'sphere', size: [0.2], pos: [-0.3, 0.58, 0.25], shade: 'eye' },
     { shape: 'sphere', size: [0.2], pos: [0.3, 0.58, 0.25], shade: 'eye' },
