@@ -8,6 +8,7 @@ playwright-report/
 coverage/
 test-results/
 .lighthouseci/
+/lighthouse/
 .firebase/
 *.local
 # fichier personnel sans rapport avec le jeu
