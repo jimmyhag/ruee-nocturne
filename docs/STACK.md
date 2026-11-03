@@ -41,3 +41,10 @@
 - Phase 1 : mesure fps sur le téléphone de Jimmy (onglet perf, 400 ennemis).
 - Phase 2 : checklist game-feel (traînée de dash, hit-stop bornable, GIF), musique réelle.
 - Phase 3 : Boomerang, Mines, évolutions, Volant, Cracheur, élites, coffres, 3 boss, zones de terrain, équilibrage aux cibles (survie p50 9–13 min, fin de run 8–15 %).
+
+## Phase 5 (3 nov. 2026)
+
+- `src/i18n/` : `fr.json` / `en.json` à clés plates, `t()` (pluriel `_one`/`_other`, `{x}`, nombres par `Intl`), réglage `settings.lang`. La sim ne porte aucun texte ; `src/ui/cards.ts` fait le pont (clés → libellés).
+- Rendu en chunk séparé (`import('./render/scene')`, `modulepreload` injecté par `vite.config.ts`), évalué à la première interaction ; `GameScene.warmup()` = `compileAsync`. `__game.scene` peut être `null` avant.
+- Polices auto-hébergées (`public/fonts/`), plus aucune origine externe. `a-propos/index.html` : seconde entrée Vite, page statique bilingue.
+- Mesure Lighthouse : `npm run lh` (`tools/lighthouse.mjs` + `tools/lh-median.mjs`), bloquante en CI. Playwright : `PW_CHROMIUM=<binaire>` pour un Chromium déjà installé (ici `/opt/pw-browsers/chromium`), `PW_PORT` pour le port.

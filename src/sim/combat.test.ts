@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOSS_TYPE, ENEMIES, PLAYER, STEP, XP } from './balance';
 import { dropGem, hitEnemy, killEnemy } from './combat';
-import { applyCard, cardText, cardTitle, rollChoices } from './progression';
+import { applyCard, rollChoices } from './progression';
 import { Rng, hashString } from './rng';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
@@ -109,14 +109,6 @@ describe('cartes', () => {
     applyCard(w, 0);
     expect(w.player.hp).toBe(w.player.maxHp);
     applyCard(w, 9); // index invalide : ignoré
-  });
-  it('titres et textes pour chaque sorte de carte', () => {
-    expect(cardTitle({ kind: 'w', key: 'orbe', lv: 1 })).toBe('Orbe filante');
-    expect(cardText({ kind: 'w', key: 'foudre', lv: 2 })).toContain('ennemis');
-    expect(cardTitle({ kind: 's', key: 'force', lv: 1 })).toBe('Gants lourds');
-    expect(cardText({ kind: 's', key: 'force', lv: 1 })).toContain('%');
-    expect(cardTitle({ kind: 'heal', key: '', lv: 0 })).toBe('Soin complet');
-    expect(cardText({ kind: 'heal', key: '', lv: 0 })).toContain('PV');
   });
   it('tout au maximum : une seule carte de soin', () => {
     const w = new World(7);

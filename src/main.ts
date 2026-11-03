@@ -1,16 +1,19 @@
-import { BOSS_TYPE, COLOSSUS_TYPE, ELITE_TYPE, REAPER_TYPE, STEP, SWARM_TYPE } from './sim/balance';
-import { EVOLUTIONS, WEAPON_KEYS } from './sim/weapons/defs';
+import { ELITE_TYPE, ENEMIES, REAPER_TYPE, STEP } from './sim/balance';
+import { WEAPON_KEYS } from './sim/weapons/defs';
 import { startRun, step } from './sim/step';
 import { Ev, Mode } from './sim/types';
 import type { Input } from './sim/types';
 import { World } from './sim/world';
-import { GameScene } from './render/scene';
+import type { GameScene } from './render/scene';
 import { PAL } from './render/palette';
 import { FEEL, HitStop } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
-import { Hud, flashCard, fmtTime, renderCards } from './ui/hud';
-import { exportMeta, importMeta, loadMeta, normalizeMeta, saveMeta, DEFAULT_META } from './meta/save';
+import { Hud, flashCard, renderCards } from './ui/hud';
+import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
+import { achName, achUnlock, evolutionName } from './ui/cards';
+import type { Achievement } from './meta/achievements';
+import { exportMeta, importMeta, loadMeta, normalizeMeta, peekMeta, saveMeta, DEFAULT_META } from './meta/save';
 import type { Meta } from './meta/save';
 import {
   checkAchievements,
@@ -21,23 +24,48 @@ import {
 } from './meta/achievements';
 import { buy, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily } from './meta/daily';
-import { bestLine, renderAchievements, renderCharacters, renderProgress, renderShop } from './ui/meta-ui';
+import { bestLine, esc, renderAchievements, renderCharacters, renderProgress, renderShop } from './ui/meta-ui';
 import type { CharacterKey } from './sim/types';
 import { installDebugHooks } from './debug';
 import { Pwa } from './platform/pwa';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const VERSION = '0.1.0';
+const VERSION = __APP_VERSION__;
 
-// ---------- rendu ----------
-let scene: GameScene;
-try {
-  scene = new GameScene($('c') as HTMLCanvasElement, $('dmg'));
-} catch {
-  $('nogl').hidden = false;
-  $('menu').hidden = true;
-  throw new Error('WebGL indisponible');
+// ---------- rendu (module chargé à part : three + src/render ≈ 150 ko gzip) ----------
+// Le menu s'affiche et répond sans WebGL. Le module de rendu est téléchargé tout de suite (modulepreload injecté
+// par vite.config.ts) mais évalué et construit après le premier affichage, quand le navigateur est libre, ou dès
+// « Jouer » si le joueur est plus rapide. Les shaders sont compilés en parallèle (compileAsync) : pas de tâche
+// longue sur le fil principal pendant le chargement (Lighthouse TBT), et le premier run démarre sans à-coup.
+let scene: GameScene | null = null;
+let sceneReady = false; // construite et shaders compilés : on peut rendre
+let scenePromise: Promise<GameScene> | null = null;
+function loadScene(): Promise<GameScene> {
+  return (scenePromise ??= import('./render/scene').then(async ({ GameScene }) => {
+    let s: GameScene;
+    try {
+      s = new GameScene($('c') as HTMLCanvasElement, $('dmg'));
+    } catch (e) {
+      $('nogl').hidden = false;
+      $('menu').hidden = true;
+      throw e;
+    }
+    scene = s;
+    sizeW = sizeH = 0;
+    resize();
+    // le décor ne dépend que de DECOR_SEED : construit ici pour que warmup() compile aussi ses matériaux (lacs, lanternes)
+    s.buildDecor(new World(DECOR_SEED));
+    await s.warmup();
+    sceneReady = true;
+    return s;
+  }));
 }
+// ---------- langue ----------
+// Lue avant tout rendu (le HUD précalcule les noms de boss) : réglage du joueur, sinon langue du navigateur.
+const metaAtStart = peekMeta(); // synchrone (localStorage) : le menu est juste dès le premier affichage, IndexedDB confirme
+setLang(resolveLang(metaAtStart.settings.lang, navigator.language));
+applyLangStatic();
+
 const hud = new Hud();
 const audio = new AudioBus();
 const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnDash'));
@@ -52,7 +80,7 @@ const runStats = { dards: 0, elites: 0, bosses: 0, evolutions: 0, won: false };
 let lastVibe = 0;
 let app: AppMode = 'menu';
 let world: World | null = null;
-let meta: Meta = normalizeMeta(DEFAULT_META);
+let meta: Meta = metaAtStart;
 let hurtT = 0;
 const hitStop = new HitStop(); // borné : voir render/feel.ts
 // « réduction des effets » : réglage du joueur, sinon prefers-reduced-motion (skill game-feel §9)
@@ -64,7 +92,9 @@ function applyFx(): void {
   const r = reducedFx();
   hitStop.enabled = !r;
   hud.flashMul = r ? 0.4 : 1;
-  $('fxBtn').textContent = 'Effets : ' + (r ? (meta.fxChosen ? 'réduits' : 'réduits (système)') : 'complets');
+  $('fxBtn').textContent = $('setFxBtn').textContent = t(
+    r ? (meta.fxChosen ? 'settings.fx.reduced' : 'settings.fx.reducedSystem') : 'settings.fx.full',
+  );
 }
 let perfOn = location.search.includes('debug');
 const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
@@ -80,7 +110,7 @@ function resize(): void {
   if (w === sizeW && h === sizeH) return;
   sizeW = w;
   sizeH = h;
-  scene.resize(w, h);
+  scene?.resize(w, h);
 }
 addEventListener('resize', resize);
 addEventListener('orientationchange', resize);
@@ -97,17 +127,18 @@ function updateBestLine(): void {
   $('dailyBtn').hidden = !daily;
   if (daily) {
     const best = dailyBest(meta);
-    $('dailyBtn').textContent = best > 0 ? `Défi du jour · ${fmtTime(best)}` : 'Défi du jour';
+    $('dailyBtn').textContent = best > 0 ? t('menu.dailyBest', { time: fmtTime(best) }) : t('menu.daily');
   }
-  $('shopBtn').textContent = `Boutique · ${Math.round(meta.gold)} or`;
+  $('shopBtn').textContent = t('menu.shopGold', { gold: t('gold', { n: Math.round(meta.gold) }) });
 }
-/** Applique les réglages (HUD, gaucher, vibrations) au DOM et aux libellés. */
+/** Applique les réglages (HUD, gaucher, vibrations, son, langue) au DOM et aux libellés. */
 function applySettings(): void {
   document.documentElement.style.setProperty('--hud-scale', String(meta.settings.hudScale));
   document.body.classList.toggle('lefty', meta.settings.lefty);
-  $('setSoundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
-  $('setVibrateBtn').textContent = 'Vibrations : ' + (meta.settings.vibrate ? 'activées' : 'coupées');
-  $('setLeftyBtn').textContent = 'Gaucher : ' + (meta.settings.lefty ? 'oui' : 'non');
+  $('setSoundBtn').textContent = $('soundBtn').textContent = t(meta.muted ? 'settings.sound.off' : 'settings.sound.on');
+  $('setVibrateBtn').textContent = t(meta.settings.vibrate ? 'settings.vibrate.on' : 'settings.vibrate.off');
+  $('setLeftyBtn').textContent = t(meta.settings.lefty ? 'settings.lefty.yes' : 'settings.lefty.no');
+  $('setLangBtn').textContent = t('settings.lang.' + meta.settings.lang);
   for (const [id, v] of [
     ['hudSmallBtn', 0.85],
     ['hudNormalBtn', 1],
@@ -129,16 +160,51 @@ function vibrate(ms: number): void {
 function openScreen(id: 'shop' | 'achievements' | 'settings'): void {
   if (app === 'menu' || app === 'over' || app === 'pause') backTo = app;
   app = id;
-  if (id === 'shop') {
-    $('shopGold').textContent = `${Math.round(meta.gold)} or`;
-    renderShop($('shopLines'), meta);
-  } else if (id === 'achievements') renderAchievements($('achList'), meta);
+  if (id === 'shop') renderShopScreen();
+  else if (id === 'achievements') renderAchievements($('achList'), meta);
   else {
     applySettings();
-    $('setFxBtn').textContent = $('fxBtn').textContent;
     $('settingsMsg').textContent = '';
   }
   showOnly(id);
+}
+function renderShopScreen(): void {
+  $('shopGold').textContent = t('gold', { n: Math.round(meta.gold) });
+  renderShop($('shopLines'), meta);
+}
+
+// ---------- langue : passe statique (index.html) et re-rendu de l'écran courant ----------
+/** Nœuds `data-i18n` / `data-i18n-attr` de index.html et langue du document. */
+function applyLangStatic(): void {
+  document.documentElement.lang = getLang();
+  document.documentElement.classList.remove('lang-pending'); // posé par le script inline de index.html
+  for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) el.textContent = t(el.dataset.i18n!);
+  for (const el of document.querySelectorAll<HTMLElement>('[data-i18n-attr]'))
+    for (const pair of el.dataset.i18nAttr!.split(';')) {
+      const [attr, key] = pair.split(':');
+      el.setAttribute(attr, t(key));
+    }
+}
+/** Changement de langue à chaud : le statique, les libellés d'état et ce que le code a rendu pour l'écran courant. */
+function applyLang(): void {
+  applyLangStatic();
+  applyFx();
+  applySettings();
+  setPerf(perfOn);
+  if (world) hud.kit(world);
+  updateBestLine();
+  if (app === 'over') renderOverScreen();
+  else if (app === 'levelup') openLevelUp();
+  else if (app === 'shop') renderShopScreen();
+  else if (app === 'achievements') renderAchievements($('achList'), meta);
+}
+/** Après tout remplacement de la méta (import, effacement, IndexedDB, tests) : applique la langue si elle change. */
+function syncLang(): void {
+  const l = resolveLang(meta.settings.lang, navigator.language);
+  if (l !== getLang()) {
+    setLang(l);
+    applyLang();
+  }
 }
 function closeScreen(): void {
   app = backTo;
@@ -146,12 +212,36 @@ function closeScreen(): void {
   showOnly(backTo);
 }
 
-// ---------- décor : construit une fois pour la seed de décor fixe ----------
+// ---------- décor : construit une fois (loadScene) pour la seed de décor fixe ----------
 // Le décor dépend de la seed du monde ; on garde une seed de décor constante pour ne pas le reconstruire à chaque run.
 const DECOR_SEED = 20261102;
-let decorBuilt = false;
 
+let startWanted: { variant?: number; daily: boolean } | null = null;
 function startGame(variant?: number, daily = false): void {
+  if (!scene || !sceneReady) {
+    // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
+    if (!startWanted) startWanted = { variant, daily }; // la première intention (ex. défi du jour) l'emporte
+    $<HTMLButtonElement>('playBtn').disabled = true;
+    $('playBtn').textContent = t('menu.loading');
+    loadScene().then(
+      () => {
+        const w = startWanted;
+        startWanted = null;
+        $<HTMLButtonElement>('playBtn').disabled = false;
+        $('playBtn').textContent = t('menu.play');
+        if (w) startGame(w.variant, w.daily);
+      },
+      () => {
+        // module introuvable (réseau coupé au tout premier lancement) : on laisse réessayer
+        scenePromise = null;
+        startWanted = null;
+        $<HTMLButtonElement>('playBtn').disabled = false;
+        $('playBtn').textContent = t('menu.retry');
+      },
+    );
+    return;
+  }
+  const S = scene;
   audio.init();
   dailyRun = daily;
   runStats.dards = runStats.elites = runStats.bosses = runStats.evolutions = 0;
@@ -163,10 +253,6 @@ function startGame(variant?: number, daily = false): void {
   const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;
   for (let i = 0; i < skips; i++) world.rng.next();
   startRun(world);
-  if (!decorBuilt) {
-    scene.buildDecor(world);
-    decorBuilt = true;
-  }
   app = 'play';
   showOnly(null);
   $('hud').hidden = false;
@@ -174,8 +260,8 @@ function startGame(variant?: number, daily = false): void {
   $('touch').hidden = !input.isTouch;
   hud.reset();
   hud.kit(world);
-  scene.dmg.clear();
-  scene.snapCamera(world);
+  S.dmg.clear();
+  S.snapCamera(world);
   hurtT = 0;
   hitStop.reset();
   applyFx();
@@ -205,9 +291,11 @@ function resumeGame(): void {
 }
 function openLevelUp(): void {
   if (!world) return;
+  const again = app === 'levelup'; // re-rendu (changement de langue) : ni son ni balayage
   app = 'levelup';
-  $('luTitle').textContent = 'Niveau ' + (world.player.level - world.pending + 1);
+  $('luTitle').textContent = t('levelup.title', { n: world.player.level - world.pending + 1 });
   renderCards($('cards'), world.cards);
+  if (again) return;
   showOnly('levelup');
   audio.levelUp();
   hud.xpSweep();
@@ -239,8 +327,51 @@ function choose(i: number): void {
   if (reducedFx()) apply();
   else setTimeout(apply, 160);
 }
+/** Ce que l'écran de mort affiche, gardé pour le re-rendre dans l'autre langue (un objet par mort, pas par frame). */
+let lastOver: {
+  won: boolean;
+  rec: boolean;
+  gold: number;
+  dailyRank: number;
+  miss: ReturnType<typeof missingTime>;
+  fresh: Achievement[];
+} | null = null;
+function renderOverScreen(): void {
+  const o = lastOver;
+  if (!o || !world) return;
+  const g = t('gold', { n: o.gold });
+  $('oUnlocked').hidden = o.fresh.length === 0;
+  $('oUnlocked').textContent = o.fresh.length
+    ? t('over.unlocked', {
+        list: o.fresh.map((a) => achName(a) + (a.unlocks ? ` (${achUnlock(a)})` : '')).join(', '),
+      })
+    : '';
+  renderProgress($('oProgress'), meta, 3);
+  $('oTime').textContent = fmtTime(world.t);
+  $('oLvl').textContent = String(world.player.level);
+  $('oKills').textContent = String(world.kills);
+  $('oBest').textContent = fmtTime(meta.bestTime);
+  $('oGold').textContent = String(o.gold);
+  $('oTitle').textContent = t(o.won ? 'over.win' : 'over.dead');
+  $('oTitle').classList.toggle('win', o.won);
+  // seul HTML autorisé : le <span class="newrec"> écrit ici ; tout texte traduit passe par esc()
+  $('oMsg').innerHTML = o.won
+    ? `<span class="newrec">${esc(t('over.reaperDown'))}</span>`
+    : o.dailyRank > 0
+      ? esc(
+          o.dailyRank === 1
+            ? t('over.dailyBest', { gold: g })
+            : t('over.dailyRank', { rank: ordinal(o.dailyRank), gold: g }),
+        )
+      : o.miss
+        ? esc(t('over.missing', { time: fmtTime(o.miss.seconds), name: achName(o.miss.a), gold: g }))
+        : o.rec
+          ? `<span class="newrec">${esc(t('over.newRecord'))}</span>${esc(t('over.plusGold', { gold: g }))}`
+          : esc(t('over.toBeat', { time: fmtTime(meta.bestTime - world.t), gold: g }));
+}
 function gameOver(won = false): void {
-  if (!world) return;
+  if (!world || !scene) return;
+  const S = scene;
   app = 'over';
   const rec = world.t > meta.bestTime;
   meta.runs++;
@@ -264,30 +395,10 @@ function gameOver(won = false): void {
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
   saveMeta(meta);
-  $('oUnlocked').hidden = fresh.length === 0;
-  $('oUnlocked').textContent = fresh.length
-    ? 'Débloqué : ' + fresh.map((a) => a.name + (a.unlockText ? ` (${a.unlockText})` : '')).join(', ')
-    : '';
-  renderProgress($('oProgress'), meta, 3);
-  const miss = missingTime(meta, world.t);
-  $('oTime').textContent = fmtTime(world.t);
-  $('oLvl').textContent = String(world.player.level);
-  $('oKills').textContent = String(world.kills);
-  $('oBest').textContent = fmtTime(meta.bestTime);
-  $('oGold').textContent = String(Math.round(world.gold));
-  $('oTitle').textContent = won ? 'Victoire !' : "La horde t'a eu";
-  $('oTitle').classList.toggle('win', won);
-  $('oMsg').innerHTML = won
-    ? '<span class="newrec">Le Faucheur est tombé</span>'
-    : dailyRank > 0
-      ? `Défi du jour : ${dailyRank === 1 ? 'meilleur temps' : dailyRank + 'e temps'} du jour · +${gold} or`
-      : miss
-        ? `Il te manquait ${fmtTime(miss.seconds)} pour « ${miss.a.name} » · +${gold} or`
-        : rec
-          ? `<span class="newrec">Nouveau record</span> · +${gold} or`
-          : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record · +${gold} or`;
-  scene.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
-  if (!reducedFx()) scene.shake = 0.5;
+  lastOver = { won, rec, gold, dailyRank, miss: missingTime(meta, world.t), fresh };
+  renderOverScreen();
+  S.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
+  if (!reducedFx()) S.shake = 0.5;
   if (!won) audio.death();
   setTimeout(() => {
     if (app !== 'over') return;
@@ -325,17 +436,22 @@ $('shopLines').addEventListener('click', (e) => {
     saveMeta(meta);
     audio.init();
     audio.chest();
-    $('shopGold').textContent = `${Math.round(meta.gold)} or`;
-    renderShop($('shopLines'), meta);
+    renderShopScreen();
   }
 });
 // réglages
 $('setSoundBtn').onclick = () => {
   meta.muted = !meta.muted;
   audio.setMuted(meta.muted);
-  $('soundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
   saveMeta(meta);
   applySettings();
+};
+$('setLangBtn').onclick = () => {
+  const i = LANG_SETTINGS.indexOf(meta.settings.lang);
+  meta.settings.lang = LANG_SETTINGS[(i + 1) % LANG_SETTINGS.length];
+  saveMeta(meta);
+  setLang(resolveLang(meta.settings.lang, navigator.language));
+  applyLang();
 };
 $('setVibrateBtn').onclick = () => {
   meta.settings.vibrate = !meta.settings.vibrate;
@@ -343,10 +459,7 @@ $('setVibrateBtn').onclick = () => {
   applySettings();
   if (meta.settings.vibrate) vibrate(40);
 };
-$('setFxBtn').onclick = () => {
-  $('fxBtn').click();
-  $('setFxBtn').textContent = $('fxBtn').textContent;
-};
+$('setFxBtn').onclick = () => $('fxBtn').click();
 $('setLeftyBtn').onclick = () => {
   meta.settings.lefty = !meta.settings.lefty;
   saveMeta(meta);
@@ -369,18 +482,18 @@ $('exportBtn').onclick = () => {
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ruee-nocturne-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `${t('settings.exportFile')}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch {
     /* le texte reste disponible dans la zone */
   }
-  $('settingsMsg').textContent = 'Sauvegarde exportée (fichier téléchargé et texte ci-dessous).';
+  $('settingsMsg').textContent = t('settings.exported');
 };
 $('importBtn').onclick = () => {
   const m = importMeta(($('saveText') as HTMLTextAreaElement).value);
   if (!m) {
-    $('settingsMsg').textContent = "Ce texte n'est pas une sauvegarde Ruée Nocturne.";
+    $('settingsMsg').textContent = t('settings.notASave');
     return;
   }
   meta = m;
@@ -388,20 +501,31 @@ $('importBtn').onclick = () => {
   audio.setMuted(meta.muted);
   applyFx();
   applySettings();
-  $('settingsMsg').textContent =
-    `Sauvegarde importée : ${meta.runs} runs, record ${fmtTime(meta.bestTime)}, ${Math.round(meta.gold)} or.`;
+  syncLang();
+  $('settingsMsg').textContent = t('settings.imported', {
+    runs: t('runs', { n: meta.runs }),
+    time: fmtTime(meta.bestTime),
+    gold: t('gold', { n: Math.round(meta.gold) }),
+  });
 };
 let resetArmed = 0;
 $('resetBtn').onclick = () => {
   if (performance.now() - resetArmed > 4000) {
     resetArmed = performance.now();
-    $('settingsMsg').textContent = 'Appuie encore une fois pour tout effacer (record, or, succès).';
+    $('settingsMsg').textContent = t('settings.resetArm');
     return;
   }
-  meta = normalizeMeta({ ...DEFAULT_META, muted: meta.muted, reducedFx: meta.reducedFx, fxChosen: meta.fxChosen });
+  // on garde ce qui relève de l'appareil et du confort : son, effets, langue
+  meta = normalizeMeta({
+    ...DEFAULT_META,
+    muted: meta.muted,
+    reducedFx: meta.reducedFx,
+    fxChosen: meta.fxChosen,
+    settings: { ...DEFAULT_META.settings, lang: meta.settings.lang },
+  });
   saveMeta(meta);
   applySettings();
-  $('settingsMsg').textContent = 'Sauvegarde effacée.';
+  $('settingsMsg').textContent = t('settings.resetDone');
 };
 $('againBtn').onclick = () => startGame();
 $('restartBtn').onclick = () => startGame();
@@ -412,8 +536,8 @@ $('resumeBtn').onclick = resumeGame;
 $('soundBtn').onclick = () => {
   meta.muted = !meta.muted;
   audio.setMuted(meta.muted);
-  $('soundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
   saveMeta(meta);
+  applySettings();
 };
 $('fxBtn').onclick = () => {
   meta.reducedFx = !reducedFx();
@@ -443,7 +567,7 @@ input.onTouchDetected = () => {
 function setPerf(on: boolean): void {
   perfOn = on;
   hud.showPerf(on);
-  $('perfBtn').textContent = 'Perf : ' + (on ? 'affichée' : 'masquée');
+  $('perfBtn').textContent = t(on ? 'pause.perf.on' : 'pause.perf.off');
   fpsT0 = 0; // nouvelle fenêtre de mesure
 }
 addEventListener('keydown', (e) => {
@@ -489,13 +613,8 @@ $('installBtn').onclick = async () => {
 // ---------- événements de la sim → effets ----------
 // Règle 3 de CLAUDE.md : chaque coup porté produit flash (sim), recul (sim), son, chiffre et particules.
 const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt, PAL.boomerang, PAL.mine]; // HitSrc
-const BOSS_BANNER: Record<number, string> = {
-  [BOSS_TYPE]: 'Le Gardien approche',
-  [SWARM_TYPE]: "L'Essaim-mère approche",
-  [COLOSSUS_TYPE]: 'Le Colosse approche',
-  [REAPER_TYPE]: 'Le Faucheur arrive',
-};
 function handleEvents(w: World, now: number): void {
+  const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
   const reduced = reducedFx();
   const fx = reduced ? 0.5 : 1; // particules ÷2 en mode réduit
   const PT = FEEL.particles;
@@ -503,9 +622,9 @@ function handleEvents(w: World, now: number): void {
     const e = w.events[i];
     switch (e.type) {
       case Ev.Hit:
-        scene.dmg.add(e.x, e.y, e.z, e.v);
+        S.dmg.add(e.x, e.y, e.z, e.v);
         // gerbe de la couleur de l'arme, orientée comme le recul (opposée à la source)
-        scene.particles.burst(
+        S.particles.burst(
           e.x,
           e.y,
           e.z,
@@ -526,56 +645,47 @@ function handleEvents(w: World, now: number): void {
         if (e.x2 === 1 || e.v === ELITE_TYPE) {
           // élite (dorée) ou Brute : grosse gerbe ennemi + or, shake
           const n = e.x2 === 1 ? PT.elite.n : PT.elite.n * 0.5;
-          scene.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
-          scene.particles.burst(e.x, e.y, e.z, PAL.gold, (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
-          if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.elite);
-        } else
-          scene.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.kill.n * fx) | 0, PT.kill.speed, PT.kill.up);
+          S.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
+          S.particles.burst(e.x, e.y, e.z, PAL.gold, (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
+          if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+        } else S.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.kill.n * fx) | 0, PT.kill.speed, PT.kill.up);
         audio.kill(false, now);
         hitStop.request(FEEL.hitStop.kill.duration, FEEL.hitStop.kill.scale);
         break;
       case Ev.BossKill:
         runStats.bosses++;
         vibrate(80);
-        scene.particles.burst(
-          e.x,
-          e.y,
-          e.z,
-          PAL.enemy[e.v | 0],
-          (PT.elite.n * fx) | 0,
-          PT.elite.speed + 2,
-          PT.elite.up,
-        );
-        scene.particles.burst(e.x, e.y, e.z, PAL.gold, (PT.elite.n * 0.6 * fx) | 0, PT.elite.speed, PT.elite.up);
-        if (!reduced) scene.shake = FEEL.shake.boss;
-        hud.banner(e.v === REAPER_TYPE ? 'Le Faucheur est vaincu' : 'Boss vaincu');
+        S.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.elite.n * fx) | 0, PT.elite.speed + 2, PT.elite.up);
+        S.particles.burst(e.x, e.y, e.z, PAL.gold, (PT.elite.n * 0.6 * fx) | 0, PT.elite.speed, PT.elite.up);
+        if (!reduced) S.shake = FEEL.shake.boss;
+        hud.banner(t(e.v === REAPER_TYPE ? 'banner.reaperDown' : 'banner.bossDown'));
         hud.flash('gold');
         audio.kill(true);
         hitStop.request(FEEL.hitStop.boss.duration, FEEL.hitStop.boss.scale, 2);
         break;
       case Ev.Shoot:
-        scene.particles.burst(e.x, e.y, e.z, PAL.proj, PT.shoot.n, PT.shoot.speed, PT.shoot.up, false);
+        S.particles.burst(e.x, e.y, e.z, PAL.proj, PT.shoot.n, PT.shoot.speed, PT.shoot.up, false);
         audio.shoot();
         break;
       case Ev.Throw:
         audio.throwSound();
         break;
       case Ev.MineBlast:
-        scene.particles.burst(e.x, e.y, e.z, PAL.mine, (12 * fx) | 0, 6, 6);
-        scene.particles.ring(e.x, 0.2, e.z, PAL.gold, (10 * fx) | 0, e.v * 2.5, 1);
+        S.particles.burst(e.x, e.y, e.z, PAL.mine, (12 * fx) | 0, 6, 6);
+        S.particles.ring(e.x, 0.2, e.z, PAL.gold, (10 * fx) | 0, e.v * 2.5, 1);
         audio.blast();
         break;
       case Ev.ZoneBlast:
-        scene.particles.ring(e.x, 0.2, e.z, PAL.telegraph, (16 * fx) | 0, e.v * 3, 4);
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.hurt);
+        S.particles.ring(e.x, 0.2, e.z, PAL.telegraph, (16 * fx) | 0, e.v * 3, 4);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
         audio.blast();
         break;
       case Ev.Jump:
         audio.jump();
         break;
       case Ev.Land:
-        scene.onLand();
-        scene.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
+        S.onLand();
+        S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
         break;
       case Ev.Dash:
         audio.dash();
@@ -584,60 +694,63 @@ function handleEvents(w: World, now: number): void {
         audio.pickup(now);
         break;
       case Ev.LevelUp:
-        scene.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
+        S.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
         break;
       case Ev.Chest:
-        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
-        hud.banner(e.v > 1 ? `Coffre : ${e.v} améliorations` : 'Coffre');
+        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
+        hud.banner(t('banner.chest', { n: e.v }));
         audio.chest();
         break;
       case Ev.Evolve:
         runStats.evolutions++;
-        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
-        scene.particles.ring(e.x, 0.5, e.z, PAL.paper, (20 * fx) | 0, 4, 10);
-        hud.banner(`${EVOLUTIONS[WEAPON_KEYS[e.v | 0]]?.name ?? 'Évolution'} !`);
+        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
+        S.particles.ring(e.x, 0.5, e.z, PAL.paper, (20 * fx) | 0, 4, 10);
+        hud.banner(t('banner.evolve', { name: evolutionName(WEAPON_KEYS[e.v | 0]) }));
         hud.flash('gold');
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.evolve);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.evolve);
         audio.evolve();
         break;
       case Ev.PlayerHurt:
         hurtT = 0.15;
         vibrate(30);
         if (Math.random() < 0.12) audio.hurt();
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.hurt);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
         hitStop.request(FEEL.hitStop.hurt.duration, FEEL.hitStop.hurt.scale, 1);
         break;
       case Ev.Wave:
-        hud.banner('La horde encercle !');
+        hud.banner(t('banner.wave'));
         break;
       case Ev.Revive:
-        hud.banner(e.v > 0 ? 'Seconde chance !' : 'Dernière chance !');
+        hud.banner(t(e.v > 0 ? 'banner.revive2' : 'banner.revive1'));
         hud.flash('gold');
-        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 6, 8);
+        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 6, 8);
         audio.evolve();
         vibrate(80);
         hitStop.request(FEEL.hitStop.boss.duration, FEEL.hitStop.boss.scale, 2);
         break;
       case Ev.BossSpawn:
         vibrate(80);
-        hud.banner(BOSS_BANNER[e.x2 | 0] ?? 'Un boss approche');
+        {
+          const k = 'banner.boss.' + ENEMIES[e.x2 | 0].key; // événement rare : la concaténation est acceptable
+          hud.banner(t(has(k) ? k : 'banner.boss.default'));
+        }
         audio.boss();
-        if (!reduced) scene.shake = Math.max(scene.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
+        if (!reduced) S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
         break;
       case Ev.BossRoar:
         audio.roar();
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.elite);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         break;
       case Ev.Spit:
-        scene.particles.burst(e.x, e.y, e.z, PAL.spit, (3 * fx) | 0, 2, 2, false);
+        S.particles.burst(e.x, e.y, e.z, PAL.spit, (3 * fx) | 0, 2, 2, false);
         audio.spit();
         break;
       case Ev.Dive:
         audio.dive();
         break;
       case Ev.Bolt:
-        scene.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2);
-        scene.particles.burst(e.x2, e.y2, e.z2, PAL.bolt, (4 * fx) | 0, 4, 3);
+        S.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2);
+        S.particles.burst(e.x2, e.y2, e.z2, PAL.bolt, (4 * fx) | 0, 4, 3);
         if (i % 3 === 0) audio.bolt();
         break;
       case Ev.Telegraph:
@@ -699,15 +812,15 @@ function frame(nowMs: number): void {
     if (pick >= 0) choose(pick);
   }
 
-  if (world && app !== 'menu') {
+  if (world && app !== 'menu' && scene) {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
     scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
-  } else {
+  } else if (scene && sceneReady) {
     scene.renderIdle(now, realDt);
   }
 
-  if (perfOn) {
+  if (perfOn && scene) {
     frameTimes[frameIdx++ % PERF_WINDOW] = performance.now() - t0;
     fpsFrames++;
     if (fpsT0 === 0) {
@@ -742,13 +855,21 @@ function frame(nowMs: number): void {
 }
 
 // ---------- démarrage ----------
-loadMeta().then((m) => {
-  meta = m;
+function applyMeta(): void {
   audio.setMuted(meta.muted);
-  $('soundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
   applyFx();
   applySettings();
   updateBestLine();
+  syncLang();
+}
+applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
+let metaLoaded = false;
+loadMeta().then((m) => {
+  if (JSON.stringify(m) !== JSON.stringify(meta)) {
+    meta = m;
+    applyMeta();
+  }
+  metaLoaded = true;
 });
 setPerf(perfOn);
 requestAnimationFrame(frame);
@@ -761,7 +882,10 @@ const debugRt = installDebugHooks({
   get app() {
     return app;
   },
-  scene,
+  get scene() {
+    return scene;
+  },
+  ready: () => sceneReady && metaLoaded,
   start: startGame,
   afterSimJump() {
     if (!world) return;
@@ -773,7 +897,20 @@ const debugRt = installDebugHooks({
   setMeta(m) {
     meta = normalizeMeta(m);
     saveMeta(meta);
-    applySettings();
-    updateBestLine();
+    applyMeta();
   },
 });
+
+// Module de rendu : déjà téléchargé (modulepreload), il n'est évalué et la scène construite qu'à la première
+// interaction du joueur (geste, touche, survol de « Jouer ») : le menu reste léger tant qu'on ne joue pas, et
+// aucune tâche longue ne précède l'interactivité (Lighthouse). En debug/tests (`?debug=1`), tout de suite :
+// les specs attendent `__game.ready` sans interagir.
+{
+  const warm = () => void loadScene().catch(() => {});
+  if (debugRt) requestAnimationFrame(warm);
+  else {
+    for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const)
+      addEventListener(ev, warm, { once: true, passive: true });
+    $('playBtn').addEventListener('pointerenter', warm, { once: true });
+  }
+}

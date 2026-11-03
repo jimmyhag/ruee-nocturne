@@ -11,16 +11,14 @@ import { PASSIVES, PASSIVE_KEYS, WEAPONS, WEAPON_KEYS } from './defs';
 const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
 
 describe('fiches d’armes', () => {
-  it('six armes, stats définies et textes non vides à chaque niveau', () => {
+  it('six armes, stats définies à chaque niveau (textes : src/ui/cards.test.ts)', () => {
     expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines']);
     for (const k of WEAPON_KEYS) {
       const d = WEAPONS[k];
-      expect(d.name.length).toBeGreaterThan(2);
       expect(d.glyph.length).toBeGreaterThan(0);
       for (let lv = 1; lv <= WEAPON_MAX; lv++) {
         const s = d.stats(lv);
         for (const v of Object.values(s)) expect(Number.isFinite(v), `${k} lv${lv}`).toBe(true);
-        expect(d.text(s).length).toBeGreaterThan(10);
       }
     }
   });
@@ -34,9 +32,8 @@ describe('fiches d’armes', () => {
       }
     }
     expect(WEAPONS.orbe.stats(4).pierce).toBe(2);
-    expect(WEAPONS.orbe.text(WEAPONS.orbe.stats(4))).toContain('transperce');
-    expect(WEAPONS.orbe.text(WEAPONS.orbe.stats(3))).toContain('2 tirs');
-    expect(WEAPONS.aura.text(WEAPONS.aura.stats(1))).toContain('2,2');
+    expect(WEAPONS.orbe.stats(3).n).toBe(2);
+    expect(WEAPONS.aura.stats(1).r).toBeCloseTo(2.2);
   });
 });
 

@@ -43,20 +43,13 @@ jobs:
           du -sh dist
           find dist -name '*.js' -exec gzip -k9 {} \;
           echo "JS gzip total : $(cat dist/assets/*.js.gz dist/*.js.gz | wc -c | awk '{printf "%.0f ko", $1/1024}')"
-      - name: Lighthouse (PWA via v11, perf/accessibilité via v13)
-        continue-on-error: true
-        run: |
-          npx vite preview --port 4173 --strictPort &
-          sleep 3
-          npx --yes lighthouse@11.7.1 http://localhost:4173 --only-categories=pwa --quiet --chrome-flags="--headless=new --no-sandbox" --output=json --output-path=lh-pwa.json
-          node -e "const r=require('./lh-pwa.json');console.log('Lighthouse PWA :', Math.round(r.categories.pwa.score*100))"
-          npx --yes lighthouse@13 http://localhost:4173 --only-categories=performance,accessibility,best-practices --form-factor=mobile --quiet --chrome-flags="--headless=new --no-sandbox" --output=json --output-path=lh-mobile.json
-          node -e "const r=require('./lh-mobile.json');for(const k of ['performance','accessibility','best-practices'])console.log('Lighthouse', k, ':', Math.round(r.categories[k].score*100))"
+      - name: 'Lighthouse (porte de phase 5 : perf mobile ≥ 85, accessibilité ≥ 90, PWA 100 ; médiane de 3 runs)'
+        run: npm run lh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lighthouse
-          path: lh-*.json
+          path: lighthouse/*.json
           retention-days: 14
 
   balance:

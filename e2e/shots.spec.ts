@@ -49,7 +49,7 @@ test('menu, jeu à 3 min, montée de niveau, mort', async ({ page }, info) => {
   const p = info.project.name;
   await openGame(page);
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true)); // pas d'onglet perf sur les captures
-  await page.waitForTimeout(800); // polices
+  await page.evaluate(() => document.fonts.ready); // polices auto-hébergées
   await page.screenshot(shot('menu', p));
 
   await startRun(page, 42);

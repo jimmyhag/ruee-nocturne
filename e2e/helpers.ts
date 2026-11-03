@@ -3,9 +3,9 @@ import type { Page } from '@playwright/test';
 
 export const DEBUG_URL = '/?debug=1';
 
-/** Erreurs console à ignorer : polices Google indisponibles hors ligne (CI), ce n'est pas un bug. */
+/** Erreurs console à ignorer : réseau coupé par le test hors ligne (les polices sont auto-hébergées et précachées). */
 export function isIgnorableConsoleError(text: string): boolean {
-  return /fonts\.(googleapis|gstatic)\.com|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED/i.test(text);
+  return /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED/i.test(text);
 }
 
 export function collectConsoleErrors(page: Page): string[] {

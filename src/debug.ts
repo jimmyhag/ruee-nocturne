@@ -13,7 +13,10 @@ import type { World } from './sim/world';
 export interface DebugHost {
   readonly world: World | null;
   readonly app: string;
-  readonly scene: GameScene;
+  /** Scène de rendu : null tant que le module de rendu (chargé à part) n'est pas construit. */
+  readonly scene: GameScene | null;
+  /** Prêt pour les tests : scène construite, shaders compilés, méta chargée. */
+  ready(): boolean;
   /** Démarre une partie ; `variant` fixe le décalage du rng pour une partie reproductible. */
   start(variant?: number): void;
   /** À appeler après un saut dans la sim : resynchronise le HUD et l'écran de niveau. */
@@ -102,7 +105,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       if (!world) return;
       world.player.x = world.player.px = x;
       world.player.z = world.player.pz = z;
-      host.scene.snapCamera(world);
+      host.scene?.snapCamera(world);
     },
     /** Pose un coffre sous le joueur (boss : 3 à 5 cartes). */
     chest(boss = false): void {
@@ -163,7 +166,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       return host.app;
     },
     get renderer() {
-      return host.scene.renderer;
+      return host.scene?.renderer;
     },
     get audioVoices() {
       return host.audioVoices();
@@ -172,13 +175,17 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       return host.getMeta();
     },
     setMeta: (m: unknown) => host.setMeta(m),
-    scene: host.scene,
+    get scene() {
+      return host.scene;
+    },
     start: (variant?: number) => host.start(variant),
     debug,
     // raccourcis historiques
     warp: debug.warp,
     kill: debug.kill,
-    ready: true,
+    get ready() {
+      return host.ready();
+    },
   };
   return runtime;
 }

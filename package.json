@@ -1,7 +1,7 @@
 {
   "name": "ruee-nocturne",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "shot": "playwright test e2e/shots.spec.ts",
+    "lh": "node tools/lighthouse.mjs",
+    "store": "tsx tools/store-shots.ts",
     "icons": "tsx tools/icons.ts",
     "sim": "tsx tools/sim-cli.ts",
     "bench": "node --expose-gc --import tsx tools/bench.ts",

@@ -164,6 +164,8 @@ export const enum Mode {
 
 export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines';
 export type CharacterKey = 'eclaireuse' | 'bucheron' | 'sorciere';
+/** Identifiants des ennemis (index = type dans ENEMIES) : clés d'affichage côté UI, la sim ne porte aucun texte. */
+export type EnemyKey = 'spectre' | 'dard' | 'brute' | 'gardien' | 'volant' | 'cracheur' | 'essaim' | 'colosse' | 'faucheur';
 
 /** Ce que la méta injecte dans la sim à la création du monde (jamais lu depuis le stockage par la sim). */
 export interface WorldOptions {

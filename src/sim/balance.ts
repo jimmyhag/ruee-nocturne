@@ -1,6 +1,8 @@
 // Toutes les constantes de gameplay. Chaque ligne dit pourquoi.
 // Unités : mètres (u), secondes, PV.
 
+import type { EnemyKey } from './types';
+
 export const STEP = 1 / 60; // pas fixe de la simulation
 
 export const PLAYER = {
@@ -106,7 +108,7 @@ export const SPAWN = {
 };
 
 export interface EnemyDef {
-  name: string;
+  key: EnemyKey;
   hp: number;
   speed: number;
   r: number;
@@ -118,15 +120,15 @@ export interface EnemyDef {
 }
 // index = type. 0–2 masse, 3 boss 5:00, 4–5 ennemis de milieu de run, 6–7 boss 10:00 et 15:00, 8 Faucheur.
 export const ENEMIES: EnemyDef[] = [
-  { name: 'Spectre', hp: 10, speed: 2.7, r: 0.55, dmg: 12, xp: 1, y: 0.62, kbMul: 1, boss: false },
-  { name: 'Dard', hp: 7, speed: 4.6, r: 0.45, dmg: 6, xp: 1, y: 0.55, kbMul: 1, boss: false },
-  { name: 'Brute', hp: 80, speed: 1.8, r: 1.0, dmg: 24, xp: 4, y: 1.0, kbMul: 1 / 3, boss: false },
-  { name: 'Gardien', hp: 900, speed: 2.3, r: 2.0, dmg: 40, xp: 40, y: 2.2, kbMul: 0, boss: true },
-  { name: 'Volant', hp: 12, speed: 3.4, r: 0.5, dmg: 16, xp: 1, y: 1.6, kbMul: 0.5, boss: false },
-  { name: 'Cracheur', hp: 30, speed: 2.4, r: 0.6, dmg: 8, xp: 2, y: 0.8, kbMul: 0.7, boss: false },
-  { name: 'Essaim-mère', hp: 1600, speed: 1.6, r: 2.4, dmg: 30, xp: 40, y: 2.4, kbMul: 0, boss: true },
-  { name: 'Colosse', hp: 2600, speed: 1.2, r: 2.6, dmg: 30, xp: 40, y: 2.6, kbMul: 0, boss: true }, // lent : ses cercles sont la menace, pas le contact (15:00 → 16:00 perdait 14 points)
-  { name: 'Faucheur', hp: 40000, speed: 7.1, r: 1.4, dmg: 150, xp: 100, y: 2.0, kbMul: 0, boss: true }, // 7,1 = joueur × 1,15 : il rattrape toujours
+  { key: 'spectre', hp: 10, speed: 2.7, r: 0.55, dmg: 12, xp: 1, y: 0.62, kbMul: 1, boss: false },
+  { key: 'dard', hp: 7, speed: 4.6, r: 0.45, dmg: 6, xp: 1, y: 0.55, kbMul: 1, boss: false },
+  { key: 'brute', hp: 80, speed: 1.8, r: 1.0, dmg: 24, xp: 4, y: 1.0, kbMul: 1 / 3, boss: false },
+  { key: 'gardien', hp: 900, speed: 2.3, r: 2.0, dmg: 40, xp: 40, y: 2.2, kbMul: 0, boss: true },
+  { key: 'volant', hp: 12, speed: 3.4, r: 0.5, dmg: 16, xp: 1, y: 1.6, kbMul: 0.5, boss: false },
+  { key: 'cracheur', hp: 30, speed: 2.4, r: 0.6, dmg: 8, xp: 2, y: 0.8, kbMul: 0.7, boss: false },
+  { key: 'essaim', hp: 1600, speed: 1.6, r: 2.4, dmg: 30, xp: 40, y: 2.4, kbMul: 0, boss: true },
+  { key: 'colosse', hp: 2600, speed: 1.2, r: 2.6, dmg: 30, xp: 40, y: 2.6, kbMul: 0, boss: true }, // lent : ses cercles sont la menace, pas le contact (15:00 → 16:00 perdait 14 points)
+  { key: 'faucheur', hp: 40000, speed: 7.1, r: 1.4, dmg: 150, xp: 100, y: 2.0, kbMul: 0, boss: true }, // 7,1 = joueur × 1,15 : il rattrape toujours
 ];
 export const DARD_TYPE = 1;
 export const BOSS_TYPE = 3; // Gardien (5:00)
@@ -230,9 +232,7 @@ export const EVOLVE = {
 // Mesure 100 runs average seed 42 : Éclaireuse p50 7:52 ; Bûcheron Lames niv 1 et vitesse 1,0 → 5:11 (30 % de morts < 3 min) ;
 // Sorcière à −20 % PV → 10:49 (trop forte). D'où Lames niv 2 + vitesse 1,05 et −30 % PV.
 export interface CharacterDef {
-  key: 'eclaireuse' | 'bucheron' | 'sorciere';
-  name: string;
-  text: string;
+  key: 'eclaireuse' | 'bucheron' | 'sorciere'; // nom et texte : src/i18n (char.<key>.name / .text)
   weapon: 'orbe' | 'lames' | 'foudre';
   weaponLevel: number; // niveau de l'arme de départ
   speedMul: number;
@@ -244,31 +244,29 @@ export interface CharacterDef {
 }
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
-  { key: 'eclaireuse', name: 'Éclaireuse', text: '+15 % de vitesse, dash plus court', weapon: 'orbe', weaponLevel: 1, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '' },
-  { key: 'bucheron', name: 'Bûcheron', text: '+30 PV, Lames niveau 2 à portée +20 %', weapon: 'lames', weaponLevel: 2, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10' },
-  { key: 'sorciere', name: 'Vieille sorcière', text: 'Foudre dès le départ, −30 % PV', weapon: 'foudre', weaponLevel: 1, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500' },
+  { key: 'eclaireuse', weapon: 'orbe', weaponLevel: 1, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '' },
+  { key: 'bucheron', weapon: 'lames', weaponLevel: 2, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10' },
+  { key: 'sorciere', weapon: 'foudre', weaponLevel: 1, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500' },
 ];
 
 // boutique permanente (survivor-design §8) : 8 lignes, coût base · growth^palier ; un run moyen (≈ 1 600 or) paie un palier
 export interface ShopLine {
-  key: 'hp' | 'dmg' | 'speed' | 'luck' | 'gold' | 'magnet' | 'cd' | 'revive';
-  name: string;
+  key: 'hp' | 'dmg' | 'speed' | 'luck' | 'gold' | 'magnet' | 'cd' | 'revive'; // nom et texte : src/i18n (shop.<key>.name / .text)
   per: number; // effet par palier
-  text: string;
   tiers: number;
 }
 export const SHOP = {
   base: 40,
   growth: 1.6, // paliers : 40, 64, 102, 164, 262 or
   lines: [
-    { key: 'hp', name: 'Vitalité', per: 10, text: '+10 PV max par palier', tiers: 5 },
-    { key: 'dmg', name: 'Puissance', per: 0.05, text: '+5 % de dégâts par palier', tiers: 5 },
-    { key: 'speed', name: 'Foulée', per: 0.03, text: '+3 % de vitesse par palier', tiers: 5 },
-    { key: 'luck', name: 'Chance', per: 1, text: '+1 Trèfle par palier (4e carte, coffres)', tiers: 5 },
-    { key: 'gold', name: 'Cupidité', per: 0.1, text: "+10 % d'or par palier", tiers: 5 },
-    { key: 'magnet', name: 'Aimant', per: 0.15, text: '+15 % de rayon de collecte par palier', tiers: 5 },
-    { key: 'cd', name: 'Cadence', per: 0.03, text: '−3 % de temps de recharge par palier', tiers: 5 },
-    { key: 'revive', name: 'Réanimation', per: 1, text: 'Une seconde chance par run et par palier', tiers: 2 },
+    { key: 'hp', per: 10, tiers: 5 },
+    { key: 'dmg', per: 0.05, tiers: 5 },
+    { key: 'speed', per: 0.03, tiers: 5 },
+    { key: 'luck', per: 1, tiers: 5 },
+    { key: 'gold', per: 0.1, tiers: 5 },
+    { key: 'magnet', per: 0.15, tiers: 5 },
+    { key: 'cd', per: 0.03, tiers: 5 },
+    { key: 'revive', per: 1, tiers: 2 },
   ] as ShopLine[],
 };
 export const REVIVE = {

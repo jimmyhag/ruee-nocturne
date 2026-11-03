@@ -1,14 +1,48 @@
 import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+import { fileURLToPath } from 'node:url';
+import pkg from './package.json' with { type: 'json' };
 
 // SINGLE=1 : build en un seul fichier HTML (publication en artifact / test rapide), sans PWA.
 // Sinon : build classique multi-fichiers + manifest + service worker (déploiement).
 const SINGLE = !!process.env.SINGLE;
 
+/**
+ * Le module de rendu (three + src/render) est importé dynamiquement par main.ts pour que le menu soit interactif
+ * sans l'évaluer (Lighthouse TBT). Vite ne précharge pas les imports dynamiques depuis le HTML : on injecte
+ * nous-mêmes le <link rel="modulepreload"> du chunk pour que le téléchargement parte avec la page.
+ */
+/** Remplace %APP_VERSION% dans les pages HTML (la page « À propos » n'a pas de module JS pour lire `define`). */
+function htmlVersion(): Plugin {
+  return { name: 'ruee:html-version', transformIndexHtml: (html) => html.replace(/%APP_VERSION%/g, pkg.version) };
+}
+
+function preloadRenderChunk(): Plugin {
+  return {
+    name: 'ruee:preload-render-chunk',
+    apply: 'build',
+    enforce: 'post', // après vite:build-html : index.html est dans le bundle
+    generateBundle(_opts, bundle) {
+      let file = '';
+      for (const [name, out] of Object.entries(bundle))
+        if (out.type === 'chunk' && out.facadeModuleId?.replace(/\\/g, '/').endsWith('/src/render/scene.ts'))
+          file = name;
+      const html = bundle['index.html'];
+      if (!file || !html || html.type !== 'asset' || typeof html.source !== 'string') return;
+      html.source = html.source.replace(
+        '</head>',
+        `    <link rel="modulepreload" crossorigin href="/${file}" />\n  </head>`,
+      );
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
-    ...(SINGLE ? [viteSingleFile()] : []),
+    htmlVersion(),
+    ...(SINGLE ? [viteSingleFile()] : [preloadRenderChunk()]),
     VitePWA({
       disable: SINGLE,
       registerType: 'prompt', // on ne force jamais une mise à jour en pleine partie (skill pwa-release §2)
@@ -33,8 +67,8 @@ export default defineConfig({
           { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         screenshots: [
-          { src: 'screenshots/mobile.png', sizes: '1170x1992', type: 'image/png', form_factor: 'narrow' },
-          { src: 'screenshots/desktop.png', sizes: '1280x720', type: 'image/png', form_factor: 'wide' },
+          { src: 'screenshots/mobile.png', sizes: '1080x1920', type: 'image/png', form_factor: 'narrow' },
+          { src: 'screenshots/desktop.png', sizes: '1920x1080', type: 'image/png', form_factor: 'wide' },
         ],
       },
       workbox: {
@@ -43,30 +77,25 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-css',
-              expiration: { maxEntries: 8, maxAgeSeconds: 365 * 24 * 3600 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-files',
-              expiration: { maxEntries: 16, maxAgeSeconds: 365 * 24 * 3600 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+        // polices auto-hébergées dans public/fonts (précachées par globPatterns) : plus aucune origine externe
       },
     }),
   ],
-  build: { target: 'es2022', sourcemap: false, minify: 'esbuild' },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  build: {
+    target: 'es2022',
+    sourcemap: false,
+    minify: 'esbuild',
+    // deux pages : le jeu et « À propos » (a-propos/index.html, précachée comme le reste)
+    rollupOptions: SINGLE
+      ? undefined
+      : {
+          input: {
+            main: fileURLToPath(new URL('./index.html', import.meta.url)),
+            about: fileURLToPath(new URL('./a-propos/index.html', import.meta.url)),
+          },
+        },
+  },
   test: {
     include: ['src/**/*.test.ts', 'tools/**/*.test.ts'], // src/meta inclus : la méta est pure (pas de DOM)
     environment: 'node',

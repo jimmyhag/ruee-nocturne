@@ -3,80 +3,28 @@
 import type { CharacterKey, WeaponKey } from '../sim/types';
 import type { Meta, MetaStats } from './save';
 
+// Noms, textes et « débloque … » : src/i18n (clés ach.<id>.name / .text / .unlock), via src/ui/cards.ts.
 export interface Achievement {
   id: string;
-  name: string;
-  text: string; // ce qu'il faut faire
   goal: number;
   get: (s: MetaStats) => number;
-  fmt?: (v: number) => string; // affichage de la valeur (temps…)
+  time?: true; // succès de durée : valeur affichée en m:ss
   unlocks?: { character?: CharacterKey; weapon?: WeaponKey; daily?: boolean };
-  unlockText?: string; // « Débloque : … »
 }
-const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
 export const ACHIEVEMENTS: Achievement[] = [
-  // le premier déblocage arrive au 1er ou 2e run (porte de phase 4 : < 3 runs)
-  {
-    id: 'survie3',
-    name: 'Première nuit',
-    text: 'Survis 3 minutes',
-    goal: 180,
-    get: (s) => s.bestTime,
-    fmt: mmss,
-    unlocks: { daily: true },
-    unlockText: 'Défi du jour',
-  },
-  {
-    id: 'kills500',
-    name: 'Faucheuse en herbe',
-    text: 'Vaincs 500 ennemis en tout',
-    goal: 500,
-    get: (s) => s.kills,
-    unlocks: { character: 'sorciere' },
-    unlockText: 'Vieille sorcière',
-  },
-  {
-    id: 'dards100',
-    name: 'Chasse aux Dards',
-    text: 'Vaincs 100 Dards en tout',
-    goal: 100,
-    get: (s) => s.dards,
-    unlocks: { weapon: 'boomerang' },
-    unlockText: 'Boomerang',
-  },
-  {
-    id: 'elites10',
-    name: 'Chercheuse d’or',
-    text: 'Vaincs 10 élites en tout',
-    goal: 10,
-    get: (s) => s.elites,
-    unlocks: { weapon: 'mines' },
-    unlockText: 'Mines',
-  },
-  { id: 'boss1', name: 'Gardienne tombée', text: 'Vaincs un boss', goal: 1, get: (s) => s.bosses },
-  {
-    id: 'survie10',
-    name: 'Dix minutes',
-    text: 'Survis 10 minutes',
-    goal: 600,
-    get: (s) => s.bestTime,
-    fmt: mmss,
-    unlocks: { character: 'bucheron' },
-    unlockText: 'Bûcheron',
-  },
-  { id: 'evo1', name: 'Métamorphose', text: 'Obtiens une évolution d’arme', goal: 1, get: (s) => s.evolutions },
-  { id: 'kills2000', name: 'Marée', text: 'Vaincs 2 000 ennemis en tout', goal: 2000, get: (s) => s.kills },
-  { id: 'survie15', name: 'Quart d’heure', text: 'Survis 15 minutes', goal: 900, get: (s) => s.bestTime, fmt: mmss },
-  {
-    id: 'survie20',
-    name: 'Face au Faucheur',
-    text: 'Survis 20 minutes',
-    goal: 1200,
-    get: (s) => s.bestTime,
-    fmt: mmss,
-  },
-  { id: 'win', name: 'Aube', text: 'Vaincs le Faucheur', goal: 1, get: (s) => s.wins },
+  // le premier déblocage arrive au 1er ou 2e run (porte de phase 4 : < 3 runs) : « Première nuit » → défi du jour
+  { id: 'survie3', goal: 180, get: (s) => s.bestTime, time: true, unlocks: { daily: true } },
+  { id: 'kills500', goal: 500, get: (s) => s.kills, unlocks: { character: 'sorciere' } },
+  { id: 'dards100', goal: 100, get: (s) => s.dards, unlocks: { weapon: 'boomerang' } },
+  { id: 'elites10', goal: 10, get: (s) => s.elites, unlocks: { weapon: 'mines' } },
+  { id: 'boss1', goal: 1, get: (s) => s.bosses },
+  { id: 'survie10', goal: 600, get: (s) => s.bestTime, time: true, unlocks: { character: 'bucheron' } },
+  { id: 'evo1', goal: 1, get: (s) => s.evolutions },
+  { id: 'kills2000', goal: 2000, get: (s) => s.kills },
+  { id: 'survie15', goal: 900, get: (s) => s.bestTime, time: true },
+  { id: 'survie20', goal: 1200, get: (s) => s.bestTime, time: true },
+  { id: 'win', goal: 1, get: (s) => s.wins },
 ];
 
 export const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((a) => a.id));
@@ -109,7 +57,7 @@ export function closest(m: Meta, n: number): Achievement[] {
 /** « Il te manquait 42 s pour… » : prochain succès de temps non atteint par rapport au temps du run. */
 export function missingTime(m: Meta, runTime: number): { seconds: number; a: Achievement } | null {
   for (const a of ACHIEVEMENTS) {
-    if (a.fmt !== mmss || m.achievements.includes(a.id)) continue;
+    if (!a.time || m.achievements.includes(a.id)) continue;
     if (runTime < a.goal) return { seconds: Math.ceil(a.goal - runTime), a };
   }
   return null;

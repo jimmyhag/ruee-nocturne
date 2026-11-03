@@ -131,6 +131,7 @@ describe('frontière sim/render', () => {
     for (const f of files) {
       const src = readFileSync(f, 'utf8');
       expect(src, f).not.toMatch(/from ['"]three/);
+      expect(src, f).not.toMatch(/from ['"]\.\.?\/.*i18n/); // les textes vivent côté UI (src/ui/cards.ts)
       expect(src, f).not.toMatch(/\b(document|window|navigator|performance)\./);
       expect(src, f).not.toMatch(/Math\.random\(/);
     }

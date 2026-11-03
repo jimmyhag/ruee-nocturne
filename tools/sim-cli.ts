@@ -97,7 +97,7 @@ function runOnce(seed: number): RunResult {
           const d = (en.x - w.player.x) ** 2 + (en.z - w.player.z) ** 2;
           if (d < bd) {
             bd = d;
-            lastHurtType = ENEMIES[en.type].name;
+            lastHurtType = ENEMIES[en.type].key;
           }
         }
       }

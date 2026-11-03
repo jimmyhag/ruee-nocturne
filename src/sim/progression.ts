@@ -1,7 +1,7 @@
 import { CHEST, CHOICE, GOLD, LUCK, MAX_PASSIVES, MAX_WEAPONS, WEAPON_MAX, XP } from './balance';
 import { Ev, Mode } from './types';
 import type { Card, PassiveKey, WeaponKey } from './types';
-import { EVOLUTIONS, PASSIVES, PASSIVE_KEYS, WEAPONS, WEAPON_KEYS } from './weapons/defs';
+import { EVOLUTIONS, PASSIVES, PASSIVE_KEYS, WEAPON_KEYS } from './weapons/defs';
 import type { World } from './world';
 
 // pool de cartes réutilisé
@@ -188,18 +188,3 @@ export function tickChests(w: World, dt: number): void {
   }
 }
 
-export function cardTitle(c: Card): string {
-  if (c.kind === 'w') return WEAPONS[c.key as WeaponKey].name;
-  if (c.kind === 's') return PASSIVES[c.key as PassiveKey].name;
-  if (c.kind === 'e') return EVOLUTIONS[c.key as WeaponKey]?.name ?? 'Évolution';
-  return 'Soin complet';
-}
-export function cardText(c: Card): string {
-  if (c.kind === 'w') {
-    const d = WEAPONS[c.key as WeaponKey];
-    return d.text(d.stats(c.lv));
-  }
-  if (c.kind === 's') return PASSIVES[c.key as PassiveKey].text;
-  if (c.kind === 'e') return EVOLUTIONS[c.key as WeaponKey]?.text ?? '';
-  return 'Rend tous tes PV';
-}

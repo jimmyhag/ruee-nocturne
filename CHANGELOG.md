@@ -2,11 +2,38 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
-## Non publié — phase 4 « Méta et rétention »
+## 1.0.0 — 3 nov. 2026
+
+Première version complète : les cinq phases de PLAN.md. Jouable sur https://ruee-nocturne.web.app, installable (PWA), hors ligne, en français et en anglais. Aucune donnée ne quitte l'appareil.
+
+### Phase 5 « Finition et sortie »
+
+#### Ajouté
+
+- **Localisation français / anglais** : `src/i18n/fr.json` et `en.json` (≈ 220 clés), `t()` avec pluriels et formats de nombres par langue, réglage « Langue : auto / français / anglais » dans les réglages, appliqué à chaud (menu, HUD, cartes, écran de mort, boutique, succès). La langue suit le navigateur par défaut et survit à « Tout effacer ». La sim ne porte plus aucun texte : noms et descriptions vivent côté UI (`src/ui/cards.ts`), la sim ne manipule que des clés (`ENEMIES[].key`, identifiants d'armes, de passifs, de personnages, de succès).
+- **Page « À propos »** (`/a-propos/`, lien au menu et dans les réglages) : pitch, captures, comment jouer, comment installer, confidentialité, crédits ; bilingue, précachée.
+- `PRIVACY.md` (aucune donnée collectée) et `CREDITS.md` (bibliothèques, polices, références de ton) ; `README.md` de projet ; `docs/DEVICES.md` (appareils, protocole de test, bugs P0/P1).
+- Captures store 1080×1920 et 1920×1080 dans `docs/store/` (`npm run store`), captures du manifest rafraîchies, icône 1024.
+- Release GitHub automatique sur tag `v*` (`.github/workflows/release.yml`) : archive du build et notes extraites de ce journal. Version unique lue dans `package.json`.
+- `npm run lh` : Lighthouse mobile reproductible (3 runs, médiane, seuils de la porte) ; la CI est désormais **bloquante** sur perf ≥ 85, accessibilité ≥ 90, PWA 100.
+
+#### Modifié
+
+- **Lighthouse perf mobile 70 → 98** (médiane de 3 runs, TBT 1,8 s → 10 ms, FCP 2,2 s → 0,65 s) : le module de rendu (three + `src/render`, 148 ko gzip) est un chunk séparé, téléchargé dès le HTML (`modulepreload`) mais évalué et construit à la **première interaction** du joueur ; shaders compilés en parallèle (`compileAsync`) ; le bundle principal passe à 34 ko gzip. « Jouer » affiche « Chargement… » si le joueur devance le module, « Réessayer » si le réseau est coupé au tout premier lancement.
+- **Polices auto-hébergées** (Lilita One, Rubik variable ; SIL OFL ; 46 ko) : plus de CSS bloquante venant de Google Fonts, polices disponibles hors ligne, accessibilité Lighthouse 90 → 98 avec le retrait de `user-scalable=no` (le zoom reste bloqué par `touch-action: none` et `gesturestart`).
+- La méta est lue en synchrone depuis `localStorage` au démarrage (record, or, personnages justes dès le premier affichage), IndexedDB confirme ensuite ; les cartes de personnages par défaut sont dans le HTML : plus de décalage de mise en page au chargement.
+- `__game.ready` attend la scène et la méta (les tests ne couraient plus contre IndexedDB).
+
+#### Corrigé
+
+- Les chiffres de dégâts ≥ 40 (classe `big`) héritaient du style des gros boutons du menu (fond doré, bordure, ombre) et s'affichaient en pastilles jaunes géantes à chaque coup de Foudre ou de Nova ; le style des boutons est désormais limité aux `button.big`.
+- Le menu ne s'affiche plus en français avant d'être traduit chez un joueur anglophone (classe `lang-pending` posée par un script inline, levée par le script principal) : plus de décalage de mise en page.
+
+### Phase 4 « Méta et rétention »
 
 La boucle méta de PLAN.md §2.4 : chaque run laisse une trace visible (or, succès, déblocages) et la sim reste pure, la méta n'y entre que par des options à la création du monde.
 
-### Ajouté
+#### Ajouté
 
 - **Personnages** (PLAN §3.5) : Éclaireuse (le joueur de la phase 3 : +15 % de vitesse, dash court, Orbe), Bûcheron (+30 PV, Lames de départ à portée +20 %, débloqué en survivant 10 min), Vieille sorcière (Foudre dès le départ, −20 % PV, débloquée à 500 kills cumulés). Cartes de sélection sur le menu, condition affichée sur les verrouillés.
 - **Boutique** permanente (or) : 8 lignes × paliers à coût géométrique (40 · 1,6^palier) : Vitalité, Puissance, Foulée, Chance, Cupidité, Aimant, Cadence, Réanimation (seconde chance à 50 % des PV avec 2 s d'invulnérabilité, 2 paliers max). Accessible depuis le menu et l'écran de mort.
@@ -17,16 +44,16 @@ La boucle méta de PLAN.md §2.4 : chaque run laisse une trace visible (or, succ
 - Sauvegarde **v2** avec migration depuis v1 (record, runs, kills, son, effets conservés), `normalizeMeta` qui borne et type tout ce qui entre (import compris).
 - Outils : `npm run sim -- --character bucheron|sorciere`, hooks `__game.meta` / `__game.setMeta`, tests e2e nouveau joueur, boutique, export/import, personnage, mode gaucher ; 18 tests Vitest de méta et d'options de monde (101 au total).
 
-### Modifié
+#### Modifié
 
 - `PLAYER.speed` devient la vitesse de base des personnages lourds (5,39) ; l'Éclaireuse ×1,15 = 6,2 est inchangée par rapport à la phase 3, la porte de phase 3 reste mesurée telle quelle (sans option, `World` est identique).
 - `Player.dashTime` par personnage ; `Ev.Revive`.
 
-## Non publié — phase 3 « Contenu et équilibrage »
+### Phase 3 « Contenu et équilibrage »
 
 Tout le contenu V1 de PLAN.md §3 (hors personnages, phase 4), équilibré par simulation : les 8 cibles de `survivor-design` §9 sont atteintes sur 200 runs du bot `average` (seed 42).
 
-### Ajouté
+#### Ajouté
 
 - Armes : **Boomerang** (part devant toi, revient, touche à l'aller et au retour ; deux au niveau 5) et **Mines** (posées sur ton passage, explosent au contact ; chaîne au niveau 5). Six armes, grammaire portée / ciblage / rythme distincte.
 - Évolutions (arme au niveau 5 + passif associé + un coffre, ≈ ×2,5 mesuré) : **Nova** (Orbe + Gants lourds : salve circulaire de 8 orbes), **Soleil noir** (Halo + Cœur de pierre : rayon ×1,5, dégâts ×2, +1 PV par kill), **Tempête** (Lames + Semelles de vent : rayon ×1,5, vitesse ×2), **Orage** (Foudre + Sablier fêlé : cadence ×2, chaîne +2). Bannière, shake, son, visuel agrandi.
@@ -39,14 +66,14 @@ Tout le contenu V1 de PLAN.md §3 (hors personnages, phase 4), équilibré par s
 - Rendu : 9 silhouettes d'ennemis instanciées, ombres des Volants, lignes de visée, cercles rouges qui se remplissent, crachats, boomerangs, mines, coffres, lacs ; nouveaux sons (coffre, évolution, rugissement, crachat, plongée, lancer, explosion).
 - Outils : bots qui sautent au Volant, esquivent les cercles et vont aux coffres (greedy de loin) ; CLI avec taux de pick par part de prises, évolutions par run, kills@10 par build et écart inter-builds ; cibles « pick max ≤ 35 % » réelle et « variance < 3× » ; `debug.evolve`, `debug.chest`, `debug.teleport` ; 21 tests de contenu (83 au total).
 
-### Modifié
+#### Modifié
 
 - `balance.ts` (équilibrage par simulation, avant → après sur 200 runs average) : survie p50 4:33 → 9:52 (seed 43 : 9:43), fin atteinte 0 → 8–10 %, morts < 3 min 13 → 5 %. Réglages : part de Brutes 8 % + t/3000, `hpScale` 1 + t/150, `dmgScale` 1 + t/450, anneaux de Dards après 7:00, montée du spawn après 10:00 divisée par 260, Colosse lent (1,2) avec cercles à 9 dégâts toutes les 4,5 s, Lames à 1,8 + 0,15·lv de rayon (un Dard collé passait sous l'anneau). Marge de maîtrise : naive p50 2:30, greedy 15:14 (16 % de Faucheur).
 - `Ev.Kill` porte le drapeau élite ; `Ev.BossSpawn` porte le type ; `Enemy.y` est la hauteur courante (Volant) ; `World` expose `shots`, `chests`, `lakes`, `woods`, `evolved`, `gold`, `treeCount`.
 
-## Non publié — phase 2, correctifs
+### Phase 2 — correctifs
 
-### Modifié
+#### Modifié
 
 - Musique procédurale à 3 couches retirée à la demande de Jimmy (« pas ouf ») ; tous les effets sonores restent. Le bus musique est conservé pour de vraies pistes CC0 (phase 5, `CREDITS.md`).
 
@@ -54,11 +81,11 @@ Tout le contenu V1 de PLAN.md §3 (hors personnages, phase 4), équilibré par s
 
 - Squash & stretch retiré à la demande de Jimmy (iPhone : ennemis et joueur « écrasés ou étirés ») : plus d'étirement ni d'écrasement des ennemis, du joueur en saut ou à l'atterrissage, ni de grossissement au coup. Le code reste, les valeurs sont neutres dans `src/render/feel.ts` ; le coup se lit au flash blanc, aux particules et au chiffre. Le pop des gemmes et l'écrasement au tir (phase 1) sont conservés.
 
-## Non publié — phase 2 « Game feel »
+### Phase 2 « Game feel »
 
 Application de la checklist du skill `game-feel` : chaque coup porté produit flash, recul, son, chiffre et particules. `src/sim/balance.ts` intact ; les constantes de ressenti vivent dans `src/render/feel.ts`.
 
-### Ajouté
+#### Ajouté
 
 - Hit-stop borné (`HitStop`) : 40 ms à 0,15× par kill, 120 ms par boss, 60 ms à 0,3× quand le joueur est touché ; durée max 120 ms, jamais relancé pendant un hit-stop, 250 ms entre deux. À 400 ennemis le temps de jeu avance à ≥ 88 % du temps réel (15 % en phase 1). Testé en Vitest ; l'onglet perf affiche `temps ×…` (temps de jeu / temps réel) et l'état du hit-stop.
 - Squash & stretch : ressort d'atterrissage du joueur (0,85 → rebond, 120 ms), étirement vertical en saut, écrasement au tir ; ennemis étirés vers leur déplacement (1,1×), flash blanc + 1,18× au coup ; apparition des gemmes 0 → 1,3 → 1 en 120 ms ; les Dards pointent enfin vers le joueur.
@@ -72,17 +99,17 @@ Application de la checklist du skill `game-feel` : chaque coup porté produit fl
 - Clavier : touches 1-3 pour choisir une carte (parité avec le tap ; les `kbd` étaient affichés mais pas câblés).
 - Debug : `weak(type, dist, hp)`, `pullBoss(dist)`, `speed(s)` (0 fige la boucle pour les captures) ; captures `kill-elite`, `levelup-feel`, `boss` dans `e2e/shots.spec.ts`.
 
-### Modifié
+#### Modifié
 
 - `Ev.Hit` porte la source du coup (`HitSrc` : Orbe, Halo, Lames, Foudre) et la direction du recul ; `Gem.age` ; `ELITE_TYPE` (Brute) dans `balance.ts`.
 - Relecture perf : `stats(lv)` des armes mémoïsées (plus de littéral par step ni par frame), éclairs copiés sans `subarray`, opacité des chiffres écrite seulement en fondu.
 - Playwright : `PW_PORT` pour choisir le port du preview (un preview étranger sur 4173 faisait tester un build obsolète).
 
-## Non publié — phase 1 « Cœur jouable »
+### Phase 1 « Cœur jouable »
 
 Le portage du prototype était déjà dans la base v0.1 : cette phase instrumente et outille pour mesurer la porte (60 fps à 400 ennemis sur téléphone, `npm run sim -- --runs 100`, couverture sim ≥ 80 %). Aucun changement de gameplay, `src/sim/balance.ts` intact.
 
-### Ajouté
+#### Ajouté
 
 - Onglet perf : fps réels (frames rAF sur 2 s) en tête, temps JS renommé `js p50/p95`, lisible sur mobile ; bouton « Perf » dans l'écran de pause (parité F3 / tactile).
 - Mode stress `?debug=1&stress=400` : 400 ennemis maintenus, joueur invincible, onglet perf ouvert ; test e2e `stress.spec.ts` (≥ 380 ennemis, draw calls ≤ 40, triangles < 150 k) et captures `shots/*-stress.png`.
@@ -90,13 +117,13 @@ Le portage du prototype était déjà dans la base v0.1 : cette phase instrument
 - CLI de simulation : `--weapons orbe,foudre` (arme de départ et cartes restreintes à la liste, clés validées), `--weapons` dans l'en-tête, ligne « cibles non atteintes : attendu avant la phase 3 » ; `pickAllowed`/`enforceAllowed` testables.
 - Tests Vitest des bots (`tools/bots/bots.test.ts`) : déterminisme, naive ≤ average, filtre d'armes, entrées bornées ; `test.include` étendu à `tools/**`.
 
-### Modifié
+#### Modifié
 
 - Délai Vitest porté à 30 s : sous `--coverage` la sim instrumentée est ~6× plus lente.
 
-## Non publié — phase 0 « Fondations »
+### Phase 0 « Fondations »
 
-### Ajouté
+#### Ajouté
 
 - Dépôt GitHub, CI (lint, typecheck, tests avec couverture, build, bench, Playwright, Lighthouse) et déploiement Firebase Hosting (live sur `main`, preview par PR).
 - PWA installable : manifest complet, icônes générées depuis `assets/icon.svg`, service worker Workbox avec précache de l'app shell, jouable hors ligne au second lancement, bannière « Nouvelle version disponible » au menu et à l'écran de mort.
@@ -106,7 +133,7 @@ Le portage du prototype était déjà dans la base v0.1 : cette phase instrument
 - Onglet perf (F3) : p95 glissant sur 2 s et nombre de voix audio.
 - Tests de simulation : armes, passifs, spawner, combat, cartes, rng (couverture `src/sim/` 79 % → 95 %, seuil 80 %).
 
-### Modifié
+#### Modifié
 
 - TypeScript 7.0 (port natif) → 6.0 : l'outillage ESLint a besoin de l'API compilateur JS.
 - CI sur Node 22 (Vite 8 exige ≥ 22.12).
