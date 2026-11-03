@@ -7,7 +7,8 @@ import { Trait } from './types';
 export const STEP = 1 / 60; // pas fixe de la simulation
 
 export const PLAYER = {
-  hp: 100,
+  hp: 100, // un run « nu » (dégâts ×0,95, milieu de partie raide) doit tomber vers 6 min (80/0,85 : 4:42 ; 95/0,95 : 5:27) ; la Vitalité (boutique) rend 3 PV par palier
+  dmgMul: 0.95, // phase 8 : dégâts de base sous 1, la Puissance (boutique) apporte +2 % par palier (×1,11 au max)
   speed: 6.2 / 1.15, // u/s de base (Bûcheron, Sorcière) ; l'Éclaireuse ×1,15 = 6,2 est la référence de l'équilibrage (fuit un Spectre 2,7, pas un Dard 4,6)
   radius: 0.45,
   magnet: 3.8, // rayon de collecte initial : l'Orbe tue à distance, les gemmes doivent venir au joueur
@@ -76,8 +77,14 @@ export const GOLD = {
 export const SPAWN = {
   // ennemis/s : 0.7 au départ, ~2 à 5:00, ~3 à 10:00, ~7 à 15:00, ~11 à 20:00.
   // Calé sur la croissance du DPS d'une build moyenne (≈ kills/s égal au spawn). L'ancienne courbe (6/s à 2:00) noyait tout le monde à 2:30.
-  rate: (t: number) => Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260), // ≈ 7,2/s à 20:00 ; /120 : 15:00–17:00 perdait 17 points de survie ; /200 : fin atteinte 7,5 % sur deux seeds
-  hpScale: (t: number) => 1 + t / 150, // ×2 à 2:30, ×9 à 20:00 (t/120 : falaise 3:00–6:00, p50 5:31 en phase 3)
+  // phase 8 : milieu de partie plus raide à partir de 7:00 (midFrom). Avant, entre 6 et 15 min plus personne ne mourait :
+  // la survie sautait de 5 à 15 min au moindre palier de boutique ; la puissance doit se traduire en minutes, pas en falaise.
+  // Le surcroît est plafonné à 15:00 (midTo) : au-delà, la courbe d'origine reprend, le Faucheur reste atteignable.
+  midFrom: 420,
+  midTo: 900,
+  rate: (t: number) =>
+    Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 150), // ≈ 10,4/s à 20:00
+  hpScale: (t: number) => 1 + t / 150 + Math.max(0, Math.min(t, 900) - 420) / 100, // ×2 à 2:30, ×8 à 12:00, ×13,8 à 20:00
   dmgScale: (t: number) => 1 + t / 450, // ×3,7 à 20:00 ; t/400 : fin atteinte 5–9 % selon la seed, trop près du plancher 8 %
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
@@ -284,24 +291,26 @@ export const CHARACTERS: CharacterDef[] = [
   { key: 'colporteur', weapon: 'lames', weaponLevel: 2, startPassives: { trefle: 1, bourse: 1 }, trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];
 
-// boutique permanente (survivor-design §8) : 8 lignes, coût base · growth^palier ; un run moyen (≈ 1 600 or) paie un palier
+// boutique permanente (survivor-design §8), PAR PERSONNAGE depuis la phase 8 : 8 lignes, 8 paliers, coût base · growth^palier.
+// Un run nu (≈ 6 min, ≈ 700 or) paie 1 à 2 paliers ; un personnage complet ≈ 42 000 or ≈ 30 runs.
 export interface ShopLine {
   key: 'hp' | 'dmg' | 'speed' | 'luck' | 'gold' | 'magnet' | 'cd' | 'revive'; // nom et texte : src/i18n (shop.<key>.name / .text)
   per: number; // effet par palier
   tiers: number;
 }
 export const SHOP = {
-  base: 40,
-  growth: 1.6, // paliers : 40, 64, 102, 164, 262 or
+  base: 200,
+  growth: 1.3, // paliers : 200, 260, 338, 439, 571, 743, 965, 1 255 or (≈ 4 800 par ligne, ≈ 34 000 par personnage)
   lines: [
-    { key: 'hp', per: 10, tiers: 5 },
-    { key: 'dmg', per: 0.05, tiers: 5 },
-    { key: 'speed', per: 0.03, tiers: 5 },
-    { key: 'luck', per: 1, tiers: 5 },
-    { key: 'gold', per: 0.1, tiers: 5 },
-    { key: 'magnet', per: 0.15, tiers: 5 },
-    { key: 'cd', per: 0.03, tiers: 5 },
-    { key: 'revive', per: 1, tiers: 2 },
+    // la survie est très sensible à la puissance (hp +40, dmg ×1,2, cd ×0,88 seuls : 5:11 → 16:03) : paliers petits
+    { key: 'hp', per: 3, tiers: 8 },
+    { key: 'dmg', per: 0.02, tiers: 8 },
+    { key: 'speed', per: 0.015, tiers: 8 },
+    { key: 'luck', per: 0.4, tiers: 8 }, // +0,4 Trèfle par palier : +3,2 au max (5 paliers de +1 avant)
+    { key: 'gold', per: 0.1, tiers: 8 },
+    { key: 'magnet', per: 0.1, tiers: 8 },
+    { key: 'cd', per: 0.01, tiers: 8 },
+    { key: 'revive', per: 1, tiers: 1 }, // une seule réanimation : deux seules valaient 5:11 → 13:18
   ] as ShopLine[],
 };
 export const REVIVE = {

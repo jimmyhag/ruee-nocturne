@@ -38,17 +38,59 @@ test('nouveau joueur : premier déblocage (défi du jour) dès le premier run', 
 
 test('boutique : acheter un palier débite l’or et le run suivant en bénéficie', async ({ page }) => {
   await openGame(page);
-  await page.evaluate(() => (window as any).__game.setMeta({ version: 2, gold: 100 }));
+  await page.evaluate(() => (window as any).__game.setMeta({ version: 2, gold: 300 }));
   await page.locator('#shopBtn').click();
   await expect(page.locator('#shop')).toBeVisible();
-  await expect(page.locator('#shopGold')).toHaveText('100 or');
-  const firstBuy = page.locator('#shopLines .buy').first(); // Vitalité, 40 or
+  await expect(page.locator('#shopGold')).toHaveText('300 or');
+  await expect(page.locator('#shopTitle')).toContainText('Éclaireuse');
+  const firstBuy = page.locator('#shopLines .buy').first(); // Vitalité, 200 or
   await firstBuy.click();
-  await expect(page.locator('#shopGold')).toHaveText('60 or');
+  await expect(page.locator('#shopGold')).toHaveText('100 or');
   await page.locator('#shopBackBtn').click();
   await startRun(page, 3);
   const maxHp = await page.evaluate(() => (window as any).__game.world.player.maxHp as number);
-  expect(maxHp).toBe(110);
+  expect(maxHp).toBe(103); // 100 + 3 (phase 8 : +3 PV par palier)
+});
+
+test('boutique par personnage : le palier de l’Éclaireuse ne profite pas au Bûcheron, et survit au rechargement', async ({
+  page,
+}) => {
+  await openGame(page);
+  await page.evaluate(() =>
+    (window as any).__game.setMeta({ version: 2, gold: 500, achievements: ['survie10'], shops: { eclaireuse: [1] } }),
+  );
+  await page.locator('#shopBtn').click();
+  await expect(page.locator('#shopChars .shopchar.sel')).toContainText('Éclaireuse');
+  await expect(page.locator('#shopLines .pips').first().locator('i.on')).toHaveCount(1);
+  await page.locator('#shopChars [data-char="bucheron"]').click();
+  await expect(page.locator('#shopTitle')).toContainText('Bûcheron');
+  await expect(page.locator('#shopLines .pips').first().locator('i.on')).toHaveCount(0);
+  await expect(page.locator('#shopChars [data-char="sorciere"]')).toBeDisabled(); // verrouillée
+  await page.locator('#shopLines .buy').first().click(); // Vitalité du Bûcheron : 200 or
+  await expect(page.locator('#shopGold')).toHaveText('300 or');
+  await page.locator('#shopBackBtn').click();
+  await startRun(page, 3);
+  const maxHp = await page.evaluate(() => (window as any).__game.world.player.maxHp as number);
+  expect(maxHp).toBe(133); // Bûcheron : 100 + 30, +3 (son propre palier)
+  await page.locator('#pauseBtn').click();
+  await page.locator('#quitBtn').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'menu');
+  await page.waitForFunction(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const req = indexedDB.open('keyval-store');
+        req.onerror = () => resolve(false);
+        req.onsuccess = () => {
+          const get = req.result.transaction('keyval').objectStore('keyval').get('ruee-meta');
+          get.onsuccess = () => resolve(get.result?.shops?.bucheron?.[0] === 1);
+          get.onerror = () => resolve(false);
+        };
+      }),
+  );
+  await page.reload();
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  const meta = await page.evaluate(() => (window as any).__game.meta);
+  expect(meta.shops).toEqual({ eclaireuse: [1, 0, 0, 0, 0, 0, 0, 0], bucheron: [1, 0, 0, 0, 0, 0, 0, 0] });
 });
 
 test('réglages : export puis import restaurent record, or et succès ; le JSON étranger est refusé', async ({

@@ -39,7 +39,7 @@ export interface Meta {
   fxChosen: boolean; // true dès que le joueur a touché au réglage : sinon `prefers-reduced-motion` décide
   gold: number; // or disponible (boutique)
   goldEarned: number; // or gagné en tout (écran de mort)
-  shop: number[]; // palier acheté par ligne (ordre de SHOP.lines)
+  shops: Partial<Record<CharacterKey, number[]>>; // paliers achetés par personnage et par ligne (ordre de SHOP.lines) ; absent = zéros (phase 8)
   stats: MetaStats;
   achievements: string[]; // identifiants des succès obtenus
   bought: CharacterKey[]; // personnages achetés en or (phase 6)
@@ -61,7 +61,7 @@ export const DEFAULT_META: Meta = {
   fxChosen: false,
   gold: 0,
   goldEarned: 0,
-  shop: SHOP.lines.map(() => 0),
+  shops: {},
   stats: {
     kills: 0,
     dards: 0,
@@ -96,8 +96,18 @@ export function normalizeMeta(raw: unknown): Meta {
   const st = (r.stats && typeof r.stats === 'object' ? r.stats : {}) as Record<string, unknown>;
   const se = (r.settings && typeof r.settings === 'object' ? r.settings : {}) as Record<string, unknown>;
   const da = (r.daily && typeof r.daily === 'object' ? r.daily : {}) as Record<string, unknown>;
-  const shopRaw = Array.isArray(r.shop) ? r.shop : [];
   const isKey = (k: unknown): k is CharacterKey => CHARACTERS.some((c) => c.key === k);
+  const tiers = (raw: unknown) => {
+    const arr = Array.isArray(raw) ? raw : [];
+    return SHOP.lines.map((l, i) => Math.max(0, Math.min(l.tiers, num(arr[i]) | 0)));
+  };
+  // boutique par personnage (phase 8) ; migration : l'ancienne boutique globale `shop` va à l'Éclaireuse
+  const shops: Partial<Record<CharacterKey, number[]>> = {};
+  if (r.shops && typeof r.shops === 'object') {
+    for (const [k, v] of Object.entries(r.shops as Record<string, unknown>))
+      if (isKey(k) && Array.isArray(v)) shops[k] = tiers(v);
+  } else if (Array.isArray(r.shop)) shops.eclaireuse = tiers(r.shop);
+  for (const k of Object.keys(shops) as CharacterKey[]) if (shops[k]!.every((t) => t === 0)) delete shops[k];
   const character = isKey(r.character) ? r.character : 'eclaireuse';
   const outfitSel: Partial<Record<CharacterKey, number>> = {};
   if (r.outfit && typeof r.outfit === 'object')
@@ -116,7 +126,7 @@ export function normalizeMeta(raw: unknown): Meta {
     fxChosen: bool(r.fxChosen, false),
     gold: Math.max(0, num(r.gold)),
     goldEarned: Math.max(0, num(r.goldEarned)),
-    shop: SHOP.lines.map((l, i) => Math.max(0, Math.min(l.tiers, num(shopRaw[i]) | 0))),
+    shops,
     stats: {
       // migration v1 → v2 : les compteurs cumulés repartent des champs v1 connus
       kills: Math.max(0, num(st.kills, totalKills)),

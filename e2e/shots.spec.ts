@@ -179,6 +179,17 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await page.locator('#chars').evaluate((el) => el.scrollIntoView({ block: 'center' }));
   await page.waitForTimeout(300);
   await page.screenshot(shot('personnages', p));
+  // phase 8 : la boutique du personnage choisi, avec la rangée de personnages et quelques paliers
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, shops: { feufollet: [3, 2, 1, 0, 0, 1, 2, 0], eclaireuse: [1, 1, 0, 0, 0, 0, 0, 0] } });
+  });
+  await page.locator('#shopBtn').click();
+  await expect(page.locator('#shopTitle')).toContainText('Feu follet');
+  await expect(page.locator('#shopLines .pips').first().locator('i.on')).toHaveCount(3);
+  await page.waitForTimeout(200);
+  await page.screenshot(shot('boutique', p));
+  await page.locator('#shopBackBtn').click();
 
   await startRun(page, 42);
   await page.evaluate(() => (window as any).__game.debug.god());

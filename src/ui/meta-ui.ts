@@ -5,7 +5,7 @@ import { ACHIEVEMENTS, closest, progress, unlockedCharacters } from '../meta/ach
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
 import type { CharacterKey } from '../sim/types';
-import { outfitOf, shopCost } from '../meta/shop';
+import { outfitOf, shopCost, shopTiers } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
 import {
@@ -74,11 +74,29 @@ export function renderOutfits(m: Meta, k: CharacterKey): string {
   );
 }
 
-/** Lignes de la boutique : palier courant, coût du suivant, bouton d'achat (désactivé si l'or manque). */
-export function renderShop(container: HTMLElement, m: Meta): void {
+/** Rangée des personnages de la boutique (phase 8 : paliers par personnage) : pastille de tenue + nom, le choisi marqué. */
+export function renderShopChars(container: HTMLElement, m: Meta): string[] {
+  const unlocked = unlockedCharacters(m);
+  container.innerHTML = CHARACTERS.map((c) => {
+    const open = unlocked.includes(c.key);
+    const p = OUTFITS[c.key][outfitOf(m, c.key)];
+    const sel = m.character === c.key;
+    const bought = shopTiers(m, c.key).reduce((a, b) => a + b, 0);
+    return `<button class="shopchar${sel ? ' sel' : ''}${open ? '' : ' locked'}" data-char="${c.key}" ${open ? '' : 'disabled'} aria-pressed="${sel}">
+      <i style="background:linear-gradient(135deg,${hex(p.p1)} 50%,${hex(p.p2)} 50%)"></i>${esc(characterName(c.key))}${bought ? `<b>${bought}</b>` : ''}</button>`;
+  }).join('');
+  const sel = container.querySelector<HTMLElement>('.shopchar.sel');
+  if (sel && container.scrollWidth > container.clientWidth + 4)
+    container.scrollLeft = Math.max(0, sel.offsetLeft - (container.clientWidth - sel.offsetWidth) / 2);
+  return unlocked;
+}
+
+/** Lignes de la boutique d'un personnage : palier courant, coût du suivant, bouton d'achat (désactivé si l'or manque). */
+export function renderShop(container: HTMLElement, m: Meta, key: CharacterKey = m.character): void {
+  const tiers = shopTiers(m, key);
   container.innerHTML = SHOP.lines
     .map((l, i) => {
-      const tier = m.shop[i] ?? 0;
+      const tier = tiers[i];
       const cost = shopCost(i, tier);
       const max = !Number.isFinite(cost);
       const pips = Array.from({ length: l.tiers }, (_, k) => `<i class="${k < tier ? 'on' : ''}"></i>`).join('');

@@ -11,7 +11,7 @@ import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, renderCards } from './ui/hud';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, evolutionName } from './ui/cards';
+import { achName, achUnlock, characterName, evolutionName } from './ui/cards';
 import type { Achievement } from './meta/achievements';
 import { exportMeta, importMeta, loadMeta, normalizeMeta, peekMeta, saveMeta, DEFAULT_META } from './meta/save';
 import type { Meta } from './meta/save';
@@ -24,7 +24,15 @@ import {
 } from './meta/achievements';
 import { buy, buyCharacter, buyOutfit, outfitOf, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily } from './meta/daily';
-import { bestLine, esc, renderAchievements, renderCharacters, renderProgress, renderShop } from './ui/meta-ui';
+import {
+  bestLine,
+  esc,
+  renderAchievements,
+  renderCharacters,
+  renderProgress,
+  renderShop,
+  renderShopChars,
+} from './ui/meta-ui';
 import type { CharacterKey } from './sim/types';
 import { installDebugHooks } from './debug';
 import { Pwa } from './platform/pwa';
@@ -171,7 +179,10 @@ function openScreen(id: 'shop' | 'achievements' | 'settings'): void {
 }
 function renderShopScreen(): void {
   $('shopGold').textContent = t('gold', { n: Math.round(meta.gold) });
-  renderShop($('shopLines'), meta);
+  // phase 8 : la boutique est celle du personnage choisi
+  $('shopTitle').textContent = t('shop.titleFor', { name: characterName(meta.character) });
+  renderShopChars($('shopChars'), meta);
+  renderShop($('shopLines'), meta, meta.character);
 }
 
 // ---------- langue : passe statique (index.html) et re-rendu de l'écran courant ----------
@@ -473,12 +484,26 @@ $('charInfo').addEventListener('click', (e) => {
 $('shopLines').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('.buy') as HTMLButtonElement | null;
   if (!b || b.disabled) return;
-  if (buy(meta, +b.dataset.line!)) {
+  if (buy(meta, meta.character, +b.dataset.line!)) {
     saveMeta(meta);
     audio.init();
     audio.chest();
     renderShopScreen();
   }
+});
+// changer de personnage depuis la boutique : même effet que la grille du menu (choix pour la prochaine partie)
+$('shopChars').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-char]') as HTMLButtonElement | null;
+  if (!b || b.disabled) return;
+  const key = b.dataset.char as CharacterKey;
+  if (key === meta.character || !unlockedCharacters(meta).includes(key)) return;
+  meta.character = key;
+  saveMeta(meta);
+  renderShopScreen();
+  renderCharacters($('chars'), meta, $('charInfo'));
+  scene?.setCharacter(key, outfitOf(meta, key));
+  audio.init();
+  audio.select('s');
 });
 // réglages
 $('setSoundBtn').onclick = () => {
