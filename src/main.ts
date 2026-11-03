@@ -53,6 +53,8 @@ function loadScene(): Promise<GameScene> {
     scene = s;
     sizeW = sizeH = 0;
     resize();
+    // le décor ne dépend que de DECOR_SEED : construit ici pour que warmup() compile aussi ses matériaux (lacs, lanternes)
+    s.buildDecor(new World(DECOR_SEED));
     await s.warmup();
     sceneReady = true;
     return s;
@@ -210,16 +212,15 @@ function closeScreen(): void {
   showOnly(backTo);
 }
 
-// ---------- décor : construit une fois pour la seed de décor fixe ----------
+// ---------- décor : construit une fois (loadScene) pour la seed de décor fixe ----------
 // Le décor dépend de la seed du monde ; on garde une seed de décor constante pour ne pas le reconstruire à chaque run.
 const DECOR_SEED = 20261102;
-let decorBuilt = false;
 
 let startWanted: { variant?: number; daily: boolean } | null = null;
 function startGame(variant?: number, daily = false): void {
   if (!scene || !sceneReady) {
     // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
-    startWanted = { variant, daily };
+    if (!startWanted) startWanted = { variant, daily }; // la première intention (ex. défi du jour) l'emporte
     $<HTMLButtonElement>('playBtn').disabled = true;
     $('playBtn').textContent = t('menu.loading');
     loadScene().then(
@@ -252,10 +253,6 @@ function startGame(variant?: number, daily = false): void {
   const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;
   for (let i = 0; i < skips; i++) world.rng.next();
   startRun(world);
-  if (!decorBuilt) {
-    S.buildDecor(world);
-    decorBuilt = true;
-  }
   app = 'play';
   showOnly(null);
   $('hud').hidden = false;

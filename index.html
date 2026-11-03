@@ -26,7 +26,13 @@
           var m = JSON.parse(localStorage.getItem('ruee-meta') || 'null');
           var s = m && m.settings && m.settings.lang;
           var l = s === 'fr' || s === 'en' ? s : /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
-          if (l !== 'fr') document.documentElement.classList.add('lang-pending');
+          if (l !== 'fr') {
+            document.documentElement.classList.add('lang-pending');
+            // garde-fou : si le script principal ne s'exécute pas, le menu (en français) réapparaît
+            setTimeout(function () {
+              document.documentElement.classList.remove('lang-pending');
+            }, 1500);
+          }
         } catch (e) {
           /* stockage bloqué : français */
         }
