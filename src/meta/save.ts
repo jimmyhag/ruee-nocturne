@@ -44,6 +44,8 @@ export interface Meta {
   achievements: string[]; // identifiants des succès obtenus
   bought: CharacterKey[]; // personnages achetés en or (phase 6)
   character: CharacterKey;
+  outfits: CharacterKey[]; // personnages dont la tenue alternative est achetée (phase 7)
+  outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
   settings: MetaSettings;
 }
@@ -76,6 +78,8 @@ export const DEFAULT_META: Meta = {
   achievements: [],
   bought: [],
   character: 'eclaireuse',
+  outfits: [],
+  outfit: {},
   daily: { date: '', times: [] },
   settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto' },
 };
@@ -95,6 +99,9 @@ export function normalizeMeta(raw: unknown): Meta {
   const shopRaw = Array.isArray(r.shop) ? r.shop : [];
   const isKey = (k: unknown): k is CharacterKey => CHARACTERS.some((c) => c.key === k);
   const character = isKey(r.character) ? r.character : 'eclaireuse';
+  const outfitSel: Partial<Record<CharacterKey, number>> = {};
+  if (r.outfit && typeof r.outfit === 'object')
+    for (const [k, v] of Object.entries(r.outfit as Record<string, unknown>)) if (isKey(k) && v === 1) outfitSel[k] = 1;
   const totalKills = Math.max(0, num(r.totalKills));
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
@@ -129,6 +136,8 @@ export function normalizeMeta(raw: unknown): Meta {
       : [],
     bought: Array.isArray(r.bought) ? r.bought.filter((k): k is CharacterKey => isKey(k) && k !== 'eclaireuse') : [],
     character,
+    outfits: Array.isArray(r.outfits) ? r.outfits.filter(isKey) : [],
+    outfit: outfitSel,
     daily: {
       date: typeof da.date === 'string' ? da.date.slice(0, 10) : '',
       times: Array.isArray(da.times)

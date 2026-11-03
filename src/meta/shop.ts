@@ -1,5 +1,5 @@
 // Boutique permanente (survivor-design §8) : coûts, achat, et traduction en options de monde pour la sim.
-import { CHARACTERS, SHOP } from '../sim/balance';
+import { CHARACTERS, OUTFIT, SHOP } from '../sim/balance';
 import type { CharacterKey } from '../sim/types';
 import type { WorldOptions } from '../sim/types';
 import type { Meta } from './save';
@@ -31,6 +31,20 @@ export function buyCharacter(m: Meta, key: CharacterKey): boolean {
   if (price <= 0 || m.bought.includes(key) || m.gold < price) return false;
   m.gold -= price;
   m.bought.push(key);
+  return true;
+}
+
+/** Tenue choisie pour un personnage : 0 (classique) tant que l'alternative n'est pas achetée. */
+export function outfitOf(m: Meta, key: CharacterKey): number {
+  return m.outfits.includes(key) ? (m.outfit[key] ?? 0) : 0;
+}
+
+/** Achète la tenue alternative d'un personnage si l'or suffit, et la choisit. Retourne true si l'achat a eu lieu. */
+export function buyOutfit(m: Meta, key: CharacterKey): boolean {
+  if (m.outfits.includes(key) || m.gold < OUTFIT.price) return false;
+  m.gold -= OUTFIT.price;
+  m.outfits.push(key);
+  m.outfit[key] = 1;
   return true;
 }
 

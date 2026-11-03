@@ -233,8 +233,12 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - 9 personnages (§3.5) avec passif signature dans la sim (pur, déterministe, une constante par passif dans `balance.ts`), déblocage par succès, achat en or (boutique) ou défi ; trois défis par run (Intouchable : 4 min sans dégât ; Marathon : 4 km ; Métamorphe : 3 évolutions), compteurs dans la méta ; grille de personnages à 9 cartes (défilement à crans sur téléphone), bouton d'achat.
 - **Porte** : chaque personnage mesuré sur 100 runs du bot `average` : survie p50 à ± 3 min de l'Éclaireuse, morts avant 3 min ≤ 15 % ; test « nouveau joueur » : un nouveau personnage débloqué en < 5 runs ; les trois défis atteints par le bot `greedy` en 200 runs ; bench, Lighthouse et tests inchangés.
 
+### Phase 7 — Identité visuelle (après la 1.1.0)
+- Toujours en low-poly généré par le code (aucun asset), même pipeline, mêmes budgets : un modèle propre à chaque personnage (silhouette, accessoire, palette qui disent le passif ; course, saut, dash animés ; effet visuel par passif), des ennemis lisibles de loin (forme et détail par type, couleurs par sommet, instancing conservé), un monde plus riche (ciel étoilé et lune, lanternes lumineuses, arbres variés, herbe, brume, cycle de lumière contrasté), et des tenues (deux palettes par personnage, la seconde à 400 or).
+- **Porte** : draw calls ≤ 40 et triangles ≤ 150 k à 400 ennemis (test e2e stress), bench inchangé, 60 fps sur le téléphone de Jimmy, captures des neuf personnages et de la nuit lues et validées par Jimmy sur la preview ; aucune lisibilité perdue (télégraphes, couleurs par type d'ennemi).
+
 ### V2 (hors périmètre, à ne pas commencer)
-Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local, skins.
+Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
 
 ---
 

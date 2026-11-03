@@ -1,10 +1,12 @@
 // Écrans de méta en DOM natif : personnages, boutique, succès, réglages, progression de l'écran de mort.
 // Rendus à l'ouverture d'un écran (jamais par frame) : innerHTML est acceptable ici. Textes : src/i18n via cards.ts.
-import { CHARACTERS, SHOP } from '../sim/balance';
+import { CHARACTERS, OUTFIT, SHOP } from '../sim/balance';
 import { ACHIEVEMENTS, closest, progress, unlockedCharacters } from '../meta/achievements';
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
-import { shopCost } from '../meta/shop';
+import type { CharacterKey } from '../sim/types';
+import { outfitOf, shopCost } from '../meta/shop';
+import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
 import {
   achName,
@@ -42,16 +44,34 @@ export function renderCharacters(container: HTMLElement, m: Meta, info?: HTMLEle
       <div class="top"><span class="glyph" style="background:${open ? 'var(--accent)' : 'var(--ink-3)'}">${open ? '✦' : '🔒'}</span><h3>${esc(characterName(c.key))}</h3></div>
       ${cond}<p>${esc(characterText(c.key))}</p></button>`;
   }).join('');
-  // ligne d'information sous la grille (lisible sur téléphone, où le texte des cartes est masqué) : stats et passif
+  // ligne d'information sous la grille (lisible sur téléphone, où le texte des cartes est masqué) : stats, passif, tenues
   if (info) {
     const k = m.character;
     const trait = characterTrait(k);
-    info.innerHTML = `<b>${esc(characterName(k))}</b> · ${esc(characterText(k))}${trait ? `<br /><em>${esc(trait)}</em>` : ''}`;
+    info.innerHTML = `<b>${esc(characterName(k))}</b> · ${esc(characterText(k))}${trait ? `<br /><em>${esc(trait)}</em>` : ''}<div class="outfits">${renderOutfits(m, k)}</div>`;
   }
   // la carte choisie reste visible dans le défilement horizontal (téléphone)
   const sel = container.querySelector<HTMLElement>('.card.char.selected');
   if (sel && container.scrollWidth > container.clientWidth + 4)
     container.scrollLeft = Math.max(0, sel.offsetLeft - (container.clientWidth - sel.offsetWidth) / 2);
+}
+
+/** Boutons de tenue du personnage choisi : classique (toujours possédée) et alternative (achat en or, puis bascule). */
+export function renderOutfits(m: Meta, k: CharacterKey): string {
+  const sel = outfitOf(m, k);
+  const owned = m.outfits.includes(k);
+  const can = m.gold >= OUTFIT.price;
+  const swatch = (i: number) => {
+    const p = OUTFITS[k][i];
+    return `<i style="background:linear-gradient(135deg,${hex(p.p1)} 50%,${hex(p.p2)} 50%)"></i>`;
+  };
+  const alt = owned
+    ? esc(t(`outfit.${k}`))
+    : `${esc(t(`outfit.${k}`))} · <span class="${can ? 'price' : 'price poor'}">${esc(t('gold', { n: OUTFIT.price }))}</span>`;
+  return (
+    `<button class="outfit${sel === 0 ? ' sel' : ''}" data-outfit="0" aria-pressed="${sel === 0}">${swatch(0)}${esc(t('outfit.classic'))}</button>` +
+    `<button class="outfit${sel === 1 ? ' sel' : ''}${owned ? '' : ' locked'}" data-outfit="1" aria-pressed="${sel === 1}">${swatch(1)}${alt}</button>`
+  );
 }
 
 /** Lignes de la boutique : palier courant, coût du suivant, bouton d'achat (désactivé si l'or manque). */

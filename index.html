@@ -834,6 +834,46 @@
         color: var(--gold);
         font-style: normal;
       }
+      /* tenues (phase 7) : deux boutons à pastille sous la ligne d'information */
+      .outfits {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 8px;
+      }
+      .outfit {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font: 700 13px var(--f-body);
+        color: var(--ink);
+        background: var(--paper);
+        border: 2px solid transparent;
+        border-radius: 999px;
+        padding: 4px 10px 4px 5px;
+        min-height: 32px;
+        cursor: pointer;
+      }
+      .outfit i {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid var(--ink);
+        flex: none;
+      }
+      .outfit.sel {
+        border-color: var(--accent);
+        background: #ffe3c8;
+      }
+      .outfit.locked {
+        opacity: 0.85;
+      }
+      .outfit .price {
+        color: #7a5a00;
+      }
+      .outfit .price.poor {
+        color: var(--muted);
+      }
       .gold {
         font-family: var(--f-display);
         font-size: 22px;
