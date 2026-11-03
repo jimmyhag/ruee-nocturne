@@ -208,8 +208,8 @@ function syncLang(): void {
 }
 function closeScreen(): void {
   app = backTo;
+  showOnly(backTo); // avant updateBestLine : la grille doit être visible pour recentrer la carte choisie
   if (backTo === 'menu') updateBestLine();
-  showOnly(backTo);
 }
 
 // ---------- décor : construit une fois (loadScene) pour la seed de décor fixe ----------

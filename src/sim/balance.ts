@@ -237,7 +237,7 @@ export const TRAIT = {
   fendeur: { kbMul: 1.5 }, // Bûcheron : recul des Lames ×1,5
   braise: { perMin: 0.1, max: 0.5 }, // Veilleuse : rayon du Halo +10 %/min, plafonné à +50 % (5:00) ; 8 %/40 % donnait p50 5:26
   rapporteur: { refund: 0.6 }, // Braconnier : un boomerang attrapé rend 60 % de la recharge (50 % et Boomerang 1 : p50 4:47, 25 % de morts)
-  trainee: { dashMul: 2, spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25 }, // Feu follet : dash 2× plus long, feu 1,5 s à 8 PV/s
+  trainee: { dashMul: 2, spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25, kb: 0.6 }, // Feu follet : dash 2× plus long, feu 1,5 s à 8 PV/s
   dejamorte: { revives: 1, airXpMul: 2 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP
   marchand: { minCards: 3 }, // Colporteur : jamais de coffre à 1 carte
 };
@@ -278,7 +278,7 @@ export const CHARACTERS: CharacterDef[] = [
   { key: 'sapeur', weapon: 'mines', weaponLevel: 1, trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', weaponLevel: 1, trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.5, dashTime: PLAYER.dashTime * TRAIT.trainee.dashMul, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
   { key: 'revenante', weapon: 'foudre', weaponLevel: 1, weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'win', price: 0 },
-  { key: 'colporteur', weapon: 'lames', weaponLevel: 2, startPassives: { trefle: 1, bourse: 1 }, trait: Trait.Marchand, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
+  { key: 'colporteur', weapon: 'lames', weaponLevel: 2, startPassives: { trefle: 1, bourse: 1 }, trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];
 
 // boutique permanente (survivor-design §8) : 8 lignes, coût base · growth^palier ; un run moyen (≈ 1 600 or) paie un palier

@@ -30,7 +30,6 @@ export function step(w: World, input: Input, dt: number): void {
     return;
   }
   w.t += dt;
-  const hpBefore = w.player.hp;
   stepPlayer(w, input, dt);
   tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
@@ -41,9 +40,8 @@ export function step(w: World, input: Input, dt: number): void {
   compactEnemies(w);
   tickGems(w, dt);
   tickChests(w, dt);
-  // défi « Intouchable » : plus longue période sans dégât (toute source confondue : une baisse de PV = un coup)
-  if (w.player.hp < hpBefore) w.hurtAt = w.t;
-  else if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
+  // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
+  if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
     w.gold += w.t * GOLD.perSecond * w.player.goldMul;
   } else if (w.player.hp <= 0 && w.player.revives > 0) {
@@ -207,6 +205,7 @@ function stepEnemies(w: World, dt: number): void {
   }
   if (hurt > 0) {
     w.lastAction = w.t;
+    w.hurtAt = w.t;
     w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);
   }
 }
@@ -247,6 +246,7 @@ function tickShots(w: World, dt: number): void {
   }
   if (hurt > 0) {
     w.lastAction = w.t;
+    w.hurtAt = w.t;
     w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);
   }
 }

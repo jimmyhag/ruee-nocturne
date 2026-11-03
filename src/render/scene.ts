@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { BOSS, DECOR, ENEMIES, REAPER_TYPE, SWARM_TYPE, VOLANT, VOLANT_TYPE, WORLD_HALF } from '../sim/balance';
+import { BOSS, DECOR, ENEMIES, REAPER_TYPE, SWARM_TYPE, TRAIT, VOLANT, VOLANT_TYPE, WORLD_HALF } from '../sim/balance';
 import { ProjKind, ShotKind } from '../sim/types';
 import type { World } from '../sim/world';
 import { WEAPONS } from '../sim/weapons/defs';
@@ -581,8 +581,9 @@ export class GameScene {
       }
       if (p.kind === ProjKind.Fire) {
         // plaque de feu : s'éteint en rétrécissant, vacille
-        const fade = Math.max(0.2, p.life / 1.5);
-        this.mineW.put(x, p.y, z, now * 9 + p.x, (2.2 + Math.sin(now * 30 + p.z) * 0.3) * fade, this.cFire);
+        const fade = Math.max(0.2, p.life / TRAIT.trainee.life);
+        const s = (2.4 + Math.sin(now * 30 + p.z) * 0.3) * fade;
+        this.mineW.put(x, p.y, z, now * 9 + p.x, s, this.cFire, 0, 0, s * 0.25); // plate : un quart de hauteur
         continue;
       }
       const grow = Math.min(1, p.age / 0.06);

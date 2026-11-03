@@ -308,7 +308,7 @@ export function tickProjectiles(w: World, dt: number): void {
       if (pulse !== p.hit0) {
         p.hit0 = pulse;
         const n = w.grid.query(w.enemies, p.x, p.z, p.r, MAX_ENEMY_R, hits);
-        for (let k = 0; k < n; k++) hitEnemy(w, hits[k], p.dmg, 0.6, p.x, p.z, HitSrc.Fire);
+        for (let k = 0; k < n; k++) hitEnemy(w, hits[k], p.dmg, TRAIT.trainee.kb, p.x, p.z, HitSrc.Fire);
       }
       if (p.life <= 0) w.freeProj(i);
       continue;

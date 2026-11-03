@@ -1,4 +1,4 @@
-# Phase 6 — Personnages (proposition à trancher)
+# Phase 6 — Personnages (proposition validée par Jimmy le 3 nov. 2026 ; mesures finales dans `docs/GATES.md`)
 
 Objectif : passer de 3 profils de stats à **8 personnages** qui changent la façon de jouer, débloqués par un mélange de succès, d'or et de défis. Chaque personnage = une arme de départ + un passif signature (une règle de jeu, pas un pourcentage) + une condition de déblocage qui est elle-même un objectif. C'est la boucle méta « encore une » de PLAN.md §2.4, dans l'esprit de Megabonk, sans toucher au cœur du jeu.
 

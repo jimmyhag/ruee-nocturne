@@ -2,13 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
-## 1.1.0 — en cours (phase 6 « Personnages »)
+## 1.1.0 — 3 nov. 2026 (phase 6 « Personnages »)
 
 Neuf personnages qui changent la façon de jouer, débloqués par succès, or ou défi (PLAN.md §3.5 et phase 6, `docs/PHASE6-PERSONNAGES.md`).
 
 ### Ajouté
 
-- **Six personnages** : **Veilleuse** (Halo ; Braise : le Halo grandit de 8 % par minute, jusqu'à +40 % ; 800 or), **Braconnier** (Boomerang ; Rapporteur : un boomerang attrapé rend la moitié de sa recharge ; 1 200 or), **Sapeur** (Mines, +20 PV ; Démolisseur : chaque atterrissage pose une mine ; succès « Gardienne tombée »), **Feu follet** (Orbe, +30 % vitesse, −50 % PV ; Traînée : dash deux fois plus long qui laisse des plaques de feu ; défi « Intouchable »), **Revenante** (Foudre et Halo, −20 % PV ; Déjà morte : une Réanimation gratuite, ×2 XP sur les kills en l'air ; succès « Aube »), **Colporteur** (Lames, Trèfle et Bourse au départ ; Marchand : les coffres donnent toujours au moins 3 cartes ; 2 000 or).
+- **Six personnages** : **Veilleuse** (Halo, +20 PV ; Braise : le Halo grandit de 10 % par minute, jusqu'à +50 % ; 800 or), **Braconnier** (Boomerang niveau 2, +10 PV ; Rapporteur : un boomerang attrapé rend 60 % de sa recharge ; 1 200 or), **Sapeur** (Mines, −20 % PV, un peu plus lent ; Démolisseur : chaque atterrissage pose une mine ; succès « Gardienne tombée »), **Feu follet** (Orbe, +30 % vitesse, −50 % PV ; Traînée : dash deux fois plus long qui laisse des plaques de feu ; défi « Intouchable »), **Revenante** (Foudre et Halo, −55 % PV, un peu plus lente ; Déjà morte : une Réanimation gratuite, ×2 XP sur les kills en l'air ; succès « Aube »), **Colporteur** (Lames niveau 2, +15 PV, Trèfle et Bourse au départ ; Marchand : les coffres donnent toujours au moins 3 cartes ; 2 000 or).
 - **Passifs signature** pour le Bûcheron (Fendeur : les Lames repoussent 50 % plus fort) et la Vieille sorcière (Paratonnerre : la Foudre frappe d'abord le plus proche). L'Éclaireuse reste la référence d'équilibrage, inchangée.
 - **Achat de personnages en or** depuis la grille du menu (bouton sur la carte, gris tant que l'or manque) ; les personnages achetés sont dans la sauvegarde (`bought`).
 - **Trois défis** sur un seul run, avec barres comme les succès : Intouchable (sans dégât pendant N minutes), Marathon (distance parcourue), Métamorphe (évolutions dans un run). Compteurs dans la méta (`noHitBest`, `distanceBest`, `evoRunBest`).
@@ -17,6 +17,7 @@ Neuf personnages qui changent la façon de jouer, débloqués par succès, or ou
 
 ### Modifié
 
+- Équilibrage par simulation (100 runs du bot `average`, référence Éclaireuse p50 7:52) : les huit autres personnages entre 5:59 et 10:52 de survie médiane, 3 à 13 % de morts avant 3 min (`docs/GATES.md`). L'Éclaireuse est bit-identique à la 1.0.0.
 - « Vaincs un boss » débloque le Sapeur, « Aube » la Revenante (ils ne débloquaient rien).
 - « Il te manquait X pour… » ne considère que les succès de survie.
 - `debug.kill()` met les PV très négatifs : la Sève vive annulait la mort entre deux steps (tests).
