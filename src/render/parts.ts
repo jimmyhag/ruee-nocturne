@@ -41,7 +41,7 @@ export function primGeometry(p: Prim): THREE.BufferGeometry {
   }
   if (p.rot) g.rotateX(p.rot[0]).rotateY(p.rot[1]).rotateZ(p.rot[2]);
   g.translate(p.pos[0], p.pos[1], p.pos[2]);
-  return g.toNonIndexed();
+  return g.index ? g.toNonIndexed() : g; // ico/octa sont déjà non indexés (toNonIndexed avertirait)
 }
 
 /** Attribut `color` constant (r, g, b peuvent dépasser 1 : multiplié par la couleur d'instance, puis écrêté). */

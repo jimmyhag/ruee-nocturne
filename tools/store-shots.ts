@@ -54,6 +54,19 @@ async function pickUntilPlay(page: Page): Promise<void> {
 }
 /** Fige la boucle `ms` ms de jeu après le prochain kill (particules en vol). Code passé en chaîne : tsx injecte
  *  un helper `__name` dans les fonctions nommées, absent dans la page. */
+/** Écarte les ennemis qui couvrent le personnage (boucle figée) : la capture doit montrer le héros. */
+async function clearAround(page: Page, r = 2.6): Promise<void> {
+  await page.evaluate(`(() => {
+    const w = window.__game.world, p = w.player;
+    for (let i = 0; i < w.enemyCount; i++) {
+      const e = w.enemies[i];
+      if (!e.alive) continue;
+      const dx = e.x - p.x, dz = e.z - p.z, d = Math.hypot(dx, dz) || 1;
+      if (d < ${r} + e.r) { const k = (${r} + e.r) / d; e.x = e.px = p.x + dx * k; e.z = e.pz = p.z + dz * k; }
+    }
+  })()`);
+  await page.waitForTimeout(60);
+}
 async function freezeAfterKill(page: Page, ms: number): Promise<void> {
   await page.evaluate(`new Promise((resolve) => {
     const game = window.__game, k0 = game.world.kills, t0 = performance.now();
@@ -101,8 +114,9 @@ try {
   await p.evaluate(() => (window as any).__game.debug.god());
   await p.evaluate(() => (window as any).__game.debug.warp(170));
   await pickUntilPlay(p);
-  await p.evaluate(() => (window as any).__game.debug.weak(2, 2)); // une Brute à 1 PV : gerbe dorée au prochain coup
+  await p.evaluate(() => (window as any).__game.debug.weak(2, 4)); // une Brute à 1 PV, hors du personnage : gerbe dorée quand le Halo la touche
   await freezeAfterKill(p, 140);
+  await clearAround(p);
   await tidyHp(p, 86, 115);
   await p.screenshot({ path: `${OUT}/phone-2-jeu.png` });
 
@@ -150,6 +164,7 @@ try {
   await d.evaluate(() => (window as any).__game.debug.pullBoss(6));
   await d.waitForTimeout(400);
   await d.evaluate(() => (window as any).__game.debug.speed(0));
+  await clearAround(d);
   await tidyHp(d, 72, 125);
   await d.waitForTimeout(100);
   await d.screenshot({ path: `${OUT}/desktop-2-boss.png` });
@@ -161,6 +176,7 @@ try {
   await pickUntilPlay(d);
   await d.evaluate(() => (window as any).__game.debug.spawn(0, 30, 8));
   await freezeAfterKill(d, 120);
+  await clearAround(d);
   await tidyHp(d, 188, 200);
   await d.screenshot({ path: `${OUT}/desktop-3-jeu.png` });
   await d.screenshot({ path: `public/screenshots/desktop.png` }); // fiche d'installation (manifest, 1920×1080)

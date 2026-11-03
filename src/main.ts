@@ -274,6 +274,7 @@ function toMenu(): void {
   app = 'menu';
   world = null;
   showOnly('menu');
+  scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // après un défi du jour (Éclaireuse forcée)
   $('hud').hidden = true;
   $('keys').hidden = true;
   $('touch').hidden = true;

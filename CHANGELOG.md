@@ -2,6 +2,23 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.2.0 — 3 nov. 2026 (phase 7 « Identité visuelle »)
+
+Toujours du low-poly généré par le code, mêmes budgets, mais tout ce qui bouge a maintenant une silhouette (PLAN.md phase 7).
+
+### Ajouté
+
+- **Un modèle par personnage** (`src/render/characters.ts`) : tunique et plume de l'Éclaireuse, hache et bonnet du Bûcheron, chapeau et bâton à gemme de la Sorcière, lanterne et halo au sol de la Veilleuse, capuche et boomerang du Braconnier, casque et sac à mines du Sapeur, flamme flottante du Feu follet, voile et yeux luisants de la Revenante, hotte du Colporteur. Course (jambes), flottement, écrasement au tir ; la traînée de dash reprend la silhouette du personnage choisi. Tout est fusionné en une géométrie à couleurs par sommet : 4 appels de rendu au plus pour le joueur.
+- **Une silhouette par ennemi** (`src/render/enemies.ts`) : fantôme à traîne, guêpe ailée, brute cornue aux poings, cristal gardien à éclats, chauve-souris, crapaud cracheur, mère pustuleuse, golem de pierre, faucheur à la faux. Yeux clairs et détails sombres bakés dans la géométrie (multiplicateur de la couleur d'instance) : flash blanc, or des élites et instancing inchangés.
+- **Monde** (`src/render/decor.ts`) : deux essences d'arbres (sapin étagé, feuillu), 700 touffes d'herbe autour des bois, lanternes sur pied avec halo au sol, lucioles la nuit, sol en herbe bruitée (brins, mottes, cailloux, fleurs) sur un damier discret.
+- **Tenues** : une tenue alternative par personnage (Lagune, Minuit, Marécage, Aurore, Cendre, Marine, Givre, Deuil, Foire), **400 or**, choisie sous la grille des personnages ; aperçu du menu et partie dans la tenue choisie ; dans la sauvegarde (`outfits`, `outfit`).
+- `npm run portraits` (`--outfit`) et `npm run bestiary` : gros plans de chaque personnage et de chaque ennemi dans `docs/captures/phase-7/`.
+
+### Modifié
+
+- Primitives instanciées en masse à 5 segments : 20 appels de rendu et 87 k triangles à 400 ennemis (budgets ≤ 40 et < 150 k).
+- Captures store régénérées.
+
 ## 1.1.0 — 3 nov. 2026 (phase 6 « Personnages »)
 
 Neuf personnages qui changent la façon de jouer, débloqués par succès, or ou défi (PLAN.md §3.5 et phase 6, `docs/PHASE6-PERSONNAGES.md`).

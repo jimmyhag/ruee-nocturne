@@ -22,6 +22,20 @@ test('tenue alternative : achat à 400 or, aperçu changé, choix conservé apr�
   meta = await page.evaluate(() => (window as any).__game.meta);
   expect(meta.gold).toBe(50);
   await alt.click();
+  // l'écriture IndexedDB est asynchrone : on attend qu'elle ait abouti avant de recharger (idb-keyval : keyval-store/keyval)
+  await page.waitForFunction(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const req = indexedDB.open('keyval-store');
+        req.onerror = () => resolve(false);
+        req.onsuccess = () => {
+          const db = req.result;
+          const get = db.transaction('keyval').objectStore('keyval').get('ruee-meta');
+          get.onsuccess = () => resolve(get.result?.outfit?.eclaireuse === 1);
+          get.onerror = () => resolve(false);
+        };
+      }),
+  );
   await page.reload();
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await expect(page.locator('#charInfo [data-outfit="1"]')).toHaveAttribute('aria-pressed', 'true');

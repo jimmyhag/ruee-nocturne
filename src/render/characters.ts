@@ -181,6 +181,11 @@ export interface CharacterModel {
 
 const tone = (t: Tone, pal: Palette): number => (typeof t === 'number' ? t : pal[t]);
 
+// matériaux partagés par tous les personnages (aucun paramètre par personnage) : jamais disposés, sinon Three
+// détruirait et recompilerait leur programme à chaque changement de personnage dans le menu
+const LIT_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
+const GLOW_MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
+
 /** Construit le modèle d'un personnage dans sa tenue. ≤ 5 appels de rendu : torse, lumineux, 2 jambes, halo. */
 export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
   const look = LOOKS[key];
@@ -210,14 +215,12 @@ export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
     } else (p.role === 'glow' ? glow : lit).push(paintHex(g, tone(p.color, pal)));
   }
   const litGeo = mergeGeometries(lit) ?? lit[0];
-  const litMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-  torso.add(new THREE.Mesh(litGeo, litMat));
-  disposables.push(litGeo, litMat, ...lit);
+  torso.add(new THREE.Mesh(litGeo, LIT_MAT));
+  disposables.push(litGeo, ...lit);
   if (glow.length) {
     const glowGeo = mergeGeometries(glow) ?? glow[0];
-    const glowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
-    torso.add(new THREE.Mesh(glowGeo, glowMat));
-    disposables.push(glowGeo, glowMat, ...glow);
+    torso.add(new THREE.Mesh(glowGeo, GLOW_MAT));
+    disposables.push(glowGeo, ...glow);
   }
   group.add(torso);
   let glowDisc: THREE.Mesh | null = null;
@@ -236,7 +239,7 @@ export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
     disposables.push(geo, mat);
   }
   const silhouette = mergeGeometries(all) ?? all[0];
-  disposables.push(...all);
+  disposables.push(silhouette, ...all); // le fantôme de dash en reçoit un clone (scene.ts), disposé au swap
   return {
     group,
     torso,
