@@ -2,6 +2,21 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.4.0 — 3 nov. 2026 (phase 9 « Rendu net »)
+
+Le jeu n'est plus pixelisé (retour de Jimmy sur la 1.3.1).
+
+### Ajouté
+
+- **Rendu net** à la résolution de l'écran (jusqu'à 2× la densité de pixels, 1 600 px de haut au plus) avec anti-aliasing, texture de sol lissée en 512 px, vignette douce.
+- **Finitions** : ombre douce sous le joueur, chaque ennemi et chaque arbre ; particules rondes orientées vers la caméra ; lucioles rondes ; brume exponentielle ; lumière de contre bleutée qui détache les silhouettes ; formes plus lisses (12 segments) sur le joueur et les boss.
+- **Réglage « Rendu »** (pause et réglages) : auto, net, pixel. En auto, si l'appareil ne suit pas (p95 des frames > 24 ms pendant 6 s), le rendu descend d'un cran (net ×0,75, puis pixel) avec la bannière « Rendu allégé » ; jamais de remontée en cours de run. Le mode pixel est l'ancien rendu.
+- Onglet perf : niveau de rendu, résolution interne et p95 des intervalles de frame.
+
+### Modifié
+
+- Budgets inchangés : 21 appels de rendu (+1 pour les ombres d'arbres) et 92 k triangles à 400 ennemis.
+
 ## 1.3.1 — 3 nov. 2026 (relecture d'équilibrage de la phase 8)
 
 ### Modifié

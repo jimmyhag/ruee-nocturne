@@ -27,6 +27,7 @@ export interface MetaSettings {
   hudScale: number; // 0.85 | 1 | 1.2
   lefty: boolean;
   lang: LangSetting; // 'auto' : langue du navigateur (phase 5)
+  quality: QualitySetting; // phase 9 : 'auto' = net avec repli automatique si l'appareil ne suit pas, 'net', 'pixel'
 }
 export interface Meta {
   version: 2;
@@ -49,6 +50,9 @@ export interface Meta {
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
   settings: MetaSettings;
 }
+/** Rendu (phase 9) : auto (net, repli automatique), net, pixel (résolution réduite, look d'origine). */
+export type QualitySetting = 'auto' | 'net' | 'pixel';
+export const QUALITY_SETTINGS: readonly QualitySetting[] = ['auto', 'net', 'pixel'];
 const KEY = 'ruee-meta';
 export const DEFAULT_META: Meta = {
   version: 2,
@@ -81,7 +85,7 @@ export const DEFAULT_META: Meta = {
   outfits: [],
   outfit: {},
   daily: { date: '', times: [] },
-  settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto' },
+  settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto' },
 };
 
 const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -162,6 +166,7 @@ export function normalizeMeta(raw: unknown): Meta {
       hudScale: [0.85, 1, 1.2].includes(num(se.hudScale, 1)) ? num(se.hudScale, 1) : 1,
       lefty: bool(se.lefty, false),
       lang: LANG_SETTINGS.includes(se.lang as LangSetting) ? (se.lang as LangSetting) : 'auto',
+      quality: QUALITY_SETTINGS.includes(se.quality as QualitySetting) ? (se.quality as QualitySetting) : 'auto',
     },
   };
 }

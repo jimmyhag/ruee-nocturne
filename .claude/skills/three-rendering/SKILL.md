@@ -32,10 +32,11 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Effets additifs (traînées, halos) : `MeshBasicMaterial({ transparent, blending: AdditiveBlending, depthWrite: false })`.
 - Palette : tokens dans `src/render/palette.ts`, dérivés de l'UI (`--ink`, `--accent`, etc.). Un ennemi = une couleur franche et une silhouette distincte.
 
-## Look pixelisé
-- `renderer.setPixelRatio(1)` et `renderer.setSize(w / s, h / s, false)` avec `s` tel que la hauteur interne ≈ 360–420 px ; CSS `image-rendering: pixelated` sur le canvas.
-- Cela donne 3–5× moins de fragments à shader : c'est **la** optimisation mobile principale.
-- Les objets de moins de ~3 px internes sont invisibles : dimensionner projectiles, gemmes et particules en conséquence (rayon ≥ 0,35 unité monde à la distance de caméra standard).
+## Résolution et qualité (phase 9 : rendu net par défaut)
+- Trois niveaux dans `GameScene.setQuality` : 2 = net (CSS × DPR ≤ 2, ≤ 1600 px de haut), 1 = net ×0,75, 0 = pixel (≈ 380 px de haut, `#c.pixel` → `image-rendering: pixelated`, texture de sol au plus proche voisin). Réglage `settings.quality` auto | net | pixel ; en auto, `main.ts` descend d'un niveau quand le p95 des intervalles de frame dépasse 24 ms pendant trois fenêtres de 2 s (jamais de remontée en cours de run).
+- Le renderer est créé une fois avec `antialias: true` (MSAA, quasi gratuit sur GPU à tuiles). Pas de post-traitement.
+- Le niveau pixel reste **l'optimisation mobile de secours** (3–5× moins de fragments) : tout ce qui est dessiné doit rester lisible dans les deux modes (rayon ≥ 0,35 u à la distance de caméra standard).
+- Finitions nettes : ombres douces (plan à texture radiale `textures.ts`, instancé pour les ennemis et les arbres), particules rondes orientées caméra (`billboardRx`), brume `FogExp2`, lumière de contre, `setDetail(12 | 7)` pour les primitives sans `seg` (personnages, boss ; les ennemis de masse gardent 5 segments).
 
 ## Caméra
 - Perspective 50°, vue 3/4 haute : position `(px, 12.5·k, pz + 10.5·k)` avec `k = 1.35` en portrait, `1` en paysage.

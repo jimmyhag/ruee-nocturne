@@ -111,9 +111,19 @@
         width: 100%;
         height: 100%;
         display: block;
+        background: var(--ink);
+      }
+      /* rendu « pixel » (réglage ou repli automatique, phase 9) : l'image basse résolution est agrandie sans lissage */
+      #c.pixel {
         image-rendering: pixelated;
         image-rendering: crisp-edges;
-        background: var(--ink);
+      }
+      /* vignette douce par-dessus le jeu (phase 9) : un dégradé CSS, zéro coût GPU notable */
+      #vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(28, 18, 38, 0.35) 100%);
       }
       #flash {
         position: fixed;
@@ -1148,6 +1158,7 @@
   <body>
     <!-- Textes : attribut data-i18n (clé du contenu) et data-i18n-attr (attribut:clé;…) ; le français du HTML sert de secours -->
     <canvas id="c" aria-label="Zone de jeu" data-i18n-attr="aria-label:a11y.canvas"></canvas>
+    <div id="vignette" hidden></div>
     <div id="flash"></div>
 
     <div id="hud" hidden>
@@ -1325,6 +1336,7 @@
         <div class="btnrow">
           <button class="ghost" id="soundBtn">Son : activé</button
           ><button class="ghost" id="fxBtn">Effets : complets</button
+          ><button class="ghost" id="qualityBtn">Rendu : auto</button
           ><button class="ghost" id="perfBtn">Perf : masquée</button
           ><button class="ghost" id="pauseSettingsBtn" data-i18n="pause.settings">Réglages</button
           ><button class="ghost" id="restartBtn" data-i18n="pause.restart">Recommencer</button
@@ -1382,6 +1394,7 @@
             <button class="ghost" id="setSoundBtn">Son : activé</button
             ><button class="ghost" id="setVibrateBtn">Vibrations : activées</button
             ><button class="ghost" id="setFxBtn">Effets : complets</button
+            ><button class="ghost" id="setQualityBtn">Rendu : auto</button
             ><button class="ghost" id="setLeftyBtn">Gaucher : non</button
             ><button class="ghost" id="setLangBtn">Langue : auto</button>
           </div>

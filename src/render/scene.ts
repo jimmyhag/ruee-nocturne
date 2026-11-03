@@ -1,5 +1,16 @@
 import * as THREE from 'three';
-import { BOSS, DECOR, ENEMIES, REAPER_TYPE, SWARM_TYPE, TRAIT, VOLANT, VOLANT_TYPE, WORLD_HALF } from '../sim/balance';
+import {
+  BOSS,
+  CAPS,
+  DECOR,
+  ENEMIES,
+  REAPER_TYPE,
+  SWARM_TYPE,
+  TRAIT,
+  VOLANT,
+  VOLANT_TYPE,
+  WORLD_HALF,
+} from '../sim/balance';
 import { ProjKind, ShotKind } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
@@ -15,6 +26,8 @@ import {
   roundTreeGeometry,
 } from './decor';
 import { buildEnemyGeometries } from './enemies';
+import { setDetail } from './parts';
+import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
 import { AimLines, Bolts, DamageNumbers, Particles } from './fx';
@@ -33,8 +46,21 @@ const additive = (color: number, opacity: number) =>
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
+/** Ombre douce au sol (phase 9) : plan 2×2 (scale = rayon) à texture radiale, teinté encre. */
+const shadowGeometry = (r: number) => new THREE.PlaneGeometry(2 * r, 2 * r).rotateX(-Math.PI / 2);
+const shadowMaterial = (opacity: number) =>
+  new THREE.MeshBasicMaterial({
+    color: PAL.ink,
+    map: softDiscTexture(),
+    transparent: true,
+    opacity,
+    depthWrite: false,
+  });
 const flat = (color: number, opacity: number) =>
   new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+
+// rendu net (phase 9) : DPR plafonné à 2, hauteur interne ≤ 1600 px, niveau intermédiaire ×0,75
+const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
 
 // capacités d'instances par type d'ennemi (CAPS.enemies = 520 au total)
 const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1];
@@ -75,7 +101,7 @@ export class GameScene {
   private enemyW: InstanceWriter[] = [];
   private enemyColor: THREE.Color[] = [];
   private eliteColor: THREE.Color[] = [];
-  private shadowW: InstanceWriter; // ombres des Volants
+  private shadowW: InstanceWriter; // ombres douces de tous les ennemis (phase 9)
   private eliteW: InstanceWriter; // anneaux dorés des élites
   private projW: InstanceWriter;
   private trailW: InstanceWriter;
@@ -114,7 +140,7 @@ export class GameScene {
   // lumière (cycle crépuscule → nuit → aube)
   private hemi: THREE.HemisphereLight;
   private sun: THREE.DirectionalLight;
-  private fog: THREE.Fog;
+  private fog: THREE.FogExp2;
   private cFog = new THREE.Color();
   private cSky = new THREE.Color();
   private cGround = new THREE.Color();
@@ -130,26 +156,35 @@ export class GameScene {
   private camPos = new THREE.Vector3(0, 14, 12);
   private camLook = new THREE.Vector3();
   camScale = 1;
+  // qualité (phase 9) : 0 pixel (≈ 380 px de haut, nearest), 1 net ×0,75, 2 net ×1 (CSS × DPR ≤ 2, ≤ 1600 px de haut)
+  qualityLevel = 2;
+  private sizeW = 1;
+  private sizeH = 1;
+  private groundMat: THREE.MeshLambertMaterial;
+  private groundTextures: (THREE.Texture | null)[] = [null, null]; // [pixel, net], construites à la demande
   private zoom = 1; // zoom-out progressif + recul au boss (FEEL.camera)
   shake = 0;
 
   constructor(canvas: HTMLCanvasElement, dmgLayer: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    // MSAA toujours actif (quasi gratuit sur les GPU mobiles à tuiles) ; la résolution interne dépend du niveau (setQuality)
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1);
     this.scene.background = new THREE.Color(PAL.fog);
-    this.fog = new THREE.Fog(PAL.fog, 16, 44);
+    this.fog = new THREE.FogExp2(PAL.fog, 0.034); // phase 9 : brume exponentielle (≈ 26 % à 16 u, 89 % à 44 u), plus douce
     this.scene.fog = this.fog;
     this.hemi = new THREE.HemisphereLight(0xffd9c2, 0x3a2f55, 0.9);
     this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xffe2b8, 0.85);
     this.sun.position.set(-8, 14, 6);
     this.scene.add(this.sun);
+    // phase 9 : lumière de contre bleutée, à l'opposé du soleil : détache les silhouettes du sol (aucun appel en plus)
+    const rim = new THREE.DirectionalLight(0x9db4ff, 0.3);
+    rim.position.set(8, 6, -10);
+    this.scene.add(rim);
 
     // sol
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2),
-      new THREE.MeshLambertMaterial({ map: groundTexture() }),
-    );
+    this.groundMat = new THREE.MeshLambertMaterial({ map: this.groundTex(true) });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2), this.groundMat);
     ground.rotation.x = -Math.PI / 2;
     this.scene.add(ground);
 
@@ -158,8 +193,7 @@ export class GameScene {
     this.player.add(this.model.group);
     if (this.model.glowDisc) this.scene.add(this.model.glowDisc);
     this.scene.add(this.player);
-    this.blob = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), flat(PAL.ink, 0.4));
-    this.blob.rotation.x = -Math.PI / 2;
+    this.blob = new THREE.Mesh(shadowGeometry(0.75), shadowMaterial(0.45));
     this.scene.add(this.blob);
 
     // silhouette fusionnée du joueur (une géométrie, un InstancedMesh additif : 1 draw call pendant le dash)
@@ -177,13 +211,8 @@ export class GameScene {
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
       this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.55));
     }
-    this.shadowW = new InstanceWriter(
-      makeInstanced(
-        new THREE.CircleGeometry(0.55, 10).rotateX(-Math.PI / 2),
-        flat(PAL.ink, 0.45),
-        ENEMY_CAPS[VOLANT_TYPE],
-      ),
-    );
+    // phase 9 : une ombre douce sous chaque ennemi (un seul appel pour tous) ; celle des Volants grossit au télégraphe
+    this.shadowW = new InstanceWriter(makeInstanced(shadowGeometry(1), shadowMaterial(0.4), CAPS.enemies));
     this.eliteW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.8, 1.05, 24).rotateX(-Math.PI / 2), additive(PAL.gold, 0.8), 48),
     );
@@ -284,6 +313,7 @@ export class GameScene {
       DECOR.lamps,
     );
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
+    const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap); // phase 9 : +1 appel
     const tint = new THREE.Color();
     let nf = 0,
       nr = 0;
@@ -299,7 +329,13 @@ export class GameScene {
       d.updateMatrix();
       m.setMatrixAt(k, d.matrix);
       m.setColorAt(k, tint.setScalar(0.86 + ((i * 7) % 10) * 0.03));
+      d.position.set(o.x + 0.4, 0.02, o.z + 0.3); // ombre légèrement décalée côté opposé au soleil
+      d.rotation.set(0, 0, 0);
+      d.scale.setScalar(o.r * 1.7);
+      d.updateMatrix();
+      treeShadows.setMatrixAt(i, d.matrix);
     }
+    treeShadows.count = nTrees;
     for (let i = 0; i < DECOR.rocks; i++) {
       const o = w.obstacles[nTrees + i];
       const s = o.r / 0.75;
@@ -346,7 +382,7 @@ export class GameScene {
     rocks.count = DECOR.rocks;
     posts.count = lamps.count = halos.count = DECOR.lamps;
     grass.count = ng;
-    for (const m of [firs, rounds, rocks, posts, lamps, halos, grass]) {
+    for (const m of [treeShadows, firs, rounds, rocks, posts, lamps, halos, grass]) {
       m.instanceMatrix.needsUpdate = true;
       m.instanceColor!.needsUpdate = true;
       this.scene.add(m);
@@ -367,8 +403,8 @@ export class GameScene {
   }
 
   /** Change le personnage affiché (menu : aperçu ; partie : personnage choisi) et sa tenue. Idempotent. */
-  setCharacter(key: CharacterKey, skin = 0): void {
-    if (key === this.modelKey && skin === this.modelSkin) return;
+  setCharacter(key: CharacterKey, skin = 0, force = false): void {
+    if (!force && key === this.modelKey && skin === this.modelSkin) return;
     const old = this.model;
     const next = buildCharacter(key, skin);
     this.modelKey = key;
@@ -385,12 +421,51 @@ export class GameScene {
   }
 
   resize(wpx: number, hpx: number): void {
-    // résolution interne ≈ 380 px de haut (look pixelisé + 3–5× moins de fragments)
-    const s = Math.max(1, Math.min(hpx, wpx * 1.2) / 380);
-    this.renderer.setSize(Math.max(1, Math.round(wpx / s)), Math.max(1, Math.round(hpx / s)), false);
+    this.sizeW = wpx;
+    this.sizeH = hpx;
+    this.applySize();
     this.camera.aspect = wpx / hpx;
     this.camera.updateProjectionMatrix();
     this.camScale = wpx < hpx ? 1.35 : 1;
+  }
+  private applySize(): void {
+    const w = this.sizeW,
+      h = this.sizeH;
+    let rw: number, rh: number;
+    if (this.qualityLevel === 0) {
+      // pixel : résolution interne ≈ 380 px de haut (look d'origine, 3–5× moins de fragments)
+      const s = Math.max(1, Math.min(h, w * 1.2) / 380);
+      rw = w / s;
+      rh = h / s;
+    } else {
+      const dpr = Math.min(QUALITY.maxDpr, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1);
+      const k = Math.min(dpr, QUALITY.maxHeight / h) * (this.qualityLevel === 1 ? QUALITY.midScale : 1);
+      rw = w * k;
+      rh = h * k;
+    }
+    this.renderer.setSize(Math.max(1, Math.round(rw)), Math.max(1, Math.round(rh)), false);
+  }
+
+  /** Change le niveau de rendu (0 pixel, 1 net ×0,75, 2 net) : taille interne, filtrage du sol, classe CSS. Idempotent. */
+  setQuality(level: number): void {
+    level = Math.max(0, Math.min(2, level | 0));
+    if (level === this.qualityLevel) return;
+    this.qualityLevel = level;
+    this.applySize();
+    setDetail(level > 0 ? 12 : 7);
+    this.setCharacter(this.modelKey, this.modelSkin, true); // formes plus lisses (ou non) : modèle reconstruit
+    this.groundMat.map = this.groundTex(level > 0);
+    this.groundMat.needsUpdate = true;
+    this.renderer.domElement.classList.toggle('pixel', level === 0);
+  }
+  private groundTex(net: boolean): THREE.Texture {
+    const i = net ? 1 : 0;
+    if (!this.groundTextures[i]) {
+      const t = groundTexture(net);
+      if (net) t.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+      this.groundTextures[i] = t;
+    }
+    return this.groundTextures[i]!;
   }
 
   /** Compile les shaders à l'avance : hors du fil principal quand KHR_parallel_shader_compile existe (chargement). */
@@ -439,6 +514,7 @@ export class GameScene {
       py = lerp(P.py, P.y, alpha);
     this.lightCycle(w.t);
     this.fireflies.update(px, pz, now, this.night);
+    this.particles.billboardRx = -Math.atan2(this.camPos.y - this.camLook.y, this.camPos.z - this.camLook.z);
 
     // joueur
     this.player.position.set(px, py, pz);
@@ -525,7 +601,7 @@ export class GameScene {
       if (e.type === VOLANT_TYPE) {
         // ombre au sol : grossit pendant le télégraphe (0,6 s avant la plongée)
         const tele = e.state === 1 ? 1 + (1 - Math.max(0, e.timer / VOLANT.telegraph)) * 1.6 : 1;
-        this.shadowW.put(ex, 0.04, ez, 0, tele * (e.state === 2 ? 0.6 : 1), this.cShadow);
+        this.shadowW.put(ex, 0.04, ez, 0, 0.6 * tele * (e.state === 2 ? 0.6 : 1), this.cShadow);
         this.enemyW[e.type].put(
           ex,
           ey,
@@ -549,6 +625,7 @@ export class GameScene {
         this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, Math.sin(now * 5 + e.bob) * 0.2, 0, s, s * S.enemyStretch);
         if (e.type === 5 && e.aim > 0) this.aims.add(ex, 0.9, ez, px, 0.9, pz, e.aim); // ligne de visée du Cracheur
       }
+      if (e.type !== VOLANT_TYPE) this.shadowW.put(ex, 0.03, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow);
       if (e.elite) this.eliteW.put(ex, 0.06, ez, now * 1.5, e.r * 1.3, this.cGold);
     }
     for (let t = 0; t < this.enemyW.length; t++) this.enemyW[t].end();
@@ -766,14 +843,23 @@ export class GameScene {
     this.camLook.set(w.player.x, 0.8, w.player.z);
   }
 
-  info(): { calls: number; triangles: number } {
-    return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles };
+  info(): { calls: number; triangles: number; width: number; height: number; level: number } {
+    const c = this.renderer.domElement;
+    return {
+      calls: this.renderer.info.render.calls,
+      triangles: this.renderer.info.render.triangles,
+      width: c.width,
+      height: c.height,
+      level: this.qualityLevel,
+    };
   }
 }
 
-function groundTexture(): THREE.Texture {
+function groundTexture(net: boolean): THREE.Texture {
   // damier discret (repère de mouvement) + bruit : brins clairs, mottes sombres, quelques cailloux et fleurs
-  const N = 128;
+  // net : 512 px lissés avec mipmaps (phase 9) ; pixel : 128 px au plus proche voisin (look d'origine)
+  const N = net ? 512 : 128;
+  const K = N / 128; // facteur d'échelle du motif (même dessin aux deux tailles)
   const TILE = 12; // unités monde par répétition
   const c = document.createElement('canvas');
   c.width = c.height = N;
@@ -784,30 +870,40 @@ function groundTexture(): THREE.Texture {
     g.fillStyle = `rgb(${r | 0},${gr | 0},${b | 0})`;
     g.fillRect(x, y, 1, 1);
   };
+  const cell = 32 * K;
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
-      const base = ((x >> 5) + (y >> 5)) % 2 ? PAL.grass1 : PAL.grass2;
+      const base = (((x / cell) | 0) + ((y / cell) | 0)) % 2 ? PAL.grass1 : PAL.grass2;
       const n = (rnd() - 0.5) * 10;
       px(x, y, base[0] + n, base[1] + n, base[2] + n);
     }
-  for (let i = 0; i < 420; i++) {
+  const dot = (x: number, y: number, r: number, gr: number, b: number, w = 1, h = 1) => {
+    g.fillStyle = `rgb(${r | 0},${gr | 0},${b | 0})`;
+    g.fillRect(x, y, w * K, h * K);
+  };
+  // en net (K = 4), moins de mouchetis mais plus gros et moins contrastés : à la résolution de l'écran, le motif
+  // 128 px agrandi K² fois devenait un bruit fin et dense
+  const D = net ? K * 1.5 : 1;
+  for (let i = 0; i < 420 * D; i++) {
     // brins clairs (2 px verticaux)
     const x = (rnd() * N) | 0,
       y = (rnd() * N) | 0;
-    px(x, y, 96, 146, 112);
-    px(x, (y + 1) % N, 84, 132, 104);
+    dot(x, y, net ? 88 : 96, net ? 136 : 146, net ? 106 : 112, 0.6, 1.4);
   }
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 90 * D; i++) {
     // mottes sombres
     const x = (rnd() * N) | 0,
       y = (rnd() * N) | 0;
-    px(x, y, 48, 82, 70);
-    px((x + 1) % N, y, 52, 86, 72);
+    dot(x, y, 52, 86, 72, 1.2, 0.8);
   }
-  for (let i = 0; i < 14; i++) px((rnd() * N) | 0, (rnd() * N) | 0, 138, 128, 150); // cailloux
-  for (let i = 0; i < 10; i++) px((rnd() * N) | 0, (rnd() * N) | 0, 255, 200, 120); // fleurs
+  for (let i = 0; i < 14 * D; i++) dot((rnd() * N) | 0, (rnd() * N) | 0, 138, 128, 150, 0.7, 0.7); // cailloux
+  for (let i = 0; i < 10 * D; i++) dot((rnd() * N) | 0, (rnd() * N) | 0, 255, 200, 120, 0.6, 0.6); // fleurs
   const t = new THREE.CanvasTexture(c);
-  t.magFilter = t.minFilter = THREE.NearestFilter;
+  if (net) {
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+  } else t.magFilter = t.minFilter = THREE.NearestFilter;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set((WORLD_HALF * 2) / TILE, (WORLD_HALF * 2) / TILE);
   t.colorSpace = THREE.SRGBColorSpace;

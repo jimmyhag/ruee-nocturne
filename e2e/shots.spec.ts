@@ -63,6 +63,18 @@ test('menu, jeu à 3 min, montée de niveau, mort', async ({ page }, info) => {
     await page.waitForTimeout(500);
   }
   await page.screenshot(shot('jeu-3min', p));
+  // phase 9 : la même vue en rendu « pixel » (réglage conservé pour les petits appareils), pour comparaison
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+  });
+  await expect(page.locator('canvas#c')).toHaveClass(/pixel/);
+  await page.waitForTimeout(150);
+  await page.screenshot(shot('jeu-3min-pixel', p));
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'auto' } });
+  });
 
   await page.evaluate(() => (window as any).__game.debug.levelUp());
   await expect(page.locator('#levelup')).toBeVisible();
@@ -196,10 +208,12 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await page.evaluate(() => (window as any).__game.debug.warp(60));
   await pickUntilPlay(page);
   await page.evaluate(() => (window as any).__game.debug.spawn(0, 24, 5));
-  // un dash vers la droite : la traînée se pose derrière le joueur
+  // un dash vers la droite : la traînée se pose derrière le joueur (durée comptée en temps de jeu : sous SwiftShader
+  // en rendu net, la boucle avance moins vite que l'horloge)
+  const t0 = await page.evaluate(() => (window as any).__game.world.t as number);
   await page.keyboard.down('KeyD');
   await page.keyboard.press('ShiftLeft');
-  await page.waitForTimeout(350);
+  await page.waitForFunction((t0) => (window as any).__game.world.t - t0 > 0.5, t0);
   await page.keyboard.up('KeyD');
   await page.evaluate(() => (window as any).__game.debug.speed(0));
   await page.waitForTimeout(100);
