@@ -722,6 +722,190 @@
         color: var(--gold);
         font-weight: 800;
       }
+      /* phase 4 : personnages, boutique, succès, réglages */
+      .chars {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        width: 100%;
+      }
+      .card.char {
+        padding: 10px;
+        gap: 6px;
+        animation: none;
+      }
+      .card.char h3 {
+        font-size: 16px;
+      }
+      .card.char p {
+        font-size: 12px;
+      }
+      .card.char.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent);
+      }
+      .card.char.locked {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .card.char.locked:hover {
+        transform: none;
+        border-color: var(--ink-3);
+      }
+      .gold {
+        font-family: var(--f-display);
+        font-size: 22px;
+        color: var(--gold);
+        text-shadow: 0 2px 0 var(--ink);
+      }
+      .shop {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+      }
+      .shoprow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        background: var(--ink-2);
+        border: 2px solid var(--ink-3);
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+      .shoprow h3 {
+        margin: 0;
+        font-family: var(--f-display);
+        font-weight: 400;
+        font-size: 17px;
+      }
+      .shoprow p {
+        margin: 2px 0 4px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .shoprow .buy {
+        white-space: nowrap;
+        background: var(--gold);
+        color: var(--ink);
+        border-color: var(--ink);
+      }
+      .shoprow .buy:disabled {
+        background: var(--ink-3);
+        color: var(--muted);
+        cursor: default;
+      }
+      .pips {
+        display: flex;
+        gap: 4px;
+      }
+      .pips i {
+        width: 14px;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--ink-3);
+      }
+      .pips i.on {
+        background: var(--gold);
+      }
+      .achs {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        text-align: left;
+      }
+      .ach {
+        background: var(--ink-2);
+        border: 2px solid var(--ink-3);
+        border-radius: 12px;
+        padding: 8px 12px;
+      }
+      .ach.done {
+        border-color: var(--gold);
+      }
+      .achtop {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+      }
+      .achtop span {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .ach p {
+        margin: 2px 0 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ach em {
+        color: var(--gold);
+        font-style: normal;
+      }
+      .bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--ink-3);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--xp);
+        transition: width 0.4s ease-out;
+      }
+      .ach.done .bar i {
+        background: var(--gold);
+      }
+      .settings {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+      }
+      .settings textarea {
+        width: 100%;
+        min-height: 72px;
+        box-sizing: border-box;
+        font:
+          12px/1.4 ui-monospace,
+          monospace;
+        background: var(--ink-2);
+        color: var(--paper);
+        border: 2px solid var(--ink-3);
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .unlocked {
+        font-family: var(--f-display);
+        font-size: 20px;
+        color: var(--gold);
+        text-shadow: 0 2px 0 var(--ink);
+      }
+      /* pas sur #touch : le joystick flottant se place en coordonnées écran, un zoom le décalerait sous le doigt */
+      #hud,
+      .keys,
+      .tbtns {
+        zoom: var(--hud-scale, 1);
+      }
+      body.lefty .tbtns {
+        right: auto;
+        left: max(16px, env(safe-area-inset-left, 0px));
+        flex-direction: row-reverse;
+      }
+      @media (max-width: 480px) {
+        .chars {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 6px;
+        }
+        .card.char h3 {
+          font-size: 13px;
+        }
+        .card.char p {
+          display: none;
+        }
+      }
       @media (max-width: 480px) {
         #banner {
           top: 42%; /* en portrait le HUD (kit sur plusieurs lignes) et la barre de boss descendent : la bannière ne doit pas les recouvrir */
@@ -835,7 +1019,13 @@
           <dt><span class="cap">1 2 3</span></dt>
           <dd>Choisir une amélioration à chaque niveau</dd>
         </dl>
+        <div class="chars" id="chars"></div>
         <button class="big" id="playBtn">Jouer</button>
+        <div class="btnrow">
+          <button class="ghost" id="dailyBtn" hidden>Défi du jour</button
+          ><button class="ghost" id="shopBtn">Boutique</button><button class="ghost" id="achBtn">Succès</button
+          ><button class="ghost" id="settingsBtn">Réglages</button>
+        </div>
         <p class="note" id="bestLine">Aucun record pour l'instant</p>
         <button class="ghost" id="installBtn" hidden>Installer l'app</button>
         <p class="note" id="iosHint" hidden>Sur iPhone : Partager, puis « Sur l'écran d'accueil »</p>
@@ -861,6 +1051,7 @@
           <button class="ghost" id="soundBtn">Son : activé</button
           ><button class="ghost" id="fxBtn">Effets : complets</button
           ><button class="ghost" id="perfBtn">Perf : masquée</button
+          ><button class="ghost" id="pauseSettingsBtn">Réglages</button
           ><button class="ghost" id="restartBtn">Recommencer</button><button class="ghost" id="quitBtn">Menu</button>
         </div>
       </div>
@@ -877,8 +1068,62 @@
           <div><b id="oBest">0:00</b><span>Record</span></div>
         </div>
         <p class="note" id="oMsg"></p>
+        <p class="unlocked" id="oUnlocked" hidden></p>
+        <div class="achs" id="oProgress"></div>
         <div class="btnrow"><button class="big" id="againBtn">Rejouer</button></div>
-        <div class="btnrow"><button class="ghost" id="menuBtn">Menu</button></div>
+        <div class="btnrow">
+          <button class="ghost" id="overShopBtn">Boutique</button><button class="ghost" id="menuBtn">Menu</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="shop" class="screen" hidden>
+      <div class="panel">
+        <div>
+          <h2 class="h2">Boutique</h2>
+          <p class="gold" id="shopGold">0 or</p>
+        </div>
+        <div class="shop" id="shopLines"></div>
+        <div class="btnrow"><button class="big" id="shopBackBtn">Retour</button></div>
+      </div>
+    </section>
+
+    <section id="achievements" class="screen" hidden>
+      <div class="panel">
+        <h2 class="h2">Succès</h2>
+        <div class="achs" id="achList"></div>
+        <div class="btnrow"><button class="big" id="achBackBtn">Retour</button></div>
+      </div>
+    </section>
+
+    <section id="settings" class="screen" hidden>
+      <div class="panel">
+        <h2 class="h2">Réglages</h2>
+        <div class="settings">
+          <div class="btnrow">
+            <button class="ghost" id="setSoundBtn">Son : activé</button
+            ><button class="ghost" id="setVibrateBtn">Vibrations : activées</button
+            ><button class="ghost" id="setFxBtn">Effets : complets</button
+            ><button class="ghost" id="setLeftyBtn">Gaucher : non</button>
+          </div>
+          <div class="btnrow">
+            <span class="note">Taille du HUD</span><button class="ghost" id="hudSmallBtn">Petit</button
+            ><button class="ghost" id="hudNormalBtn">Normal</button
+            ><button class="ghost" id="hudLargeBtn">Grand</button>
+          </div>
+          <div class="btnrow">
+            <button class="ghost" id="exportBtn">Exporter la sauvegarde</button
+            ><button class="ghost" id="importBtn">Importer le texte ci-dessous</button
+            ><button class="ghost" id="resetBtn">Tout effacer</button>
+          </div>
+          <textarea
+            id="saveText"
+            aria-label="Sauvegarde JSON"
+            placeholder="Colle ici une sauvegarde exportée, puis « Importer »"
+          ></textarea>
+          <p class="note" id="settingsMsg"></p>
+        </div>
+        <div class="btnrow"><button class="big" id="settingsBackBtn">Retour</button></div>
       </div>
     </section>
 

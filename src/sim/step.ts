@@ -1,4 +1,4 @@
-import { CRACHEUR_TYPE, ENEMIES, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE } from './balance';
+import { CRACHEUR_TYPE, ENEMIES, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE } from './balance';
 import { ignoresGround, tickBoss, tickFlyer, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
 import { applyCard, rollChoices, tickChests, tickGems } from './progression';
@@ -42,6 +42,13 @@ export function step(w: World, input: Input, dt: number): void {
   tickChests(w, dt);
   if ((w.mode as Mode) === Mode.Won) {
     w.gold += w.t * GOLD.perSecond * w.player.goldMul;
+  } else if (w.player.hp <= 0 && w.player.revives > 0) {
+    // réanimation (boutique) : une seconde chance, puis on sort de la masse
+    const P = w.player;
+    P.revives--;
+    P.hp = P.maxHp * REVIVE.hpFrac;
+    P.invul = Math.max(P.invul, REVIVE.invul);
+    w.emit(Ev.Revive, P.x, P.y + 1, P.z, P.revives);
   } else if (w.player.hp <= 0) {
     w.player.hp = 0;
     w.mode = Mode.Dead;
@@ -76,7 +83,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     w.emit(Ev.Jump, P.x, P.y, P.z);
   }
   if (input.dash && P.dashCd <= 0) {
-    P.dashT = PLAYER.dashTime;
+    P.dashT = P.dashTime;
     P.dashCd = PLAYER.dashCd;
     P.invul = Math.max(P.invul, PLAYER.dashInvul);
     w.emit(Ev.Dash, P.x, P.y, P.z);

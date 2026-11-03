@@ -52,4 +52,35 @@ test.describe('tactile', () => {
     await page.locator('#perfBtn').tap();
     await expect(page.locator('#perf')).toBeHidden();
   });
+
+  test('mode gaucher : les boutons SAUT et DASH passent à gauche et restent utilisables', async ({ page }) => {
+    await openGame(page);
+    await page.evaluate(() => (window as any).__game.setMeta({ version: 2, settings: { lefty: true } }));
+    await expect(page.locator('body')).toHaveClass(/lefty/);
+    await page.locator('#playBtn').tap();
+    await page.waitForFunction(() => (window as any).__game.app === 'play');
+    const vp = page.viewportSize()!;
+    const box = await page.locator('#btnJump').boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x + box!.width / 2, 'bouton SAUT dans la moitié gauche').toBeLessThan(vp.width / 2);
+    await page.locator('#btnJump').tap();
+    await page.waitForFunction(() => (window as any).__game.world.player.y > 0, null, { timeout: 2000 });
+  });
+
+  test('HUD « Grand » : l’anneau du joystick reste sous le doigt (le zoom ne touche pas #touch)', async ({ page }) => {
+    await openGame(page);
+    await page.evaluate(() => (window as any).__game.setMeta({ version: 2, settings: { hudScale: 1.2 } }));
+    await page.locator('#playBtn').tap();
+    await page.waitForFunction(() => (window as any).__game.app === 'play');
+    const cdp = await page.context().newCDPSession(page);
+    const x0 = 120,
+      y0 = 500;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id: 1 }] });
+    await page.waitForTimeout(100);
+    const box = await page.locator('#stick').boundingBox();
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    expect(box).not.toBeNull();
+    expect(Math.abs(box!.x + box!.width / 2 - x0)).toBeLessThan(6);
+    expect(Math.abs(box!.y + box!.height / 2 - y0)).toBeLessThan(6);
+  });
 });

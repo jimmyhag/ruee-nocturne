@@ -10,8 +10,19 @@ import { FEEL, HitStop } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, fmtTime, renderCards } from './ui/hud';
-import { loadMeta, saveMeta, DEFAULT_META } from './meta/save';
+import { exportMeta, importMeta, loadMeta, normalizeMeta, saveMeta, DEFAULT_META } from './meta/save';
 import type { Meta } from './meta/save';
+import {
+  checkAchievements,
+  dailyUnlocked,
+  missingTime,
+  unlockedCharacters,
+  unlockedWeapons,
+} from './meta/achievements';
+import { buy, worldOptions } from './meta/shop';
+import { dailyBest, dailySeed, recordDaily } from './meta/daily';
+import { bestLine, renderAchievements, renderCharacters, renderProgress, renderShop } from './ui/meta-ui';
+import type { CharacterKey } from './sim/types';
 import { installDebugHooks } from './debug';
 import { Pwa } from './platform/pwa';
 
@@ -32,10 +43,16 @@ const audio = new AudioBus();
 const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnDash'));
 
 // ---------- état applicatif ----------
-type AppMode = 'menu' | 'play' | 'levelup' | 'pause' | 'over';
+type AppMode = 'menu' | 'play' | 'levelup' | 'pause' | 'over' | 'shop' | 'achievements' | 'settings';
+const SCREENS = ['menu', 'levelup', 'pause', 'over', 'shop', 'achievements', 'settings'] as const;
+let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
+let dailyRun = false; // partie en cours = défi du jour
+// compteurs du run en cours (succès) ; remis à zéro à chaque startGame
+const runStats = { dards: 0, elites: 0, bosses: 0, evolutions: 0, won: false };
+let lastVibe = 0;
 let app: AppMode = 'menu';
 let world: World | null = null;
-let meta: Meta = { ...DEFAULT_META };
+let meta: Meta = normalizeMeta(DEFAULT_META);
 let hurtT = 0;
 const hitStop = new HitStop(); // borné : voir render/feel.ts
 // « réduction des effets » : réglage du joueur, sinon prefers-reduced-motion (skill game-feel §9)
@@ -71,13 +88,62 @@ visualViewport?.addEventListener('resize', resize);
 resize();
 
 function showOnly(id: AppMode | null): void {
-  for (const s of ['menu', 'levelup', 'pause', 'over'] as const) $(s).hidden = s !== id;
+  for (const s of SCREENS) $(s).hidden = s !== id;
 }
 function updateBestLine(): void {
-  $('bestLine').textContent =
-    meta.bestTime > 0
-      ? `Record : ${fmtTime(meta.bestTime)} · ${meta.bestKills} vaincus · ${meta.runs} run${meta.runs > 1 ? 's' : ''}`
-      : "Aucun record pour l'instant";
+  $('bestLine').textContent = bestLine(meta);
+  renderCharacters($('chars'), meta);
+  const daily = dailyUnlocked(meta);
+  $('dailyBtn').hidden = !daily;
+  if (daily) {
+    const best = dailyBest(meta);
+    $('dailyBtn').textContent = best > 0 ? `Défi du jour · ${fmtTime(best)}` : 'Défi du jour';
+  }
+  $('shopBtn').textContent = `Boutique · ${Math.round(meta.gold)} or`;
+}
+/** Applique les réglages (HUD, gaucher, vibrations) au DOM et aux libellés. */
+function applySettings(): void {
+  document.documentElement.style.setProperty('--hud-scale', String(meta.settings.hudScale));
+  document.body.classList.toggle('lefty', meta.settings.lefty);
+  $('setSoundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
+  $('setVibrateBtn').textContent = 'Vibrations : ' + (meta.settings.vibrate ? 'activées' : 'coupées');
+  $('setLeftyBtn').textContent = 'Gaucher : ' + (meta.settings.lefty ? 'oui' : 'non');
+  for (const [id, v] of [
+    ['hudSmallBtn', 0.85],
+    ['hudNormalBtn', 1],
+    ['hudLargeBtn', 1.2],
+  ] as const)
+    $(id).classList.toggle('selected', meta.settings.hudScale === v);
+}
+function vibrate(ms: number): void {
+  if (!meta.settings.vibrate || !input.isTouch || !navigator.vibrate) return;
+  const now = performance.now();
+  if (now - lastVibe < 250) return;
+  lastVibe = now;
+  try {
+    navigator.vibrate(ms);
+  } catch {
+    /* non supporté */
+  }
+}
+function openScreen(id: 'shop' | 'achievements' | 'settings'): void {
+  if (app === 'menu' || app === 'over' || app === 'pause') backTo = app;
+  app = id;
+  if (id === 'shop') {
+    $('shopGold').textContent = `${Math.round(meta.gold)} or`;
+    renderShop($('shopLines'), meta);
+  } else if (id === 'achievements') renderAchievements($('achList'), meta);
+  else {
+    applySettings();
+    $('setFxBtn').textContent = $('fxBtn').textContent;
+    $('settingsMsg').textContent = '';
+  }
+  showOnly(id);
+}
+function closeScreen(): void {
+  app = backTo;
+  if (backTo === 'menu') updateBestLine();
+  showOnly(backTo);
 }
 
 // ---------- décor : construit une fois pour la seed de décor fixe ----------
@@ -85,12 +151,16 @@ function updateBestLine(): void {
 const DECOR_SEED = 20261102;
 let decorBuilt = false;
 
-function startGame(variant?: number): void {
+function startGame(variant?: number, daily = false): void {
   audio.init();
-  world = new World(DECOR_SEED); // même décor à chaque run ; la variété vient du spawner (rng avancé par le temps réel ci-dessous)
+  dailyRun = daily;
+  runStats.dards = runStats.elites = runStats.bosses = runStats.evolutions = 0;
+  runStats.won = false;
+  // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
+  world = new World(DECOR_SEED, worldOptions(meta, unlockedWeapons(meta), daily)); // même décor à chaque run
   // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
-  // `variant` (debug/tests) remplace l'horloge : partie reproductible, décor identique
-  const skips = (variant ?? Date.now() % 1000) | 0;
+  // `variant` (debug/tests) remplace l'horloge ; le défi du jour utilise la seed de la date : même run pour tous
+  const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;
   for (let i = 0; i < skips; i++) world.rng.next();
   startRun(world);
   if (!decorBuilt) {
@@ -177,7 +247,29 @@ function gameOver(won = false): void {
   meta.totalKills += world.kills;
   if (rec) meta.bestTime = world.t;
   if (world.kills > meta.bestKills) meta.bestKills = world.kills;
+  // or, compteurs cumulés, succès, défi du jour
+  const gold = Math.round(world.gold);
+  meta.gold += gold;
+  meta.goldEarned += gold;
+  const st = meta.stats;
+  st.kills += world.kills;
+  st.dards += runStats.dards;
+  st.elites += runStats.elites;
+  st.bosses += runStats.bosses;
+  st.evolutions += runStats.evolutions;
+  st.wins += won ? 1 : 0;
+  st.bestTime = Math.max(st.bestTime, world.t);
+  st.runs++;
+  const fresh = checkAchievements(meta);
+  let dailyRank = 0;
+  if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
   saveMeta(meta);
+  $('oUnlocked').hidden = fresh.length === 0;
+  $('oUnlocked').textContent = fresh.length
+    ? 'Débloqué : ' + fresh.map((a) => a.name + (a.unlockText ? ` (${a.unlockText})` : '')).join(', ')
+    : '';
+  renderProgress($('oProgress'), meta, 3);
+  const miss = missingTime(meta, world.t);
   $('oTime').textContent = fmtTime(world.t);
   $('oLvl').textContent = String(world.player.level);
   $('oKills').textContent = String(world.kills);
@@ -187,9 +279,13 @@ function gameOver(won = false): void {
   $('oTitle').classList.toggle('win', won);
   $('oMsg').innerHTML = won
     ? '<span class="newrec">Le Faucheur est tombé</span>'
-    : rec
-      ? '<span class="newrec">Nouveau record</span>'
-      : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record`;
+    : dailyRank > 0
+      ? `Défi du jour : ${dailyRank === 1 ? 'meilleur temps' : dailyRank + 'e temps'} du jour · +${gold} or`
+      : miss
+        ? `Il te manquait ${fmtTime(miss.seconds)} pour « ${miss.a.name} » · +${gold} or`
+        : rec
+          ? `<span class="newrec">Nouveau record</span> · +${gold} or`
+          : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record · +${gold} or`;
   scene.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) scene.shake = 0.5;
   if (!won) audio.death();
@@ -202,6 +298,111 @@ function gameOver(won = false): void {
 
 // ---------- boutons ----------
 $('playBtn').onclick = () => startGame();
+$('dailyBtn').onclick = () => startGame(undefined, true);
+$('shopBtn').onclick = () => openScreen('shop');
+$('overShopBtn').onclick = () => openScreen('shop');
+$('achBtn').onclick = () => openScreen('achievements');
+$('settingsBtn').onclick = () => openScreen('settings');
+$('pauseSettingsBtn').onclick = () => openScreen('settings');
+$('shopBackBtn').onclick = closeScreen;
+$('achBackBtn').onclick = closeScreen;
+$('settingsBackBtn').onclick = closeScreen;
+$('chars').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('.card.char') as HTMLElement | null;
+  if (!b) return;
+  const key = b.dataset.char as CharacterKey;
+  if (!unlockedCharacters(meta).includes(key)) return;
+  meta.character = key;
+  saveMeta(meta);
+  renderCharacters($('chars'), meta);
+  audio.init();
+  audio.select('s');
+});
+$('shopLines').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('.buy') as HTMLButtonElement | null;
+  if (!b || b.disabled) return;
+  if (buy(meta, +b.dataset.line!)) {
+    saveMeta(meta);
+    audio.init();
+    audio.chest();
+    $('shopGold').textContent = `${Math.round(meta.gold)} or`;
+    renderShop($('shopLines'), meta);
+  }
+});
+// réglages
+$('setSoundBtn').onclick = () => {
+  meta.muted = !meta.muted;
+  audio.setMuted(meta.muted);
+  $('soundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
+  saveMeta(meta);
+  applySettings();
+};
+$('setVibrateBtn').onclick = () => {
+  meta.settings.vibrate = !meta.settings.vibrate;
+  saveMeta(meta);
+  applySettings();
+  if (meta.settings.vibrate) vibrate(40);
+};
+$('setFxBtn').onclick = () => {
+  $('fxBtn').click();
+  $('setFxBtn').textContent = $('fxBtn').textContent;
+};
+$('setLeftyBtn').onclick = () => {
+  meta.settings.lefty = !meta.settings.lefty;
+  saveMeta(meta);
+  applySettings();
+};
+for (const [id, v] of [
+  ['hudSmallBtn', 0.85],
+  ['hudNormalBtn', 1],
+  ['hudLargeBtn', 1.2],
+] as const)
+  $(id).onclick = () => {
+    meta.settings.hudScale = v;
+    saveMeta(meta);
+    applySettings();
+  };
+$('exportBtn').onclick = () => {
+  const json = exportMeta(meta);
+  ($('saveText') as HTMLTextAreaElement).value = json;
+  try {
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ruee-nocturne-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    /* le texte reste disponible dans la zone */
+  }
+  $('settingsMsg').textContent = 'Sauvegarde exportée (fichier téléchargé et texte ci-dessous).';
+};
+$('importBtn').onclick = () => {
+  const m = importMeta(($('saveText') as HTMLTextAreaElement).value);
+  if (!m) {
+    $('settingsMsg').textContent = "Ce texte n'est pas une sauvegarde Ruée Nocturne.";
+    return;
+  }
+  meta = m;
+  saveMeta(meta);
+  audio.setMuted(meta.muted);
+  applyFx();
+  applySettings();
+  $('settingsMsg').textContent =
+    `Sauvegarde importée : ${meta.runs} runs, record ${fmtTime(meta.bestTime)}, ${Math.round(meta.gold)} or.`;
+};
+let resetArmed = 0;
+$('resetBtn').onclick = () => {
+  if (performance.now() - resetArmed > 4000) {
+    resetArmed = performance.now();
+    $('settingsMsg').textContent = 'Appuie encore une fois pour tout effacer (record, or, succès).';
+    return;
+  }
+  meta = normalizeMeta({ ...DEFAULT_META, muted: meta.muted, reducedFx: meta.reducedFx, fxChosen: meta.fxChosen });
+  saveMeta(meta);
+  applySettings();
+  $('settingsMsg').textContent = 'Sauvegarde effacée.';
+};
 $('againBtn').onclick = () => startGame();
 $('restartBtn').onclick = () => startGame();
 $('menuBtn').onclick = toMenu;
@@ -320,6 +521,8 @@ function handleEvents(w: World, now: number): void {
         audio.hit(e.v, now);
         break;
       case Ev.Kill:
+        if (e.v === 1) runStats.dards++;
+        if (e.x2 === 1) runStats.elites++;
         if (e.x2 === 1 || e.v === ELITE_TYPE) {
           // élite (dorée) ou Brute : grosse gerbe ennemi + or, shake
           const n = e.x2 === 1 ? PT.elite.n : PT.elite.n * 0.5;
@@ -332,6 +535,8 @@ function handleEvents(w: World, now: number): void {
         hitStop.request(FEEL.hitStop.kill.duration, FEEL.hitStop.kill.scale);
         break;
       case Ev.BossKill:
+        runStats.bosses++;
+        vibrate(80);
         scene.particles.burst(
           e.x,
           e.y,
@@ -387,6 +592,7 @@ function handleEvents(w: World, now: number): void {
         audio.chest();
         break;
       case Ev.Evolve:
+        runStats.evolutions++;
         scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
         scene.particles.ring(e.x, 0.5, e.z, PAL.paper, (20 * fx) | 0, 4, 10);
         hud.banner(`${EVOLUTIONS[WEAPON_KEYS[e.v | 0]]?.name ?? 'Évolution'} !`);
@@ -396,6 +602,7 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.PlayerHurt:
         hurtT = 0.15;
+        vibrate(30);
         if (Math.random() < 0.12) audio.hurt();
         if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.hurt);
         hitStop.request(FEEL.hitStop.hurt.duration, FEEL.hitStop.hurt.scale, 1);
@@ -403,7 +610,16 @@ function handleEvents(w: World, now: number): void {
       case Ev.Wave:
         hud.banner('La horde encercle !');
         break;
+      case Ev.Revive:
+        hud.banner(e.v > 0 ? 'Seconde chance !' : 'Dernière chance !');
+        hud.flash('gold');
+        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 6, 8);
+        audio.evolve();
+        vibrate(80);
+        hitStop.request(FEEL.hitStop.boss.duration, FEEL.hitStop.boss.scale, 2);
+        break;
       case Ev.BossSpawn:
+        vibrate(80);
         hud.banner(BOSS_BANNER[e.x2 | 0] ?? 'Un boss approche');
         audio.boss();
         if (!reduced) scene.shake = Math.max(scene.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
@@ -531,6 +747,7 @@ loadMeta().then((m) => {
   audio.setMuted(meta.muted);
   $('soundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
   applyFx();
+  applySettings();
   updateBestLine();
 });
 setPerf(perfOn);
@@ -552,4 +769,11 @@ const debugRt = installDebugHooks({
     if (world.mode === Mode.LevelUp) openLevelUp();
   },
   audioVoices: () => audio.voiceCount,
+  getMeta: () => meta,
+  setMeta(m) {
+    meta = normalizeMeta(m);
+    saveMeta(meta);
+    applySettings();
+    updateBestLine();
+  },
 });

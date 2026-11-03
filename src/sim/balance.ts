@@ -5,13 +5,13 @@ export const STEP = 1 / 60; // pas fixe de la simulation
 
 export const PLAYER = {
   hp: 100,
-  speed: 6.2, // u/s — assez vite pour fuir un Spectre (2.7) mais pas un Dard (4.6)
+  speed: 6.2 / 1.15, // u/s de base (Bûcheron, Sorcière) ; l'Éclaireuse ×1,15 = 6,2 est la référence de l'équilibrage (fuit un Spectre 2,7, pas un Dard 4,6)
   radius: 0.45,
   magnet: 3.8, // rayon de collecte initial : l'Orbe tue à distance, les gemmes doivent venir au joueur
   jumpVel: 9.5, // ~1.7 u de hauteur, passe au-dessus d'une Brute
   gravity: 26,
   airborneSafeY: 0.9, // au-dessus, les ennemis au sol ne touchent plus
-  dashTime: 0.2,
+  dashTime: 0.2, // Éclaireuse (référence) ; les autres personnages ont un dash plus long (CHARACTERS)
   dashCd: 1.1,
   dashMul: 3.2,
   dashInvul: 0.32, // un peu plus long que le dash : marge de sortie
@@ -224,6 +224,56 @@ export const EVOLVE = {
   soleil: { rMul: 1.5, dmgMul: 2, healPerKill: 1 },
   tempete: { rMul: 1.5, spdMul: 2, dmgMul: 1.4, hitWindow: 0.2 }, // lames 2× plus vite ⇒ chaque ennemi touché 2× plus souvent (0,4 s → 0,2 s)
   orage: { cdDiv: 2, chainPlus: 2 }, // ×2 de cadence, 2 cibles de plus : ×2,5
+};
+
+// personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).
+// Mesure 100 runs average seed 42 : Éclaireuse p50 7:52 ; Bûcheron Lames niv 1 et vitesse 1,0 → 5:11 (30 % de morts < 3 min) ;
+// Sorcière à −20 % PV → 10:49 (trop forte). D'où Lames niv 2 + vitesse 1,05 et −30 % PV.
+export interface CharacterDef {
+  key: 'eclaireuse' | 'bucheron' | 'sorciere';
+  name: string;
+  text: string;
+  weapon: 'orbe' | 'lames' | 'foudre';
+  weaponLevel: number; // niveau de l'arme de départ
+  speedMul: number;
+  hpAdd: number;
+  hpMul: number;
+  dashTime: number;
+  bladeRangeMul: number;
+  unlock: string; // identifiant de succès ('' = disponible au départ)
+}
+export const CHARACTERS: CharacterDef[] = [
+  // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
+  { key: 'eclaireuse', name: 'Éclaireuse', text: '+15 % de vitesse, dash plus court', weapon: 'orbe', weaponLevel: 1, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '' },
+  { key: 'bucheron', name: 'Bûcheron', text: '+30 PV, Lames niveau 2 à portée +20 %', weapon: 'lames', weaponLevel: 2, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10' },
+  { key: 'sorciere', name: 'Vieille sorcière', text: 'Foudre dès le départ, −30 % PV', weapon: 'foudre', weaponLevel: 1, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500' },
+];
+
+// boutique permanente (survivor-design §8) : 8 lignes, coût base · growth^palier ; un run moyen (≈ 1 600 or) paie un palier
+export interface ShopLine {
+  key: 'hp' | 'dmg' | 'speed' | 'luck' | 'gold' | 'magnet' | 'cd' | 'revive';
+  name: string;
+  per: number; // effet par palier
+  text: string;
+  tiers: number;
+}
+export const SHOP = {
+  base: 40,
+  growth: 1.6, // paliers : 40, 64, 102, 164, 262 or
+  lines: [
+    { key: 'hp', name: 'Vitalité', per: 10, text: '+10 PV max par palier', tiers: 5 },
+    { key: 'dmg', name: 'Puissance', per: 0.05, text: '+5 % de dégâts par palier', tiers: 5 },
+    { key: 'speed', name: 'Foulée', per: 0.03, text: '+3 % de vitesse par palier', tiers: 5 },
+    { key: 'luck', name: 'Chance', per: 1, text: '+1 Trèfle par palier (4e carte, coffres)', tiers: 5 },
+    { key: 'gold', name: 'Cupidité', per: 0.1, text: "+10 % d'or par palier", tiers: 5 },
+    { key: 'magnet', name: 'Aimant', per: 0.15, text: '+15 % de rayon de collecte par palier', tiers: 5 },
+    { key: 'cd', name: 'Cadence', per: 0.03, text: '−3 % de temps de recharge par palier', tiers: 5 },
+    { key: 'revive', name: 'Réanimation', per: 1, text: 'Une seconde chance par run et par palier', tiers: 2 },
+  ] as ShopLine[],
+};
+export const REVIVE = {
+  hpFrac: 0.5, // on revient à 50 % des PV max
+  invul: 2, // s d'invulnérabilité pour sortir de la masse
 };
 
 export const WEAPON_MAX = 5;

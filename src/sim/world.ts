@@ -1,8 +1,21 @@
-import { CAPS, DECOR, PLAYER, SPAWN, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { CAPS, CHARACTERS, DECOR, PLAYER, SHOP, SPAWN, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
 import { Ev, Mode, ProjKind, ShotKind } from './types';
-import type { Card, Chest, Enemy, GameEvent, Gem, Input, PassiveKey, Player, Projectile, Shot, WeaponKey } from './types';
+import type {
+  Card,
+  Chest,
+  Enemy,
+  GameEvent,
+  Gem,
+  Input,
+  PassiveKey,
+  Player,
+  Projectile,
+  Shot,
+  WeaponKey,
+  WorldOptions,
+} from './types';
 
 export interface Obstacle {
   x: number;
@@ -51,6 +64,8 @@ export class World {
 
   // armes et passifs
   weapons: Partial<Record<WeaponKey, number>> = { orbe: 1 };
+  unlocked: Set<WeaponKey> | null = null; // null = toutes les armes proposables
+  bladeRangeMul = 1; // Bûcheron : lames à portée +20 %
   passives: Partial<Record<PassiveKey, number>> = {};
   evolved: Partial<Record<WeaponKey, boolean>> = {};
   wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0, boomT: 0.8, mineT: 0, mineDist: 0 };
@@ -63,10 +78,14 @@ export class World {
   woods: Obstacle[] = [];
   private obstacleGrid = new Map<number, number[]>();
 
-  constructor(seed: number) {
+  constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
     this.rng = new Rng(seed);
-    this.player = makePlayer();
+    this.player = makePlayer(opts);
+    const ch = CHARACTERS.find((c) => c.key === (opts?.character ?? 'eclaireuse')) ?? CHARACTERS[0];
+    this.weapons = { [ch.weapon]: ch.weaponLevel };
+    this.bladeRangeMul = ch.bladeRangeMul;
+    if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
     for (let i = 0; i < CAPS.enemies; i++) this.enemies.push(makeEnemy());
     for (let i = 0; i < CAPS.projectiles; i++) this.projs.push(makeProj());
     for (let i = 0; i < CAPS.shots; i++) this.shots.push(makeShot());
@@ -273,7 +292,15 @@ export class World {
   }
 }
 
-export function makePlayer(): Player {
+/** Joueur de départ : constantes PLAYER, puis personnage, puis paliers de boutique (opts). */
+export function makePlayer(opts?: WorldOptions): Player {
+  const ch = CHARACTERS.find((c) => c.key === (opts?.character ?? 'eclaireuse')) ?? CHARACTERS[0];
+  const tier = (key: string) => {
+    const i = SHOP.lines.findIndex((l) => l.key === key);
+    return i >= 0 ? Math.max(0, Math.min(SHOP.lines[i].tiers, opts?.upgrades?.[i] ?? 0)) : 0;
+  };
+  const per = (key: string) => SHOP.lines.find((l) => l.key === key)!.per;
+  const maxHp = Math.round((PLAYER.hp + ch.hpAdd) * ch.hpMul + tier('hp') * per('hp'));
   return {
     x: 0,
     z: 0,
@@ -285,15 +312,17 @@ export function makePlayer(): Player {
     vz: 0,
     vy: 0,
     onGround: true,
-    hp: PLAYER.hp,
-    maxHp: PLAYER.hp,
+    hp: maxHp,
+    maxHp,
     regen: 0,
-    speed: PLAYER.speed,
-    magnet: PLAYER.magnet,
-    dmgMul: 1,
-    cdMul: 1,
-    luck: 0,
-    goldMul: 1,
+    speed: PLAYER.speed * ch.speedMul * (1 + tier('speed') * per('speed')),
+    magnet: PLAYER.magnet * (1 + tier('magnet') * per('magnet')),
+    dmgMul: 1 + tier('dmg') * per('dmg'),
+    cdMul: 1 - tier('cd') * per('cd'),
+    luck: tier('luck') * per('luck'),
+    goldMul: 1 + tier('gold') * per('gold'),
+    revives: tier('revive'),
+    dashTime: ch.dashTime,
     level: 1,
     xp: 0,
     need: XP.needFor(1),

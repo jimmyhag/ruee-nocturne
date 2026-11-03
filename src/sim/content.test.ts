@@ -344,7 +344,7 @@ describe('zones de terrain', () => {
     w.player.x = w.player.px = lake.x;
     w.player.z = w.player.pz = lake.z;
     step(w, { ...still, mx: 1 }, STEP);
-    expect(w.player.vx).toBeCloseTo(PLAYER.speed * ZONES.lakeSpeed, 5);
+    expect(w.player.vx).toBeCloseTo(w.player.speed * ZONES.lakeSpeed, 5);
   });
   it('les bois denses contiennent bien plus d’arbres que la clairière', () => {
     const w = new World(48);
