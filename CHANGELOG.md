@@ -24,6 +24,11 @@ Première version complète : les cinq phases de PLAN.md. Jouable sur https://ru
 - La méta est lue en synchrone depuis `localStorage` au démarrage (record, or, personnages justes dès le premier affichage), IndexedDB confirme ensuite ; les cartes de personnages par défaut sont dans le HTML : plus de décalage de mise en page au chargement.
 - `__game.ready` attend la scène et la méta (les tests ne couraient plus contre IndexedDB).
 
+#### Corrigé
+
+- Les chiffres de dégâts ≥ 40 (classe `big`) héritaient du style des gros boutons du menu (fond doré, bordure, ombre) et s'affichaient en pastilles jaunes géantes à chaque coup de Foudre ou de Nova ; le style des boutons est désormais limité aux `button.big`.
+- Le menu ne s'affiche plus en français avant d'être traduit chez un joueur anglophone (classe `lang-pending` posée par un script inline, levée par le script principal) : plus de décalage de mise en page.
+
 ### Phase 4 « Méta et rétention »
 
 La boucle méta de PLAN.md §2.4 : chaque run laisse une trace visible (or, succès, déblocages) et la sim reste pure, la méta n'y entre que par des options à la création du monde.
