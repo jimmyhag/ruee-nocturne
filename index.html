@@ -315,6 +315,7 @@
         background: var(--hp);
       }
       #perf {
+        pointer-events: none; /* simple affichage : les gestes passent à l'écran dessous */
         position: fixed;
         left: max(16px, env(safe-area-inset-left, 0px));
         top: 50%;
@@ -503,9 +504,14 @@
       .screen {
         position: fixed;
         inset: 0;
-        display: grid;
-        place-items: center;
+        /* flex + margin auto sur le panneau : centré quand il tient, défilable depuis le haut quand il dépasse
+           (place-items: center coupait le haut des longs écrans sur téléphone) */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
         background: #1c1226b8;
         padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
         padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
@@ -515,6 +521,8 @@
       }
       .panel {
         width: min(560px, 100%);
+        margin: auto;
+        flex-shrink: 0;
         display: grid;
         gap: 18px;
         justify-items: center;

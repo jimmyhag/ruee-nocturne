@@ -26,6 +26,7 @@ Première version complète : les cinq phases de PLAN.md. Jouable sur https://ru
 
 #### Corrigé
 
+- **Téléphone : les écrans ne défilaient pas au doigt** (menu, réglages, boutique, succès ; retour de Jimmy sur iPhone). Le blocage du défilement et du zoom (`touchmove` annulé pour tout le document) ne s'applique plus qu'au jeu ; dans un écran, seul le pincement est annulé. Les longs panneaux sont centrés par `margin: auto` au lieu de `place-items: center`, qui coupait leur haut. L'onglet perf laisse passer les gestes. Test e2e `scroll.spec.ts` (touches réelles via CDP).
 - Les chiffres de dégâts ≥ 40 (classe `big`) héritaient du style des gros boutons du menu (fond doré, bordure, ombre) et s'affichaient en pastilles jaunes géantes à chaque coup de Foudre ou de Nova ; le style des boutons est désormais limité aux `button.big`.
 - Le menu ne s'affiche plus en français avant d'être traduit chez un joueur anglophone (classe `lang-pending` posée par un script inline, levée par le script principal) : plus de décalage de mise en page.
 
