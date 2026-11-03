@@ -19,6 +19,9 @@ export interface DebugHost {
   /** À appeler après un saut dans la sim : resynchronise le HUD et l'écran de niveau. */
   afterSimJump(): void;
   audioVoices(): number;
+  /** Méta (phase 4) : lecture et remplacement (tests « nouveau joueur », export/import). */
+  getMeta(): unknown;
+  setMeta(m: unknown): void;
 }
 
 export function debugEnabled(): boolean {
@@ -165,6 +168,10 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     get audioVoices() {
       return host.audioVoices();
     },
+    get meta() {
+      return host.getMeta();
+    },
+    setMeta: (m: unknown) => host.setMeta(m),
     scene: host.scene,
     start: (variant?: number) => host.start(variant),
     debug,

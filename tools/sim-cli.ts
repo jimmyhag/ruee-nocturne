@@ -5,7 +5,7 @@ import { dirname } from 'node:path';
 import { STEP, ENEMIES } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { Ev, Mode } from '../src/sim/types';
-import type { Input, WeaponKey } from '../src/sim/types';
+import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
 import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
 import { enforceAllowed, makeBot, pickAllowed } from './bots';
@@ -20,6 +20,12 @@ const SEED = +(args.get('seed') ?? 42);
 const UNTIL = +(args.get('until') ?? 1200);
 const OUT = args.get('out');
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
+// --character eclaireuse|bucheron|sorciere : personnage de départ (défaut : Éclaireuse = référence de l'équilibrage)
+const CHARACTER = (args.get('character') ?? 'eclaireuse') as CharacterKey;
+if (!['eclaireuse', 'bucheron', 'sorciere'].includes(CHARACTER)) {
+  console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : eclaireuse, bucheron, sorciere`);
+  process.exit(2);
+}
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
   ? (WEAPONS_ARG.split(',')
@@ -58,7 +64,7 @@ interface RunResult {
 }
 
 function runOnce(seed: number): RunResult {
-  const w = new World(seed);
+  const w = new World(seed, { character: CHARACTER });
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
@@ -132,7 +138,13 @@ const elapsed = (Date.now() - t0) / 1000;
 
 const times = results.map((r) => r.time);
 // taux de pick = part des prises de cartes d'arme (somme 100 %), arme de départ exclue (survivor-design §9)
-const startWeapon = WEAPONS ? WEAPONS[0] : 'orbe';
+const startWeapon = WEAPONS
+  ? WEAPONS[0]
+  : CHARACTER === 'bucheron'
+    ? 'lames'
+    : CHARACTER === 'sorciere'
+      ? 'foudre'
+      : 'orbe';
 const picks: Record<string, number> = {};
 let totalPicks = 0;
 for (const r of results)
@@ -172,6 +184,7 @@ const summary = {
   bot: BOT,
   seed: SEED,
   weapons: WEAPONS,
+  character: CHARACTER,
   survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
@@ -207,7 +220,7 @@ const summary = {
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
