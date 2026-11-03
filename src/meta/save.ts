@@ -2,6 +2,7 @@
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { get, set } from 'idb-keyval';
 import { SHOP } from '../sim/balance';
+import { ACHIEVEMENT_IDS } from './achievements';
 import type { CharacterKey } from '../sim/types';
 
 /** Compteurs cumulés sur tous les runs : la matière des succès (src/meta/achievements.ts). */
@@ -100,7 +101,9 @@ export function normalizeMeta(raw: unknown): Meta {
       bestTime: Math.max(0, num(st.bestTime, bestTime)),
       runs: Math.max(0, num(st.runs, runs)),
     },
-    achievements: Array.isArray(r.achievements) ? r.achievements.filter((a): a is string => typeof a === 'string') : [],
+    achievements: Array.isArray(r.achievements)
+      ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
+      : [],
     character,
     daily: {
       date: typeof da.date === 'string' ? da.date.slice(0, 10) : '',

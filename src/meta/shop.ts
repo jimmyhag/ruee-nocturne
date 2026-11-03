@@ -19,11 +19,14 @@ export function buy(m: Meta, line: number): boolean {
   return true;
 }
 
-/** Options de monde issues de la méta (personnage choisi, paliers, armes débloquées). `daily` : boutique ignorée. */
+/**
+ * Options de monde issues de la méta (personnage choisi, paliers, armes débloquées).
+ * `daily` : égalité entre joueurs — Éclaireuse, boutique ignorée, toutes les armes (même pool de cartes pour tous).
+ */
 export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily = false): WorldOptions {
   return {
     character: daily ? 'eclaireuse' : m.character,
     upgrades: daily ? SHOP.lines.map(() => 0) : [...m.shop],
-    unlocked,
+    unlocked: daily ? undefined : unlocked,
   };
 }

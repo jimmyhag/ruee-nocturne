@@ -79,6 +79,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'win', name: 'Aube', text: 'Vaincs le Faucheur', goal: 1, get: (s) => s.wins },
 ];
 
+export const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((a) => a.id));
+
 /** Progression [0,1] d'un succès. */
 export function progress(a: Achievement, m: Meta): number {
   return Math.max(0, Math.min(1, a.get(m.stats) / a.goal));

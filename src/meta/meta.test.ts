@@ -140,8 +140,9 @@ describe('boutique', () => {
     expect(o.character).toBe('bucheron');
     expect(o.upgrades![0]).toBe(3);
     expect(o.unlocked).toEqual(['orbe', 'lames']);
-    const d = worldOptions(m, undefined, true);
+    const d = worldOptions(m, ['orbe'], true);
     expect(d.character).toBe('eclaireuse');
+    expect(d.unlocked).toBeUndefined(); // toutes les armes : même run pour tous
     expect(d.upgrades!.every((t) => t === 0)).toBe(true);
   });
 });
