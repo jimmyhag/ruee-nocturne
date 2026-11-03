@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.3.1 — 3 nov. 2026 (relecture d'équilibrage de la phase 8)
+
+### Modifié
+
+- **Réanimation** : on revient à 25 % des PV (50 % avant) avec 1 s d'invulnérabilité (2 s). À 200 or, elle valait à elle seule +4 min de survie (5:29 → 9:33) et sautait la falaise des premières minutes ; elle vaut maintenant ≈ +2:40.
+- **Milieu de partie** (7:00 → 15:00) encore un peu plus raide : le plateau entre 7 et 12 min subsistait pour qui avait quelques paliers, et 4 paliers collaient déjà au personnage complet. Escalier mesuré (Éclaireuse, bot average, 100 runs) : 0 palier 5:29 · Réanimation seule 8:06 · 2 paliers 11:05 · 4 paliers 13:25 · 8 paliers ≈ 15:10. Le run nu ne change pas.
+
 ## 1.3.0 — 3 nov. 2026 (phase 8 « Progression »)
 
 La boutique devient nécessaire et passe par personnage (retour de Jimmy sur la 1.2.0 : « trop facile de monter sans améliorer le perso »).

@@ -73,7 +73,7 @@ describe('boutique', () => {
     expect(cost(1)).toBe(260);
     expect(cost(7)).toBe(1255);
   });
-  it('la réanimation rend 50 % des PV avec 2 s d’invulnérabilité, une fois par palier', () => {
+  it('la réanimation rend REVIVE.hpFrac des PV avec REVIVE.invul s d’invulnérabilité, une fois par palier', () => {
     const up = SHOP.lines.map(() => 0);
     up[lineIndex('revive')] = 1;
     const w = new World(3, { upgrades: up });
