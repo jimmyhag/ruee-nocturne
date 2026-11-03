@@ -243,7 +243,7 @@
   "ach.boss1.unlock": "Sapper",
   "ach.win.unlock": "Revenant",
   "ach.intouchable.name": "Untouchable",
-  "ach.intouchable.text": "Survive 3 minutes in a row without damage in one run",
+  "ach.intouchable.text": "Survive 4 minutes in a row without damage in one run",
   "ach.intouchable.unlock": "Will-o'-wisp",
   "ach.marathon.name": "Marathon",
   "ach.marathon.text": "Travel {n} m in one run",

@@ -192,7 +192,7 @@ describe('personnages (phase 6)', () => {
   });
   it('les défis sont des succès sur un seul run : Intouchable débloque le Feu follet, « il te manquait » ignore les défis', () => {
     const m = fresh();
-    m.stats.noHitBest = 180;
+    m.stats.noHitBest = 240;
     m.stats.bestTime = 100;
     const fresh2 = checkAchievements(m);
     expect(fresh2.map((a) => a.id)).toContain('intouchable');

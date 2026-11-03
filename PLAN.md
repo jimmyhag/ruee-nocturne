@@ -108,7 +108,7 @@ Un personnage = une arme de départ + un passif signature (une règle de jeu, pa
 | Veilleuse | 100 PV | Halo | Braise : le Halo grandit de 8 % par minute, max +40 % | 800 or |
 | Braconnier | 100 PV | Boomerang | Rapporteur : un boomerang attrapé rend la moitié de sa recharge | 1 200 or |
 | Sapeur | +20 PV, vitesse 0,95 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
-| Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : dash 2× plus long qui laisse du feu 1,5 s | Défi « Intouchable » (3 min sans dégât) |
+| Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : dash 2× plus long qui laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
 | Revenante | −20 % PV | Foudre et Halo | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air | Vaincre le Faucheur |
 | Colporteur | Trèfle 1 et Bourse 1 | Lames | Marchand : les coffres donnent toujours au moins 3 cartes | 2 000 or |
 
@@ -230,7 +230,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Porte** : zéro P0, Lighthouse perf mobile ≥ 85, tag `v1.0.0`, release GitHub avec notes.
 
 ### Phase 6 — Personnages (après la sortie 1.0.0)
-- 9 personnages (§3.5) avec passif signature dans la sim (pur, déterministe, une constante par passif dans `balance.ts`), déblocage par succès, achat en or (boutique) ou défi ; trois défis par run (Intouchable : 3 min sans dégât ; Marathon : 2 km ; Métamorphe : 2 évolutions), compteurs dans la méta ; grille de personnages à 9 cartes (défilement à crans sur téléphone), bouton d'achat.
+- 9 personnages (§3.5) avec passif signature dans la sim (pur, déterministe, une constante par passif dans `balance.ts`), déblocage par succès, achat en or (boutique) ou défi ; trois défis par run (Intouchable : 4 min sans dégât ; Marathon : 4 km ; Métamorphe : 3 évolutions), compteurs dans la méta ; grille de personnages à 9 cartes (défilement à crans sur téléphone), bouton d'achat.
 - **Porte** : chaque personnage mesuré sur 100 runs du bot `average` : survie p50 à ± 3 min de l'Éclaireuse, morts avant 3 min ≤ 15 % ; test « nouveau joueur » : un nouveau personnage débloqué en < 5 runs ; les trois défis atteints par le bot `greedy` en 200 runs ; bench, Lighthouse et tests inchangés.
 
 ### V2 (hors périmètre, à ne pas commencer)

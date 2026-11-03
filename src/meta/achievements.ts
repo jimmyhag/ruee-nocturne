@@ -27,9 +27,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'survie20', goal: 1200, get: (s) => s.bestTime, time: true, survival: true },
   { id: 'win', goal: 1, get: (s) => s.wins, unlocks: { character: 'revenante' } },
   // défis (phase 6) : des objectifs de maîtrise dans un seul run, pas du cumul
-  { id: 'intouchable', goal: 180, get: (s) => s.noHitBest, time: true, unlocks: { character: 'feufollet' } },
-  { id: 'marathon', goal: 2000, get: (s) => s.distanceBest },
-  { id: 'metamorphe', goal: 2, get: (s) => s.evoRunBest },
+  { id: 'intouchable', goal: 240, get: (s) => s.noHitBest, time: true, unlocks: { character: 'feufollet' } },
+  { id: 'marathon', goal: 4000, get: (s) => s.distanceBest },
+  { id: 'metamorphe', goal: 3, get: (s) => s.evoRunBest },
 ];
 
 export const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((a) => a.id));

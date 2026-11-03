@@ -112,7 +112,7 @@ describe('passifs', () => {
     const r1 = radius();
     w.t = 1200; // 20:00 → plafond +40 %
     const r2 = radius();
-    expect(r1 / r0).toBeCloseTo(1.2, 2);
+    expect(r1 / r0).toBeCloseTo(1 + TRAIT.braise.perMin * 2.5, 2);
     expect(r2 / r0).toBeCloseTo(1 + TRAIT.braise.max, 2);
   });
   it('Vieille sorcière : la première cible de la Foudre est l’ennemi le plus proche', () => {

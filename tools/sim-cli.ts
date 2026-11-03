@@ -8,6 +8,7 @@ import { Ev, Mode } from '../src/sim/types';
 import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
 import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
+import { ACHIEVEMENTS } from '../src/meta/achievements';
 import { enforceAllowed, makeBot, pickAllowed } from './bots';
 import { TARGETS, checkTargets } from './targets';
 
@@ -144,6 +145,7 @@ const elapsed = (Date.now() - t0) / 1000;
 const times = results.map((r) => r.time);
 // taux de pick = part des prises de cartes d'arme (somme 100 %), arme de départ exclue (survivor-design §9)
 const charDef = CHARACTERS.find((c) => c.key === CHARACTER) ?? CHARACTERS[0];
+const goal = (id: string) => ACHIEVEMENTS.find((a) => a.id === id)?.goal ?? Infinity;
 const startWeapon = WEAPONS ? WEAPONS[0] : charDef.weapon;
 const picks: Record<string, number> = {};
 let totalPicks = 0;
@@ -194,13 +196,13 @@ const summary = {
       results.map((r) => r.noHit),
       50,
     ),
-    intouchablePct: (100 * results.filter((r) => r.noHit >= 180).length) / RUNS,
+    intouchablePct: (100 * results.filter((r) => r.noHit >= goal('intouchable')).length) / RUNS,
     distanceP50: pct(
       results.map((r) => r.distance),
       50,
     ),
-    marathonPct: (100 * results.filter((r) => r.distance >= 2000).length) / RUNS,
-    metamorphePct: (100 * results.filter((r) => r.evolved.length >= 2).length) / RUNS,
+    marathonPct: (100 * results.filter((r) => r.distance >= goal('marathon')).length) / RUNS,
+    metamorphePct: (100 * results.filter((r) => r.evolved.length >= goal('metamorphe')).length) / RUNS,
   },
   killsAt10p50: at10.length
     ? pct(

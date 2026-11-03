@@ -243,7 +243,7 @@
   "ach.boss1.unlock": "Sapeur",
   "ach.win.unlock": "Revenante",
   "ach.intouchable.name": "Intouchable",
-  "ach.intouchable.text": "Survis 3 minutes d'affilée sans dégât en un run",
+  "ach.intouchable.text": "Survis 4 minutes d'affilée sans dégât en un run",
   "ach.intouchable.unlock": "Feu follet",
   "ach.marathon.name": "Marathon",
   "ach.marathon.text": "Parcours {n} m en un run",
