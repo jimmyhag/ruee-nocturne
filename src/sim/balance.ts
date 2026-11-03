@@ -226,12 +226,15 @@ export const EVOLVE = {
   orage: { cdDiv: 2, chainPlus: 2 }, // ×2 de cadence, 2 cibles de plus : ×2,5
 };
 
-// personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8)
+// personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).
+// Mesure 100 runs average seed 42 : Éclaireuse p50 7:52 ; Bûcheron Lames niv 1 et vitesse 1,0 → 5:11 (30 % de morts < 3 min) ;
+// Sorcière à −20 % PV → 10:49 (trop forte). D'où Lames niv 2 + vitesse 1,05 et −30 % PV.
 export interface CharacterDef {
   key: 'eclaireuse' | 'bucheron' | 'sorciere';
   name: string;
   text: string;
   weapon: 'orbe' | 'lames' | 'foudre';
+  weaponLevel: number; // niveau de l'arme de départ
   speedMul: number;
   hpAdd: number;
   hpMul: number;
@@ -241,9 +244,9 @@ export interface CharacterDef {
 }
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
-  { key: 'eclaireuse', name: 'Éclaireuse', text: '+15 % de vitesse, dash plus court', weapon: 'orbe', speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '' },
-  { key: 'bucheron', name: 'Bûcheron', text: '+30 PV, lames à portée +20 %', weapon: 'lames', speedMul: 1, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10' },
-  { key: 'sorciere', name: 'Vieille sorcière', text: 'Foudre dès le départ, −20 % PV', weapon: 'foudre', speedMul: 1, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500' },
+  { key: 'eclaireuse', name: 'Éclaireuse', text: '+15 % de vitesse, dash plus court', weapon: 'orbe', weaponLevel: 1, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '' },
+  { key: 'bucheron', name: 'Bûcheron', text: '+30 PV, Lames niveau 2 à portée +20 %', weapon: 'lames', weaponLevel: 2, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10' },
+  { key: 'sorciere', name: 'Vieille sorcière', text: 'Foudre dès le départ, −30 % PV', weapon: 'foudre', weaponLevel: 1, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500' },
 ];
 
 // boutique permanente (survivor-design §8) : 8 lignes, coût base · growth^palier ; un run moyen (≈ 1 600 or) paie un palier

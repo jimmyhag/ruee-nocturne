@@ -28,14 +28,14 @@ describe('personnages', () => {
   });
   it('Bûcheron : +30 PV, Lames de départ, portée des lames ×1,2 ; Sorcière : Foudre, −20 % PV', () => {
     const b = new World(1, { character: 'bucheron' });
-    expect(b.weapons).toEqual({ lames: 1 });
+    expect(b.weapons).toEqual({ lames: 2 });
     expect(b.player.maxHp).toBe(PLAYER.hp + 30);
     expect(b.bladeRangeMul).toBeCloseTo(1.2, 6);
-    expect(b.player.speed).toBeCloseTo(PLAYER.speed, 6); // plus lent que l'Éclaireuse
+    expect(b.player.speed).toBeCloseTo(PLAYER.speed * 1.05, 6); // plus lent que l'Éclaireuse
     expect(b.player.dashTime).toBeGreaterThan(PLAYER.dashTime);
     const s = new World(1, { character: 'sorciere' });
     expect(s.weapons).toEqual({ foudre: 1 });
-    expect(s.player.maxHp).toBe(Math.round(PLAYER.hp * 0.8));
+    expect(s.player.maxHp).toBe(Math.round(PLAYER.hp * 0.7));
   });
   it('chaque personnage a un nom, un texte et une arme de départ connue', () => {
     expect(CHARACTERS.map((c) => c.key)).toEqual(['eclaireuse', 'bucheron', 'sorciere']);
@@ -108,7 +108,7 @@ describe('armes débloquées', () => {
     }
     const b = new World(5, { character: 'bucheron', unlocked: ['orbe'] }); // Lames possédée mais « verrouillée »
     rollChoices(b);
-    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 2)).toBe(true);
+    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 3)).toBe(true); // Lames niv 2 de départ → niv 3 proposé
   });
   it('un run complet avec options reste déterministe', () => {
     const opts = { character: 'bucheron' as const, upgrades: [1, 1, 0, 0, 0, 0, 0, 1], unlocked: ['orbe', 'lames', 'foudre'] as const };

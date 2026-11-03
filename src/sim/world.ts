@@ -83,7 +83,7 @@ export class World {
     this.rng = new Rng(seed);
     this.player = makePlayer(opts);
     const ch = CHARACTERS.find((c) => c.key === (opts?.character ?? 'eclaireuse')) ?? CHARACTERS[0];
-    this.weapons = { [ch.weapon]: 1 };
+    this.weapons = { [ch.weapon]: ch.weaponLevel };
     this.bladeRangeMul = ch.bladeRangeMul;
     if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
     for (let i = 0; i < CAPS.enemies; i++) this.enemies.push(makeEnemy());
