@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BOSS, DECOR, ENEMIES, REAPER_TYPE, SWARM_TYPE, TRAIT, VOLANT, VOLANT_TYPE, WORLD_HALF } from '../sim/balance';
 import { ProjKind, ShotKind } from '../sim/types';
+import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { WEAPONS } from '../sim/weapons/defs';
+import { buildCharacter } from './characters';
+import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
 import { AimLines, Bolts, DamageNumbers, Particles } from './fx';
 import { InstanceWriter, makeInstanced } from './instancing';
@@ -24,14 +26,6 @@ const additive = (color: number, opacity: number) =>
 const flat = (color: number, opacity: number) =>
   new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
 
-// pièces du joueur : géométrie, position. Servent au Group animé et à la silhouette fusionnée (traînée de dash).
-const PLAYER_PARTS: { size: [number, number, number]; pos: [number, number, number]; color: number }[] = [
-  { size: [0.8, 0.75, 0.6], pos: [0, 0.75, 0], color: PAL.accent }, // corps
-  { size: [0.72, 0.62, 0.72], pos: [0, 1.45, 0], color: PAL.paper }, // tête
-  { size: [0.14, 0.34, 0.5], pos: [0, 1.9, -0.05], color: PAL.hp }, // plume
-  { size: [0.24, 0.42, 0.26], pos: [-0.2, 0.22, 0], color: 0x3d2b52 }, // jambes
-  { size: [0.24, 0.42, 0.26], pos: [0.2, 0.22, 0], color: 0x3d2b52 },
-];
 // capacités d'instances par type d'ennemi (CAPS.enemies = 520 au total)
 const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1];
 
@@ -60,10 +54,10 @@ export class GameScene {
   aims: AimLines;
   dmg: DamageNumbers;
 
-  private player = new THREE.Group();
-  private pBody: THREE.Mesh;
-  private pLegL: THREE.Mesh;
-  private pLegR: THREE.Mesh;
+  private player = new THREE.Group(); // contient le modèle du personnage courant (src/render/characters.ts)
+  private model: CharacterModel;
+  private modelKey: CharacterKey = 'eclaireuse';
+  private modelSkin = 0;
   private blob: THREE.Mesh;
   private face = 0;
   private landT = -1; // s depuis l'atterrissage (−1 : pas de ressort en cours)
@@ -147,31 +141,19 @@ export class GameScene {
     ground.rotation.x = -Math.PI / 2;
     this.scene.add(ground);
 
-    // joueur
-    const parts = PLAYER_PARTS.map((p) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(...p.size), lam(p.color));
-      m.position.set(...p.pos);
-      return m;
-    });
-    this.pBody = parts[0];
-    this.pLegL = parts[3];
-    this.pLegR = parts[4];
-    const visor = new THREE.Mesh(
-      new THREE.BoxGeometry(0.52, 0.13, 0.06),
-      new THREE.MeshBasicMaterial({ color: PAL.ink }),
-    );
-    visor.position.set(0, 1.45, 0.37);
-    this.player.add(...parts, visor);
+    // joueur : modèle du personnage (torse fusionné, jambes animées, pièces lumineuses, halo au sol)
+    this.model = buildCharacter(this.modelKey, this.modelSkin);
+    this.player.add(this.model.group);
+    if (this.model.glowDisc) this.scene.add(this.model.glowDisc);
     this.scene.add(this.player);
     this.blob = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), flat(PAL.ink, 0.4));
     this.blob.rotation.x = -Math.PI / 2;
     this.scene.add(this.blob);
 
     // silhouette fusionnée du joueur (une géométrie, un InstancedMesh additif : 1 draw call pendant le dash)
-    const pieces = PLAYER_PARTS.map((p) => new THREE.BoxGeometry(...p.size).translate(...p.pos));
-    const silhouette = mergeGeometries(pieces) ?? pieces[0];
-    for (const g of pieces) if (g !== silhouette) g.dispose();
-    this.dashGhostW = new InstanceWriter(makeInstanced(silhouette, additive(0xffffff, 0.55), FEEL.trail.dashGhosts));
+    this.dashGhostW = new InstanceWriter(
+      makeInstanced(this.model.silhouette.clone(), additive(0xffffff, 0.55), FEEL.trail.dashGhosts),
+    );
     for (let i = 0; i < FEEL.trail.dashGhosts; i++) this.ghosts.push({ x: 0, y: 0, z: 0, ry: 0, life: 0 });
 
     // ennemis : une silhouette par type (survivor-design §6), une couleur franche, une variante dorée (élite)
@@ -349,6 +331,24 @@ export class GameScene {
     }
   }
 
+  /** Change le personnage affiché (menu : aperçu ; partie : personnage choisi) et sa tenue. Idempotent. */
+  setCharacter(key: CharacterKey, skin = 0): void {
+    if (key === this.modelKey && skin === this.modelSkin) return;
+    const old = this.model;
+    const next = buildCharacter(key, skin);
+    this.modelKey = key;
+    this.modelSkin = skin;
+    this.player.remove(old.group);
+    if (old.glowDisc) this.scene.remove(old.glowDisc);
+    this.player.add(next.group);
+    if (next.glowDisc) this.scene.add(next.glowDisc);
+    const ghost = this.dashGhostW.mesh;
+    ghost.geometry.dispose();
+    ghost.geometry = next.silhouette.clone();
+    old.dispose();
+    this.model = next;
+  }
+
   resize(wpx: number, hpx: number): void {
     // résolution interne ≈ 380 px de haut (look pixelisé + 3–5× moins de fragments)
     const s = Math.max(1, Math.min(hpx, wpx * 1.2) / 380);
@@ -411,13 +411,22 @@ export class GameScene {
     this.face += diff * Math.min(1, dt * 18);
     this.player.rotation.y = this.face;
     const moving = P.vx * P.vx + P.vz * P.vz > 0.1;
+    const M = this.model;
     const sw = moving && P.onGround ? Math.sin(P.walk) * 0.6 : 0;
-    this.pLegL.rotation.x = sw;
-    this.pLegR.rotation.x = -sw;
-    this.pBody.position.y = 0.75 + (moving && P.onGround ? Math.abs(Math.cos(P.walk)) * 0.06 : 0);
+    if (M.legL && M.legR) {
+      M.legL.rotation.x = sw;
+      M.legR.rotation.x = -sw;
+    }
+    // flottants : ondulation et léger balancement ; marcheurs : bob de course
+    M.torso.position.y = M.float
+      ? 0.18 + Math.sin(now * 3.2) * 0.08
+      : moving && P.onGround
+        ? Math.abs(Math.cos(P.walk)) * 0.06
+        : 0;
+    M.torso.rotation.z = M.float ? Math.sin(now * 2.1) * 0.06 : 0;
     // tir : le corps s'écrase (1+r, 1−0,8r, 1+r), r porté par la sim (Player.recoil)
     const rc = P.recoil;
-    this.pBody.scale.set(1 + rc, 1 - rc * 0.8, 1 + rc);
+    M.torso.scale.set(1 + rc, 1 - rc * 0.8, 1 + rc);
     let sy = P.onGround ? 1 : S.jumpStretch;
     if (this.landT >= 0) {
       this.landT += dt;
@@ -428,6 +437,11 @@ export class GameScene {
     const sxz = 1 + (1 - sy) * 0.5; // volume à peu près conservé
     this.player.scale.set(sxz, sy, sxz);
     this.player.visible = !(P.invul > 0 && P.dashT <= 0 && Math.floor(now * 20) % 2 === 1) || hurtFlash;
+    if (M.glowDisc) {
+      M.glowDisc.visible = this.player.visible;
+      M.glowDisc.position.set(px, 0.07, pz);
+      M.glowDisc.scale.setScalar(1 + Math.sin(now * 11) * 0.05); // vacillement
+    }
     this.blob.position.set(px, 0.03, pz);
     this.blob.scale.setScalar(Math.max(0.4, 1 - py * 0.25));
 
@@ -686,6 +700,8 @@ export class GameScene {
     this.player.position.set(0, 0, 0);
     this.player.scale.set(1, 1, 1);
     this.player.rotation.y = now * 0.4;
+    this.model.torso.position.y = this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0;
+    if (this.model.glowDisc) this.model.glowDisc.position.set(0, 0.07, 0);
     this.blob.position.set(0, 0.03, 0);
     for (let i = 0; i < this.writers.length; i++) {
       this.writers[i].begin();

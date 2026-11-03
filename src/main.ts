@@ -51,6 +51,7 @@ function loadScene(): Promise<GameScene> {
       throw e;
     }
     scene = s;
+    s.setCharacter(meta.character); // aperçu du menu : le personnage choisi tourne derrière le panneau
     sizeW = sizeH = 0;
     resize();
     // le décor ne dépend que de DECOR_SEED : construit ici pour que warmup() compile aussi ses matériaux (lacs, lanternes)
@@ -242,6 +243,7 @@ function startGame(variant?: number, daily = false): void {
     return;
   }
   const S = scene;
+  S.setCharacter(daily ? 'eclaireuse' : meta.character);
   audio.init();
   dailyRun = daily;
   runStats.dards = runStats.elites = runStats.bosses = runStats.evolutions = 0;
@@ -444,6 +446,7 @@ $('chars').addEventListener('click', (e) => {
   meta.character = key;
   saveMeta(meta);
   renderCharacters($('chars'), meta, $('charInfo'));
+  scene?.setCharacter(key);
   audio.init();
   audio.select('s');
 });

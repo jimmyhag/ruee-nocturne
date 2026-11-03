@@ -1,0 +1,339 @@
+// Modèles des personnages (phase 7) : chaque personnage est décrit en primitives low-poly (boîtes, cônes, cylindres…)
+// avec une palette ; les pièces fixes sont fusionnées en UNE géométrie à couleurs par sommet (un seul appel de
+// rendu), les jambes restent des meshes séparés pour la course. Aucun asset : tout est généré ici.
+// Tenues (skins) = palettes alternatives, mêmes formes.
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { CharacterKey } from '../sim/types';
+import { PAL } from './palette';
+
+type Tone = 'p1' | 'p2' | 'p3' | 'skin' | number;
+type Shape = 'box' | 'cyl' | 'cone' | 'sphere' | 'ico' | 'octa';
+interface Part {
+  shape: Shape;
+  /** box : [w, h, d] ; cyl : [rTop, rBottom, h] ; cone : [r, h] ; sphere/ico/octa : [r] */
+  size: number[];
+  pos: [number, number, number];
+  rot?: [number, number, number];
+  color: Tone;
+  /** `leg` : mesh séparé animé ; `glow` : non éclairé (lumineux) ; sinon fusionné dans le torse */
+  role?: 'legL' | 'legR' | 'glow';
+}
+export interface Palette {
+  p1: number;
+  p2: number;
+  p3: number;
+  skin: number;
+}
+interface Look {
+  parts: Part[];
+  /** index 0 : tenue classique ; 1 : tenue alternative (achetable) */
+  palettes: Palette[];
+  /** flotte (pas de jambes, ondulation verticale) */
+  float?: boolean;
+  /** halo au sol (rayon) : lanterne de la Veilleuse, flamme du Feu follet */
+  groundGlow?: { r: number; color: number; opacity: number };
+}
+
+const INK = PAL.ink;
+const DARK = 0x3d2b52;
+const WOOD = 0x6b4a2a;
+const STEEL = 0xbcc4cc;
+const leg = (x: number, color: Tone = DARK, w = 0.24): Part => ({
+  shape: 'box',
+  size: [w, 0.42, 0.26],
+  pos: [x, 0.22, 0],
+  color,
+  role: x < 0 ? 'legL' : 'legR',
+});
+const head = (skin: Tone = 'skin', s = 0.7): Part => ({
+  shape: 'box',
+  size: [s, s * 0.86, s],
+  pos: [0, 1.45, 0],
+  color: skin,
+});
+const visor: Part = { shape: 'box', size: [0.52, 0.13, 0.06], pos: [0, 1.45, 0.37], color: INK };
+
+export const LOOKS: Record<CharacterKey, Look> = {
+  eclaireuse: {
+    parts: [
+      { shape: 'box', size: [0.8, 0.75, 0.6], pos: [0, 0.75, 0], color: 'p1' }, // tunique
+      { shape: 'box', size: [0.84, 0.1, 0.64], pos: [0, 0.48, 0], color: 'p2' }, // ceinture
+      { shape: 'box', size: [0.5, 0.16, 0.6], pos: [0, 1.08, -0.4], color: 'p2' }, // écharpe qui flotte
+      head(),
+      visor,
+      { shape: 'box', size: [0.14, 0.34, 0.5], pos: [0, 1.9, -0.05], color: 'p3' }, // plume
+      leg(-0.2),
+      leg(0.2),
+    ],
+    palettes: [
+      { p1: PAL.accent, p2: DARK, p3: PAL.hp, skin: PAL.paper },
+      { p1: 0x2fb3a0, p2: 0x1c3a44, p3: PAL.gold, skin: PAL.paper },
+    ],
+  },
+  bucheron: {
+    parts: [
+      { shape: 'box', size: [1.0, 0.8, 0.7], pos: [0, 0.78, 0], color: 'p1' }, // chemise
+      { shape: 'box', size: [0.12, 0.8, 0.74], pos: [-0.3, 0.78, 0], color: 'p2' }, // bretelles
+      { shape: 'box', size: [0.12, 0.8, 0.74], pos: [0.3, 0.78, 0], color: 'p2' },
+      head('skin', 0.72),
+      { shape: 'box', size: [0.62, 0.3, 0.3], pos: [0, 1.2, 0.32], color: 'p3' }, // barbe
+      { ...visor, pos: [0, 1.54, 0.38] },
+      { shape: 'cyl', size: [0.4, 0.42, 0.3], pos: [0, 1.88, 0], color: 'p2' }, // bonnet
+      { shape: 'cyl', size: [0.06, 0.06, 1.4], pos: [0.5, 1.0, -0.42], rot: [0, 0, 0.3], color: WOOD }, // manche
+      { shape: 'box', size: [0.5, 0.34, 0.1], pos: [0.68, 1.62, -0.42], rot: [0, 0, 0.3], color: STEEL }, // fer de hache
+      leg(-0.24, 'p2', 0.28),
+      leg(0.24, 'p2', 0.28),
+    ],
+    palettes: [
+      { p1: 0xb23a3a, p2: 0x3f6b3a, p3: 0x6b4a2a, skin: PAL.paper },
+      { p1: 0x2a4f8a, p2: 0x1c1226, p3: 0x3a2a1a, skin: PAL.paper },
+    ],
+  },
+  sorciere: {
+    parts: [
+      { shape: 'cone', size: [0.6, 1.3], pos: [0, 0.65, 0], color: 'p1' }, // robe
+      head(0xe8dcc0, 0.66),
+      { ...visor, size: [0.48, 0.12, 0.06], pos: [0, 1.46, 0.34] },
+      { shape: 'box', size: [0.76, 0.3, 0.76], pos: [0, 1.74, 0], color: 'p3' }, // cheveux
+      { shape: 'cyl', size: [0.8, 0.8, 0.08], pos: [0, 1.9, 0], color: INK }, // bord du chapeau
+      { shape: 'cone', size: [0.42, 0.9], pos: [0, 2.35, 0], rot: [0, 0, 0.12], color: 'p2' }, // chapeau
+      { shape: 'cyl', size: [0.05, 0.05, 1.6], pos: [-0.55, 0.9, 0.1], color: WOOD }, // bâton
+      { shape: 'ico', size: [0.15], pos: [-0.55, 1.78, 0.1], color: PAL.xp, role: 'glow' }, // gemme
+    ],
+    palettes: [
+      { p1: 0x4b2d7a, p2: 0x2a1a4a, p3: 0xb9b3c9, skin: 0xe8dcc0 },
+      { p1: 0x1f5a4a, p2: 0x0f2f28, p3: 0xdedad0, skin: 0xe8dcc0 },
+    ],
+  },
+  veilleuse: {
+    parts: [
+      { shape: 'box', size: [0.78, 0.78, 0.6], pos: [0, 0.75, 0], color: 'p1' },
+      { shape: 'box', size: [0.92, 0.95, 0.3], pos: [0, 0.85, -0.32], color: 'p2' }, // cape
+      head(),
+      { shape: 'box', size: [0.8, 0.26, 0.8], pos: [0, 1.84, 0], color: 'p2' }, // capuche
+      visor,
+      { shape: 'cyl', size: [0.04, 0.04, 0.34], pos: [0.62, 1.12, 0.2], color: INK }, // anse
+      { shape: 'box', size: [0.26, 0.34, 0.26], pos: [0.62, 0.84, 0.2], color: 'p3', role: 'glow' }, // lanterne
+      leg(-0.2),
+      leg(0.2),
+    ],
+    palettes: [
+      { p1: 0x2f7f8f, p2: 0x1f4f5f, p3: PAL.gold, skin: PAL.paper },
+      { p1: 0x8a3a5a, p2: 0x4a1f33, p3: 0x9bf0e4, skin: PAL.paper },
+    ],
+    groundGlow: { r: 2.2, color: PAL.gold, opacity: 0.16 },
+  },
+  braconnier: {
+    parts: [
+      { shape: 'box', size: [0.8, 0.75, 0.6], pos: [0, 0.75, 0], color: 'p1' }, // veste de cuir
+      { shape: 'box', size: [0.3, 0.75, 0.62], pos: [0, 0.75, 0], color: 'p2' }, // plastron
+      head(),
+      visor,
+      { shape: 'cone', size: [0.56, 0.8], pos: [0, 1.82, -0.04], color: 'p2' }, // capuche
+      { shape: 'box', size: [0.95, 0.1, 0.26], pos: [0, 1.0, -0.42], rot: [0, 0, 0.6], color: 'p3' }, // boomerang dans le dos
+      leg(-0.2),
+      leg(0.2),
+    ],
+    palettes: [
+      { p1: 0x8a5a2b, p2: 0x3f6b3a, p3: PAL.boomerang, skin: PAL.paper },
+      { p1: 0x4a4a4a, p2: 0x7a2a2a, p3: PAL.gold, skin: PAL.paper },
+    ],
+  },
+  sapeur: {
+    parts: [
+      { shape: 'box', size: [0.9, 0.75, 0.65], pos: [0, 0.75, 0], color: 'p1' },
+      { shape: 'box', size: [0.7, 0.7, 0.36], pos: [0, 0.92, -0.5], color: 'p2' }, // sac à dos
+      { shape: 'ico', size: [0.15], pos: [0.2, 1.32, -0.52], color: PAL.mine }, // une mine qui dépasse
+      { shape: 'ico', size: [0.12], pos: [-0.22, 1.28, -0.5], color: PAL.mine },
+      head(),
+      { shape: 'box', size: [0.58, 0.14, 0.08], pos: [0, 1.52, 0.37], color: 0x2a2a2a }, // lunettes
+      { shape: 'cyl', size: [0.46, 0.46, 0.22], pos: [0, 1.84, 0], color: 'p3' }, // casque
+      { shape: 'cone', size: [0.47, 0.32], pos: [0, 2.1, 0], color: 'p3' },
+      leg(-0.22, 'p2', 0.26),
+      leg(0.22, 'p2', 0.26),
+    ],
+    palettes: [
+      { p1: 0x6b6b4a, p2: 0x4a3a2a, p3: 0x8a8a2a, skin: PAL.paper },
+      { p1: 0x2a4a6a, p2: 0x1c2a3a, p3: 0xd8c84a, skin: PAL.paper },
+    ],
+  },
+  feufollet: {
+    float: true,
+    parts: [
+      { shape: 'cone', size: [0.42, 0.9], pos: [0, 0.55, 0], rot: [Math.PI, 0, 0], color: 'p1' }, // traîne effilée
+      { shape: 'box', size: [0.6, 0.55, 0.5], pos: [0, 1.0, 0], color: 'p1' },
+      { shape: 'sphere', size: [0.37], pos: [0, 1.5, 0], color: 'p2' },
+      { shape: 'box', size: [0.08, 0.1, 0.06], pos: [-0.13, 1.55, 0.34], color: INK },
+      { shape: 'box', size: [0.08, 0.1, 0.06], pos: [0.13, 1.55, 0.34], color: INK },
+      { shape: 'cone', size: [0.3, 0.75], pos: [0, 2.05, 0], color: 'p3', role: 'glow' }, // flamme
+      { shape: 'cone', size: [0.16, 0.4], pos: [0.06, 2.35, 0], color: PAL.gold, role: 'glow' },
+    ],
+    palettes: [
+      { p1: 0xbfe8ff, p2: 0x9fd8ff, p3: PAL.accent, skin: PAL.paper },
+      { p1: 0xd8c0ff, p2: 0xb89aff, p3: 0x59d8ff, skin: PAL.paper },
+    ],
+    groundGlow: { r: 1.6, color: PAL.accent, opacity: 0.14 },
+  },
+  revenante: {
+    float: true,
+    parts: [
+      { shape: 'cone', size: [0.58, 1.4], pos: [0, 0.7, 0], color: 'p1' }, // robe
+      { shape: 'box', size: [0.66, 0.58, 0.66], pos: [0, 1.5, 0], color: 'p2' }, // visage sombre
+      { shape: 'box', size: [0.9, 0.14, 0.9], pos: [0, 1.74, 0], color: 'p1' }, // bord du voile
+      { shape: 'cone', size: [0.52, 0.8], pos: [0, 2.1, 0], color: 'p1' }, // capuche
+      { shape: 'box', size: [0.1, 0.1, 0.05], pos: [-0.15, 1.55, 0.35], color: 'p3', role: 'glow' }, // yeux
+      { shape: 'box', size: [0.1, 0.1, 0.05], pos: [0.15, 1.55, 0.35], color: 'p3', role: 'glow' },
+    ],
+    palettes: [
+      { p1: 0xb8b0c8, p2: INK, p3: PAL.xp, skin: PAL.paper },
+      { p1: 0x3a2a4a, p2: 0x0c0810, p3: PAL.hp, skin: PAL.paper },
+    ],
+  },
+  colporteur: {
+    parts: [
+      { shape: 'box', size: [0.8, 0.75, 0.6], pos: [0, 0.75, 0], color: 'p1' },
+      { shape: 'box', size: [0.72, 0.9, 0.5], pos: [0, 1.0, -0.56], color: 'p2' }, // hotte
+      { shape: 'box', size: [0.22, 0.22, 0.22], pos: [-0.18, 1.56, -0.56], color: PAL.gold }, // marchandises
+      { shape: 'box', size: [0.2, 0.28, 0.2], pos: [0.16, 1.58, -0.6], color: PAL.hp },
+      { shape: 'cyl', size: [0.1, 0.1, 0.4], pos: [0.02, 1.66, -0.5], color: PAL.xp },
+      head(),
+      visor,
+      { shape: 'cyl', size: [0.52, 0.52, 0.1], pos: [0, 1.8, 0], color: 'p3' }, // chapeau rond
+      { shape: 'cyl', size: [0.3, 0.3, 0.24], pos: [0, 1.96, 0], color: 'p3' },
+      { shape: 'sphere', size: [0.15], pos: [0.46, 0.58, 0.22], color: PAL.gold }, // bourse
+      leg(-0.2),
+      leg(0.2),
+    ],
+    palettes: [
+      { p1: 0x9a6a3a, p2: 0x6b4a2a, p3: 0x2a2a2a, skin: PAL.paper },
+      { p1: 0x3a6a4a, p2: 0x2a3a2a, p3: 0x8a2a2a, skin: PAL.paper },
+    ],
+  },
+};
+
+/** Prix d'une tenue alternative (or) ; la tenue 0 est toujours possédée. */
+export const SKIN_PRICE = 400;
+
+export interface CharacterModel {
+  group: THREE.Group;
+  /** torse fusionné (bob, écrasement au tir) ; contient aussi les pièces lumineuses */
+  torso: THREE.Group;
+  legL: THREE.Mesh | null;
+  legR: THREE.Mesh | null;
+  glowDisc: THREE.Mesh | null;
+  float: boolean;
+  /** silhouette fusionnée (traînée de dash) */
+  silhouette: THREE.BufferGeometry;
+  dispose(): void;
+}
+
+function geometry(p: Part): THREE.BufferGeometry {
+  const s = p.size;
+  let g: THREE.BufferGeometry;
+  switch (p.shape) {
+    case 'box':
+      g = new THREE.BoxGeometry(s[0], s[1], s[2]);
+      break;
+    case 'cyl':
+      g = new THREE.CylinderGeometry(s[0], s[1], s[2], 7);
+      break;
+    case 'cone':
+      g = new THREE.ConeGeometry(s[0], s[1], 7);
+      break;
+    case 'sphere':
+      g = new THREE.SphereGeometry(s[0], 7, 5);
+      break;
+    case 'ico':
+      g = new THREE.IcosahedronGeometry(s[0], 0);
+      break;
+    case 'octa':
+      g = new THREE.OctahedronGeometry(s[0], 0);
+      break;
+  }
+  if (p.rot) g.rotateX(p.rot[0]).rotateY(p.rot[1]).rotateZ(p.rot[2]);
+  g.translate(p.pos[0], p.pos[1], p.pos[2]);
+  return g.toNonIndexed();
+}
+function paint(g: THREE.BufferGeometry, hex: number): THREE.BufferGeometry {
+  const c = new THREE.Color(hex);
+  const n = g.getAttribute('position').count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3] = c.r;
+    arr[i * 3 + 1] = c.g;
+    arr[i * 3 + 2] = c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  return g;
+}
+const tone = (t: Tone, pal: Palette): number => (typeof t === 'number' ? t : pal[t]);
+
+/** Construit le modèle d'un personnage dans sa tenue. ≤ 5 appels de rendu : torse, lumineux, 2 jambes, halo. */
+export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
+  const look = LOOKS[key];
+  const pal = look.palettes[Math.min(skin, look.palettes.length - 1)];
+  const group = new THREE.Group();
+  const torso = new THREE.Group();
+  const lit: THREE.BufferGeometry[] = [];
+  const glow: THREE.BufferGeometry[] = [];
+  const all: THREE.BufferGeometry[] = [];
+  let legL: THREE.Mesh | null = null,
+    legR: THREE.Mesh | null = null;
+  const disposables: { dispose(): void }[] = [];
+  for (const p of look.parts) {
+    const g = geometry(p);
+    all.push(g.clone());
+    if (p.role === 'legL' || p.role === 'legR') {
+      const mat = new THREE.MeshLambertMaterial({ color: tone(p.color, pal) });
+      const m = new THREE.Mesh(g, mat);
+      // pivot à la hanche : la géométrie est déjà translatée, on tourne autour de (x, 0.43, 0)
+      m.geometry.translate(-p.pos[0], -0.43, 0);
+      m.position.set(p.pos[0], 0.43, 0);
+      disposables.push(g, mat);
+      if (p.role === 'legL') legL = m;
+      else legR = m;
+      group.add(m);
+    } else (p.role === 'glow' ? glow : lit).push(paint(g, tone(p.color, pal)));
+  }
+  const litGeo = mergeGeometries(lit) ?? lit[0];
+  const litMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  torso.add(new THREE.Mesh(litGeo, litMat));
+  disposables.push(litGeo, litMat, ...lit);
+  if (glow.length) {
+    const glowGeo = mergeGeometries(glow) ?? glow[0];
+    const glowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+    torso.add(new THREE.Mesh(glowGeo, glowMat));
+    disposables.push(glowGeo, glowMat, ...glow);
+  }
+  group.add(torso);
+  let glowDisc: THREE.Mesh | null = null;
+  if (look.groundGlow) {
+    const gg = look.groundGlow;
+    const geo = new THREE.CircleGeometry(gg.r, 20).rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+      color: gg.color,
+      transparent: true,
+      opacity: gg.opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    glowDisc = new THREE.Mesh(geo, mat);
+    glowDisc.position.y = 0.07;
+    disposables.push(geo, mat);
+  }
+  const silhouette = mergeGeometries(all) ?? all[0];
+  disposables.push(...all);
+  return {
+    group,
+    torso,
+    legL,
+    legR,
+    glowDisc,
+    float: !!look.float,
+    silhouette,
+    dispose() {
+      for (const d of disposables) d.dispose();
+    },
+  };
+}

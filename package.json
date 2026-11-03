@@ -16,6 +16,7 @@
     "shot": "playwright test e2e/shots.spec.ts",
     "lh": "node tools/lighthouse.mjs",
     "store": "tsx tools/store-shots.ts",
+    "portraits": "tsx tools/portraits.ts",
     "icons": "tsx tools/icons.ts",
     "sim": "tsx tools/sim-cli.ts",
     "bench": "node --expose-gc --import tsx tools/bench.ts",
