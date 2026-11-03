@@ -71,24 +71,28 @@ Un ennemi existe pour poser une **question** au joueur :
 ## 7. Boss : scripts courts
 Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90 s. Récompense : aimant global + soin complet + coffre 3–5 cartes. PV ∝ `hpScale(t) · (1 + 0.8·bossIndex)`.
 
-## 8. Méta-progression (phase 4)
+## 8. Méta-progression (phase 4, refondue en phase 8)
 - Or : 1 par kill ×`goldMul`, ×3 élite, ×20 boss, bonus de fin = secondes survécues / 10.
-- Boutique : 8 lignes, 5 paliers chacune, coût `base · 1.6^palier`. Un run moyen doit payer **1 palier** ; jamais plus de 3 runs pour le palier suivant au début.
+- Boutique **par personnage** : 8 lignes, 8 paliers chacune (réanimation : 1), coût `200 · 1.3^palier` (200 → 1 255, ≈ 34 000 or par personnage). Un run « nu » (≈ 6 min, ≈ 600 or) paie **1 à 2 paliers** ; un personnage complet ≈ 30 runs.
+- Le joueur nu est en dessous de la courbe (dégâts ×0,95) et le milieu de partie (7:00 → 15:00) est raide : la puissance achetée doit se traduire en **minutes**, pas en falaise. Les paliers sont petits (+3 PV, +2 % dégâts, −1 % recharge…) parce que la survie est très sensible à la puissance (en phase 8, hp +40 / dégâts ×1,2 / recharge ×0,88 faisaient passer de 5 à 16 min).
 - Succès visibles avec barre : chaque run doit faire avancer au moins 2 succès (sinon ajuster les seuils).
 - Personnages : 3 au départ dont 2 à débloquer ; stats de départ **différentes mais pas meilleures**.
 - Défi quotidien : seed = `hash(date UTC)`, même tirage de cartes pour tous ; classement local des 10 meilleurs temps.
 
 ## 9. Cibles d'équilibrage mesurées par simulation
-Sur `npm run sim -- --runs 200 --bot average` :
-| Métrique | Cible |
-|---|---|
-| Médiane de survie | 9–13 min |
-| Runs atteignant le Faucheur | 8–15 % |
-| Runs morts avant 3 min | < 10 % |
-| Taux de pick par arme | 8–35 % |
-| Kills à 10 min (médiane) | 900–1500 |
-| Variance de kills inter-builds | < 3× médiane |
-| Niveau à 10 min (médiane) | 16–20 |
+Deux profils (phase 8), `npm run sim -- --runs 200 --bot average --upgrades 0|max` (`tools/targets.ts`) :
+| Métrique | Nu (`--upgrades 0`) | Maxé (`--upgrades max`) |
+|---|---|---|
+| Médiane de survie | 5–7 min | 13–16 min |
+| Runs atteignant le Faucheur | ≤ 3 % | 3–12 % |
+| Runs morts avant 3 min | ≤ 15 % | < 10 % |
+| Or médian par run | ≥ 2 premiers paliers | — |
+| Taux de pick par arme | — | 8–35 % |
+| Kills à 10 min (médiane) | — | 900–1600 |
+| Variance de kills inter-builds | — | < 3× médiane |
+| Niveau à 10 min (médiane) | — | 16–20 |
+
+Les neuf personnages restent à ± 3 min de l'Éclaireuse dans chaque profil. `--upgrades hp=8,revive=0` isole une ligne.
 
 Un écart = on ajuste `balance.ts`, on relance, on documente l'avant/après dans la PR. Pas d'ajustement « au ressenti » sans chiffre.
 

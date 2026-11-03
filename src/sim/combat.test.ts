@@ -73,12 +73,15 @@ describe('combat', () => {
     const hp = w.player.hp;
     expect(hp).toBeLessThan(PLAYER.hp); // il a bien pris des dégâts au sol
     let steps = 0;
+    let airHp = hp;
     while (w.player.y >= PLAYER.airborneSafeY) {
       step(w, still, STEP);
       steps++;
+      if (w.player.y >= PLAYER.airborneSafeY) airHp = w.player.hp; // encore en l’air après ce pas
     }
     expect(steps).toBeGreaterThan(5);
-    expect(w.player.hp).toBeCloseTo(hp + w.player.regen * steps * STEP, 3); // en l’air : aucun dégât
+    // en l’air : aucun dégât (le dernier pas retombe sous la hauteur sûre : le contact y redevient possible)
+    expect(airHp).toBeCloseTo(hp + w.player.regen * (steps - 1) * STEP, 3);
   });
 });
 

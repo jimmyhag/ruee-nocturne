@@ -56,20 +56,22 @@ describe('boutique', () => {
     up[lineIndex('revive')] = 9; // au-delà du max : borné à 2
     const w = new World(2, { upgrades: up });
     const base = new World(2);
-    expect(w.player.maxHp).toBe(base.player.maxHp + 30);
-    expect(w.player.dmgMul).toBeCloseTo(1.1, 6);
-    expect(w.player.speed).toBeCloseTo(base.player.speed * 1.15, 6);
-    expect(w.player.luck).toBe(1);
-    expect(w.player.goldMul).toBeCloseTo(1.4, 6);
-    expect(w.player.magnet).toBeCloseTo(base.player.magnet * 1.3, 6);
-    expect(w.player.cdMul).toBeCloseTo(0.85, 6);
-    expect(w.player.revives).toBe(2);
+    const per = (key: string) => SHOP.lines[lineIndex(key)].per;
+    expect(base.player.dmgMul).toBe(PLAYER.dmgMul); // phase 8 : dégâts de base sous 1, la boutique comble
+    expect(w.player.maxHp).toBe(base.player.maxHp + Math.round(3 * per('hp')));
+    expect(w.player.dmgMul).toBeCloseTo(PLAYER.dmgMul + 2 * per('dmg'), 6);
+    expect(w.player.speed).toBeCloseTo(base.player.speed * (1 + 5 * per('speed')), 6);
+    expect(w.player.luck).toBeCloseTo(per('luck'), 6);
+    expect(w.player.goldMul).toBeCloseTo(1 + 4 * per('gold'), 6);
+    expect(w.player.magnet).toBeCloseTo(base.player.magnet * (1 + 2 * per('magnet')), 6);
+    expect(w.player.cdMul).toBeCloseTo(1 - 5 * per('cd'), 6);
+    expect(w.player.revives).toBe(SHOP.lines[lineIndex('revive')].tiers);
   });
   it('les coûts suivent base · growth^palier', () => {
     const cost = (tier: number) => Math.round(SHOP.base * Math.pow(SHOP.growth, tier));
-    expect(cost(0)).toBe(40);
-    expect(cost(1)).toBe(64);
-    expect(cost(4)).toBe(262);
+    expect(cost(0)).toBe(200);
+    expect(cost(1)).toBe(260);
+    expect(cost(7)).toBe(1255);
   });
   it('la réanimation rend 50 % des PV avec 2 s d’invulnérabilité, une fois par palier', () => {
     const up = SHOP.lines.map(() => 0);

@@ -12,7 +12,7 @@ import {
 } from './achievements';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './daily';
 import { DEFAULT_META, exportMeta, importMeta, normalizeMeta } from './save';
-import { buy, buyCharacter, buyOutfit, characterPrice, outfitOf, shopCost, worldOptions } from './shop';
+import { buy, buyCharacter, buyOutfit, characterPrice, outfitOf, shopCost, shopTiers, worldOptions } from './shop';
 
 const fresh = () => normalizeMeta(DEFAULT_META);
 
@@ -36,7 +36,8 @@ describe('sauvegarde', () => {
     expect(m.stats.kills).toBe(3100);
     expect(m.stats.bestTime).toBe(421);
     expect(m.gold).toBe(0);
-    expect(m.shop).toEqual(SHOP.lines.map(() => 0));
+    expect(m.shops).toEqual({});
+    expect(shopTiers(m, 'eclaireuse')).toEqual(SHOP.lines.map(() => 0));
     expect(m.character).toBe('eclaireuse');
   });
   it('borne et nettoie un import douteux (paliers trop hauts, personnage inconnu, valeurs non numériques)', () => {
@@ -49,9 +50,11 @@ describe('sauvegarde', () => {
       settings: { hudScale: 7, lang: 'xx' },
     });
     expect(m.gold).toBe(0);
-    expect(m.shop[0]).toBe(SHOP.lines[0].tiers);
-    expect(m.shop[1]).toBe(0);
-    expect(m.shop[2]).toBe(0);
+    // ancienne boutique globale (≤ 1.2.0) : migrée sur l'Éclaireuse, bornée
+    expect(shopTiers(m, 'eclaireuse')[0]).toBe(SHOP.lines[0].tiers);
+    expect(shopTiers(m, 'eclaireuse')[1]).toBe(0);
+    expect(shopTiers(m, 'eclaireuse')[2]).toBe(0);
+    expect(m.shops.bucheron).toBeUndefined();
     expect(m.character).toBe('eclaireuse');
     expect(m.achievements).toEqual(['survie3']);
     expect(m.settings.hudScale).toBe(1);
@@ -68,13 +71,13 @@ describe('sauvegarde', () => {
     const m = fresh();
     m.gold = 333;
     m.bestTime = 777;
-    m.shop[1] = 2;
+    m.shops.eclaireuse = SHOP.lines.map((_, i) => (i === 1 ? 2 : 0));
     m.achievements.push('survie3');
     const back = importMeta(exportMeta(m));
     expect(back).not.toBeNull();
     expect(back!.gold).toBe(333);
     expect(back!.bestTime).toBe(777);
-    expect(back!.shop[1]).toBe(2);
+    expect(shopTiers(back!, 'eclaireuse')[1]).toBe(2);
     expect(back!.achievements).toEqual(['survie3']);
     expect(importMeta('pas du json')).toBeNull();
     expect(importMeta('{"hello":"world"}')).toBeNull();
@@ -123,30 +126,43 @@ describe('succès', () => {
 });
 
 describe('boutique', () => {
-  it('coûts géométriques, achat bloqué sans or, palier max respecté', () => {
-    expect(shopCost(0, 0)).toBe(40);
-    expect(shopCost(0, 1)).toBe(64);
+  it('coûts géométriques, achat bloqué sans or, palier max respecté, boutique par personnage', () => {
+    expect(shopCost(0, 0)).toBe(200);
+    expect(shopCost(0, 1)).toBe(260);
     expect(shopCost(0, SHOP.lines[0].tiers)).toBe(Infinity);
     const m = fresh();
-    expect(buy(m, 0)).toBe(false);
-    m.gold = 100;
-    expect(buy(m, 0)).toBe(true);
-    expect(m.gold).toBe(60);
-    expect(m.shop[0]).toBe(1);
-    expect(buy(m, 0)).toBe(false); // 64 > 60
+    expect(buy(m, 'eclaireuse', 0)).toBe(false);
+    m.gold = 300;
+    expect(buy(m, 'eclaireuse', 0)).toBe(true);
+    expect(m.gold).toBe(100);
+    expect(shopTiers(m, 'eclaireuse')[0]).toBe(1);
+    expect(shopTiers(m, 'bucheron')[0]).toBe(0); // chaque personnage a sa boutique
+    expect(buy(m, 'eclaireuse', 0)).toBe(false); // 260 > 100
+    m.gold = 300;
+    expect(buy(m, 'bucheron', 0)).toBe(true); // le Bûcheron paie le premier palier plein tarif
+    expect(m.gold).toBe(100);
+    expect(shopTiers(m, 'eclaireuse')[0]).toBe(1);
+    expect(shopTiers(m, 'bucheron')[0]).toBe(1);
     const revive = SHOP.lines.findIndex((l) => l.key === 'revive');
     m.gold = 10000;
-    expect(buy(m, revive)).toBe(true);
-    expect(buy(m, revive)).toBe(true);
-    expect(buy(m, revive)).toBe(false); // 2 paliers max
+    expect(buy(m, 'eclaireuse', revive)).toBe(true);
+    expect(buy(m, 'eclaireuse', revive)).toBe(false); // 1 palier max
+    const back = importMeta(exportMeta(m))!;
+    expect(shopTiers(back, 'bucheron')[0]).toBe(1);
+    expect(shopTiers(back, 'sorciere')).toEqual(SHOP.lines.map(() => 0));
   });
   it('les options de monde reflètent la méta, sauf en défi du jour (égalité)', () => {
     const m = fresh();
     m.character = 'bucheron';
-    m.shop[0] = 3;
+    m.gold = 1e6;
+    buy(m, 'bucheron', 0);
+    buy(m, 'bucheron', 0);
+    buy(m, 'bucheron', 0);
+    buy(m, 'eclaireuse', 1);
     const o = worldOptions(m, ['orbe', 'lames']);
     expect(o.character).toBe('bucheron');
-    expect(o.upgrades![0]).toBe(3);
+    expect(o.upgrades![0]).toBe(3); // les paliers du Bûcheron, pas ceux de l'Éclaireuse
+    expect(o.upgrades![1]).toBe(0);
     expect(o.unlocked).toEqual(['orbe', 'lames']);
     const d = worldOptions(m, ['orbe'], true);
     expect(d.character).toBe('eclaireuse');

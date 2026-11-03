@@ -12,6 +12,7 @@ Une ligne par phase. Une phase est franchie quand toutes ses mesures sont consig
 | 5 — Sortie       | **franchie** | 3 nov. 2026 | [#11](https://github.com/jimmyhag/ruee-nocturne/pull/11) | Lighthouse mobile (médiane de 3) : **perf 100** (70 avant la phase ; cible ≥ 85) · a11y 98 · PWA 100 · CLS 0,05 · TBT 9 ms · FR/EN : 220 clés, e2e 32 passés / 4 ignorés · P0 : 0 connu (merge sans test iPhone, décision de Jimmy le 3 nov. 2026 ; protocole `docs/DEVICES.md` à dérouler sur le live) · tag : [`v1.0.0`](https://github.com/jimmyhag/ruee-nocturne/releases/tag/v1.0.0) posé après le merge, release par `release.yml`                   | `docs/store/*.png` (8 captures 1080×1920 et 1920×1080), `icon-1024.png`                  |
 | 6 — Personnages  | **franchie** | 3 nov. 2026 | [#13](https://github.com/jimmyhag/ruee-nocturne/pull/13) | 9 personnages, 100 runs average seed 42 (référence Éclaireuse p50 7:52, fenêtre 4:52–10:52, morts < 3 min ≤ 15 %) : Bûcheron 10:13 · Sorcière 10:52 · Veilleuse 6:05 · Braconnier 8:57 · Sapeur 10:01 · Feu follet 5:59 · Revenante 10:50 · Colporteur 10:17 ; morts 3–13 % · nouveau joueur : Veilleuse achetée au **2e run** (cible < 5) · défis (greedy, 200 runs) : Intouchable 48 % · Marathon 59 % · Métamorphe 42 % · bench et draw calls inchangés | `shots/*-personnages.png`, `shots/*-feufollet.png`                                       |
 | 7 — Identité     | **franchie** | 3 nov. 2026 | [#14](https://github.com/jimmyhag/ruee-nocturne/pull/14) | draw calls **20** (≤ 40) · tris **87 k** à 400 ennemis (< 150 k) · bench p50 0,30 ms, p95 0,49 ms (inchangé) · Vitest 249 · e2e 40 · chunk principal 37 ko gz (three toujours hors du chunk) · fps téléphone : non mesuré (merge sur décision de Jimmy le 3 nov. 2026, à relever sur le live 1.2.0 avec `docs/DEVICES.md`)                                                                                                                                 | `docs/captures/phase-7/portrait-*.png`, `ennemi-*.png`, `docs/store/*.png`               |
+| 8 — Progression  | **en cours** | 3 nov. 2026 | [#16](https://github.com/jimmyhag/ruee-nocturne/pull/16) | nu (Éclaireuse, 100 runs, seeds 42/43) : survie p50 **5:29 / 5:31** (9:52 en 1.2.0 ; cible 5–7), fin atteinte 0 %, morts < 3 min 13–15 %, or p50 615–652 (3 premiers paliers) · maxé : p50 **15:31 / 15:33** (cible 13–16), fin atteinte 4–5 % · 9 personnages maxés entre 13:23 et 15:52 (± 3 min) ; nus entre 4:49 et 10:52 (les personnages débloqués tard partent plus forts, décision ci-dessous) · Vitest 249 · e2e 42                               | `shots/*-boutique.png`                                                                   |
 
 ## Phase 0 — mesures détaillées (2 nov. 2026, PC de Jimmy, Windows 11)
 
@@ -186,6 +187,48 @@ Décisions de la phase :
 - **Lighthouse mobile** (médiane de 3, Chromium SwiftShader, build 1.2.0) : **perf 100** · a11y 98 · PWA 100 · LCP 696 ms · TBT 8 ms · CLS 0 : inchangé, three reste hors du chunk principal.
 
 Relecture `perf-reviewer` : approuvée sans bloquant. Corrigé : `toNonIndexed` n'est plus appelé sur les géométries déjà non indexées (avertissement console à chaque construction), les deux matériaux à couleurs par sommet du joueur sont des singletons (leur programme était détruit puis recompilé à chaque changement de personnage dans le menu), la silhouette fusionnée est disposée avec le modèle, l'aperçu du menu est rétabli au retour d'un défi du jour. Noté pour plus tard : les sommets de décor dessinés par frame passent d'environ 110 k à 250 k (tout le décor est non indexé et jamais cullé) : à confirmer à l'onglet F3 sur le téléphone de Jimmy ; si besoin `mergeVertices` dans `parts.ts` ou décor en quadrants cullables. Pire cas estimé de draw calls : 35–37 sur 40, toute nouvelle famille instanciée devra être justifiée.
+
+## Phase 8 — mesures détaillées (3 nov. 2026, conteneur Linux)
+
+Porte PLAN.md §5 : profil nu (Éclaireuse, bot `average`) survie p50 5–7 min, fin atteinte ≤ 3 %, morts < 3 min ≤ 15 %, or médian ≥ 2 premiers paliers ; profil maxé survie p50 13–16 min, fin atteinte 3–12 % ; neuf personnages à ± 3 min de l'Éclaireuse ; nouveau joueur : premier palier dès le premier run, Veilleuse en < 5 runs.
+
+Point de départ (1.2.0, aucun palier) : survie p50 9:52, fin atteinte 8 %, un run ≈ 1 500 or pour des paliers à 40–262 or (boutique pleine en 3 runs, +25 % de dégâts au maximum).
+
+| Passe | Réglage                                                                                               | Nu p50          | Maxé p50             | Enseignement                                                                                                                          |
+| ----- | ----------------------------------------------------------------------------------------------------- | --------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | PV 80, dégâts ×0,85 ; paliers +8 PV / +6 % / −3 % recharge, 2 réanimations, coûts 250 · 1,3ⁿ          | 4:42            | 19:59 (63 % de fins) | l'écart est énorme ; `--upgrades ligne=n` montre que PV/dégâts/recharge seuls font 5:11 → 16:03 et 2 réanimations seules 5:11 → 13:18 |
+| 2     | paliers divisés par deux, PV 85                                                                       | 5:11            | 19:59                | la survie saute toujours de 5 à 15 min : entre 6 et 15 min plus personne ne meurt (courbe des vivants), le milieu de partie est plat  |
+| 3     | paliers encore réduits (+3 PV, +2 %, −1 %), une réanimation, PV 90                                    | 5:08            | 18:05                | idem : le problème est la courbe ennemie, pas les paliers                                                                             |
+| 4     | **milieu de partie raide** : `rate` + (t − 7:00)/150, `hpScale` + (t − 7:00)/100, PV 95, dégâts ×0,95 | 5:27            | 15:32                | la puissance se traduit enfin en minutes ; fin atteinte 3 %                                                                           |
+| 5     | surcroît plafonné à 15:00 (le Faucheur reste atteignable), PV 100, coûts 200 · 1,3ⁿ                   | **5:29 / 5:31** | **15:31 / 15:33**    | fin atteinte 4–5 % pour le maxé, 0 % pour le nu ; retenu                                                                              |
+
+| Personnage             | Nu p10 / p50 / p90      | Or nu | Maxé p10 / p50 / p90     | Fin (maxé) |
+| ---------------------- | ----------------------- | ----- | ------------------------ | ---------- |
+| Éclaireuse (référence) | 2:56 / **5:29** / 15:17 | 615   | 9:07 / **15:31** / 19:20 | 5 %        |
+| Bûcheron               | 3:05 / 10:05 / 15:24    | 1 948 | 10:10 / 14:47 / 18:12    | 2 %        |
+| Vieille sorcière       | 3:45 / 10:06 / 14:42    | 1 840 | 10:18 / 14:34 / 18:24    | 2 %        |
+| Veilleuse              | 2:54 / 5:27 / 16:40     | 697   | 10:17 / 15:52 / 19:59    | 15 %       |
+| Braconnier             | 3:03 / 7:25 / 15:09     | 980   | 10:16 / 15:46 / 18:25    | 4 %        |
+| Sapeur                 | 4:05 / 8:12 / 14:44     | 1 413 | 10:12 / 14:50 / 17:08    | 0 %        |
+| Feu follet             | 2:19 / 4:49 / 10:31     | 289   | 7:05 / 13:27 / 18:07     | 3 %        |
+| Revenante              | 5:07 / 10:20 / 15:43    | 2 311 | 10:49 / 14:51 / 18:10    | 0 %        |
+| Colporteur             | 2:11 / 10:52 / 13:40    | 4 436 | 10:12 / 13:23 / 16:17    | 0 %        |
+
+100 runs du bot `average`, seed 42 (`npm run sim -- --character <clé> --upgrades 0|max`). Maxés, les neuf tiennent dans ± 3 min (13:23–15:52). Nus, quatre personnages débloqués tard (Bûcheron, Sorcière, Revenante, Colporteur : arme niveau 2 ou deux armes) passent mieux la falaise 2–6 min et tiennent ≈ 10 min ; le Feu follet (−50 % PV) est le plus fragile.
+
+| Mesure         | Valeur                                                                                                                                                                                            | Comment                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Économie       | run nu ≈ 600 or (Éclaireuse) = 3 premiers paliers ; run maxé ≈ 9 000 or ; un personnage complet 34 000 or ≈ 55 runs nus, ≈ 4 runs maxés (en pratique ≈ 15–25 runs, l'or grandit avec les paliers) | ligne « or » de `npm run sim`      |
+| Nouveau joueur | premier palier (200 or) dès le premier run (≈ 600 or) ; Veilleuse (800 or) au 2e run                                                                                                              | `e2e/newplayer.spec.ts`            |
+| Migration      | `shop` global ≤ 1.2.0 → `shops.eclaireuse`, bornée à 8 paliers ; or conservé ; « Tout effacer » vide tout                                                                                         | `src/meta/save.ts`, `meta.test.ts` |
+| Tests          | 251 Vitest, 42 e2e (+ boutique par personnage : achat sur un personnage, bascule, verrouillés inactifs, persistance)                                                                              | `npm test`, `npm run test:e2e`     |
+
+Décisions de la phase :
+
+- **La courbe ennemie bouge** (le plan disait l'inverse) : sans milieu de partie raide, la puissance achetée ne se traduit pas en minutes mais en falaise (5 → 15 min). Le surcroît est plafonné à 15:00 pour laisser le Faucheur atteignable aux personnages maxés.
+- **Paliers petits** (+3 PV, +2 % de dégâts, −1 % de recharge) : la survie est très sensible à la puissance ; huit paliers lisibles valent mieux que trois gros qui font basculer le run.
+- **Personnages nus hors de ± 3 min acceptés** : les quatre débloqués tard partent plus forts (c'est leur récompense), tous convergent une fois maxés (13:23–15:52). À revoir si Jimmy préfère un départ égal pour tous.
+- **Une seule Réanimation** : deux valaient à elles seules 5:11 → 13:18.
 
 ## Décisions prises en cours de route
 

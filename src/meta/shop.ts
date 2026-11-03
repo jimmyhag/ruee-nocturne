@@ -11,12 +11,20 @@ export function shopCost(line: number, tier: number): number {
   return Math.round(SHOP.base * Math.pow(SHOP.growth, tier));
 }
 
-/** Achète le prochain palier si l'or suffit. Retourne true si l'achat a eu lieu. */
-export function buy(m: Meta, line: number): boolean {
-  const cost = shopCost(line, m.shop[line] ?? 0);
+/** Paliers d'un personnage (zéros s'il n'a rien acheté) ; le tableau retourné n'est pas partagé avec la méta. */
+export function shopTiers(m: Meta, key: CharacterKey): number[] {
+  const t = m.shops[key];
+  return SHOP.lines.map((_, i) => t?.[i] ?? 0);
+}
+
+/** Achète le prochain palier d'une ligne pour un personnage si l'or suffit. Retourne true si l'achat a eu lieu. */
+export function buy(m: Meta, key: CharacterKey, line: number): boolean {
+  const tiers = shopTiers(m, key);
+  const cost = shopCost(line, tiers[line]);
   if (!Number.isFinite(cost) || m.gold < cost) return false;
   m.gold -= cost;
-  m.shop[line] = (m.shop[line] ?? 0) + 1;
+  tiers[line] += 1;
+  m.shops[key] = tiers;
   return true;
 }
 
@@ -55,7 +63,7 @@ export function buyOutfit(m: Meta, key: CharacterKey): boolean {
 export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily = false): WorldOptions {
   return {
     character: daily ? 'eclaireuse' : m.character,
-    upgrades: daily ? SHOP.lines.map(() => 0) : [...m.shop],
+    upgrades: daily ? SHOP.lines.map(() => 0) : shopTiers(m, m.character),
     unlocked: daily ? undefined : unlocked,
   };
 }

@@ -885,6 +885,56 @@
         gap: 8px;
         width: 100%;
       }
+      /* boutique par personnage (phase 8) : rangée de pastilles, défilement horizontal sur téléphone */
+      .shopchars {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        padding: 2px 2px 6px;
+        scrollbar-width: none;
+      }
+      .shopchars::-webkit-scrollbar {
+        display: none;
+      }
+      .shopchar {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        scroll-snap-align: center;
+        font: 700 13px var(--f-body);
+        color: var(--ink);
+        background: var(--paper);
+        border: 2px solid transparent;
+        border-radius: 999px;
+        padding: 4px 10px 4px 5px;
+        min-height: 32px;
+        cursor: pointer;
+      }
+      .shopchar i {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--ink);
+        flex: none;
+      }
+      .shopchar b {
+        font-size: 11px;
+        background: var(--ink);
+        color: var(--gold);
+        border-radius: 999px;
+        padding: 0 6px;
+      }
+      .shopchar.sel {
+        border-color: var(--accent);
+        background: #ffe3c8;
+      }
+      .shopchar.locked {
+        opacity: 0.45;
+        cursor: default;
+      }
       .shoprow {
         display: flex;
         align-items: center;
@@ -1307,9 +1357,10 @@
     <section id="shop" class="screen" hidden>
       <div class="panel">
         <div>
-          <h2 class="h2" data-i18n="shop.title">Boutique</h2>
+          <h2 class="h2" id="shopTitle">Boutique · Éclaireuse</h2>
           <p class="gold" id="shopGold">0 or</p>
         </div>
+        <div class="shopchars" id="shopChars"></div>
         <div class="shop" id="shopLines"></div>
         <div class="btnrow"><button class="big" id="shopBackBtn" data-i18n="shop.back">Retour</button></div>
       </div>

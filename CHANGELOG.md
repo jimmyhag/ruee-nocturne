@@ -2,6 +2,18 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.3.0 — 3 nov. 2026 (phase 8 « Progression »)
+
+La boutique devient nécessaire et passe par personnage (retour de Jimmy sur la 1.2.0 : « trop facile de monter sans améliorer le perso »).
+
+### Modifié
+
+- **Difficulté** : les dégâts de base passent à ×0,95 et le milieu de partie (7:00 → 15:00) est plus raide (ennemis plus nombreux et plus résistants). Avant, plus personne ne mourait entre 6 et 15 min : la survie sautait de 5 à 15 min au moindre palier. Un run sans palier tient ≈ 5:30 en médiane (9:52 en 1.2.0) ; un personnage entièrement amélioré ≈ 15:30 et atteint le Faucheur dans ≈ 5 % des cas.
+- **Boutique par personnage** : chaque personnage a ses 8 lignes de paliers ; l'or reste commun. Les paliers achetés avant la 1.3.0 sont reportés sur l'Éclaireuse, l'or en caisse est conservé.
+- **Paliers** : 8 par ligne (une seule Réanimation), plus petits (+3 PV, +2 % de dégâts, +1,5 % de vitesse, +0,4 Trèfle, +10 % d'or, +10 % de rayon de collecte, −1 % de recharge) et plus chers (200 → 1 255 or, ≈ 34 000 or par personnage). Un run nu paie 2 à 3 premiers paliers.
+- Écran de boutique : rangée de personnages (pastille de tenue, nombre de paliers), titre au nom du personnage ; changer de personnage ici le choisit aussi pour la prochaine partie. Textes des lignes lus dans `balance.ts`.
+- `npm run sim` : `--upgrades 0|max|n|ligne=n`, `--profile naked|maxed`, or médian par run et runs pour tout maxer ; deux jeux de cibles (`tools/targets.ts`). La CI commente les deux profils.
+
 ## 1.2.0 — 3 nov. 2026 (phase 7 « Identité visuelle »)
 
 Toujours du low-poly généré par le code, mêmes budgets, mais tout ce qui bouge a maintenant une silhouette (PLAN.md phase 7).

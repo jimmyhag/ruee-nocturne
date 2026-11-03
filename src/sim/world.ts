@@ -333,7 +333,7 @@ export function makePlayer(opts?: WorldOptions): Player {
     regen: 0,
     speed: PLAYER.speed * ch.speedMul * (1 + tier('speed') * per('speed')),
     magnet: PLAYER.magnet * (1 + tier('magnet') * per('magnet')),
-    dmgMul: 1 + tier('dmg') * per('dmg'),
+    dmgMul: PLAYER.dmgMul + tier('dmg') * per('dmg'),
     cdMul: 1 - tier('cd') * per('cd'),
     luck: tier('luck') * per('luck'),
     goldMul: 1 + tier('gold') * per('gold'),

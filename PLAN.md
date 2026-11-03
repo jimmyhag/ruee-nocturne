@@ -48,7 +48,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 
 ### 2.4 Boucle méta (heures) — « encore une »
 - Écran de mort = **progression visible** : or gagné, déblocages en cours avec barres, « il te manquait 42 s pour… ».
-- Boutique permanente (or) : +PV, +dégâts, +vitesse, +chance, +or, aimant, réanimation. Paliers avec coûts croissants.
+- Boutique permanente (or), **par personnage** depuis la phase 8 : +PV, +dégâts, +vitesse, +chance, +or, aimant, cadence, réanimation. 8 paliers par ligne, coûts croissants (200 → 1 255 or) ; un run sans palier tient ≈ 6 min, un personnage complet ≈ 15 min.
 - Déblocages par **succès** : « survis 10 min » → nouveau personnage ; « tue 100 Dards » → nouvelle arme dans le pool. Chaque succès montre son avancement en temps réel.
 - 3 personnages V1 aux stats et arme de départ différentes.
 - Défi quotidien : seed fixe partagée, classement local (pas de serveur en V1).
@@ -236,6 +236,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 7 — Identité visuelle (après la 1.1.0)
 - Toujours en low-poly généré par le code (aucun asset), même pipeline, mêmes budgets : un modèle propre à chaque personnage (silhouette, accessoire, palette qui disent le passif ; course, saut, dash animés ; effet visuel par passif), des ennemis lisibles de loin (forme et détail par type, couleurs par sommet, instancing conservé), un monde plus riche (ciel étoilé et lune, lanternes lumineuses, arbres variés, herbe, brume, cycle de lumière contrasté), et des tenues (deux palettes par personnage, la seconde à 400 or).
 - **Porte** : draw calls ≤ 40 et triangles ≤ 150 k à 400 ennemis (test e2e stress), bench inchangé, 60 fps sur le téléphone de Jimmy, captures des neuf personnages et de la nuit lues et validées par Jimmy sur la preview ; aucune lisibilité perdue (télégraphes, couleurs par type d'ennemi).
+
+### Phase 8 — Progression (après la 1.2.0)
+- Retour de Jimmy : « trop facile de monter sans améliorer le perso », « évolution des perfs par perso séparée ». Le joueur nu passe sous la courbe (dégâts ×0,95) et le milieu de partie (7:00 → 15:00) devient raide pour que chaque palier se traduise en minutes ; la boutique passe par personnage (8 paliers petits et chers, une seule réanimation), l'ancienne boutique globale est reportée sur l'Éclaireuse, l'or reste partagé. Simulation en deux profils (`--upgrades 0|max`), cibles dans `tools/targets.ts` et skill `survivor-design` §9.
+- **Porte** : profil nu (Éclaireuse, bot average, 200 runs) : survie p50 5–7 min, fin atteinte ≤ 3 %, morts < 3 min ≤ 15 %, or médian ≥ 2 premiers paliers ; profil maxé : survie p50 13–16 min, fin atteinte 3–12 %, cibles de contenu inchangées ; les neuf personnages à ± 3 min de l'Éclaireuse dans chaque profil ; nouveau joueur : 1er palier dès le 1er run, Veilleuse en < 5 runs (Playwright) ; ressenti des trois premiers runs validé par Jimmy sur la preview.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

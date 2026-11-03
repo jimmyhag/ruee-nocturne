@@ -2,7 +2,7 @@
 //   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { CHARACTERS, STEP, ENEMIES } from '../src/sim/balance';
+import { CHARACTERS, SHOP, STEP, ENEMIES } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { Ev, Mode } from '../src/sim/types';
 import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
@@ -10,7 +10,7 @@ import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
 import { ACHIEVEMENTS } from '../src/meta/achievements';
 import { enforceAllowed, makeBot, pickAllowed } from './bots';
-import { TARGETS, checkTargets } from './targets';
+import { PROFILES, checkTargets, shopTotalCost } from './targets';
 
 const args = new Map<string, string>();
 for (let i = 2; i < process.argv.length; i += 2)
@@ -25,6 +25,22 @@ const OUT = args.get('out');
 const CHARACTER = (args.get('character') ?? 'eclaireuse') as CharacterKey;
 if (!CHARACTERS.some((c) => c.key === CHARACTER)) {
   console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : ${CHARACTERS.map((c) => c.key).join(', ')}`);
+  process.exit(2);
+}
+// --upgrades 0|max|<n>|hp=8,revive=0,… : paliers de boutique (uniformes, ou par ligne, bornés) ; défaut 0 = run « nu »
+const UPGRADES_ARG = args.get('upgrades') ?? '0';
+const UPGRADES: number[] = SHOP.lines.map((l) => {
+  if (UPGRADES_ARG === 'max') return l.tiers;
+  if (UPGRADES_ARG.includes('=')) {
+    const m = UPGRADES_ARG.split(',').find((p) => p.trim().startsWith(l.key + '='));
+    return m ? Math.max(0, Math.min(l.tiers, +m.split('=')[1] || 0)) : 0;
+  }
+  return Math.max(0, Math.min(l.tiers, +UPGRADES_ARG || 0));
+});
+// --profile naked|maxed : jeu de cibles (défaut : naked si --upgrades 0, maxed sinon)
+const PROFILE = (args.get('profile') ?? (UPGRADES_ARG === '0' ? 'naked' : 'maxed')) as keyof typeof PROFILES;
+if (!PROFILES[PROFILE]) {
+  console.error(`--profile : « ${PROFILE} » inconnu. Valeurs : ${Object.keys(PROFILES).join(', ')}`);
   process.exit(2);
 }
 const WEAPONS_ARG = args.get('weapons');
@@ -61,6 +77,7 @@ interface RunResult {
   passives: Record<string, number>;
   evolved: string[];
   deathBy: string;
+  gold: number; // or du run (phase 8 : économie de la boutique)
   // défis (phase 6)
   noHit: number; // plus longue période sans dégât (s)
   distance: number; // u parcourus
@@ -68,7 +85,7 @@ interface RunResult {
 }
 
 function runOnce(seed: number): RunResult {
-  const w = new World(seed, { character: CHARACTER });
+  const w = new World(seed, { character: CHARACTER, upgrades: UPGRADES });
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
@@ -125,6 +142,7 @@ function runOnce(seed: number): RunResult {
     passives: { ...w.passives } as Record<string, number>,
     evolved: Object.keys(w.evolved),
     deathBy: w.mode === Mode.Dead ? lastHurtType : '—',
+    gold: Math.round(w.gold),
     noHit: w.noHitBest,
     distance: w.distance,
     aliveAtMinute: alive,
@@ -187,9 +205,26 @@ const summary = {
   seed: SEED,
   weapons: WEAPONS,
   character: CHARACTER,
+  upgrades: UPGRADES_ARG,
+  profile: PROFILE,
   survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
+  // économie (phase 8) : or médian par run, paliers payés par run au 1er coût, runs pour tout maxer un personnage
+  goldP50: pct(
+    results.map((r) => r.gold),
+    50,
+  ),
+  firstTierCost: Math.round(SHOP.base),
+  runsToMax:
+    shopTotalCost() /
+    Math.max(
+      1,
+      pct(
+        results.map((r) => r.gold),
+        50,
+      ),
+    ),
   // défis (phase 6) : médianes et part des runs qui les atteignent (Intouchable 3 min, Marathon 2 000 u, Métamorphe 2 évolutions)
   challenges: {
     noHitP50: pct(
@@ -236,13 +271,16 @@ const summary = {
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · paliers ${UPGRADES_ARG} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
 );
 lines.push(
   `morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`,
+);
+lines.push(
+  `or          p50 ${summary.goldP50} · ${(summary.goldP50 / summary.firstTierCost).toFixed(1)} premier(s) palier(s) par run · ${summary.runsToMax.toFixed(0)} runs pour tout maxer un personnage`,
 );
 lines.push(
   `défis       sans dégât p50 ${mmss(summary.challenges.noHitP50)} (Intouchable ${summary.challenges.intouchablePct.toFixed(0)} %) · distance p50 ${Math.round(summary.challenges.distanceP50)} u (Marathon ${summary.challenges.marathonPct.toFixed(0)} %) · Métamorphe ${summary.challenges.metamorphePct.toFixed(0)} %`,
@@ -272,9 +310,9 @@ lines.push(
     .join(' · ')}`,
 );
 lines.push(`vivants/min ${summary.aliveCurve.join(' ')}`);
-const checks = checkTargets(summary, TARGETS);
+const checks = checkTargets(summary, PROFILES[PROFILE]);
 lines.push(`cibles      ${checks.map((c) => `${c.ok ? '✔' : '✘'} ${c.name} (${c.value})`).join('  ')}`);
-if (!checks.every((c) => c.ok)) lines.push('cibles non atteintes : attendu avant la phase 3 (équilibrage)');
+if (!checks.every((c) => c.ok)) lines.push('cibles non atteintes : à régler dans balance.ts (survivor-design §9)');
 console.log(lines.join('\n'));
 
 if (OUT) {

@@ -18,7 +18,12 @@ export const characterTrait = (k: CharacterKey): string => (k === 'eclaireuse' ?
 /** Nom d'un ennemi par son type (index dans ENEMIES). */
 export const enemyName = (type: number): string => t(`enemy.${ENEMIES[type].key}`);
 export const shopName = (i: number): string => t(`shop.${SHOP.lines[i].key}.name`);
-export const shopText = (i: number): string => t(`shop.${SHOP.lines[i].key}.text`);
+/** Texte d'une ligne de boutique, paramétré par sa valeur par palier (balance.ts) : jamais recopié. */
+export const shopText = (i: number): string => {
+  const l = SHOP.lines[i];
+  const pct = l.key === 'dmg' || l.key === 'speed' || l.key === 'gold' || l.key === 'magnet' || l.key === 'cd';
+  return t(`shop.${l.key}.text`, { n: pct ? +(l.per * 100).toFixed(1) : l.per, max: +(l.per * l.tiers).toFixed(2) });
+};
 export const achName = (a: Achievement): string => t(`ach.${a.id}.name`);
 /** Le texte « Vaincs 2 000 ennemis » prend l'objectif en paramètre quand il est grand (format du nombre). */
 export const achText = (a: Achievement): string => t(`ach.${a.id}.text`, { n: a.goal });
