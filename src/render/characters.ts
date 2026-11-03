@@ -6,15 +6,11 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CharacterKey } from '../sim/types';
 import { PAL } from './palette';
+import { paintHex, primGeometry } from './parts';
+import type { Prim } from './parts';
 
 type Tone = 'p1' | 'p2' | 'p3' | 'skin' | number;
-type Shape = 'box' | 'cyl' | 'cone' | 'sphere' | 'ico' | 'octa';
-interface Part {
-  shape: Shape;
-  /** box : [w, h, d] ; cyl : [rTop, rBottom, h] ; cone : [r, h] ; sphere/ico/octa : [r] */
-  size: number[];
-  pos: [number, number, number];
-  rot?: [number, number, number];
+interface Part extends Prim {
   color: Tone;
   /** `leg` : mesh séparé animé ; `glow` : non éclairé (lumineux) ; sinon fusionné dans le torse */
   role?: 'legL' | 'legR' | 'glow';
@@ -228,45 +224,6 @@ export interface CharacterModel {
   dispose(): void;
 }
 
-function geometry(p: Part): THREE.BufferGeometry {
-  const s = p.size;
-  let g: THREE.BufferGeometry;
-  switch (p.shape) {
-    case 'box':
-      g = new THREE.BoxGeometry(s[0], s[1], s[2]);
-      break;
-    case 'cyl':
-      g = new THREE.CylinderGeometry(s[0], s[1], s[2], 7);
-      break;
-    case 'cone':
-      g = new THREE.ConeGeometry(s[0], s[1], 7);
-      break;
-    case 'sphere':
-      g = new THREE.SphereGeometry(s[0], 7, 5);
-      break;
-    case 'ico':
-      g = new THREE.IcosahedronGeometry(s[0], 0);
-      break;
-    case 'octa':
-      g = new THREE.OctahedronGeometry(s[0], 0);
-      break;
-  }
-  if (p.rot) g.rotateX(p.rot[0]).rotateY(p.rot[1]).rotateZ(p.rot[2]);
-  g.translate(p.pos[0], p.pos[1], p.pos[2]);
-  return g.toNonIndexed();
-}
-function paint(g: THREE.BufferGeometry, hex: number): THREE.BufferGeometry {
-  const c = new THREE.Color(hex);
-  const n = g.getAttribute('position').count;
-  const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    arr[i * 3] = c.r;
-    arr[i * 3 + 1] = c.g;
-    arr[i * 3 + 2] = c.b;
-  }
-  g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
-  return g;
-}
 const tone = (t: Tone, pal: Palette): number => (typeof t === 'number' ? t : pal[t]);
 
 /** Construit le modèle d'un personnage dans sa tenue. ≤ 5 appels de rendu : torse, lumineux, 2 jambes, halo. */
@@ -282,7 +239,7 @@ export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
     legR: THREE.Mesh | null = null;
   const disposables: { dispose(): void }[] = [];
   for (const p of look.parts) {
-    const g = geometry(p);
+    const g = primGeometry(p);
     all.push(g.clone());
     if (p.role === 'legL' || p.role === 'legR') {
       const mat = new THREE.MeshLambertMaterial({ color: tone(p.color, pal) });
@@ -294,7 +251,7 @@ export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
       if (p.role === 'legL') legL = m;
       else legR = m;
       group.add(m);
-    } else (p.role === 'glow' ? glow : lit).push(paint(g, tone(p.color, pal)));
+    } else (p.role === 'glow' ? glow : lit).push(paintHex(g, tone(p.color, pal)));
   }
   const litGeo = mergeGeometries(lit) ?? lit[0];
   const litMat = new THREE.MeshLambertMaterial({ vertexColors: true });

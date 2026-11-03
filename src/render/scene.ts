@@ -5,6 +5,7 @@ import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { WEAPONS } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
+import { buildEnemyGeometries } from './enemies';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
 import { AimLines, Bolts, DamageNumbers, Particles } from './fx';
@@ -157,19 +158,9 @@ export class GameScene {
     for (let i = 0; i < FEEL.trail.dashGhosts; i++) this.ghosts.push({ x: 0, y: 0, z: 0, ry: 0, life: 0 });
 
     // ennemis : une silhouette par type (survivor-design §6), une couleur franche, une variante dorée (élite)
-    const geos = [
-      new THREE.IcosahedronGeometry(0.55, 0), // Spectre
-      new THREE.ConeGeometry(0.4, 1.0, 4).rotateX(Math.PI / 2), // Dard : pointe vers +Z local, face au joueur après rotation Y
-      new THREE.DodecahedronGeometry(1.0, 0), // Brute
-      new THREE.OctahedronGeometry(2.0, 0), // Gardien
-      new THREE.TetrahedronGeometry(0.75, 0).scale(1.3, 0.45, 1.3), // Volant : aplati, plane
-      new THREE.CylinderGeometry(0.42, 0.62, 1.3, 6), // Cracheur
-      new THREE.SphereGeometry(2.4, 8, 6), // Essaim-mère
-      new THREE.BoxGeometry(4.2, 5.2, 4.2), // Colosse
-      new THREE.ConeGeometry(1.4, 4.2, 6), // Faucheur
-    ];
+    const geos = buildEnemyGeometries(); // src/render/enemies.ts : une silhouette fusionnée par type
     for (let t = 0; t < geos.length; t++) {
-      const m = makeInstanced(geos[t], new THREE.MeshLambertMaterial({ color: 0xffffff }), ENEMY_CAPS[t]);
+      const m = makeInstanced(geos[t], new THREE.MeshLambertMaterial({ vertexColors: true }), ENEMY_CAPS[t]);
       this.scene.add(m);
       this.enemyW.push(new InstanceWriter(m));
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
