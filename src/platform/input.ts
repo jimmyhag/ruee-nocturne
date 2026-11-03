@@ -80,8 +80,17 @@ export class InputManager {
     };
     addEventListener('pointerup', end);
     addEventListener('pointercancel', end);
-    // bloque le scroll/zoom iOS (le viewport n'a plus user-scalable=no : touch-action: none + ces deux écouteurs)
-    document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    // Bloque le défilement et le zoom tactiles sur le jeu (canvas, joystick, boutons) : le viewport n'a plus
+    // user-scalable=no, c'est touch-action: none plus ces écouteurs qui s'en chargent. Les écrans (.screen : menu,
+    // réglages, boutique, succès, niveau, mort) doivent, eux, défiler au doigt : on n'y annule que le pincement.
+    document.addEventListener(
+      'touchmove',
+      (e) => {
+        const inScreen = (e.target as Element | null)?.closest?.('.screen');
+        if (!inScreen || e.touches.length > 1) e.preventDefault();
+      },
+      { passive: false },
+    );
     document.addEventListener('gesturestart', (e) => e.preventDefault()); // pincement Safari (événement propriétaire)
   }
 

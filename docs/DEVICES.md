@@ -34,9 +34,9 @@ Sur l'URL de preview de la PR, puis sur le live après merge. Cocher, noter la d
 
 Sévérité : **P0** bloque le jeu, l'installation ou la sauvegarde ; **P1** gêne nettement (perf, lisibilité, contrôle) ; **P2** cosmétique. Les P0 et P1 sont corrigés dans la branche avant le merge de la PR de phase 5.
 
-| Date | Appareil | Sévérité | Description                         | Statut |
-| ---- | -------- | -------- | ----------------------------------- | ------ |
-|      |          |          | _(aucun bug relevé pour l'instant)_ |        |
+| Date        | Appareil        | Sévérité | Description                                                                                                                                                                                | Statut           |
+| ----------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| 3 nov. 2026 | iPhone de Jimmy | P1       | Les écrans (menu, réglages, boutique, succès) ne défilent pas au doigt : le `touchmove` annulé pour tout le document bloquait aussi les écrans ; les longs panneaux étaient coupés en haut | corrigé (PR #12) |
 
 ## Historique des mesures téléphone
 
