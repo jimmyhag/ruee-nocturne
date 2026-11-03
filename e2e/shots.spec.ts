@@ -59,7 +59,7 @@ test('menu, jeu à 3 min, montée de niveau, mort', async ({ page }, info) => {
   const app = await page.evaluate(() => (window as any).__game.app as string);
   if (app === 'levelup') {
     // le warp a pu laisser une montée de niveau en attente : on la prend
-    await page.locator('.card').first().click();
+    await page.locator('#cards .card').first().click();
     await page.waitForTimeout(500);
   }
   await page.screenshot(shot('jeu-3min', p));
@@ -68,7 +68,7 @@ test('menu, jeu à 3 min, montée de niveau, mort', async ({ page }, info) => {
   await expect(page.locator('#levelup')).toBeVisible();
   await page.waitForTimeout(400); // animation des cartes
   await page.screenshot(shot('levelup', p));
-  await page.locator('.card').first().click();
+  await page.locator('#cards .card').first().click();
 
   await page.evaluate(() => (window as any).__game.debug.kill());
   await expect(page.locator('#over')).toBeVisible({ timeout: 5000 });

@@ -2,6 +2,26 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## Non publié — phase 4 « Méta et rétention »
+
+La boucle méta de PLAN.md §2.4 : chaque run laisse une trace visible (or, succès, déblocages) et la sim reste pure, la méta n'y entre que par des options à la création du monde.
+
+### Ajouté
+
+- **Personnages** (PLAN §3.5) : Éclaireuse (le joueur de la phase 3 : +15 % de vitesse, dash court, Orbe), Bûcheron (+30 PV, Lames de départ à portée +20 %, débloqué en survivant 10 min), Vieille sorcière (Foudre dès le départ, −20 % PV, débloquée à 500 kills cumulés). Cartes de sélection sur le menu, condition affichée sur les verrouillés.
+- **Boutique** permanente (or) : 8 lignes × paliers à coût géométrique (40 · 1,6^palier) : Vitalité, Puissance, Foulée, Chance, Cupidité, Aimant, Cadence, Réanimation (seconde chance à 50 % des PV avec 2 s d'invulnérabilité, 2 paliers max). Accessible depuis le menu et l'écran de mort.
+- **Succès** avec barres de progression (11) : survie 3 / 10 / 15 / 20 min, 100 Dards, 10 élites, un boss, une évolution, 500 / 2 000 kills, victoire. Déblocages : défi du jour (3 min), Bûcheron, Sorcière, Boomerang (100 Dards), Mines (10 élites). Le premier arrive au premier run de 3 min.
+- **Écran de mort riche** : or du run, « il te manquait 0:42 pour « Dix minutes » », succès débloqués, les 3 succès les plus proches avec barres, bouton Boutique.
+- **Défi du jour** : seed = hash de la date UTC (même run pour tout le monde), Éclaireuse sans boutique (égalité), classement local des 10 meilleurs temps, meilleur temps sur le bouton du menu.
+- **Réglages** (menu et pause) : son, vibrations (coup reçu, boss, réanimation ; tactile seulement), effets réduits, **gaucher** (SAUT et DASH à gauche), taille du HUD (petit / normal / grand), **export / import** de la sauvegarde (fichier JSON + zone de texte, validation stricte), effacement en deux appuis.
+- Sauvegarde **v2** avec migration depuis v1 (record, runs, kills, son, effets conservés), `normalizeMeta` qui borne et type tout ce qui entre (import compris).
+- Outils : `npm run sim -- --character bucheron|sorciere`, hooks `__game.meta` / `__game.setMeta`, tests e2e nouveau joueur, boutique, export/import, personnage, mode gaucher ; 18 tests Vitest de méta et d'options de monde (101 au total).
+
+### Modifié
+
+- `PLAYER.speed` devient la vitesse de base des personnages lourds (5,39) ; l'Éclaireuse ×1,15 = 6,2 est inchangée par rapport à la phase 3, la porte de phase 3 reste mesurée telle quelle (sans option, `World` est identique).
+- `Player.dashTime` par personnage ; `Ev.Revive`.
+
 ## Non publié — phase 3 « Contenu et équilibrage »
 
 Tout le contenu V1 de PLAN.md §3 (hors personnages, phase 4), équilibré par simulation : les 8 cibles de `survivor-design` §9 sont atteintes sur 200 runs du bot `average` (seed 42).
