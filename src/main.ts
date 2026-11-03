@@ -391,6 +391,10 @@ function gameOver(won = false): void {
   st.wins += won ? 1 : 0;
   st.bestTime = Math.max(st.bestTime, world.t);
   st.runs++;
+  // défis (phase 6) : meilleurs scores en un run
+  st.noHitBest = Math.max(st.noHitBest, world.noHitBest);
+  st.distanceBest = Math.max(st.distanceBest, world.distance);
+  st.evoRunBest = Math.max(st.evoRunBest, runStats.evolutions);
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -612,7 +616,7 @@ $('installBtn').onclick = async () => {
 
 // ---------- événements de la sim → effets ----------
 // Règle 3 de CLAUDE.md : chaque coup porté produit flash (sim), recul (sim), son, chiffre et particules.
-const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt, PAL.boomerang, PAL.mine]; // HitSrc
+const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt, PAL.boomerang, PAL.mine, PAL.accent]; // HitSrc (Fire : accent)
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
   const reduced = reducedFx();

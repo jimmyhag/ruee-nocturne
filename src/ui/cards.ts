@@ -13,6 +13,8 @@ export const passiveText = (k: PassiveKey): string => t(`passive.${k}.text`);
 export const evolutionName = (k: WeaponKey): string => (EVOLUTIONS[k] ? t(`evo.${k}.name`) : t('card.evolution'));
 export const characterName = (k: CharacterKey): string => t(`char.${k}.name`);
 export const characterText = (k: CharacterKey): string => t(`char.${k}.text`);
+/** Passif signature du personnage (phase 6) : nom et règle ; chaîne vide pour l'Éclaireuse. */
+export const characterTrait = (k: CharacterKey): string => (k === 'eclaireuse' ? '' : t(`char.${k}.trait`));
 /** Nom d'un ennemi par son type (index dans ENEMIES). */
 export const enemyName = (type: number): string => t(`enemy.${ENEMIES[type].key}`);
 export const shopName = (i: number): string => t(`shop.${SHOP.lines[i].key}.name`);

@@ -1,7 +1,7 @@
 // Sauvegarde méta : IndexedDB via idb-keyval, repli localStorage, jamais bloquante.
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { get, set } from 'idb-keyval';
-import { SHOP } from '../sim/balance';
+import { CHARACTERS, SHOP } from '../sim/balance';
 import { ACHIEVEMENT_IDS } from './achievements';
 import type { CharacterKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -17,6 +17,10 @@ export interface MetaStats {
   wins: number;
   bestTime: number; // s
   runs: number;
+  // défis (phase 6) : meilleurs scores en un seul run
+  noHitBest: number; // s sans dégât
+  distanceBest: number; // u parcourus
+  evoRunBest: number; // évolutions obtenues
 }
 export interface MetaSettings {
   vibrate: boolean;
@@ -38,6 +42,7 @@ export interface Meta {
   shop: number[]; // palier acheté par ligne (ordre de SHOP.lines)
   stats: MetaStats;
   achievements: string[]; // identifiants des succès obtenus
+  bought: CharacterKey[]; // personnages achetés en or (phase 6)
   character: CharacterKey;
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
   settings: MetaSettings;
@@ -55,8 +60,21 @@ export const DEFAULT_META: Meta = {
   gold: 0,
   goldEarned: 0,
   shop: SHOP.lines.map(() => 0),
-  stats: { kills: 0, dards: 0, elites: 0, bosses: 0, evolutions: 0, wins: 0, bestTime: 0, runs: 0 },
+  stats: {
+    kills: 0,
+    dards: 0,
+    elites: 0,
+    bosses: 0,
+    evolutions: 0,
+    wins: 0,
+    bestTime: 0,
+    runs: 0,
+    noHitBest: 0,
+    distanceBest: 0,
+    evoRunBest: 0,
+  },
   achievements: [],
+  bought: [],
   character: 'eclaireuse',
   daily: { date: '', times: [] },
   settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto' },
@@ -75,9 +93,8 @@ export function normalizeMeta(raw: unknown): Meta {
   const se = (r.settings && typeof r.settings === 'object' ? r.settings : {}) as Record<string, unknown>;
   const da = (r.daily && typeof r.daily === 'object' ? r.daily : {}) as Record<string, unknown>;
   const shopRaw = Array.isArray(r.shop) ? r.shop : [];
-  const character = (['eclaireuse', 'bucheron', 'sorciere'] as CharacterKey[]).includes(r.character as CharacterKey)
-    ? (r.character as CharacterKey)
-    : 'eclaireuse';
+  const isKey = (k: unknown): k is CharacterKey => CHARACTERS.some((c) => c.key === k);
+  const character = isKey(r.character) ? r.character : 'eclaireuse';
   const totalKills = Math.max(0, num(r.totalKills));
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
@@ -103,10 +120,14 @@ export function normalizeMeta(raw: unknown): Meta {
       wins: Math.max(0, num(st.wins)),
       bestTime: Math.max(0, num(st.bestTime, bestTime)),
       runs: Math.max(0, num(st.runs, runs)),
+      noHitBest: Math.max(0, num(st.noHitBest)),
+      distanceBest: Math.max(0, num(st.distanceBest)),
+      evoRunBest: Math.max(0, num(st.evoRunBest) | 0),
     },
     achievements: Array.isArray(r.achievements)
       ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
       : [],
+    bought: Array.isArray(r.bought) ? r.bought.filter((k): k is CharacterKey => isKey(k) && k !== 'eclaireuse') : [],
     character,
     daily: {
       date: typeof da.date === 'string' ? da.date.slice(0, 10) : '',

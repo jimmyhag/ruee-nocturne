@@ -1,7 +1,8 @@
 // Toutes les constantes de gameplay. Chaque ligne dit pourquoi.
 // Unités : mètres (u), secondes, PV.
 
-import type { EnemyKey } from './types';
+import type { EnemyKey, PassiveKey, WeaponKey } from './types';
+import { Trait } from './types';
 
 export const STEP = 1 / 60; // pas fixe de la simulation
 
@@ -231,22 +232,53 @@ export const EVOLVE = {
 // personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).
 // Mesure 100 runs average seed 42 : Éclaireuse p50 7:52 ; Bûcheron Lames niv 1 et vitesse 1,0 → 5:11 (30 % de morts < 3 min) ;
 // Sorcière à −20 % PV → 10:49 (trop forte). D'où Lames niv 2 + vitesse 1,05 et −30 % PV.
+// passifs signature (phase 6, docs/PHASE6-PERSONNAGES.md) : une constante par passif, lue par la sim
+export const TRAIT = {
+  fendeur: { kbMul: 1.5 }, // Bûcheron : recul des Lames ×1,5
+  braise: { perMin: 0.08, max: 0.4 }, // Veilleuse : rayon du Halo +8 %/min, plafonné à +40 % (5:00)
+  rapporteur: { refund: 0.5 }, // Braconnier : un boomerang attrapé rend 50 % de la recharge
+  trainee: { dashMul: 2, spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25 }, // Feu follet : dash 2× plus long, feu 1,5 s à 8 PV/s
+  dejamorte: { revives: 1, airXpMul: 2 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP
+  marchand: { minCards: 3 }, // Colporteur : jamais de coffre à 1 carte
+};
+
 export interface CharacterDef {
-  key: 'eclaireuse' | 'bucheron' | 'sorciere'; // nom et texte : src/i18n (char.<key>.name / .text)
-  weapon: 'orbe' | 'lames' | 'foudre';
+  key: CharacterKeyDef; // nom et texte : src/i18n (char.<key>.name / .text)
+  weapon: WeaponKey;
   weaponLevel: number; // niveau de l'arme de départ
+  weapon2?: WeaponKey; // seconde arme de départ (Revenante)
+  startPassives?: Partial<Record<PassiveKey, number>>; // passifs de départ (Colporteur)
+  trait: Trait; // passif signature
   speedMul: number;
   hpAdd: number;
   hpMul: number;
   dashTime: number;
   bladeRangeMul: number;
-  unlock: string; // identifiant de succès ('' = disponible au départ)
+  unlock: string; // identifiant de succès ('' = aucun)
+  price: number; // or (0 = pas en vente) ; un personnage est débloqué par son succès OU son achat
 }
+type CharacterKeyDef =
+  | 'eclaireuse'
+  | 'bucheron'
+  | 'sorciere'
+  | 'veilleuse'
+  | 'braconnier'
+  | 'sapeur'
+  | 'feufollet'
+  | 'revenante'
+  | 'colporteur';
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
-  { key: 'eclaireuse', weapon: 'orbe', weaponLevel: 1, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '' },
-  { key: 'bucheron', weapon: 'lames', weaponLevel: 2, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10' },
-  { key: 'sorciere', weapon: 'foudre', weaponLevel: 1, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500' },
+  { key: 'eclaireuse', weapon: 'orbe', weaponLevel: 1, trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '', price: 0 },
+  { key: 'bucheron', weapon: 'lames', weaponLevel: 2, trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10', price: 0 },
+  { key: 'sorciere', weapon: 'foudre', weaponLevel: 1, trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
+  // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
+  { key: 'veilleuse', weapon: 'aura', weaponLevel: 1, trait: Trait.Braise, speedMul: 1, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
+  { key: 'braconnier', weapon: 'boomerang', weaponLevel: 1, trait: Trait.Rapporteur, speedMul: 1, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
+  { key: 'sapeur', weapon: 'mines', weaponLevel: 1, trait: Trait.Demolisseur, speedMul: 0.95, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
+  { key: 'feufollet', weapon: 'orbe', weaponLevel: 1, trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.5, dashTime: PLAYER.dashTime * TRAIT.trainee.dashMul, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
+  { key: 'revenante', weapon: 'foudre', weaponLevel: 1, weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 1, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'win', price: 0 },
+  { key: 'colporteur', weapon: 'lames', weaponLevel: 1, startPassives: { trefle: 1, bourse: 1 }, trait: Trait.Marchand, speedMul: 1, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];
 
 // boutique permanente (survivor-design §8) : 8 lignes, coût base · growth^palier ; un run moyen (≈ 1 600 or) paie un palier

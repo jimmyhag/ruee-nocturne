@@ -97,9 +97,22 @@ Semelles de vent (vitesse), Cœur de pierre (PV max), Sève vive (régén), Aima
 - 1 carte V1 : clairière infinie procédurale (arbres, rochers, lanternes) avec **zones** : clairière ouverte, bois dense (couloirs), lac (ralentit). Les obstacles créent des décisions de trajectoire.
 - Cycle de lumière lié au temps de run : crépuscule → nuit → aube (lisibilité du temps restant sans regarder le chrono).
 
-### 3.5 Personnages (3)
-| Nom | Spécificité | Arme de départ | Déblocage |
-|---|---|---|---|
+### 3.5 Personnages (9, phase 6 ; 3 en V1)
+Un personnage = une arme de départ + un passif signature (une règle de jeu, pas un pourcentage) + une condition de déblocage qui est un objectif en soi. « Différents, pas meilleurs » : chaque personnage à ± 3 min de l'Éclaireuse sur 100 runs du bot. Détail et décisions : `docs/PHASE6-PERSONNAGES.md`.
+
+| Nom | Stats de départ | Arme de départ | Passif signature | Déblocage |
+|---|---|---|---|---|
+| Éclaireuse | +15 % vitesse, dash plus court | Orbe | aucun (référence d'équilibrage) | Départ |
+| Bûcheron | +30 PV, lames à portée +20 % | Lames 2 | Fendeur : les Lames repoussent 50 % plus fort | Survivre 10 min |
+| Vieille sorcière | −30 % PV | Foudre | Paratonnerre : la Foudre vise d'abord le plus proche | 500 kills cumulés |
+| Veilleuse | 100 PV | Halo | Braise : le Halo grandit de 8 % par minute, max +40 % | 800 or |
+| Braconnier | 100 PV | Boomerang | Rapporteur : un boomerang attrapé rend la moitié de sa recharge | 1 200 or |
+| Sapeur | +20 PV, vitesse 0,95 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
+| Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : dash 2× plus long qui laisse du feu 1,5 s | Défi « Intouchable » (3 min sans dégât) |
+| Revenante | −20 % PV | Foudre et Halo | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air | Vaincre le Faucheur |
+| Colporteur | Trèfle 1 et Bourse 1 | Lames | Marchand : les coffres donnent toujours au moins 3 cartes | 2 000 or |
+
+---|---|---|---|
 | Éclaireuse | +15 % vitesse, dash plus court | Orbe | Départ |
 | Bûcheron | +30 PV, lames à portée +20 % | Lames | Survivre 10 min |
 | Vieille sorcière | Foudre dès le départ, −20 % PV | Foudre | 500 kills cumulés |
@@ -215,6 +228,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Localisation FR/EN (fichiers JSON), icônes et captures store, page d'accueil, `CREDITS.md`, politique de confidentialité (aucune donnée collectée).
 - Tests sur 4 appareils réels (liste dans `docs/DEVICES.md`), correction des bugs P0/P1.
 - **Porte** : zéro P0, Lighthouse perf mobile ≥ 85, tag `v1.0.0`, release GitHub avec notes.
+
+### Phase 6 — Personnages (après la sortie 1.0.0)
+- 9 personnages (§3.5) avec passif signature dans la sim (pur, déterministe, une constante par passif dans `balance.ts`), déblocage par succès, achat en or (boutique) ou défi ; trois défis par run (Intouchable : 3 min sans dégât ; Marathon : 2 km ; Métamorphe : 2 évolutions), compteurs dans la méta ; grille de personnages à 9 cartes (défilement à crans sur téléphone), bouton d'achat.
+- **Porte** : chaque personnage mesuré sur 100 runs du bot `average` : survie p50 à ± 3 min de l'Éclaireuse, morts avant 3 min ≤ 15 % ; test « nouveau joueur » : un nouveau personnage débloqué en < 5 runs ; les trois défis atteints par le bot `greedy` en 200 runs ; bench, Lighthouse et tests inchangés.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local, skins.

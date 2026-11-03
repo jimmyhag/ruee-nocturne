@@ -12,7 +12,7 @@ import {
 } from './achievements';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './daily';
 import { DEFAULT_META, exportMeta, importMeta, normalizeMeta } from './save';
-import { buy, shopCost, worldOptions } from './shop';
+import { buy, buyCharacter, characterPrice, shopCost, worldOptions } from './shop';
 
 const fresh = () => normalizeMeta(DEFAULT_META);
 
@@ -83,8 +83,8 @@ describe('sauvegarde', () => {
 });
 
 describe('succès', () => {
-  it('11 succès, identifiants uniques, « survie3 » débloque le défi du jour au premier run de 3 min', () => {
-    expect(ACHIEVEMENTS.length).toBe(11);
+  it('14 succès, identifiants uniques, « survie3 » débloque le défi du jour au premier run de 3 min', () => {
+    expect(ACHIEVEMENTS.length).toBe(14);
     expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(ACHIEVEMENTS.length);
     const m = fresh();
     expect(dailyUnlocked(m)).toBe(false);
@@ -170,5 +170,35 @@ describe('défi du jour', () => {
     expect(recordDaily(m, 5, '2026-11-04')).toBe(1);
     expect(m.daily.times).toEqual([5]);
     expect(dailyBest(m, '2026-11-05')).toBe(0);
+  });
+});
+
+describe('personnages (phase 6)', () => {
+  it('achat en or : débité une fois, refusé sans or ou déjà possédé, visible dans les personnages jouables', () => {
+    const m = fresh();
+    expect(unlockedCharacters(m)).toEqual(['eclaireuse']);
+    expect(characterPrice('veilleuse')).toBeGreaterThan(0);
+    expect(characterPrice('bucheron')).toBe(0); // par succès seulement
+    expect(buyCharacter(m, 'veilleuse')).toBe(false);
+    m.gold = characterPrice('veilleuse') + 5;
+    expect(buyCharacter(m, 'veilleuse')).toBe(true);
+    expect(m.gold).toBe(5);
+    expect(buyCharacter(m, 'veilleuse')).toBe(false);
+    expect(buyCharacter(m, 'bucheron')).toBe(false);
+    expect(unlockedCharacters(m)).toEqual(['eclaireuse', 'veilleuse']);
+    const back = importMeta(exportMeta(m))!;
+    expect(back.bought).toEqual(['veilleuse']);
+    expect(normalizeMeta({ version: 2, bought: ['dragon', 'eclaireuse', 'sapeur'] }).bought).toEqual(['sapeur']);
+  });
+  it('les défis sont des succès sur un seul run : Intouchable débloque le Feu follet, « il te manquait » ignore les défis', () => {
+    const m = fresh();
+    m.stats.noHitBest = 180;
+    m.stats.bestTime = 100;
+    const fresh2 = checkAchievements(m);
+    expect(fresh2.map((a) => a.id)).toContain('intouchable');
+    expect(unlockedCharacters(m)).toContain('feufollet');
+    expect(missingTime(m, 100)!.a.id).toBe('survie3');
+    m.achievements.push('survie3', 'survie10', 'survie15', 'survie20');
+    expect(missingTime(m, 100)).toBeNull();
   });
 });

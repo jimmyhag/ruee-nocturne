@@ -92,6 +92,7 @@ export class GameScene {
   private cGold = new THREE.Color(PAL.gold);
   private cBoom = new THREE.Color(PAL.boomerang);
   private cMine = new THREE.Color(PAL.mine);
+  private cFire = new THREE.Color(PAL.accent); // traînée de feu du Feu follet (même mesh que les mines, plus large et plate)
   private cMineArmed = new THREE.Color(0xffffff);
   private cSpit = new THREE.Color(PAL.spit);
   private cTele = new THREE.Color(PAL.telegraph);
@@ -576,6 +577,12 @@ export class GameScene {
       if (p.kind === ProjKind.Mine) {
         const blink = p.age < 0.3 ? 0.5 + p.age : 1 + Math.sin(now * 6 + p.x) * 0.1;
         this.mineW.put(x, p.y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
+        continue;
+      }
+      if (p.kind === ProjKind.Fire) {
+        // plaque de feu : s'éteint en rétrécissant, vacille
+        const fade = Math.max(0.2, p.life / 1.5);
+        this.mineW.put(x, p.y, z, now * 9 + p.x, (2.2 + Math.sin(now * 30 + p.z) * 0.3) * fade, this.cFire);
         continue;
       }
       const grow = Math.min(1, p.age / 0.06);

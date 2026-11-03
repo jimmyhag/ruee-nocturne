@@ -1,5 +1,5 @@
-import { CHEST, CHOICE, GOLD, LUCK, MAX_PASSIVES, MAX_WEAPONS, WEAPON_MAX, XP } from './balance';
-import { Ev, Mode } from './types';
+import { CHEST, CHOICE, GOLD, LUCK, MAX_PASSIVES, MAX_WEAPONS, TRAIT, WEAPON_MAX, XP } from './balance';
+import { Ev, Mode, Trait } from './types';
 import type { Card, PassiveKey, WeaponKey } from './types';
 import { EVOLUTIONS, PASSIVES, PASSIVE_KEYS, WEAPON_KEYS } from './weapons/defs';
 import type { World } from './world';
@@ -167,7 +167,7 @@ export function chestCards(w: World, boss: boolean): number {
   const shift = w.player.luck * CHEST.luckShift;
   if (r < CHEST.p5 + shift) return 5;
   if (r < CHEST.p5 + CHEST.p3 + shift * 2) return 3;
-  return 1;
+  return w.trait === Trait.Marchand ? TRAIT.marchand.minCards : 1; // Colporteur : jamais de coffre à 1 carte
 }
 
 export function tickChests(w: World, dt: number): void {

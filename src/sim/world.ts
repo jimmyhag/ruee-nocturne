@@ -1,7 +1,8 @@
-import { CAPS, CHARACTERS, DECOR, PLAYER, SHOP, SPAWN, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { CAPS, CHARACTERS, DECOR, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { PASSIVES } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Ev, Mode, ProjKind, ShotKind } from './types';
+import { Ev, Mode, ProjKind, ShotKind, Trait } from './types';
 import type {
   Card,
   Chest,
@@ -68,7 +69,12 @@ export class World {
   bladeRangeMul = 1; // Bûcheron : lames à portée +20 %
   passives: Partial<Record<PassiveKey, number>> = {};
   evolved: Partial<Record<WeaponKey, boolean>> = {};
-  wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0, boomT: 0.8, mineT: 0, mineDist: 0 };
+  wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0, boomT: 0.8, mineT: 0, mineDist: 0, fireDist: 0 };
+  trait: Trait = Trait.None; // passif signature du personnage (phase 6)
+  // compteurs de défis (phase 6) : distance parcourue, plus longue période sans dégât
+  distance = 0;
+  hurtAt = 0;
+  noHitBest = 0;
   cards: Card[] = [];
 
   // décor (généré par seed, collisions) et zones
@@ -84,7 +90,17 @@ export class World {
     this.player = makePlayer(opts);
     const ch = CHARACTERS.find((c) => c.key === (opts?.character ?? 'eclaireuse')) ?? CHARACTERS[0];
     this.weapons = { [ch.weapon]: ch.weaponLevel };
+    if (ch.weapon2) this.weapons[ch.weapon2] = 1;
     this.bladeRangeMul = ch.bladeRangeMul;
+    this.trait = ch.trait;
+    if (ch.trait === Trait.DejaMorte) this.player.revives += TRAIT.dejamorte.revives;
+    if (ch.startPassives)
+      for (const k in ch.startPassives) {
+        const pk = k as PassiveKey;
+        const lv = ch.startPassives[pk] ?? 0;
+        this.passives[pk] = lv;
+        for (let i = 0; i < lv; i++) PASSIVES[pk].apply(this);
+      }
     if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
     for (let i = 0; i < CAPS.enemies; i++) this.enemies.push(makeEnemy());
     for (let i = 0; i < CAPS.projectiles; i++) this.projs.push(makeProj());

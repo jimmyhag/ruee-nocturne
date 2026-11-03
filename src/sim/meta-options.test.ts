@@ -38,7 +38,7 @@ describe('personnages', () => {
     expect(s.player.maxHp).toBe(Math.round(PLAYER.hp * 0.7));
   });
   it('trois personnages dans l’ordre, le premier disponible au départ (noms et textes : src/ui/cards.test.ts)', () => {
-    expect(CHARACTERS.map((c) => c.key)).toEqual(['eclaireuse', 'bucheron', 'sorciere']);
+    expect(CHARACTERS.map((c) => c.key).slice(0, 3)).toEqual(['eclaireuse', 'bucheron', 'sorciere']);
     expect(CHARACTERS[0].unlock).toBe('');
   });
 });

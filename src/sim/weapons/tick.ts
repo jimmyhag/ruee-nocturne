@@ -1,6 +1,6 @@
-import { BOOMERANG, EVOLVE, MINES } from '../balance';
+import { BOOMERANG, EVOLVE, MINES, TRAIT } from '../balance';
 import { hitEnemy } from '../combat';
-import { Ev, HitSrc, ProjKind } from '../types';
+import { Ev, HitSrc, ProjKind, Trait } from '../types';
 import type { Projectile } from '../types';
 import type { World } from '../world';
 import { WEAPONS } from './defs';
@@ -115,7 +115,8 @@ export function tickWeapons(w: World, dt: number): void {
   if (lvA > 0) {
     const s = WEAPONS.aura.stats(lvA);
     const evo = w.evolved.aura;
-    const r = s.r * (evo ? EVOLVE.soleil.rMul : 1);
+    const braise = w.trait === Trait.Braise ? 1 + Math.min(TRAIT.braise.max, (TRAIT.braise.perMin * w.t) / 60) : 1;
+    const r = s.r * (evo ? EVOLVE.soleil.rMul : 1) * braise;
     const dmg = s.dmg * (evo ? EVOLVE.soleil.dmgMul : 1);
     S.auraT -= dt;
     S.auraPulse = Math.max(0, S.auraPulse - dt * 3);
@@ -140,6 +141,7 @@ export function tickWeapons(w: World, dt: number): void {
     const dmg = s.dmg * (evo ? EVOLVE.tempete.dmgMul : 1);
     S.bladeA += s.spd * (evo ? EVOLVE.tempete.spdMul : 1) * dt;
     const window = evo ? EVOLVE.tempete.hitWindow : 0.4;
+    const kb = 5 * (w.trait === Trait.Fendeur ? TRAIT.fendeur.kbMul : 1); // Bûcheron : Fendeur
     for (let i = 0; i < s.n; i++) {
       const a = S.bladeA + (i * TAU) / s.n;
       const bx = P.x + Math.sin(a) * r,
@@ -149,7 +151,7 @@ export function tickWeapons(w: World, dt: number): void {
         const e = w.enemies[hits[k]];
         if (w.t - e.lastBlade > window) {
           e.lastBlade = w.t;
-          hitEnemy(w, hits[k], dmg, 5, P.x, P.z, HitSrc.Lames);
+          hitEnemy(w, hits[k], dmg, kb, P.x, P.z, HitSrc.Lames);
         }
       }
     }
@@ -162,9 +164,10 @@ export function tickWeapons(w: World, dt: number): void {
     const evo = w.evolved.foudre;
     S.foudreT -= dt;
     if (S.foudreT <= 0) {
-      // cible initiale : un ennemi aléatoire à < 13 u (tirage par rejet borné, déterministe)
+      // cible initiale : un ennemi aléatoire à < 13 u (tirage par rejet borné, déterministe) ; Sorcière : le plus proche
       let cur = -1;
-      for (let tries = 0; tries < 12 && w.enemyCount > 0; tries++) {
+      if (w.trait === Trait.Paratonnerre && nearest(w, 1, 13) > 0) cur = near[0];
+      for (let tries = 0; cur < 0 && tries < 12 && w.enemyCount > 0; tries++) {
         const i = w.rng.int(w.enemyCount);
         const e = w.enemies[i];
         const dx = e.x - P.x,
@@ -239,30 +242,56 @@ export function tickWeapons(w: World, dt: number): void {
     const s = WEAPONS.mines.stats(lvM);
     S.mineT -= dt;
     S.mineDist += Math.sqrt(P.vx * P.vx + P.vz * P.vz) * dt;
-    if (S.mineT <= 0 && S.mineDist >= MINES.spacing) {
-      let count = 0;
-      for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === ProjKind.Mine) count++;
-      if (count < s.n) {
-        S.mineT = s.cd * P.cdMul;
-        S.mineDist = 0;
-        const p = w.allocProj();
-        if (p) {
-          p.kind = ProjKind.Mine;
-          p.x = p.px = P.x;
-          p.z = p.pz = P.z;
-          p.y = 0.2;
-          p.vx = p.vz = 0;
-          p.life = MINES.life;
-          p.age = 0;
-          p.dmg = s.dmg;
-          p.pierce = s.chain; // 1 : explosion en chaîne (niveau 5)
-          p.r = s.r;
-          p.armed = false;
-          p.hit0 = p.hit1 = p.hit2 = -1;
-        }
-      }
+    if (S.mineT <= 0 && S.mineDist >= MINES.spacing && placeMine(w, P.x, P.z)) {
+      S.mineT = s.cd * P.cdMul;
+      S.mineDist = 0;
     }
   }
+}
+
+/** Pose une mine du niveau courant en (x, z) si le plafond de mines n'est pas atteint. Retourne true si posée. */
+export function placeMine(w: World, x: number, z: number): boolean {
+  const lv = w.weapons.mines ?? 0;
+  if (lv <= 0) return false;
+  const s = WEAPONS.mines.stats(lv);
+  let count = 0;
+  for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === ProjKind.Mine) count++;
+  if (count >= s.n) return false;
+  const p = w.allocProj();
+  if (!p) return false;
+  p.kind = ProjKind.Mine;
+  p.x = p.px = x;
+  p.z = p.pz = z;
+  p.y = 0.2;
+  p.vx = p.vz = 0;
+  p.life = MINES.life;
+  p.age = 0;
+  p.dmg = s.dmg;
+  p.pierce = s.chain; // 1 : explosion en chaîne (niveau 5)
+  p.r = s.r;
+  p.armed = false;
+  p.hit0 = p.hit1 = p.hit2 = -1;
+  return true;
+}
+
+/** Feu follet : une plaque de feu au sol (TRAIT.trainee) qui brûle par impulsions pendant `life` s. */
+export function placeFire(w: World, x: number, z: number): void {
+  const p = w.allocProj();
+  if (!p) return;
+  const T = TRAIT.trainee;
+  p.kind = ProjKind.Fire;
+  p.x = p.px = x;
+  p.z = p.pz = z;
+  p.y = 0.05;
+  p.vx = p.vz = 0;
+  p.life = T.life;
+  p.age = 0;
+  p.dmg = T.dps * T.period; // dégâts par impulsion
+  p.pierce = 0;
+  p.r = T.r;
+  p.armed = false;
+  p.hit0 = -1; // numéro de la dernière impulsion appliquée
+  p.hit1 = p.hit2 = -1;
 }
 
 export function tickProjectiles(w: World, dt: number): void {
@@ -273,6 +302,17 @@ export function tickProjectiles(w: World, dt: number): void {
     p.pz = p.z;
     p.life -= dt;
     p.age += dt;
+    if (p.kind === ProjKind.Fire) {
+      // brûle par impulsions (période TRAIT.trainee.period) : pas un coup par step
+      const pulse = (p.age / TRAIT.trainee.period) | 0;
+      if (pulse !== p.hit0) {
+        p.hit0 = pulse;
+        const n = w.grid.query(w.enemies, p.x, p.z, p.r, MAX_ENEMY_R, hits);
+        for (let k = 0; k < n; k++) hitEnemy(w, hits[k], p.dmg, 0.6, p.x, p.z, HitSrc.Fire);
+      }
+      if (p.life <= 0) w.freeProj(i);
+      continue;
+    }
     if (p.kind === ProjKind.Mine) {
       if (p.armed) {
         // explosion : zone, recul, puis chaîne (les mines à 3 u s'amorcent)
@@ -312,6 +352,11 @@ export function tickProjectiles(w: World, dt: number): void {
         p.vx = (dx / d) * sp;
         p.vz = (dz / d) * sp;
         if (d < 0.9 || p.life <= 0) {
+          if (d < 0.9 && w.trait === Trait.Rapporteur) {
+            // Braconnier : attraper le boomerang rend une partie de la recharge
+            const lv = w.weapons.boomerang ?? 0;
+            if (lv > 0) w.wstate.boomT -= WEAPONS.boomerang.stats(lv).cd * P.cdMul * TRAIT.rapporteur.refund;
+          }
           w.freeProj(i);
           continue;
         }
