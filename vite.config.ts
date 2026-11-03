@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+import { fileURLToPath } from 'node:url';
+import pkg from './package.json' with { type: 'json' };
 
 // SINGLE=1 : build en un seul fichier HTML (publication en artifact / test rapide), sans PWA.
 // Sinon : build classique multi-fichiers + manifest + service worker (déploiement).
@@ -12,6 +14,11 @@ const SINGLE = !!process.env.SINGLE;
  * sans l'évaluer (Lighthouse TBT). Vite ne précharge pas les imports dynamiques depuis le HTML : on injecte
  * nous-mêmes le <link rel="modulepreload"> du chunk pour que le téléchargement parte avec la page.
  */
+/** Remplace %APP_VERSION% dans les pages HTML (la page « À propos » n'a pas de module JS pour lire `define`). */
+function htmlVersion(): Plugin {
+  return { name: 'ruee:html-version', transformIndexHtml: (html) => html.replace(/%APP_VERSION%/g, pkg.version) };
+}
+
 function preloadRenderChunk(): Plugin {
   return {
     name: 'ruee:preload-render-chunk',
@@ -34,6 +41,7 @@ function preloadRenderChunk(): Plugin {
 
 export default defineConfig({
   plugins: [
+    htmlVersion(),
     ...(SINGLE ? [viteSingleFile()] : [preloadRenderChunk()]),
     VitePWA({
       disable: SINGLE,
@@ -73,7 +81,21 @@ export default defineConfig({
       },
     }),
   ],
-  build: { target: 'es2022', sourcemap: false, minify: 'esbuild' },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  build: {
+    target: 'es2022',
+    sourcemap: false,
+    minify: 'esbuild',
+    // deux pages : le jeu et « À propos » (a-propos/index.html, précachée comme le reste)
+    rollupOptions: SINGLE
+      ? undefined
+      : {
+          input: {
+            main: fileURLToPath(new URL('./index.html', import.meta.url)),
+            about: fileURLToPath(new URL('./a-propos/index.html', import.meta.url)),
+          },
+        },
+  },
   test: {
     include: ['src/**/*.test.ts', 'tools/**/*.test.ts'], // src/meta inclus : la méta est pure (pas de DOM)
     environment: 'node',

@@ -9,6 +9,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Ruée" />
     <title>Ruée Nocturne</title>
+    <meta
+      name="description"
+      content="Survivor 3D : la nuit tombe sur la clairière, tes armes tirent toutes seules, tiens 20 minutes. Jouable hors ligne sur téléphone et PC, en français et en anglais."
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- Polices auto-hébergées (SIL OFL, voir CREDITS.md) : rien de bloquant venant d'une autre origine, et elles sont précachées -->
@@ -384,7 +388,7 @@
         gap: 8px;
         pointer-events: none;
       }
-      .keys span {
+      .keys > span {
         position: relative;
         overflow: hidden;
         font-size: 12px;
@@ -572,6 +576,11 @@
         border-radius: 10px;
         border: 2px solid var(--ink-3);
         background: var(--ink-2);
+      }
+      a.ghost {
+        color: inherit;
+        text-decoration: none;
+        display: inline-block;
       }
       .btnrow {
         display: flex;
@@ -979,7 +988,8 @@
     </style>
   </head>
   <body>
-    <canvas id="c" aria-label="Zone de jeu"></canvas>
+    <!-- Textes : attribut data-i18n (clé du contenu) et data-i18n-attr (attribut:clé;…) ; le français du HTML sert de secours -->
+    <canvas id="c" aria-label="Zone de jeu" data-i18n-attr="aria-label:a11y.canvas"></canvas>
     <div id="flash"></div>
 
     <div id="hud" hidden>
@@ -987,15 +997,15 @@
       <div class="hrow">
         <div class="hleft">
           <div class="lvhp">
-            <span class="lvl">Niv <span id="lvl">1</span></span>
+            <span class="lvl"><span data-i18n="hud.level">Niv</span> <span id="lvl">1</span></span>
             <div class="hpbar"><em id="hpghost"></em><i id="hpfill"></i><span id="hptxt">100</span></div>
           </div>
           <div class="kit" id="kit"></div>
         </div>
         <div class="time" id="time">0:00</div>
         <div class="hright">
-          <div class="kills" id="killsBox"><span id="kills">0</span> <small>vaincus</small></div>
-          <button id="pauseBtn" aria-label="Pause">II</button>
+          <div class="kills" id="killsBox"><span id="kills">0</span> <small data-i18n="hud.kills">vaincus</small></div>
+          <button id="pauseBtn" aria-label="Pause" data-i18n-attr="aria-label:hud.pause">II</button>
         </div>
       </div>
       <div id="bossbar" hidden>
@@ -1005,16 +1015,25 @@
     </div>
     <div id="perf" hidden></div>
     <div class="keys" id="keys" hidden>
-      <span><b>Espace</b>Saut</span><span><b>Maj</b>Dash<i id="dashbar"></i></span><span><b>F3</b>Perf</span>
+      <span><b data-i18n="keys.space">Espace</b><span data-i18n="keys.jump">Saut</span></span
+      ><span><b data-i18n="keys.shift">Maj</b><span data-i18n="keys.dash">Dash</span><i id="dashbar"></i></span
+      ><span><b>F3</b><span data-i18n="keys.perf">Perf</span></span>
     </div>
     <div id="dmg" aria-hidden="true"></div>
     <div id="banner"></div>
-    <div id="update" hidden><span>Nouvelle version disponible</span><button id="updateBtn">Recharger</button></div>
+    <div id="update" hidden>
+      <span data-i18n="update.new">Nouvelle version disponible</span
+      ><button id="updateBtn" data-i18n="update.reload">Recharger</button>
+    </div>
 
     <div id="touch" hidden>
       <div id="stick"><div id="knob"></div></div>
       <div class="tbtns">
-        <button id="btnDash" aria-label="Dash">DASH</button><button id="btnJump" aria-label="Sauter">SAUT</button>
+        <button id="btnDash" aria-label="Dash" data-i18n="touch.dash" data-i18n-attr="aria-label:touch.dashAria">
+          DASH</button
+        ><button id="btnJump" aria-label="Sauter" data-i18n="touch.jump" data-i18n-attr="aria-label:touch.jumpAria">
+          SAUT
+        </button>
       </div>
     </div>
 
@@ -1022,32 +1041,63 @@
       <div class="panel">
         <div>
           <h1 class="title">Ruée<br />Nocturne</h1>
-          <p class="tag">
+          <p class="tag" data-i18n="menu.tag">
             La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter et tenir le plus
             longtemps possible.
           </p>
         </div>
         <dl class="ctrl">
-          <dt><span class="cap">ZQSD</span> <span class="cap">↑↓←→</span></dt>
-          <dd>Se déplacer (joystick sous le pouce sur mobile, stick gauche à la manette)</dd>
-          <dt><span class="cap">Espace</span></dt>
-          <dd>Sauter par-dessus la horde</dd>
-          <dt><span class="cap">Maj</span></dt>
-          <dd>Dash, invincible pendant l'élan</dd>
+          <dt><span class="cap" data-i18n="menu.keys.move">ZQSD</span> <span class="cap">↑↓←→</span></dt>
+          <dd data-i18n="menu.ctrl.move">Se déplacer (joystick sous le pouce sur mobile, stick gauche à la manette)</dd>
+          <dt><span class="cap" data-i18n="keys.space">Espace</span></dt>
+          <dd data-i18n="menu.ctrl.jump">Sauter par-dessus la horde</dd>
+          <dt><span class="cap" data-i18n="keys.shift">Maj</span></dt>
+          <dd data-i18n="menu.ctrl.dash">Dash, invincible pendant l'élan</dd>
           <dt><span class="cap">1 2 3</span></dt>
-          <dd>Choisir une amélioration à chaque niveau</dd>
+          <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
         </dl>
-        <div class="chars" id="chars"></div>
-        <button class="big" id="playBtn">Jouer</button>
-        <div class="btnrow">
-          <button class="ghost" id="dailyBtn" hidden>Défi du jour</button
-          ><button class="ghost" id="shopBtn">Boutique</button><button class="ghost" id="achBtn">Succès</button
-          ><button class="ghost" id="settingsBtn">Réglages</button>
+        <!-- Cartes de personnages : état d'un profil vierge, rendu tel quel avant le script (aucun décalage de mise en
+             page au chargement) ; src/ui/meta-ui.ts les remplace dès que la méta est lue -->
+        <div class="chars" id="chars">
+          <button class="card char selected" data-char="eclaireuse">
+            <div class="top">
+              <span class="glyph" style="background: var(--accent)">✦</span>
+              <h3>Éclaireuse</h3>
+            </div>
+            <p>+15 % de vitesse, dash plus court</p>
+          </button>
+          <button class="card char locked" data-char="bucheron" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Bûcheron</h3>
+            </div>
+            <span class="badge">Survis 10 minutes</span>
+            <p>+30 PV, Lames niveau 2 à portée +20 %</p>
+          </button>
+          <button class="card char locked" data-char="sorciere" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Vieille sorcière</h3>
+            </div>
+            <span class="badge">Vaincs 500 ennemis en tout</span>
+            <p>Foudre dès le départ, −30 % PV</p>
+          </button>
         </div>
-        <p class="note" id="bestLine">Aucun record pour l'instant</p>
-        <button class="ghost" id="installBtn" hidden>Installer l'app</button>
-        <p class="note" id="iosHint" hidden>Sur iPhone : Partager, puis « Sur l'écran d'accueil »</p>
-        <p class="note" id="version"></p>
+        <button class="big" id="playBtn" data-i18n="menu.play">Jouer</button>
+        <div class="btnrow">
+          <button class="ghost" id="dailyBtn" hidden data-i18n="menu.daily">Défi du jour</button
+          ><button class="ghost" id="shopBtn" data-i18n="menu.shop">Boutique</button
+          ><button class="ghost" id="achBtn" data-i18n="menu.achievements">Succès</button
+          ><button class="ghost" id="settingsBtn" data-i18n="menu.settings">Réglages</button>
+        </div>
+        <p class="note" id="bestLine" data-i18n="menu.noRecord">Aucun record pour l'instant</p>
+        <button class="ghost" id="installBtn" hidden data-i18n="menu.install">Installer l'app</button>
+        <p class="note" id="iosHint" hidden data-i18n="menu.iosHint">
+          Sur iPhone : Partager, puis « Sur l'écran d'accueil »
+        </p>
+        <p class="note">
+          <span id="version"></span> · <a href="/a-propos.html" id="aboutLink" data-i18n="menu.about">À propos</a>
+        </p>
       </div>
     </section>
 
@@ -1055,7 +1105,7 @@
       <div class="panel">
         <div>
           <h2 class="h2 lv" id="luTitle">Niveau 2</h2>
-          <p class="note">Choisis une amélioration</p>
+          <p class="note" data-i18n="levelup.hint">Choisis une amélioration</p>
         </div>
         <div class="cards" id="cards"></div>
       </div>
@@ -1063,14 +1113,15 @@
 
     <section id="pause" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2">Pause</h2>
-        <div class="btnrow"><button class="big" id="resumeBtn">Reprendre</button></div>
+        <h2 class="h2" data-i18n="pause.title">Pause</h2>
+        <div class="btnrow"><button class="big" id="resumeBtn" data-i18n="pause.resume">Reprendre</button></div>
         <div class="btnrow">
           <button class="ghost" id="soundBtn">Son : activé</button
           ><button class="ghost" id="fxBtn">Effets : complets</button
           ><button class="ghost" id="perfBtn">Perf : masquée</button
-          ><button class="ghost" id="pauseSettingsBtn">Réglages</button
-          ><button class="ghost" id="restartBtn">Recommencer</button><button class="ghost" id="quitBtn">Menu</button>
+          ><button class="ghost" id="pauseSettingsBtn" data-i18n="pause.settings">Réglages</button
+          ><button class="ghost" id="restartBtn" data-i18n="pause.restart">Recommencer</button
+          ><button class="ghost" id="quitBtn" data-i18n="pause.menu">Menu</button>
         </div>
       </div>
     </section>
@@ -1079,18 +1130,19 @@
       <div class="panel">
         <h2 class="h2 dead" id="oTitle">La horde t'a eu</h2>
         <div class="stats">
-          <div><b id="oTime">0:00</b><span>Temps</span></div>
-          <div><b id="oLvl">1</b><span>Niveau</span></div>
-          <div><b id="oKills">0</b><span>Vaincus</span></div>
-          <div><b id="oGold">0</b><span>Or</span></div>
-          <div><b id="oBest">0:00</b><span>Record</span></div>
+          <div><b id="oTime">0:00</b><span data-i18n="over.time">Temps</span></div>
+          <div><b id="oLvl">1</b><span data-i18n="over.level">Niveau</span></div>
+          <div><b id="oKills">0</b><span data-i18n="over.kills">Vaincus</span></div>
+          <div><b id="oGold">0</b><span data-i18n="over.gold">Or</span></div>
+          <div><b id="oBest">0:00</b><span data-i18n="over.best">Record</span></div>
         </div>
         <p class="note" id="oMsg"></p>
         <p class="unlocked" id="oUnlocked" hidden></p>
         <div class="achs" id="oProgress"></div>
-        <div class="btnrow"><button class="big" id="againBtn">Rejouer</button></div>
+        <div class="btnrow"><button class="big" id="againBtn" data-i18n="over.again">Rejouer</button></div>
         <div class="btnrow">
-          <button class="ghost" id="overShopBtn">Boutique</button><button class="ghost" id="menuBtn">Menu</button>
+          <button class="ghost" id="overShopBtn" data-i18n="over.shop">Boutique</button
+          ><button class="ghost" id="menuBtn" data-i18n="over.menu">Menu</button>
         </div>
       </div>
     </section>
@@ -1098,55 +1150,61 @@
     <section id="shop" class="screen" hidden>
       <div class="panel">
         <div>
-          <h2 class="h2">Boutique</h2>
+          <h2 class="h2" data-i18n="shop.title">Boutique</h2>
           <p class="gold" id="shopGold">0 or</p>
         </div>
         <div class="shop" id="shopLines"></div>
-        <div class="btnrow"><button class="big" id="shopBackBtn">Retour</button></div>
+        <div class="btnrow"><button class="big" id="shopBackBtn" data-i18n="shop.back">Retour</button></div>
       </div>
     </section>
 
     <section id="achievements" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2">Succès</h2>
+        <h2 class="h2" data-i18n="ach.title">Succès</h2>
         <div class="achs" id="achList"></div>
-        <div class="btnrow"><button class="big" id="achBackBtn">Retour</button></div>
+        <div class="btnrow"><button class="big" id="achBackBtn" data-i18n="ach.back">Retour</button></div>
       </div>
     </section>
 
     <section id="settings" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2">Réglages</h2>
+        <h2 class="h2" data-i18n="settings.title">Réglages</h2>
         <div class="settings">
           <div class="btnrow">
             <button class="ghost" id="setSoundBtn">Son : activé</button
             ><button class="ghost" id="setVibrateBtn">Vibrations : activées</button
             ><button class="ghost" id="setFxBtn">Effets : complets</button
-            ><button class="ghost" id="setLeftyBtn">Gaucher : non</button>
+            ><button class="ghost" id="setLeftyBtn">Gaucher : non</button
+            ><button class="ghost" id="setLangBtn">Langue : auto</button>
           </div>
           <div class="btnrow">
-            <span class="note">Taille du HUD</span><button class="ghost" id="hudSmallBtn">Petit</button
-            ><button class="ghost" id="hudNormalBtn">Normal</button
-            ><button class="ghost" id="hudLargeBtn">Grand</button>
+            <span class="note" data-i18n="settings.hud">Taille du HUD</span
+            ><button class="ghost" id="hudSmallBtn" data-i18n="settings.hud.small">Petit</button
+            ><button class="ghost" id="hudNormalBtn" data-i18n="settings.hud.normal">Normal</button
+            ><button class="ghost" id="hudLargeBtn" data-i18n="settings.hud.large">Grand</button>
           </div>
           <div class="btnrow">
-            <button class="ghost" id="exportBtn">Exporter la sauvegarde</button
-            ><button class="ghost" id="importBtn">Importer le texte ci-dessous</button
-            ><button class="ghost" id="resetBtn">Tout effacer</button>
+            <button class="ghost" id="exportBtn" data-i18n="settings.export">Exporter la sauvegarde</button
+            ><button class="ghost" id="importBtn" data-i18n="settings.import">Importer le texte ci-dessous</button
+            ><button class="ghost" id="resetBtn" data-i18n="settings.reset">Tout effacer</button>
           </div>
           <textarea
             id="saveText"
             aria-label="Sauvegarde JSON"
             placeholder="Colle ici une sauvegarde exportée, puis « Importer »"
+            data-i18n-attr="aria-label:settings.saveAria;placeholder:settings.savePlaceholder"
           ></textarea>
           <p class="note" id="settingsMsg"></p>
         </div>
-        <div class="btnrow"><button class="big" id="settingsBackBtn">Retour</button></div>
+        <div class="btnrow">
+          <button class="big" id="settingsBackBtn" data-i18n="settings.back">Retour</button
+          ><a class="ghost" href="/a-propos.html" data-i18n="menu.about">À propos</a>
+        </div>
       </div>
     </section>
 
     <div id="nogl" class="screen" hidden>
-      <p>WebGL n'est pas disponible sur cet appareil, le jeu ne peut pas démarrer.</p>
+      <p data-i18n="nogl.text">WebGL n'est pas disponible sur cet appareil, le jeu ne peut pas démarrer.</p>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
