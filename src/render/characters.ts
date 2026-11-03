@@ -1,11 +1,13 @@
 // Modèles des personnages (phase 7) : chaque personnage est décrit en primitives low-poly (boîtes, cônes, cylindres…)
 // avec une palette ; les pièces fixes sont fusionnées en UNE géométrie à couleurs par sommet (un seul appel de
 // rendu), les jambes restent des meshes séparés pour la course. Aucun asset : tout est généré ici.
-// Tenues (skins) = palettes alternatives, mêmes formes.
+// Tenues = palettes alternatives (src/render/outfits.ts), mêmes formes.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { CharacterKey } from '../sim/types';
 import { PAL } from './palette';
+import { OUTFITS } from './outfits';
+import type { Palette } from './outfits';
 import { paintHex, primGeometry } from './parts';
 import type { Prim } from './parts';
 
@@ -15,20 +17,12 @@ interface Part extends Prim {
   /** `leg` : mesh séparé animé ; `glow` : non éclairé (lumineux) ; sinon fusionné dans le torse */
   role?: 'legL' | 'legR' | 'glow';
 }
-export interface Palette {
-  p1: number;
-  p2: number;
-  p3: number;
-  skin: number;
-}
 interface Look {
   parts: Part[];
-  /** index 0 : tenue classique ; 1 : tenue alternative (achetable) */
-  palettes: Palette[];
   /** flotte (pas de jambes, ondulation verticale) */
   float?: boolean;
-  /** halo au sol (rayon) : lanterne de la Veilleuse, flamme du Feu follet */
-  groundGlow?: { r: number; color: number; opacity: number };
+  /** halo au sol (rayon) : lanterne de la Veilleuse, flamme du Feu follet ; couleur = p3 de la tenue */
+  groundGlow?: { r: number; opacity: number };
 }
 
 const INK = PAL.ink;
@@ -62,10 +56,6 @@ export const LOOKS: Record<CharacterKey, Look> = {
       leg(-0.2),
       leg(0.2),
     ],
-    palettes: [
-      { p1: PAL.accent, p2: DARK, p3: PAL.hp, skin: PAL.paper },
-      { p1: 0x2fb3a0, p2: 0x1c3a44, p3: PAL.gold, skin: PAL.paper },
-    ],
   },
   bucheron: {
     parts: [
@@ -81,10 +71,6 @@ export const LOOKS: Record<CharacterKey, Look> = {
       leg(-0.24, 'p2', 0.28),
       leg(0.24, 'p2', 0.28),
     ],
-    palettes: [
-      { p1: 0xb23a3a, p2: 0x3f6b3a, p3: 0x6b4a2a, skin: PAL.paper },
-      { p1: 0x2a4f8a, p2: 0x1c1226, p3: 0x3a2a1a, skin: PAL.paper },
-    ],
   },
   sorciere: {
     parts: [
@@ -96,10 +82,6 @@ export const LOOKS: Record<CharacterKey, Look> = {
       { shape: 'cone', size: [0.42, 0.9], pos: [0, 2.35, 0], rot: [0, 0, 0.12], color: 'p2' }, // chapeau
       { shape: 'cyl', size: [0.05, 0.05, 1.6], pos: [-0.55, 0.9, 0.1], color: WOOD }, // bâton
       { shape: 'ico', size: [0.15], pos: [-0.55, 1.78, 0.1], color: PAL.xp, role: 'glow' }, // gemme
-    ],
-    palettes: [
-      { p1: 0x4b2d7a, p2: 0x2a1a4a, p3: 0xb9b3c9, skin: 0xe8dcc0 },
-      { p1: 0x1f5a4a, p2: 0x0f2f28, p3: 0xdedad0, skin: 0xe8dcc0 },
     ],
   },
   veilleuse: {
@@ -114,11 +96,7 @@ export const LOOKS: Record<CharacterKey, Look> = {
       leg(-0.2),
       leg(0.2),
     ],
-    palettes: [
-      { p1: 0x2f7f8f, p2: 0x1f4f5f, p3: PAL.gold, skin: PAL.paper },
-      { p1: 0x8a3a5a, p2: 0x4a1f33, p3: 0x9bf0e4, skin: PAL.paper },
-    ],
-    groundGlow: { r: 2.2, color: PAL.gold, opacity: 0.16 },
+    groundGlow: { r: 2.2, opacity: 0.16 },
   },
   braconnier: {
     parts: [
@@ -130,10 +108,6 @@ export const LOOKS: Record<CharacterKey, Look> = {
       { shape: 'box', size: [0.95, 0.1, 0.26], pos: [0, 1.0, -0.42], rot: [0, 0, 0.6], color: 'p3' }, // boomerang dans le dos
       leg(-0.2),
       leg(0.2),
-    ],
-    palettes: [
-      { p1: 0x8a5a2b, p2: 0x3f6b3a, p3: PAL.boomerang, skin: PAL.paper },
-      { p1: 0x4a4a4a, p2: 0x7a2a2a, p3: PAL.gold, skin: PAL.paper },
     ],
   },
   sapeur: {
@@ -149,10 +123,6 @@ export const LOOKS: Record<CharacterKey, Look> = {
       leg(-0.22, 'p2', 0.26),
       leg(0.22, 'p2', 0.26),
     ],
-    palettes: [
-      { p1: 0x6b6b4a, p2: 0x4a3a2a, p3: 0x8a8a2a, skin: PAL.paper },
-      { p1: 0x2a4a6a, p2: 0x1c2a3a, p3: 0xd8c84a, skin: PAL.paper },
-    ],
   },
   feufollet: {
     float: true,
@@ -165,11 +135,7 @@ export const LOOKS: Record<CharacterKey, Look> = {
       { shape: 'cone', size: [0.3, 0.75], pos: [0, 2.05, 0], color: 'p3', role: 'glow' }, // flamme
       { shape: 'cone', size: [0.16, 0.4], pos: [0.06, 2.35, 0], color: PAL.gold, role: 'glow' },
     ],
-    palettes: [
-      { p1: 0xbfe8ff, p2: 0x9fd8ff, p3: PAL.accent, skin: PAL.paper },
-      { p1: 0xd8c0ff, p2: 0xb89aff, p3: 0x59d8ff, skin: PAL.paper },
-    ],
-    groundGlow: { r: 1.6, color: PAL.accent, opacity: 0.14 },
+    groundGlow: { r: 1.6, opacity: 0.14 },
   },
   revenante: {
     float: true,
@@ -180,10 +146,6 @@ export const LOOKS: Record<CharacterKey, Look> = {
       { shape: 'cone', size: [0.52, 0.8], pos: [0, 2.1, 0], color: 'p1' }, // capuche
       { shape: 'box', size: [0.1, 0.1, 0.05], pos: [-0.15, 1.55, 0.35], color: 'p3', role: 'glow' }, // yeux
       { shape: 'box', size: [0.1, 0.1, 0.05], pos: [0.15, 1.55, 0.35], color: 'p3', role: 'glow' },
-    ],
-    palettes: [
-      { p1: 0xb8b0c8, p2: INK, p3: PAL.xp, skin: PAL.paper },
-      { p1: 0x3a2a4a, p2: 0x0c0810, p3: PAL.hp, skin: PAL.paper },
     ],
   },
   colporteur: {
@@ -201,15 +163,8 @@ export const LOOKS: Record<CharacterKey, Look> = {
       leg(-0.2),
       leg(0.2),
     ],
-    palettes: [
-      { p1: 0x9a6a3a, p2: 0x6b4a2a, p3: 0x2a2a2a, skin: PAL.paper },
-      { p1: 0x3a6a4a, p2: 0x2a3a2a, p3: 0x8a2a2a, skin: PAL.paper },
-    ],
   },
 };
-
-/** Prix d'une tenue alternative (or) ; la tenue 0 est toujours possédée. */
-export const SKIN_PRICE = 400;
 
 export interface CharacterModel {
   group: THREE.Group;
@@ -229,7 +184,8 @@ const tone = (t: Tone, pal: Palette): number => (typeof t === 'number' ? t : pal
 /** Construit le modèle d'un personnage dans sa tenue. ≤ 5 appels de rendu : torse, lumineux, 2 jambes, halo. */
 export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
   const look = LOOKS[key];
-  const pal = look.palettes[Math.min(skin, look.palettes.length - 1)];
+  const pals = OUTFITS[key];
+  const pal = pals[Math.min(skin, pals.length - 1)];
   const group = new THREE.Group();
   const torso = new THREE.Group();
   const lit: THREE.BufferGeometry[] = [];
@@ -269,7 +225,7 @@ export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
     const gg = look.groundGlow;
     const geo = new THREE.CircleGeometry(gg.r, 20).rotateX(-Math.PI / 2);
     const mat = new THREE.MeshBasicMaterial({
-      color: gg.color,
+      color: pal.p3,
       transparent: true,
       opacity: gg.opacity,
       blending: THREE.AdditiveBlending,

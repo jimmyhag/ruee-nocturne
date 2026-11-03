@@ -66,8 +66,8 @@ export class GameScene {
 
   private player = new THREE.Group(); // contient le modèle du personnage courant (src/render/characters.ts)
   private model: CharacterModel;
-  private modelKey: CharacterKey = 'eclaireuse';
-  private modelSkin = 0;
+  modelKey: CharacterKey = 'eclaireuse'; // lus par les tests e2e via __game.scene
+  modelSkin = 0;
   private blob: THREE.Mesh;
   private face = 0;
   private landT = -1; // s depuis l'atterrissage (−1 : pas de ressort en cours)

@@ -7,6 +7,7 @@ import { chromium } from '@playwright/test';
 import { CHARACTERS } from '../src/sim/balance';
 
 const PORT = +(process.argv[process.argv.indexOf('--port') + 1] || 4533);
+const OUTFIT = process.argv.includes('--outfit') ? 1 : 0; // --outfit : tenue alternative (portrait-<clé>-2.png)
 const OUT = 'docs/captures/phase-7';
 mkdirSync(OUT, { recursive: true });
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
@@ -28,16 +29,21 @@ try {
   await page.goto(`http://localhost:${PORT}/?debug=1`);
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   for (const c of CHARACTERS) {
-    await page.evaluate((key) => {
-      const g = (window as any).__game;
-      g.setMeta({
-        ...g.meta,
-        character: key,
-        achievements: ['survie10', 'kills500', 'boss1', 'win', 'intouchable'],
-        bought: ['veilleuse', 'braconnier', 'colporteur'],
-      });
-      g.start(1);
-    }, c.key);
+    await page.evaluate(
+      ([key, outfit]) => {
+        const g = (window as any).__game;
+        g.setMeta({
+          ...g.meta,
+          character: key,
+          achievements: ['survie10', 'kills500', 'boss1', 'win', 'intouchable'],
+          bought: ['veilleuse', 'braconnier', 'colporteur'],
+          outfits: outfit ? [key] : [],
+          outfit: outfit ? { [key]: 1 } : {},
+        });
+        g.start(1);
+      },
+      [c.key, OUTFIT] as const,
+    );
     await page.waitForFunction(() => (window as any).__game.app === 'play');
     await page.evaluate(() => {
       const g = (window as any).__game;
@@ -60,7 +66,7 @@ try {
       document.getElementById('perf')!.hidden = true;
     });
     await page.waitForTimeout(250);
-    await page.screenshot({ path: `${OUT}/portrait-${c.key}.png` });
+    await page.screenshot({ path: `${OUT}/portrait-${c.key}${OUTFIT ? '-2' : ''}.png` });
     await page.evaluate(() => {
       (window as any).__game.debug.speed(1);
       document.getElementById('hud')!.hidden = false;
@@ -68,7 +74,7 @@ try {
     await page.locator('#pauseBtn').click();
     await page.locator('#quitBtn').click();
     await page.waitForFunction(() => (window as any).__game.app === 'menu');
-    console.log(`${OUT}/portrait-${c.key}.png`);
+    console.log(`${OUT}/portrait-${c.key}${OUTFIT ? '-2' : ''}.png`);
   }
 } finally {
   await browser.close();

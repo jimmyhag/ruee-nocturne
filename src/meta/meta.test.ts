@@ -1,6 +1,6 @@
 // Méta (phase 4) : migration v1 → v2, export/import, succès, boutique, défi du jour. Aucun DOM : tout est pur.
 import { describe, expect, it } from 'vitest';
-import { SHOP } from '../sim/balance';
+import { OUTFIT, SHOP } from '../sim/balance';
 import {
   ACHIEVEMENTS,
   checkAchievements,
@@ -12,7 +12,7 @@ import {
 } from './achievements';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './daily';
 import { DEFAULT_META, exportMeta, importMeta, normalizeMeta } from './save';
-import { buy, buyCharacter, characterPrice, shopCost, worldOptions } from './shop';
+import { buy, buyCharacter, buyOutfit, characterPrice, outfitOf, shopCost, worldOptions } from './shop';
 
 const fresh = () => normalizeMeta(DEFAULT_META);
 
@@ -200,5 +200,35 @@ describe('personnages (phase 6)', () => {
     expect(missingTime(m, 100)!.a.id).toBe('survie3');
     m.achievements.push('survie3', 'survie10', 'survie15', 'survie20');
     expect(missingTime(m, 100)).toBeNull();
+  });
+});
+
+describe('tenues (phase 7)', () => {
+  it('achat en or : débité une fois, refusé sans or, choisie aussitôt, bascule libre ensuite, survit à l’export', () => {
+    const m = fresh();
+    expect(outfitOf(m, 'eclaireuse')).toBe(0);
+    expect(buyOutfit(m, 'eclaireuse')).toBe(false);
+    m.gold = OUTFIT.price + 1;
+    expect(buyOutfit(m, 'eclaireuse')).toBe(true);
+    expect(m.gold).toBe(1);
+    expect(outfitOf(m, 'eclaireuse')).toBe(1);
+    expect(buyOutfit(m, 'eclaireuse')).toBe(false);
+    m.outfit.eclaireuse = 0;
+    expect(outfitOf(m, 'eclaireuse')).toBe(0);
+    m.outfit.sorciere = 1; // choisie sans être achetée : ignorée
+    expect(outfitOf(m, 'sorciere')).toBe(0);
+    const back = importMeta(exportMeta(m))!;
+    expect(back.outfits).toEqual(['eclaireuse']);
+    expect(back.outfit).toEqual({ sorciere: 1 }); // 0 n'est pas stocké
+  });
+  it('normalisation : clés inconnues et valeurs autres que 1 écartées', () => {
+    const n = normalizeMeta({
+      version: 2,
+      outfits: ['dragon', 'sapeur'],
+      outfit: { sapeur: 1, dragon: 1, veilleuse: 7 },
+    });
+    expect(n.outfits).toEqual(['sapeur']);
+    expect(n.outfit).toEqual({ sapeur: 1 });
+    expect(outfitOf(n, 'sapeur')).toBe(1);
   });
 });

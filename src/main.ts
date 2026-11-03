@@ -22,7 +22,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buy, buyCharacter, worldOptions } from './meta/shop';
+import { buy, buyCharacter, buyOutfit, outfitOf, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily } from './meta/daily';
 import { bestLine, esc, renderAchievements, renderCharacters, renderProgress, renderShop } from './ui/meta-ui';
 import type { CharacterKey } from './sim/types';
@@ -51,7 +51,7 @@ function loadScene(): Promise<GameScene> {
       throw e;
     }
     scene = s;
-    s.setCharacter(meta.character); // aperçu du menu : le personnage choisi tourne derrière le panneau
+    s.setCharacter(meta.character, outfitOf(meta, meta.character)); // aperçu du menu : le personnage choisi tourne derrière le panneau
     sizeW = sizeH = 0;
     resize();
     // le décor ne dépend que de DECOR_SEED : construit ici pour que warmup() compile aussi ses matériaux (lacs, lanternes)
@@ -243,7 +243,7 @@ function startGame(variant?: number, daily = false): void {
     return;
   }
   const S = scene;
-  S.setCharacter(daily ? 'eclaireuse' : meta.character);
+  S.setCharacter(daily ? 'eclaireuse' : meta.character, daily ? 0 : outfitOf(meta, meta.character));
   audio.init();
   dailyRun = daily;
   runStats.dards = runStats.elites = runStats.bosses = runStats.evolutions = 0;
@@ -446,9 +446,28 @@ $('chars').addEventListener('click', (e) => {
   meta.character = key;
   saveMeta(meta);
   renderCharacters($('chars'), meta, $('charInfo'));
-  scene?.setCharacter(key);
+  scene?.setCharacter(key, outfitOf(meta, key));
   audio.init();
   audio.select('s');
+});
+// tenues (phase 7) : bascule gratuite si possédée, sinon achat en or ; l'aperçu du menu change aussitôt
+$('charInfo').addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('[data-outfit]') as HTMLElement | null;
+  if (!btn) return;
+  const i = +btn.dataset.outfit!;
+  const key = meta.character;
+  audio.init();
+  if (i === 1 && !meta.outfits.includes(key)) {
+    if (!buyOutfit(meta, key)) return;
+    audio.chest();
+    updateBestLine();
+  } else {
+    meta.outfit[key] = i;
+    audio.select('s');
+  }
+  saveMeta(meta);
+  renderCharacters($('chars'), meta, $('charInfo'));
+  scene?.setCharacter(key, outfitOf(meta, key));
 });
 $('shopLines').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('.buy') as HTMLButtonElement | null;

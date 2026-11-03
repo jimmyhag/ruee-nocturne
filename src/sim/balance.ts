@@ -267,6 +267,9 @@ type CharacterKeyDef =
   | 'feufollet'
   | 'revenante'
   | 'colporteur';
+// tenue alternative d'un personnage (phase 7) : prix en or, cosmétique uniquement
+export const OUTFIT = { price: 400 };
+
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
   { key: 'eclaireuse', weapon: 'orbe', weaponLevel: 1, trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '', price: 0 },
