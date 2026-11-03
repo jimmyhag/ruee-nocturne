@@ -134,12 +134,15 @@ const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
 // allocation) et on écoute le viewport visuel et l'orientation. Une taille fausse = image écrasée ou étirée.
 let sizeW = 0;
 let sizeH = 0;
+let sizeDpr = 0; // densité de pixels suivie aussi (zoom navigateur, changement d'écran) : la résolution interne en dépend
 function resize(): void {
   const w = innerWidth,
-    h = innerHeight;
-  if (w === sizeW && h === sizeH) return;
+    h = innerHeight,
+    dpr = devicePixelRatio;
+  if (w === sizeW && h === sizeH && dpr === sizeDpr) return;
   sizeW = w;
   sizeH = h;
+  sizeDpr = dpr;
   scene?.resize(w, h);
 }
 addEventListener('resize', resize);
@@ -149,7 +152,7 @@ resize();
 
 function showOnly(id: AppMode | null): void {
   for (const s of SCREENS) $(s).hidden = s !== id;
-  $('vignette').hidden = id === 'menu'; // vignette douce sur le jeu (phase 9), pas sur le menu
+  $('vignette').hidden = world === null; // vignette douce sur le jeu (phase 9), pas sur le menu ni ses écrans
 }
 function updateBestLine(): void {
   $('bestLine').textContent = bestLine(meta);
@@ -551,6 +554,10 @@ $('setFxBtn').onclick = () => $('fxBtn').click();
 $('qualityBtn').onclick = () => {
   const i = QUALITY_SETTINGS.indexOf(meta.settings.quality);
   meta.settings.quality = QUALITY_SETTINGS[(i + 1) % QUALITY_SETTINGS.length];
+  if (meta.settings.quality === 'auto') {
+    autoLevel = 2; // geste explicite du joueur : on repart du net (la remontée automatique, elle, n'existe pas)
+    slowWindows = 0;
+  }
   saveMeta(meta);
   applyQuality();
   audio.init();
@@ -884,7 +891,7 @@ let simRatio = 1;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
-  if (innerWidth !== sizeW || innerHeight !== sizeH) resize();
+  if (innerWidth !== sizeW || innerHeight !== sizeH || devicePixelRatio !== sizeDpr) resize();
   const gapMs = debugRt && debugRt.slowFrames > 0 ? debugRt.slowFrames : nowMs - last;
   let realDt = Math.min(0.1, (nowMs - last) / 1000);
   last = nowMs;
