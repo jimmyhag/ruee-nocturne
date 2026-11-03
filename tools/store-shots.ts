@@ -30,7 +30,6 @@ for (let i = 0; i < 60; i++) {
   await new Promise((r) => setTimeout(r, 500));
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 async function open(page: Page): Promise<void> {
   await page.goto(URL);
   await page.waitForFunction(() => (window as any).__game?.ready === true);
@@ -53,26 +52,32 @@ async function pickUntilPlay(page: Page): Promise<void> {
     await page.waitForTimeout(250);
   }
 }
-/** Fige la boucle `ms` ms de jeu après le prochain kill (particules en vol). */
+/** Fige la boucle `ms` ms de jeu après le prochain kill (particules en vol). Code passé en chaîne : tsx injecte
+ *  un helper `__name` dans les fonctions nommées, absent dans la page. */
 async function freezeAfterKill(page: Page, ms: number): Promise<void> {
+  await page.evaluate(`new Promise((resolve) => {
+    const game = window.__game, k0 = game.world.kills, t0 = performance.now();
+    let tKill = 0;
+    requestAnimationFrame(function check() {
+      if (!tKill && game.world.kills > k0) tKill = performance.now();
+      if ((tKill && performance.now() - tKill >= ${ms}) || performance.now() - t0 > 8000) {
+        game.debug.speed(0);
+        return resolve();
+      }
+      requestAnimationFrame(check);
+    });
+  })`);
+}
+
+/** PV lisibles pour la capture (le mode dieu met 1e9 PV max) ; à appeler quand la boucle est figée ou hors jeu. */
+async function tidyHp(page: Page, hp: number, max: number): Promise<void> {
   await page.evaluate(
-    (ms) =>
-      new Promise<void>((resolve) => {
-        const game = (window as any).__game;
-        const k0 = game.world.kills;
-        let tKill = 0;
-        const t0 = performance.now();
-        const check = () => {
-          if (!tKill && game.world.kills > k0) tKill = performance.now();
-          if ((tKill && performance.now() - tKill >= ms) || performance.now() - t0 > 8000) {
-            game.debug.speed(0);
-            return resolve();
-          }
-          requestAnimationFrame(check);
-        };
-        check();
-      }),
-    ms,
+    ([h, m]) => {
+      const P = (window as any).__game.world.player;
+      P.maxHp = m;
+      P.hp = h;
+    },
+    [hp, max],
   );
 }
 
@@ -98,11 +103,13 @@ try {
   await pickUntilPlay(p);
   await p.evaluate(() => (window as any).__game.debug.weak(2, 2)); // une Brute à 1 PV : gerbe dorée au prochain coup
   await freezeAfterKill(p, 140);
+  await tidyHp(p, 86, 115);
   await p.screenshot({ path: `${OUT}/phone-2-jeu.png` });
 
   await p.evaluate(() => (window as any).__game.debug.speed(1));
   await p.evaluate(() => (window as any).__game.debug.levelUp());
   await p.waitForSelector('#levelup:not([hidden])');
+  await tidyHp(p, 86, 115);
   await p.waitForTimeout(500);
   await p.screenshot({ path: `${OUT}/phone-3-niveau.png` });
   await pickUntilPlay(p);
@@ -113,19 +120,21 @@ try {
   await pickUntilPlay(p);
   await p.evaluate(() => (window as any).__game.debug.spawn(2, 12, 7));
   await freezeAfterKill(p, 120);
+  await tidyHp(p, 131, 165);
   await p.screenshot({ path: `${OUT}/phone-4-evolutions.png` });
 
   await p.evaluate(() => (window as any).__game.debug.speed(1));
+  await tidyHp(p, 1, 165);
   await p.evaluate(() => (window as any).__game.debug.kill());
   await p.waitForSelector('#over:not([hidden])', { timeout: 5000 });
   await p.waitForTimeout(400);
   await p.screenshot({ path: `${OUT}/phone-5-mort.png` });
   await phone.close();
 
-  // ---------- PC 1920×1080 (viewport 960×540 à ×2) ----------
+  // ---------- PC 1920×1080 (viewport réel à ×1 : tout le menu tient) ----------
   const desk = await browser.newContext({
-    viewport: { width: 960, height: 540 },
-    deviceScaleFactor: 2,
+    viewport: { width: 1920, height: 1080 },
+    deviceScaleFactor: 1,
     locale: LANG === 'fr' ? 'fr-FR' : 'en-US',
   });
   const d = await desk.newPage();
@@ -141,6 +150,7 @@ try {
   await d.evaluate(() => (window as any).__game.debug.pullBoss(6));
   await d.waitForTimeout(400);
   await d.evaluate(() => (window as any).__game.debug.speed(0));
+  await tidyHp(d, 72, 125);
   await d.waitForTimeout(100);
   await d.screenshot({ path: `${OUT}/desktop-2-boss.png` });
 
@@ -151,6 +161,7 @@ try {
   await pickUntilPlay(d);
   await d.evaluate(() => (window as any).__game.debug.spawn(0, 30, 8));
   await freezeAfterKill(d, 120);
+  await tidyHp(d, 188, 200);
   await d.screenshot({ path: `${OUT}/desktop-3-jeu.png` });
   await d.screenshot({ path: `public/screenshots/desktop.png` }); // fiche d'installation (manifest, 1920×1080)
   await desk.close();

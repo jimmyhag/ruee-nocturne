@@ -18,7 +18,24 @@
     <!-- Polices auto-hébergées (SIL OFL, voir CREDITS.md) : rien de bloquant venant d'une autre origine, et elles sont précachées -->
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/lilita-one-latin.woff2" />
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/rubik-latin.woff2" />
+    <script>
+      // Évite d'afficher le menu en français puis de le traduire (décalage de mise en page) : si la langue effective
+      // n'est pas le français, le menu reste invisible jusqu'au script principal (quelques dizaines de ms).
+      (function () {
+        try {
+          var m = JSON.parse(localStorage.getItem('ruee-meta') || 'null');
+          var s = m && m.settings && m.settings.lang;
+          var l = s === 'fr' || s === 'en' ? s : /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
+          if (l !== 'fr') document.documentElement.classList.add('lang-pending');
+        } catch (e) {
+          /* stockage bloqué : français */
+        }
+      })();
+    </script>
     <style>
+      html.lang-pending #menu {
+        visibility: hidden;
+      }
       @font-face {
         font-family: 'Lilita One';
         font-style: normal;
@@ -553,7 +570,7 @@
         box-shadow: 0 2px 0 var(--muted);
         white-space: nowrap;
       }
-      .big {
+      button.big {
         font-family: var(--f-display);
         font-size: 26px;
         letter-spacing: 0.03em;
@@ -566,7 +583,7 @@
           0 6px 0 var(--ink),
           0 6px 0 3px var(--accent);
       }
-      .big:active {
+      button.big:active {
         transform: translateY(4px);
         box-shadow: 0 2px 0 var(--ink);
       }

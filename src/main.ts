@@ -175,6 +175,7 @@ function renderShopScreen(): void {
 /** Nœuds `data-i18n` / `data-i18n-attr` de index.html et langue du document. */
 function applyLangStatic(): void {
   document.documentElement.lang = getLang();
+  document.documentElement.classList.remove('lang-pending'); // posé par le script inline de index.html
   for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) el.textContent = t(el.dataset.i18n!);
   for (const el of document.querySelectorAll<HTMLElement>('[data-i18n-attr]'))
     for (const pair of el.dataset.i18nAttr!.split(';')) {
