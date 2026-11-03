@@ -32,7 +32,7 @@ class Pool<T> { items: T[]; count = 0; constructor(n: number, make: () => T) { t
 - Collision ennemi-joueur : 1 requête. Projectiles : 1 requête par projectile. Aura : 1 requête de rayon r. Jamais O(n²).
 
 ## 4. Rendu
-- Résolution interne ≈ 400 px de haut, upscale pixelisé → c'est le levier n°1 (voir `three-rendering`).
+- Résolution interne : net par défaut depuis la phase 9 (CSS × DPR ≤ 2), avec repli automatique vers ×0,75 puis le mode pixel (≈ 400 px de haut) quand le p95 des frames dépasse 24 ms ; le mode pixel reste le levier n°1 de secours (voir `three-rendering`).
 - ≤ 40 draw calls : une `InstancedMesh` par famille, décor statique fusionné.
 - Pas de shadow map, pas de post-traitement, pas de `MeshStandardMaterial`.
 - `renderer.info.autoReset = false` + reset manuel si on veut cumuler.
@@ -49,7 +49,7 @@ function frame(now) { let dt = min(0.1, (now - last)/1000); last = now; acc += d
 }
 ```
 - `visibilitychange` → pause. Retour d'onglet → `last = now` (pas de méga-step).
-- Sur un frame > 50 ms répété 10× : passer le préréglage qualité d'un cran (particules ÷2, résolution interne −20 %, traînées off). Préréglages : Haut / Moyen / Bas / Auto.
+- Repli automatique (phase 9, `main.ts`) : p95 des intervalles de frame > 24 ms pendant 3 fenêtres de 2 s → niveau de rendu − 1 (2 net → 1 net ×0,75 → 0 pixel), bannière « Rendu allégé », jamais de remontée en cours de run. Testé par `debug.slowFrames(ms)` (`e2e/quality.spec.ts`).
 
 ## 6. Mémoire et chargement
 - Build ≤ 1,5 Mo gz. Three importé par modules (`three/src/...` ou tree-shaking Vite), pas de `three/examples/jsm/*` en vrac.

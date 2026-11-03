@@ -60,6 +60,14 @@ describe('sauvegarde', () => {
     expect(m.settings.hudScale).toBe(1);
     expect(m.settings.lang).toBe('auto');
   });
+  it('réglage de rendu (phase 9) : auto par défaut, net et pixel conservés, valeur inconnue → auto', () => {
+    const m = fresh();
+    expect(m.settings.quality).toBe('auto');
+    m.settings.quality = 'pixel';
+    expect(importMeta(exportMeta(m))!.settings.quality).toBe('pixel');
+    expect(normalizeMeta({ version: 2, settings: { quality: 'ultra' } }).settings.quality).toBe('auto');
+    expect(normalizeMeta({ version: 2, settings: { quality: 'net' } }).settings.quality).toBe('net');
+  });
   it('réglage de langue : auto par défaut, fr et en conservés à l’export/import', () => {
     expect(fresh().settings.lang).toBe('auto');
     const m = fresh();

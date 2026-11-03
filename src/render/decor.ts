@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { PAL } from './palette';
 import { merge, paintHex, primGeometry } from './parts';
+import { softDiscTexture } from './textures';
 import type { Prim } from './parts';
 
 const TRUNK = 0x5a3d3a;
@@ -70,7 +71,9 @@ export class Fireflies {
     geo.setAttribute('position', this.attr);
     this.mat = new THREE.PointsMaterial({
       color: 0xffe27a,
-      size: 0.28,
+      size: 0.4,
+      map: softDiscTexture(), // phase 9 : points ronds et doux
+      alphaTest: 0.02,
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,

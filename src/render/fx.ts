@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { FEEL } from './feel';
 import { InstanceWriter, makeInstanced } from './instancing';
+import { hardDiscTexture } from './textures';
 import { PAL } from './palette';
 
 const TAU = Math.PI * 2;
@@ -29,15 +30,18 @@ export class Particles {
   private items: Particle[] = [];
   private count = 0;
   private next = 0; // remplacement circulaire quand plein
+  /** Inclinaison (rotation X) qui fait face à la caméra ; mise à jour par la scène à chaque frame. */
+  billboardRx = -0.87;
   /** Particules vivantes (onglet perf, tests). */
   get alive(): number {
     return this.count;
   }
 
   constructor(scene: THREE.Scene) {
+    // phase 9 : disques ronds orientés vers la caméra (billboardRx = inclinaison de la caméra, posée par la scène)
     this.mesh = makeInstanced(
-      new THREE.BoxGeometry(0.17, 0.17, 0.17),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      new THREE.PlaneGeometry(0.24, 0.24),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, map: hardDiscTexture(), transparent: true, depthWrite: false }),
       PART_CAP,
     );
     scene.add(this.mesh);
@@ -125,7 +129,7 @@ export class Particles {
         p.vz *= 0.6;
       }
       const s = Math.max(0.05, p.life / p.max) * 1.4; // scale ∝ vie restante
-      w.put(p.x, p.y, p.z, p.life * 7, s, p.c, p.life * 9, 0);
+      w.put(p.x, p.y, p.z, 0, s, p.c, this.billboardRx, p.life * 9);
     }
     if (this.next >= this.count) this.next = 0;
     w.end();

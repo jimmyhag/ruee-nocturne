@@ -8,6 +8,11 @@ test('la page charge, une partie démarre, le rendu tient le budget', async ({ p
   await expect(page.locator('canvas#c')).toBeVisible();
   await expect(page.locator('#playBtn')).toBeVisible();
 
+  // rendu « pixel » : la boucle est testée à résolution réduite (SwiftShader à la résolution native tourne à 8 fps)
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+  });
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   await page.waitForTimeout(5000);

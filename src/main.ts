@@ -13,7 +13,16 @@ import { Hud, flashCard, renderCards } from './ui/hud';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
 import { achName, achUnlock, characterName, evolutionName } from './ui/cards';
 import type { Achievement } from './meta/achievements';
-import { exportMeta, importMeta, loadMeta, normalizeMeta, peekMeta, saveMeta, DEFAULT_META } from './meta/save';
+import {
+  exportMeta,
+  importMeta,
+  loadMeta,
+  normalizeMeta,
+  peekMeta,
+  saveMeta,
+  DEFAULT_META,
+  QUALITY_SETTINGS,
+} from './meta/save';
 import type { Meta } from './meta/save';
 import {
   checkAchievements,
@@ -59,6 +68,7 @@ function loadScene(): Promise<GameScene> {
       throw e;
     }
     scene = s;
+    s.setQuality(qualityLevel()); // phase 9 : niveau de rendu (réglage ou repli automatique de la session)
     s.setCharacter(meta.character, outfitOf(meta, meta.character)); // aperçu du menu : le personnage choisi tourne derrière le panneau
     sizeW = sizeH = 0;
     resize();
@@ -105,6 +115,17 @@ function applyFx(): void {
     r ? (meta.fxChosen ? 'settings.fx.reduced' : 'settings.fx.reducedSystem') : 'settings.fx.full',
   );
 }
+// rendu (phase 9) : réglage auto|net|pixel ; en auto, le niveau de session descend quand les frames dépassent le budget
+let autoLevel = 2;
+let slowWindows = 0;
+function qualityLevel(): number {
+  const q = meta.settings.quality;
+  return q === 'net' ? 2 : q === 'pixel' ? 0 : autoLevel;
+}
+function applyQuality(): void {
+  scene?.setQuality(qualityLevel());
+  $('qualityBtn').textContent = $('setQualityBtn').textContent = t('settings.quality.' + meta.settings.quality);
+}
 let perfOn = location.search.includes('debug');
 const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
 
@@ -113,12 +134,15 @@ const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
 // allocation) et on écoute le viewport visuel et l'orientation. Une taille fausse = image écrasée ou étirée.
 let sizeW = 0;
 let sizeH = 0;
+let sizeDpr = 0; // densité de pixels suivie aussi (zoom navigateur, changement d'écran) : la résolution interne en dépend
 function resize(): void {
   const w = innerWidth,
-    h = innerHeight;
-  if (w === sizeW && h === sizeH) return;
+    h = innerHeight,
+    dpr = devicePixelRatio;
+  if (w === sizeW && h === sizeH && dpr === sizeDpr) return;
   sizeW = w;
   sizeH = h;
+  sizeDpr = dpr;
   scene?.resize(w, h);
 }
 addEventListener('resize', resize);
@@ -128,6 +152,7 @@ resize();
 
 function showOnly(id: AppMode | null): void {
   for (const s of SCREENS) $(s).hidden = s !== id;
+  $('vignette').hidden = world === null; // vignette douce sur le jeu (phase 9), pas sur le menu ni ses écrans
 }
 function updateBestLine(): void {
   $('bestLine').textContent = bestLine(meta);
@@ -526,6 +551,19 @@ $('setVibrateBtn').onclick = () => {
   if (meta.settings.vibrate) vibrate(40);
 };
 $('setFxBtn').onclick = () => $('fxBtn').click();
+$('qualityBtn').onclick = () => {
+  const i = QUALITY_SETTINGS.indexOf(meta.settings.quality);
+  meta.settings.quality = QUALITY_SETTINGS[(i + 1) % QUALITY_SETTINGS.length];
+  if (meta.settings.quality === 'auto') {
+    autoLevel = 2; // geste explicite du joueur : on repart du net (la remontée automatique, elle, n'existe pas)
+    slowWindows = 0;
+  }
+  saveMeta(meta);
+  applyQuality();
+  audio.init();
+  audio.select('s');
+};
+$('setQualityBtn').onclick = () => $('qualityBtn').click();
 $('setLeftyBtn').onclick = () => {
   meta.settings.lefty = !meta.settings.lefty;
   saveMeta(meta);
@@ -836,6 +874,13 @@ const PERF_WINDOW = 120;
 const frameTimes = new Float64Array(PERF_WINDOW).fill(16);
 const frameSorted = new Float64Array(PERF_WINDOW);
 let frameIdx = 0;
+// intervalles entre frames rAF (phase 9) : toujours mesurés, c'est ce qui déclenche le repli automatique de qualité
+const gapTimes = new Float64Array(PERF_WINDOW).fill(16);
+const gapSorted = new Float64Array(PERF_WINDOW);
+let gapIdx = 0;
+let gapP95 = 16;
+let gapT0 = 0; // fenêtres de 2 s de temps réel (indépendantes du fps)
+const GAP_P95_LIMIT = 24; // ms : au-delà pendant 3 fenêtres de 2 s, on descend d'un niveau (jamais de remontée en cours de run)
 // fps réels : frames rAF comptées sur une fenêtre de 2 s (ce que voit le joueur, pas seulement notre temps JS)
 let fpsT0 = 0;
 let fpsFrames = 0;
@@ -846,9 +891,27 @@ let simRatio = 1;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
-  if (innerWidth !== sizeW || innerHeight !== sizeH) resize();
+  if (innerWidth !== sizeW || innerHeight !== sizeH || devicePixelRatio !== sizeDpr) resize();
+  const gapMs = debugRt && debugRt.slowFrames > 0 ? debugRt.slowFrames : nowMs - last;
   let realDt = Math.min(0.1, (nowMs - last) / 1000);
   last = nowMs;
+  // repli automatique de qualité : p95 des intervalles sur 2 s, en jeu seulement, après les 3 premières secondes du run
+  gapTimes[gapIdx++ % PERF_WINDOW] = gapMs;
+  if (nowMs - gapT0 >= 2000) {
+    gapT0 = nowMs;
+    gapSorted.set(gapTimes);
+    gapSorted.sort();
+    gapP95 = gapSorted[(PERF_WINDOW * 0.95) | 0];
+    if (app === 'play' && world && world.t > 3 && meta.settings.quality === 'auto') {
+      slowWindows = gapP95 > GAP_P95_LIMIT ? slowWindows + 1 : 0;
+      if (slowWindows >= 3 && autoLevel > 0) {
+        autoLevel--;
+        slowWindows = 0;
+        applyQuality();
+        hud.banner(t('banner.quality'));
+      }
+    } else slowWindows = 0;
+  }
   if (debugRt) realDt *= debugRt.speed; // captures et tests uniquement (null en prod)
   const now = nowMs / 1000;
   const t0 = performance.now();
@@ -914,7 +977,7 @@ function frame(nowMs: number): void {
             ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}  part. ${scene.particles.alive}\n`
             : '') +
           `voix audio ${audio.voiceCount}/${audio.maxVoices}\n` +
-          `res ${scene.renderer.domElement.width}×${scene.renderer.domElement.height}`,
+          `rendu niv ${info.level} (${meta.settings.quality})  res ${info.width}×${info.height}  frame p95 ${gapP95.toFixed(1)} ms`,
       );
     }
   }
@@ -924,6 +987,7 @@ function frame(nowMs: number): void {
 function applyMeta(): void {
   audio.setMuted(meta.muted);
   applyFx();
+  applyQuality();
   applySettings();
   updateBestLine();
   syncLang();

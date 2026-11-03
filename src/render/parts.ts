@@ -14,10 +14,19 @@ export interface Prim {
   seg?: number;
 }
 
+/** Segments par défaut des primitives sans `seg` (phase 9 : 12 en rendu net, 7 en pixel) ; les primitives de masse fixent le leur. */
+let detail = 12;
+export function setDetail(seg: number): void {
+  detail = Math.max(3, seg | 0);
+}
+export function getDetail(): number {
+  return detail;
+}
+
 /** Géométrie non indexée d'une primitive, déjà placée. */
 export function primGeometry(p: Prim): THREE.BufferGeometry {
   const s = p.size;
-  const seg = p.seg ?? 7;
+  const seg = p.seg ?? detail;
   let g: THREE.BufferGeometry;
   switch (p.shape) {
     case 'box':

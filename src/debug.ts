@@ -37,6 +37,8 @@ export interface DebugRuntime {
   onFrame(world: World): void;
   /** Facteur appliqué au temps réel de la boucle (captures : 0 fige sim, particules et caméra sans écran de pause). */
   speed: number;
+  /** Tests du repli de qualité (phase 9) : durée de frame simulée en ms (0 = mesure réelle). */
+  slowFrames: number;
 }
 
 export function installDebugHooks(host: DebugHost): DebugRuntime | null {
@@ -131,6 +133,10 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     speed(s: number): void {
       runtime.speed = Math.max(0, s);
     },
+    /** Fait croire à la boucle que chaque frame dure `ms` (0 = réel) : teste le repli automatique de qualité. */
+    slowFrames(ms: number): void {
+      runtime.slowFrames = Math.max(0, ms);
+    },
     /** Fixe le nombre d'ennemis à maintenir (0 = arrêt). Équivaut à `?stress=n`. */
     stress(n: number): void {
       stressTarget = Math.min(CAPS.enemies, Math.max(0, n | 0));
@@ -143,6 +149,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
 
   const runtime: DebugRuntime = {
     speed: 1,
+    slowFrames: 0,
     onFrame(world) {
       if (stressTarget <= 0) return;
       if (stressWorld !== world) {
