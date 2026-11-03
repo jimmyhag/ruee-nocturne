@@ -22,7 +22,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buy, worldOptions } from './meta/shop';
+import { buy, buyCharacter, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily } from './meta/daily';
 import { bestLine, esc, renderAchievements, renderCharacters, renderProgress, renderShop } from './ui/meta-ui';
 import type { CharacterKey } from './sim/types';
@@ -122,7 +122,7 @@ function showOnly(id: AppMode | null): void {
 }
 function updateBestLine(): void {
   $('bestLine').textContent = bestLine(meta);
-  renderCharacters($('chars'), meta);
+  renderCharacters($('chars'), meta, $('charInfo'));
   const daily = dailyUnlocked(meta);
   $('dailyBtn').hidden = !daily;
   if (daily) {
@@ -423,13 +423,27 @@ $('shopBackBtn').onclick = closeScreen;
 $('achBackBtn').onclick = closeScreen;
 $('settingsBackBtn').onclick = closeScreen;
 $('chars').addEventListener('click', (e) => {
-  const b = (e.target as HTMLElement).closest('.card.char') as HTMLElement | null;
+  const target = e.target as HTMLElement;
+  // achat d'un personnage en or (phase 6) : débité, choisi, grille et or du menu rafraîchis
+  const buyEl = target.closest('[data-buy]') as HTMLElement | null;
+  if (buyEl) {
+    const key = buyEl.dataset.buy as CharacterKey;
+    if (buyCharacter(meta, key)) {
+      meta.character = key;
+      saveMeta(meta);
+      audio.init();
+      audio.chest();
+      updateBestLine();
+    }
+    return;
+  }
+  const b = target.closest('.card.char') as HTMLElement | null;
   if (!b) return;
   const key = b.dataset.char as CharacterKey;
   if (!unlockedCharacters(meta).includes(key)) return;
   meta.character = key;
   saveMeta(meta);
-  renderCharacters($('chars'), meta);
+  renderCharacters($('chars'), meta, $('charInfo'));
   audio.init();
   audio.select('s');
 });

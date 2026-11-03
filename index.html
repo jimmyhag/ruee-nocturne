@@ -810,6 +810,30 @@
         transform: none;
         border-color: var(--ink-3);
       }
+      /* achat en or (phase 6) : un faux bouton dans la carte verrouillée ; gris tant que l'or manque */
+      .buychar {
+        display: inline-block;
+        font-weight: 800;
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--ink);
+        background: var(--gold);
+        cursor: pointer;
+      }
+      .buychar.poor {
+        color: var(--muted);
+        background: var(--ink-3);
+        cursor: default;
+      }
+      .charinfo {
+        min-height: 2.6em; /* deux lignes réservées : pas de décalage quand le passif apparaît */
+        line-height: 1.3;
+      }
+      .charinfo em {
+        color: var(--gold);
+        font-style: normal;
+      }
       .gold {
         font-family: var(--f-display);
         font-size: 22px;
@@ -953,9 +977,22 @@
         flex-direction: row-reverse;
       }
       @media (max-width: 480px) {
+        /* téléphone : une rangée qui défile au doigt, à crans, trois cartes visibles */
         .chars {
-          grid-template-columns: repeat(3, 1fr);
+          display: flex;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          touch-action: pan-x pan-y;
           gap: 6px;
+          padding-bottom: 4px;
+          scrollbar-width: none;
+        }
+        .chars::-webkit-scrollbar {
+          display: none;
+        }
+        .card.char {
+          flex: 0 0 calc((100% - 12px) / 3);
+          scroll-snap-align: start;
         }
         .card.char h3 {
           font-size: 13px;
@@ -1113,7 +1150,56 @@
             <span class="badge">Vaincs 500 ennemis en tout</span>
             <p>Foudre dès le départ, −30 % PV</p>
           </button>
+          <button class="card char locked" data-char="veilleuse">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Veilleuse</h3>
+            </div>
+            <span class="buychar poor" data-buy="veilleuse" role="button">800 or pour débloquer</span>
+            <p>Halo brûlant dès le départ</p>
+          </button>
+          <button class="card char locked" data-char="braconnier">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Braconnier</h3>
+            </div>
+            <span class="buychar poor" data-buy="braconnier" role="button">1 200 or pour débloquer</span>
+            <p>Boomerang dès le départ</p>
+          </button>
+          <button class="card char locked" data-char="sapeur" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Sapeur</h3>
+            </div>
+            <span class="badge">Vaincs un boss</span>
+            <p>Mines dès le départ, +20 PV, un peu plus lent</p>
+          </button>
+          <button class="card char locked" data-char="feufollet" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Feu follet</h3>
+            </div>
+            <span class="badge">Survis 3 minutes d'affilée sans dégât en un run</span>
+            <p>+30 % de vitesse, −50 % PV</p>
+          </button>
+          <button class="card char locked" data-char="revenante" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Revenante</h3>
+            </div>
+            <span class="badge">Vaincs le Faucheur</span>
+            <p>Foudre et Halo dès le départ, −20 % PV</p>
+          </button>
+          <button class="card char locked" data-char="colporteur">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Colporteur</h3>
+            </div>
+            <span class="buychar poor" data-buy="colporteur" role="button">2 000 or pour débloquer</span>
+            <p>Lames, Trèfle et Bourse dès le départ</p>
+          </button>
         </div>
+        <p class="note charinfo" id="charInfo"><b>Éclaireuse</b> · +15 % de vitesse, dash plus court</p>
         <button class="big" id="playBtn" data-i18n="menu.play">Jouer</button>
         <div class="btnrow">
           <button class="ghost" id="dailyBtn" hidden data-i18n="menu.daily">Défi du jour</button

@@ -2,7 +2,7 @@
 //   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { STEP, ENEMIES } from '../src/sim/balance';
+import { CHARACTERS, STEP, ENEMIES } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { Ev, Mode } from '../src/sim/types';
 import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
@@ -22,8 +22,8 @@ const OUT = args.get('out');
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
 // --character eclaireuse|bucheron|sorciere : personnage de départ (défaut : Éclaireuse = référence de l'équilibrage)
 const CHARACTER = (args.get('character') ?? 'eclaireuse') as CharacterKey;
-if (!['eclaireuse', 'bucheron', 'sorciere'].includes(CHARACTER)) {
-  console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : eclaireuse, bucheron, sorciere`);
+if (!CHARACTERS.some((c) => c.key === CHARACTER)) {
+  console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : ${CHARACTERS.map((c) => c.key).join(', ')}`);
   process.exit(2);
 }
 const WEAPONS_ARG = args.get('weapons');
@@ -60,6 +60,9 @@ interface RunResult {
   passives: Record<string, number>;
   evolved: string[];
   deathBy: string;
+  // défis (phase 6)
+  noHit: number; // plus longue période sans dégât (s)
+  distance: number; // u parcourus
   aliveAtMinute: number[];
 }
 
@@ -121,6 +124,8 @@ function runOnce(seed: number): RunResult {
     passives: { ...w.passives } as Record<string, number>,
     evolved: Object.keys(w.evolved),
     deathBy: w.mode === Mode.Dead ? lastHurtType : '—',
+    noHit: w.noHitBest,
+    distance: w.distance,
     aliveAtMinute: alive,
   };
 }
@@ -138,13 +143,8 @@ const elapsed = (Date.now() - t0) / 1000;
 
 const times = results.map((r) => r.time);
 // taux de pick = part des prises de cartes d'arme (somme 100 %), arme de départ exclue (survivor-design §9)
-const startWeapon = WEAPONS
-  ? WEAPONS[0]
-  : CHARACTER === 'bucheron'
-    ? 'lames'
-    : CHARACTER === 'sorciere'
-      ? 'foudre'
-      : 'orbe';
+const charDef = CHARACTERS.find((c) => c.key === CHARACTER) ?? CHARACTERS[0];
+const startWeapon = WEAPONS ? WEAPONS[0] : charDef.weapon;
 const picks: Record<string, number> = {};
 let totalPicks = 0;
 for (const r of results)
@@ -188,6 +188,20 @@ const summary = {
   survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
+  // défis (phase 6) : médianes et part des runs qui les atteignent (Intouchable 3 min, Marathon 2 000 u, Métamorphe 2 évolutions)
+  challenges: {
+    noHitP50: pct(
+      results.map((r) => r.noHit),
+      50,
+    ),
+    intouchablePct: (100 * results.filter((r) => r.noHit >= 180).length) / RUNS,
+    distanceP50: pct(
+      results.map((r) => r.distance),
+      50,
+    ),
+    marathonPct: (100 * results.filter((r) => r.distance >= 2000).length) / RUNS,
+    metamorphePct: (100 * results.filter((r) => r.evolved.length >= 2).length) / RUNS,
+  },
   killsAt10p50: at10.length
     ? pct(
         at10.map((r) => r.killsAt10),
@@ -227,6 +241,9 @@ lines.push(
 );
 lines.push(
   `morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`,
+);
+lines.push(
+  `défis       sans dégât p50 ${mmss(summary.challenges.noHitP50)} (Intouchable ${summary.challenges.intouchablePct.toFixed(0)} %) · distance p50 ${Math.round(summary.challenges.distanceP50)} u (Marathon ${summary.challenges.marathonPct.toFixed(0)} %) · Métamorphe ${summary.challenges.metamorphePct.toFixed(0)} %`,
 );
 lines.push(
   `picks       ${Object.entries(summary.pickPct)
