@@ -11,8 +11,8 @@ test('nouveau joueur : premier déblocage (défi du jour) dès le premier run', 
   await openGame(page);
   await freshProfile(page);
   await expect(page.locator('#dailyBtn')).toBeHidden();
-  await expect(page.locator('#chars .card.char')).toHaveCount(3);
-  await expect(page.locator('#chars .card.char.locked')).toHaveCount(2);
+  await expect(page.locator('#chars .card.char')).toHaveCount(9);
+  await expect(page.locator('#chars .card.char.locked')).toHaveCount(8);
 
   // run 1 : 3 minutes et quelques, puis la mort
   await startRun(page, 5);
@@ -91,7 +91,7 @@ test('réglages : export puis import restaurent record, or et succès ; le JSON 
 test('personnage : le Bûcheron débloqué devient sélectionnable et démarre avec les Lames', async ({ page }) => {
   await openGame(page);
   await page.evaluate(() => (window as any).__game.setMeta({ version: 2, achievements: ['survie3', 'survie10'] }));
-  await expect(page.locator('#chars .card.char.locked')).toHaveCount(1);
+  await expect(page.locator('#chars .card.char.locked')).toHaveCount(7); // 9 personnages, 2 débloqués
   await page.locator('#chars .card.char[data-char="bucheron"]').click();
   await expect(page.locator('#chars .card.char[data-char="bucheron"]')).toHaveClass(/selected/);
   await startRun(page, 4);
@@ -101,4 +101,38 @@ test('personnage : le Bûcheron débloqué devient sélectionnable et démarre a
   });
   expect(w.weapons).toEqual(['lames']);
   expect(w.hp).toBe(130);
+});
+
+// Porte de phase 6 : un nouveau personnage en moins de 5 runs (achat en or), et l'achat lui-même.
+test('personnage acheté en or : la Veilleuse se débloque en moins de 5 runs d’un nouveau joueur', async ({ page }) => {
+  await openGame(page);
+  const veilleuse = page.locator('#chars .card.char[data-char="veilleuse"]');
+  await expect(veilleuse).toHaveClass(/locked/);
+  await expect(veilleuse.locator('.buychar')).toHaveClass(/poor/);
+  let runs = 0;
+  for (; runs < 4; runs++) {
+    await startRun(page, 10 + runs);
+    await page.evaluate(() => (window as any).__game.debug.god());
+    await page.evaluate(() => (window as any).__game.debug.warp(240)); // 4 min par run, sans aucun talent de joueur
+    for (let i = 0; i < 12; i++) {
+      // le saut dans le temps laisse des montées de niveau en attente : on prend la carte 1
+      if ((await page.evaluate(() => (window as any).__game.app)) !== 'levelup') break;
+      await page.keyboard.press('Digit1');
+      await page.waitForTimeout(250);
+    }
+    await page.evaluate(() => (window as any).__game.debug.kill());
+    await expect(page.locator('#over')).toBeVisible({ timeout: 5000 });
+    await page.locator('#menuBtn').click();
+    const gold = await page.evaluate(() => (window as any).__game.meta.gold as number);
+    if (gold >= 800) break;
+  }
+  expect(runs + 1, 'runs nécessaires').toBeLessThan(5);
+  await expect(veilleuse.locator('.buychar')).not.toHaveClass(/poor/);
+  await veilleuse.locator('.buychar').click();
+  await expect(veilleuse).not.toHaveClass(/locked/);
+  await expect(veilleuse).toHaveClass(/selected/);
+  await expect(page.locator('#charInfo')).toContainText('Braise');
+  await startRun(page, 5);
+  const w = await page.evaluate(() => Object.keys((window as any).__game.world.weapons));
+  expect(w).toEqual(['aura']);
 });

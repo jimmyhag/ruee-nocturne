@@ -8,23 +8,28 @@ export interface Achievement {
   id: string;
   goal: number;
   get: (s: MetaStats) => number;
-  time?: true; // succès de durée : valeur affichée en m:ss
+  time?: true; // valeur affichée en m:ss
+  survival?: true; // succès « survis N minutes » : candidat à « il te manquait … » sur l'écran de mort
   unlocks?: { character?: CharacterKey; weapon?: WeaponKey; daily?: boolean };
 }
 
 export const ACHIEVEMENTS: Achievement[] = [
   // le premier déblocage arrive au 1er ou 2e run (porte de phase 4 : < 3 runs) : « Première nuit » → défi du jour
-  { id: 'survie3', goal: 180, get: (s) => s.bestTime, time: true, unlocks: { daily: true } },
+  { id: 'survie3', goal: 180, get: (s) => s.bestTime, time: true, survival: true, unlocks: { daily: true } },
   { id: 'kills500', goal: 500, get: (s) => s.kills, unlocks: { character: 'sorciere' } },
   { id: 'dards100', goal: 100, get: (s) => s.dards, unlocks: { weapon: 'boomerang' } },
   { id: 'elites10', goal: 10, get: (s) => s.elites, unlocks: { weapon: 'mines' } },
-  { id: 'boss1', goal: 1, get: (s) => s.bosses },
-  { id: 'survie10', goal: 600, get: (s) => s.bestTime, time: true, unlocks: { character: 'bucheron' } },
+  { id: 'boss1', goal: 1, get: (s) => s.bosses, unlocks: { character: 'sapeur' } },
+  { id: 'survie10', goal: 600, get: (s) => s.bestTime, time: true, survival: true, unlocks: { character: 'bucheron' } },
   { id: 'evo1', goal: 1, get: (s) => s.evolutions },
   { id: 'kills2000', goal: 2000, get: (s) => s.kills },
-  { id: 'survie15', goal: 900, get: (s) => s.bestTime, time: true },
-  { id: 'survie20', goal: 1200, get: (s) => s.bestTime, time: true },
-  { id: 'win', goal: 1, get: (s) => s.wins },
+  { id: 'survie15', goal: 900, get: (s) => s.bestTime, time: true, survival: true },
+  { id: 'survie20', goal: 1200, get: (s) => s.bestTime, time: true, survival: true },
+  { id: 'win', goal: 1, get: (s) => s.wins, unlocks: { character: 'revenante' } },
+  // défis (phase 6) : des objectifs de maîtrise dans un seul run, pas du cumul
+  { id: 'intouchable', goal: 240, get: (s) => s.noHitBest, time: true, unlocks: { character: 'feufollet' } },
+  { id: 'marathon', goal: 4000, get: (s) => s.distanceBest },
+  { id: 'metamorphe', goal: 3, get: (s) => s.evoRunBest },
 ];
 
 export const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((a) => a.id));
@@ -57,16 +62,18 @@ export function closest(m: Meta, n: number): Achievement[] {
 /** « Il te manquait 42 s pour… » : prochain succès de temps non atteint par rapport au temps du run. */
 export function missingTime(m: Meta, runTime: number): { seconds: number; a: Achievement } | null {
   for (const a of ACHIEVEMENTS) {
-    if (!a.time || m.achievements.includes(a.id)) continue;
+    if (!a.survival || m.achievements.includes(a.id)) continue;
     if (runTime < a.goal) return { seconds: Math.ceil(a.goal - runTime), a };
   }
   return null;
 }
 
+/** Personnages jouables : l'Éclaireuse, ceux dont le succès est obtenu, ceux achetés en or (phase 6). */
 export function unlockedCharacters(m: Meta): CharacterKey[] {
   const out: CharacterKey[] = ['eclaireuse'];
   for (const a of ACHIEVEMENTS)
     if (a.unlocks?.character && m.achievements.includes(a.id)) out.push(a.unlocks.character);
+  for (const k of m.bought) if (!out.includes(k)) out.push(k);
   return out;
 }
 /** Armes proposables : celles qui ne dépendent d'aucun succès, plus celles débloquées. */

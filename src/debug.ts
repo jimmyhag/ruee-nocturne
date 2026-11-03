@@ -63,7 +63,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     },
     kill(): void {
       const world = w();
-      if (world) world.player.hp = 0;
+      if (world) world.player.hp = -1e9; // en dessous de toute régénération d'un step (Sève vive)
     },
     give(weapon: WeaponKey, lv = 1): void {
       const world = w();

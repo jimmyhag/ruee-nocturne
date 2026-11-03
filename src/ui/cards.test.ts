@@ -13,6 +13,7 @@ import {
   cardTitle,
   characterName,
   characterText,
+  characterTrait,
   enemyName,
   evolutionName,
   evolutionText,
@@ -76,6 +77,7 @@ describe('cartes', () => {
       for (const c of CHARACTERS) {
         expect(characterName(c.key).length).toBeGreaterThan(2);
         expect(characterText(c.key).length).toBeGreaterThan(5);
+        expect(characterTrait(c.key).length > 8 || c.key === 'eclaireuse', c.key).toBe(true);
       }
       for (let i = 0; i < SHOP.lines.length; i++) {
         expect(shopName(i).length).toBeGreaterThan(2);

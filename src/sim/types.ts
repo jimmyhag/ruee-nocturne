@@ -33,6 +33,7 @@ export const enum ProjKind {
   Orbe = 0,
   Boomerang,
   Mine,
+  Fire, // traînée de feu du Feu follet : zone au sol qui brûle par impulsions
 }
 
 export interface Projectile {
@@ -105,6 +106,7 @@ export const enum HitSrc {
   Foudre,
   Boomerang,
   Mines,
+  Fire,
 }
 
 export const enum Ev {
@@ -163,7 +165,28 @@ export const enum Mode {
 }
 
 export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines';
-export type CharacterKey = 'eclaireuse' | 'bucheron' | 'sorciere';
+export type CharacterKey =
+  | 'eclaireuse'
+  | 'bucheron'
+  | 'sorciere'
+  | 'veilleuse'
+  | 'braconnier'
+  | 'sapeur'
+  | 'feufollet'
+  | 'revenante'
+  | 'colporteur';
+/** Passif signature d'un personnage (phase 6) : une règle de jeu lue par la sim aux bons endroits, constantes dans TRAIT. */
+export const enum Trait {
+  None = 0,
+  Fendeur, // Bûcheron : les Lames repoussent plus fort
+  Paratonnerre, // Sorcière : la Foudre vise d'abord le plus proche
+  Braise, // Veilleuse : le Halo grandit avec le temps
+  Rapporteur, // Braconnier : un boomerang attrapé rend de la recharge
+  Demolisseur, // Sapeur : chaque atterrissage pose une mine
+  Trainee, // Feu follet : le dash laisse une traînée de feu
+  DejaMorte, // Revenante : une réanimation gratuite, XP ×2 en l'air
+  Marchand, // Colporteur : les coffres donnent au moins 3 cartes
+}
 /** Identifiants des ennemis (index = type dans ENEMIES) : clés d'affichage côté UI, la sim ne porte aucun texte. */
 export type EnemyKey = 'spectre' | 'dard' | 'brute' | 'gardien' | 'volant' | 'cracheur' | 'essaim' | 'colosse' | 'faucheur';
 

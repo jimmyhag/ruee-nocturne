@@ -1,11 +1,11 @@
-import { CRACHEUR_TYPE, ENEMIES, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE } from './balance';
+import { CRACHEUR_TYPE, ENEMIES, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
 import { ignoresGround, tickBoss, tickFlyer, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
 import { applyCard, rollChoices, tickChests, tickGems } from './progression';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { Ev, Mode, ShotKind } from './types';
+import { Ev, Mode, ShotKind, Trait } from './types';
 import type { Input } from './types';
-import { tickProjectiles, tickWeapons } from './weapons/tick';
+import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
 import type { World } from './world';
 
 const out2 = new Float64Array(2);
@@ -40,6 +40,8 @@ export function step(w: World, input: Input, dt: number): void {
   compactEnemies(w);
   tickGems(w, dt);
   tickChests(w, dt);
+  // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
+  if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
     w.gold += w.t * GOLD.perSecond * w.player.goldMul;
   } else if (w.player.hp <= 0 && w.player.revives > 0) {
@@ -107,6 +109,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       P.vy = 0;
       P.onGround = true;
       w.emit(Ev.Land, P.x, 0, P.z);
+      if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
     }
   }
   P.dashCd -= dt;
@@ -117,6 +120,19 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
   P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   P.walk += l * dt * 12;
+  // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de dash
+  const mx = P.x - P.px,
+    mz = P.z - P.pz;
+  const moved = Math.sqrt(mx * mx + mz * mz);
+  w.distance += moved;
+  if (P.dashT > 0 && w.trait === Trait.Trainee) {
+    const S = w.wstate;
+    S.fireDist += moved;
+    if (S.fireDist >= TRAIT.trainee.spacing) {
+      S.fireDist = 0;
+      placeFire(w, P.x, P.z);
+    }
+  }
 }
 
 function stepEnemies(w: World, dt: number): void {
@@ -189,6 +205,7 @@ function stepEnemies(w: World, dt: number): void {
   }
   if (hurt > 0) {
     w.lastAction = w.t;
+    w.hurtAt = w.t;
     w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);
   }
 }
@@ -229,6 +246,7 @@ function tickShots(w: World, dt: number): void {
   }
   if (hurt > 0) {
     w.lastAction = w.t;
+    w.hurtAt = w.t;
     w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);
   }
 }

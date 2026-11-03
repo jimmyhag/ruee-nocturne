@@ -159,3 +159,46 @@ test('contenu : évolutions, Colosse, lac', async ({ page }, info) => {
   expect(speed).toBeLessThan(1);
   await page.screenshot(shot('lac', p));
 });
+
+// Porte de phase 6 : la grille des neuf personnages (tous débloqués) et la traînée de feu du Feu follet.
+test('personnages : grille complète et traînée du Feu follet', async ({ page }, info) => {
+  const p = info.project.name;
+  await openGame(page);
+  await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
+  await page.evaluate(() =>
+    (window as any).__game.setMeta({
+      version: 2,
+      gold: 5000,
+      achievements: ['survie3', 'survie10', 'kills500', 'boss1', 'win', 'intouchable'],
+      bought: ['veilleuse', 'braconnier', 'colporteur'],
+      character: 'feufollet',
+    }),
+  );
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('#chars .card.char.locked')).toHaveCount(0);
+  await page.locator('#chars').evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(300);
+  await page.screenshot(shot('personnages', p));
+
+  await startRun(page, 42);
+  await page.evaluate(() => (window as any).__game.debug.god());
+  await page.evaluate(() => (window as any).__game.debug.warp(60));
+  await pickUntilPlay(page);
+  await page.evaluate(() => (window as any).__game.debug.spawn(0, 24, 5));
+  // un dash vers la droite : la traînée se pose derrière le joueur
+  await page.keyboard.down('KeyD');
+  await page.keyboard.press('ShiftLeft');
+  await page.waitForTimeout(350);
+  await page.keyboard.up('KeyD');
+  await page.evaluate(() => (window as any).__game.debug.speed(0));
+  await page.waitForTimeout(100);
+  const fires = await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    let n = 0;
+    for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === 3) n++;
+    return n;
+  });
+  expect(fires, 'plaques de feu posées par le dash').toBeGreaterThan(3);
+  await page.screenshot(shot('feufollet', p));
+  await page.evaluate(() => (window as any).__game.debug.speed(1));
+});

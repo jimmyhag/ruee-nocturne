@@ -1,5 +1,5 @@
-import { ELITE, ENEMIES, GOLD, REAPER_TYPE, XP } from './balance';
-import { Ev, HitSrc, Mode } from './types';
+import { ELITE, ENEMIES, GOLD, REAPER_TYPE, TRAIT, XP } from './balance';
+import { Ev, HitSrc, Mode, Trait } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
 
@@ -40,7 +40,9 @@ export function killEnemy(w: World, i: number): void {
   w.kills++;
   const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
   w.gold += GOLD.perKill * goldMul * w.player.goldMul;
-  dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul : 1));
+  // Revenante : les ennemis tués pendant un saut valent ×2 XP
+  const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
+  dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul : 1) * air);
   if (def.boss) {
     w.player.hp = w.player.maxHp;
     for (let g = 0; g < w.gemCount; g++) w.gems[g].mag = true;

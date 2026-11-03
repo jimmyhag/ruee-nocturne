@@ -22,7 +22,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buy, worldOptions } from './meta/shop';
+import { buy, buyCharacter, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily } from './meta/daily';
 import { bestLine, esc, renderAchievements, renderCharacters, renderProgress, renderShop } from './ui/meta-ui';
 import type { CharacterKey } from './sim/types';
@@ -122,7 +122,7 @@ function showOnly(id: AppMode | null): void {
 }
 function updateBestLine(): void {
   $('bestLine').textContent = bestLine(meta);
-  renderCharacters($('chars'), meta);
+  renderCharacters($('chars'), meta, $('charInfo'));
   const daily = dailyUnlocked(meta);
   $('dailyBtn').hidden = !daily;
   if (daily) {
@@ -208,8 +208,8 @@ function syncLang(): void {
 }
 function closeScreen(): void {
   app = backTo;
+  showOnly(backTo); // avant updateBestLine : la grille doit être visible pour recentrer la carte choisie
   if (backTo === 'menu') updateBestLine();
-  showOnly(backTo);
 }
 
 // ---------- décor : construit une fois (loadScene) pour la seed de décor fixe ----------
@@ -391,6 +391,10 @@ function gameOver(won = false): void {
   st.wins += won ? 1 : 0;
   st.bestTime = Math.max(st.bestTime, world.t);
   st.runs++;
+  // défis (phase 6) : meilleurs scores en un run
+  st.noHitBest = Math.max(st.noHitBest, world.noHitBest);
+  st.distanceBest = Math.max(st.distanceBest, world.distance);
+  st.evoRunBest = Math.max(st.evoRunBest, runStats.evolutions);
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -419,13 +423,27 @@ $('shopBackBtn').onclick = closeScreen;
 $('achBackBtn').onclick = closeScreen;
 $('settingsBackBtn').onclick = closeScreen;
 $('chars').addEventListener('click', (e) => {
-  const b = (e.target as HTMLElement).closest('.card.char') as HTMLElement | null;
+  const target = e.target as HTMLElement;
+  // achat d'un personnage en or (phase 6) : débité, choisi, grille et or du menu rafraîchis
+  const buyEl = target.closest('[data-buy]') as HTMLElement | null;
+  if (buyEl) {
+    const key = buyEl.dataset.buy as CharacterKey;
+    if (buyCharacter(meta, key)) {
+      meta.character = key;
+      saveMeta(meta);
+      audio.init();
+      audio.chest();
+      updateBestLine();
+    }
+    return;
+  }
+  const b = target.closest('.card.char') as HTMLElement | null;
   if (!b) return;
   const key = b.dataset.char as CharacterKey;
   if (!unlockedCharacters(meta).includes(key)) return;
   meta.character = key;
   saveMeta(meta);
-  renderCharacters($('chars'), meta);
+  renderCharacters($('chars'), meta, $('charInfo'));
   audio.init();
   audio.select('s');
 });
@@ -612,7 +630,7 @@ $('installBtn').onclick = async () => {
 
 // ---------- événements de la sim → effets ----------
 // Règle 3 de CLAUDE.md : chaque coup porté produit flash (sim), recul (sim), son, chiffre et particules.
-const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt, PAL.boomerang, PAL.mine]; // HitSrc
+const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt, PAL.boomerang, PAL.mine, PAL.accent]; // HitSrc (Fire : accent)
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
   const reduced = reducedFx();

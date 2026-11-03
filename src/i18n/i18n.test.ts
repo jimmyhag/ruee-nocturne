@@ -40,7 +40,10 @@ describe('clés dérivées du contenu', () => {
   for (const k of WEAPON_KEYS) need.push(`weapon.${k}.name`);
   for (const k of PASSIVE_KEYS) need.push(`passive.${k}.name`, `passive.${k}.text`);
   for (const k of Object.keys(EVOLUTIONS)) need.push(`evo.${k}.name`, `evo.${k}.text`);
-  for (const c of CHARACTERS) need.push(`char.${c.key}.name`, `char.${c.key}.text`);
+  for (const c of CHARACTERS) {
+    need.push(`char.${c.key}.name`, `char.${c.key}.text`);
+    if (c.key !== 'eclaireuse') need.push(`char.${c.key}.trait`);
+  }
   for (const l of SHOP.lines) need.push(`shop.${l.key}.name`, `shop.${l.key}.text`);
   for (const a of ACHIEVEMENTS) {
     need.push(`ach.${a.id}.name`, `ach.${a.id}.text`);
