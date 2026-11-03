@@ -46,7 +46,7 @@ describe('sauvegarde', () => {
       shop: [99, -3, 'x'],
       character: 'dragon',
       achievements: ['survie3', 42],
-      settings: { hudScale: 7 },
+      settings: { hudScale: 7, lang: 'xx' },
     });
     expect(m.gold).toBe(0);
     expect(m.shop[0]).toBe(SHOP.lines[0].tiers);
@@ -55,6 +55,14 @@ describe('sauvegarde', () => {
     expect(m.character).toBe('eclaireuse');
     expect(m.achievements).toEqual(['survie3']);
     expect(m.settings.hudScale).toBe(1);
+    expect(m.settings.lang).toBe('auto');
+  });
+  it('réglage de langue : auto par défaut, fr et en conservés à l’export/import', () => {
+    expect(fresh().settings.lang).toBe('auto');
+    const m = fresh();
+    m.settings.lang = 'en';
+    expect(importMeta(exportMeta(m))!.settings.lang).toBe('en');
+    expect(normalizeMeta({ version: 2, settings: { lang: 'fr' } }).settings.lang).toBe('fr');
   });
   it('export puis import : aller-retour sans perte, et refus d’un JSON étranger', () => {
     const m = fresh();

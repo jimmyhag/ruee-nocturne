@@ -1,21 +1,19 @@
 import { ENEMIES, PLAYER } from '../sim/balance';
-import type { Card } from '../sim/types';
-import { cardText, cardTitle } from '../sim/progression';
+import type { Card, PassiveKey, WeaponKey } from '../sim/types';
 import { EVOLUTIONS, PASSIVES, WEAPONS } from '../sim/weapons/defs';
 import type { World } from '../sim/world';
+import { fmtTime, onLangChange, t } from '../i18n';
+import { cardText, cardTitle, enemyName, passiveName, weaponName } from './cards';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const BOSS_NAMES = ENEMIES.map((d) => d.name.toUpperCase()); // précalculé : aucune chaîne par frame
-export const fmtTime = (s: number) => {
-  s = Math.floor(s);
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-};
 
 export type FlashKind = 'hurt' | 'gold';
 
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
 export class Hud {
   private cache: Record<string, string | number | boolean> = {};
+  /** Noms de boss précalculés dans la langue courante : aucune chaîne construite par frame. */
+  private bossNames: string[] = [];
   private els = {
     xpfill: $('xpfill'),
     xpsweep: $('xpsweep'),
@@ -45,6 +43,16 @@ export class Hud {
   private flashKind: FlashKind = 'hurt';
   /** Atténuation des flashs (mode « réduction des effets ») : 1 = plein, 0,4 = atténué. */
   flashMul = 1;
+
+  constructor() {
+    this.relabel();
+    onLangChange(() => this.relabel());
+  }
+  /** Recalcule les libellés qui dépendent de la langue (changement à chaud depuis les réglages). */
+  relabel(): void {
+    this.bossNames = ENEMIES.map((_, i) => enemyName(i).toUpperCase());
+    delete this.cache.bossname;
+  }
 
   reset(): void {
     this.cache = {};
@@ -103,7 +111,7 @@ export class Hud {
     if (bossOn) {
       const b = w.enemies[w.bossIndex];
       this.width('bossfill', b.hp / b.max);
-      this.text('bossname', BOSS_NAMES[b.type]);
+      this.text('bossname', this.bossNames[b.type]);
     }
     const cd = P.dashCd > 0 ? 1 - P.dashCd / PLAYER.dashCd : 1;
     const cdv = cd.toFixed(2);
@@ -149,11 +157,10 @@ export class Hud {
 
   kit(w: World): void {
     const parts: string[] = [];
-    for (const k in w.weapons)
-      parts.push(`<span>${WEAPONS[k as keyof typeof WEAPONS].name} ${w.weapons[k as keyof typeof WEAPONS]}</span>`);
+    for (const k in w.weapons) parts.push(`<span>${weaponName(k as WeaponKey)} ${w.weapons[k as WeaponKey]}</span>`);
     for (const k in w.passives)
       parts.push(
-        `<span style="color:var(--muted)">${PASSIVES[k as keyof typeof PASSIVES].name} ${w.passives[k as keyof typeof PASSIVES]}</span>`,
+        `<span style="color:var(--muted)">${passiveName(k as PassiveKey)} ${w.passives[k as PassiveKey]}</span>`,
       );
     this.els.kit.innerHTML = parts.join('');
   }
@@ -179,24 +186,27 @@ export function renderCards(container: HTMLElement, cards: Card[]): void {
     .map((c, i) => {
       let glyph = '+',
         color = '#7ee0a1',
-        badge = '<span class="badge">Bonus</span>';
+        badge = `<span class="badge">${t('card.bonus')}</span>`;
       if (c.kind === 'w') {
-        const d = WEAPONS[c.key as keyof typeof WEAPONS];
+        const d = WEAPONS[c.key as WeaponKey];
         glyph = d.glyph;
         color = d.color;
-        badge = c.lv === 1 ? '<span class="badge new">Nouvelle arme</span>' : `<span class="badge">Niv ${c.lv}</span>`;
+        badge =
+          c.lv === 1
+            ? `<span class="badge new">${t('card.newWeapon')}</span>`
+            : `<span class="badge">${t('card.level', { n: c.lv })}</span>`;
       } else if (c.kind === 's') {
-        const d = PASSIVES[c.key as keyof typeof PASSIVES];
+        const d = PASSIVES[c.key as PassiveKey];
         glyph = d.glyph;
         color = d.color;
-        badge = `<span class="badge">Niv ${c.lv}</span>`;
+        badge = `<span class="badge">${t('card.level', { n: c.lv })}</span>`;
       } else if (c.kind === 'e') {
-        const d = EVOLUTIONS[c.key as keyof typeof EVOLUTIONS];
+        const d = EVOLUTIONS[c.key as WeaponKey];
         if (d) {
           glyph = d.glyph;
           color = d.color;
         }
-        badge = '<span class="badge evo">Évolution</span>';
+        badge = `<span class="badge evo">${t('card.evolution')}</span>`;
       }
       return `<button class="card" data-i="${i}"><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div>${badge}<p>${cardText(c)}</p></button>`;
     })

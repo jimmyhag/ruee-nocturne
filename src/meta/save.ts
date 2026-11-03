@@ -4,6 +4,8 @@ import { get, set } from 'idb-keyval';
 import { SHOP } from '../sim/balance';
 import { ACHIEVEMENT_IDS } from './achievements';
 import type { CharacterKey } from '../sim/types';
+import { LANG_SETTINGS } from '../i18n';
+import type { LangSetting } from '../i18n';
 
 /** Compteurs cumulés sur tous les runs : la matière des succès (src/meta/achievements.ts). */
 export interface MetaStats {
@@ -20,6 +22,7 @@ export interface MetaSettings {
   vibrate: boolean;
   hudScale: number; // 0.85 | 1 | 1.2
   lefty: boolean;
+  lang: LangSetting; // 'auto' : langue du navigateur (phase 5)
 }
 export interface Meta {
   version: 2;
@@ -56,7 +59,7 @@ export const DEFAULT_META: Meta = {
   achievements: [],
   character: 'eclaireuse',
   daily: { date: '', times: [] },
-  settings: { vibrate: true, hudScale: 1, lefty: false },
+  settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto' },
 };
 
 const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -118,8 +121,23 @@ export function normalizeMeta(raw: unknown): Meta {
       vibrate: bool(se.vibrate, true),
       hudScale: [0.85, 1, 1.2].includes(num(se.hudScale, 1)) ? num(se.hudScale, 1) : 1,
       lefty: bool(se.lefty, false),
+      lang: LANG_SETTINGS.includes(se.lang as LangSetting) ? (se.lang as LangSetting) : 'auto',
     },
   };
+}
+
+/**
+ * Lecture synchrone du repli localStorage (saveMeta écrit les deux stockages) : le menu est juste dès le premier
+ * affichage, sans attendre IndexedDB. loadMeta() confirme ensuite depuis la source durable.
+ */
+export function peekMeta(): Meta {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return normalizeMeta(JSON.parse(raw));
+  } catch {
+    /* stockage bloqué */
+  }
+  return normalizeMeta(DEFAULT_META);
 }
 
 export async function loadMeta(): Promise<Meta> {

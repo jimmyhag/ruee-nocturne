@@ -37,12 +37,8 @@ describe('personnages', () => {
     expect(s.weapons).toEqual({ foudre: 1 });
     expect(s.player.maxHp).toBe(Math.round(PLAYER.hp * 0.7));
   });
-  it('chaque personnage a un nom, un texte et une arme de départ connue', () => {
+  it('trois personnages dans l’ordre, le premier disponible au départ (noms et textes : src/ui/cards.test.ts)', () => {
     expect(CHARACTERS.map((c) => c.key)).toEqual(['eclaireuse', 'bucheron', 'sorciere']);
-    for (const c of CHARACTERS) {
-      expect(c.name.length).toBeGreaterThan(2);
-      expect(c.text.length).toBeGreaterThan(5);
-    }
     expect(CHARACTERS[0].unlock).toBe('');
   });
 });

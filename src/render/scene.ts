@@ -357,6 +357,11 @@ export class GameScene {
     this.camScale = wpx < hpx ? 1.35 : 1;
   }
 
+  /** Compile les shaders à l'avance : hors du fil principal quand KHR_parallel_shader_compile existe (chargement). */
+  warmup(): Promise<void> {
+    return this.renderer.compileAsync(this.scene, this.camera).then(() => undefined);
+  }
+
   /** Atterrissage du joueur : lance le ressort d'écrasement (valeurs neutres depuis la PR #6). */
   onLand(): void {
     this.landT = 0;

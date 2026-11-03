@@ -1,16 +1,18 @@
 import { BOSS_TYPE, COLOSSUS_TYPE, ELITE_TYPE, REAPER_TYPE, STEP, SWARM_TYPE } from './sim/balance';
-import { EVOLUTIONS, WEAPON_KEYS } from './sim/weapons/defs';
+import { WEAPON_KEYS } from './sim/weapons/defs';
 import { startRun, step } from './sim/step';
 import { Ev, Mode } from './sim/types';
 import type { Input } from './sim/types';
 import { World } from './sim/world';
-import { GameScene } from './render/scene';
+import type { GameScene } from './render/scene';
 import { PAL } from './render/palette';
 import { FEEL, HitStop } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
-import { Hud, flashCard, fmtTime, renderCards } from './ui/hud';
-import { exportMeta, importMeta, loadMeta, normalizeMeta, saveMeta, DEFAULT_META } from './meta/save';
+import { Hud, flashCard, renderCards } from './ui/hud';
+import { fmtTime } from './i18n';
+import { achName, achUnlock, evolutionName } from './ui/cards';
+import { exportMeta, importMeta, loadMeta, normalizeMeta, peekMeta, saveMeta, DEFAULT_META } from './meta/save';
 import type { Meta } from './meta/save';
 import {
   checkAchievements,
@@ -29,14 +31,31 @@ import { Pwa } from './platform/pwa';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const VERSION = '0.1.0';
 
-// ---------- rendu ----------
-let scene: GameScene;
-try {
-  scene = new GameScene($('c') as HTMLCanvasElement, $('dmg'));
-} catch {
-  $('nogl').hidden = false;
-  $('menu').hidden = true;
-  throw new Error('WebGL indisponible');
+// ---------- rendu (module chargé à part : three + src/render ≈ 150 ko gzip) ----------
+// Le menu s'affiche et répond sans WebGL. Le module de rendu est téléchargé tout de suite (modulepreload injecté
+// par vite.config.ts) mais évalué et construit après le premier affichage, quand le navigateur est libre, ou dès
+// « Jouer » si le joueur est plus rapide. Les shaders sont compilés en parallèle (compileAsync) : pas de tâche
+// longue sur le fil principal pendant le chargement (Lighthouse TBT), et le premier run démarre sans à-coup.
+let scene: GameScene | null = null;
+let sceneReady = false; // construite et shaders compilés : on peut rendre
+let scenePromise: Promise<GameScene> | null = null;
+function loadScene(): Promise<GameScene> {
+  return (scenePromise ??= import('./render/scene').then(async ({ GameScene }) => {
+    let s: GameScene;
+    try {
+      s = new GameScene($('c') as HTMLCanvasElement, $('dmg'));
+    } catch (e) {
+      $('nogl').hidden = false;
+      $('menu').hidden = true;
+      throw e;
+    }
+    scene = s;
+    sizeW = sizeH = 0;
+    resize();
+    await s.warmup();
+    sceneReady = true;
+    return s;
+  }));
 }
 const hud = new Hud();
 const audio = new AudioBus();
@@ -52,7 +71,7 @@ const runStats = { dards: 0, elites: 0, bosses: 0, evolutions: 0, won: false };
 let lastVibe = 0;
 let app: AppMode = 'menu';
 let world: World | null = null;
-let meta: Meta = normalizeMeta(DEFAULT_META);
+let meta: Meta = peekMeta(); // synchrone (localStorage) : le menu est juste dès le premier affichage, IndexedDB confirme ensuite
 let hurtT = 0;
 const hitStop = new HitStop(); // borné : voir render/feel.ts
 // « réduction des effets » : réglage du joueur, sinon prefers-reduced-motion (skill game-feel §9)
@@ -80,7 +99,7 @@ function resize(): void {
   if (w === sizeW && h === sizeH) return;
   sizeW = w;
   sizeH = h;
-  scene.resize(w, h);
+  scene?.resize(w, h);
 }
 addEventListener('resize', resize);
 addEventListener('orientationchange', resize);
@@ -151,7 +170,32 @@ function closeScreen(): void {
 const DECOR_SEED = 20261102;
 let decorBuilt = false;
 
+let startWanted: { variant?: number; daily: boolean } | null = null;
 function startGame(variant?: number, daily = false): void {
+  if (!scene || !sceneReady) {
+    // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
+    startWanted = { variant, daily };
+    $<HTMLButtonElement>('playBtn').disabled = true;
+    $('playBtn').textContent = 'Chargement…';
+    loadScene().then(
+      () => {
+        const w = startWanted;
+        startWanted = null;
+        $<HTMLButtonElement>('playBtn').disabled = false;
+        $('playBtn').textContent = 'Jouer';
+        if (w) startGame(w.variant, w.daily);
+      },
+      () => {
+        // module introuvable (réseau coupé au tout premier lancement) : on laisse réessayer
+        scenePromise = null;
+        startWanted = null;
+        $<HTMLButtonElement>('playBtn').disabled = false;
+        $('playBtn').textContent = 'Réessayer';
+      },
+    );
+    return;
+  }
+  const S = scene;
   audio.init();
   dailyRun = daily;
   runStats.dards = runStats.elites = runStats.bosses = runStats.evolutions = 0;
@@ -164,7 +208,7 @@ function startGame(variant?: number, daily = false): void {
   for (let i = 0; i < skips; i++) world.rng.next();
   startRun(world);
   if (!decorBuilt) {
-    scene.buildDecor(world);
+    S.buildDecor(world);
     decorBuilt = true;
   }
   app = 'play';
@@ -174,8 +218,8 @@ function startGame(variant?: number, daily = false): void {
   $('touch').hidden = !input.isTouch;
   hud.reset();
   hud.kit(world);
-  scene.dmg.clear();
-  scene.snapCamera(world);
+  S.dmg.clear();
+  S.snapCamera(world);
   hurtT = 0;
   hitStop.reset();
   applyFx();
@@ -240,7 +284,8 @@ function choose(i: number): void {
   else setTimeout(apply, 160);
 }
 function gameOver(won = false): void {
-  if (!world) return;
+  if (!world || !scene) return;
+  const S = scene;
   app = 'over';
   const rec = world.t > meta.bestTime;
   meta.runs++;
@@ -266,7 +311,7 @@ function gameOver(won = false): void {
   saveMeta(meta);
   $('oUnlocked').hidden = fresh.length === 0;
   $('oUnlocked').textContent = fresh.length
-    ? 'Débloqué : ' + fresh.map((a) => a.name + (a.unlockText ? ` (${a.unlockText})` : '')).join(', ')
+    ? 'Débloqué : ' + fresh.map((a) => achName(a) + (a.unlocks ? ` (${achUnlock(a)})` : '')).join(', ')
     : '';
   renderProgress($('oProgress'), meta, 3);
   const miss = missingTime(meta, world.t);
@@ -282,12 +327,12 @@ function gameOver(won = false): void {
     : dailyRank > 0
       ? `Défi du jour : ${dailyRank === 1 ? 'meilleur temps' : dailyRank + 'e temps'} du jour · +${gold} or`
       : miss
-        ? `Il te manquait ${fmtTime(miss.seconds)} pour « ${miss.a.name} » · +${gold} or`
+        ? `Il te manquait ${fmtTime(miss.seconds)} pour « ${achName(miss.a)} » · +${gold} or`
         : rec
           ? `<span class="newrec">Nouveau record</span> · +${gold} or`
           : `Encore ${fmtTime(meta.bestTime - world.t)} pour battre ton record · +${gold} or`;
-  scene.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
-  if (!reducedFx()) scene.shake = 0.5;
+  S.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
+  if (!reducedFx()) S.shake = 0.5;
   if (!won) audio.death();
   setTimeout(() => {
     if (app !== 'over') return;
@@ -496,6 +541,7 @@ const BOSS_BANNER: Record<number, string> = {
   [REAPER_TYPE]: 'Le Faucheur arrive',
 };
 function handleEvents(w: World, now: number): void {
+  const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
   const reduced = reducedFx();
   const fx = reduced ? 0.5 : 1; // particules ÷2 en mode réduit
   const PT = FEEL.particles;
@@ -503,9 +549,9 @@ function handleEvents(w: World, now: number): void {
     const e = w.events[i];
     switch (e.type) {
       case Ev.Hit:
-        scene.dmg.add(e.x, e.y, e.z, e.v);
+        S.dmg.add(e.x, e.y, e.z, e.v);
         // gerbe de la couleur de l'arme, orientée comme le recul (opposée à la source)
-        scene.particles.burst(
+        S.particles.burst(
           e.x,
           e.y,
           e.z,
@@ -526,56 +572,47 @@ function handleEvents(w: World, now: number): void {
         if (e.x2 === 1 || e.v === ELITE_TYPE) {
           // élite (dorée) ou Brute : grosse gerbe ennemi + or, shake
           const n = e.x2 === 1 ? PT.elite.n : PT.elite.n * 0.5;
-          scene.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
-          scene.particles.burst(e.x, e.y, e.z, PAL.gold, (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
-          if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.elite);
-        } else
-          scene.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.kill.n * fx) | 0, PT.kill.speed, PT.kill.up);
+          S.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
+          S.particles.burst(e.x, e.y, e.z, PAL.gold, (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
+          if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+        } else S.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.kill.n * fx) | 0, PT.kill.speed, PT.kill.up);
         audio.kill(false, now);
         hitStop.request(FEEL.hitStop.kill.duration, FEEL.hitStop.kill.scale);
         break;
       case Ev.BossKill:
         runStats.bosses++;
         vibrate(80);
-        scene.particles.burst(
-          e.x,
-          e.y,
-          e.z,
-          PAL.enemy[e.v | 0],
-          (PT.elite.n * fx) | 0,
-          PT.elite.speed + 2,
-          PT.elite.up,
-        );
-        scene.particles.burst(e.x, e.y, e.z, PAL.gold, (PT.elite.n * 0.6 * fx) | 0, PT.elite.speed, PT.elite.up);
-        if (!reduced) scene.shake = FEEL.shake.boss;
+        S.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.elite.n * fx) | 0, PT.elite.speed + 2, PT.elite.up);
+        S.particles.burst(e.x, e.y, e.z, PAL.gold, (PT.elite.n * 0.6 * fx) | 0, PT.elite.speed, PT.elite.up);
+        if (!reduced) S.shake = FEEL.shake.boss;
         hud.banner(e.v === REAPER_TYPE ? 'Le Faucheur est vaincu' : 'Boss vaincu');
         hud.flash('gold');
         audio.kill(true);
         hitStop.request(FEEL.hitStop.boss.duration, FEEL.hitStop.boss.scale, 2);
         break;
       case Ev.Shoot:
-        scene.particles.burst(e.x, e.y, e.z, PAL.proj, PT.shoot.n, PT.shoot.speed, PT.shoot.up, false);
+        S.particles.burst(e.x, e.y, e.z, PAL.proj, PT.shoot.n, PT.shoot.speed, PT.shoot.up, false);
         audio.shoot();
         break;
       case Ev.Throw:
         audio.throwSound();
         break;
       case Ev.MineBlast:
-        scene.particles.burst(e.x, e.y, e.z, PAL.mine, (12 * fx) | 0, 6, 6);
-        scene.particles.ring(e.x, 0.2, e.z, PAL.gold, (10 * fx) | 0, e.v * 2.5, 1);
+        S.particles.burst(e.x, e.y, e.z, PAL.mine, (12 * fx) | 0, 6, 6);
+        S.particles.ring(e.x, 0.2, e.z, PAL.gold, (10 * fx) | 0, e.v * 2.5, 1);
         audio.blast();
         break;
       case Ev.ZoneBlast:
-        scene.particles.ring(e.x, 0.2, e.z, PAL.telegraph, (16 * fx) | 0, e.v * 3, 4);
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.hurt);
+        S.particles.ring(e.x, 0.2, e.z, PAL.telegraph, (16 * fx) | 0, e.v * 3, 4);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
         audio.blast();
         break;
       case Ev.Jump:
         audio.jump();
         break;
       case Ev.Land:
-        scene.onLand();
-        scene.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
+        S.onLand();
+        S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
         break;
       case Ev.Dash:
         audio.dash();
@@ -584,27 +621,27 @@ function handleEvents(w: World, now: number): void {
         audio.pickup(now);
         break;
       case Ev.LevelUp:
-        scene.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
+        S.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
         break;
       case Ev.Chest:
-        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
+        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
         hud.banner(e.v > 1 ? `Coffre : ${e.v} améliorations` : 'Coffre');
         audio.chest();
         break;
       case Ev.Evolve:
         runStats.evolutions++;
-        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
-        scene.particles.ring(e.x, 0.5, e.z, PAL.paper, (20 * fx) | 0, 4, 10);
-        hud.banner(`${EVOLUTIONS[WEAPON_KEYS[e.v | 0]]?.name ?? 'Évolution'} !`);
+        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
+        S.particles.ring(e.x, 0.5, e.z, PAL.paper, (20 * fx) | 0, 4, 10);
+        hud.banner(`${evolutionName(WEAPON_KEYS[e.v | 0])} !`);
         hud.flash('gold');
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.evolve);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.evolve);
         audio.evolve();
         break;
       case Ev.PlayerHurt:
         hurtT = 0.15;
         vibrate(30);
         if (Math.random() < 0.12) audio.hurt();
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.hurt);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
         hitStop.request(FEEL.hitStop.hurt.duration, FEEL.hitStop.hurt.scale, 1);
         break;
       case Ev.Wave:
@@ -613,7 +650,7 @@ function handleEvents(w: World, now: number): void {
       case Ev.Revive:
         hud.banner(e.v > 0 ? 'Seconde chance !' : 'Dernière chance !');
         hud.flash('gold');
-        scene.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 6, 8);
+        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 6, 8);
         audio.evolve();
         vibrate(80);
         hitStop.request(FEEL.hitStop.boss.duration, FEEL.hitStop.boss.scale, 2);
@@ -622,22 +659,22 @@ function handleEvents(w: World, now: number): void {
         vibrate(80);
         hud.banner(BOSS_BANNER[e.x2 | 0] ?? 'Un boss approche');
         audio.boss();
-        if (!reduced) scene.shake = Math.max(scene.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
+        if (!reduced) S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
         break;
       case Ev.BossRoar:
         audio.roar();
-        if (!reduced) scene.shake = Math.max(scene.shake, FEEL.shake.elite);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         break;
       case Ev.Spit:
-        scene.particles.burst(e.x, e.y, e.z, PAL.spit, (3 * fx) | 0, 2, 2, false);
+        S.particles.burst(e.x, e.y, e.z, PAL.spit, (3 * fx) | 0, 2, 2, false);
         audio.spit();
         break;
       case Ev.Dive:
         audio.dive();
         break;
       case Ev.Bolt:
-        scene.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2);
-        scene.particles.burst(e.x2, e.y2, e.z2, PAL.bolt, (4 * fx) | 0, 4, 3);
+        S.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2);
+        S.particles.burst(e.x2, e.y2, e.z2, PAL.bolt, (4 * fx) | 0, 4, 3);
         if (i % 3 === 0) audio.bolt();
         break;
       case Ev.Telegraph:
@@ -699,15 +736,15 @@ function frame(nowMs: number): void {
     if (pick >= 0) choose(pick);
   }
 
-  if (world && app !== 'menu') {
+  if (world && app !== 'menu' && scene) {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
     scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
-  } else {
+  } else if (scene && sceneReady) {
     scene.renderIdle(now, realDt);
   }
 
-  if (perfOn) {
+  if (perfOn && scene) {
     frameTimes[frameIdx++ % PERF_WINDOW] = performance.now() - t0;
     fpsFrames++;
     if (fpsT0 === 0) {
@@ -742,13 +779,21 @@ function frame(nowMs: number): void {
 }
 
 // ---------- démarrage ----------
-loadMeta().then((m) => {
-  meta = m;
+function applyMeta(): void {
   audio.setMuted(meta.muted);
   $('soundBtn').textContent = 'Son : ' + (meta.muted ? 'coupé' : 'activé');
   applyFx();
   applySettings();
   updateBestLine();
+}
+applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
+let metaLoaded = false;
+loadMeta().then((m) => {
+  if (JSON.stringify(m) !== JSON.stringify(meta)) {
+    meta = m;
+    applyMeta();
+  }
+  metaLoaded = true;
 });
 setPerf(perfOn);
 requestAnimationFrame(frame);
@@ -761,7 +806,10 @@ const debugRt = installDebugHooks({
   get app() {
     return app;
   },
-  scene,
+  get scene() {
+    return scene;
+  },
+  ready: () => sceneReady && metaLoaded,
   start: startGame,
   afterSimJump() {
     if (!world) return;
@@ -777,3 +825,17 @@ const debugRt = installDebugHooks({
     updateBestLine();
   },
 });
+
+// Module de rendu : déjà téléchargé (modulepreload), il n'est évalué et la scène construite qu'à la première
+// interaction du joueur (geste, touche, survol de « Jouer ») : le menu reste léger tant qu'on ne joue pas, et
+// aucune tâche longue ne précède l'interactivité (Lighthouse). En debug/tests (`?debug=1`), tout de suite :
+// les specs attendent `__game.ready` sans interagir.
+{
+  const warm = () => void loadScene().catch(() => {});
+  if (debugRt) requestAnimationFrame(warm);
+  else {
+    for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const)
+      addEventListener(ev, warm, { once: true, passive: true });
+    $('playBtn').addEventListener('pointerenter', warm, { once: true });
+  }
+}
