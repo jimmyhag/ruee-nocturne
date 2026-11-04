@@ -13,14 +13,14 @@ export interface MetaStats {
   dards: number;
   elites: number;
   bosses: number;
-  evolutions: number;
+  triples: number; // cartes à 3 lignes prises (phase 12)
   wins: number;
   bestTime: number; // s
   runs: number;
   // défis (phase 6) : meilleurs scores en un seul run
   noHitBest: number; // s sans dégât
   distanceBest: number; // u parcourus
-  evoRunBest: number; // évolutions obtenues
+  weaponLvBest: number; // meilleur niveau d'arme (améliorations) en un run (phase 12)
 }
 export interface MetaSettings {
   vibrate: boolean;
@@ -48,7 +48,7 @@ export interface Meta {
   outfits: CharacterKey[]; // personnages dont la tenue alternative est achetée (phase 7)
   outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
-  slots: { weapons: number; passives: number }; // emplacements débloqués (phase 10), communs à tous les personnages
+  slots: { weapons: number; passives: number }; // emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   settings: MetaSettings;
 }
@@ -73,13 +73,13 @@ export const DEFAULT_META: Meta = {
     dards: 0,
     elites: 0,
     bosses: 0,
-    evolutions: 0,
+    triples: 0,
     wins: 0,
     bestTime: 0,
     runs: 0,
     noHitBest: 0,
     distanceBest: 0,
-    evoRunBest: 0,
+    weaponLvBest: 0,
   },
   achievements: [],
   bought: [],
@@ -177,13 +177,13 @@ export function normalizeMeta(raw: unknown): Meta {
       dards: Math.max(0, num(st.dards)),
       elites: Math.max(0, num(st.elites)),
       bosses: Math.max(0, num(st.bosses)),
-      evolutions: Math.max(0, num(st.evolutions)),
+      triples: Math.max(0, num(st.triples)),
       wins: Math.max(0, num(st.wins)),
       bestTime: Math.max(0, num(st.bestTime, bestTime)),
       runs: Math.max(0, num(st.runs, runs)),
       noHitBest: Math.max(0, num(st.noHitBest)),
       distanceBest: Math.max(0, num(st.distanceBest)),
-      evoRunBest: Math.max(0, num(st.evoRunBest) | 0),
+      weaponLvBest: Math.max(0, num(st.weaponLvBest) | 0),
     },
     achievements: Array.isArray(r.achievements)
       ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))

@@ -67,10 +67,11 @@ describe('rng', () => {
 
 describe('progression', () => {
   it('courbe needFor', () => {
-    expect(XP.needFor(1)).toBe(9);
-    expect(XP.needFor(5)).toBe(40);
-    expect(XP.needFor(10)).toBe(105);
-    expect(XP.needFor(20)).toBe(325);
+    // phase 12 : courbe aplatie (≈ 3× plus de cartes) : 5 + 2·lv + 0,15·lv²
+    expect(XP.needFor(1)).toBe(7);
+    expect(XP.needFor(5)).toBe(18);
+    expect(XP.needFor(10)).toBe(40);
+    expect(XP.needFor(20)).toBe(105);
   });
   it('tirage : jamais 3 passifs quand on a < 2 armes, 3 cartes distinctes', () => {
     for (let s = 0; s < 300; s++) {

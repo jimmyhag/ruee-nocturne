@@ -2,6 +2,26 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.7.0 — 4 nov. 2026 (phase 12 « Lignes de stats »)
+
+La progression en run devient longue et granulaire : les armes et les tomes se montent par petites lignes de stats, jusqu'à 100 fois.
+
+### Ajouté
+
+- **Lignes de stats** : chaque carte d'arme apporte 1 à 3 lignes tirées dans la famille de l'arme (dégâts, recharge, projectiles, vitesse, perforation, rayon, rotation, cibles, portée, mines, chaîne), chacune petite ; une arme s'améliore jusqu'à 100 fois. Les lignes en % se cumulent (×1,10 par ligne de dégâts d'arme), les lignes entières s'ajoutent (+1 projectile).
+- **Tomes** : huit tomes remplacent les huit passifs : Dégâts, Cadence, Projectiles (+1 projectile pour toutes les armes, taille, vitesse), Vitalité (PV, régénération, dégâts subis), Mouvement (course, dash), Savoir (XP, collecte), Chance, Or. Une carte de tome tire aussi 1 à 3 lignes.
+- **Rareté** : 1 ligne = commune, 2 = rare (cadre bleu), 3 = épique (cadre or). La chance (boutique, tome Chance) décale les tirages vers le rare et l'épique.
+- Succès « Triple ligne » (prendre une carte épique) et « Érudit » (une arme à 25 améliorations dans un run) remplacent « Métamorphose » et « Métamorphe ».
+- `npm run sim` : ligne `lignes` (lignes par carte, part d'épiques, niveau d'arme principale à 10 min), cible « arme principale à 10 min entre 15 et 30 ».
+
+### Modifié
+
+- **Plus d'évolutions** (Nova, Soleil noir, Tempête, Orage) : la puissance vient des lignes (décision de Jimmy).
+- Courbe d'XP aplatie (≈ 3× plus de montées de niveau : ≈ 35 cartes à 10 min, une toutes les ~15 s) et montée des ennemis plus douce (PV t/170 avec un milieu de partie à /85 et une fin de partie raide après 15:00, dégâts t/500 puis très raides après 15:00, éruptions 12 PV, crachats 11) pour que la montée par petites lignes reste sensible.
+- **Lames** : rayon de frappe de chaque lame 0,55 → 0,75 u. Un Dard collé au joueur passait sous l'anneau ; le Bûcheron et le Colporteur, qui en dépendent, mouraient avant 3 min dans 40–46 % des runs (3:12 et 3:24 de survie médiane) et reviennent à 5:04 et 4:51 (16 et 20 % de morts précoces). La ligne « taille » du tome Projectiles agrandit la lame (et sa frappe), plus l'orbite.
+- Kit de départ converti en lignes fixes à puissance égale : Bûcheron et Colporteur partent avec Lames +2 lames et six lignes de dégâts (≈ l'ancien Lames 3 : 4 lames, 21 dégâts), le Braconnier avec Boomerang quatre lignes de dégâts, recharge et portée (≈ l'ancien Boomerang 2), le Colporteur avec deux lignes de Chance et trois d'Or (≈ Trèfle 1 et Bourse 1).
+- Survie médiane (bot average, 100 runs) : départ **4:11** (4:40 en 1.6.0), 17 % de morts avant 3 minutes, 83 % passent 3 minutes ; personnage complet **14:59** (14:28), 23 % de runs jusqu'au Faucheur (15 % avant l'élargissement de la frappe des Lames : voir `docs/GATES.md`, écart à trancher). Le bot de simulation s'écarte désormais des crachats et concentre ses lignes sur son arme principale, comme un joueur moyen.
+
 ## 1.6.0 — 4 nov. 2026 (phase 11 « Mouvement utile »)
 
 Le saut et le dash servent à autre chose qu'à fuir : on monte, on passe au-dessus, on traverse.

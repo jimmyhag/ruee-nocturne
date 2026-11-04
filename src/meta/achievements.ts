@@ -21,7 +21,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'elites10', goal: 10, get: (s) => s.elites, unlocks: { weapon: 'mines' } },
   { id: 'boss1', goal: 1, get: (s) => s.bosses, unlocks: { character: 'sapeur' } },
   { id: 'survie10', goal: 600, get: (s) => s.bestTime, time: true, survival: true, unlocks: { character: 'bucheron' } },
-  { id: 'evo1', goal: 1, get: (s) => s.evolutions },
+  { id: 'triple1', goal: 1, get: (s) => s.triples }, // phase 12 : une carte à 3 lignes
   { id: 'kills2000', goal: 2000, get: (s) => s.kills },
   { id: 'survie15', goal: 900, get: (s) => s.bestTime, time: true, survival: true },
   { id: 'survie20', goal: 1200, get: (s) => s.bestTime, time: true, survival: true },
@@ -29,7 +29,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   // défis (phase 6) : des objectifs de maîtrise dans un seul run, pas du cumul
   { id: 'intouchable', goal: 240, get: (s) => s.noHitBest, time: true, unlocks: { character: 'feufollet' } },
   { id: 'marathon', goal: 4000, get: (s) => s.distanceBest },
-  { id: 'metamorphe', goal: 3, get: (s) => s.evoRunBest },
+  { id: 'erudit', goal: 25, get: (s) => s.weaponLvBest }, // phase 12 : une arme à 25 améliorations dans un run
 ];
 
 export const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((a) => a.id));

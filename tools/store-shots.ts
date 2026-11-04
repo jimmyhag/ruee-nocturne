@@ -128,14 +128,15 @@ try {
   await p.screenshot({ path: `${OUT}/phone-3-niveau.png` });
   await pickUntilPlay(p);
 
-  await p.evaluate(() => (window as any).__game.debug.evolve('orbe'));
-  await p.evaluate(() => (window as any).__game.debug.evolve('foudre'));
+  await p.evaluate(() => (window as any).__game.debug.upgrade('orbe', 25));
+  await p.evaluate(() => (window as any).__game.debug.give('foudre', 1));
+  await p.evaluate(() => (window as any).__game.debug.upgrade('foudre', 20));
   await p.evaluate(() => (window as any).__game.debug.warp(60));
   await pickUntilPlay(p);
   await p.evaluate(() => (window as any).__game.debug.spawn(2, 12, 7));
   await freezeAfterKill(p, 120);
   await tidyHp(p, 131, 165);
-  await p.screenshot({ path: `${OUT}/phone-4-evolutions.png` });
+  await p.screenshot({ path: `${OUT}/phone-4-armes.png` });
 
   await p.evaluate(() => (window as any).__game.debug.speed(1));
   await tidyHp(p, 1, 165);
@@ -170,8 +171,10 @@ try {
   await d.screenshot({ path: `${OUT}/desktop-2-boss.png` });
 
   await d.evaluate(() => (window as any).__game.debug.speed(1));
-  await d.evaluate(() => (window as any).__game.debug.evolve('aura'));
-  await d.evaluate(() => (window as any).__game.debug.evolve('lames'));
+  await d.evaluate(() => (window as any).__game.debug.give('aura', 1));
+  await d.evaluate(() => (window as any).__game.debug.upgrade('aura', 20));
+  await d.evaluate(() => (window as any).__game.debug.give('lames', 1));
+  await d.evaluate(() => (window as any).__game.debug.upgrade('lames', 20));
   await d.evaluate(() => (window as any).__game.debug.warp(400));
   await pickUntilPlay(d);
   await d.evaluate(() => (window as any).__game.debug.spawn(0, 30, 8));

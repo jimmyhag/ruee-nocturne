@@ -126,8 +126,8 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   await page.evaluate(() => (window as any).__game.debug.speed(1));
 });
 
-// Porte de phase 3 : armes évoluées, Colosse et ses cercles rouges, lac.
-test('contenu : évolutions, Colosse, lac', async ({ page }, info) => {
+// Porte de phase 3 : armes très améliorées (phase 12 : lignes), Colosse et ses cercles rouges, lac.
+test('contenu : armes améliorées, Colosse, lac', async ({ page }, info) => {
   const p = info.project.name;
   await openGame(page);
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
@@ -136,16 +136,20 @@ test('contenu : évolutions, Colosse, lac', async ({ page }, info) => {
     const g = (window as any).__game;
     g.debug.god();
     g.world.player.need = 1e9; // pas de montée de niveau pendant la capture : l'écran de choix figerait la sim
-    g.debug.evolve('aura');
-    g.debug.evolve('lames');
-    g.debug.give('boomerang', 5);
-    g.debug.give('mines', 5);
+    g.debug.give('aura', 1);
+    g.debug.upgrade('aura', 20);
+    g.debug.give('lames', 1);
+    g.debug.upgrade('lames', 20);
+    g.debug.give('boomerang', 1);
+    g.debug.upgrade('boomerang', 12);
+    g.debug.give('mines', 1);
+    g.debug.upgrade('mines', 12);
     g.debug.spawn(2, 6, 4); // des Brutes autour pour voir les coups
   });
   await page.waitForTimeout(1500);
   await page.evaluate(() => (window as any).__game.debug.speed(0));
   await page.waitForTimeout(100);
-  await page.screenshot(shot('evolutions', p));
+  await page.screenshot(shot('armes-ameliorees', p));
   await page.evaluate(() => (window as any).__game.debug.speed(1));
 
   // Colosse à 8 u : cercles rouges télégraphiés 1 s sous le joueur

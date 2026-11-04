@@ -1,7 +1,7 @@
 // Toutes les constantes de gameplay. Chaque ligne dit pourquoi.
 // Unités : mètres (u), secondes, PV.
 
-import type { EnemyKey, PassiveKey, WeaponKey } from './types';
+import type { EnemyKey, TomeKey, WeaponKey } from './types';
 import { Trait } from './types';
 
 export const STEP = 1 / 60; // pas fixe de la simulation
@@ -78,7 +78,7 @@ export const HAZARDS = {
     r: 1.6,
     telegraph: 0.8, // fenêtre de saut utile : en l'air ≥ 0,9 u entre 0,11 et 0,62 s après l'impulsion ⇒ sauter à mi-télégraphe
     track: 7, // u/s : la fissure suit le joueur (6,2 u/s en marchant) ; seuls le saut et le dash (×3,2) l'esquivent
-    dmg: 15, // × dmgScale (×1,33 à 2:30 ⇒ 20 PV, un cinquième de la vie ; 45 PV à 15:00) ; à 18 la part des morts par éruption en maxé montait à 18 % sur une seed (porte ≤ 15 %)
+    dmg: 12, // × dmgScale (×1,25 à 2:30 ⇒ 15 PV ; 31 PV à 15:00) ; phase 12 : 15 → 12, les éruptions faisaient 16–17 % des morts d'un personnage complet (porte ≤ 15 %)
     launch: 6, // vitesse verticale donnée au joueur touché : projeté, lisible
   },
   ring: {
@@ -103,8 +103,9 @@ export const HAZARDS = {
 };
 
 export const XP = {
-  // needFor(lv) = 5 + 4·lv + 0.6·lv²  → lv1:10, lv5:40, lv10:105, lv20:325
-  needFor: (lv: number) => Math.floor(5 + lv * 4 + lv * lv * 0.6),
+  // needFor(lv) = 5 + 2·lv + 0,15·lv²  → lv1:7, lv5:18, lv10:40, lv20:105, lv40:325 (phase 12 : ≈ 3× plus de cartes qu'avant,
+  // ≈ 35 à 10 min, une carte toutes les ~15 s : la montée est longue et faite de petites lignes ; avant : 5 + 4·lv + 0,6·lv²)
+  needFor: (lv: number) => Math.floor(5 + lv * 2 + lv * lv * 0.15),
   gemMergeAbove: 880, // au-delà, les nouvelles gemmes fusionnent avec une existante
   magnetAccel: 45,
   magnetMax: 26,
@@ -130,8 +131,8 @@ export const SPAWN = {
   midTo: 900,
   rate: (t: number) =>
     Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
-  hpScale: (t: number) => 1 + t / 150 + Math.max(0, Math.min(t, 900) - 420) / 70, // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
-  dmgScale: (t: number) => 1 + t / 450, // ×3,7 à 20:00 ; t/400 : fin atteinte 5–9 % selon la seed, trop près du plancher 8 %
+  hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 85 + Math.max(0, t - 900) / 50, // phase 12 : milieu plus doux (t/150 et /70 avant), fin de partie plus raide (+2,5 à 20:00) : 16 % de runs maxés allaient au bout // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
+  dmgScale: (t: number) => 1 + t / 500 + Math.max(0, t - 900) / 45, // phase 12 : ×4,1 à 20:00 (t/450 avant) ; après 15:00 les dégâts montent plus vite : une build qui a explosé n'est plus limitée par les PV ennemis
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
   ringMax: 30, // hors écran (fog à 16–44)
@@ -219,7 +220,7 @@ export const CRACHEUR = {
   period: 2.5,
   shotSpeed: 6, // lent : esquivable en marchant
   shotLife: 2.2,
-  shotDmg: 14,
+  shotDmg: 11, // phase 12 : 14 → 11, les crachats faisaient 57 % des morts d'un personnage complet (× dmgScale : 29 PV à 15:00)
   shotR: 0.4,
   orbit: 0.4, // facteur de vitesse latérale quand il est à bonne distance
   fireMargin: 3, // vise seulement à moins de keepMax + 3 u
@@ -234,7 +235,7 @@ export const BOSS = {
   chargePeriod: 5, // entre deux charges (phase 2 : charge double)
   swarmPeriod: 4, // Essaim-mère : ponte
   swarmN: 6,
-  swarmN2: 10,
+  swarmN2: 8, // phase 12 : 10 → 8, l'Essaim-mère faisait une falaise à 10:00 pour un personnage complet
   swarmDist: 2.5,
   swarmPulse: 0.3, // durée de la pulsation (rendu) à la ponte
   zonePeriod: 4.5, // Colosse : cercles rouges (3,5 s : falaise à 15:00)
@@ -251,6 +252,11 @@ export const BOSS = {
 export const BOOMERANG = {
   rehit: 0.45, // un ennemi n'est touché qu'une fois par passage (aller, puis retour)
   safetyLife: 6, // libéré bien avant par le retour ; sécurité si le joueur fuit plus vite
+};
+export const LAMES = {
+  window: 0.4, // un ennemi n'est touché par les lames qu'une fois par fenêtre (s)
+  hitR: 0.75, // rayon de frappe d'une lame (× sizeMul) ; phase 12 : 0,55 → 0,75, un Dard collé au joueur passait sous l'anneau (Bûcheron 3:12 et 46 % de morts < 3 min → 5:04 et 16 %), alors qu'un rayon plus grand aggravait le trou central
+  kb: 5, // recul d'une lame (× Fendeur)
 };
 export const MINES = {
   spacing: 1.2, // u parcourus entre deux poses
@@ -274,12 +280,104 @@ export const LUCK = {
   extraCardPerPt: 0.06, // Trèfle : +6 % par niveau de proposer 4 cartes (survivor-design §3)
 };
 
-// évolutions (survivor-design §5) : ≈ ×2,5 par rapport au niveau 5
-export const EVOLVE = {
-  nova: { n: 8 }, // salve circulaire de 8 orbes (3 au niveau 5) : ×2,7 mesuré sur un mur de Brutes
-  soleil: { rMul: 1.5, dmgMul: 2, healPerKill: 1 },
-  tempete: { rMul: 1.5, spdMul: 2, dmgMul: 1.4, hitWindow: 0.2 }, // lames 2× plus vite ⇒ chaque ennemi touché 2× plus souvent (0,4 s → 0,2 s)
-  orage: { cdDiv: 2, chainPlus: 2 }, // ×2 de cadence, 2 cibles de plus : ×2,5
+// lignes de stats (phase 12, PLAN §3.1) : une carte d'arme ou de tome apporte 1 à 3 lignes, chacune petite ; la montée
+// est longue (100 améliorations par arme ou tome, jamais atteintes en 20 min). `pct` : base × (1 + step)^n ; `add` : base + step · n.
+export interface StatLine {
+  stat: string; // clé de stat (arme : clé de WEAPON_BASE ; tome : effet joueur, voir applyTomeLine)
+  step: number; // par ligne
+  kind: 'pct' | 'add';
+  max?: number; // nombre de lignes maximum (plafond de la stat)
+  weight: number; // poids de tirage (les lignes « rares » comptent 1 contre 3)
+}
+export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
+  // le niveau 5 d'avant (≈ ×3 de DPS) se retrouve vers 10–12 améliorations ; au-delà c'est la marge jusqu'à 100
+  orbe: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'n', step: 1, kind: 'add', max: 5, weight: 1.5 },
+    { stat: 'speed', step: 0.08, kind: 'pct', max: 12, weight: 2 },
+    { stat: 'pierce', step: 1, kind: 'add', max: 3, weight: 1 },
+  ],
+  aura: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'r', step: 0.06, kind: 'pct', max: 20, weight: 3 },
+    { stat: 'period', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+  ],
+  lames: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'n', step: 1, kind: 'add', max: 8, weight: 1.5 },
+    { stat: 'r', step: 0.04, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'spd', step: 0.06, kind: 'pct', max: 15, weight: 2 },
+  ],
+  foudre: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'chain', step: 1, kind: 'add', max: 10, weight: 1.5 },
+  ],
+  boomerang: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'range', step: 0.06, kind: 'pct', max: 12, weight: 2 },
+    { stat: 'n', step: 1, kind: 'add', max: 3, weight: 1.5 },
+    { stat: 'speed', step: 0.06, kind: 'pct', max: 12, weight: 2 },
+  ],
+  mines: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'n', step: 1, kind: 'add', max: 12, weight: 2 },
+    { stat: 'chain', step: 1, kind: 'add', max: 1, weight: 1 },
+  ],
+};
+// tomes (remplacent les passifs) : chaque carte tire 1 à 3 lignes dans son tome, l'effet s'applique au joueur (applyTomeLine)
+export const TOMES: Record<TomeKey, StatLine[]> = {
+  degats: [
+    { stat: 'dmg', step: 0.08, kind: 'add', weight: 3 },
+    { stat: 'elite', step: 0.08, kind: 'add', weight: 2 },
+    { stat: 'kb', step: 0.1, kind: 'add', weight: 2 },
+  ],
+  cadence: [
+    { stat: 'cd', step: 0.04, kind: 'add', max: 18, weight: 3 },
+    { stat: 'life', step: 0.06, kind: 'add', max: 10, weight: 2 }, // ×1,6 au plus : le pool de projectiles (250) ne sature pas
+  ],
+  projectiles: [
+    { stat: 'proj', step: 1, kind: 'add', max: 3, weight: 1 },
+    { stat: 'size', step: 0.06, kind: 'add', max: 15, weight: 3 }, // ×1,9 au plus : le Halo reste lisible
+    { stat: 'pspeed', step: 0.06, kind: 'add', weight: 2 },
+  ],
+  vitalite: [
+    { stat: 'hp', step: 12, kind: 'add', weight: 3 },
+    { stat: 'regen', step: 0.4, kind: 'add', weight: 2 },
+    { stat: 'armor', step: 0.03, kind: 'add', max: 12, weight: 2 }, // 12 × 3 % = TOME_CAPS.armorMax
+  ],
+  mouvement: [
+    { stat: 'speed', step: 0.05, kind: 'add', weight: 3 },
+    { stat: 'dashcd', step: 0.06, kind: 'add', max: 10, weight: 2 },
+    { stat: 'dashinvul', step: 0.03, kind: 'add', max: 10, weight: 1 },
+  ],
+  savoir: [
+    { stat: 'xp', step: 0.06, kind: 'add', weight: 3 }, // pas de plafond : les runs maxés qui vont au bout cumulent 8 lignes contre 3,4 pour les morts après 15:00, mais plafonner à 8 ne changeait rien (15 % de fins dans les deux cas)
+    { stat: 'magnet', step: 0.08, kind: 'add', weight: 2 },
+  ],
+  chance: [
+    { stat: 'luck', step: 0.5, kind: 'add', weight: 3 },
+    { stat: 'chestgold', step: 0.2, kind: 'add', weight: 2 },
+  ],
+  or: [
+    { stat: 'gold', step: 0.08, kind: 'add', weight: 3 },
+    { stat: 'elitegold', step: 1, kind: 'add', weight: 2 },
+  ],
+};
+export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
+// planchers et plafonds des effets cumulés des tomes (applyTomeLine) : la recharge ne descend pas sous 25 % de la base,
+// l'armure n'annule pas plus de 36 % des dégâts (à 45 % les runs complets ne mouraient plus après 15:00), le dash garde 40 % de recharge
+export const TOME_CAPS = { cdMin: 0.25, armorMax: 0.36, dashCdMin: 0.4 };
+// rareté d'une carte = nombre de lignes : 1 (67 %), 2 (25 %), 3 (8 %) ; chaque point de chance décale vers 2 et 3
+export const RARITY = {
+  two: 0.25,
+  three: 0.08,
+  luckTwo: 0.02,
+  luckThree: 0.01,
 };
 
 // personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).
@@ -298,9 +396,9 @@ export const TRAIT = {
 export interface CharacterDef {
   key: CharacterKeyDef; // nom et texte : src/i18n (char.<key>.name / .text)
   weapon: WeaponKey;
-  weaponLevel: number; // niveau de l'arme de départ
   weapon2?: WeaponKey; // seconde arme de départ (Revenante)
-  startPassives?: Partial<Record<PassiveKey, number>>; // passifs de départ (Colporteur)
+  startLines?: Partial<Record<WeaponKey, string[]>>; // lignes d'arme fixes au départ (Bûcheron, Colporteur, Braconnier) : niveau = 1 + lignes
+  startTomes?: Partial<Record<TomeKey, string[]>>; // lignes de tome fixes au départ (Colporteur)
   trait: Trait; // passif signature
   speedMul: number;
   hpAdd: number;
@@ -325,19 +423,21 @@ export const OUTFIT = { price: 400 };
 
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
-  { key: 'eclaireuse', weapon: 'orbe', weaponLevel: 1, trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '', price: 0 },
-  { key: 'bucheron', weapon: 'lames', weaponLevel: 3, // phase 10 : à une seule arme, Lames 2 faisait 3:31 et 41 % de morts < 3 min
+  { key: 'eclaireuse', weapon: 'orbe', trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '', price: 0 },
+  { key: 'bucheron', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 (4 lames, 21 dégâts) : avec 1 lame et 1 ligne de dégâts, 2:24 et 71 % de morts < 3 min
     trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10', price: 0 },
-  { key: 'sorciere', weapon: 'foudre', weaponLevel: 1, trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
+  { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
-  { key: 'veilleuse', weapon: 'aura', weaponLevel: 1, trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
-  { key: 'braconnier', weapon: 'boomerang', weaponLevel: 2, trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
-  { key: 'sapeur', weapon: 'mines', weaponLevel: 1, trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
-  { key: 'feufollet', weapon: 'orbe', weaponLevel: 1, trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
+  { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
+  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'dmg', 'dmg', 'dmg', 'cd', 'range'] }, // ≈ l'ancien Boomerang 2 (20 dégâts, recharge 1,6 s, portée 9,5)
+    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
+  { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
+  { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
     dashTime: PLAYER.dashTime * TRAIT.trainee.dashMul, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
-  { key: 'revenante', weapon: 'foudre', weaponLevel: 1, weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'win', price: 0 },
-  { key: 'colporteur', weapon: 'lames', weaponLevel: 3, // phase 10 : Lames 2 seule faisait 3:18 et 43 % de morts < 3 min
-    startPassives: { trefle: 1, bourse: 1 }, trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
+  { key: 'revenante', weapon: 'foudre', weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'win', price: 0 },
+  { key: 'colporteur', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 ; avec 1 lame et 1 ligne de dégâts, 2:19 et 78 % de morts < 3 min
+    startTomes: { chance: ['luck', 'luck'], or: ['gold', 'gold', 'gold'] }, // ≈ Trèfle 1 et Bourse 1 d'avant
+    trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];
 
 // boutique permanente (survivor-design §8), PAR PERSONNAGE depuis la phase 8 : 8 lignes, 8 paliers, coût base · growth^palier.
@@ -368,9 +468,10 @@ export const REVIVE = {
   invul: 1, // s d'invulnérabilité pour sortir de la masse
 };
 
-export const WEAPON_MAX = 5;
+export const WEAPON_MAX = 100; // phase 12 : 100 améliorations par arme (jamais atteint en 20 min : la montée est longue)
+export const TOME_MAX = 100;
 export const MAX_WEAPONS = 4;
-export const MAX_PASSIVES = 4;
+export const MAX_PASSIVES = 4; // tomes (le nom « passives » reste dans la méta et les emplacements sauvegardés)
 
 // emplacements (phase 10, progression lente) : on part avec 1 arme (celle du personnage) et 2 améliorations ;
 // chaque emplacement suivant se débloque par un succès ET de l'or, pour tous les personnages à la fois.
@@ -395,7 +496,5 @@ export const SLOTS: SlotUnlock[] = [
 export const CHOICE = {
   ownedWeight: 1.6, // favorise la cohérence de build
   newWeight: 1.3, // découverte
-  evolveWeight: 2.2, // composant d'une évolution en cours
-  evolveFrom: 3, // un passif « complète » une évolution dès que l'arme associée est au niveau 3
   cards: 3,
 };

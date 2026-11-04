@@ -36,7 +36,8 @@ export const MAXED: Target[] = [
   { name: 'fin atteinte 3–12 %', min: 3, max: 12, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min < 10 %', min: 0, max: 10, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'kills@10 900–1600', min: 900, max: 1600, get: (s) => s.killsAt10p50 }, // phase 8 : spawn plus dense après 7:00
-  { name: 'niveau@10 16–20', min: 16, max: 20, get: (s) => s.levelAt10p50 },
+  { name: 'niveau@10 24–32', min: 24, max: 32, get: (s) => s.levelAt10p50 }, // phase 12 : courbe d'XP aplatie (16–20 avant)
+  { name: 'arme principale@10 niv 15–30', min: 15, max: 30, get: (s) => s.weaponLvAt10p50 }, // phase 12 : la montée est longue, 100 jamais atteint
   {
     name: 'pick min ≥ 8 %',
     min: 8,

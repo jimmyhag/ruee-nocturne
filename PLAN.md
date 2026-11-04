@@ -64,20 +64,22 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 
 ## 3. Contenu V1
 
-### 3.1 Armes (6) et évolutions (4)
-| Arme | Comportement | Niv. max | Évolution (arme max + passif) |
-|---|---|---|---|
-| Orbe filante | Projectile auto-visé, +tirs, +perçage | 5 | + Gants lourds → **Nova** : salve circulaire |
-| Halo brûlant | Aura de dégâts périodiques | 5 | + Cœur de pierre → **Soleil noir** : aura + soin par kill |
-| Lames orbitales | Lames tournantes, recul fort | 5 | + Semelles de vent → **Tempête** : rayon et vitesse ×2 |
-| Foudre en chaîne | Frappe N ennemis en chaîne | 5 | + Sablier fêlé → **Orage** : frappe continue |
-| Boomerang | Aller-retour en ligne, traverse | 5 | — |
-| Mines | Posées sur le passage, explosent au contact | 5 | — |
+### 3.1 Armes (6) et lignes de stats (phase 12)
+| Arme | Comportement | Lignes possibles |
+|---|---|---|
+| Orbe filante | Projectile auto-visé | dégâts, recharge, +1 projectile, vitesse, +1 perforation |
+| Halo brûlant | Aura de dégâts périodiques | dégâts, rayon, période |
+| Lames orbitales | Lames tournantes, recul fort | dégâts, +1 lame, rayon, rotation |
+| Foudre en chaîne | Frappe N ennemis en chaîne | dégâts, recharge, +1 cible |
+| Boomerang | Aller-retour en ligne, traverse | dégâts, recharge, portée, +1 boomerang, vitesse |
+| Mines | Posées sur le passage, explosent au contact | dégâts, recharge, rayon, +1 mine, chaîne |
 
-Maximum 4 armes + 4 passifs par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 améliorations** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 2 000, 4 000, 8 000, 12 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
+Chaque arme s'améliore jusqu'à **100 fois** ; chaque carte apporte **1 à 3 lignes** de sa famille (1 ligne 67 %, 2 lignes « rare » 25 %, 3 lignes « épique » 8 %, décalées par la chance), chacune petite (`WEAPON_LINES` dans `balance.ts`). Il n'y a **plus d'évolutions** (décision de Jimmy, 4 nov. 2026) : la puissance vient des lignes, la montée est longue.
 
-### 3.2 Passifs (8)
-Semelles de vent (vitesse), Cœur de pierre (PV max), Sève vive (régén), Aimant (collecte), Gants lourds (dégâts), Sablier fêlé (recharge), Trèfle (chance : qualité des coffres et des choix), Bourse (or ×).
+Maximum 4 armes + 4 tomes par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 tomes** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 2 000, 4 000, 8 000, 12 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
+
+### 3.2 Tomes (8, phase 12 ; remplacent les passifs)
+Dégâts (dégâts, élites et boss, recul) · Cadence (recharge, durée des projectiles) · Projectiles (+1 projectile pour toutes les armes, taille, vitesse) · Vitalité (PV max, régénération, dégâts subis) · Mouvement (course, recharge et invulnérabilité du dash) · Savoir (XP, collecte) · Chance (lignes rares, coffres, 4e carte) · Or (or, or par élite). Une carte de tome tire elle aussi 1 à 3 lignes dans sa famille (`TOMES` dans `balance.ts`), jusqu'à 100 par tome.
 
 ### 3.3 Ennemis (6) et boss (3)
 | Type | Rôle | Télégraphe |
@@ -255,6 +257,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 11 — Mouvement utile (après la 1.5.0)
 - Le saut et le dash servent à se déplacer et à esquiver : plateaux de roche à escalader d'un saut (les ennemis au sol restent au pied, les Volants et les crachats passent), éruptions télégraphiées sous les pieds à sauter, anneau de choc du Gardien à sauter, charge télégraphiée des Brutes élites à traverser en dash.
 - **Porte** : cibles des profils nu et maxé inchangées avec les nouveaux dangers ; éruptions ≤ 15 % des causes de mort ; draw calls ≤ 40 ; e2e plateau atteint d'un saut, éruption et anneau esquivés en l'air ; parité clavier/tactile.
+
+### Phase 12 — Lignes de stats (après la 1.6.0)
+- Les armes s'améliorent jusqu'à 100 fois par cartes à 1–3 lignes de stats aléatoires (dégâts, recharge, projectiles, vitesse, perforation, rayon…) ; les 8 passifs deviennent 8 tomes (Dégâts, Cadence, Projectiles, Vitalité, Mouvement, Savoir, Chance, Or) qui donnent eux aussi 1–3 lignes ; rareté par nombre de lignes (commune, rare, épique) décalée par la chance ; plus d'évolutions.
+- **Porte** : cibles des profils nu et maxé inchangées ; arme principale entre 15 et 30 améliorations à 10 min (la montée est longue) ; lignes par carte ≈ 1,4 ; e2e : nouveau joueur, carte épique lisible desktop et mobile, FR/EN des lignes ; zéro allocation dans le tirage et le recalcul des stats.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

@@ -1,98 +1,147 @@
-import type { PassiveKey, WeaponKey } from '../types';
+import { TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
+import type { TomeKey, WeaponKey } from '../types';
 import type { World } from '../world';
 
 // Les noms et descriptions vivent côté UI (src/ui/cards.ts + src/i18n) : la sim ne porte que des clés et des stats.
 export interface WeaponDef {
   glyph: string;
   color: string;
-  stats: (lv: number) => Record<string, number>;
+  base: Record<string, number>; // stats de départ ; les lignes (WEAPON_LINES) les font monter, voir refreshStats
 }
 
 // Grammaire survivor-design §4 : portée / ciblage / rythme jamais partagés par deux armes.
 export const WEAPONS: Record<WeaponKey, WeaponDef> = {
-  orbe: {
-    // longue · auto plus proche · salve
-    glyph: '●',
-    color: '#ffcc4d',
-    stats: (lv) => ({ cd: 0.95 - 0.09 * (lv - 1), n: [1, 1, 2, 2, 3][lv - 1], dmg: 10 + 5 * (lv - 1), pierce: lv >= 4 ? 2 : 1, speed: 17 }),
-  },
-  aura: {
-    // contact · zone autour · continu
-    glyph: '◎',
-    color: '#59d8ff',
-    stats: (lv) => ({ r: 2.2 + 0.45 * (lv - 1), dmg: 5 + 2.5 * (lv - 1), period: 0.45 }),
-  },
-  lames: {
-    // courte · orbite · continu
-    glyph: '✦',
-    color: '#fff1db',
-    // r 1,8 + 0,15·lv (2,3 avant) : avec 2,45 u un Dard collé au joueur passait sous l'anneau (80 % de morts < 3 min en solo)
-    stats: (lv) => ({ n: lv + 1, dmg: 12 + 5 * (lv - 1), r: 1.8 + 0.15 * lv, spd: 3 + 0.35 * lv }),
-  },
-  foudre: {
-    // longue · aléatoire + chaîne · lent et fort
-    glyph: 'ϟ',
-    color: '#d8f4ff',
-    stats: (lv) => ({ cd: 2.3 - 0.28 * (lv - 1), dmg: 28 + 12 * (lv - 1), chain: 2 + lv }),
-  },
-  boomerang: {
-    // longue · direction du regard · salve ; niveau 5 : deux boomerangs (changement qualitatif)
-    glyph: '⟲',
-    color: '#7ee0a1',
-    stats: (lv) => ({ cd: 1.7 - 0.16 * (lv - 1), dmg: 14 + 6 * (lv - 1), range: 9 + 0.5 * (lv - 1), speed: 14, n: lv >= 5 ? 2 : 1 }),
-  },
-  mines: {
-    // contact · là où je passe · pose ; niveau 5 : explosions en chaîne
-    glyph: '✸',
-    color: '#ff7a3d',
-    stats: (lv) => ({ cd: 0.9 - 0.08 * (lv - 1), dmg: 30 + 12 * (lv - 1), r: 2.2 + 0.15 * (lv - 1), n: 4 + lv, chain: lv >= 5 ? 1 : 0 }),
-  },
+  // longue · auto plus proche · salve
+  orbe: { glyph: '●', color: '#ffcc4d', base: { cd: 0.95, n: 1, dmg: 10, pierce: 1, speed: 17 } },
+  // contact · zone autour · continu
+  aura: { glyph: '◎', color: '#59d8ff', base: { r: 2.2, dmg: 5, period: 0.45 } },
+  // courte · orbite · continu. r 1,95 : avec 2,45 u un Dard collé au joueur passait sous l'anneau
+  lames: { glyph: '✦', color: '#fff1db', base: { n: 2, dmg: 12, r: 1.95, spd: 3.35 } },
+  // longue · aléatoire + chaîne · lent et fort
+  foudre: { glyph: 'ϟ', color: '#d8f4ff', base: { cd: 2.3, dmg: 28, chain: 3 } },
+  // longue · direction du regard · salve
+  boomerang: { glyph: '⟲', color: '#7ee0a1', base: { cd: 1.7, dmg: 14, range: 9, speed: 14, n: 1 } },
+  // contact · là où je passe · pose
+  mines: { glyph: '✸', color: '#ff7a3d', base: { cd: 0.9, dmg: 30, r: 2.2, n: 5, chain: 0 } },
 };
 export const WEAPON_KEYS = Object.keys(WEAPONS) as WeaponKey[];
-// stats(lv) est appelée à chaque step (sim) et à chaque frame (rendu) : mémoïsée par niveau, le résultat est
-// partagé et ne doit jamais être modifié par l'appelant.
-for (const k of WEAPON_KEYS) {
-  const raw = WEAPONS[k].stats;
-  const cache: Record<string, number>[] = [];
-  WEAPONS[k].stats = (lv) => (cache[lv] ??= raw(lv));
-}
 
-/** Évolutions (PLAN §3.1) : arme niveau 5 + passif associé + un coffre. ≈ ×2,5 (survivor-design §5). Valeurs : EVOLVE. */
-export interface EvolutionDef {
-  passive: PassiveKey;
-  glyph: string;
-  color: string;
-}
-export const EVOLUTIONS: Partial<Record<WeaponKey, EvolutionDef>> = {
-  orbe: { passive: 'force', glyph: '✹', color: '#ffcc4d' }, // Nova
-  aura: { passive: 'coeur', glyph: '◉', color: '#59d8ff' }, // Soleil noir
-  lames: { passive: 'vitesse', glyph: '✧', color: '#fff1db' }, // Tempête
-  foudre: { passive: 'cadence', glyph: '⚡', color: '#d8f4ff' }, // Orage
+/** Glyphes et couleurs des tomes (cartes, inventaire). */
+export const TOME_LOOK: Record<TomeKey, { glyph: string; color: string }> = {
+  degats: { glyph: '▲', color: '#ffcc4d' },
+  cadence: { glyph: '◐', color: '#c7b3cf' },
+  projectiles: { glyph: '⁂', color: '#ffe27a' },
+  vitalite: { glyph: '♥', color: '#ff5470' },
+  mouvement: { glyph: '»', color: '#ff8a3d' },
+  savoir: { glyph: '✎', color: '#59d8ff' },
+  chance: { glyph: '☘', color: '#7ee0a1' },
+  or: { glyph: '$', color: '#ffcc4d' },
 };
 
-export interface PassiveDef {
-  glyph: string;
-  color: string;
-  max: number;
-  apply: (w: World) => void;
+/** Stats courantes d'une arme (objet partagé, recalculé par refreshStats quand une carte s'applique : jamais modifié par l'appelant). */
+export function weaponStats(w: World, k: WeaponKey): Record<string, number> {
+  return w.wstats[k];
 }
-export const PASSIVES: Record<PassiveKey, PassiveDef> = {
-  vitesse: { glyph: '»', color: '#ff8a3d', max: 5, apply: (w) => void (w.player.speed *= 1.1) }, // +10 % de vitesse
-  coeur: {
-    glyph: '♥',
-    color: '#ff5470',
-    max: 5,
-    apply: (w) => {
-      // +25 PV max et 25 PV soignés
-      w.player.maxHp += 25;
-      w.player.hp = Math.min(w.player.maxHp, w.player.hp + 25);
-    },
-  },
-  regen: { glyph: '+', color: '#7ee0a1', max: 5, apply: (w) => void (w.player.regen += 0.6) }, // 0,6 PV/s
-  aimant: { glyph: '∩', color: '#59d8ff', max: 4, apply: (w) => void (w.player.magnet *= 1.35) }, // +35 % de collecte
-  force: { glyph: '▲', color: '#ffcc4d', max: 5, apply: (w) => void (w.player.dmgMul += 0.15) }, // +15 % de dégâts
-  cadence: { glyph: '◐', color: '#c7b3cf', max: 5, apply: (w) => void (w.player.cdMul *= 0.92) }, // −8 % de recharge
-  trefle: { glyph: '☘', color: '#7ee0a1', max: 4, apply: (w) => void (w.player.luck += 1) }, // +6 % de 4e carte, coffres
-  bourse: { glyph: '$', color: '#ffcc4d', max: 4, apply: (w) => void (w.player.goldMul *= 1.25) }, // +25 % d'or
-};
-export const PASSIVE_KEYS = Object.keys(PASSIVES) as PassiveKey[];
+
+/**
+ * Recalcule les stats des six armes depuis les bases, les lignes prises (w.wmods) et les tomes globaux du joueur.
+ * Appelé à la création du monde et à chaque carte appliquée : aucune allocation (les objets de w.wstats sont réutilisés).
+ */
+export function refreshStats(w: World): void {
+  const P = w.player;
+  for (let i = 0; i < WEAPON_KEYS.length; i++) {
+    const k = WEAPON_KEYS[i];
+    const base = WEAPONS[k].base;
+    const out = w.wstats[k];
+    const lines = WEAPON_LINES[k];
+    const mods = w.wmods[k];
+    for (const stat in base) out[stat] = base[stat];
+    for (let j = 0; j < lines.length; j++) {
+      const l = lines[j];
+      const n = mods[j];
+      if (n === 0) continue;
+      if (l.kind === 'pct') out[l.stat] = base[l.stat] * Math.pow(1 + l.step, n); // cumul multiplicatif : la montée reste sensible à 30 lignes
+      else out[l.stat] = base[l.stat] + l.step * n;
+    }
+    // tomes globaux
+    if (k === 'foudre') out.chain += P.projAdd;
+    else if ('n' in base) out.n += P.projAdd;
+    if ('r' in base && k !== 'lames') out.r *= P.sizeMul; // Lames : la taille agrandit la lame (rayon de frappe, tick.ts), pas l'orbite ; appliquée aux deux, les Lames explosaient en fin de run (22 % de fins au lieu de 15)
+    if ('speed' in base) out.speed *= P.projSpeedMul;
+  }
+}
+
+/** Applique au joueur une ligne de tome (clé `stat` de TOMES[k]). Les effets se cumulent de façon additive sur la base. */
+export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void {
+  const l = TOMES[tome][lineIndex];
+  const P = w.player;
+  switch (l.stat) {
+    case 'dmg':
+      P.dmgMul += l.step;
+      break;
+    case 'elite':
+      P.eliteDmgMul += l.step;
+      break;
+    case 'kb':
+      P.kbMul += l.step;
+      break;
+    case 'cd':
+      P.cdMul = Math.max(TOME_CAPS.cdMin, P.cdMul - l.step);
+      break;
+    case 'life':
+      P.projLifeMul += l.step;
+      break;
+    case 'proj':
+      P.projAdd += l.step;
+      break;
+    case 'size':
+      P.sizeMul += l.step;
+      break;
+    case 'pspeed':
+      P.projSpeedMul += l.step;
+      break;
+    case 'hp':
+      P.maxHp += l.step;
+      P.hp = Math.min(P.maxHp, P.hp + l.step);
+      break;
+    case 'regen':
+      P.regen += l.step;
+      break;
+    case 'armor':
+      P.armor = Math.min(TOME_CAPS.armorMax, P.armor + l.step);
+      break;
+    case 'speed':
+      P.speed *= 1 + l.step;
+      break;
+    case 'dashcd':
+      P.dashCdMul = Math.max(TOME_CAPS.dashCdMin, P.dashCdMul - l.step);
+      break;
+    case 'dashinvul':
+      P.dashInvulAdd += l.step;
+      break;
+    case 'xp':
+      P.xpMul += l.step;
+      break;
+    case 'magnet':
+      P.magnet *= 1 + l.step;
+      break;
+    case 'luck':
+      P.luck += l.step;
+      break;
+    case 'chestgold':
+      P.chestGoldMul += l.step;
+      break;
+    case 'gold':
+      P.goldMul += l.step;
+      break;
+    case 'elitegold':
+      P.eliteGold += l.step;
+      break;
+  }
+}
+
+/** Index d'une ligne par sa clé de stat (kit de départ des personnages). -1 si absente. */
+export function lineIndex(lines: { stat: string }[], stat: string): number {
+  for (let i = 0; i < lines.length; i++) if (lines[i].stat === stat) return i;
+  return -1;
+}

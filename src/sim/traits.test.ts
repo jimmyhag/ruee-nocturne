@@ -9,6 +9,7 @@ import { startRun, step } from './step';
 import { Ev, ProjKind, Trait } from './types';
 import type { CharacterKey, Input } from './types';
 import { World } from './world';
+import { refreshStats } from './weapons/defs';
 
 const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
 const make = (character: CharacterKey, seed = 1) => {
@@ -135,6 +136,8 @@ describe('passifs', () => {
     const kick = (character: CharacterKey) => {
       const w = make(character);
       w.weapons = { lames: 1 };
+      w.wmods.lames.fill(0); // même nombre de lames pour les deux (le Bûcheron part avec une lame de plus)
+      refreshStats(w);
       const i = spawnEnemy(w, 2, 0, 2.0); // Brute (kbMul 1/3), dans l'anneau des lames
       let kb = 0;
       for (let f = 0; f < 60; f++) {
@@ -162,11 +165,11 @@ describe('passifs', () => {
     expect(gemValue(false)).toBe(1);
     expect(gemValue(true)).toBe(TRAIT.dejamorte.airXpMul);
   });
-  it('Colporteur : Trèfle et Bourse au départ, jamais de coffre à 1 carte', () => {
+  it('Colporteur : tomes Chance et Or au départ, jamais de coffre à 1 carte', () => {
     const w = make('colporteur');
-    expect(w.passives).toEqual({ trefle: 1, bourse: 1 });
+    expect(w.tomes).toEqual({ chance: 2, or: 3 });
     expect(w.player.luck).toBe(1);
-    expect(w.player.goldMul).toBeCloseTo(1.25);
+    expect(w.player.goldMul).toBeCloseTo(1.24);
     for (let k = 0; k < 50; k++) expect(chestCards(w, false)).toBeGreaterThanOrEqual(TRAIT.marchand.minCards);
     const e = make('eclaireuse');
     let ones = 0;

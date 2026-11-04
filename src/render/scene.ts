@@ -18,7 +18,7 @@ import {
 import { ProjKind, ShotKind } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
-import { WEAPONS } from '../sim/weapons/defs';
+import { weaponStats } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
 import {
   Fireflies,
@@ -230,7 +230,7 @@ export class GameScene {
       makeInstanced(new THREE.IcosahedronGeometry(0.22, 0), additive(0xffffff, 0.6), 250 * FEEL.trail.projGhosts),
     );
     this.boomW = new InstanceWriter(
-      makeInstanced(new THREE.BoxGeometry(1.1, 0.12, 0.32), new THREE.MeshBasicMaterial({ color: 0xffffff }), 32),
+      makeInstanced(new THREE.BoxGeometry(1.1, 0.12, 0.32), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64), // 7 boomerangs par lancer à recharge courte (phase 12)
     );
     this.mineW = new InstanceWriter(
       makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
@@ -277,8 +277,11 @@ export class GameScene {
     this.scene.add(this.aura, this.auraDisc);
     // lames : un InstancedMesh (6 draw calls → 1) + fantômes additifs (3 par lame)
     const bladeGeo = new THREE.BoxGeometry(1.0, 0.1, 0.26);
-    this.bladeW = new InstanceWriter(makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 8));
-    this.bladeGhostW = new InstanceWriter(makeInstanced(bladeGeo, additive(0xffffff, 0.5), 8 * FEEL.trail.bladeGhosts));
+    // 13 lames au plus : 2 de base + 8 lignes + 3 du tome Projectiles (phase 12)
+    this.bladeW = new InstanceWriter(makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 13));
+    this.bladeGhostW = new InstanceWriter(
+      makeInstanced(bladeGeo, additive(0xffffff, 0.5), 13 * FEEL.trail.bladeGhosts),
+    );
     this.scene.add(this.bladeW.mesh, this.bladeGhostW.mesh);
     this.writers.push(
       ...this.enemyW,
@@ -748,7 +751,7 @@ export class GameScene {
     this.gemW.end();
 
     // projectiles : orbes (+ traînées), boomerangs, mines ; Nova : orbes ×1,6
-    const orbeScale = w.evolved.orbe ? 1.6 : 1;
+    const orbeScale = w.player.sizeMul; // tome Projectiles : projectiles plus gros
     this.projW.begin();
     this.trailW.begin();
     this.boomW.begin();
@@ -786,11 +789,10 @@ export class GameScene {
     this.boomW.end();
     this.mineW.end();
 
-    // halo (Soleil noir : plus grand, teinte or)
+    // halo (rayon = stats courantes : lignes « rayon » et tome Projectiles)
     const lvA = w.weapons.aura ?? 0;
     if (lvA > 0) {
-      const evo = w.evolved.aura;
-      const r = WEAPONS.aura.stats(lvA).r * (evo ? 1.5 : 1);
+      const r = weaponStats(w, 'aura').r;
       const pulse = w.wstate.auraPulse;
       this.aura.visible = this.auraDisc.visible = true;
       this.aura.position.set(px, 0.06, pz);
@@ -799,25 +801,24 @@ export class GameScene {
       this.auraDisc.scale.setScalar(r);
       const m = this.aura.material as THREE.MeshBasicMaterial;
       m.opacity = 0.25 + pulse * 0.35;
-      m.color.setHex(evo ? PAL.gold : PAL.xp);
-      (this.auraDisc.material as THREE.MeshBasicMaterial).color.setHex(evo ? PAL.gold : PAL.xp);
+      m.color.setHex(PAL.xp);
+      (this.auraDisc.material as THREE.MeshBasicMaterial).color.setHex(PAL.xp);
     } else this.aura.visible = this.auraDisc.visible = false;
 
-    // lames + 3 fantômes chacune (angles précédents, fondu) ; Tempête : plus grandes et plus loin
+    // lames + 3 fantômes chacune (angles précédents, fondu) ; taille = tome Projectiles
     const lvL = w.weapons.lames ?? 0;
     this.bladeW.begin();
     this.bladeGhostW.begin();
     if (lvL > 0) {
-      const sL = WEAPONS.lames.stats(lvL);
-      const evo = w.evolved.lames;
-      const r = sL.r * (evo ? 1.5 : 1);
-      const bs = evo ? 1.6 : 1;
+      const sL = weaponStats(w, 'lames');
+      const r = sL.r * w.bladeRangeMul;
+      const bs = w.player.sizeMul;
       const by = py + 0.8;
       for (let i = 0; i < sL.n; i++) {
         const a = w.wstate.bladeA + (i * TAU) / sL.n;
         this.bladeW.put(px + Math.sin(a) * r, by, pz + Math.cos(a) * r, a + Math.PI / 2, bs, this.cPaper);
         for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
-          const ag = a - k * sL.spd * (evo ? 2 : 1) * 0.03;
+          const ag = a - k * sL.spd * 0.03;
           this.bladeGhostW.put(
             px + Math.sin(ag) * r,
             by,

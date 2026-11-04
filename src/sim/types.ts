@@ -138,7 +138,6 @@ export const enum Ev {
   Bolt, // éclair : (x,y,z) → (x2,y2,z2)
   AuraPulse,
   Death,
-  Evolve, // v = index de l'arme évoluée (WEAPON_KEYS)
   Chest, // coffre ramassé : v = nombre de cartes
   Telegraph, // cercle rouge au sol : v = rayon, x2 = durée
   BossRoar, // charge du Gardien : télégraphe
@@ -213,12 +212,18 @@ export interface WorldOptions {
   unlocked?: WeaponKey[]; // armes proposables ; undefined = toutes
   slots?: { weapons: number; passives: number }; // emplacements débloqués (phase 10) ; undefined = plafonds max
 }
-export type PassiveKey = 'vitesse' | 'coeur' | 'regen' | 'aimant' | 'force' | 'cadence' | 'trefle' | 'bourse';
+/** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
+export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouvement' | 'savoir' | 'chance' | 'or';
 
+/** Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin. */
 export interface Card {
-  kind: 'w' | 's' | 'heal' | 'e'; // e : évolution d'arme (key = arme)
-  key: WeaponKey | PassiveKey | '';
-  lv: number;
+  kind: 'w' | 't' | 'heal';
+  key: WeaponKey | TomeKey | '';
+  lv: number; // niveau atteint si prise (1 = nouvelle)
+  n: number; // nombre de lignes (rareté)
+  s0: number;
+  s1: number;
+  s2: number;
 }
 
 export interface Player {
@@ -239,8 +244,21 @@ export interface Player {
   magnet: number;
   dmgMul: number;
   cdMul: number;
-  luck: number; // Trèfle : niveaux
-  goldMul: number; // Bourse
+  luck: number; // chance : boutique + tome Chance (lignes rares, coffres, 4e carte)
+  goldMul: number; // or
+  // tomes (phase 12)
+  projAdd: number; // projectiles en plus pour toutes les armes (Orbe, Boomerang, Lames, Mines, cibles de la Foudre)
+  sizeMul: number; // taille des zones et projectiles
+  projSpeedMul: number;
+  projLifeMul: number; // durée des projectiles
+  eliteDmgMul: number; // dégâts aux élites et boss
+  kbMul: number; // recul
+  armor: number; // part des dégâts subis annulée (≤ 0,36)
+  dashCdMul: number;
+  dashInvulAdd: number; // s
+  xpMul: number;
+  chestGoldMul: number;
+  eliteGold: number; // or en plus par élite tuée
   revives: number; // réanimations restantes (boutique)
   dashTime: number; // durée du dash (personnage)
   level: number;

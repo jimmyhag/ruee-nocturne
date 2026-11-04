@@ -1,10 +1,10 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, STEP, WEAPON_MAX } from './sim/balance';
+import { CAPS, STEP, WEAPON_LINES } from './sim/balance';
 import { dropChest } from './sim/combat';
 import { spawnEnemy } from './sim/spawner';
-import { EVOLUTIONS } from './sim/weapons/defs';
+import { refreshStats } from './sim/weapons/defs';
 import { step } from './sim/step';
 import { Mode } from './sim/types';
 import type { Input, WeaponKey } from './sim/types';
@@ -91,14 +91,22 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     seed(n: number): void {
       host.start(n);
     },
-    /** Arme au niveau max + passif associé + évolution appliquée (captures, tests). */
-    evolve(weapon: WeaponKey): void {
+    /** Ajoute `n` lignes à une arme (toutes ses lignes à tour de rôle, plafonds respectés) : captures, tests. */
+    upgrade(weapon: WeaponKey, n = 10): void {
       const world = w();
-      const ev = EVOLUTIONS[weapon];
-      if (!world || !ev) return;
-      world.weapons[weapon] = WEAPON_MAX;
-      world.passives[ev.passive] = Math.max(1, world.passives[ev.passive] ?? 0);
-      world.evolved[weapon] = true;
+      if (!world) return;
+      const lines = WEAPON_LINES[weapon];
+      const mods = world.wmods[weapon];
+      world.weapons[weapon] = Math.max(1, world.weapons[weapon] ?? 0);
+      for (let i = 0, tries = 0; i < n && tries < n * lines.length; tries++) {
+        const j = tries % lines.length;
+        const max = lines[j].max ?? 1e9;
+        if (mods[j] >= max) continue;
+        mods[j]++;
+        world.weapons[weapon]!++;
+        i++;
+      }
+      refreshStats(world);
       host.afterSimJump();
     },
     /** Téléporte le joueur (captures : lac, bois). */

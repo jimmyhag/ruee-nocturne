@@ -66,9 +66,9 @@ describe('bots de playtest', () => {
     const w = new World(1);
     const firstPicker: Bot = { name: 'test', decide: () => {}, pick: () => 0 };
     const cards = [
-      { kind: 'w', key: 'orbe', lv: 2 },
-      { kind: 's', key: 'force', lv: 1 },
-      { kind: 'w', key: 'foudre', lv: 1 },
+      { kind: 'w', key: 'orbe', lv: 2, n: 1, s0: 0, s1: -1, s2: -1 },
+      { kind: 't', key: 'degats', lv: 1, n: 1, s0: 0, s1: -1, s2: -1 },
+      { kind: 'w', key: 'foudre', lv: 1, n: 1, s0: 0, s1: -1, s2: -1 },
     ] as const;
     expect(pickAllowed(firstPicker, w, [...cards], new Set(['foudre']))).toBe(2);
     expect(pickAllowed(firstPicker, w, [...cards], new Set(['lames']))).toBe(1);

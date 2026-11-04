@@ -1,5 +1,4 @@
 import { ELITE_TYPE, ENEMIES, REAPER_TYPE, STEP } from './sim/balance';
-import { WEAPON_KEYS } from './sim/weapons/defs';
 import { startRun, step } from './sim/step';
 import { Ev, Mode } from './sim/types';
 import type { Input } from './sim/types';
@@ -11,7 +10,7 @@ import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, renderCards } from './ui/hud';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, characterName, evolutionName } from './ui/cards';
+import { achName, achUnlock, characterName } from './ui/cards';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -99,7 +98,7 @@ const SCREENS = ['menu', 'levelup', 'pause', 'over', 'shop', 'achievements', 'se
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 let dailyRun = false; // partie en cours = défi du jour
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
-const runStats = { dards: 0, elites: 0, bosses: 0, evolutions: 0, won: false };
+const runStats = { dards: 0, elites: 0, bosses: 0, won: false };
 let lastVibe = 0;
 let app: AppMode = 'menu';
 let world: World | null = null;
@@ -293,7 +292,7 @@ function startGame(variant?: number, daily = false): void {
   S.setCharacter(daily ? 'eclaireuse' : meta.character, daily ? 0 : outfitOf(meta, meta.character));
   audio.init();
   dailyRun = daily;
-  runStats.dards = runStats.elites = runStats.bosses = runStats.evolutions = 0;
+  runStats.dards = runStats.elites = runStats.bosses = 0;
   runStats.won = false;
   // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
   world = new World(DECOR_SEED, worldOptions(meta, unlockedWeapons(meta), daily)); // même décor à chaque run
@@ -347,8 +346,8 @@ function openLevelUp(): void {
   $('luSlots').textContent = t('levelup.slots', {
     w: Object.keys(world.weapons).length,
     wMax: world.maxWeapons,
-    p: Object.keys(world.passives).length,
-    pMax: world.maxPassives,
+    p: Object.keys(world.tomes).length,
+    pMax: world.maxTomes,
   });
   renderCards($('cards'), world.cards);
   if (again) return;
@@ -362,7 +361,8 @@ function choose(i: number): void {
   if (!world || app !== 'levelup' || choosing || i < 0 || i >= world.cards.length) return;
   // flash de la carte + son selon le type, puis fermeture (160 ms, ou tout de suite en mode réduit)
   const c = world.cards[i];
-  audio.select(c.kind === 'w' ? (c.lv === 1 ? 'wnew' : 'w') : c.kind === 's' ? 's' : 'heal');
+  // son selon le type ; une carte à 3 lignes (épique) sonne comme une nouvelle arme
+  audio.select(c.n >= 3 ? 'wnew' : c.kind === 'w' ? (c.lv === 1 ? 'wnew' : 'w') : c.kind === 't' ? 's' : 'heal');
   flashCard($('cards'), i);
   choosing = true;
   const apply = () => {
@@ -446,14 +446,14 @@ function gameOver(won = false): void {
   st.dards += runStats.dards;
   st.elites += runStats.elites;
   st.bosses += runStats.bosses;
-  st.evolutions += runStats.evolutions;
+  st.triples += world.triples;
   st.wins += won ? 1 : 0;
   st.bestTime = Math.max(st.bestTime, world.t);
   st.runs++;
   // défis (phase 6) : meilleurs scores en un run
   st.noHitBest = Math.max(st.noHitBest, world.noHitBest);
   st.distanceBest = Math.max(st.distanceBest, world.distance);
-  st.evoRunBest = Math.max(st.evoRunBest, runStats.evolutions);
+  st.weaponLvBest = Math.max(st.weaponLvBest, world.weaponLvBest);
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -830,15 +830,6 @@ function handleEvents(w: World, now: number): void {
         S.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
         hud.banner(t('banner.chest', { n: e.v }));
         audio.chest();
-        break;
-      case Ev.Evolve:
-        runStats.evolutions++;
-        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
-        S.particles.ring(e.x, 0.5, e.z, PAL.paper, (20 * fx) | 0, 4, 10);
-        hud.banner(t('banner.evolve', { name: evolutionName(WEAPON_KEYS[e.v | 0]) }));
-        hud.flash('gold');
-        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.evolve);
-        audio.evolve();
         break;
       case Ev.PlayerHurt:
         hurtT = 0.15;

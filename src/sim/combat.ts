@@ -11,7 +11,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   const e = w.enemies[i];
   if (!e.alive) return false;
   const def = ENEMIES[e.type];
-  const dealt = dmg * w.player.dmgMul;
+  const dealt = dmg * w.player.dmgMul * (e.elite || def.boss ? w.player.eliteDmgMul : 1); // tome Dégâts : élites et boss
   e.hp -= dealt;
   e.flash = 0.1;
   w.lastAction = w.t;
@@ -22,7 +22,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   const ux = d2 > 1e-8 ? dx / d : 0,
     uz = d2 > 1e-8 ? dz / d : 1;
   if (kb > 0 && def.kbMul > 0) {
-    const k = kb * def.kbMul;
+    const k = kb * def.kbMul * w.player.kbMul;
     e.kx += ux * k;
     e.kz += uz * k;
   }
@@ -39,7 +39,7 @@ export function killEnemy(w: World, i: number): void {
   const def = ENEMIES[e.type];
   w.kills++;
   const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
-  w.gold += GOLD.perKill * goldMul * w.player.goldMul;
+  w.gold += (GOLD.perKill * goldMul + (e.elite ? w.player.eliteGold : 0)) * w.player.goldMul;
   // Revenante : les ennemis tués pendant un saut valent ×2 XP
   const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
   dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul : 1) * air);

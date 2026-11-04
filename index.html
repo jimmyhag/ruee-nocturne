@@ -660,6 +660,7 @@
       .card {
         display: grid;
         gap: 8px;
+        align-content: start; /* les rangées ne s'étirent pas quand la carte voisine est plus haute (badges) */
         justify-items: start;
         text-align: left;
         padding: 14px;
@@ -743,10 +744,44 @@
         background: var(--gold);
         color: var(--ink);
       }
-      .badge.evo {
-        background: var(--paper);
+      .badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      /* rareté d'une carte (phase 12) : 2 lignes = rare (bleu), 3 lignes = épique (or, lueur) */
+      .card.rare {
+        border-color: var(--xp);
+      }
+      .card.epic {
+        border-color: var(--gold);
+        box-shadow:
+          0 0 0 2px rgba(255, 204, 77, 0.35),
+          0 0 24px rgba(255, 204, 77, 0.35);
+      }
+      .badge.rare {
+        background: var(--xp);
         color: var(--ink);
-        box-shadow: 0 0 0 2px var(--gold);
+      }
+      .badge.epic {
+        background: var(--gold);
+        color: var(--ink);
+      }
+      .card .lines {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 3px;
+        font-size: 13.5px;
+        line-height: 1.3;
+        color: var(--paper);
+        font-weight: 700;
+      }
+      .card .lines li::before {
+        content: '▸ ';
+        color: var(--muted);
       }
       .card p {
         margin: 0;
