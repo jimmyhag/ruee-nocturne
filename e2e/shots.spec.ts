@@ -195,6 +195,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await openCharacters(page); // phase 14 : feuille « Personnage »
   await page.waitForTimeout(300);
   await page.screenshot(shot('personnages', p));
+  await page.locator('#charactersBackBtn').click(); // retour à l'accueil : la barre d'icônes est derrière la feuille
   // phase 8 : la boutique du personnage choisi, avec la rangée de personnages et quelques paliers
   await page.evaluate(() => {
     const g = (window as any).__game;
