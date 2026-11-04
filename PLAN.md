@@ -96,7 +96,7 @@ Semelles de vent (vitesse), Cœur de pierre (PV max), Sève vive (régén), Aima
 
 ### 3.4 Terrain
 - 1 carte V1 : clairière infinie procédurale (arbres, rochers, lanternes) avec **zones** : clairière ouverte, bois dense (couloirs), lac (ralentit). Les obstacles créent des décisions de trajectoire.
-- **Plateaux** (phase 11) : 14 disques de roche de 2,5–4 u de rayon et 1,4 u de haut, placés par la seed hors lacs et bois, à 12 u au moins du départ. Ils se montent **d'un saut** (1,7 u) : le bord est un mur vu d'en bas, on le passe en l'air et on atterrit dessus, on retombe en sortant. Les marcheurs et les boss butent au pied ; Volants, crachats, cercles du Colosse, onde du Gardien et éruptions atteignent un joueur perché : un répit, pas un abri.
+- **Plateaux** (phase 11) : 14 disques de roche de 2,5–4 u de rayon et 1,4 u de haut, placés par la seed hors lacs et bois, à 24 u au moins du départ (la clairière de départ reste ouverte). Ils se montent **d'un saut** (1,7 u) : le bord est un mur vu d'en bas, on le passe en l'air et on atterrit dessus, on retombe en sortant. Les marcheurs et les boss butent au pied ; Volants, crachats, cercles du Colosse, onde du Gardien et éruptions atteignent un joueur perché : un répit, pas un abri.
 - Cycle de lumière lié au temps de run : crépuscule → nuit → aube (lisibilité du temps restant sans regarder le chrono).
 
 ### 3.5 Personnages (9, phase 6 ; 3 en V1)

@@ -65,7 +65,7 @@ export const PLATEAUX = {
   h: 1.4,
   edgeTol: 0.2, // en l'air à y ≥ h − edgeTol, on passe le bord et on atterrit dessus
   minDist: 18, // entre deux centres
-  minFromCenter: 12, // le départ reste plat
+  minFromCenter: 24, // le départ reste une clairière ouverte, comme les lacs et les bois (à 12 u : +5 points de morts avant 3 min, le bot se fait coincer au pied)
 };
 
 // dangers à esquiver par le mouvement (phase 11, PLAN §3.1) : le saut et le dash servent à autre chose qu'à fuir
