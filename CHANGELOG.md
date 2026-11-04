@@ -19,7 +19,7 @@ La progression en run devient longue et granulaire : les armes et les tomes se m
 - **Plus d'évolutions** (Nova, Soleil noir, Tempête, Orage) : la puissance vient des lignes (décision de Jimmy).
 - Courbe d'XP aplatie (≈ 3× plus de montées de niveau : ≈ 35 cartes à 10 min, une toutes les ~15 s) et montée des ennemis plus douce (PV t/170 avec un milieu de partie à /85 et une fin de partie raide après 15:00, dégâts t/500 puis très raides après 15:00, éruptions 12 PV, crachats 11) pour que la montée par petites lignes reste sensible.
 - Kit de départ : Bûcheron et Colporteur partent avec Lames +1 lame et +dégâts, le Braconnier avec Boomerang +dégâts, le Colporteur avec deux lignes de Chance et trois d'Or (≈ Trèfle 1 et Bourse 1 d'avant).
-- §§MESURES§§
+- Survie médiane (bot average, 100 runs) : départ **4:11** (4:40 en 1.6.0), 17 % de morts avant 3 minutes, 83 % passent 3 minutes ; personnage complet **14:35** (14:28), 15 % de runs jusqu'au Faucheur. Le bot de simulation s'écarte désormais des crachats et concentre ses lignes sur son arme principale, comme un joueur moyen.
 
 ## 1.6.0 — 4 nov. 2026 (phase 11 « Mouvement utile »)
 
