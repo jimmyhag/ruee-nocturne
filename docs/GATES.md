@@ -371,6 +371,7 @@ Décisions de la phase :
 - **Configuration lue à l'exécution** (`/__/firebase/init.json`, cache localStorage) : rien à coller dans le dépôt, les previews de PR héritent de la configuration ; `authDomain` = hôte pour Safari.
 - **Pas d'émulateur ni de test contre Firebase réel en CI** (Java, secrets) : règles vérifiées au Rules Playground, consigné ici ; le test e2e garantit qu'un joueur sans compte n'émet rien.
 - **Garde clavier** : les touches dans un champ texte restent au champ (bug latent de la zone de sauvegarde corrigé au passage).
+- **Relecture `perf-reviewer`** : aucune régression de la boucle (bench p95 0,49–0,66 ms, `frame`/`step`/`render` intacts, zéro Firebase dans `src/sim` et `src/render`, chunk `account` absent du chemin critique, draw calls inchangés). Deux courses de synchronisation corrigées : le module compte ne se charge qu'après la lecture durable de la méta (IndexedDB pouvait écraser un pull, puis le renvoyer périmé) ; aucun envoi ne s'intercale pendant la relecture du nuage (un envoi en vol faisait croire à un document distant plus récent et réinstallait l'ancienne progression). Aussi appliqué : une sauvegarde survenue pendant un envoi reste « à envoyer », la déconnexion envoie d'abord ce qui attend, un pull rafraîchit l'écran ouvert et l'aperçu du personnage, un échec d'envoi en arrière-plan passe le statut en erreur, le libellé « Connecté · e-mail » survit au changement de langue.
 
 ## Phase 12 — mesures détaillées (4 nov. 2026, conteneur Linux)
 

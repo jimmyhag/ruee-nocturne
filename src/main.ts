@@ -262,6 +262,7 @@ function syncLang(): void {
   if (l !== getLang()) {
     setLang(l);
     applyLang();
+    refreshAccount();
   }
 }
 function closeScreen(): void {
@@ -593,6 +594,7 @@ $('setLangBtn').onclick = () => {
   saveMeta(meta);
   setLang(resolveLang(meta.settings.lang, navigator.language));
   applyLang();
+  refreshAccount(); // applyLang remet « Compte » sur le bouton, renderAccount le rend à nouveau
 };
 $('setVibrateBtn').onclick = () => {
   meta.settings.vibrate = !meta.settings.vibrate;
@@ -757,6 +759,7 @@ let applyingCloud = false;
 let pendingReconcile = false; // une synchronisation attend le retour au menu (jamais en pleine partie)
 let pendingCloud: CloudDoc | null = null; // document du nuage en attente du choix du joueur
 let pushTimer = 0;
+let reconciling = false; // relecture du nuage en cours : aucun envoi ne doit s'intercaler (relecture perf B2)
 let deleteArmed = 0;
 
 function refreshAccount(): void {
@@ -852,9 +855,12 @@ async function reconcileAccount(): Promise<void> {
     refreshAccount();
     return;
   }
+  clearTimeout(pushTimer); // un envoi en attente serait doublé par decide() (le drapeau dirty est persistant)
+  pushTimer = 0;
   accView.sync = 'syncing';
   accView.retry = false;
   refreshAccount();
+  reconciling = true;
   try {
     const cloud = await account.readSave(u.uid);
     const d = decide(meta, cloud, syncRec, u.uid);
@@ -874,6 +880,8 @@ async function reconcileAccount(): Promise<void> {
     accView.sync = 'error';
     accView.retry = true;
     accountError(e);
+  } finally {
+    reconciling = false;
   }
 }
 function alignWith(uid: string, base: number): void {
@@ -889,6 +897,9 @@ function applyCloud(uid: string, cloud: CloudDoc): void {
   applyingCloud = false;
   alignWith(uid, cloud.updatedAt);
   applyMeta();
+  scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // l'aperçu du menu n'est pas dans applyMeta
+  if (app === 'shop') renderShopScreen();
+  else if (app === 'achievements') renderAchievements($('achList'), meta);
 }
 async function pushNow(uid: string): Promise<void> {
   if (!account) return;
@@ -901,7 +912,16 @@ async function pushNow(uid: string): Promise<void> {
   accView.sync = 'syncing';
   refreshAccount();
   await account.writeSave(uid, d);
-  alignWith(uid, d.updatedAt);
+  const sent = JSON.stringify(d.progress);
+  lastSynced = sent;
+  syncRec = { uid, base: d.updatedAt, dirty: false, changedAt: 0 };
+  if (JSON.stringify(progressOf(meta)) !== sent) {
+    // une sauvegarde est passée pendant l'envoi : le nuage est déjà en retard, on renverra
+    syncRec.dirty = true;
+    syncRec.changedAt = Date.now();
+    schedulePush();
+  }
+  saveSyncRecord(syncRec);
   accView.sync = 'synced';
   refreshAccount();
 }
@@ -910,7 +930,9 @@ function schedulePush(): void {
   pushTimer = window.setTimeout(() => {
     pushTimer = 0;
     const u = account?.user;
-    if (u && app !== 'play')
+    if (reconciling)
+      schedulePush(); // on réessaie après la relecture du nuage
+    else if (u && app !== 'play')
       pushNow(u.uid).catch((e) => {
         accView.sync = 'error';
         accView.retry = true;
@@ -933,7 +955,11 @@ document.addEventListener('visibilitychange', () => {
     clearTimeout(pushTimer);
     pushTimer = 0;
     const u = account?.user;
-    if (u) pushNow(u.uid).catch(() => {});
+    if (u)
+      pushNow(u.uid).catch(() => {
+        accView.sync = 'error';
+        accView.retry = true;
+      });
   }
 });
 addEventListener('online', () => {
@@ -983,8 +1009,12 @@ $('accForgotBtn').onclick = () =>
   });
 $('accSignOutBtn').onclick = () =>
   withBusy(async () => {
-    clearTimeout(pushTimer);
-    pushTimer = 0;
+    const u = account?.user;
+    if (pushTimer) {
+      clearTimeout(pushTimer);
+      pushTimer = 0;
+      if (u && navigator.onLine) await pushNow(u.uid); // les 2 dernières secondes de progression partent avant
+    }
     await account?.signOut();
     syncRec = null;
     saveSyncRecord(null);
@@ -1345,23 +1375,10 @@ function applyMeta(): void {
   applySettings();
   updateBestLine();
   syncLang();
+  refreshAccount();
 }
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
-{
-  let known = false;
-  try {
-    known = localStorage.getItem(SYNC.accountKey) === '1' || sessionStorage.getItem(SYNC.redirectKey) === '1';
-  } catch {
-    /* stockage bloqué */
-  }
-  // après la première peinture et hors du chemin critique : le menu d'un joueur sans compte ne charge jamais Firebase
-  if (known) {
-    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
-    if (idle) idle(() => void loadAccount());
-    else setTimeout(() => void loadAccount(), 1500);
-  }
-}
 let metaLoaded = false;
 loadMeta().then((m) => {
   if (JSON.stringify(m) !== JSON.stringify(meta)) {
@@ -1369,6 +1386,19 @@ loadMeta().then((m) => {
     applyMeta();
   }
   metaLoaded = true;
+  // compte connu : charger Firebase après la méta durable (sinon IndexedDB pourrait écraser un pull) et hors du
+  // chemin critique ; le menu d'un joueur sans compte ne charge jamais Firebase
+  let known = false;
+  try {
+    known = localStorage.getItem(SYNC.accountKey) === '1' || sessionStorage.getItem(SYNC.redirectKey) === '1';
+  } catch {
+    /* stockage bloqué */
+  }
+  if (known) {
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (idle) idle(() => void loadAccount());
+    else setTimeout(() => void loadAccount(), 1500);
+  }
 });
 setPerf(perfOn);
 requestAnimationFrame(frame);
