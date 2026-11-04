@@ -103,8 +103,9 @@ export const HAZARDS = {
 };
 
 export const XP = {
-  // needFor(lv) = 5 + 4·lv + 0.6·lv²  → lv1:10, lv5:40, lv10:105, lv20:325
-  needFor: (lv: number) => Math.floor(5 + lv * 4 + lv * lv * 0.6),
+  // needFor(lv) = 5 + 2·lv + 0,15·lv²  → lv1:7, lv5:18, lv10:40, lv20:105, lv40:325 (phase 12 : ≈ 3× plus de cartes qu'avant,
+  // ≈ 35 à 10 min, une carte toutes les ~15 s : la montée est longue et faite de petites lignes ; avant : 5 + 4·lv + 0,6·lv²)
+  needFor: (lv: number) => Math.floor(5 + lv * 2 + lv * lv * 0.15),
   gemMergeAbove: 880, // au-delà, les nouvelles gemmes fusionnent avec une existante
   magnetAccel: 45,
   magnetMax: 26,
@@ -275,7 +276,7 @@ export const LUCK = {
 };
 
 // lignes de stats (phase 12, PLAN §3.1) : une carte d'arme ou de tome apporte 1 à 3 lignes, chacune petite ; la montée
-// est longue (100 améliorations par arme ou tome, jamais atteintes en 20 min). `pct` : base × (1 + step · n) ; `add` : base + n.
+// est longue (100 améliorations par arme ou tome, jamais atteintes en 20 min). `pct` : base × (1 + step)^n ; `add` : base + step · n.
 export interface StatLine {
   stat: string; // clé de stat (arme : clé de WEAPON_BASE ; tome : effet joueur, voir applyTomeLine)
   step: number; // par ligne
@@ -286,38 +287,38 @@ export interface StatLine {
 export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
   // le niveau 5 d'avant (≈ ×3 de DPS) se retrouve vers 10–12 améliorations ; au-delà c'est la marge jusqu'à 100
   orbe: [
-    { stat: 'dmg', step: 0.07, kind: 'pct', weight: 3 },
-    { stat: 'cd', step: -0.04, kind: 'pct', max: 15, weight: 3 },
-    { stat: 'n', step: 1, kind: 'add', max: 5, weight: 1 },
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'n', step: 1, kind: 'add', max: 5, weight: 1.5 },
     { stat: 'speed', step: 0.08, kind: 'pct', max: 12, weight: 2 },
     { stat: 'pierce', step: 1, kind: 'add', max: 3, weight: 1 },
   ],
   aura: [
-    { stat: 'dmg', step: 0.07, kind: 'pct', weight: 3 },
-    { stat: 'r', step: 0.05, kind: 'pct', max: 20, weight: 3 },
-    { stat: 'period', step: -0.04, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'r', step: 0.06, kind: 'pct', max: 20, weight: 3 },
+    { stat: 'period', step: -0.05, kind: 'pct', max: 15, weight: 3 },
   ],
   lames: [
-    { stat: 'dmg', step: 0.07, kind: 'pct', weight: 3 },
-    { stat: 'n', step: 1, kind: 'add', max: 8, weight: 1 },
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'n', step: 1, kind: 'add', max: 8, weight: 1.5 },
     { stat: 'r', step: 0.04, kind: 'pct', max: 15, weight: 2 },
     { stat: 'spd', step: 0.06, kind: 'pct', max: 15, weight: 2 },
   ],
   foudre: [
-    { stat: 'dmg', step: 0.07, kind: 'pct', weight: 3 },
-    { stat: 'cd', step: -0.04, kind: 'pct', max: 15, weight: 3 },
-    { stat: 'chain', step: 1, kind: 'add', max: 10, weight: 1 },
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'chain', step: 1, kind: 'add', max: 10, weight: 1.5 },
   ],
   boomerang: [
-    { stat: 'dmg', step: 0.07, kind: 'pct', weight: 3 },
-    { stat: 'cd', step: -0.04, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'range', step: 0.06, kind: 'pct', max: 12, weight: 2 },
-    { stat: 'n', step: 1, kind: 'add', max: 3, weight: 1 },
+    { stat: 'n', step: 1, kind: 'add', max: 3, weight: 1.5 },
     { stat: 'speed', step: 0.06, kind: 'pct', max: 12, weight: 2 },
   ],
   mines: [
-    { stat: 'dmg', step: 0.07, kind: 'pct', weight: 3 },
-    { stat: 'cd', step: -0.04, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
     { stat: 'n', step: 1, kind: 'add', max: 12, weight: 2 },
     { stat: 'chain', step: 1, kind: 'add', max: 1, weight: 1 },
@@ -326,12 +327,12 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
 // tomes (remplacent les passifs) : chaque carte tire 1 à 3 lignes dans son tome, l'effet s'applique au joueur (applyTomeLine)
 export const TOMES: Record<TomeKey, StatLine[]> = {
   degats: [
-    { stat: 'dmg', step: 0.04, kind: 'add', weight: 3 },
+    { stat: 'dmg', step: 0.08, kind: 'add', weight: 3 },
     { stat: 'elite', step: 0.08, kind: 'add', weight: 2 },
     { stat: 'kb', step: 0.1, kind: 'add', weight: 2 },
   ],
   cadence: [
-    { stat: 'cd', step: 0.03, kind: 'add', max: 25, weight: 3 },
+    { stat: 'cd', step: 0.04, kind: 'add', max: 18, weight: 3 },
     { stat: 'life', step: 0.06, kind: 'add', weight: 2 },
   ],
   projectiles: [

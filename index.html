@@ -660,6 +660,7 @@
       .card {
         display: grid;
         gap: 8px;
+        align-content: start; /* les rangées ne s'étirent pas quand la carte voisine est plus haute (badges) */
         justify-items: start;
         text-align: left;
         padding: 14px;
@@ -747,6 +748,7 @@
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
+        align-items: center;
       }
       /* rareté d'une carte (phase 12) : 2 lignes = rare (bleu), 3 lignes = épique (or, lueur) */
       .card.rare {

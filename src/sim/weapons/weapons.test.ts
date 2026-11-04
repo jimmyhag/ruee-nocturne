@@ -26,25 +26,25 @@ describe('fiches d’armes et lignes', () => {
       expect(WEAPON_LINES[k].some((l) => l.stat === 'dmg')).toBe(true);
     }
   });
-  it('les lignes s’additionnent sur la base : Orbe +7 % ×3 = 12,1 dégâts, +1 projectile ×2 = 3 tirs', () => {
+  it('les lignes se cumulent sur la base : Orbe +10 % ×3 = 13,3 dégâts, +1 projectile ×2 = 3 tirs', () => {
     const w = new World(1);
     expect(weaponStats(w, 'orbe').dmg).toBeCloseTo(10);
     w.wmods.orbe[0] = 3; // dmg
     w.wmods.orbe[2] = 2; // n
     refreshStats(w);
-    expect(weaponStats(w, 'orbe').dmg).toBeCloseTo(12.1);
+    expect(weaponStats(w, 'orbe').dmg).toBeCloseTo(10 * 1.1 ** 3);
     expect(weaponStats(w, 'orbe').n).toBe(3);
     // les objets de stats sont réutilisés (zéro allocation côté appelant)
     const ref = weaponStats(w, 'orbe');
     refreshStats(w);
     expect(weaponStats(w, 'orbe')).toBe(ref);
   });
-  it('une ligne de recharge plafonnée ne passe jamais sous 40 % de la base', () => {
+  it('une ligne de recharge plafonnée s’arrête à (1 − 5 %)^max de la base', () => {
     const w = new World(2);
     const l = WEAPON_LINES.orbe[1];
     w.wmods.orbe[1] = l.max!;
     refreshStats(w);
-    expect(weaponStats(w, 'orbe').cd).toBeGreaterThanOrEqual(0.95 * 0.4 - 1e-9);
+    expect(weaponStats(w, 'orbe').cd).toBeCloseTo(0.95 * 0.95 ** l.max!);
   });
   it('tome Projectiles : +1 projectile pour toutes les armes (cibles de la Foudre comprises), taille et vitesse', () => {
     const w = new World(3);
@@ -74,10 +74,10 @@ describe('tomes', () => {
         const stat = TOMES[k][i].stat;
         switch (stat) {
           case 'dmg':
-            expect(P.dmgMul).toBeCloseTo(before.dmgMul + 0.04);
+            expect(P.dmgMul).toBeCloseTo(before.dmgMul + 0.08);
             break;
           case 'cd':
-            expect(P.cdMul).toBeCloseTo(before.cdMul - 0.03);
+            expect(P.cdMul).toBeCloseTo(before.cdMul - 0.04);
             break;
           case 'proj':
             expect(P.projAdd).toBe(1);

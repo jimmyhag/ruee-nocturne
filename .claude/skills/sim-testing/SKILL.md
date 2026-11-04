@@ -33,7 +33,7 @@ survie     p10 4:12  p50 10:48  p90 17:30  faucheur 11 %
 niveau@10  p50 18     kills@10  p50 1180
 morts <3min 6 %
 picks      orbe 24 % · halo 19 % · lames 17 % · foudre 15 % · boomerang 14 % · mines 11 %
-évolutions nova 31 % · soleil 22 % · tempête 18 % · orage 12 %
+lignes      1.6 par carte · 14 % de cartes épiques · arme principale niv 18 à 10 min, 24 en fin de run
 cause mort  dard 38 % · brute 24 % · boss 20 % · cracheur 12 % · volant 6 % · éruption 5 % · anneau 2 %
 éruptions   14 par run · 9 % touchent le bot · 5 % des morts
 cibles      ✔ survie  ✔ faucheur  ✔ picks  ✘ kills@10 (1180 < 900–1500 ✔)  …

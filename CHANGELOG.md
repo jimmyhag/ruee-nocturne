@@ -2,6 +2,25 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.7.0 — 4 nov. 2026 (phase 12 « Lignes de stats »)
+
+La progression en run devient longue et granulaire : les armes et les tomes se montent par petites lignes de stats, jusqu'à 100 fois.
+
+### Ajouté
+
+- **Lignes de stats** : chaque carte d'arme apporte 1 à 3 lignes tirées dans la famille de l'arme (dégâts, recharge, projectiles, vitesse, perforation, rayon, rotation, cibles, portée, mines, chaîne), chacune petite ; une arme s'améliore jusqu'à 100 fois. Les lignes en % se cumulent (×1,07 par ligne de dégâts), les lignes entières s'ajoutent (+1 projectile).
+- **Tomes** : huit tomes remplacent les huit passifs : Dégâts, Cadence, Projectiles (+1 projectile pour toutes les armes, taille, vitesse), Vitalité (PV, régénération, dégâts subis), Mouvement (course, dash), Savoir (XP, collecte), Chance, Or. Une carte de tome tire aussi 1 à 3 lignes.
+- **Rareté** : 1 ligne = commune, 2 = rare (cadre bleu), 3 = épique (cadre or). La chance (boutique, tome Chance) décale les tirages vers le rare et l'épique.
+- Succès « Triple ligne » (prendre une carte épique) et « Érudit » (une arme à 25 améliorations dans un run) remplacent « Métamorphose » et « Métamorphe ».
+- `npm run sim` : ligne `lignes` (lignes par carte, part d'épiques, niveau d'arme principale à 10 min), cible « arme principale à 10 min entre 15 et 30 ».
+
+### Modifié
+
+- **Plus d'évolutions** (Nova, Soleil noir, Tempête, Orage) : la puissance vient des lignes (décision de Jimmy).
+- Courbe d'XP aplatie (deux fois plus de montées de niveau : ≈ 25 cartes à 10 min) pour que la montée par petites lignes reste sensible.
+- Kit de départ : Bûcheron et Colporteur partent avec Lames +1 lame et +dégâts, le Braconnier avec Boomerang +dégâts, le Colporteur avec deux lignes de Chance et trois d'Or (≈ Trèfle 1 et Bourse 1 d'avant).
+- §§MESURES§§
+
 ## 1.6.0 — 4 nov. 2026 (phase 11 « Mouvement utile »)
 
 Le saut et le dash servent à autre chose qu'à fuir : on monte, on passe au-dessus, on traverse.

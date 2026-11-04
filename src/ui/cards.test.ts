@@ -33,14 +33,14 @@ describe('cartes', () => {
   it('titres, lignes et textes pour chaque sorte de carte (FR)', () => {
     setLang('fr');
     expect(cardTitle(card({ kind: 'w', key: 'orbe' }))).toBe('Orbe filante');
-    expect(cardText(card({ kind: 'w', key: 'orbe', lv: 1, s0: 0 }))).toContain('+7 % dégâts');
+    expect(cardText(card({ kind: 'w', key: 'orbe', lv: 1, s0: 0 }))).toContain('+10 % dégâts');
     expect(cardText(card({ kind: 'w', key: 'orbe', lv: 1 }))).toContain('Tire sur'); // nouvelle arme : sa règle d'abord
     expect(cardLines(card({ kind: 'w', key: 'orbe', lv: 4, n: 3, s0: 0, s1: 2, s2: 4 }))).toEqual([
-      '+7 % dégâts',
+      '+10 % dégâts',
       '+1 projectile',
       '+1 perforation',
     ]);
-    expect(cardLines(card({ kind: 'w', key: 'orbe', lv: 2, n: 1, s0: 1 }))).toEqual(['−4 % de recharge']);
+    expect(cardLines(card({ kind: 'w', key: 'orbe', lv: 2, n: 1, s0: 1 }))).toEqual(['−5 % de recharge']);
     expect(cardTitle(card({ kind: 't', key: 'degats' }))).toBe('Tome des dégâts');
     expect(cardLines(card({ kind: 't', key: 'vitalite', n: 2, s0: 0, s1: 1 }))).toEqual([
       '+8 PV max',
@@ -70,7 +70,7 @@ describe('cartes', () => {
     const w = new World(1);
     expect(weaponSummary(w, 'orbe')).toContain('1 shot');
     expect(weaponSummary(w, 'aura')).toContain('2.2');
-    expect(cardLines(card({ kind: 'w', key: 'orbe', s0: 0 }))).toEqual(['+7 % damage']);
+    expect(cardLines(card({ kind: 'w', key: 'orbe', s0: 0 }))).toEqual(['+10 % damage']);
     expect(cardTitle(card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 }))).toBe('Full heal');
     expect(cardTitle(card({ kind: 't', key: 'savoir' }))).toBe('Tome of Lore');
     expect(achText(ACHIEVEMENTS.find((a) => a.id === 'kills2000')!)).toContain('2,000');

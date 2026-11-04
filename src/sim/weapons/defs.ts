@@ -60,7 +60,7 @@ export function refreshStats(w: World): void {
       const l = lines[j];
       const n = mods[j];
       if (n === 0) continue;
-      if (l.kind === 'pct') out[l.stat] = base[l.stat] * (1 + l.step * n);
+      if (l.kind === 'pct') out[l.stat] = base[l.stat] * Math.pow(1 + l.step, n); // cumul multiplicatif : la montée reste sensible à 30 lignes
       else out[l.stat] = base[l.stat] + l.step * n;
     }
     // tomes globaux

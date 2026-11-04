@@ -34,33 +34,40 @@ needFor(lv) = floor(5 + 4·lv + 0.6·lv²)   // lv1→10, lv5→40, lv10→105, 
 - Aimant au kill de boss : toutes les gemmes au sol volent vers le joueur (récompense + nettoyage).
 
 ## 3. L'économie des choix (le cœur du genre)
-Chaque montée de niveau propose **3 cartes**, tirées ainsi :
-1. Pool = armes non maxées (nouvelles armes incluses tant que les **emplacements** le permettent : 1 au départ, jusqu'à 4 ; phase 10) + passifs non maxés (idem : 2 au départ, jusqu'à 4). Le kit de départ du personnage ne compte pas contre le plafond.
-2. Pondération : arme/passif **déjà possédé** ×1,6 (favorise la cohérence), composant d'une **évolution en cours** ×2,2, item jamais vu ×1,3 (découverte).
-3. Garantie : au moins 1 carte d'arme si le joueur a < 2 armes **et un emplacement libre** ; jamais 3 passifs de stats pures.
-4. Chance (passif Trèfle) : chaque point ajoute 6 % de proposer 4 cartes, et augmente la qualité des coffres.
-5. Pool vide → soin complet ou +25 or.
+Chaque montée de niveau propose **3 cartes** (4 avec la chance), tirées ainsi (phase 12 : lignes de stats) :
+1. Pool = armes non maxées (nouvelles armes incluses tant que les **emplacements** le permettent : 1 au départ, jusqu'à 4) + tomes non maxés (2 au départ, jusqu'à 4). Le kit de départ du personnage ne compte pas contre le plafond.
+2. Chaque carte porte **1 à 3 lignes de stats** tirées dans la famille de l'arme ou du tome (`WEAPON_LINES`, `TOMES` dans `balance.ts`) : 1 ligne 67 %, 2 lignes 25 % (rare, cadre bleu), 3 lignes 8 % (épique, cadre or) ; chaque point de chance ajoute 2 pts vers 2 lignes et 1 pt vers 3. Les lignes « rares » (+1 projectile, +1 lame, +1 cible, +1 perforation) pèsent 1 contre 3 pour les lignes en pourcentage ; une ligne plafonnée n'est plus tirée.
+3. Pondération des cartes : arme/tome **déjà possédé** ×1,6 (favorise la cohérence), item jamais vu ×1,3 (découverte).
+4. Garantie : au moins 1 carte d'arme si le joueur a < 2 armes **et un emplacement libre** ; jamais 3 tomes.
+5. Pool vide → soin complet.
 
-Le texte d'une carte dit **ce que ça change concrètement** (« 2 tirs, 15 dégâts, transperce »), jamais « +1 niveau ».
+Le texte d'une carte dit **chaque ligne concrètement** (« +7 % dégâts », « +1 projectile ») ; une nouvelle arme ou un nouveau tome montre d'abord sa règle. La montée est **longue** : 100 améliorations par arme ou tome, jamais atteintes en 20 min (≈ 35 cartes par run) ; le niveau 5 d'avant (≈ ×3 de DPS) se retrouve vers 10–12 améliorations.
 
 ## 4. Armes : grammaire de design
 Chaque arme répond à : **portée** (contact / courte / longue), **ciblage** (auto / direction / zone / aléatoire), **rythme** (continu / salve / lent et fort). Deux armes ne doivent jamais partager les trois.
 
-| Arme | Portée | Ciblage | Rythme | Fantasme |
-|---|---|---|---|---|
-| Orbe | longue | auto plus proche | salve | sniper |
-| Halo | contact | zone autour | continu | tank |
-| Lames | courte | orbite | continu | derviche |
-| Foudre | longue | aléatoire + chaîne | lent fort | mage |
-| Boomerang | longue | direction regard | salve | contrôle de ligne |
-| Mines | contact | là où je passe | pose | piégeur / kiting |
+| Arme | Portée | Ciblage | Rythme | Fantasme | Lignes (step) |
+|---|---|---|---|---|---|
+| Orbe | longue | auto plus proche | salve | sniper | dégâts +7 %, recharge −4 %, +1 projectile (max +5), vitesse +8 %, +1 perforation (max +3) |
+| Halo | contact | zone autour | continu | tank | dégâts +7 %, rayon +5 %, période −4 % |
+| Lames | courte | orbite | continu | derviche | dégâts +7 %, +1 lame (max +8), rayon +4 %, rotation +6 % |
+| Foudre | longue | aléatoire + chaîne | lent fort | mage | dégâts +7 %, recharge −4 %, +1 cible (max +10) |
+| Boomerang | longue | direction regard | salve | contrôle de ligne | dégâts +7 %, recharge −4 %, portée +6 %, +1 boomerang (max +3), vitesse +6 % |
+| Mines | contact | là où je passe | pose | piégeur / kiting | dégâts +7 %, recharge −4 %, rayon +5 %, +1 mine (max +12), chaîne (unique) |
 
-Progression par niveau : une seule stat majeure change par niveau (lisibilité), le niveau 5 apporte un **changement qualitatif** (perçage, rebond, double orbite), pas juste des chiffres.
+Les lignes en % s'additionnent sur la base (`base × (1 + step · n)`), les lignes entières s'ajoutent ; les baisses en % sont plafonnées (−60 % de recharge au plus). Une ligne rare apporte un **changement qualitatif** (un projectile de plus se voit), les lignes en % font grimper lentement.
 
-## 5. Évolutions
-- Condition : arme niveau 5 + passif associé niveau ≥ 1 + **ouvrir un coffre**. Le coffre garantit l'évolution si la condition est remplie (pas de frustration).
-- L'arme évoluée est **visuellement 3× plus grosse**, a son propre son, et déclenche bannière + shake 0,5.
-- Puissance : ≈ ×2,5 par rapport au niveau 5. C'est voulu : c'est la récompense de run.
+## 5. Tomes (phase 12, à la place des passifs et des évolutions)
+Huit tomes, 4 emplacements, chaque carte tire 1 à 3 lignes dans sa famille, effets additifs sur la base du joueur :
+- **Dégâts** : dégâts +4 %, dégâts aux élites et boss +8 %, recul +10 %.
+- **Cadence** : recharge −3 % (plancher 25 %), durée des projectiles +6 %.
+- **Projectiles** : +1 projectile pour toutes les armes (rare, max 3), taille +6 %, vitesse des projectiles +6 %.
+- **Vitalité** : +8 PV max, régénération +0,25/s, dégâts subis −3 % (plafond −45 %).
+- **Mouvement** : course +3 %, recharge du dash −6 % (plancher 40 %), invulnérabilité du dash +0,03 s.
+- **Savoir** : XP +6 %, collecte +8 %.
+- **Chance** : chance +0,5 (lignes rares, 4e carte, coffres), or des coffres +20 %.
+- **Or** : or +8 %, +1 or par élite vaincue.
+Plus d'évolutions (décision de Jimmy, 4 nov. 2026) : la récompense de run est une arme à 25+ améliorations (succès « Érudit ») et les cartes épiques (succès « Triple ligne »).
 
 ## 6. Ennemis : rôles, pas stats
 Un ennemi existe pour poser une **question** au joueur :

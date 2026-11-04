@@ -29,17 +29,21 @@ export const achName = (a: Achievement): string => t(`ach.${a.id}.name`);
 export const achText = (a: Achievement): string => t(`ach.${a.id}.text`, { n: a.goal });
 export const achUnlock = (a: Achievement): string => t(`ach.${a.id}.unlock`);
 
+/** Lignes de tome qui réduisent quelque chose (recharge, recharge du dash, dégâts subis) : affichées avec « − ». */
+const REDUCES = new Set(['cd', 'dashcd', 'armor']);
+/** Lignes en valeur absolue bien que < 1 (PV/s, points de chance, secondes). */
+const ABSOLUTE = new Set(['regen', 'luck', 'dashinvul']);
 /** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */
-function lineValue(l: StatLine): string {
-  if (l.kind === 'pct' || (l.kind === 'add' && Math.abs(l.step) < 1 && l.stat !== 'regen' && l.stat !== 'luck')) {
-    const v = Math.round(l.step * 100);
-    return `${v > 0 ? '+' : '−'}${Math.abs(v)} %`;
+function lineValue(l: StatLine, kind: 'w' | 't'): string {
+  const sign = l.step > 0 !== (kind === 't' && REDUCES.has(l.stat)) ? '+' : '−';
+  if (l.kind === 'pct' || (l.kind === 'add' && Math.abs(l.step) < 1 && !ABSOLUTE.has(l.stat))) {
+    return `${sign}${Math.round(Math.abs(l.step) * 100)} %`;
   }
-  return `${l.step > 0 ? '+' : '−'}${fmtNum(Math.abs(l.step))}`;
+  return `${sign}${fmtNum(Math.abs(l.step))}`;
 }
 /** Texte d'une ligne de stat (arme : `line.w.<stat>`, tome : `line.t.<stat>`), ex. « +7 % dégâts », « +1 projectile ». */
 export function lineText(kind: 'w' | 't', l: StatLine): string {
-  return t(`line.${kind}.${l.stat}`, { v: lineValue(l) });
+  return t(`line.${kind}.${l.stat}`, { v: lineValue(l, kind) });
 }
 /** Les lignes d'une carte, dans l'ordre (vide pour un soin). */
 export function cardLines(c: Card): string[] {
