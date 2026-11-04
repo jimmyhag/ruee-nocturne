@@ -78,7 +78,7 @@ export const HAZARDS = {
     r: 1.6,
     telegraph: 0.8, // fenêtre de saut utile : en l'air ≥ 0,9 u entre 0,11 et 0,62 s après l'impulsion ⇒ sauter à mi-télégraphe
     track: 7, // u/s : la fissure suit le joueur (6,2 u/s en marchant) ; seuls le saut et le dash (×3,2) l'esquivent
-    dmg: 18, // × dmgScale (×1,33 à 2:30 ⇒ 24 PV, un quart de la vie) ; blesse seulement au sol (et hors dash)
+    dmg: 15, // × dmgScale (×1,33 à 2:30 ⇒ 20 PV, un cinquième de la vie ; 45 PV à 15:00) ; à 18 la part des morts par éruption en maxé montait à 18 % sur une seed (porte ≤ 15 %)
     launch: 6, // vitesse verticale donnée au joueur touché : projeté, lisible
   },
   ring: {
