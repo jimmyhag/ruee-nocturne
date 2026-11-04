@@ -9,7 +9,7 @@ Le saut et le dash servent à autre chose qu'à fuir : on monte, on passe au-des
 ### Ajouté
 
 - **Plateaux** : 14 disques de roche (2,5–4 u de rayon, 1,4 u de haut) répartis sur la carte, hors lacs et bois. Ils se montent d'un saut ; vu d'en bas le bord est un mur, on retombe en sortant. Les marcheurs et les boss butent au pied ; Volants, crachats, cercles du Colosse, onde du Gardien et éruptions atteignent toujours un joueur perché.
-- **Éruptions** (dès 2:00) : une fissure rouge suit le joueur pendant 0,8 s (plus vite qu'il ne marche) puis un pic blesse (20 PV × montée des dégâts) et projette en l'air qui est encore au sol. Se saute à mi-télégraphe, ou se dashe. Toutes les 9 s au début, 4 s à 15:00.
+- **Éruptions** (dès 2:30) : une fissure rouge suit le joueur pendant 0,8 s (plus vite qu'il ne marche) puis un pic blesse (18 PV × montée des dégâts) et projette en l'air qui est encore au sol. Se saute à mi-télégraphe, ou se dashe. Toutes les 9 s au début, 4 s à 15:00.
 - **Onde de choc du Gardien** : toutes les 6 s (3 s en phase 2), un anneau rouge part du boss et s'étend à 9 u/s jusqu'à 14 u ; il blesse une fois au passage (14 PV × montée des dégâts) et se saute.
 - **Charge des Brutes élites** : couloir rouge au sol pendant 0,6 s puis charge en ligne de 7 u à 16 u/s (16 PV × montée des dégâts en un coup), suivie de 0,7 s d'essoufflement. Se traverse en dash (invulnérable) ou s'évite d'un pas de côté.
 - Sons et effets dédiés (coup sourd d'éruption avec gerbe de roche, nappe de l'onde, grognement de charge) ; secousse d'écran sur l'éruption. Cause de mort nommée dans la CLI (`éruption`, `anneau`, `charge`, `crachat`, `zone`).

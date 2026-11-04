@@ -92,7 +92,7 @@ Semelles de vent (vitesse), Cœur de pierre (PV max), Sève vive (régén), Aima
 | **Essaim-mère** (10:00) | Boss qui pond des Dards | Pulsation |
 | **Colosse** (15:00) | Boss zones au sol | Cercles rouges 1 s |
 | **Faucheur** (20:00) | Fin de run, quasi-invincible | Musique coupée |
-| **Éruptions** (dès 2:00, phase 11) | Le sol : une fissure suit le joueur (7 u/s, plus vite qu'il ne marche) pendant 0,8 s puis un pic blesse et projette qui est **au sol** ; toutes les 9 s, 4 s à 15:00 | Cercle rouge qui se remplit, sous les pieds |
+| **Éruptions** (dès 2:30, phase 11) | Le sol : une fissure suit le joueur (7 u/s, plus vite qu'il ne marche) pendant 0,8 s puis un pic blesse et projette qui est **au sol** ; toutes les 9 s, 4 s à 15:00 | Cercle rouge qui se remplit, sous les pieds |
 
 ### 3.4 Terrain
 - 1 carte V1 : clairière infinie procédurale (arbres, rochers, lanternes) avec **zones** : clairière ouverte, bois dense (couloirs), lac (ralentit). Les obstacles créent des décisions de trajectoire.
