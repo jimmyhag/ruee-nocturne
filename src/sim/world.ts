@@ -1,8 +1,8 @@
-import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX } from './balance';
+import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX, HAZARDS } from './balance';
 import { PASSIVES } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Ev, Mode, ProjKind, ShotKind, Trait } from './types';
+import { Ev, Mode, ProjKind, ShotKind, Trait, HurtSrc } from './types';
 import type {
   Card,
   Chest,
@@ -61,6 +61,8 @@ export class World {
   reaperSpawned = false;
   nextId = 1;
   lastAction = 0; // dernier coup donné ou reçu
+  nextEruption = HAZARDS.eruption.after; // phase 11 : prochaine éruption (temps de jeu)
+  lastHurt: HurtSrc = HurtSrc.Contact; // dernière source de dégâts (cause de mort dans la CLI)
   boredomUntil = 0;
 
   // armes et passifs
@@ -480,7 +482,7 @@ function makeProj(): Projectile {
   };
 }
 function makeShot(): Shot {
-  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0 };
+  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false };
 }
 function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };

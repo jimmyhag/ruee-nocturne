@@ -1,9 +1,10 @@
-import { CRACHEUR_TYPE, ENEMIES, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { CRACHEUR_TYPE, ENEMIES, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickBoss, tickFlyer, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
 import { applyCard, rollChoices, tickChests, tickGems } from './progression';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { Ev, Mode, ShotKind, Trait } from './types';
+import { Ev, HurtSrc, Mode, ShotKind, Trait } from './types';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
 import type { World } from './world';
@@ -34,6 +35,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
   stepEnemies(w, dt);
+  tickEruptions(w);
   tickShots(w, dt);
   tickWeapons(w, dt);
   tickProjectiles(w, dt);
@@ -169,6 +171,7 @@ function stepEnemies(w: World, dt: number): void {
     }
     // déplacement voulu selon le rôle
     if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
+    else if (isCharger(e)) tickCharger(w, e, dt, dx, dz, d, mv);
     else if (e.type === VOLANT_TYPE) tickFlyer(w, e, dt, dx, dz, d, mv);
     else if (e.type === CRACHEUR_TYPE) tickSpitter(w, e, dt, dx, dz, d, mv);
     else {
@@ -217,9 +220,21 @@ function stepEnemies(w: World, dt: number): void {
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     const canHurt = e.type === VOLANT_TYPE ? e.state === 2 : true;
     if (canHurt && d < e.r + PLAYER.radius && !(flies ? airborne : aboveGround) && P.invul <= 0) {
-      const dmg = def.dmg * e.dmgMul * dt;
-      P.hp -= dmg;
-      hurt += dmg;
+      if (e.state === 2 && isCharger(e)) {
+        // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
+        const dmg = HAZARDS.charge.dmg * e.dmgMul;
+        P.hp -= dmg;
+        hurt += dmg;
+        P.invul = Math.max(P.invul, HAZARDS.charge.invul);
+        e.state = 3;
+        e.timer = HAZARDS.charge.recover;
+        w.lastHurt = HurtSrc.Charge;
+      } else {
+        const dmg = def.dmg * e.dmgMul * dt;
+        P.hp -= dmg;
+        hurt += dmg;
+        w.lastHurt = HurtSrc.Contact;
+      }
     }
   }
   if (hurt > 0) {
@@ -249,16 +264,48 @@ function tickShots(w: World, dt: number): void {
       if (inside && !airborne && P.invul <= 0) {
         P.hp -= s.dmg;
         hurt += s.dmg;
+        w.lastHurt = HurtSrc.Spit;
         w.freeShot(i);
         continue;
       }
       if (s.life <= 0) w.freeShot(i);
+    } else if (s.kind === ShotKind.Ring) {
+      // onde de choc : le rayon grandit, blesse une fois au passage de l'anneau (au sol)
+      s.r += HAZARDS.ring.speed * dt;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (!s.hit && Math.abs(dist - s.r) < HAZARDS.ring.width * 0.5 + PLAYER.radius && !airborne && P.invul <= 0) {
+        P.hp -= s.dmg;
+        hurt += s.dmg;
+        s.hit = true;
+        w.lastHurt = HurtSrc.Ring;
+      }
+      if (s.life <= 0) w.freeShot(i);
+    } else if (s.kind === ShotKind.Eruption) {
+      if (s.life > 0) {
+        // la fissure suit le joueur (plus vite qu'il ne marche) : seuls le saut et le dash l'esquivent
+        const dd = Math.sqrt(dx * dx + dz * dz);
+        const k = dd > 1e-6 ? Math.min(HAZARDS.eruption.track, dd / dt) / dd : 0;
+        s.vx = dx * k;
+        s.vz = dz * k;
+      } else {
+        // pic : blesse et projette le joueur au sol (sol local : un plateau n'abrite pas)
+        w.emit(Ev.Eruption, s.x, w.groundAt(s.x, s.z), s.z, s.r);
+        if (inside && !airborne && P.invul <= 0) {
+          P.hp -= s.dmg;
+          hurt += s.dmg;
+          P.vy = HAZARDS.eruption.launch;
+          P.onGround = false;
+          w.lastHurt = HurtSrc.Eruption;
+        }
+        w.freeShot(i);
+      }
     } else if (s.life <= 0) {
       // zone : explose
       w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
       if (inside && !airborne && P.invul <= 0) {
         P.hp -= s.dmg;
         hurt += s.dmg;
+        w.lastHurt = HurtSrc.Zone;
       }
       w.freeShot(i);
     }

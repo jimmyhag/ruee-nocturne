@@ -1,6 +1,7 @@
 // Scripts des boss (survivor-design §7) : 2 attaques télégraphiées + phase à 50 % PV, 45–90 s.
 // Chaque script écrit le déplacement voulu dans `mv` (u/s) ; les dégâts de contact restent gérés par step.ts.
-import { BOSS, BOSS_TYPE, COLOSSUS_TYPE, CRACHEUR, DARD_TYPE, ENEMIES, REAPER_TYPE, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
+import { BOSS, BOSS_TYPE, COLOSSUS_TYPE, CRACHEUR, DARD_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
+import { emitRing } from './hazards';
 import { spawnEnemy } from './spawner';
 import { Ev, ShotKind } from './types';
 import type { Enemy } from './types';
@@ -41,6 +42,12 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
           e.state = 0;
           e.timer = e.phase2 ? BOSS.chargePeriod / 2 : BOSS.chargePeriod;
         }
+      }
+      // phase 11 : onde de choc périodique (hors charge), à sauter ; phase 2 : deux fois plus souvent
+      e.aim -= dt;
+      if (e.aim <= 0 && e.state !== 2) {
+        e.aim = e.phase2 ? HAZARDS.ring.period / 2 : HAZARDS.ring.period;
+        emitRing(w, e);
       }
       break;
     }

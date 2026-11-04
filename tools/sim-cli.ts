@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { CHARACTERS, ENEMIES, MAX_PASSIVES, MAX_WEAPONS, SHOP, SLOTS_START, STEP } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
-import { Ev, Mode } from '../src/sim/types';
+import { HurtSrc, Ev, Mode } from '../src/sim/types';
 import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
 import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
@@ -102,6 +102,14 @@ function runOnce(seed: number): RunResult {
   let killsAt10 = -1,
     levelAt10 = -1;
   let lastHurtType = 'inconnu';
+  // phase 11 : les dangers (éruption, anneau, charge, crachat, zone) sont nommés ; le contact garde l'ennemi le plus proche
+  const HURT_NAMES: Record<number, string | undefined> = {
+    [HurtSrc.Eruption]: 'éruption',
+    [HurtSrc.Ring]: 'anneau',
+    [HurtSrc.Charge]: 'charge',
+    [HurtSrc.Spit]: 'crachat',
+    [HurtSrc.Zone]: 'zone',
+  };
   const alive: number[] = [];
   const maxFrames = UNTIL / STEP;
   while (frame < maxFrames) {
@@ -149,7 +157,7 @@ function runOnce(seed: number): RunResult {
     weapons: { ...w.weapons } as Record<string, number>,
     passives: { ...w.passives } as Record<string, number>,
     evolved: Object.keys(w.evolved),
-    deathBy: w.mode === Mode.Dead ? lastHurtType : '—',
+    deathBy: w.mode === Mode.Dead ? (HURT_NAMES[w.lastHurt] ?? lastHurtType) : '—',
     gold: Math.round(w.gold),
     noHit: w.noHitBest,
     distance: w.distance,

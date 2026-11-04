@@ -224,6 +224,19 @@ export class AudioBus {
   spit(): void {
     this.tone(this.sfx, 240, 0.08, 'square', 0.14, -120, PRIO.hit);
   }
+  /** Éruption : coup sourd qui monte, grave (le sol crache). */
+  eruption(): void {
+    this.tone(this.sfx, 55, 0.3, 'square', 0.4, 60, PRIO.kill);
+    this.tone(this.sfx, 180, 0.12, 'sawtooth', 0.18, -120, PRIO.kill, 0.04);
+  }
+  /** Onde de choc du Gardien : nappe qui s'éloigne (descendante, longue). */
+  ring(): void {
+    this.tone(this.sfx, 420, 0.5, 'triangle', 0.22, -300, PRIO.boss);
+  }
+  /** Brute élite qui arme sa charge : grognement court, montant. */
+  charge(): void {
+    this.tone(this.sfx, 110, 0.35, 'sawtooth', 0.3, 90, PRIO.boss);
+  }
   /** Plongée d'un Volant : sifflement descendant. */
   dive(): void {
     this.tone(this.sfx, 1200, 0.3, 'sine', 0.12, -700, PRIO.hit);

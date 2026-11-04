@@ -62,6 +62,18 @@ export interface Projectile {
 export const enum ShotKind {
   Spit = 0, // crachat du Cracheur : au sol, lent, esquivable
   Zone, // Colosse : cercle rouge immobile qui explose à la fin de `life`
+  Eruption, // phase 11 : fissure qui suit le joueur pendant le télégraphe puis pic sous ses pieds — se saute ou se dashe
+  Ring, // phase 11 : anneau de choc du Gardien, rayon qui grandit (`r`), blesse une fois au passage — se saute
+}
+
+/** Dernière source de dégâts subie par le joueur (statistiques de causes de mort, CLI). */
+export const enum HurtSrc {
+  Contact = 0,
+  Spit,
+  Zone,
+  Eruption,
+  Ring,
+  Charge,
 }
 
 /** Projectile ennemi : ne touche jamais un joueur en l'air (airborneSafeY). */
@@ -77,6 +89,7 @@ export interface Shot {
   vz: number;
   life: number;
   dmg: number;
+  hit: boolean; // anneau : le joueur a déjà été touché par cette onde
 }
 
 export interface Gem {
@@ -136,6 +149,9 @@ export const enum Ev {
   ZoneBlast, // Colosse : fin d'un cercle rouge, v = rayon
   Victory, // Faucheur vaincu
   Revive, // réanimation (boutique) : v = réanimations restantes
+  Eruption, // phase 11 : pic sorti du sol en (x,y,z), v = rayon
+  Ring, // phase 11 : anneau de choc émis par le Gardien, v = rayon final
+  Charge, // phase 11 : Brute élite qui arme sa charge : (x,z) → (x2,z2), v = durée du télégraphe
 }
 
 export interface GameEvent {
