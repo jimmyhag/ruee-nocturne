@@ -10,8 +10,8 @@ export const PAL = {
   xp: 0x5fd3ff,
   gold: 0xffd166,
   lantern: 0xffb347, // lumière des lanternes et des halos chauds
-  grass1: [63, 104, 88] as const,
-  grass2: [72, 118, 98] as const,
+  grass1: [66, 108, 92] as const, // phase 15 : damier à peine marqué (il lisait « cubique »)
+  grass2: [70, 114, 97] as const,
   tree: 0x2d5248,
   rock: 0x8a7f9a,
   lake: 0x3a8fc4,
@@ -32,8 +32,8 @@ export const PAL = {
   gem3: 0xffcc4d,
   // cycle de lumière : crépuscule (0:00) → nuit (8:00) → aube (20:00)
   light: {
-    dusk: { fog: 0x182341, sky: 0xffcfa6, ground: 0x1a2340, hemi: 0.9, sun: 0xffd6a8, sunI: 0.85 },
-    night: { fog: 0x0f1628, sky: 0x7f95d6, ground: 0x0c1220, hemi: 0.75, sun: 0x9db4ff, sunI: 0.5 },
+    dusk: { fog: 0x182341, sky: 0xffcfa6, ground: 0x24305a, hemi: 1.0, sun: 0xffd6a8, sunI: 0.95 },
+    night: { fog: 0x0f1628, sky: 0x8aa2e6, ground: 0x141c36, hemi: 0.9, sun: 0xa8bdff, sunI: 0.65 },
     dawn: { fog: 0x3b3f66, sky: 0xffe4c2, ground: 0x2a2d4e, hemi: 1.0, sun: 0xffc89a, sunI: 0.9 },
   },
 };

@@ -8,8 +8,9 @@ import type { CharacterKey } from '../sim/types';
 import { PAL } from './palette';
 import { OUTFITS } from './outfits';
 import type { Palette } from './outfits';
-import { paintHex, primGeometry } from './parts';
+import { paintHex, primGeometry, withOutline } from './parts';
 import type { Prim } from './parts';
+import { OUTLINE, OUTLINE_RGB, toonMaterial } from './toon';
 
 type Tone = 'p1' | 'p2' | 'p3' | 'skin' | number;
 interface Part extends Prim {
@@ -42,7 +43,7 @@ const head = (skin: Tone = 'skin', s = 0.7): Part => ({
   pos: [0, 1.45, 0],
   color: skin,
 });
-const visor: Part = { shape: 'box', size: [0.52, 0.13, 0.06], pos: [0, 1.45, 0.37], color: INK };
+const visor: Part = { shape: 'plate', size: [0.52, 0.13, 0.06], pos: [0, 1.45, 0.37], color: INK };
 
 export const LOOKS: Record<CharacterKey, Look> = {
   eclaireuse: {
@@ -183,7 +184,7 @@ const tone = (t: Tone, pal: Palette): number => (typeof t === 'number' ? t : pal
 
 // matériaux partagés par tous les personnages (aucun paramètre par personnage) : jamais disposés, sinon Three
 // détruirait et recompilerait leur programme à chaque changement de personnage dans le menu
-const LIT_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
+const LIT_MAT = toonMaterial({ vertexColors: true }); // phase 15 : toon à trois tons, contour cuit dans la géométrie
 const GLOW_MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
 
 /** Construit le modèle d'un personnage dans sa tenue. ≤ 5 appels de rendu : torse, lumineux, 2 jambes, halo. */
@@ -203,20 +204,21 @@ export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
     const g = primGeometry(p);
     all.push(g.clone());
     if (p.role === 'legL' || p.role === 'legR') {
-      const mat = new THREE.MeshLambertMaterial({ color: tone(p.color, pal) });
-      const m = new THREE.Mesh(g, mat);
+      // couleur par sommet (le contour cuit est sombre) : le matériau toon partagé suffit
+      const m = new THREE.Mesh(withOutline(paintHex(g, tone(p.color, pal)), OUTLINE.player, OUTLINE_RGB), LIT_MAT);
       // pivot à la hanche : la géométrie est déjà translatée, on tourne autour de (x, 0.43, 0)
       m.geometry.translate(-p.pos[0], -0.43, 0);
       m.position.set(p.pos[0], 0.43, 0);
-      disposables.push(g, mat);
+      disposables.push(g, m.geometry);
       if (p.role === 'legL') legL = m;
       else legR = m;
       group.add(m);
     } else (p.role === 'glow' ? glow : lit).push(paintHex(g, tone(p.color, pal)));
   }
-  const litGeo = mergeGeometries(lit) ?? lit[0];
+  const litMerged = mergeGeometries(lit) ?? lit[0];
+  const litGeo = withOutline(litMerged, OUTLINE.player, OUTLINE_RGB);
   torso.add(new THREE.Mesh(litGeo, LIT_MAT));
-  disposables.push(litGeo, ...lit);
+  disposables.push(litGeo, litMerged, ...lit);
   if (glow.length) {
     const glowGeo = mergeGeometries(glow) ?? glow[0];
     torso.add(new THREE.Mesh(glowGeo, GLOW_MAT));
