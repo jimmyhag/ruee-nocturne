@@ -255,7 +255,7 @@ export const BOOMERANG = {
 };
 export const LAMES = {
   window: 0.4, // un ennemi n'est touché par les lames qu'une fois par fenêtre (s)
-  hitR: 0.55, // rayon de frappe d'une lame (× sizeMul)
+  hitR: 0.75, // rayon de frappe d'une lame (× sizeMul) ; phase 12 : 0,55 → 0,75, un Dard collé au joueur passait sous l'anneau (Bûcheron 3:12 et 46 % de morts < 3 min → 5:04 et 16 %), alors qu'un rayon plus grand aggravait le trou central
   kb: 5, // recul d'une lame (× Fendeur)
 };
 export const MINES = {
@@ -356,7 +356,7 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'dashinvul', step: 0.03, kind: 'add', max: 10, weight: 1 },
   ],
   savoir: [
-    { stat: 'xp', step: 0.06, kind: 'add', weight: 3 },
+    { stat: 'xp', step: 0.06, kind: 'add', max: 8, weight: 3 }, // +48 % au plus : les runs maxés qui allaient au bout cumulaient 8 lignes de Savoir contre 3,4 pour les morts après 15:00 (boule de neige d'XP)
     { stat: 'magnet', step: 0.08, kind: 'add', weight: 2 },
   ],
   chance: [
