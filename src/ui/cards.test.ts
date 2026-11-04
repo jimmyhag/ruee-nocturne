@@ -43,8 +43,8 @@ describe('cartes', () => {
     expect(cardLines(card({ kind: 'w', key: 'orbe', lv: 2, n: 1, s0: 1 }))).toEqual(['−5 % de recharge']);
     expect(cardTitle(card({ kind: 't', key: 'degats' }))).toBe('Tome des dégâts');
     expect(cardLines(card({ kind: 't', key: 'vitalite', n: 2, s0: 0, s1: 1 }))).toEqual([
-      '+8 PV max',
-      '+0,25 PV par seconde',
+      '+12 PV max',
+      '+0,4 PV par seconde',
     ]);
     expect(cardLines(card({ kind: 't', key: 'chance', s0: 0 }))).toEqual(['+0,5 chance']);
     expect(cardLines(card({ kind: 't', key: 'projectiles', s0: 0 }))).toEqual(['+1 projectile pour toutes les armes']);

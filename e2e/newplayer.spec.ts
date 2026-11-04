@@ -196,7 +196,7 @@ test('progression lente (phase 10) : une arme au départ, emplacement acheté ap
     await page.evaluate(() => (window as any).__game.debug.levelUp());
     await page.waitForSelector('#levelup:not([hidden])');
     await expect(page.locator('#luSlots')).toContainText('Armes 1/1');
-    await expect(page.locator('#cards .badge.new')).toHaveCount(0);
+    await expect(page.locator('#cards .badge.new.weapon')).toHaveCount(0); // les nouveaux tomes, eux, sont proposés
     await page.locator('#cards .card').first().click();
     await page.waitForFunction(() => (window as any).__game.app === 'play');
   }

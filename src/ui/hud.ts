@@ -191,7 +191,7 @@ export function renderCards(container: HTMLElement, cards: Card[]): void {
         color = d.color;
         badge =
           c.lv === 1
-            ? `<span class="badge new">${t('card.newWeapon')}</span>`
+            ? `<span class="badge new weapon">${t('card.newWeapon')}</span>`
             : `<span class="badge">${t('card.level', { n: c.lv })}</span>`;
       } else if (c.kind === 't') {
         const d = TOME_LOOK[c.key as TomeKey];

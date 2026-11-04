@@ -106,7 +106,7 @@ describe('cartes', () => {
     w.cards = [card({ kind: 't', key: 'vitalite', s0: 0 })];
     applyCard(w, 0);
     expect(w.tomes.vitalite).toBe(1);
-    expect(w.player.maxHp).toBe(108);
+    expect(w.player.maxHp).toBe(112);
     expect(w.pending).toBe(0);
     expect(w.mode).toBe(Mode.Play);
     w.player.hp = 1;

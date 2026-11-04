@@ -131,7 +131,7 @@ export const SPAWN = {
   midTo: 900,
   rate: (t: number) =>
     Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
-  hpScale: (t: number) => 1 + t / 150 + Math.max(0, Math.min(t, 900) - 420) / 70, // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
+  hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 80, // phase 12 : montée par petites lignes, PV ennemis un peu plus doux (t/150 et /70 avant) // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
   dmgScale: (t: number) => 1 + t / 450, // ×3,7 à 20:00 ; t/400 : fin atteinte 5–9 % selon la seed, trop près du plancher 8 %
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
@@ -341,12 +341,12 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'pspeed', step: 0.06, kind: 'add', weight: 2 },
   ],
   vitalite: [
-    { stat: 'hp', step: 8, kind: 'add', weight: 3 },
-    { stat: 'regen', step: 0.25, kind: 'add', weight: 2 },
+    { stat: 'hp', step: 12, kind: 'add', weight: 3 },
+    { stat: 'regen', step: 0.4, kind: 'add', weight: 2 },
     { stat: 'armor', step: 0.03, kind: 'add', max: 15, weight: 2 },
   ],
   mouvement: [
-    { stat: 'speed', step: 0.03, kind: 'add', weight: 3 },
+    { stat: 'speed', step: 0.05, kind: 'add', weight: 3 },
     { stat: 'dashcd', step: 0.06, kind: 'add', max: 10, weight: 2 },
     { stat: 'dashinvul', step: 0.03, kind: 'add', max: 10, weight: 1 },
   ],

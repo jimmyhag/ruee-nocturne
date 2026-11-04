@@ -83,14 +83,14 @@ describe('tomes', () => {
             expect(P.projAdd).toBe(1);
             break;
           case 'hp':
-            expect(P.maxHp).toBe(before.maxHp + 8);
-            expect(P.hp).toBe(58);
+            expect(P.maxHp).toBe(before.maxHp + 12);
+            expect(P.hp).toBe(62);
             break;
           case 'armor':
             expect(P.armor).toBeCloseTo(0.03);
             break;
           case 'speed':
-            expect(P.speed).toBeCloseTo(before.speed * 1.03);
+            expect(P.speed).toBeCloseTo(before.speed * 1.05);
             break;
           case 'xp':
             expect(P.xpMul).toBeCloseTo(1.06);
