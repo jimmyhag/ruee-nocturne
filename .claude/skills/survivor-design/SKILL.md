@@ -35,9 +35,9 @@ needFor(lv) = floor(5 + 4·lv + 0.6·lv²)   // lv1→10, lv5→40, lv10→105, 
 
 ## 3. L'économie des choix (le cœur du genre)
 Chaque montée de niveau propose **3 cartes**, tirées ainsi :
-1. Pool = armes non maxées (si < 4 armes : nouvelles armes incluses) + passifs non maxés (si < 4 passifs : nouveaux inclus).
+1. Pool = armes non maxées (nouvelles armes incluses tant que les **emplacements** le permettent : 1 au départ, jusqu'à 4 ; phase 10) + passifs non maxés (idem : 2 au départ, jusqu'à 4). Le kit de départ du personnage ne compte pas contre le plafond.
 2. Pondération : arme/passif **déjà possédé** ×1,6 (favorise la cohérence), composant d'une **évolution en cours** ×2,2, item jamais vu ×1,3 (découverte).
-3. Garantie : au moins 1 carte d'arme si le joueur a < 2 armes ; jamais 3 passifs de stats pures.
+3. Garantie : au moins 1 carte d'arme si le joueur a < 2 armes **et un emplacement libre** ; jamais 3 passifs de stats pures.
 4. Chance (passif Trèfle) : chaque point ajoute 6 % de proposer 4 cartes, et augmente la qualité des coffres.
 5. Pool vide → soin complet ou +25 or.
 
@@ -73,6 +73,7 @@ Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90
 
 ## 8. Méta-progression (phase 4, refondue en phase 8)
 - Or : 1 par kill ×`goldMul`, ×3 élite, ×20 boss, bonus de fin = secondes survécues / 10.
+- Emplacements (phase 10) : `SLOTS` dans `balance.ts`, débloqués dans l'ordre par un succès **et** de l'or (300 → 5 000), communs à tous les personnages ; profil nu de la sim = départ (1 arme, 2 améliorations).
 - Boutique **par personnage** : 8 lignes, 8 paliers chacune (réanimation : 1), coût `200 · 1.3^palier` (200 → 1 255, ≈ 34 000 or par personnage). Un run « nu » (≈ 6 min, ≈ 600 or) paie **1 à 2 paliers** ; un personnage complet ≈ 30 runs.
 - Le joueur nu est en dessous de la courbe (dégâts ×0,95) et le milieu de partie (7:00 → 15:00) est raide : la puissance achetée doit se traduire en **minutes**, pas en falaise. Les paliers sont petits (+3 PV, +2 % dégâts, −1 % recharge…) parce que la survie est très sensible à la puissance (en phase 8, hp +40 / dégâts ×1,2 / recharge ×0,88 faisaient passer de 5 à 16 min).
 - Succès visibles avec barre : chaque run doit faire avancer au moins 2 succès (sinon ajuster les seuils).
@@ -83,10 +84,11 @@ Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90
 Deux profils (phase 8), `npm run sim -- --runs 200 --bot average --upgrades 0|max` (`tools/targets.ts`) :
 | Métrique | Nu (`--upgrades 0`) | Maxé (`--upgrades max`) |
 |---|---|---|
-| Médiane de survie | 5–7 min | 13–16 min |
+| Médiane de survie | 4–6 min (1 arme, 2 améliorations) | 13–16 min (4/4) |
 | Runs atteignant le Faucheur | ≤ 3 % | 3–12 % |
-| Runs morts avant 3 min | ≤ 15 % | < 10 % |
-| Or médian par run | ≥ 2 premiers paliers | — |
+| Runs morts avant 3 min | ≤ 20 % | < 10 % |
+| Runs qui passent 3 min (arme n°2 accessible) | ≥ 40 % | — |
+| Or médian par run | ≥ 0,75 premier palier | — |
 | Taux de pick par arme | — | 8–35 % |
 | Kills à 10 min (médiane) | — | 900–1600 |
 | Variance de kills inter-builds | — | < 3× médiane |

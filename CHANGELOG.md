@@ -2,6 +2,19 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.5.0 — 4 nov. 2026 (phase 10 « Progression lente »)
+
+**Tout le monde repart de zéro** : or, boutique, succès, personnages, tenues et records sont remis à zéro au premier lancement (réglages conservés, bannière dans le menu).
+
+### Ajouté
+
+- **Emplacements** : on part avec une seule arme (celle du personnage) et deux améliorations. Les emplacements suivants se débloquent pour tous les personnages, dans l'ordre, par un succès et de l'or : Arme n°2 (« Première nuit », 300 or), Amélioration n°3 (« Faucheuse en herbe », 800 or), Arme n°3 (« Gardienne tombée », 1 500 or), Amélioration n°4 (« Dix minutes », 3 000 or), Arme n°4 (« Quart d'heure », 5 000 or). Bloc « Emplacements » en tête de la boutique, résumé dans le menu, rappel à la montée de niveau, prochain emplacement sur l'écran de mort. Les armes et passifs de départ d'un personnage (Revenante, Colporteur) ne comptent pas contre le plafond. Le défi du jour joue au maximum.
+- `npm run sim -- --slots start|max|w,p` ; le profil nu de la CI est désormais le départ réel.
+
+### Modifié
+
+- Survie médiane au départ (bot average, 100 runs) : **4:25** (87 % des runs passent 3 minutes, 13 % meurent avant), 2 armes sans palier 5:14, 3 armes et 3 améliorations avec 4 paliers 12:07, personnage complet 15:09.
+
 ## 1.4.0 — 3 nov. 2026 (phase 9 « Rendu net »)
 
 Le jeu n'est plus pixelisé (retour de Jimmy sur la 1.3.1).
