@@ -192,7 +192,6 @@ resize();
 
 function showOnly(id: AppMode | null): void {
   for (const s of SCREENS) $(s).hidden = s !== id;
-  document.body.classList.toggle('menu-home', id === 'menu');
   $('vignette').hidden = world === null; // vignette douce sur le jeu (phase 9), pas sur le menu ni ses écrans
 }
 function updateBestLine(): void {
@@ -241,8 +240,11 @@ function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account' | 'char
   if (id === 'shop') renderShopScreen();
   else if (id === 'achievements') renderAchievements($('achList'), meta);
   else if (id === 'account') openAccount();
-  else if (id === 'characters') renderCharacters($('chars'), meta, $('charInfo'));
-  else if (id === 'help') {
+  else if (id === 'characters') {
+    showOnly(id); // la feuille doit être visible avant le rendu : la rangée se recentre sur la carte choisie (téléphone)
+    renderCharacters($('chars'), meta, $('charInfo'));
+    return;
+  } else if (id === 'help') {
     /* statique */
   } else {
     applySettings();
@@ -296,7 +298,7 @@ function syncLang(): void {
 }
 function closeScreen(): void {
   app = backTo;
-  showOnly(backTo); // avant updateBestLine : la grille doit être visible pour recentrer la carte choisie
+  showOnly(backTo);
   if (backTo === 'menu') updateBestLine();
 }
 
@@ -1416,7 +1418,6 @@ function applyMeta(): void {
 }
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
-resize(); // cadrage de l'accueil une fois la scène connue (menuWide)
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
 if (!meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   meta.seenHelp = true;
