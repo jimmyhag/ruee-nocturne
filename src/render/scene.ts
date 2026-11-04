@@ -4,6 +4,7 @@ import {
   CAPS,
   DECOR,
   ENEMIES,
+  PLATEAUX,
   REAPER_TYPE,
   SWARM_TYPE,
   TRAIT,
@@ -23,6 +24,7 @@ import {
   grassGeometry,
   lampHeadGeometry,
   lampPostGeometry,
+  plateauGeometry,
   roundTreeGeometry,
 } from './decor';
 import { buildEnemyGeometries } from './enemies';
@@ -313,7 +315,9 @@ export class GameScene {
       DECOR.lamps,
     );
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
-    const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap); // phase 9 : +1 appel
+    // ombres des arbres et des plateaux (phase 9 : +1 appel ; phase 11 : les plateaux partagent le mesh)
+    const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap + PLATEAUX.n);
+    const plateaux = makeInstanced(plateauGeometry(), vc(), PLATEAUX.n); // phase 11 : +1 appel
     const tint = new THREE.Color();
     let nf = 0,
       nr = 0;
@@ -335,7 +339,23 @@ export class GameScene {
       d.updateMatrix();
       treeShadows.setMatrixAt(i, d.matrix);
     }
-    treeShadows.count = nTrees;
+    // plateaux : fût (r, h, r), teinte variée, ombre portée au pied côté opposé au soleil
+    for (let i = 0; i < w.plateaux.length; i++) {
+      const p = w.plateaux[i];
+      d.position.set(p.x, 0, p.z);
+      d.rotation.set(0, (i * 1.1) % TAU, 0);
+      d.scale.set(p.r, PLATEAUX.h, p.r);
+      d.updateMatrix();
+      plateaux.setMatrixAt(i, d.matrix);
+      plateaux.setColorAt(i, tint.setScalar(0.9 + ((i * 5) % 6) * 0.03));
+      d.position.set(p.x + 0.7, 0.02, p.z + 0.5);
+      d.rotation.set(0, 0, 0);
+      d.scale.setScalar(p.r * 1.25);
+      d.updateMatrix();
+      treeShadows.setMatrixAt(nTrees + i, d.matrix);
+    }
+    treeShadows.count = nTrees + w.plateaux.length;
+    plateaux.count = w.plateaux.length;
     for (let i = 0; i < DECOR.rocks; i++) {
       const o = w.obstacles[nTrees + i];
       const s = o.r / 0.75;
@@ -382,7 +402,7 @@ export class GameScene {
     rocks.count = DECOR.rocks;
     posts.count = lamps.count = halos.count = DECOR.lamps;
     grass.count = ng;
-    for (const m of [treeShadows, firs, rounds, rocks, posts, lamps, halos, grass]) {
+    for (const m of [treeShadows, plateaux, firs, rounds, rocks, posts, lamps, halos, grass]) {
       m.instanceMatrix.needsUpdate = true;
       m.instanceColor!.needsUpdate = true;
       this.scene.add(m);
@@ -555,8 +575,9 @@ export class GameScene {
       M.glowDisc.position.set(px, 0.07, pz);
       M.glowDisc.scale.setScalar(1 + Math.sin(now * 11) * 0.05); // vacillement
     }
-    this.blob.position.set(px, 0.03, pz);
-    this.blob.scale.setScalar(Math.max(0.4, 1 - py * 0.25));
+    const ground = w.groundAt(px, pz); // ombre du joueur posée sur le sol local (plateaux)
+    this.blob.position.set(px, ground + 0.03, pz);
+    this.blob.scale.setScalar(Math.max(0.4, 1 - (py - ground) * 0.25));
 
     // dash : 1 particule crème par frame + silhouettes en fondu
     if (P.dashT > 0) {

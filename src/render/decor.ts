@@ -40,6 +40,15 @@ export const lampPostGeometry = () =>
     { shape: 'cone', size: [0.3, 0.22], pos: [0, 2.05, 0], color: 0x3a2a2e, seg: 5 },
   ]);
 export const lampHeadGeometry = () => new THREE.BoxGeometry(0.3, 0.34, 0.3).translate(0, 1.76, 0);
+/**
+ * Plateau (phase 11) : fût de roche légèrement évasé (rayon 1, hauteur 1, origine au sol) coiffé d'un disque de mousse
+ * qui laisse une lèvre de pierre ; mis à l'échelle (r, h, r) par instance. 10 segments : 80 triangles, 14 instances.
+ */
+export const plateauGeometry = () =>
+  build([
+    { shape: 'cyl', size: [1, 1.08, 1], pos: [0, 0.5, 0], color: 0x6b6280, seg: 10 },
+    { shape: 'cyl', size: [0.94, 0.94, 0.06], pos: [0, 1.0, 0], color: 0x4f7a62, seg: 10 },
+  ]);
 
 /** Nombre de touffes et de lucioles (statique / par frame). */
 export const GRASS = 700;

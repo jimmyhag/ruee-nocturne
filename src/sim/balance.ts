@@ -56,6 +56,18 @@ export const ZONES = {
   minFromCenter: 24, // le départ reste une clairière ouverte
 };
 
+// plateaux (phase 11, PLAN §3.4) : disques de roche surélevés que l'on monte d'un saut (jumpVel 9,5 ⇒ ~1,7 u > h)
+// Les ennemis au sol butent au pied ; Volants, crachats, zones et Faucheur passent : un répit, pas un abri.
+export const PLATEAUX = {
+  n: 14,
+  rMin: 2.5,
+  rMax: 4,
+  h: 1.4,
+  edgeTol: 0.2, // en l'air à y ≥ h − edgeTol, on passe le bord et on atterrit dessus
+  minDist: 18, // entre deux centres
+  minFromCenter: 12, // le départ reste plat
+};
+
 export const XP = {
   // needFor(lv) = 5 + 4·lv + 0.6·lv²  → lv1:10, lv5:40, lv10:105, lv20:325
   needFor: (lv: number) => Math.floor(5 + lv * 4 + lv * lv * 0.6),

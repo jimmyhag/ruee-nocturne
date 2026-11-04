@@ -101,23 +101,31 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.vz = iz * sp;
   P.x += P.vx * dt;
   P.z += P.vz * dt;
-  if (!P.onGround) {
-    P.vy -= PLAYER.gravity * dt;
-    P.y += P.vy * dt;
-    if (P.y <= 0) {
-      P.y = 0;
-      P.vy = 0;
-      P.onGround = true;
-      w.emit(Ev.Land, P.x, 0, P.z);
-      if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
-    }
-  }
   P.dashCd -= dt;
   P.invul -= dt;
   if (P.recoil > 0) P.recoil = Math.max(0, P.recoil - dt);
   w.resolveObstacles(P.x, P.z, 0.4, out2);
+  // plateaux (phase 11) : le bord est un mur vu d'en bas, on le passe en l'air (y ≥ h − edgeTol) et on atterrit dessus
+  w.resolvePlateaux(out2[0], out2[1], P.y, 0.4, out2);
   P.x = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[0]));
   P.z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
+  const ground = w.groundAt(P.x, P.z);
+  if (P.onGround && P.y > ground) {
+    // on sort du bord : chute
+    P.onGround = false;
+    P.vy = 0;
+  }
+  if (!P.onGround) {
+    P.vy -= PLAYER.gravity * dt;
+    P.y += P.vy * dt;
+    if (P.y <= ground) {
+      P.y = ground;
+      P.vy = 0;
+      P.onGround = true;
+      w.emit(Ev.Land, P.x, ground, P.z);
+      if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
+    }
+  }
   P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   P.walk += l * dt * 12;
   // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de dash
@@ -140,7 +148,11 @@ function stepEnemies(w: World, dt: number): void {
   const decay = Math.pow(KNOCKBACK_DECAY, dt);
   let hurt = 0;
   const grid = w.grid;
-  const airborne = P.y >= PLAYER.airborneSafeY;
+  // en l'air : au-dessus du sol local (un joueur posé sur un plateau n'est pas « en l'air » pour les Volants et le Faucheur)
+  const ground = w.groundAt(P.x, P.z);
+  const airborne = P.y - ground >= PLAYER.airborneSafeY;
+  // hors de portée des ennemis au sol : en l'air ou perché (ils butent au pied du plateau)
+  const aboveGround = P.y >= PLAYER.airborneSafeY;
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (!e.alive) continue;
@@ -193,11 +205,18 @@ function stepEnemies(w: World, dt: number): void {
     e.z += (mz + e.kz) * dt;
     e.kx *= decay;
     e.kz *= decay;
+    const flies = ignoresGround(e.type);
+    if (!flies) {
+      // plateaux : les marcheurs (et les boss) butent au pied
+      w.resolvePlateaux(e.x, e.z, 0, e.r, out2);
+      e.x = out2[0];
+      e.z = out2[1];
+    }
     e.face = Math.atan2(dx, dz);
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     const canHurt = e.type === VOLANT_TYPE ? e.state === 2 : true;
-    if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
+    if (canHurt && d < e.r + PLAYER.radius && !(flies ? airborne : aboveGround) && P.invul <= 0) {
       const dmg = def.dmg * e.dmgMul * dt;
       P.hp -= dmg;
       hurt += dmg;
@@ -213,7 +232,7 @@ function stepEnemies(w: World, dt: number): void {
 /** Projectiles ennemis : crachats (mobiles) et cercles du Colosse (immobiles, explosent à la fin). */
 function tickShots(w: World, dt: number): void {
   const P = w.player;
-  const airborne = P.y >= PLAYER.airborneSafeY;
+  const airborne = P.y - w.groundAt(P.x, P.z) >= PLAYER.airborneSafeY; // les tirs atteignent un joueur perché
   let hurt = 0;
   for (let i = w.shotCount - 1; i >= 0; i--) {
     const s = w.shots[i];
