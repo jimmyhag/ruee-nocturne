@@ -3,7 +3,7 @@ import type { World } from '../../src/sim/world';
 import { ShotKind } from '../../src/sim/types';
 import { WEAPONS } from '../../src/sim/weapons/defs';
 import { Rng } from '../../src/sim/rng';
-import { ELITE_TYPE, ENEMIES, HAZARDS, VOLANT_TYPE } from '../../src/sim/balance';
+import { ELITE_TYPE, ENEMIES, HAZARDS, STEP, VOLANT_TYPE } from '../../src/sim/balance';
 
 export interface Bot {
   name: string;
@@ -131,10 +131,16 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
   const pullFree = opts.gemPullFree ?? 1.2;
   const chestR2 = (opts.chestRadius ?? 10) ** 2;
   const r = new Rng(seed);
+  let stuck = 0; // frames consécutives où le joueur n'a presque pas avancé malgré l'entrée (bord de plateau, arbre)
   return {
     name,
     decide(w, _frame, out) {
       const P = w.player;
+      // phase 11 : bloqué au pied d'un plateau (ou contre un arbre) → on saute, comme un joueur qui grimpe
+      const wanted = Math.sqrt(out.mx * out.mx + out.mz * out.mz);
+      const moved = Math.sqrt((P.x - P.px) ** 2 + (P.z - P.pz) ** 2);
+      stuck = wanted > 0.5 && P.onGround && moved < P.speed * STEP * 0.3 ? stuck + 1 : 0;
+      const blocked = stuck >= 3;
       let cx = 0,
         cz = 0,
         n = 0,
@@ -267,7 +273,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         out.mz /= ml;
       }
       out.dash = (close >= 6 || charged) && P.dashCd <= 0;
-      out.jump = (diving || hazard || close >= 3) && P.onGround && !out.dash;
+      out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.dash;
     },
     pick(w, cards) {
       if (r.next() < randomness) return r.int(cards.length);

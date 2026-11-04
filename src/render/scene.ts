@@ -617,6 +617,7 @@ export class GameScene {
     this.shadowW.begin();
     this.eliteW.begin();
     this.aims.begin();
+    this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
     for (let i = 0; i < w.enemyCount; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -655,9 +656,22 @@ export class GameScene {
         this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, Math.sin(now * 5 + e.bob) * 0.2, 0, s, s * S.enemyStretch);
         if (e.type === 5 && e.aim > 0) this.aims.add(ex, 0.9, ez, px, 0.9, pz, e.aim); // ligne de visée du Cracheur
         if (e.elite && e.type === ELITE_TYPE && e.state === 1) {
-          // Brute élite qui arme sa charge : ligne au sol jusqu'au point d'arrivée, de plus en plus nette
+          // Brute élite qui arme sa charge : couloir rouge au sol jusqu'au point d'arrivée, qui s'élargit (0 → largeur réelle)
           const C = HAZARDS.charge;
-          this.aims.add(ex, 0.3, ez, ex + e.tx * C.dist, 0.3, ez + e.tz * C.dist, 1 - e.timer / C.telegraph);
+          const f = 1 - e.timer / C.telegraph;
+          const half = C.dist * 0.5 + e.r;
+          this.zoneFillW.put(
+            ex + e.tx * half,
+            0.045,
+            ez + e.tz * half,
+            Math.atan2(-e.tz, e.tx),
+            half,
+            this.cTele,
+            0,
+            0,
+            1,
+            0.25 + f * e.r * 0.9,
+          );
         }
       }
       if (e.type !== VOLANT_TYPE) this.shadowW.put(ex, 0.03, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow);
@@ -671,7 +685,6 @@ export class GameScene {
     // crachats et cercles rouges (projectiles ennemis)
     this.spitW.begin();
     this.zoneW.begin();
-    this.zoneFillW.begin();
     this.ringW.begin();
     for (let i = 0; i < w.shotCount; i++) {
       const sh = w.shots[i];

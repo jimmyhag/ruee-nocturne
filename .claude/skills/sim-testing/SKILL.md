@@ -19,7 +19,7 @@ La sim est pure et déterministe : c'est ce qui permet de **tester un jeu comme 
 ## 2. Bots de playtest (`tools/bots/`)
 Un bot = `decide(world): InputState` + `pick(cards, world): number`. Trois niveaux :
 - **naive** : se déplace en cercle constant, prend la carte 0. Mesure le plancher.
-- **average** : fuit le centre de masse des ennemis dans un rayon de 8 u, dash quand ≥ 6 ennemis à < 2 u, saute quand un Volant est à < 3 u, pick = carte qui augmente le plus le DPS théorique, avec 30 % d'aléatoire. **C'est le bot de référence pour les cibles.**
+- **average** : fuit le centre de masse des ennemis dans un rayon de 8 u, dash quand ≥ 6 ennemis à < 2 u, saute quand un Volant est à < 3 u, pick = carte qui augmente le plus le DPS théorique, avec 30 % d'aléatoire. Phase 11 : saute sur une éruption (< 0,4 s) ou une onde du Gardien (< 0,3 s) imminentes, dashe à travers une charge de Brute élite, saute quand il bute trois frames de suite (pied de plateau, arbre). **C'est le bot de référence pour les cibles.**
 - **greedy** : idem mais va chercher gemmes et coffres, pick optimal sans aléatoire. Mesure le plafond.
 
 ## 3. CLI d'équilibrage (`tools/sim-cli.ts`, `npm run sim`)
@@ -34,12 +34,14 @@ niveau@10  p50 18     kills@10  p50 1180
 morts <3min 6 %
 picks      orbe 24 % · halo 19 % · lames 17 % · foudre 15 % · boomerang 14 % · mines 11 %
 évolutions nova 31 % · soleil 22 % · tempête 18 % · orage 12 %
-cause mort  dard 38 % · brute 24 % · boss 20 % · cracheur 12 % · volant 6 %
+cause mort  dard 38 % · brute 24 % · boss 20 % · cracheur 12 % · volant 6 % · éruption 5 % · anneau 2 %
+éruptions   14 par run · 9 % touchent le bot · 5 % des morts
 cibles      ✔ survie  ✔ faucheur  ✔ picks  ✘ kills@10 (1180 < 900–1500 ✔)  …
 ```
 - Les cibles viennent de `survivor-design` §9, codées dans `tools/targets.ts`. Le CLI retourne un code ≠ 0 si une cible échoue → utilisable en CI (job `balance`, non bloquant mais commenté sur la PR).
 - Vitesse : > 50 runs/min sur un portable (sim pure, pas de rendu). Si plus lent, profiler la sim : c'est aussi un test de perf.
 - Toujours fixer `--seed` dans les PR pour comparer avant/après.
+- Cause de mort : la dernière source de dégâts (`w.lastHurt`) pour les dangers nommés (éruption, anneau, charge, crachat, zone) ; pour le contact, l'ennemi le plus proche au dernier coup (approximatif : la Brute, large, est sur-attribuée).
 
 ## 4. Bench (`tools/bench.ts`, `npm run bench`)
 - Monde avec 400 ennemis forcés, 600 steps, mesure `performance.now()` par step (p50/p95) et le delta de `process.memoryUsage().heapUsed` après `gc()` (`node --expose-gc`).

@@ -85,6 +85,8 @@ interface RunResult {
   passives: Record<string, number>;
   evolved: string[];
   deathBy: string;
+  eruptions: number; // phase 11 : éruptions subies (pics sortis sous le joueur)…
+  eruptionHits: number; // …et combien l'ont touché (lisibilité du télégraphe pour le bot)
   gold: number; // or du run (phase 8 : économie de la boutique)
   // défis (phase 6)
   noHit: number; // plus longue période sans dégât (s)
@@ -102,6 +104,8 @@ function runOnce(seed: number): RunResult {
   let killsAt10 = -1,
     levelAt10 = -1;
   let lastHurtType = 'inconnu';
+  let eruptions = 0,
+    eruptionHits = 0;
   // phase 11 : les dangers (éruption, anneau, charge, crachat, zone) sont nommés ; le contact garde l'ennemi le plus proche
   const HURT_NAMES: Record<number, string | undefined> = {
     [HurtSrc.Eruption]: 'éruption',
@@ -126,6 +130,8 @@ function runOnce(seed: number): RunResult {
     if (inp.pick >= 0) enforceAllowed(w, ALLOWED);
     for (let i = 0; i < w.eventCount; i++) {
       const e = w.events[i];
+      if (e.type === Ev.Eruption) eruptions++;
+      if (e.type === Ev.PlayerHurt && w.lastHurt === HurtSrc.Eruption) eruptionHits++;
       if (e.type === Ev.PlayerHurt && frame % 15 === 0) {
         // type d'ennemi le plus proche = cause probable
         let bd = 1e9;
@@ -158,6 +164,8 @@ function runOnce(seed: number): RunResult {
     passives: { ...w.passives } as Record<string, number>,
     evolved: Object.keys(w.evolved),
     deathBy: w.mode === Mode.Dead ? (HURT_NAMES[w.lastHurt] ?? lastHurtType) : '—',
+    eruptions,
+    eruptionHits,
     gold: Math.round(w.gold),
     noHit: w.noHitBest,
     distance: w.distance,
@@ -274,6 +282,14 @@ const summary = {
   evolutionPct: Object.fromEntries(Object.entries(evolutions).map(([k, v]) => [k, Math.round((100 * v) / RUNS)])),
   buildMedians,
   killsVarianceRatio,
+  eruptionsPerRun: +(results.reduce((a, r) => a + r.eruptions, 0) / RUNS).toFixed(1),
+  eruptionHitPct: Math.round(
+    (100 * results.reduce((a, r) => a + r.eruptionHits, 0)) /
+      Math.max(
+        1,
+        results.reduce((a, r) => a + r.eruptions, 0),
+      ),
+  ),
   deathBy: Object.fromEntries(
     Object.entries(deaths).map(([k, v]) => [
       k,
@@ -325,6 +341,9 @@ lines.push(
   `cause mort  ${Object.entries(summary.deathBy)
     .map(([k, v]) => `${k} ${v} %`)
     .join(' · ')}`,
+);
+lines.push(
+  `éruptions   ${summary.eruptionsPerRun} par run · ${summary.eruptionHitPct} % touchent le bot · ${summary.deathBy['éruption'] ?? 0} % des morts`,
 );
 lines.push(`vivants/min ${summary.aliveCurve.join(' ')}`);
 const checks = checkTargets(summary, PROFILES[PROFILE]);

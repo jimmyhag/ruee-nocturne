@@ -71,14 +71,14 @@ export const PLATEAUX = {
 // dangers à esquiver par le mouvement (phase 11, PLAN §3.1) : le saut et le dash servent à autre chose qu'à fuir
 export const HAZARDS = {
   eruption: {
-    after: 120, // première éruption à 2:00 : le joueur a appris à bouger
-    period0: 9, // entre deux éruptions à 2:00…
+    after: 150, // première éruption à 2:30 : le joueur a appris à bouger (à 2:00 : morts avant 3 min 13 % → 22 %)
+    period0: 9, // entre deux éruptions à 2:30…
     period1: 4, // …et à `at` (15:00) puis constant
     at: 900,
     r: 1.6,
     telegraph: 0.8, // fenêtre de saut utile : en l'air ≥ 0,9 u entre 0,11 et 0,62 s après l'impulsion ⇒ sauter à mi-télégraphe
     track: 7, // u/s : la fissure suit le joueur (6,2 u/s en marchant) ; seuls le saut et le dash (×3,2) l'esquivent
-    dmg: 20, // × dmgScale ; blesse seulement au sol (et hors dash)
+    dmg: 18, // × dmgScale (×1,33 à 2:30 ⇒ 24 PV, un quart de la vie) ; blesse seulement au sol (et hors dash)
     launch: 6, // vitesse verticale donnée au joueur touché : projeté, lisible
   },
   ring: {
