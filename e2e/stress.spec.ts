@@ -8,6 +8,12 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   await page.goto('/?debug=1&stress=400');
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   expect(await page.evaluate(() => (window as any).__game.debug.stressTarget)).toBe(400);
+  // rendu « pixel » pour la mesure : les budgets (appels, triangles) ne dépendent pas de la résolution, et SwiftShader
+  // en résolution native (phase 9) tourne trop lentement sur le runner de CI pour que le ratio temps de jeu tienne
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+  });
 
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
