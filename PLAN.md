@@ -74,7 +74,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 | Boomerang | Aller-retour en ligne, traverse | 5 | — |
 | Mines | Posées sur le passage, explosent au contact | 5 | — |
 
-Maximum 4 armes + 4 passifs par run (forcer les choix).
+Maximum 4 armes + 4 passifs par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 améliorations** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 2 000, 4 000, 8 000, 12 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
 
 ### 3.2 Passifs (8)
 Semelles de vent (vitesse), Cœur de pierre (PV max), Sève vive (régén), Aimant (collecte), Gants lourds (dégâts), Sablier fêlé (recharge), Trèfle (chance : qualité des coffres et des choix), Bourse (or ×).
@@ -244,6 +244,14 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 9 — Rendu net (après la 1.3.1)
 - Retour de Jimmy : « beaucoup plus clean graphiquement, pas pixelisé ». Rendu net à la résolution de l'écran (DPR ≤ 2, ≤ 1600 px de haut) avec anti-aliasing MSAA, texture de sol lissée, ombres douces sous le joueur, les ennemis et les arbres, particules rondes, brume exponentielle, lumière de contre, vignette CSS, formes plus lisses sur le joueur et les boss. Réglage `auto | net | pixel` ; en auto, repli automatique d'un niveau (net ×0,75 puis pixel) quand le p95 des frames dépasse 24 ms pendant 6 s. Le mode pixel reste disponible et reste le mode des petits appareils.
 - **Porte** : draw calls ≤ 40 et triangles ≤ 150 k à 400 ennemis en net (e2e stress) ; repli automatique vérifié par test e2e ; Lighthouse inchangé ; sur le téléphone de Jimmy à `?debug=1&stress=400` : p95 ≤ 16,7 ms en niveau 2, sinon le repli se déclenche en < 10 s et laisse ≥ 30 fps ; captures nettes validées par Jimmy.
+
+### Phase 10 — Progression lente (après la 1.4.0)
+- Retour de Jimmy : « progression lente », « reset tout à zéro ». Sauvegarde version 3 : toute sauvegarde antérieure est remise à zéro (réglages conservés, bannière une fois). Emplacements d'armes (1 → 4) et d'améliorations (2 → 4) communs à tous les personnages, débloqués dans l'ordre par succès + or depuis la boutique ; le défi du jour joue au maximum (égalité). Profil nu de la simulation = départ (1 arme, 2 améliorations, 0 palier).
+- **Porte** : profil nu : survie p50 4–6 min, ≥ 40 % des runs passent 3 min (l'arme n°2 reste accessible), morts < 3 min ≤ 20 %, or médian ≥ 0,75 premier palier ; profil maxé (4/4, paliers max) inchangé : 13–16 min, fin 3–12 % ; escalier mesuré et consigné (2 armes sans palier, 3/3 avec 4 paliers) ; nouveau joueur : aucune « nouvelle arme » proposée avant l'achat de l'emplacement (Playwright) ; migration v2 → zéro avec réglages gardés (Playwright).
+
+### Phase 11 — Mouvement utile (après la 1.5.0)
+- Le saut et le dash servent à se déplacer et à esquiver : plateaux de roche à escalader d'un saut (les ennemis au sol restent au pied, les Volants et les crachats passent), éruptions télégraphiées sous les pieds à sauter, anneau de choc du Gardien à sauter, charge télégraphiée des Brutes élites à traverser en dash.
+- **Porte** : cibles des profils nu et maxé inchangées avec les nouveaux dangers ; éruptions ≤ 15 % des causes de mort ; draw calls ≤ 40 ; e2e plateau atteint d'un saut, éruption et anneau esquivés en l'air ; parité clavier/tactile.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

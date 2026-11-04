@@ -20,7 +20,7 @@ import {
   normalizeMeta,
   peekMeta,
   saveMeta,
-  DEFAULT_META,
+  resetProgress,
   QUALITY_SETTINGS,
 } from './meta/save';
 import type { Meta } from './meta/save';
@@ -31,7 +31,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buy, buyCharacter, buyOutfit, outfitOf, worldOptions } from './meta/shop';
+import { buy, buyCharacter, buyOutfit, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily } from './meta/daily';
 import {
   bestLine,
@@ -41,6 +41,10 @@ import {
   renderProgress,
   renderShop,
   renderShopChars,
+  renderSlots,
+  slotCondition,
+  slotName,
+  slotsLine,
 } from './ui/meta-ui';
 import type { CharacterKey } from './sim/types';
 import { installDebugHooks } from './debug';
@@ -156,6 +160,8 @@ function showOnly(id: AppMode | null): void {
 }
 function updateBestLine(): void {
   $('bestLine').textContent = bestLine(meta);
+  $('slotLine').textContent = slotsLine(meta);
+  $('resetNote').hidden = meta.seenReset;
   renderCharacters($('chars'), meta, $('charInfo'));
   const daily = dailyUnlocked(meta);
   $('dailyBtn').hidden = !daily;
@@ -206,6 +212,7 @@ function renderShopScreen(): void {
   $('shopGold').textContent = t('gold', { n: Math.round(meta.gold) });
   // phase 8 : la boutique est celle du personnage choisi
   $('shopTitle').textContent = t('shop.titleFor', { name: characterName(meta.character) });
+  renderSlots($('slotList'), meta); // phase 10 : emplacements communs
   renderShopChars($('shopChars'), meta);
   renderShop($('shopLines'), meta, meta.character);
 }
@@ -255,6 +262,10 @@ const DECOR_SEED = 20261102;
 
 let startWanted: { variant?: number; daily: boolean } | null = null;
 function startGame(variant?: number, daily = false): void {
+  if (!meta.seenReset) {
+    meta.seenReset = true; // la bannière « nouvelle progression » a été vue
+    saveMeta(meta);
+  }
   if (!scene || !sceneReady) {
     // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
     if (!startWanted) startWanted = { variant, daily }; // la première intention (ex. défi du jour) l'emporte
@@ -333,6 +344,12 @@ function openLevelUp(): void {
   const again = app === 'levelup'; // re-rendu (changement de langue) : ni son ni balayage
   app = 'levelup';
   $('luTitle').textContent = t('levelup.title', { n: world.player.level - world.pending + 1 });
+  $('luSlots').textContent = t('levelup.slots', {
+    w: Object.keys(world.weapons).length,
+    wMax: world.maxWeapons,
+    p: Object.keys(world.passives).length,
+    pMax: world.maxPassives,
+  });
   renderCards($('cards'), world.cards);
   if (again) return;
   showOnly('levelup');
@@ -394,6 +411,9 @@ function renderOverScreen(): void {
   $('oTitle').textContent = t(o.won ? 'over.win' : 'over.dead');
   $('oTitle').classList.toggle('win', o.won);
   // seul HTML autorisé : le <span class="newrec"> écrit ici ; tout texte traduit passe par esc()
+  const ns = nextSlot(meta);
+  $('oNext').hidden = ns < 0;
+  if (ns >= 0) $('oNext').textContent = t('over.nextSlot', { name: slotName(ns), cond: slotCondition(ns) });
   $('oMsg').innerHTML = o.won
     ? `<span class="newrec">${esc(t('over.reaperDown'))}</span>`
     : o.dailyRank > 0
@@ -516,6 +536,18 @@ $('shopLines').addEventListener('click', (e) => {
     renderShopScreen();
   }
 });
+// emplacements (phase 10) : achat quand le succès est obtenu et l'or suffisant
+$('slotList').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-slot]') as HTMLButtonElement | null;
+  if (!b || b.disabled) return;
+  if (buySlot(meta, +b.dataset.slot!)) {
+    saveMeta(meta);
+    audio.init();
+    audio.chest();
+    renderShopScreen();
+    updateBestLine();
+  }
+});
 // changer de personnage depuis la boutique : même effet que la grille du menu (choix pour la prochaine partie)
 $('shopChars').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-char]') as HTMLButtonElement | null;
@@ -619,14 +651,8 @@ $('resetBtn').onclick = () => {
     $('settingsMsg').textContent = t('settings.resetArm');
     return;
   }
-  // on garde ce qui relève de l'appareil et du confort : son, effets, langue
-  meta = normalizeMeta({
-    ...DEFAULT_META,
-    muted: meta.muted,
-    reducedFx: meta.reducedFx,
-    fxChosen: meta.fxChosen,
-    settings: { ...DEFAULT_META.settings, lang: meta.settings.lang },
-  });
+  // on garde ce qui relève de l'appareil et du confort : son, effets, réglages
+  meta = resetProgress(meta);
   saveMeta(meta);
   applySettings();
   $('settingsMsg').textContent = t('settings.resetDone');

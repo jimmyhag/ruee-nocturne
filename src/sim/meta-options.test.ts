@@ -1,6 +1,6 @@
 // Phase 4 : ce que la méta injecte dans la sim (personnages, boutique, armes débloquées, réanimation).
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, PLAYER, REVIVE, SHOP, STEP } from './balance';
+import { CHARACTERS, MAX_WEAPONS, PLAYER, REVIVE, SHOP, STEP } from './balance';
 import { rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
@@ -28,7 +28,7 @@ describe('personnages', () => {
   });
   it('Bûcheron : +30 PV, Lames de départ, portée des lames ×1,2 ; Sorcière : Foudre, −20 % PV', () => {
     const b = new World(1, { character: 'bucheron' });
-    expect(b.weapons).toEqual({ lames: 2 });
+    expect(b.weapons).toEqual({ lames: 3 }); // phase 10 : Lames 3 (seul avec Lames 2, il ne tenait pas 3 min)
     expect(b.player.maxHp).toBe(PLAYER.hp + 30);
     expect(b.bladeRangeMul).toBeCloseTo(1.2, 6);
     expect(b.player.speed).toBeCloseTo(PLAYER.speed * 1.05, 6); // plus lent que l'Éclaireuse
@@ -106,7 +106,7 @@ describe('armes débloquées', () => {
     }
     const b = new World(5, { character: 'bucheron', unlocked: ['orbe'] }); // Lames possédée mais « verrouillée »
     rollChoices(b);
-    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 3)).toBe(true); // Lames niv 2 de départ → niv 3 proposé
+    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 4)).toBe(true); // Lames niv 3 de départ → niv 4 proposé
   });
   it('un run complet avec options reste déterministe', () => {
     const opts = { character: 'bucheron' as const, upgrades: [1, 1, 0, 0, 0, 0, 0, 1], unlocked: ['orbe', 'lames', 'foudre'] as const };
@@ -123,5 +123,35 @@ describe('armes débloquées', () => {
     expect(a.kills).toBe(b.kills);
     expect(a.player.hp).toBe(b.player.hp);
     expect(a.rng.state()).toBe(b.rng.state());
+  });
+});
+
+describe('emplacements (phase 10)', () => {
+  it('rollChoices ne propose pas de nouvelle arme ni de nouveau passif au-delà des emplacements ; le kit de départ ne compte pas', () => {
+    const w = new World(11, { slots: { weapons: 1, passives: 2 } });
+    expect(w.maxWeapons).toBe(1);
+    expect(w.maxPassives).toBe(2);
+    for (let i = 0; i < 40; i++) {
+      rollChoices(w);
+      for (const c of w.cards) {
+        if (c.kind === 'w') expect(c.key, 'seule l’arme de départ peut monter').toBe('orbe');
+      }
+    }
+    // deux passifs pris : plus aucun nouveau passif proposé, mais ceux possédés montent encore
+    w.passives = { force: 1, vitesse: 1 };
+    for (let i = 0; i < 40; i++) {
+      rollChoices(w);
+      for (const c of w.cards) if (c.kind === 's') expect(['force', 'vitesse']).toContain(c.key);
+    }
+    // Revenante : deux armes de départ avec un seul emplacement → les deux montent, pas de troisième
+    const r = new World(12, { character: 'revenante', slots: { weapons: 1, passives: 2 } });
+    expect(r.maxWeapons).toBe(2);
+    for (let i = 0; i < 40; i++) {
+      rollChoices(r);
+      for (const c of r.cards) if (c.kind === 'w') expect(['foudre', 'aura']).toContain(c.key);
+    }
+    // sans option : plafonds maximum (tests et défi du jour)
+    expect(new World(13).maxWeapons).toBe(MAX_WEAPONS);
+    expect(new World(14, { slots: { weapons: 9, passives: 0 } }).maxWeapons).toBe(MAX_WEAPONS);
   });
 });

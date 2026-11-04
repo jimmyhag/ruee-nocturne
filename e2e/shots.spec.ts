@@ -179,7 +179,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
   await page.evaluate(() =>
     (window as any).__game.setMeta({
-      version: 2,
+      version: 3,
       gold: 5000,
       achievements: ['survie3', 'survie10', 'kills500', 'boss1', 'win', 'intouchable'],
       bought: ['veilleuse', 'braconnier', 'colporteur'],

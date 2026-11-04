@@ -1,5 +1,5 @@
 // Boutique permanente (survivor-design §8) : coûts, achat, et traduction en options de monde pour la sim.
-import { CHARACTERS, OUTFIT, SHOP } from '../sim/balance';
+import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, OUTFIT, SHOP, SLOTS } from '../sim/balance';
 import type { CharacterKey } from '../sim/types';
 import type { WorldOptions } from '../sim/types';
 import type { Meta } from './save';
@@ -56,6 +56,31 @@ export function buyOutfit(m: Meta, key: CharacterKey): boolean {
   return true;
 }
 
+/** État d'un déblocage d'emplacement (index dans SLOTS). */
+export type SlotState = 'owned' | 'buyable' | 'poor' | 'locked' | 'later';
+export function slotState(m: Meta, i: number): SlotState {
+  const u = SLOTS[i];
+  const have = u.kind === 'weapon' ? m.slots.weapons : m.slots.passives;
+  if (have >= u.n) return 'owned';
+  if (have !== u.n - 1) return 'later'; // le précédent du même type n'est pas encore pris
+  if (u.ach && !m.achievements.includes(u.ach)) return 'locked';
+  return m.gold >= u.price ? 'buyable' : 'poor';
+}
+/** Achète un emplacement (succès obtenu, précédent pris, or suffisant). Retourne true si l'achat a eu lieu. */
+export function buySlot(m: Meta, i: number): boolean {
+  if (slotState(m, i) !== 'buyable') return false;
+  const u = SLOTS[i];
+  m.gold -= u.price;
+  if (u.kind === 'weapon') m.slots.weapons = u.n;
+  else m.slots.passives = u.n;
+  return true;
+}
+/** Prochain emplacement non possédé (écran de mort, résumé du menu), ou -1. */
+export function nextSlot(m: Meta): number {
+  for (let i = 0; i < SLOTS.length; i++) if (slotState(m, i) !== 'owned') return i;
+  return -1;
+}
+
 /**
  * Options de monde issues de la méta (personnage choisi, paliers, armes débloquées).
  * `daily` : égalité entre joueurs — Éclaireuse, boutique ignorée, toutes les armes (même pool de cartes pour tous).
@@ -65,5 +90,6 @@ export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily 
     character: daily ? 'eclaireuse' : m.character,
     upgrades: daily ? SHOP.lines.map(() => 0) : shopTiers(m, m.character),
     unlocked: daily ? undefined : unlocked,
+    slots: daily ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES } : { ...m.slots }, // défi du jour : égalité
   };
 }

@@ -1,4 +1,4 @@
-import { CAPS, CHARACTERS, DECOR, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
 import { PASSIVES } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
@@ -66,6 +66,9 @@ export class World {
   // armes et passifs
   weapons: Partial<Record<WeaponKey, number>> = { orbe: 1 };
   unlocked: Set<WeaponKey> | null = null; // null = toutes les armes proposables
+  // emplacements (phase 10) : plafond d'armes et de passifs piochables ; le kit de départ du personnage ne compte pas
+  maxWeapons = MAX_WEAPONS;
+  maxPassives = MAX_PASSIVES;
   bladeRangeMul = 1; // Bûcheron : lames à portée +20 %
   passives: Partial<Record<PassiveKey, number>> = {};
   evolved: Partial<Record<WeaponKey, boolean>> = {};
@@ -102,6 +105,16 @@ export class World {
         for (let i = 0; i < lv; i++) PASSIVES[pk].apply(this);
       }
     if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
+    if (opts?.slots) {
+      this.maxWeapons = Math.max(
+        Math.max(1, Math.min(MAX_WEAPONS, opts.slots.weapons | 0)),
+        Object.keys(this.weapons).length,
+      );
+      this.maxPassives = Math.max(
+        Math.max(1, Math.min(MAX_PASSIVES, opts.slots.passives | 0)),
+        Object.keys(this.passives).length,
+      );
+    }
     for (let i = 0; i < CAPS.enemies; i++) this.enemies.push(makeEnemy());
     for (let i = 0; i < CAPS.projectiles; i++) this.projs.push(makeProj());
     for (let i = 0; i < CAPS.shots; i++) this.shots.push(makeShot());

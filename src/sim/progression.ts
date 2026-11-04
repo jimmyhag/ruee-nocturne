@@ -1,4 +1,4 @@
-import { CHEST, CHOICE, GOLD, LUCK, MAX_PASSIVES, MAX_WEAPONS, TRAIT, WEAPON_MAX, XP } from './balance';
+import { CHEST, CHOICE, GOLD, LUCK, TRAIT, WEAPON_MAX, XP } from './balance';
 import { Ev, Mode, Trait } from './types';
 import type { Card, PassiveKey, WeaponKey } from './types';
 import { EVOLUTIONS, PASSIVES, PASSIVE_KEYS, WEAPON_KEYS } from './weapons/defs';
@@ -41,7 +41,7 @@ export function rollChoices(w: World, fromChest = false): void {
   for (const k of WEAPON_KEYS) {
     const lv = w.weapons[k] ?? 0;
     if (lv >= WEAPON_MAX) continue;
-    if (lv === 0 && nW >= MAX_WEAPONS) continue;
+    if (lv === 0 && nW >= w.maxWeapons) continue; // emplacements (phase 10)
     if (lv === 0 && w.unlocked && !w.unlocked.has(k)) continue; // arme pas encore débloquée (succès)
     const c = pool[n++];
     c.kind = 'w';
@@ -54,7 +54,7 @@ export function rollChoices(w: World, fromChest = false): void {
   for (const k of PASSIVE_KEYS) {
     const lv = w.passives[k] ?? 0;
     if (lv >= PASSIVES[k].max) continue;
-    if (lv === 0 && nP >= MAX_PASSIVES) continue;
+    if (lv === 0 && nP >= w.maxPassives) continue;
     const c = pool[n++];
     c.kind = 's';
     c.key = k;
@@ -72,7 +72,7 @@ export function rollChoices(w: World, fromChest = false): void {
   const want = Math.min(CHOICE.cards + (w.rng.next() < w.player.luck * LUCK.extraCardPerPt ? 1 : 0), n + w.cards.length) - w.cards.length;
   // tirage pondéré sans remise, avec garantie : au moins une arme si < 2 armes possédées
   picked.length = 0;
-  let needWeapon = nW < 2;
+  let needWeapon = nW < 2 && nW < w.maxWeapons; // garantie d'arme seulement si un emplacement est libre
   while (picked.length < want) {
     let total = 0;
     for (let i = 0; i < n; i++) if (!picked.includes(i) && (!needWeapon || pool[i].kind === 'w')) total += weights[i];
