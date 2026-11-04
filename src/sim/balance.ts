@@ -131,7 +131,7 @@ export const SPAWN = {
   midTo: 900,
   rate: (t: number) =>
     Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
-  hpScale: (t: number) => 1 + t / 190 + Math.max(0, Math.min(t, 900) - 420) / 110, // phase 12 : montée par petites lignes, PV ennemis plus doux (t/150 et /70 avant) // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
+  hpScale: (t: number) => 1 + t / 190 + Math.max(0, Math.min(t, 900) - 420) / 110 + Math.max(0, t - 900) / 120, // phase 12 : milieu plus doux (t/150 et /70 avant), fin de partie plus raide (+2,5 à 20:00) : 16 % de runs maxés allaient au bout // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
   dmgScale: (t: number) => 1 + t / 560, // phase 12 : ×3,1 à 20:00 (t/450 avant : les lignes de Vitalité montent moins vite que Cœur de pierre)
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
@@ -235,7 +235,7 @@ export const BOSS = {
   chargePeriod: 5, // entre deux charges (phase 2 : charge double)
   swarmPeriod: 4, // Essaim-mère : ponte
   swarmN: 6,
-  swarmN2: 10,
+  swarmN2: 8, // phase 12 : 10 → 8, l'Essaim-mère faisait une falaise à 10:00 pour un personnage complet
   swarmDist: 2.5,
   swarmPulse: 0.3, // durée de la pulsation (rendu) à la ponte
   zonePeriod: 4.5, // Colosse : cercles rouges (3,5 s : falaise à 15:00)
