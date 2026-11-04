@@ -28,7 +28,7 @@ export function tickEruptions(w: World): void {
   s.life = E.telegraph;
   s.dmg = E.dmg * SPAWN.dmgScale(w.t);
   s.hit = false;
-  w.emit(Ev.Telegraph, s.x, w.groundAt(s.x, s.z), s.z, E.r, E.telegraph);
+  w.emit(Ev.Telegraph, s.x, 0, s.z, E.r, E.telegraph);
 }
 
 /** Le Gardien émet une onde de choc centrée sur lui : rayon qui grandit à `speed`, blesse une fois au passage. */

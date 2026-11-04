@@ -11,6 +11,7 @@ import type { World } from './world';
 
 const out2 = new Float64Array(2);
 const mv = new Float64Array(2);
+const fl = new Float64Array(2);
 const nb = new Int32Array(64);
 const TAU = Math.PI * 2;
 
@@ -34,6 +35,7 @@ export function step(w: World, input: Input, dt: number): void {
   stepPlayer(w, input, dt);
   tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
+  w.flow.tick(w, dt);
   stepEnemies(w, dt);
   tickEruptions(w);
   tickShots(w, dt);
@@ -106,17 +108,11 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.dashCd -= dt;
   P.invul -= dt;
   if (P.recoil > 0) P.recoil = Math.max(0, P.recoil - dt);
-  w.resolveObstacles(P.x, P.z, 0.4, out2);
-  // plateaux (phase 11) : le bord est un mur vu d'en bas, on le passe en l'air (y ≥ h − edgeTol) et on atterrit dessus
-  w.resolvePlateaux(out2[0], out2[1], P.y, 0.4, out2);
+  // phase 16 : murets et troncs se franchissent en plein saut (P.y), arbres, rochers et menhirs jamais
+  w.resolveObstacles(P.x, P.z, 0.4, out2, P.y);
   P.x = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[0]));
   P.z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
-  const ground = w.groundAt(P.x, P.z);
-  if (P.onGround && P.y > ground) {
-    // on sort du bord : chute
-    P.onGround = false;
-    P.vy = 0;
-  }
+  const ground = 0; // phase 16 : plus de plateaux, le sol est plat
   if (!P.onGround) {
     P.vy -= PLAYER.gravity * dt;
     P.y += P.vy * dt;
@@ -150,11 +146,8 @@ function stepEnemies(w: World, dt: number): void {
   const decay = Math.pow(KNOCKBACK_DECAY, dt);
   let hurt = 0;
   const grid = w.grid;
-  // en l'air : au-dessus du sol local (un joueur posé sur un plateau n'est pas « en l'air » pour les Volants et le Faucheur)
-  const ground = w.groundAt(P.x, P.z);
-  const airborne = P.y - ground >= PLAYER.airborneSafeY;
-  // hors de portée des ennemis au sol : en l'air ou perché (ils butent au pied du plateau)
-  const aboveGround = P.y >= PLAYER.airborneSafeY;
+  // en l'air : hors de portée du contact (phase 16 : sol plat, plus de plateaux)
+  const airborne = P.y >= PLAYER.airborneSafeY;
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (!e.alive) continue;
@@ -179,9 +172,22 @@ function stepEnemies(w: World, dt: number): void {
       mv[0] = (dx / d) * sp;
       mv[1] = (dz / d) * sp;
     }
+    const flies = ignoresGround(e.type);
+    // phase 16 : un marcheur qui avance vers le joueur suit le champ de flux (il trouve la brèche d'un muret) ;
+    // les boss, eux, passent à travers les ouvrages et n'en ont pas besoin
+    if (!flies && !def.boss && !(isCharger(e) && e.state === 2)) {
+      const mvx = mv[0],
+        mvz = mv[1],
+        sp2 = mvx * mvx + mvz * mvz;
+      if (sp2 > 1e-8 && mvx * dx + mvz * dz > 0) {
+        w.flow.steer(e.x, e.z, dx / d, dz / d, fl);
+        const sp = Math.sqrt(sp2);
+        mv[0] = fl[0] * sp;
+        mv[1] = fl[1] * sp;
+      }
+    }
     let mx = mv[0],
       mz = mv[1];
-    const flies = ignoresGround(e.type);
     if (!flies) {
       const slow = w.speedAt(e.x, e.z);
       mx *= slow;
@@ -209,9 +215,9 @@ function stepEnemies(w: World, dt: number): void {
     e.z += (mz + e.kz) * dt;
     e.kx *= decay;
     e.kz *= decay;
-    if (!flies) {
-      // plateaux : les marcheurs (et les boss) butent au pied
-      w.resolvePlateaux(e.x, e.z, 0, e.r, out2);
+    if (!flies && !def.boss && w.nearObstacle(e.x, e.z)) {
+      // phase 16 : les marcheurs butent sur tous les obstacles (le champ de flux les a déjà orientés vers un passage)
+      w.resolveObstacles(e.x, e.z, e.r, out2, 0);
       e.x = out2[0];
       e.z = out2[1];
     }
@@ -219,7 +225,7 @@ function stepEnemies(w: World, dt: number): void {
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     const canHurt = e.type === VOLANT_TYPE ? e.state === 2 : true;
-    if (canHurt && d < e.r + PLAYER.radius && !(flies ? airborne : aboveGround) && P.invul <= 0) {
+    if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
         const dmg = HAZARDS.charge.dmg * e.dmgMul * (1 - P.armor);
@@ -247,7 +253,7 @@ function stepEnemies(w: World, dt: number): void {
 /** Projectiles ennemis : crachats (mobiles) et cercles du Colosse (immobiles, explosent à la fin). */
 function tickShots(w: World, dt: number): void {
   const P = w.player;
-  const airborne = P.y - w.groundAt(P.x, P.z) >= PLAYER.airborneSafeY; // les tirs atteignent un joueur perché
+  const airborne = P.y >= PLAYER.airborneSafeY;
   let hurt = 0;
   for (let i = w.shotCount - 1; i >= 0; i--) {
     const s = w.shots[i];
@@ -288,8 +294,8 @@ function tickShots(w: World, dt: number): void {
         s.vx = dx * k;
         s.vz = dz * k;
       } else {
-        // pic : blesse et projette le joueur au sol (sol local : un plateau n'abrite pas)
-        w.emit(Ev.Eruption, s.x, w.groundAt(s.x, s.z), s.z, s.r);
+        // pic : blesse et projette le joueur au sol
+        w.emit(Ev.Eruption, s.x, 0, s.z, s.r);
         if (inside && !airborne && P.invul <= 0) {
           P.hp -= s.dmg * (1 - P.armor);
           hurt += s.dmg * (1 - P.armor);

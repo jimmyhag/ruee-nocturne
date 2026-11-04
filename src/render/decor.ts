@@ -3,11 +3,17 @@
 // les lucioles sont un nuage de points mis à jour sur place (aucune allocation par frame).
 import * as THREE from 'three';
 import { PAL } from './palette';
-import { merge, paintHex, primGeometry } from './parts';
+import { merge, paintHex, primGeometry, withOutline } from './parts';
 import { softDiscTexture } from './textures';
+import { OUTLINE, OUTLINE_RGB } from './toon';
 import type { Prim } from './parts';
+import type { World } from '../sim/world';
 
 const TRUNK = 0x5a3d3a;
+const WOOD_CUT = 0xc9a77a; // tranche de tronc
+const STONE = 0x7d7894; // pierre des murets et menhirs, froide comme la nuit bleue
+const STONE_TOP = 0x9c98b0;
+const MOSS = 0x56806a;
 const LEAF2 = 0x37604f; // feuillage un peu plus clair (feuillu)
 const build = (parts: (Prim & { color: number })[]) => merge(parts.map((p) => paintHex(primGeometry(p), p.color)));
 
@@ -44,11 +50,86 @@ export const lampHeadGeometry = () => new THREE.BoxGeometry(0.3, 0.34, 0.3).tran
  * Plateau (phase 11) : fût de roche légèrement évasé (rayon 1, hauteur 1, origine au sol) coiffé d'un disque de mousse
  * qui laisse une lèvre de pierre ; mis à l'échelle (r, h, r) par instance. 10 segments : 80 triangles, 14 instances.
  */
-export const plateauGeometry = () =>
-  build([
-    { shape: 'cyl', size: [1, 1.08, 1], pos: [0, 0.5, 0], color: 0x6b6280, seg: 10 },
-    { shape: 'cyl', size: [0.94, 0.94, 0.06], pos: [0, 0.97, 0], color: 0x4f7a62, seg: 10 }, // dessus à 1,0 exactement : le joueur et son ombre sont posés dessus
-  ]);
+/**
+ * Ouvrages de la carte (phase 16) : murets, troncs couchés et menhirs cuits en UNE géométrie statique (un seul appel de
+ * rendu pour toute la carte), chaque pièce avec son contour toon. Construit une fois, au chargement du décor.
+ */
+export function worksGeometry(w: World): THREE.BufferGeometry | null {
+  const pieces: THREE.BufferGeometry[] = [];
+  const piece = (parts: (Prim & { color: number })[]) =>
+    pieces.push(withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB));
+  for (let i = 0; i < w.walls.length; i++) {
+    const s = w.walls[i];
+    const dx = s.x2 - s.x1,
+      dz = s.z2 - s.z1,
+      L = Math.hypot(dx, dz),
+      th = Math.atan2(dz, dx),
+      mx = (s.x1 + s.x2) / 2,
+      mz = (s.z1 + s.z2) / 2;
+    const v = ((i * 7) % 5) * 0.06; // teinte variée d'un pan à l'autre
+    if (s.kind === 0) {
+      // muret : corps de pierre, chaperon plus clair qui déborde un peu
+      const body = new THREE.Color(STONE).multiplyScalar(0.92 + v).getHex();
+      piece([
+        {
+          shape: 'box',
+          size: [L + s.r * 1.6, s.h - 0.14, s.r * 2],
+          pos: [mx, (s.h - 0.14) / 2, mz],
+          rot: [0, -th, 0],
+          color: body,
+        },
+        {
+          shape: 'box',
+          size: [L + s.r * 1.9, 0.16, s.r * 2.2],
+          pos: [mx, s.h - 0.08, mz],
+          rot: [0, -th, 0],
+          color: STONE_TOP,
+        },
+      ]);
+    } else {
+      // tronc couché : écorce, deux tranches claires aux bouts
+      const ux = dx / L,
+        uz = dz / L;
+      piece([
+        { shape: 'cyl', size: [s.r, s.r, L], pos: [mx, s.r, mz], rot: [0, -th, Math.PI / 2], color: TRUNK, seg: 8 },
+        {
+          shape: 'cyl',
+          size: [s.r * 0.86, s.r * 0.86, 0.04],
+          pos: [s.x1 - ux * 0.01, s.r, s.z1 - uz * 0.01],
+          rot: [0, -th, Math.PI / 2],
+          color: WOOD_CUT,
+          seg: 8,
+        },
+        {
+          shape: 'cyl',
+          size: [s.r * 0.86, s.r * 0.86, 0.04],
+          pos: [s.x2 + ux * 0.01, s.r, s.z2 + uz * 0.01],
+          rot: [0, -th, Math.PI / 2],
+          color: WOOD_CUT,
+          seg: 8,
+        },
+      ]);
+    }
+  }
+  // menhirs : pierres dressées, légèrement penchées, plus hautes que le joueur
+  for (let i = w.rockEnd; i < w.obstacles.length; i++) {
+    const o = w.obstacles[i];
+    const k = i - w.rockEnd,
+      h = 2.4 + ((k * 5) % 4) * 0.25,
+      a = (k * 2.399) % (Math.PI * 2);
+    piece([
+      {
+        shape: 'box',
+        size: [o.r * 1.6, h, o.r * 1.2],
+        pos: [o.x, h / 2 - 0.1, o.z],
+        rot: [((k % 3) - 1) * 0.06, a, ((k % 2) * 2 - 1) * 0.05],
+        color: STONE,
+      },
+      { shape: 'box', size: [o.r * 1.3, 0.3, o.r * 1.0], pos: [o.x, h - 0.12, o.z], rot: [0, a, 0], color: MOSS },
+    ]);
+  }
+  return pieces.length ? merge(pieces) : null;
+}
 
 /** Nombre de touffes et de lucioles (statique / par frame). */
 export const GRASS = 700;

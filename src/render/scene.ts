@@ -6,7 +6,6 @@ import {
   ELITE_TYPE,
   ENEMIES,
   HAZARDS,
-  PLATEAUX,
   REAPER_TYPE,
   STEP,
   SWARM_TYPE,
@@ -27,12 +26,12 @@ import {
   grassGeometry,
   lampHeadGeometry,
   lampPostGeometry,
-  plateauGeometry,
+  worksGeometry,
   roundTreeGeometry,
 } from './decor';
 import { buildEnemyGeometries } from './enemies';
-import { setDetail, withOutline } from './parts';
-import { OUTLINE, OUTLINE_RGB, toonMaterial } from './toon';
+import { setDetail } from './parts';
+import { toonMaterial } from './toon';
 import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -328,11 +327,9 @@ export class GameScene {
       DECOR.lamps,
     );
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
-    // ombres des arbres et des plateaux (phase 9 : +1 appel ; phase 11 : les plateaux partagent le mesh)
-    const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap + PLATEAUX.n);
-    const plateauSrc = plateauGeometry();
-    const plateaux = makeInstanced(withOutline(plateauSrc, OUTLINE.decor, OUTLINE_RGB), vc(), PLATEAUX.n); // phase 11 : +1 appel ; phase 15 : contour
-    plateauSrc.dispose(); // withOutline a copié ses sommets dans la géométrie fusionnée
+    // ombres des arbres et des menhirs (phase 9 : +1 appel ; phase 16 : les menhirs partagent le mesh)
+    const nStones = w.obstacles.length - w.rockEnd;
+    const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap + nStones);
     const tint = new THREE.Color();
     let nf = 0,
       nr = 0;
@@ -354,24 +351,18 @@ export class GameScene {
       d.updateMatrix();
       treeShadows.setMatrixAt(i, d.matrix);
     }
-    // plateaux : fût (r, h, r), teinte variée, ombre portée au pied côté opposé au soleil
-    for (let i = 0; i < w.plateaux.length; i++) {
-      const p = w.plateaux[i];
-      d.position.set(p.x, 0, p.z);
-      d.rotation.set(0, (i * 1.1) % TAU, 0);
-      d.scale.set(p.r, PLATEAUX.h, p.r);
-      d.updateMatrix();
-      plateaux.setMatrixAt(i, d.matrix);
-      plateaux.setColorAt(i, tint.setScalar(0.9 + ((i * 5) % 6) * 0.03));
-      d.position.set(p.x + 0.7, 0.02, p.z + 0.5);
+    // menhirs : ombre portée au pied côté opposé au soleil
+    for (let i = 0; i < nStones; i++) {
+      const o = w.obstacles[w.rockEnd + i];
+      d.position.set(o.x + 0.6, 0.02, o.z + 0.45);
       d.rotation.set(0, 0, 0);
-      d.scale.setScalar(p.r * 1.25);
+      d.scale.setScalar(o.r * 1.9);
       d.updateMatrix();
       treeShadows.setMatrixAt(nTrees + i, d.matrix);
     }
-    treeShadows.count = nTrees + w.plateaux.length;
-    plateaux.count = w.plateaux.length;
-    for (let i = 0; i < DECOR.rocks; i++) {
+    treeShadows.count = nTrees + nStones;
+    const nRocks = w.rockEnd - nTrees;
+    for (let i = 0; i < nRocks; i++) {
       const o = w.obstacles[nTrees + i];
       const s = o.r / 0.75;
       d.position.set(o.x, 0.3 * s, o.z);
@@ -380,10 +371,12 @@ export class GameScene {
       d.updateMatrix();
       rocks.setMatrixAt(i, d.matrix);
     }
-    // lanternes : positions dérivées des arbres (pas de collision) ; pied, tête lumineuse, halo au sol
+    // lanternes : au centre des cercles de pierres (phase 16), puis près des arbres (pas de collision) ; pied, tête, halo
     for (let i = 0; i < DECOR.lamps; i++) {
-      const o = w.obstacles[(i * 37) % nTrees];
-      d.position.set(o.x + 2.2, 0, o.z + 1.3);
+      const c = w.stoneCenters[i];
+      const o = c ?? w.obstacles[(i * 37) % nTrees];
+      if (c) d.position.set(c.x, 0, c.z);
+      else d.position.set(o.x + 2.2, 0, o.z + 1.3);
       d.rotation.set(0, 0, 0);
       d.scale.setScalar(0.9);
       d.updateMatrix();
@@ -414,14 +407,17 @@ export class GameScene {
     }
     firs.count = nf;
     rounds.count = nr;
-    rocks.count = DECOR.rocks;
+    rocks.count = nRocks;
     posts.count = lamps.count = halos.count = DECOR.lamps;
     grass.count = ng;
-    for (const m of [treeShadows, plateaux, firs, rounds, rocks, posts, lamps, halos, grass]) {
+    for (const m of [treeShadows, firs, rounds, rocks, posts, lamps, halos, grass]) {
       m.instanceMatrix.needsUpdate = true;
       m.instanceColor!.needsUpdate = true;
       this.scene.add(m);
     }
+    // ouvrages (phase 16) : murets, troncs et menhirs en une seule géométrie statique, un appel de rendu
+    const works = worksGeometry(w);
+    if (works) this.scene.add(new THREE.Mesh(works, vc()));
     // lacs : disque bleu + anneau de rive qui scintille (animé dans render)
     for (const m of this.lakeMeshes) this.scene.remove(m);
     this.lakeMeshes.length = 0;
@@ -590,9 +586,8 @@ export class GameScene {
       M.glowDisc.position.set(px, 0.07, pz);
       M.glowDisc.scale.setScalar(1 + Math.sin(now * 11) * 0.05); // vacillement
     }
-    const ground = w.groundAt(px, pz); // ombre du joueur posée sur le sol local (plateaux)
-    this.blob.position.set(px, ground + 0.03, pz);
-    this.blob.scale.setScalar(Math.max(0.4, 1 - (py - ground) * 0.25));
+    this.blob.position.set(px, 0.03, pz);
+    this.blob.scale.setScalar(Math.max(0.4, 1 - py * 0.25));
 
     // dash : 1 particule crème par frame + silhouettes en fondu
     if (P.dashT > 0) {
@@ -713,7 +708,7 @@ export class GameScene {
         const f = 1 - Math.max(0, sh.life / (eruption ? HAZARDS.eruption.telegraph : BOSS.zoneTelegraph));
         const sx = eruption ? lerp(sh.px, sh.x, alpha) : sh.x,
           sz = eruption ? lerp(sh.pz, sh.z, alpha) : sh.z;
-        const gy = eruption ? w.groundAt(sx, sz) : 0;
+        const gy = 0;
         this.zoneW.put(sx, gy + 0.05, sz, 0, sh.r, this.cTele);
         this.zoneFillW.put(sx, gy + 0.045, sz, 0, sh.r * f, this.cTele);
       }

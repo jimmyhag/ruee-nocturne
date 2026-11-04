@@ -1,4 +1,4 @@
-import { ELITE_TYPE, ENEMIES, REAPER_TYPE, STEP } from './sim/balance';
+import { ELITE_TYPE, ENEMIES, MAP, REAPER_TYPE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode } from './sim/types';
 import type { Input } from './sim/types';
@@ -304,7 +304,7 @@ function closeScreen(): void {
 
 // ---------- décor : construit une fois (loadScene) pour la seed de décor fixe ----------
 // Le décor dépend de la seed du monde ; on garde une seed de décor constante pour ne pas le reconstruire à chaque run.
-const DECOR_SEED = 20261102;
+const DECOR_SEED = MAP.seed; // phase 16 : la carte construite vit dans balance.ts (vérifiée par map.test.ts)
 
 let startWanted: { variant?: number; daily: boolean } | null = null;
 function startGame(variant?: number, daily = false): void {

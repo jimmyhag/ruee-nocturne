@@ -31,7 +31,7 @@ export const GRID_HALF_CELLS = 80; // grille centrée joueur : 160 cellules × 2
 export const CAPS = {
   enemies: 520, // perf mobile (PLAN §4.3)
   projectiles: 250,
-  shots: 128, // crachats ennemis (12 Cracheurs × 2,2 s de vie / 2,5 s de période) + éruptions et anneaux (phase 11)
+  shots: 192, // crachats, flèches et boules de feu (24 tireurs au plus, phase 16) + éruptions et anneaux (phase 11)
   gems: 900,
   chests: 16, // jamais plus de quelques coffres au sol en pratique (une élite / 40 s)
   events: 1024,
@@ -39,9 +39,9 @@ export const CAPS = {
 
 // décor : généré par la seed, lu par le rendu via w.obstacles (arbres puis rochers)
 export const DECOR = {
-  trees: 380,
-  woodTrees: 300, // arbres supplémentaires dans les bois denses : couloirs
-  rocks: 240,
+  trees: 200, // phase 16 : 380 → 200, rejetés hors des lieux et espacés de MAP.pass : le terrain se lit
+  woodTrees: 300, // tentatives d'arbres dans les bois (espacés de MAP.pass : ≈ 40 par bois)
+  rocks: 90, // phase 16 : 240 → 90
   lamps: 160,
 };
 
@@ -51,21 +51,47 @@ export const ZONES = {
   lakeRMin: 9,
   lakeRMax: 14,
   lakeSpeed: 0.55, // dans l'eau : joueur et ennemis au sol (Volant et Faucheur ignorent)
-  woods: 4,
-  woodR: 22,
+  woods: 5, // phase 16 : bosquets plus petits et plus nombreux (4 × 22 u → 5 × 15 u)
+  woodR: 15,
   minFromCenter: 24, // le départ reste une clairière ouverte
 };
 
-// plateaux (phase 11, PLAN §3.4) : disques de roche surélevés que l'on monte d'un saut (jumpVel 9,5 ⇒ ~1,7 u > h)
-// Les ennemis au sol butent au pied ; Volants, crachats, zones et Faucheur passent : un répit, pas un abri.
-export const PLATEAUX = {
-  n: 14,
-  rMin: 2.5,
-  rMax: 4,
-  h: 1.4,
-  edgeTol: 0.2, // en l'air à y ≥ h − edgeTol, on passe le bord et on atterrit dessus
-  minDist: 18, // entre deux centres
-  minFromCenter: 24, // le départ reste une clairière ouverte, comme les lacs et les bois (à 12 u : +5 points de morts avant 3 min, le bot se fait coincer au pied)
+// carte construite (phase 16, PLAN §3.4) : des lieux posés par la seed sur une grille de secteurs, tous ouverts.
+// Règle d'accès : deux obstacles qui ne font pas partie du même ouvrage laissent toujours `pass` u de passage libre
+// (entre eux et avec le bord de la carte),
+// et chaque ouvrage a des brèches : une Brute élite (2,5 u de large) atteint toute case libre de la carte (map.test.ts).
+export const MAP = {
+  seed: 20261102, // la carte du jeu (main.ts) : toujours la même, celle que l'on dessine et que l'on vérifie
+  sector: 34, // côté d'un secteur ; un lieu par secteur au plus
+  jitter: 5, // décalage aléatoire du centre d'un lieu dans son secteur
+  startClear: 30, // aucun lieu à moins de 30 u du départ : la clairière de départ reste ouverte
+  // part des secteurs libres (hors lacs et bois) : ruines, cercle de pierres, troncs couchés, le reste vide (respiration)
+  ruins: 0.32,
+  stones: 0.14,
+  logs: 0.2,
+  pass: 3, // passage libre minimal entre deux obstacles d'ouvrages différents (Brute élite 2,5 u + 0,5 de marge)
+  breach: 4, // brèche d'un muret, bout à bout (passage libre 4 − 2 × wallR = 3,1 u)
+  footprint: 10, // rayon réservé autour d'un lieu : arbres et rochers épars en sont exclus
+  wallR: 0.45, // demi-épaisseur d'un muret
+  wallH: 1.0, // hauteur d'un muret : le joueur le franchit d'un saut (apex 1,7 u), les ennemis au sol font le tour
+  logR: 0.45,
+  logH: 0.9, // tronc couché : se saute aussi
+  overTol: 0.15, // en l'air à y ≥ h − overTol, on passe au-dessus d'un muret ou d'un tronc
+  stoneR: 0.9, // menhir : ne se saute pas, arrête les tirs
+  stoneRing: 6.5, // rayon du cercle de pierres (6 à 8 menhirs : 3,2 u de passage au plus serré)
+  ruinHalf: 4, // demi-côté des ruines en L et en U
+  keepHalf: 5, // demi-côté de l'enceinte brisée (une brèche par côté)
+  logLen: [5, 8],
+  logGap: 4.6, // entre deux troncs parallèles (passage 3,7 u)
+  start: 8, // aucun arbre ni rocher à moins de 8 u du départ
+};
+
+// champ de flux (phase 16) : les ennemis au sol contournent les ouvrages au lieu de buter dessus
+export const FLOW = {
+  cell: 1.25, // côté d'une case
+  half: 40, // demi-côté de la grille locale, en cases : 100 u de côté, couvre la distance de réapparition (50 u)
+  period: 0.2, // recalcul (s)
+  clear: 0.5, // une case est pleine si son centre est à moins de r + 0,5 u d'un obstacle
 };
 
 // dangers à esquiver par le mouvement (phase 11, PLAN §3.1) : le saut et le dash servent à autre chose qu'à fuir
@@ -153,13 +179,25 @@ export const SPAWN = {
   eliteAfter: 120,
   elitePeriod: 40, // une élite (coffre) toutes les 40 s : ~25 coffres par run complet
   // probabilités par type selon le temps
+  // probabilités par type selon le temps. Phase 16 : une bande de tireurs (part `shooterShare`) est tirée d'abord, le
+  // reste du tirage garde exactement les proportions d'avant entre les marcheurs.
   pick: (t: number, r: number): number => {
-    if (t > 360 && r < 0.05) return 5; // Cracheur
+    const s = SPAWN.shooterShare(t);
+    if (r < s) {
+      const u = r / s;
+      if (t > SORCIER.after && u < 0.3) return SORCIER_TYPE;
+      if (t > CRACHEUR.after && u < 0.55) return CRACHEUR_TYPE;
+      return ARCHER_TYPE;
+    }
+    r = (r - s) / (1 - s);
     if (t > 180 && r < 0.05 + 0.12 * Math.min(1, (t - 180) / 600)) return 4; // Volant : 5 → 17 % à 13:00
     if (t > 90 && r < 0.08 + t / 3000) return 2; // Brute : 8 % à 1:30, 28 % à 10:00 (t/4000 donnait moins d'XP : p50 8:45 au lieu de 9:34)
     if (t > 40 && r < 0.42) return 1; // Dard
     return 0; // Spectre
   },
+  // part des tireurs (Archer dès 1:30, Cracheur dès 3:00, Sorcier dès 4:00) : 4 % à 1:30, 18 % à 10:00
+  shooterShare: (t: number): number => (t < ARCHER.after ? 0 : Math.min(0.18, 0.04 + (0.14 * (t - ARCHER.after)) / 510)),
+  maxShooters: 24, // au-delà, le tirage retombe sur un Spectre : l'écran reste lisible
 };
 
 export interface EnemyDef {
@@ -184,6 +222,9 @@ export const ENEMIES: EnemyDef[] = [
   { key: 'essaim', hp: 1600, speed: 1.6, r: 2.4, dmg: 30, xp: 40, y: 2.4, kbMul: 0, boss: true },
   { key: 'colosse', hp: 2600, speed: 1.2, r: 2.6, dmg: 30, xp: 40, y: 2.6, kbMul: 0, boss: true }, // lent : ses cercles sont la menace, pas le contact (15:00 → 16:00 perdait 14 points)
   { key: 'faucheur', hp: 40000, speed: 7.1, r: 1.4, dmg: 150, xp: 100, y: 2.0, kbMul: 0, boss: true }, // 7,1 = joueur × 1,15 : il rattrape toujours
+  // phase 16 : tireurs. Fragiles (ils meurent vite une fois rejoints), dangereux à distance
+  { key: 'archer', hp: 14, speed: 2.6, r: 0.5, dmg: 6, xp: 2, y: 0.8, kbMul: 0.8, boss: false },
+  { key: 'sorcier', hp: 24, speed: 2.1, r: 0.6, dmg: 8, xp: 3, y: 0.9, kbMul: 0.7, boss: false },
 ];
 export const DARD_TYPE = 1;
 export const BOSS_TYPE = 3; // Gardien (5:00)
@@ -193,6 +234,8 @@ export const CRACHEUR_TYPE = 5;
 export const SWARM_TYPE = 6; // Essaim-mère (10:00)
 export const COLOSSUS_TYPE = 7; // Colosse (15:00)
 export const REAPER_TYPE = 8; // Faucheur (20:00)
+export const ARCHER_TYPE = 9; // phase 16
+export const SORCIER_TYPE = 10; // phase 16
 export const BOSSES = [BOSS_TYPE, SWARM_TYPE, COLOSSUS_TYPE]; // par ordre d'apparition
 export const ENEMY_SEPARATION = 3.2;
 export const KNOCKBACK_DECAY = 0.004; // facteur par seconde
@@ -224,6 +267,38 @@ export const CRACHEUR = {
   shotR: 0.4,
   orbit: 0.4, // facteur de vitesse latérale quand il est à bonne distance
   fireMargin: 3, // vise seulement à moins de keepMax + 3 u
+  after: 180, // phase 16 : dès 3:00 (6:00 avant, et rare)
+};
+
+// Archer (phase 16) : flèche rapide en ligne droite, arrêtée par les obstacles ; on l'esquive d'un pas de côté, d'un dash
+// ou derrière un muret. L'élite tire une volée de trois en éventail.
+export const ARCHER = {
+  after: 90,
+  keepMin: 10,
+  keepMax: 13,
+  aim: 0.5, // ligne de visée fine
+  period: 2.4,
+  shotSpeed: 14,
+  shotLife: 1.15, // portée 16 u
+  shotDmg: 8, // × dmgScale
+  shotR: 0.3,
+  orbit: 0.5,
+  fireMargin: 3,
+  volley: 3, // élite
+  spread: 0.22, // rad entre deux flèches de la volée
+};
+
+// Sorcier (phase 16) : boule de feu en cloche qui retombe là où était le joueur ; passe au-dessus des murs, se fuit
+export const SORCIER = {
+  after: 240,
+  keepMin: 12,
+  keepMax: 15,
+  period: 3.8,
+  cast: 1.1, // durée du vol = cercle rouge au sol qui se remplit
+  r: 1.9,
+  dmg: 13, // × dmgScale
+  orbit: 0.4,
+  fireMargin: 3,
 };
 
 export const BOSS = {

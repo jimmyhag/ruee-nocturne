@@ -150,6 +150,8 @@
   "enemy.essaim": "Brood Mother",
   "enemy.colosse": "Colossus",
   "enemy.faucheur": "Reaper",
+  "enemy.archer": "Archer",
+  "enemy.sorcier": "Warlock",
   "char.eclaireuse.name": "Scout",
   "char.eclaireuse.text": "+15% speed, shorter dash",
   "char.bucheron.name": "Lumberjack",

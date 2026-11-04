@@ -64,6 +64,8 @@ export const enum ShotKind {
   Zone, // Colosse : cercle rouge immobile qui explose à la fin de `life`
   Eruption, // phase 11 : fissure qui suit le joueur pendant le télégraphe puis pic sous ses pieds — se saute ou se dashe
   Ring, // phase 11 : anneau de choc du Gardien, rayon qui grandit (`r`), blesse une fois au passage — se saute
+  Arrow, // phase 16 : flèche de l'Archer, rapide, en ligne droite, arrêtée par les obstacles ; touche aussi en l'air
+  Fireball, // phase 16 : boule de feu du Sorcier, en cloche de (ox, oz) vers (x, z) ; explose à la fin de `life` comme une zone
 }
 
 /** Dernière source de dégâts subie par le joueur (statistiques de causes de mort, CLI). */
@@ -74,6 +76,8 @@ export const enum HurtSrc {
   Eruption,
   Ring,
   Charge,
+  Arrow, // phase 16
+  Fire, // phase 16 : boule de feu du Sorcier
 }
 
 /** Projectile ennemi : ne touche jamais un joueur en l'air (airborneSafeY). */
@@ -90,6 +94,9 @@ export interface Shot {
   life: number;
   dmg: number;
   hit: boolean; // anneau : le joueur a déjà été touché par cette onde
+  ox: number; // boule de feu : point de départ du vol (rendu de l'arc)
+  oz: number;
+  t0: number; // boule de feu : durée totale du vol
 }
 
 export interface Gem {
@@ -203,7 +210,7 @@ export const enum Trait {
   Marchand, // Colporteur : les coffres donnent au moins 3 cartes
 }
 /** Identifiants des ennemis (index = type dans ENEMIES) : clés d'affichage côté UI, la sim ne porte aucun texte. */
-export type EnemyKey = 'spectre' | 'dard' | 'brute' | 'gardien' | 'volant' | 'cracheur' | 'essaim' | 'colosse' | 'faucheur';
+export type EnemyKey = 'spectre' | 'dard' | 'brute' | 'gardien' | 'volant' | 'cracheur' | 'essaim' | 'colosse' | 'faucheur' | 'archer' | 'sorcier';
 
 /** Ce que la méta injecte dans la sim à la création du monde (jamais lu depuis le stockage par la sim). */
 export interface WorldOptions {
