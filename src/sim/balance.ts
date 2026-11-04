@@ -131,8 +131,8 @@ export const SPAWN = {
   midTo: 900,
   rate: (t: number) =>
     Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
-  hpScale: (t: number) => 1 + t / 190 + Math.max(0, Math.min(t, 900) - 420) / 110 + Math.max(0, t - 900) / 120, // phase 12 : milieu plus doux (t/150 et /70 avant), fin de partie plus raide (+2,5 à 20:00) : 16 % de runs maxés allaient au bout // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
-  dmgScale: (t: number) => 1 + t / 560 + Math.max(0, t - 900) / 300, // phase 12 : ×4,1 à 20:00 (t/450 avant) ; après 15:00 les dégâts montent plus vite : une build qui a explosé n'est plus limitée par les PV ennemis
+  hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 85 + Math.max(0, t - 900) / 100, // phase 12 : milieu plus doux (t/150 et /70 avant), fin de partie plus raide (+2,5 à 20:00) : 16 % de runs maxés allaient au bout // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
+  dmgScale: (t: number) => 1 + t / 500 + Math.max(0, t - 900) / 220, // phase 12 : ×4,1 à 20:00 (t/450 avant) ; après 15:00 les dégâts montent plus vite : une build qui a explosé n'est plus limitée par les PV ennemis
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
   ringMax: 30, // hors écran (fog à 16–44)
