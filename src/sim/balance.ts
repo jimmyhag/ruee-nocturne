@@ -220,7 +220,7 @@ export const CRACHEUR = {
   period: 2.5,
   shotSpeed: 6, // lent : esquivable en marchant
   shotLife: 2.2,
-  shotDmg: 14,
+  shotDmg: 11, // phase 12 : 14 → 11, les crachats faisaient 57 % des morts d'un personnage complet (× dmgScale : 29 PV à 15:00)
   shotR: 0.4,
   orbit: 0.4, // facteur de vitesse latérale quand il est à bonne distance
   fireMargin: 3, // vise seulement à moins de keepMax + 3 u
