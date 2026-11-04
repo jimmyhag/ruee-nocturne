@@ -190,6 +190,24 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           if (gap > -0.6 && gap < HAZARDS.ring.speed * 0.3) hazard = true;
           continue;
         }
+        if (s.kind === ShotKind.Spit) {
+          // crachat lent et visible qui vient vers nous : on s'écarte de sa trajectoire (un joueur moyen le fait)
+          const vx = s.vx,
+            vz = s.vz;
+          const sp2 = vx * vx + vz * vz;
+          if (sp2 < 1e-6 || d2 > 36) continue;
+          const along = -(dx * vx + dz * vz) / Math.sqrt(sp2); // distance restante le long de la trajectoire
+          if (along < 0) continue;
+          const px = -vz,
+            pz = vx; // perpendiculaire
+          const side = (-dx * px - dz * pz) / Math.sqrt(sp2);
+          if (Math.abs(side) > 1.4) continue;
+          const wgt = 40 / (d2 + 0.5);
+          cx -= Math.sign(side || 1) * px * wgt; // fuir = s'éloigner de la ligne (cx/cz est une direction à fuir)
+          cz -= Math.sign(side || 1) * pz * wgt;
+          n++;
+          continue;
+        }
         if (s.kind !== ShotKind.Zone) continue;
         if (d2 < (s.r + 1.5) ** 2) {
           const wgt = 60 / (d2 + 0.5);
