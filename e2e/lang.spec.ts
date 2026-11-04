@@ -27,7 +27,7 @@ test('réglages : passer en anglais traduit le menu, les cartes et l’écran de
   await page.evaluate(() => (window as any).__game.debug.levelUp());
   await expect(page.locator('#levelup')).toBeVisible();
   await expect(page.locator('#luTitle')).toHaveText(/Level \d+/);
-  await expect(page.locator('#cards .card').first().locator('.badge')).toHaveText(/New weapon|Lv \d|Bonus|Evolution/);
+  await expect(page.locator('#cards .card').first().locator('.badge')).toHaveText(/New weapon|New tome|Lv \d|Bonus/);
   await page.keyboard.press('Digit1');
   await page.evaluate(() => (window as any).__game.debug.kill());
   await expect(page.locator('#over')).toBeVisible({ timeout: 5000 });

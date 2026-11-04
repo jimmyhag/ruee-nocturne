@@ -188,7 +188,7 @@ test('progression lente (phase 10) : une arme au départ, emplacement acheté ap
   await startRun(page, 3);
   let slots = await page.evaluate(() => {
     const w = (window as any).__game.world;
-    return { w: w.maxWeapons, p: w.maxPassives };
+    return { w: w.maxWeapons, p: w.maxTomes };
   });
   expect(slots).toEqual({ w: 1, p: 2 });
   // montée de niveau : jamais de « Nouvelle arme » proposée tant que l'emplacement n'est pas acheté
@@ -221,7 +221,7 @@ test('progression lente (phase 10) : une arme au départ, emplacement acheté ap
   await startRun(page, 3);
   slots = await page.evaluate(() => {
     const w = (window as any).__game.world;
-    return { w: w.maxWeapons, p: w.maxPassives };
+    return { w: w.maxWeapons, p: w.maxTomes };
   });
   expect(slots).toEqual({ w: 2, p: 2 });
   await page.locator('#pauseBtn').click();
