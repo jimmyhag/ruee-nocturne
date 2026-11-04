@@ -66,7 +66,7 @@ export function refreshStats(w: World): void {
     // tomes globaux
     if (k === 'foudre') out.chain += P.projAdd;
     else if ('n' in base) out.n += P.projAdd;
-    if ('r' in base) out.r *= P.sizeMul;
+    if ('r' in base && k !== 'lames') out.r *= P.sizeMul; // Lames : la taille agrandit la lame (rayon de frappe, tick.ts), pas l'orbite ; appliquée aux deux, les Lames explosaient en fin de run (22 % de fins au lieu de 15)
     if ('speed' in base) out.speed *= P.projSpeedMul;
   }
 }

@@ -356,7 +356,7 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'dashinvul', step: 0.03, kind: 'add', max: 10, weight: 1 },
   ],
   savoir: [
-    { stat: 'xp', step: 0.06, kind: 'add', max: 8, weight: 3 }, // +48 % au plus : les runs maxés qui allaient au bout cumulaient 8 lignes de Savoir contre 3,4 pour les morts après 15:00 (boule de neige d'XP)
+    { stat: 'xp', step: 0.06, kind: 'add', weight: 3 }, // pas de plafond : les runs maxés qui vont au bout cumulent 8 lignes contre 3,4 pour les morts après 15:00, mais plafonner à 8 ne changeait rien (15 % de fins dans les deux cas)
     { stat: 'magnet', step: 0.08, kind: 'add', weight: 2 },
   ],
   chance: [
