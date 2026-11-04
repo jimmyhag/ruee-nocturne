@@ -28,7 +28,7 @@ describe('personnages', () => {
   });
   it('Bûcheron : +30 PV, Lames de départ, portée des lames ×1,2 ; Sorcière : Foudre, −20 % PV', () => {
     const b = new World(1, { character: 'bucheron' });
-    expect(b.weapons).toEqual({ lames: 2 });
+    expect(b.weapons).toEqual({ lames: 3 }); // phase 10 : Lames 3 (seul avec Lames 2, il ne tenait pas 3 min)
     expect(b.player.maxHp).toBe(PLAYER.hp + 30);
     expect(b.bladeRangeMul).toBeCloseTo(1.2, 6);
     expect(b.player.speed).toBeCloseTo(PLAYER.speed * 1.05, 6); // plus lent que l'Éclaireuse
@@ -106,7 +106,7 @@ describe('armes débloquées', () => {
     }
     const b = new World(5, { character: 'bucheron', unlocked: ['orbe'] }); // Lames possédée mais « verrouillée »
     rollChoices(b);
-    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 3)).toBe(true); // Lames niv 2 de départ → niv 3 proposé
+    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 4)).toBe(true); // Lames niv 3 de départ → niv 4 proposé
   });
   it('un run complet avec options reste déterministe', () => {
     const opts = { character: 'bucheron' as const, upgrades: [1, 1, 0, 0, 0, 0, 0, 1], unlocked: ['orbe', 'lames', 'foudre'] as const };

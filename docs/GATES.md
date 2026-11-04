@@ -14,6 +14,7 @@ Une ligne par phase. Une phase est franchie quand toutes ses mesures sont consig
 | 7 — Identité     | **franchie** | 3 nov. 2026 | [#14](https://github.com/jimmyhag/ruee-nocturne/pull/14) | draw calls **20** (≤ 40) · tris **87 k** à 400 ennemis (< 150 k) · bench p50 0,30 ms, p95 0,49 ms (inchangé) · Vitest 249 · e2e 40 · chunk principal 37 ko gz (three toujours hors du chunk) · fps téléphone : non mesuré (merge sur décision de Jimmy le 3 nov. 2026, à relever sur le live 1.2.0 avec `docs/DEVICES.md`)                                                                                                                                                                                                                                                                                                                      | `docs/captures/phase-7/portrait-*.png`, `ennemi-*.png`, `docs/store/*.png`               |
 | 8 — Progression  | **franchie** | 3 nov. 2026 | [#16](https://github.com/jimmyhag/ruee-nocturne/pull/16) | nu (Éclaireuse, 100 runs, seeds 42/43) : survie p50 **5:29 / 5:31** (9:52 en 1.2.0 ; cible 5–7), fin atteinte 0 %, morts < 3 min 13–15 %, or p50 615–652 (3 premiers paliers) · maxé : p50 **15:31 / 15:33** (cible 13–16), fin atteinte 4–5 % · 9 personnages maxés entre 13:23 et 15:52 (± 3 min) ; nus entre 4:49 et 10:52 (les personnages débloqués tard partent plus forts, décision ci-dessous) · CI 200 runs : nu 5:28, maxé 15:37, 6 % de fins · 1.3.1 (relecture) : escalier 5:29 / 8:06 / 11:05 / 13:25 / 15:16, fin 4 % · Vitest 249 · e2e 42 · merge sur décision de Jimmy le 3 nov. 2026 (ressenti téléphone à venir sur le live) | `shots/*-boutique.png`                                                                   |
 | 9 — Rendu net    | **en cours** | 3 nov. 2026 | [#18](https://github.com/jimmyhag/ruee-nocturne/pull/18) | rendu net par défaut (1280×720 sur PC, ≤ 1600 px de haut, DPR ≤ 2) avec MSAA · draw calls **21** (≤ 40) · tris **92 k** (< 150 k) à 400 ennemis · repli automatique vérifié par e2e (2 → 1 → 0 en 12 s de frames à 40 ms) · Vitest 250 · e2e 46 · Lighthouse et fps téléphone : voir mesures                                                                                                                                                                                                                                                                                                                                                    | `shots/*-jeu-3min.png` (net) vs `*-jeu-3min-pixel.png`, portraits et bestiaire régénérés |
+| 10 — Progression | **en cours** | 4 nov. 2026 | PR à venir                                               | départ (1 arme, 2 améliorations, 0 palier, Éclaireuse, 100 runs) : survie p50 **4:25** (cible 4–6), 87 % passent 3 min, morts < 3 min 13 %, or 171/run · 2 armes sans palier 5:14 · 3/3 et 4 paliers 12:07 · maxé 4/4 **15:09**, fin 3 % · neuf personnages au départ entre 4:00 et 8:57 (Bûcheron et Colporteur passés à Lames 3) · Vitest 252 · e2e 48                                                                                                                                                                                                                                                                                        | `shots/*-boutique.png` (bloc Emplacements)                                               |
 
 ## Phase 0 — mesures détaillées (2 nov. 2026, PC de Jimmy, Windows 11)
 
@@ -256,6 +257,46 @@ Décisions de la phase :
 - **Détail 12 segments** seulement sur ce qui n'est pas instancié en masse (joueur, boss) : les ennemis de masse gardent 5 segments, invisibles à cette taille.
 
 Relecture `perf-reviewer` : approuvée sans bloquant (zéro allocation par frame, 21 appels et 92 k triangles mesurés sur les deux projets, bench inchangé, ordre des transparents et `FogExp2` vérifiés, aucune recompilation de shader au repli). Estimation du fill rate en niveau 2 sur téléphone : ≈ 4,5 Mpx par frame (×5,4 par rapport au pixel), confortable sur Adreno 6xx, juste sur Mali-G52/G57 d'entrée de gamme, ce que le repli (×1,8 puis ×5,4 de fragments en moins) est fait pour rattraper ; seuil p95 > 24 ms ≈ plus de 5 % de frames perdues à 60 Hz pendant 6 s, premier repli ≈ 9–11 s après le début du run. Corrigé : retour explicite sur « auto » qui repart du net, changement de densité de pixels pris en compte, vignette masquée sur les écrans du menu, chiffre de résolution téléphone. Noté : le modèle du joueur est construit trois fois au chargement quand le réglage n'est pas « net » (1–2 ms, ponctuel) ; la vignette CSS coûte 0,2–0,5 ms de compositeur.
+
+## Phase 10 — mesures détaillées (4 nov. 2026, conteneur Linux)
+
+Porte PLAN.md §5 : profil nu = départ réel (1 arme, 2 améliorations, 0 palier) : survie p50 4–6 min, ≥ 40 % des runs passent 3 min, morts < 3 min ≤ 20 %, or médian ≥ 0,75 premier palier ; profil maxé (4/4, paliers max) : 13–16 min, fin 3–12 % ; escalier consigné ; nouveau joueur et migration vérifiés par Playwright.
+
+| Profil (bot average, seed 42, 100 runs, Éclaireuse) | p10 / p50 / p90          | Fin | Morts < 3 min             | Or / run |
+| --------------------------------------------------- | ------------------------ | --- | ------------------------- | -------- |
+| Départ : 1 arme, 2 améliorations, 0 palier          | 2:32 / **4:25** / 10:41  | 0 % | 13 % (87 % passent 3 min) | 171      |
+| 2 armes, 2 améliorations, 0 palier                  | 2:51 / **5:14** / 11:24  | 0 % | 12 %                      | 466      |
+| 3 armes, 3 améliorations, 4 paliers                 | 5:26 / **12:07** / 15:14 | 1 % | 1 %                       | 4 155    |
+| 4 armes, 4 améliorations, 8 paliers                 | 7:39 / **15:09** / 17:26 | 3 % | 1 %                       | 9 079    |
+
+Toutes les cibles des deux profils sont cochées. Économie des emplacements : 300 + 800 + 1 500 + 3 000 + 5 000 = 10 600 or, à gagner pendant que l'or par run passe de 170 à plus de 4 000 : l'arme n°2 arrive au 2e ou 3e run, la dernière vers le 25e.
+
+| Personnage, départ (1 arme)      | p10 / p50 / p90                             | Morts < 3 min |
+| -------------------------------- | ------------------------------------------- | ------------- |
+| Éclaireuse (référence)           | 2:32 / **4:25** / 10:41                     | 13 %          |
+| Bûcheron (Lames 2 → **3**)       | 1:44 / 3:31 / 9:11 → 2:22 / **5:08** / 9:30 | 41 % → 23 %   |
+| Vieille sorcière                 | 5:24 / **8:57** / 11:49                     | 1 %           |
+| Veilleuse                        | 2:25 / **5:13** / 14:22                     | 20 %          |
+| Braconnier                       | 2:56 / **7:51** / 10:41                     | 12 %          |
+| Sapeur                           | 3:46 / **5:50** / 8:45                      | 5 %           |
+| Feu follet                       | 2:21 / **4:00** / 8:10                      | 23 %          |
+| Revenante (deux armes de départ) | 3:51 / **8:18** / 11:48                     | 5 %           |
+| Colporteur (Lames 2 → **3**)     | 1:31 / 3:18 / 6:07 → 2:17 / **4:42** / 6:10 | 43 % → 27 %   |
+
+Les Lames seules ne tiennent pas le début de partie (anneau court, un Dard collé passe dessous) : les deux personnages qui en dépendent partent au niveau 3. Maxés, ils restent dans la fenêtre : Bûcheron 14:27, Colporteur 12:16 (± 3 min de 15:09). Tous les neuf au départ dans 4:00–8:57 : ± 3 min autour de l'Éclaireuse sauf la Sorcière (+4:32, Foudre forte en solo), acceptée comme en phase 8.
+
+| Mesure         | Valeur                                                                                                                                                                                                     | Comment                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Nouveau joueur | aucune « nouvelle arme » proposée à quatre montées de niveau de suite tant que l'emplacement n'est pas acheté ; après « Première nuit » + 300 or, l'arme n°2 s'achète et le run suivant a `maxWeapons = 2` | `e2e/newplayer.spec.ts`                 |
+| Migration      | sauvegarde v2 (or, runs, personnages) → zéro, réglages gardés (`quality: pixel` conservé), bannière « nouvelle progression » affichée jusqu'à la première partie                                           | `e2e/newplayer.spec.ts`, `meta.test.ts` |
+| Tests          | **252 Vitest** (+1 reset/migration, +1 emplacements, +1 tirage borné), **48 e2e**                                                                                                                          | `npm test`, `npm run test:e2e`          |
+
+Décisions de la phase :
+
+- **Kit de départ hors plafond** : la Revenante garde ses deux armes et le Colporteur ses deux passifs avec un seul emplacement ; ils ne piochent pas plus loin que les autres.
+- **Défi du jour au maximum** (4/4) : égalité entre joueurs, comme pour la boutique.
+- **Pas de remontée de l'emplacement par personnage** : les emplacements sont communs (décision de Jimmy), seuls les paliers restent par personnage.
+- **Or par run au départ ≈ 170** : cible ramenée à 0,75 premier palier (un palier tous les 1–2 runs), l'arme n°2 à 300 or arrive au 2e ou 3e run.
 
 ## Décisions prises en cours de route
 
