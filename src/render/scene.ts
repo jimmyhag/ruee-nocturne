@@ -31,7 +31,8 @@ import {
   roundTreeGeometry,
 } from './decor';
 import { buildEnemyGeometries } from './enemies';
-import { setDetail } from './parts';
+import { setDetail, withOutline } from './parts';
+import { OUTLINE, OUTLINE_RGB, toonMaterial } from './toon';
 import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -42,7 +43,7 @@ import { PAL } from './palette';
 const TAU = Math.PI * 2;
 const WHITE = new THREE.Color(0xffffff);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const lam = (c: number) => new THREE.MeshLambertMaterial({ color: c });
+const lam = (c: number) => toonMaterial({ color: c }); // phase 15 : toon partout (sauf lumineux et sol)
 const additive = (color: number, opacity: number) =>
   new THREE.MeshBasicMaterial({
     color,
@@ -180,7 +181,7 @@ export class GameScene {
     this.scene.fog = this.fog;
     this.hemi = new THREE.HemisphereLight(0xffd9c2, 0x3a2f55, 0.9);
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight(0xffe2b8, 0.85);
+    this.sun = new THREE.DirectionalLight(0xffe2b8, 1.0); // phase 15 : un peu plus fort, les trois tons du toon se lisent
     this.sun.position.set(-8, 14, 6);
     this.scene.add(this.sun);
     // phase 9 : lumière de contre bleutée, à l'opposé du soleil : détache les silhouettes du sol (aucun appel en plus)
@@ -211,7 +212,7 @@ export class GameScene {
     // ennemis : une silhouette par type (survivor-design §6), une couleur franche, une variante dorée (élite)
     const geos = buildEnemyGeometries(); // src/render/enemies.ts : une silhouette fusionnée par type
     for (let t = 0; t < geos.length; t++) {
-      const m = makeInstanced(geos[t], new THREE.MeshLambertMaterial({ vertexColors: true }), ENEMY_CAPS[t]);
+      const m = makeInstanced(geos[t], toonMaterial({ vertexColors: true }), ENEMY_CAPS[t]);
       this.scene.add(m);
       this.enemyW.push(new InstanceWriter(m));
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
@@ -314,7 +315,7 @@ export class GameScene {
     const d = new THREE.Object3D();
     const nTrees = w.treeCount;
     const treeCap = DECOR.trees + DECOR.woodTrees;
-    const vc = () => new THREE.MeshLambertMaterial({ vertexColors: true });
+    const vc = () => toonMaterial({ vertexColors: true });
     // deux essences (sapin, feuillu) à couleurs par sommet : la couleur d'instance ne porte que la variation de teinte
     const firs = makeInstanced(firGeometry(), vc(), treeCap);
     const rounds = makeInstanced(roundTreeGeometry(), vc(), treeCap);
@@ -329,7 +330,7 @@ export class GameScene {
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
     // ombres des arbres et des plateaux (phase 9 : +1 appel ; phase 11 : les plateaux partagent le mesh)
     const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap + PLATEAUX.n);
-    const plateaux = makeInstanced(plateauGeometry(), vc(), PLATEAUX.n); // phase 11 : +1 appel
+    const plateaux = makeInstanced(withOutline(plateauGeometry(), OUTLINE.decor, OUTLINE_RGB), vc(), PLATEAUX.n); // phase 11 : +1 appel ; phase 15 : contour
     const tint = new THREE.Color();
     let nf = 0,
       nr = 0;

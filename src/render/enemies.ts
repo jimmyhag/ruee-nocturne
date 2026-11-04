@@ -4,8 +4,9 @@
 // > 1 = clair (yeux, crocs, lames), écrêté à blanc par le shader. Les rayons suivent ENEMIES[].r (collisions).
 import type * as THREE from 'three';
 import { ENEMIES } from '../sim/balance';
-import { merge, paint, primGeometry } from './parts';
+import { merge, paint, primGeometry, withOutline } from './parts';
 import type { Prim } from './parts';
+import { OUTLINE, OUTLINE_RGB } from './toon';
 
 /** Multiplicateur : corps (1), sombre, clair (yeux), lumineux (lames, crocs) */
 type Shade = 'body' | 'dark' | 'mid' | 'eye' | 'bright';
@@ -36,8 +37,8 @@ const LOOKS: EPart[][] = [
   [
     { shape: 'cone', size: [0.36, 0.95], pos: [0, 0, 0.1], rot: [Math.PI / 2, 0, 0], ...S5 },
     { shape: 'cone', size: [0.1, 0.32], pos: [0, 0, 0.72], rot: [Math.PI / 2, 0, 0], shade: 'dark', seg: 4 },
-    { shape: 'box', size: [0.55, 0.04, 0.34], pos: [-0.42, 0.14, -0.1], rot: [0, 0.4, 0.25], shade: 'bright' },
-    { shape: 'box', size: [0.55, 0.04, 0.34], pos: [0.42, 0.14, -0.1], rot: [0, -0.4, -0.25], shade: 'bright' },
+    { shape: 'plate', size: [0.55, 0.04, 0.34], pos: [-0.42, 0.14, -0.1], rot: [0, 0.4, 0.25], shade: 'bright' },
+    { shape: 'plate', size: [0.55, 0.04, 0.34], pos: [0.42, 0.14, -0.1], rot: [0, -0.4, -0.25], shade: 'bright' },
     ...eyes(0.14, 0.1, 0.3, 0.1),
   ],
   // 2 Brute : masse carrée, cornes, poings
@@ -62,8 +63,8 @@ const LOOKS: EPart[][] = [
   // 4 Volant : chauve-souris — petit corps, deux ailes, oreilles
   [
     { shape: 'sphere', size: [0.34], pos: [0, 0, 0], ...S5 },
-    { shape: 'box', size: [1.1, 0.05, 0.5], pos: [-0.72, 0.08, 0], rot: [0, 0, 0.22], shade: 'mid' },
-    { shape: 'box', size: [1.1, 0.05, 0.5], pos: [0.72, 0.08, 0], rot: [0, 0, -0.22], shade: 'mid' },
+    { shape: 'plate', size: [1.1, 0.05, 0.5], pos: [-0.72, 0.08, 0], rot: [0, 0, 0.22], shade: 'mid' },
+    { shape: 'plate', size: [1.1, 0.05, 0.5], pos: [0.72, 0.08, 0], rot: [0, 0, -0.22], shade: 'mid' },
     { shape: 'cone', size: [0.1, 0.3], pos: [-0.16, 0.4, 0], shade: 'dark', seg: 4 },
     { shape: 'cone', size: [0.1, 0.3], pos: [0.16, 0.4, 0], shade: 'dark', seg: 4 },
     ...eyes(0.12, 0.06, 0.3, 0.1),
@@ -106,7 +107,7 @@ const LOOKS: EPart[][] = [
     { shape: 'sphere', size: [0.5], pos: [0, 1.35, 0.15], shade: 'dark' },
     ...eyes(0.2, 1.4, 0.55, 0.18),
     { shape: 'cyl', size: [0.08, 0.08, 4.4], pos: [1.5, 0.2, 0.2], rot: [0, 0, 0.1], shade: 'dark' },
-    { shape: 'box', size: [1.9, 0.18, 0.5], pos: [0.7, 2.35, 0.2], rot: [0, 0, 0.5], shade: 'bright' },
+    { shape: 'plate', size: [1.9, 0.18, 0.5], pos: [0.7, 2.35, 0.2], rot: [0, 0, 0.5], shade: 'bright' },
   ],
 ];
 
@@ -117,7 +118,11 @@ export function buildEnemyGeometry(type: number): THREE.BufferGeometry {
     const [r, g, b] = SHADE[p.shade ?? 'body'];
     return paint(primGeometry(p), r, g, b);
   });
-  return merge(parts);
+  // phase 15 : contour toon cuit dans la silhouette (plus épais sur les boss, grands à l'écran)
+  const body = merge(parts);
+  const out = withOutline(body, ENEMIES[type]?.boss ? OUTLINE.boss : OUTLINE.enemy, OUTLINE_RGB);
+  if (out !== body) body.dispose();
+  return out;
 }
 
 /** Une géométrie par type de ENEMIES, dans l'ordre. */
