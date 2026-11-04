@@ -120,6 +120,8 @@ function runOnce(seed: number): RunResult {
     [HurtSrc.Charge]: 'charge',
     [HurtSrc.Spit]: 'crachat',
     [HurtSrc.Zone]: 'zone',
+    [HurtSrc.Arrow]: 'flèche',
+    [HurtSrc.Fire]: 'feu',
   };
   const alive: number[] = [];
   const maxFrames = UNTIL / STEP;

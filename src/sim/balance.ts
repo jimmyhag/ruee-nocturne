@@ -294,6 +294,7 @@ export const SORCIER = {
   keepMin: 12,
   keepMax: 15,
   period: 3.8,
+  windup: 0.35, // mains levées avant le lancer (lisible)
   cast: 1.1, // durée du vol = cercle rouge au sol qui se remplit
   r: 1.9,
   dmg: 13, // × dmgScale

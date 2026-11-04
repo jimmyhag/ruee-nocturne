@@ -1,6 +1,6 @@
-import { CRACHEUR_TYPE, ENEMIES, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
-import { ignoresGround, tickBoss, tickFlyer, tickSpitter } from './bosses';
+import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
 import { applyCard, rollChoices, tickChests, tickGems } from './progression';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
@@ -148,10 +148,12 @@ function stepEnemies(w: World, dt: number): void {
   const grid = w.grid;
   // en l'air : hors de portée du contact (phase 16 : sol plat, plus de plateaux)
   const airborne = P.y >= PLAYER.airborneSafeY;
+  let shooters = 0;
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (!e.alive) continue;
     const def = ENEMIES[e.type];
+    if (e.type === ARCHER_TYPE || e.type === CRACHEUR_TYPE || e.type === SORCIER_TYPE) shooters++;
     e.px = e.x;
     e.pz = e.z;
     const dx = P.x - e.x,
@@ -167,6 +169,8 @@ function stepEnemies(w: World, dt: number): void {
     else if (isCharger(e)) tickCharger(w, e, dt, dx, dz, d, mv);
     else if (e.type === VOLANT_TYPE) tickFlyer(w, e, dt, dx, dz, d, mv);
     else if (e.type === CRACHEUR_TYPE) tickSpitter(w, e, dt, dx, dz, d, mv);
+    else if (e.type === ARCHER_TYPE) tickArcher(w, e, dt, dx, dz, d, mv);
+    else if (e.type === SORCIER_TYPE) tickSorcier(w, e, dt, dx, dz, d, mv);
     else {
       const sp = def.speed * e.spd;
       mv[0] = (dx / d) * sp;
@@ -243,6 +247,7 @@ function stepEnemies(w: World, dt: number): void {
       }
     }
   }
+  w.shooters = shooters;
   if (hurt > 0) {
     w.lastAction = w.t;
     w.hurtAt = w.t;
@@ -266,11 +271,18 @@ function tickShots(w: World, dt: number): void {
       dz = P.z - s.z,
       rr = s.r + PLAYER.radius;
     const inside = dx * dx + dz * dz < rr * rr;
-    if (s.kind === ShotKind.Spit) {
-      if (inside && !airborne && P.invul <= 0) {
+    if (s.kind === ShotKind.Spit || s.kind === ShotKind.Arrow) {
+      // tirs droits : le crachat (au sol) se saute, la flèche non ; les deux s'arrêtent sur un obstacle (phase 16)
+      const arrow = s.kind === ShotKind.Arrow;
+      if (inside && (arrow || !airborne) && P.invul <= 0) {
         P.hp -= s.dmg * (1 - P.armor);
         hurt += s.dmg * (1 - P.armor);
-        w.lastHurt = HurtSrc.Spit;
+        w.lastHurt = arrow ? HurtSrc.Arrow : HurtSrc.Spit;
+        w.freeShot(i);
+        continue;
+      }
+      if (w.blocksShot(s.x, s.z, s.r)) {
+        w.emit(Ev.ShotBlocked, s.x, arrow ? 1 : 0.3, s.z, s.kind);
         w.freeShot(i);
         continue;
       }
@@ -306,12 +318,12 @@ function tickShots(w: World, dt: number): void {
         w.freeShot(i);
       }
     } else if (s.life <= 0) {
-      // zone : explose
+      // zone du Colosse ou boule de feu du Sorcier (phase 16) : explose ; un joueur en l'air y échappe
       w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
       if (inside && !airborne && P.invul <= 0) {
         P.hp -= s.dmg * (1 - P.armor);
         hurt += s.dmg * (1 - P.armor);
-        w.lastHurt = HurtSrc.Zone;
+        w.lastHurt = s.kind === ShotKind.Fireball ? HurtSrc.Fire : HurtSrc.Zone;
       }
       w.freeShot(i);
     }

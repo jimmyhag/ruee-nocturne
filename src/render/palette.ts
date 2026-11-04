@@ -24,6 +24,8 @@ export const PAL = {
   boomerang: 0x9fe8b4,
   mine: 0xff6a3d,
   spit: 0x8cf08c,
+  arrow: 0xf3ecdc, // phase 16 : flèche de l'Archer, claire sur la nuit bleue
+  fire: 0xff8a3d, // phase 16 : boule de feu du Sorcier
   telegraph: 0xff3b5c,
   dust: 0x9aa4c2,
   cream: 0xf3ecdc,

@@ -1272,6 +1272,18 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, e.y, e.z, PAL.spit, (3 * fx) | 0, 2, 2, false);
         audio.spit();
         break;
+      case Ev.Arrow:
+        S.particles.burst(e.x + e.x2 * 0.6, e.y + 0.2, e.z + e.z2 * 0.6, PAL.arrow, (3 * fx) | 0, 2, 2, false);
+        audio.arrow();
+        break;
+      case Ev.Cast:
+        S.particles.burst(e.x, e.y, e.z, PAL.fire, (6 * fx) | 0, 3, 3);
+        audio.cast();
+        break;
+      case Ev.ShotBlocked:
+        S.particles.burst(e.x, e.y, e.z, PAL.dust, (5 * fx) | 0, 3, 3);
+        audio.thud();
+        break;
       case Ev.Dive:
         audio.dive();
         break;

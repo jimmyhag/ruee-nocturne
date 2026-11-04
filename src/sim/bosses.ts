@@ -1,6 +1,6 @@
 // Scripts des boss (survivor-design §7) : 2 attaques télégraphiées + phase à 50 % PV, 45–90 s.
 // Chaque script écrit le déplacement voulu dans `mv` (u/s) ; les dégâts de contact restent gérés par step.ts.
-import { BOSS, BOSS_TYPE, COLOSSUS_TYPE, CRACHEUR, DARD_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, BOSS, BOSS_TYPE, COLOSSUS_TYPE, CRACHEUR, DARD_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SORCIER, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
 import { emitRing } from './hazards';
 import { spawnEnemy } from './spawner';
 import { Ev, ShotKind } from './types';
@@ -150,6 +150,20 @@ export function tickFlyer(w: World, e: Enemy, dt: number, dx: number, dz: number
   }
 }
 
+/** Garder ses distances : approche au-delà de max, recule en deçà de min, tourne autour entre les deux. */
+function keepDistance(ux: number, uz: number, sp: number, d: number, min: number, max: number, orbit: number, mv: Float64Array): void {
+  if (d > max) {
+    mv[0] = ux * sp;
+    mv[1] = uz * sp;
+  } else if (d < min) {
+    mv[0] = -ux * sp;
+    mv[1] = -uz * sp;
+  } else {
+    mv[0] = -uz * sp * orbit;
+    mv[1] = ux * sp * orbit;
+  }
+}
+
 /** Cracheur : garde ses distances (7–9 u), vise 0,6 s puis crache un projectile lent au sol. */
 export function tickSpitter(w: World, e: Enemy, dt: number, dx: number, dz: number, d: number, mv: Float64Array): void {
   const C = CRACHEUR;
@@ -157,16 +171,7 @@ export function tickSpitter(w: World, e: Enemy, dt: number, dx: number, dz: numb
   const sp = def.speed * e.spd;
   const ux = dx / d,
     uz = dz / d;
-  if (d > C.keepMax) {
-    mv[0] = ux * sp;
-    mv[1] = uz * sp;
-  } else if (d < C.keepMin) {
-    mv[0] = -ux * sp;
-    mv[1] = -uz * sp;
-  } else {
-    mv[0] = -uz * sp * C.orbit; // tourne autour
-    mv[1] = ux * sp * C.orbit;
-  }
+  keepDistance(ux, uz, sp, d, C.keepMin, C.keepMax, C.orbit, mv);
   e.timer -= dt;
   if (e.state === 0) {
     e.aim = 0;
@@ -195,3 +200,95 @@ export function tickSpitter(w: World, e: Enemy, dt: number, dx: number, dz: numb
   }
 }
 
+/**
+ * Archer (phase 16) : garde 10–13 u, vise 0,5 s (ligne fine, e.aim) puis tire une flèche rapide en ligne droite ;
+ * l'élite tire une volée en éventail. La flèche part dans la direction visée au début du tir : on l'esquive en bougeant.
+ */
+export function tickArcher(w: World, e: Enemy, dt: number, dx: number, dz: number, d: number, mv: Float64Array): void {
+  const A = ARCHER;
+  const def = ENEMIES[e.type];
+  const sp = def.speed * e.spd;
+  const ux = dx / d,
+    uz = dz / d;
+  if (e.state === 1) {
+    mv[0] = mv[1] = 0; // immobile pendant la visée : lisible
+  } else keepDistance(ux, uz, sp, d, A.keepMin, A.keepMax, A.orbit, mv);
+  e.timer -= dt;
+  if (e.state === 0) {
+    e.aim = 0;
+    if (e.timer <= 0 && d < A.keepMax + A.fireMargin) {
+      e.state = 1;
+      e.timer = A.aim;
+      e.tx = ux; // direction visée, figée : la ligne de visée ne suit pas le joueur
+      e.tz = uz;
+    }
+  } else {
+    e.aim = 1 - Math.max(0, e.timer / A.aim);
+    if (e.timer <= 0) {
+      e.state = 0;
+      e.timer = A.period * w.rng.range(0.85, 1.15); // désynchronisés
+      const n = e.elite ? A.volley : 1;
+      for (let k = 0; k < n; k++) {
+        const s = w.allocShot();
+        if (!s) break;
+        const a = (k - (n - 1) / 2) * A.spread,
+          c = Math.cos(a),
+          sn = Math.sin(a),
+          vx = e.tx * c - e.tz * sn,
+          vz = e.tx * sn + e.tz * c;
+        s.kind = ShotKind.Arrow;
+        s.r = A.shotR;
+        s.x = s.px = e.x + vx * (e.r + 0.2);
+        s.z = s.pz = e.z + vz * (e.r + 0.2);
+        s.vx = vx * A.shotSpeed;
+        s.vz = vz * A.shotSpeed;
+        s.life = A.shotLife;
+        s.dmg = A.shotDmg * e.dmgMul;
+        s.hit = false;
+      }
+      w.emit(Ev.Arrow, e.x, e.y, e.z, n, e.tx, 0, e.tz);
+    }
+  }
+}
+
+/**
+ * Sorcier (phase 16) : garde 12–15 u, lève les mains 0,35 s (e.aim) puis lance une boule de feu en cloche qui retombe
+ * là où était le joueur après SORCIER.cast s ; un cercle rouge se remplit au sol pendant le vol.
+ */
+export function tickSorcier(w: World, e: Enemy, dt: number, dx: number, dz: number, d: number, mv: Float64Array): void {
+  const S = SORCIER;
+  const def = ENEMIES[e.type];
+  const sp = def.speed * e.spd;
+  const ux = dx / d,
+    uz = dz / d;
+  keepDistance(ux, uz, sp, d, S.keepMin, S.keepMax, S.orbit, mv);
+  e.timer -= dt;
+  if (e.state === 0) {
+    e.aim = 0;
+    if (e.timer <= 0 && d < S.keepMax + S.fireMargin) {
+      e.state = 1;
+      e.timer = S.windup;
+    }
+  } else {
+    e.aim = 1 - Math.max(0, e.timer / S.windup);
+    if (e.timer <= 0) {
+      e.state = 0;
+      e.timer = S.period * w.rng.range(0.85, 1.15);
+      const s = w.allocShot();
+      if (s) {
+        s.kind = ShotKind.Fireball;
+        s.r = S.r;
+        s.x = s.px = w.player.x;
+        s.z = s.pz = w.player.z;
+        s.vx = s.vz = 0;
+        s.ox = e.x;
+        s.oz = e.z;
+        s.life = s.t0 = S.cast;
+        s.dmg = S.dmg * e.dmgMul;
+        s.hit = false;
+        w.emit(Ev.Cast, e.x, e.y + 0.8, e.z, S.r, s.x, S.cast, s.z);
+        w.emit(Ev.Telegraph, s.x, 0, s.z, S.r, S.cast);
+      }
+    }
+  }
+}

@@ -5,6 +5,8 @@ import {
   DECOR,
   ELITE_TYPE,
   ENEMIES,
+  ARCHER,
+  ARCHER_TYPE,
   HAZARDS,
   REAPER_TYPE,
   STEP,
@@ -68,7 +70,8 @@ const flat = (color: number, opacity: number) =>
 const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
 
 // capacités d'instances par type d'ennemi (CAPS.enemies = 520 au total)
-const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1];
+const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
+const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1, 40, 24]; // phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24)
 
 interface Ghost {
   x: number;
@@ -113,6 +116,8 @@ export class GameScene {
   private boomW: InstanceWriter;
   private mineW: InstanceWriter;
   private spitW: InstanceWriter;
+  private arrowW: InstanceWriter; // phase 16 : flèches des Archers
+  private fireW: InstanceWriter; // phase 16 : boules de feu en vol
   private zoneW: InstanceWriter; // cercles rouges du Colosse (anneau)
   private zoneFillW: InstanceWriter; // disque qui se remplit pendant le télégraphe
   private ringW: InstanceWriter; // ondes de choc du Gardien (phase 11) : anneau fin, rayon = portée du coup
@@ -131,6 +136,8 @@ export class GameScene {
   private cFire = new THREE.Color(PAL.accent); // traînée de feu du Feu follet (même mesh que les mines, plus large et plate)
   private cMineArmed = new THREE.Color(0xffffff);
   private cSpit = new THREE.Color(PAL.spit);
+  private cArrow = new THREE.Color(PAL.arrow);
+  private cFireball = new THREE.Color(PAL.fire); // phase 16 : boule de feu du Sorcier
   private cTele = new THREE.Color(PAL.telegraph);
   private cShadow = new THREE.Color(PAL.ink);
   private cBladeGhost = [0.6, 0.35, 0.15].map((f) => new THREE.Color(PAL.paper).multiplyScalar(f));
@@ -238,6 +245,12 @@ export class GameScene {
     this.spitW = new InstanceWriter(
       makeInstanced(new THREE.SphereGeometry(0.32, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
     );
+    this.arrowW = new InstanceWriter(
+      makeInstanced(new THREE.BoxGeometry(0.07, 0.07, 0.95), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
+    );
+    this.fireW = new InstanceWriter(
+      makeInstanced(new THREE.IcosahedronGeometry(0.42, 1), additive(0xffffff, 0.95), 32),
+    );
     this.zoneW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.9, 1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 96),
     );
@@ -259,6 +272,8 @@ export class GameScene {
       this.boomW.mesh,
       this.mineW.mesh,
       this.spitW.mesh,
+      this.arrowW.mesh,
+      this.fireW.mesh,
       this.zoneW.mesh,
       this.zoneFillW.mesh,
       this.ringW.mesh,
@@ -292,6 +307,8 @@ export class GameScene {
       this.boomW,
       this.mineW,
       this.spitW,
+      this.arrowW,
+      this.fireW,
       this.zoneW,
       this.zoneFillW,
       this.ringW,
@@ -656,6 +673,9 @@ export class GameScene {
       } else {
         this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, Math.sin(now * 5 + e.bob) * 0.2, 0, s, s * S.enemyStretch);
         if (e.type === 5 && e.aim > 0) this.aims.add(ex, 0.9, ez, px, 0.9, pz, e.aim); // ligne de visée du Cracheur
+        // phase 16 : ligne de visée de l'Archer, figée dans la direction du tir (16 u : la portée de la flèche)
+        if (e.type === ARCHER_TYPE && e.state === 1)
+          this.aims.add(ex, 1.0, ez, ex + e.tx * ARCHER_RANGE, 1.0, ez + e.tz * ARCHER_RANGE, e.aim);
         if (e.elite && e.type === ELITE_TYPE && e.state === 1) {
           // Brute élite qui arme sa charge : couloir rouge au sol jusqu'au point d'arrivée, qui s'élargit (0 → largeur réelle)
           const C = HAZARDS.charge;
@@ -685,6 +705,8 @@ export class GameScene {
 
     // crachats et cercles rouges (projectiles ennemis)
     this.spitW.begin();
+    this.arrowW.begin();
+    this.fireW.begin();
     this.zoneW.begin();
     this.ringW.begin();
     for (let i = 0; i < w.shotCount; i++) {
@@ -698,6 +720,28 @@ export class GameScene {
           1,
           this.cSpit,
         );
+      } else if (sh.kind === ShotKind.Arrow) {
+        this.arrowW.put(
+          lerp(sh.px, sh.x, alpha),
+          1.0,
+          lerp(sh.pz, sh.z, alpha),
+          Math.atan2(sh.vx, sh.vz),
+          1,
+          this.cArrow,
+        );
+      } else if (sh.kind === ShotKind.Fireball) {
+        // boule de feu : arc en cloche du Sorcier vers le cercle, qui se remplit au sol pendant le vol
+        const f = Math.min(1, 1 - (sh.life - alpha * STEP) / sh.t0);
+        this.fireW.put(
+          sh.ox + (sh.x - sh.ox) * f,
+          0.9 + Math.sin(f * Math.PI) * 4.5 + (1 - f) * 0.6,
+          sh.oz + (sh.z - sh.oz) * f,
+          now * 6,
+          1 + Math.sin(now * 20) * 0.08,
+          this.cFireball,
+        );
+        this.zoneW.put(sh.x, 0.05, sh.z, 0, sh.r, this.cTele);
+        this.zoneFillW.put(sh.x, 0.045, sh.z, 0, sh.r * f, this.cTele);
       } else if (sh.kind === ShotKind.Ring) {
         // onde de choc du Gardien : anneau qui grandit, posé au sol (le joueur la saute)
         const r = sh.r + HAZARDS.ring.speed * alpha * STEP;
@@ -714,6 +758,8 @@ export class GameScene {
       }
     }
     this.spitW.end();
+    this.arrowW.end();
+    this.fireW.end();
     this.zoneW.end();
     this.zoneFillW.end();
     this.ringW.end();

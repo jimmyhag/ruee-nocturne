@@ -158,6 +158,9 @@ export const enum Ev {
   Eruption, // phase 11 : pic sorti du sol en (x,y,z), v = rayon
   Ring, // phase 11 : anneau de choc émis par le Gardien, v = rayon final
   Charge, // phase 11 : Brute élite qui arme sa charge : (x,z) → (x2,z2), v = durée du télégraphe
+  Arrow, // phase 16 : flèche tirée en (x,y,z), direction (x2,z2)
+  Cast, // phase 16 : boule de feu lancée de (x,y,z) vers (x2,z2), v = rayon, y2 = durée du vol
+  ShotBlocked, // phase 16 : tir arrêté par un obstacle en (x,y,z), v = ShotKind
 }
 
 export interface GameEvent {

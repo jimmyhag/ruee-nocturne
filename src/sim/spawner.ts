@@ -1,4 +1,4 @@
-import { BOSS_TYPE, BOSSES, CAPS, ELITE, ELITE_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER_TYPE, BOSS_TYPE, BOSSES, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -26,7 +26,8 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.dmgMul = SPAWN.dmgScale(w.t);
   e.bob = w.rng.range(0, TAU);
   e.state = 0;
-  e.timer = type === VOLANT_TYPE ? w.rng.range(0.5, VOLANT.divePeriod) : 0; // plongées désynchronisées
+  // plongées et premiers tirs désynchronisés (phase 16 : un tireur qui arrive ne tire pas tout de suite)
+  e.timer = type === VOLANT_TYPE ? w.rng.range(0.5, VOLANT.divePeriod) : type === ARCHER_TYPE || type === SORCIER_TYPE ? w.rng.range(0.8, 2) : 0;
   e.aim = type === BOSS_TYPE ? HAZARDS.ring.first : 0; // Gardien : minuteur de l'anneau de choc (phase 11)
   if (elite && type === ELITE_TYPE) e.timer = HAZARDS.charge.first; // Brute élite : première charge différée
   e.tx = e.tz = 0;
@@ -56,7 +57,10 @@ export function tickSpawner(w: World, dt: number): void {
   while (w.spawnAcc >= 1) {
     w.spawnAcc -= 1;
     if (w.enemyCount < CAPS.enemies) {
-      const type = SPAWN.pick(t, w.rng.next());
+      let type = SPAWN.pick(t, w.rng.next());
+      // phase 16 : plafond de tireurs à l'écran (lisibilité) ; au-delà, un Spectre
+      if ((type === ARCHER_TYPE || type === CRACHEUR_TYPE || type === SORCIER_TYPE) && w.shooters >= SPAWN.maxShooters) type = 0;
+      else if (type === ARCHER_TYPE || type === CRACHEUR_TYPE || type === SORCIER_TYPE) w.shooters++;
       spawnEnemy(w, type, w.rng.range(0, TAU), w.rng.range(SPAWN.ringMin, SPAWN.ringMax));
     }
   }
@@ -64,7 +68,8 @@ export function tickSpawner(w: World, dt: number): void {
   if (t >= w.nextElite) {
     w.nextElite += SPAWN.elitePeriod;
     const type = SPAWN.pick(t, w.rng.next());
-    spawnEnemy(w, type === 5 ? 2 : type, w.rng.range(0, TAU), SPAWN.ringMin, true); // jamais un Cracheur élite (il fuit)
+    // jamais un Cracheur ni un Sorcier élite (ils fuient et le coffre serait hors d'atteinte) ; l'Archer élite tire en éventail
+    spawnEnemy(w, type === CRACHEUR_TYPE || type === SORCIER_TYPE ? ELITE_TYPE : type, w.rng.range(0, TAU), SPAWN.ringMin, true);
   }
   if (t >= w.nextWave) {
     w.nextWave += SPAWN.wavePeriod;
