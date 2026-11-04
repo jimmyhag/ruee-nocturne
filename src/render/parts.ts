@@ -4,14 +4,19 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-/** `box` : arrondie (phase 15) dès que sa plus petite dimension dépasse ROUND_MIN ; `plate` : boîte brute (ailes, lames) */
-export type Shape = 'box' | 'plate' | 'capsule' | 'cyl' | 'cone' | 'sphere' | 'ico' | 'octa';
+/**
+ * `box` : boîte, arrondie (phase 15) quand le modèle le demande (`round` de primGeometry : personnages et boss, un
+ * modèle unique ou deux à l'écran) et que sa plus petite dimension dépasse ROUND_MIN ; `plate` : boîte toujours brute
+ * (ailes, lames). Les familles instanciées en masse (Brute, Cracheur) restent en boîtes brutes : une boîte arrondie
+ * pèse 300 triangles contre 12 (× 2 avec le contour), 120 Brutes arrondies dépasseraient à elles seules le budget.
+ */
+export type Shape = 'box' | 'plate' | 'cyl' | 'cone' | 'sphere' | 'ico' | 'octa';
 /** Sous cette épaisseur une boîte reste brute (plaques fines) ; au-dessus elle est arrondie : rayon = ROUND × min(dims). */
 const ROUND_MIN = 0.2;
 const ROUND = 0.24;
 export interface Prim {
   shape: Shape;
-  /** box/plate : [w, h, d] ; capsule : [r, longueur] ; cyl : [rTop, rBottom, h] ; cone : [r, h] ; sphere/ico/octa : [r] */
+  /** box/plate : [w, h, d] ; cyl : [rTop, rBottom, h] ; cone : [r, h] ; sphere/ico/octa : [r] */
   size: number[];
   pos: [number, number, number];
   rot?: [number, number, number];
@@ -28,25 +33,23 @@ export function getDetail(): number {
   return detail;
 }
 
-/** Géométrie non indexée d'une primitive, déjà placée. */
-export function primGeometry(p: Prim): THREE.BufferGeometry {
+/** Géométrie non indexée d'une primitive, déjà placée. `round` : les boîtes assez épaisses sont arrondies. */
+export function primGeometry(p: Prim, round = false): THREE.BufferGeometry {
   const s = p.size;
   const seg = p.seg ?? detail;
   let g: THREE.BufferGeometry;
   switch (p.shape) {
     case 'box': {
       const m = Math.min(s[0], s[1], s[2]);
+      // 2 segments d'arrondi en rendu net (300 tris), 1 en rendu pixel (108 tris) : le réglage de qualité agit aussi ici
       g =
-        m >= ROUND_MIN
-          ? new RoundedBoxGeometry(s[0], s[1], s[2], 2, m * ROUND)
+        round && m >= ROUND_MIN
+          ? new RoundedBoxGeometry(s[0], s[1], s[2], detail > 7 ? 2 : 1, m * ROUND)
           : new THREE.BoxGeometry(s[0], s[1], s[2]);
       break;
     }
     case 'plate':
       g = new THREE.BoxGeometry(s[0], s[1], s[2]);
-      break;
-    case 'capsule':
-      g = new THREE.CapsuleGeometry(s[0], s[1], 2, seg);
       break;
     case 'cyl':
       g = new THREE.CylinderGeometry(s[0], s[1], s[2], seg);

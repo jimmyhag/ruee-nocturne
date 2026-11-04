@@ -10,7 +10,7 @@ Fini les cubes : ombrage toon à trois tons, contours sombres, formes arrondies.
 
 - **Rendu toon** : personnages, ennemis et décor passent à un ombrage à trois tons (ombre, demi-teinte, lumière) à bandes nettes ; le soleil est un peu plus fort pour que les tons se lisent la nuit.
 - **Contours** : un contour bleu nuit presque noir entoure les personnages, les ennemis (plus épais sur les boss) et les plateaux. Il est cuit dans les géométries (coque inversée fusionnée) : aucun appel de rendu en plus, les budgets ne bougent pas.
-- **Formes arrondies** : toute boîte assez épaisse devient une boîte à bords arrondis (têtes, torses, corps des Brutes et du Colosse) ; les plaques fines (ailes, visières, lames) restent nettes. Nouvelle primitive capsule disponible pour les modèles.
+- **Formes arrondies** : sur les personnages et les boss, toute boîte assez épaisse devient une boîte à bords arrondis (têtes, torses, corps du Colosse) ; les plaques fines (ailes, visières, lames) restent nettes. Les ennemis de masse gardent des boîtes simples sous leur contour (budget de triangles à 400 ennemis).
 
 ### Modifié
 

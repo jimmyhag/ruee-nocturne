@@ -72,9 +72,9 @@ const LOOKS: EPart[][] = [
   // 5 Cracheur : crapaud trapu, gueule sombre, yeux globuleux
   [
     { shape: 'cyl', size: [0.5, 0.65, 1.1], pos: [0, -0.1, 0], ...S5 },
-    { shape: 'box', size: [0.7, 0.22, 0.3], pos: [0, 0.05, 0.5], shade: 'dark' },
-    { shape: 'sphere', size: [0.2], pos: [-0.3, 0.58, 0.25], shade: 'eye' },
-    { shape: 'sphere', size: [0.2], pos: [0.3, 0.58, 0.25], shade: 'eye' },
+    { shape: 'plate', size: [0.7, 0.22, 0.3], pos: [0, 0.05, 0.5], shade: 'dark' },
+    { shape: 'sphere', size: [0.2], pos: [-0.3, 0.58, 0.25], shade: 'eye', ...S5 },
+    { shape: 'sphere', size: [0.2], pos: [0.3, 0.58, 0.25], shade: 'eye', ...S5 },
     { shape: 'box', size: [0.1, 0.1, 0.1], pos: [-0.3, 0.6, 0.42], shade: 'dark' },
     { shape: 'box', size: [0.1, 0.1, 0.1], pos: [0.3, 0.6, 0.42], shade: 'dark' },
   ],
@@ -114,13 +114,15 @@ const LOOKS: EPart[][] = [
 /** Géométrie fusionnée d'un type d'ennemi (une par type, instanciée). */
 export function buildEnemyGeometry(type: number): THREE.BufferGeometry {
   const look = LOOKS[type] ?? LOOKS[0];
+  const boss = !!ENEMIES[type]?.boss;
+  // phase 15 : boîtes arrondies sur les boss seulement (deux à l'écran) ; la masse garde des boîtes à 12 triangles
   const parts = look.map((p) => {
     const [r, g, b] = SHADE[p.shade ?? 'body'];
-    return paint(primGeometry(p), r, g, b);
+    return paint(primGeometry(p, boss), r, g, b);
   });
   // phase 15 : contour toon cuit dans la silhouette (plus épais sur les boss, grands à l'écran)
   const body = merge(parts);
-  const out = withOutline(body, ENEMIES[type]?.boss ? OUTLINE.boss : OUTLINE.enemy, OUTLINE_RGB);
+  const out = withOutline(body, boss ? OUTLINE.boss : OUTLINE.enemy, OUTLINE_RGB);
   if (out !== body) body.dispose();
   return out;
 }

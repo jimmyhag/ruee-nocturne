@@ -201,7 +201,7 @@ export function buildCharacter(key: CharacterKey, skin = 0): CharacterModel {
     legR: THREE.Mesh | null = null;
   const disposables: { dispose(): void }[] = [];
   for (const p of look.parts) {
-    const g = primGeometry(p);
+    const g = primGeometry(p, true); // un seul modèle à l'écran : boîtes arrondies (phase 15)
     all.push(g.clone());
     if (p.role === 'legL' || p.role === 'legR') {
       // couleur par sommet (le contour cuit est sombre) : le matériau toon partagé suffit

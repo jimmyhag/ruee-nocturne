@@ -330,7 +330,9 @@ export class GameScene {
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
     // ombres des arbres et des plateaux (phase 9 : +1 appel ; phase 11 : les plateaux partagent le mesh)
     const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap + PLATEAUX.n);
-    const plateaux = makeInstanced(withOutline(plateauGeometry(), OUTLINE.decor, OUTLINE_RGB), vc(), PLATEAUX.n); // phase 11 : +1 appel ; phase 15 : contour
+    const plateauSrc = plateauGeometry();
+    const plateaux = makeInstanced(withOutline(plateauSrc, OUTLINE.decor, OUTLINE_RGB), vc(), PLATEAUX.n); // phase 11 : +1 appel ; phase 15 : contour
+    plateauSrc.dispose(); // withOutline a copié ses sommets dans la géométrie fusionnée
     const tint = new THREE.Color();
     let nf = 0,
       nr = 0;
