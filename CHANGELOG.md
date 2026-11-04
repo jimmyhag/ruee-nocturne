@@ -17,7 +17,7 @@ La progression en run devient longue et granulaire : les armes et les tomes se m
 ### Modifié
 
 - **Plus d'évolutions** (Nova, Soleil noir, Tempête, Orage) : la puissance vient des lignes (décision de Jimmy).
-- Courbe d'XP aplatie (≈ 3× plus de montées de niveau : ≈ 35 cartes à 10 min, une toutes les ~15 s) et montée des ennemis plus douce (PV t/190 et milieu de partie /110, dégâts t/560, éruptions 13 PV) pour que la montée par petites lignes reste sensible.
+- Courbe d'XP aplatie (≈ 3× plus de montées de niveau : ≈ 35 cartes à 10 min, une toutes les ~15 s) et montée des ennemis plus douce (PV t/170 avec un milieu de partie à /85 et une fin de partie raide après 15:00, dégâts t/500 puis très raides après 15:00, éruptions 12 PV, crachats 11) pour que la montée par petites lignes reste sensible.
 - Kit de départ : Bûcheron et Colporteur partent avec Lames +1 lame et +dégâts, le Braconnier avec Boomerang +dégâts, le Colporteur avec deux lignes de Chance et trois d'Or (≈ Trèfle 1 et Bourse 1 d'avant).
 - §§MESURES§§
 

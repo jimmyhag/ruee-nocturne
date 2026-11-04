@@ -107,10 +107,10 @@ describe('tomes', () => {
       }
     }
   });
-  it('l’armure est bornée à 45 % et la recharge à 25 %', () => {
+  it('l’armure est bornée à 36 % et la recharge à 25 %', () => {
     const w = new World(2);
     for (let i = 0; i < 40; i++) applyTomeLine(w, 'vitalite', 2);
-    expect(w.player.armor).toBeCloseTo(0.45);
+    expect(w.player.armor).toBeCloseTo(0.36);
     for (let i = 0; i < 60; i++) applyTomeLine(w, 'cadence', 0);
     expect(w.player.cdMul).toBeCloseTo(0.25);
   });

@@ -253,7 +253,7 @@ export interface Player {
   projLifeMul: number; // durée des projectiles
   eliteDmgMul: number; // dégâts aux élites et boss
   kbMul: number; // recul
-  armor: number; // part des dégâts subis annulée (≤ 0,45)
+  armor: number; // part des dégâts subis annulée (≤ 0,36)
   dashCdMul: number;
   dashInvulAdd: number; // s
   xpMul: number;

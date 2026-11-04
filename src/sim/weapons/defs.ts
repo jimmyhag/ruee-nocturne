@@ -108,7 +108,7 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
       P.regen += l.step;
       break;
     case 'armor':
-      P.armor = Math.min(0.45, P.armor + l.step);
+      P.armor = Math.min(0.36, P.armor + l.step);
       break;
     case 'speed':
       P.speed *= 1 + l.step;
