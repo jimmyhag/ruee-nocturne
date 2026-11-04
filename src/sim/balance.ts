@@ -253,6 +253,11 @@ export const BOOMERANG = {
   rehit: 0.45, // un ennemi n'est touché qu'une fois par passage (aller, puis retour)
   safetyLife: 6, // libéré bien avant par le retour ; sécurité si le joueur fuit plus vite
 };
+export const LAMES = {
+  window: 0.4, // un ennemi n'est touché par les lames qu'une fois par fenêtre (s)
+  hitR: 0.55, // rayon de frappe d'une lame (× sizeMul)
+  kb: 5, // recul d'une lame (× Fendeur)
+};
 export const MINES = {
   spacing: 1.2, // u parcourus entre deux poses
   life: 14, // une mine jamais déclenchée expire

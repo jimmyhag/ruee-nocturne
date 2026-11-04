@@ -1,4 +1,4 @@
-import { BOOMERANG, MINES, TRAIT } from '../balance';
+import { BOOMERANG, LAMES, MINES, TRAIT } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind, Trait } from '../types';
 import type { Projectile } from '../types';
@@ -125,13 +125,13 @@ export function tickWeapons(w: World, dt: number): void {
     const r = s.r * w.bladeRangeMul;
     const dmg = s.dmg;
     S.bladeA += s.spd * dt;
-    const window = 0.4;
-    const kb = 5 * (w.trait === Trait.Fendeur ? TRAIT.fendeur.kbMul : 1); // Bûcheron : Fendeur
+    const window = LAMES.window;
+    const kb = LAMES.kb * (w.trait === Trait.Fendeur ? TRAIT.fendeur.kbMul : 1); // Bûcheron : Fendeur
     for (let i = 0; i < s.n; i++) {
       const a = S.bladeA + (i * TAU) / s.n;
       const bx = P.x + Math.sin(a) * r,
         bz = P.z + Math.cos(a) * r;
-      const n = w.grid.query(w.enemies, bx, bz, 0.55 * P.sizeMul, MAX_ENEMY_R, hits);
+      const n = w.grid.query(w.enemies, bx, bz, LAMES.hitR * P.sizeMul, MAX_ENEMY_R, hits);
       for (let k = 0; k < n; k++) {
         const e = w.enemies[hits[k]];
         if (w.t - e.lastBlade > window) {
