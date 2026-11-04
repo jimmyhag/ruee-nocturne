@@ -30,7 +30,7 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Lumière : `HemisphereLight` (ciel chaud / sol violet) + une `DirectionalLight`. **Pas de shadow map**. Ombres = disques `CircleGeometry` noirs semi-transparents (`depthWrite: false`).
 - `scene.fog = new THREE.Fog(couleur du fond, near, far)` pour masquer les spawns et donner de la profondeur. Fond = couleur du fog.
 - Effets additifs (traînées, halos) : `MeshBasicMaterial({ transparent, blending: AdditiveBlending, depthWrite: false })`.
-- Palette : tokens dans `src/render/palette.ts`, dérivés de l'UI (`--ink`, `--accent`, etc.). Un ennemi = une couleur franche et une silhouette distincte.
+- Palette : tokens dans `src/render/palette.ts`, dérivés de l'UI (`--ink`, `--accent`, etc.) : nuit bleue depuis la phase 14 (`ink #0f1628`, `fog #182341`, accent lanterne `#ffb347`) ; les deux sources doivent rester identiques. Un ennemi = une couleur franche et une silhouette distincte. Le menu rend la scène en continu derrière l'accueil (`renderIdle`, cadrage `menuWide`) : zéro allocation là aussi.
 
 ## Résolution et qualité (phase 9 : rendu net par défaut)
 - Trois niveaux dans `GameScene.setQuality` : 2 = net (CSS × DPR ≤ 2, ≤ 1600 px de haut), 1 = net ×0,75, 0 = pixel (≈ 380 px de haut, `#c.pixel` → `image-rendering: pixelated`, texture de sol au plus proche voisin). Réglage `settings.quality` auto | net | pixel ; en auto, `main.ts` descend d'un niveau quand le p95 des intervalles de frame dépasse 24 ms pendant trois fenêtres de 2 s (jamais de remontée en cours de run).

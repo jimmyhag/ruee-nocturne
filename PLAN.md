@@ -19,7 +19,7 @@
 **Ce qui nous distingue d'un clone 2D**
 - La **verticalité** : le saut traverse la horde, les ennemis volants obligent à gérer deux plans.
 - La **mobilité** : dash invincible, saut, momentum. Le joueur est acteur, pas spectateur.
-- Un rendu **low-poly pixelisé** (PS1/N64) : peu coûteux en assets, très identifiable, pardonnant sur mobile.
+- Un rendu **low-poly stylisé** : peu coûteux en assets, très identifiable, pardonnant sur mobile. Depuis la phase 14 : **nuit bleue profonde, lanternes chaudes** ; la phase 15 passe au **toon à contours noirs et formes arrondies** (décision de Jimmy, 4 nov. 2026 : « trop cubique »).
 
 **Plateformes** : Chrome/Edge/Firefox desktop, Chrome Android, Safari iOS (PWA). Cible de performance : 60 fps sur un Android milieu de gamme de 2021 (type Pixel 4a / Galaxy A52).
 
@@ -175,7 +175,7 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 - Un `InstancedMesh` par type d'ennemi, par type de projectile, pour les gemmes, les particules, les traînées. `count` dynamique, matrices et couleurs en `DynamicDrawUsage`.
 - **Attention version Three** : `setColorAt` alloue le tampon selon `count` au moment de l'appel. Toujours allouer les couleurs avec `count = capacité` puis remettre `count = 0`.
 - Lumière : hémisphérique + directionnelle, **pas d'ombres projetées** (blob shadows en disque). Brouillard pour cacher le spawn.
-- Matériaux : `MeshLambertMaterial` / `MeshToonMaterial`. Pas de PBR.
+- Matériaux : `MeshLambertMaterial` / `MeshToonMaterial`. Pas de PBR. Palette unique (`src/render/palette.ts` = `:root` d'index.html) : nuit bleue `#0f1628` / brouillard `#182341`, texte `#f3ecdc`, accent lanterne `#ffb347`, or `#ffd166`, PV `#ff5d73`, XP `#5fd3ff` (phase 14).
 - Post-traitement : aucun sur mobile. Optionnel desktop : bloom léger, vignette.
 - Caméra : vue 3/4 haute, suit le joueur avec amorti, légère avance dans la direction du mouvement, recul au boss.
 
@@ -266,6 +266,14 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 13 — Comptes (après la 1.7.0)
 - Compte facultatif : connexion Google ou e-mail / mot de passe (réinitialisation par e-mail), progression synchronisée sur Firestore (§4.7), panneau Compte au menu (statut, synchronisation, déconnexion, suppression du compte et de ses données), choix local / compte au premier login, règles Firestore versionnées et déployées par la CI. Le jeu reste jouable sans compte ; les réglages ne quittent jamais l'appareil (PRIVACY.md).
 - **Porte** : Google et e-mail testés par Jimmy sur iPhone (Safari et app installée) et sur PC ; progression retrouvée sur un second appareil ; choix local / compte vérifié ; suppression vérifiée (document absent dans la console) ; e2e « zéro requête Firebase sans compte » ; chunk principal ≤ +5 ko gz, Lighthouse perf mobile ≥ 85 inchangé ; règles vérifiées au Rules Playground (lecture d'un autre uid refusée).
+
+### Phase 14 — Interface (après la 1.8.0)
+- Écran-titre immersif : la clairière 3D plein écran sans voile, le personnage choisi en plan rapproché face caméra (tiers droit sur grand écran, centre sur téléphone), logo posé, Jouer et Défi du jour, barre d'icônes (Personnage, Boutique, Succès, Compte, Réglages) qui ouvrent des feuilles à en-tête commun ; les personnages et l'aide « Comment jouer » (affichée une fois au premier lancement) ont leur feuille ; système CSS commun (feuille, boutons, cartes, pastilles) ; palette nuit bleue partagée avec le rendu (brouillard, lumières).
+- **Porte** : captures desktop et iPhone lues (accueil, Personnage, Boutique, Réglages, mort, montée de niveau) ; e2e complets verts avec les feuilles ; Lighthouse accessibilité ≥ 90 et perf inchangée ; budget de rendu en jeu inchangé ; test de Jimmy sur iPhone et PC.
+
+### Phase 15 — Direction artistique toon (après la 1.9.0)
+- Rendu toon à contours noirs (`MeshToonMaterial` à 3 tons, contour par coque inversée instanciée : +1 draw call par famille, pas d'`EffectComposer`), modèles arrondis (capsules, têtes sphériques, biseaux, normales lissées), sol en terrain avec herbe en nappes, palette nuit bleue étendue aux ennemis.
+- **Porte** : ≤ 40 draw calls, ≤ 150 k tris à 400 ennemis, bench inchangé, captures lues, `perf-reviewer`, test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

@@ -2,6 +2,24 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.9.0 — 4 nov. 2026 (phase 14 « Interface »)
+
+Un menu de vrai jeu : la clairière plein écran, le personnage devant toi, des panneaux propres.
+
+### Ajouté
+
+- **Écran-titre immersif** : plus de voile ni de page qui défile ; la clairière 3D occupe l'écran, le personnage choisi se tient face à toi (à droite sur PC, au centre sur téléphone), le logo en haut, Jouer et Défi du jour en bas, et une barre d'icônes : Personnage, Boutique, Succès, Compte, Réglages.
+- **Feuilles** : chaque bouton ouvre un panneau à en-tête commun (titre, croix) sur la clairière assombrie. Les personnages (grille, tenues) ont leur feuille ; l'aide « Comment jouer » aussi, affichée une fois au premier lancement et depuis les Réglages.
+- Nouvelle palette **nuit bleue profonde, lanternes chaudes**, partagée par l'interface et le rendu (fond, brouillard, lumières).
+
+### Modifié
+
+- Système d'interface commun : boutons (doré, sombre à bord fin, icônes), cartes, pastilles, barres ; cartes de niveau et écran de mort restylés, HUD aux nouvelles couleurs. Page « À propos » et icône de l'app aux nouvelles couleurs.
+
+### Corrigé
+
+- Le libellé « Rendu : … » des réglages restait dans l'ancienne langue après un changement de langue.
+
 ## 1.8.0 — 4 nov. 2026 (phase 13 « Comptes »)
 
 Un compte facultatif pour retrouver sa progression sur un autre appareil. Sans compte, rien ne change.
