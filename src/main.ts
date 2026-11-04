@@ -16,6 +16,7 @@ import {
   exportMeta,
   importMeta,
   loadMeta,
+  onMetaSaved,
   normalizeMeta,
   peekMeta,
   saveMeta,
@@ -23,6 +24,19 @@ import {
   QUALITY_SETTINGS,
 } from './meta/save';
 import type { Meta } from './meta/save';
+import {
+  SYNC,
+  decide,
+  loadSyncRecord,
+  progressOf,
+  saveSyncRecord,
+  summary,
+  toCloudDoc,
+  withProgress,
+} from './meta/sync';
+import type { CloudDoc, SyncRecord } from './meta/sync';
+import { errorKey, initialAccountView, renderAccount } from './ui/account';
+import type { Account, AccountUser } from './platform/account'; // type seulement : firebase reste dans son chunk
 import {
   checkAchievements,
   dailyUnlocked,
@@ -93,8 +107,8 @@ const audio = new AudioBus();
 const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnDash'));
 
 // ---------- état applicatif ----------
-type AppMode = 'menu' | 'play' | 'levelup' | 'pause' | 'over' | 'shop' | 'achievements' | 'settings';
-const SCREENS = ['menu', 'levelup', 'pause', 'over', 'shop', 'achievements', 'settings'] as const;
+type AppMode = 'menu' | 'play' | 'levelup' | 'pause' | 'over' | 'shop' | 'achievements' | 'settings' | 'account';
+const SCREENS = ['menu', 'levelup', 'pause', 'over', 'shop', 'achievements', 'settings', 'account'] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 let dailyRun = false; // partie en cours = défi du jour
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
@@ -196,11 +210,12 @@ function vibrate(ms: number): void {
     /* non supporté */
   }
 }
-function openScreen(id: 'shop' | 'achievements' | 'settings'): void {
+function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account'): void {
   if (app === 'menu' || app === 'over' || app === 'pause') backTo = app;
   app = id;
   if (id === 'shop') renderShopScreen();
   else if (id === 'achievements') renderAchievements($('achList'), meta);
+  else if (id === 'account') openAccount();
   else {
     applySettings();
     $('settingsMsg').textContent = '';
@@ -320,6 +335,7 @@ function toMenu(): void {
   app = 'menu';
   world = null;
   showOnly('menu');
+  if (pendingReconcile) void reconcileAccount(); // une synchronisation attendait la fin de la partie
   scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // après un défi du jour (Éclaireuse forcée)
   $('hud').hidden = true;
   $('keys').hidden = true;
@@ -477,6 +493,8 @@ $('shopBtn').onclick = () => openScreen('shop');
 $('overShopBtn').onclick = () => openScreen('shop');
 $('achBtn').onclick = () => openScreen('achievements');
 $('settingsBtn').onclick = () => openScreen('settings');
+$('accountBtn').onclick = () => openScreen('account');
+$('accountBackBtn').onclick = closeScreen;
 $('pauseSettingsBtn').onclick = () => openScreen('settings');
 $('shopBackBtn').onclick = closeScreen;
 $('achBackBtn').onclick = closeScreen;
@@ -718,6 +736,310 @@ function showUpdateBanner(): void {
   $('update').hidden = !(pwa.needRefresh && (app === 'menu' || app === 'over'));
 }
 pwa.onNeedRefresh = showUpdateBanner;
+
+// ---------- Compte (phase 13) : Firebase chargé à la demande, progression synchronisée sur le compte ----------
+// Le module src/platform/account.ts (seul importateur de firebase) n'est chargé que si le joueur ouvre le panneau,
+// ou au démarrage quand une session est connue ; sans compte, aucune requête ne part (test e2e account.spec.ts).
+function isIosStandalone(): boolean {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return (
+    /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+    (nav.standalone === true || matchMedia('(display-mode: standalone)').matches)
+  );
+}
+const accView = initialAccountView(isIosStandalone());
+let account: Account | null = null;
+let accountLoad: Promise<Account | null> | null = null;
+let accountUnavailable = false; // configuration absente : définitif pour cette session
+let syncRec: SyncRecord | null = loadSyncRecord();
+let lastSynced: string | null = null; // progression (JSON) alignée avec le nuage : un saveMeta identique ne salit rien
+let applyingCloud = false;
+let pendingReconcile = false; // une synchronisation attend le retour au menu (jamais en pleine partie)
+let pendingCloud: CloudDoc | null = null; // document du nuage en attente du choix du joueur
+let pushTimer = 0;
+let deleteArmed = 0;
+
+function refreshAccount(): void {
+  renderAccount(accView);
+}
+function accountMessage(msg: string, error = false): void {
+  accView.msg = msg;
+  accView.error = error;
+  refreshAccount();
+}
+function accountError(e: unknown): void {
+  accountMessage(t(errorKey(e)), true);
+}
+
+/** Charge le module Firebase et la configuration ; null si les comptes sont indisponibles (ou réseau coupé). */
+function loadAccount(): Promise<Account | null> {
+  if (account) return Promise.resolve(account);
+  if (accountUnavailable) return Promise.resolve(null);
+  if (accountLoad) return accountLoad;
+  accView.status = 'loading';
+  accView.retry = false;
+  refreshAccount();
+  accountLoad = (async () => {
+    try {
+      const mod = await import('./platform/account');
+      const cfg = await mod.loadConfig();
+      if (!cfg) {
+        accountUnavailable = true;
+        accView.status = 'unavailable';
+        refreshAccount();
+        return null;
+      }
+      account = new mod.Account(cfg);
+      account.onChange = onAuthChange;
+      let redirect = false;
+      try {
+        redirect = sessionStorage.getItem(SYNC.redirectKey) === '1';
+        sessionStorage.removeItem(SYNC.redirectKey);
+      } catch {
+        /* stockage bloqué */
+      }
+      if (redirect) account.finishRedirect().catch(accountError);
+      return account;
+    } catch (e) {
+      // le chunk n'a pas pu être téléchargé (hors ligne, première fois) : on réessaiera
+      accountLoad = null;
+      accView.status = 'unavailable';
+      accView.retry = true;
+      accountMessage(t(navigator.onLine ? errorKey(e) : 'account.err.network-request-failed'), true);
+      return null;
+    }
+  })();
+  return accountLoad;
+}
+
+function openAccount(): void {
+  accView.msg = '';
+  accView.error = false;
+  accView.askPassword = false;
+  deleteArmed = 0;
+  refreshAccount();
+  showOnly('account');
+  void loadAccount();
+}
+
+function onAuthChange(u: AccountUser | null): void {
+  accView.status = u ? 'in' : 'out';
+  accView.email = u?.email ?? null;
+  accView.choice = null;
+  accView.askPassword = false;
+  accView.sync = 'idle';
+  try {
+    if (u) localStorage.setItem(SYNC.accountKey, '1');
+    else localStorage.removeItem(SYNC.accountKey);
+  } catch {
+    /* stockage bloqué */
+  }
+  refreshAccount();
+  if (u) void reconcileAccount();
+}
+
+/** Compare local et nuage et applique la décision (src/meta/sync.ts) ; attend le menu si une partie est en cours. */
+async function reconcileAccount(): Promise<void> {
+  const u = account?.user;
+  if (!account || !u) return;
+  if (app === 'play' || app === 'levelup' || app === 'pause') {
+    pendingReconcile = true;
+    return;
+  }
+  pendingReconcile = false;
+  if (!navigator.onLine) {
+    accView.sync = 'offline';
+    refreshAccount();
+    return;
+  }
+  accView.sync = 'syncing';
+  accView.retry = false;
+  refreshAccount();
+  try {
+    const cloud = await account.readSave(u.uid);
+    const d = decide(meta, cloud, syncRec, u.uid);
+    if (d === 'ask' && cloud) {
+      pendingCloud = cloud;
+      accView.choice = { local: summary(meta), cloud: summary(withProgress(meta, cloud.progress)) };
+      accView.sync = 'idle';
+      refreshAccount();
+      return;
+    }
+    if (d === 'push') await pushNow(u.uid);
+    else if (d === 'pull' && cloud) applyCloud(u.uid, cloud);
+    else if (d === 'adopt' && cloud) alignWith(u.uid, cloud.updatedAt);
+    accView.sync = 'synced';
+    refreshAccount();
+  } catch (e) {
+    accView.sync = 'error';
+    accView.retry = true;
+    accountError(e);
+  }
+}
+function alignWith(uid: string, base: number): void {
+  lastSynced = JSON.stringify(progressOf(meta));
+  syncRec = { uid, base, dirty: false, changedAt: 0 };
+  saveSyncRecord(syncRec);
+}
+/** Remplace la progression locale par celle du nuage (réglages gardés), sans redéclencher un envoi. */
+function applyCloud(uid: string, cloud: CloudDoc): void {
+  applyingCloud = true;
+  meta = withProgress(meta, cloud.progress);
+  saveMeta(meta);
+  applyingCloud = false;
+  alignWith(uid, cloud.updatedAt);
+  applyMeta();
+}
+async function pushNow(uid: string): Promise<void> {
+  if (!account) return;
+  if (!navigator.onLine) {
+    accView.sync = 'offline';
+    refreshAccount();
+    return;
+  }
+  const d = toCloudDoc(meta, Date.now());
+  accView.sync = 'syncing';
+  refreshAccount();
+  await account.writeSave(uid, d);
+  alignWith(uid, d.updatedAt);
+  accView.sync = 'synced';
+  refreshAccount();
+}
+function schedulePush(): void {
+  clearTimeout(pushTimer);
+  pushTimer = window.setTimeout(() => {
+    pushTimer = 0;
+    const u = account?.user;
+    if (u && app !== 'play')
+      pushNow(u.uid).catch((e) => {
+        accView.sync = 'error';
+        accView.retry = true;
+        accountError(e);
+      });
+  }, SYNC.debounceMs);
+}
+// chaque sauvegarde de progression salit l'appareil ; l'envoi est regroupé (2 s), ou immédiat quand l'app se cache
+onMetaSaved((m) => {
+  if (applyingCloud || !syncRec) return;
+  const p = JSON.stringify(progressOf(m));
+  if (p === lastSynced) return;
+  syncRec.dirty = true;
+  syncRec.changedAt = Date.now();
+  saveSyncRecord(syncRec);
+  if (account?.user) schedulePush();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && pushTimer) {
+    clearTimeout(pushTimer);
+    pushTimer = 0;
+    const u = account?.user;
+    if (u) pushNow(u.uid).catch(() => {});
+  }
+});
+addEventListener('online', () => {
+  if (account?.user) void reconcileAccount();
+});
+
+// boutons du panneau
+async function withBusy(run: () => Promise<void>): Promise<void> {
+  accView.busy = true;
+  accView.msg = '';
+  accView.error = false;
+  refreshAccount();
+  try {
+    await run();
+  } catch (e) {
+    accountError(e);
+  } finally {
+    accView.busy = false;
+    refreshAccount();
+  }
+}
+const accEmail = () => ($('accEmail') as HTMLInputElement).value.trim();
+const accPwd = () => ($('accPwd') as HTMLInputElement).value;
+$('accGoogleBtn').onclick = () =>
+  withBusy(async () => {
+    const a = await loadAccount();
+    if (a) await a.signInGoogle();
+  });
+$('accForm').onsubmit = (e) => {
+  e.preventDefault();
+  void withBusy(async () => {
+    const a = await loadAccount();
+    if (a) await a.signInEmail(accEmail(), accPwd());
+  });
+};
+$('accSignUpBtn').onclick = () =>
+  withBusy(async () => {
+    const a = await loadAccount();
+    if (a) await a.signUpEmail(accEmail(), accPwd());
+  });
+$('accForgotBtn').onclick = () =>
+  withBusy(async () => {
+    const a = await loadAccount();
+    if (!a) return;
+    await a.resetPassword(accEmail());
+    accountMessage(t('account.resetSent'));
+  });
+$('accSignOutBtn').onclick = () =>
+  withBusy(async () => {
+    clearTimeout(pushTimer);
+    pushTimer = 0;
+    await account?.signOut();
+    syncRec = null;
+    saveSyncRecord(null);
+    lastSynced = null;
+    accountMessage(t('account.signedOut'));
+  });
+$('accDeleteBtn').onclick = () => {
+  if (performance.now() - deleteArmed > 4000) {
+    deleteArmed = performance.now();
+    accountMessage(t('account.deleteArm'));
+    return;
+  }
+  void withBusy(async () => {
+    const pwd = ($('accDeletePwd') as HTMLInputElement).value;
+    try {
+      await account?.deleteAccount(pwd || undefined);
+    } catch (e) {
+      if (errorKey(e) === 'account.err.requires-recent-login' && account?.user?.provider === 'password') {
+        accView.askPassword = true; // on redemande le mot de passe, le prochain appui supprime
+        deleteArmed = performance.now();
+        accountMessage(t('account.deletePwd'), true);
+        return;
+      }
+      throw e;
+    }
+    syncRec = null;
+    saveSyncRecord(null);
+    lastSynced = null;
+    accountMessage(t('account.deleteDone'));
+  });
+};
+$('accKeepLocal').onclick = () =>
+  withBusy(async () => {
+    const u = account?.user;
+    pendingCloud = null;
+    accView.choice = null;
+    if (u) await pushNow(u.uid);
+  });
+$('accKeepCloud').onclick = () =>
+  withBusy(async () => {
+    const u = account?.user;
+    const c = pendingCloud;
+    pendingCloud = null;
+    accView.choice = null;
+    if (u && c) {
+      applyCloud(u.uid, c);
+      accView.sync = 'synced';
+    }
+  });
+$('accRetryBtn').onclick = () =>
+  withBusy(async () => {
+    const a = await loadAccount();
+    if (a?.user) await reconcileAccount();
+  });
+
 $('updateBtn').onclick = () => pwa.update();
 
 // PWA : installation
@@ -1025,6 +1347,21 @@ function applyMeta(): void {
   syncLang();
 }
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
+refreshAccount();
+{
+  let known = false;
+  try {
+    known = localStorage.getItem(SYNC.accountKey) === '1' || sessionStorage.getItem(SYNC.redirectKey) === '1';
+  } catch {
+    /* stockage bloqué */
+  }
+  // après la première peinture et hors du chemin critique : le menu d'un joueur sans compte ne charge jamais Firebase
+  if (known) {
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (idle) idle(() => void loadAccount());
+    else setTimeout(() => void loadAccount(), 1500);
+  }
+}
 let metaLoaded = false;
 loadMeta().then((m) => {
   if (JSON.stringify(m) !== JSON.stringify(meta)) {

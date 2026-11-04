@@ -76,6 +76,7 @@ export default defineConfig({
         globIgnores: ['screenshots/**'], // fiche d'installation seulement, inutile hors ligne
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/__\//], // URL réservées de Firebase Hosting (/__/auth/handler, /__/firebase/init.json) : jamais index.html à leur place (phase 13)
         cleanupOutdatedCaches: true,
         // polices auto-hébergées dans public/fonts (précachées par globPatterns) : plus aucune origine externe
       },
