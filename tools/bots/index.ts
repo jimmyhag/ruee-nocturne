@@ -1,9 +1,8 @@
-import type { Card, Input, WeaponKey } from '../../src/sim/types';
+import type { Card, Input, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { ShotKind } from '../../src/sim/types';
-import { WEAPONS } from '../../src/sim/weapons/defs';
 import { Rng } from '../../src/sim/rng';
-import { ELITE_TYPE, ENEMIES, HAZARDS, STEP, VOLANT_TYPE } from '../../src/sim/balance';
+import { ELITE_TYPE, ENEMIES, HAZARDS, STEP, TOMES, VOLANT_TYPE, WEAPON_LINES } from '../../src/sim/balance';
 
 export interface Bot {
   name: string;
@@ -24,43 +23,53 @@ export const naive: Bot = {
   pick: () => 0,
 };
 
-function dpsOf(key: string, lv: number): number {
-  const d = WEAPONS[key as keyof typeof WEAPONS];
-  if (!d) return 0;
-  const s = d.stats(lv);
-  switch (key) {
-    case 'orbe':
-      return (s.n * s.dmg * s.pierce) / s.cd;
-    case 'aura':
-      return (s.dmg / s.period) * (s.r * s.r * 0.4); // approx : nombre d'ennemis dans l'aura
-    case 'lames':
-      return s.n * s.dmg * 1.6;
-    case 'foudre':
-      return ((s.chain + 1) * s.dmg) / s.cd;
-    case 'boomerang':
-      return (s.n * s.dmg * 2 * 2.5) / s.cd; // aller + retour, ≈ 2,5 ennemis sur la ligne
-    case 'mines':
-      return (s.dmg * 2.2 * 0.5) / s.cd; // ≈ 2,2 ennemis par explosion, une mine sur deux déclenchée
-  }
-  return 0;
+/** Valeur d'une ligne de stat pour le bot (phase 12) : gain relatif approximatif, +1 projectile pèse lourd. */
+const LINE_VALUE: Record<string, number> = {
+  // armes
+  dmg: 7,
+  cd: 6,
+  n: 22,
+  speed: 3,
+  pierce: 10,
+  r: 6,
+  period: 6,
+  spd: 4,
+  chain: 9,
+  range: 4,
+  // tomes
+  elite: 4,
+  kb: 2,
+  life: 3,
+  proj: 26,
+  size: 5,
+  pspeed: 3,
+  hp: 6,
+  regen: 5,
+  armor: 6,
+  dashcd: 3,
+  dashinvul: 2,
+  xp: 6,
+  magnet: 4,
+  luck: 4,
+  chestgold: 1,
+  gold: 2,
+  elitegold: 1,
+};
+function lineValue(c: Card, s: number): number {
+  if (s < 0) return 0;
+  const l = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey][s] : TOMES[c.key as TomeKey][s];
+  const base = LINE_VALUE[l.stat] ?? 3;
+  // tome Dégâts / Cadence : s'applique à toutes les armes, vaut plus qu'une ligne d'arme
+  return c.kind === 't' && (l.stat === 'dmg' || l.stat === 'cd') ? base * 1.3 : base;
 }
 
-/** Valeur d'une carte pour un bot : gain de DPS théorique, passifs valorisés par règle simple. */
+/** Valeur d'une carte pour un bot : somme de ses lignes (phase 12) ; nouvelle arme et soin valorisés par règle simple. */
 function cardValue(w: World, c: Card): number {
   if (c.kind === 'heal') return w.player.hp / w.player.maxHp < 0.4 ? 100 : 5;
-  if (c.kind === 'e') return 200; // une évolution ≈ ×2,5 : toujours prise
-  if (c.kind === 'w') return dpsOf(c.key, c.lv) - dpsOf(c.key, c.lv - 1) + (c.lv === 1 ? 6 : 0);
-  const base: Record<string, number> = {
-    force: 14,
-    cadence: 12,
-    vitesse: 10,
-    coeur: 9,
-    aimant: 7,
-    regen: 6,
-    trefle: 6,
-    bourse: 3,
-  };
-  return base[c.key] ?? 5;
+  let v = lineValue(c, c.s0) + lineValue(c, c.s1) + lineValue(c, c.s2);
+  if (c.kind === 'w' && c.lv === 1) v += 18; // une arme de plus : une base entière
+  if (c.kind === 't' && c.key === 'vitalite' && w.player.hp / w.player.maxHp < 0.4) v += 15;
+  return v;
 }
 
 /** Index de la carte de plus grande valeur parmi celles qui passent le filtre (ou -1 si aucune). */

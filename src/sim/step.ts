@@ -60,7 +60,7 @@ export function step(w: World, input: Input, dt: number): void {
     w.emit(Ev.Death, w.player.x, 1, w.player.z, w.t);
   } else if (w.pending > 0) {
     w.mode = Mode.LevelUp;
-    rollChoices(w, w.chestCards > 0);
+    rollChoices(w);
   }
 }
 
@@ -88,8 +88,8 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   }
   if (input.dash && P.dashCd <= 0) {
     P.dashT = P.dashTime;
-    P.dashCd = PLAYER.dashCd;
-    P.invul = Math.max(P.invul, PLAYER.dashInvul);
+    P.dashCd = PLAYER.dashCd * P.dashCdMul; // tome Mouvement
+    P.invul = Math.max(P.invul, PLAYER.dashInvul + P.dashInvulAdd);
     w.emit(Ev.Dash, P.x, P.y, P.z);
   }
   let sp = P.speed * (P.onGround ? w.speedAt(P.x, P.z) : 1); // lac : ralentit au sol seulement
@@ -222,7 +222,7 @@ function stepEnemies(w: World, dt: number): void {
     if (canHurt && d < e.r + PLAYER.radius && !(flies ? airborne : aboveGround) && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
-        const dmg = HAZARDS.charge.dmg * e.dmgMul;
+        const dmg = HAZARDS.charge.dmg * e.dmgMul * (1 - P.armor);
         P.hp -= dmg;
         hurt += dmg;
         P.invul = Math.max(P.invul, HAZARDS.charge.invul);
@@ -230,7 +230,7 @@ function stepEnemies(w: World, dt: number): void {
         e.timer = HAZARDS.charge.recover;
         w.lastHurt = HurtSrc.Charge;
       } else {
-        const dmg = def.dmg * e.dmgMul * dt;
+        const dmg = def.dmg * e.dmgMul * dt * (1 - P.armor);
         P.hp -= dmg;
         hurt += dmg;
         w.lastHurt = HurtSrc.Contact;
@@ -262,8 +262,8 @@ function tickShots(w: World, dt: number): void {
     const inside = dx * dx + dz * dz < rr * rr;
     if (s.kind === ShotKind.Spit) {
       if (inside && !airborne && P.invul <= 0) {
-        P.hp -= s.dmg;
-        hurt += s.dmg;
+        P.hp -= s.dmg * (1 - P.armor);
+        hurt += s.dmg * (1 - P.armor);
         w.lastHurt = HurtSrc.Spit;
         w.freeShot(i);
         continue;
@@ -274,8 +274,8 @@ function tickShots(w: World, dt: number): void {
       s.r += HAZARDS.ring.speed * dt;
       const dist = Math.sqrt(dx * dx + dz * dz);
       if (!s.hit && Math.abs(dist - s.r) < HAZARDS.ring.width * 0.5 + PLAYER.radius && !airborne && P.invul <= 0) {
-        P.hp -= s.dmg;
-        hurt += s.dmg;
+        P.hp -= s.dmg * (1 - P.armor);
+        hurt += s.dmg * (1 - P.armor);
         s.hit = true;
         w.lastHurt = HurtSrc.Ring;
       }
@@ -291,8 +291,8 @@ function tickShots(w: World, dt: number): void {
         // pic : blesse et projette le joueur au sol (sol local : un plateau n'abrite pas)
         w.emit(Ev.Eruption, s.x, w.groundAt(s.x, s.z), s.z, s.r);
         if (inside && !airborne && P.invul <= 0) {
-          P.hp -= s.dmg;
-          hurt += s.dmg;
+          P.hp -= s.dmg * (1 - P.armor);
+          hurt += s.dmg * (1 - P.armor);
           P.vy = HAZARDS.eruption.launch;
           P.onGround = false;
           w.lastHurt = HurtSrc.Eruption;
@@ -303,8 +303,8 @@ function tickShots(w: World, dt: number): void {
       // zone : explose
       w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
       if (inside && !airborne && P.invul <= 0) {
-        P.hp -= s.dmg;
-        hurt += s.dmg;
+        P.hp -= s.dmg * (1 - P.armor);
+        hurt += s.dmg * (1 - P.armor);
         w.lastHurt = HurtSrc.Zone;
       }
       w.freeShot(i);

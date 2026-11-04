@@ -18,7 +18,7 @@ import {
 import { ProjKind, ShotKind } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
-import { WEAPONS } from '../sim/weapons/defs';
+import { weaponStats } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
 import {
   Fireflies,
@@ -748,7 +748,7 @@ export class GameScene {
     this.gemW.end();
 
     // projectiles : orbes (+ traînées), boomerangs, mines ; Nova : orbes ×1,6
-    const orbeScale = w.evolved.orbe ? 1.6 : 1;
+    const orbeScale = w.player.sizeMul; // tome Projectiles : projectiles plus gros
     this.projW.begin();
     this.trailW.begin();
     this.boomW.begin();
@@ -786,11 +786,10 @@ export class GameScene {
     this.boomW.end();
     this.mineW.end();
 
-    // halo (Soleil noir : plus grand, teinte or)
+    // halo (rayon = stats courantes : lignes « rayon » et tome Projectiles)
     const lvA = w.weapons.aura ?? 0;
     if (lvA > 0) {
-      const evo = w.evolved.aura;
-      const r = WEAPONS.aura.stats(lvA).r * (evo ? 1.5 : 1);
+      const r = weaponStats(w, 'aura').r;
       const pulse = w.wstate.auraPulse;
       this.aura.visible = this.auraDisc.visible = true;
       this.aura.position.set(px, 0.06, pz);
@@ -799,25 +798,24 @@ export class GameScene {
       this.auraDisc.scale.setScalar(r);
       const m = this.aura.material as THREE.MeshBasicMaterial;
       m.opacity = 0.25 + pulse * 0.35;
-      m.color.setHex(evo ? PAL.gold : PAL.xp);
-      (this.auraDisc.material as THREE.MeshBasicMaterial).color.setHex(evo ? PAL.gold : PAL.xp);
+      m.color.setHex(PAL.xp);
+      (this.auraDisc.material as THREE.MeshBasicMaterial).color.setHex(PAL.xp);
     } else this.aura.visible = this.auraDisc.visible = false;
 
-    // lames + 3 fantômes chacune (angles précédents, fondu) ; Tempête : plus grandes et plus loin
+    // lames + 3 fantômes chacune (angles précédents, fondu) ; taille = tome Projectiles
     const lvL = w.weapons.lames ?? 0;
     this.bladeW.begin();
     this.bladeGhostW.begin();
     if (lvL > 0) {
-      const sL = WEAPONS.lames.stats(lvL);
-      const evo = w.evolved.lames;
-      const r = sL.r * (evo ? 1.5 : 1);
-      const bs = evo ? 1.6 : 1;
+      const sL = weaponStats(w, 'lames');
+      const r = sL.r * w.bladeRangeMul;
+      const bs = w.player.sizeMul;
       const by = py + 0.8;
       for (let i = 0; i < sL.n; i++) {
         const a = w.wstate.bladeA + (i * TAU) / sL.n;
         this.bladeW.put(px + Math.sin(a) * r, by, pz + Math.cos(a) * r, a + Math.PI / 2, bs, this.cPaper);
         for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
-          const ag = a - k * sL.spd * (evo ? 2 : 1) * 0.03;
+          const ag = a - k * sL.spd * 0.03;
           this.bladeGhostW.put(
             px + Math.sin(ag) * r,
             by,

@@ -1,9 +1,9 @@
-import { BOOMERANG, EVOLVE, MINES, TRAIT } from '../balance';
+import { BOOMERANG, MINES, TRAIT } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind, Trait } from '../types';
 import type { Projectile } from '../types';
 import type { World } from '../world';
-import { WEAPONS } from './defs';
+import { weaponStats } from './defs';
 
 const MAX_ENEMY_R = 2.6; // Colosse
 const TAU = Math.PI * 2;
@@ -59,7 +59,7 @@ function fireAngle(w: World, a: number, dmg: number, pierce: number, speed: numb
   p.y = w.player.y + 1;
   p.vx = Math.sin(a) * speed;
   p.vz = Math.cos(a) * speed;
-  p.life = 1.3;
+  p.life = 1.3 * w.player.projLifeMul;
   p.age = 0;
   p.dmg = dmg;
   p.pierce = pierce;
@@ -81,53 +81,39 @@ export function tickWeapons(w: World, dt: number): void {
   // ---- Orbe filante / Nova ----
   const lvO = w.weapons.orbe ?? 0;
   if (lvO > 0) {
-    const s = WEAPONS.orbe.stats(lvO);
+    const s = weaponStats(w, 'orbe');
     S.orbeT -= dt;
     if (S.orbeT <= 0) {
-      if (w.evolved.orbe) {
-        // Nova : salve circulaire, pas besoin de cible
-        if (w.enemyCount > 0) {
-          S.orbeT = s.cd * P.cdMul;
-          const n = EVOLVE.nova.n;
-          for (let i = 0; i < n; i++) fireAngle(w, (i / n) * TAU + S.bladeA * 0.1, s.dmg, s.pierce, s.speed);
-          P.recoil = 0.14;
-          w.emit(Ev.Shoot, P.x, P.y + 1, P.z, n);
-        } else S.orbeT = 0.15;
-      } else {
-        const found = nearest(w, s.n, 15);
-        if (found > 0) {
-          S.orbeT = s.cd * P.cdMul;
-          for (let i = 0; i < s.n; i++) {
-            const spread = i >= found ? (i - found + 1) * 0.35 : 0;
-            fire(w, near[i % found], s.dmg, s.pierce, s.speed, spread);
-          }
-          const t = w.enemies[near[0]];
-          const a = Math.atan2(t.x - P.x, t.z - P.z);
-          P.recoil = 0.14;
-          w.emit(Ev.Shoot, P.x + Math.sin(a) * 0.6, P.y + 1, P.z + Math.cos(a) * 0.6, s.n);
-        } else S.orbeT = 0.15;
-      }
+      const nShots = Math.min(s.n, near.length);
+      const found = nearest(w, nShots, 15);
+      if (found > 0) {
+        S.orbeT = s.cd * P.cdMul;
+        for (let i = 0; i < nShots; i++) {
+          const spread = i >= found ? (i - found + 1) * 0.35 : 0;
+          fire(w, near[i % found], s.dmg, s.pierce, s.speed, spread);
+        }
+        const t = w.enemies[near[0]];
+        const a = Math.atan2(t.x - P.x, t.z - P.z);
+        P.recoil = 0.14;
+        w.emit(Ev.Shoot, P.x + Math.sin(a) * 0.6, P.y + 1, P.z + Math.cos(a) * 0.6, nShots);
+      } else S.orbeT = 0.15;
     }
   }
 
   // ---- Halo brûlant / Soleil noir ----
   const lvA = w.weapons.aura ?? 0;
   if (lvA > 0) {
-    const s = WEAPONS.aura.stats(lvA);
-    const evo = w.evolved.aura;
+    const s = weaponStats(w, 'aura');
     const braise = w.trait === Trait.Braise ? 1 + Math.min(TRAIT.braise.max, (TRAIT.braise.perMin * w.t) / 60) : 1;
-    const r = s.r * (evo ? EVOLVE.soleil.rMul : 1) * braise;
-    const dmg = s.dmg * (evo ? EVOLVE.soleil.dmgMul : 1);
+    const r = s.r * braise;
+    const dmg = s.dmg;
     S.auraT -= dt;
     S.auraPulse = Math.max(0, S.auraPulse - dt * 3);
     if (S.auraT <= 0) {
       S.auraT = s.period * P.cdMul;
       S.auraPulse = 1;
       const n = w.grid.query(w.enemies, P.x, P.z, r, MAX_ENEMY_R, hits);
-      for (let k = 0; k < n; k++) {
-        if (hitEnemy(w, hits[k], dmg, 1.5, P.x, P.z, HitSrc.Aura) && evo)
-          P.hp = Math.min(P.maxHp, P.hp + EVOLVE.soleil.healPerKill); // Soleil noir : soin par kill
-      }
+      for (let k = 0; k < n; k++) hitEnemy(w, hits[k], dmg, 1.5, P.x, P.z, HitSrc.Aura);
       w.emit(Ev.AuraPulse, P.x, 0, P.z, r);
     }
   }
@@ -135,18 +121,17 @@ export function tickWeapons(w: World, dt: number): void {
   // ---- Lames orbitales / Tempête ----
   const lvL = w.weapons.lames ?? 0;
   if (lvL > 0) {
-    const s = WEAPONS.lames.stats(lvL);
-    const evo = w.evolved.lames;
-    const r = s.r * (evo ? EVOLVE.tempete.rMul : 1) * w.bladeRangeMul;
-    const dmg = s.dmg * (evo ? EVOLVE.tempete.dmgMul : 1);
-    S.bladeA += s.spd * (evo ? EVOLVE.tempete.spdMul : 1) * dt;
-    const window = evo ? EVOLVE.tempete.hitWindow : 0.4;
+    const s = weaponStats(w, 'lames');
+    const r = s.r * w.bladeRangeMul;
+    const dmg = s.dmg;
+    S.bladeA += s.spd * dt;
+    const window = 0.4;
     const kb = 5 * (w.trait === Trait.Fendeur ? TRAIT.fendeur.kbMul : 1); // Bûcheron : Fendeur
     for (let i = 0; i < s.n; i++) {
       const a = S.bladeA + (i * TAU) / s.n;
       const bx = P.x + Math.sin(a) * r,
         bz = P.z + Math.cos(a) * r;
-      const n = w.grid.query(w.enemies, bx, bz, 0.55, MAX_ENEMY_R, hits);
+      const n = w.grid.query(w.enemies, bx, bz, 0.55 * P.sizeMul, MAX_ENEMY_R, hits);
       for (let k = 0; k < n; k++) {
         const e = w.enemies[hits[k]];
         if (w.t - e.lastBlade > window) {
@@ -160,8 +145,7 @@ export function tickWeapons(w: World, dt: number): void {
   // ---- Foudre en chaîne / Orage ----
   const lvF = w.weapons.foudre ?? 0;
   if (lvF > 0) {
-    const s = WEAPONS.foudre.stats(lvF);
-    const evo = w.evolved.foudre;
+    const s = weaponStats(w, 'foudre');
     S.foudreT -= dt;
     if (S.foudreT <= 0) {
       // cible initiale : un ennemi aléatoire à < 13 u (tirage par rejet borné, déterministe) ; Sorcière : le plus proche
@@ -178,8 +162,8 @@ export function tickWeapons(w: World, dt: number): void {
         }
       }
       if (cur >= 0) {
-        S.foudreT = (s.cd * P.cdMul) / (evo ? EVOLVE.orage.cdDiv : 1);
-        const chain = s.chain + (evo ? EVOLVE.orage.chainPlus : 0);
+        S.foudreT = s.cd * P.cdMul;
+        const chain = s.chain;
         let seenN = 0;
         let px = w.enemies[cur].x,
           py = 10,
@@ -219,13 +203,14 @@ export function tickWeapons(w: World, dt: number): void {
   // ---- Boomerang : part dans la direction du regard, revient, traverse ----
   const lvB = w.weapons.boomerang ?? 0;
   if (lvB > 0) {
-    const s = WEAPONS.boomerang.stats(lvB);
+    const s = weaponStats(w, 'boomerang');
     S.boomT -= dt;
     if (S.boomT <= 0 && w.enemyCount > 0) {
       S.boomT = s.cd * P.cdMul;
       const base = Math.atan2(P.dirX, P.dirZ);
       for (let i = 0; i < s.n; i++) {
-        const p = fireAngle(w, base + (i === 0 ? 0 : Math.PI), s.dmg, 999, s.speed); // le second part dans le dos
+        // le 2e part dans le dos, les suivants sur les côtés
+        const p = fireAngle(w, base + (i === 0 ? 0 : i === 1 ? Math.PI : i === 2 ? Math.PI / 2 : -Math.PI / 2), s.dmg, 999, s.speed);
         if (!p) break;
         p.kind = ProjKind.Boomerang;
         p.r = s.range;
@@ -239,7 +224,7 @@ export function tickWeapons(w: World, dt: number): void {
   // ---- Mines : posées sur le passage, explosent au contact ----
   const lvM = w.weapons.mines ?? 0;
   if (lvM > 0) {
-    const s = WEAPONS.mines.stats(lvM);
+    const s = weaponStats(w, 'mines');
     S.mineT -= dt;
     S.mineDist += Math.sqrt(P.vx * P.vx + P.vz * P.vz) * dt;
     if (S.mineT <= 0 && S.mineDist >= MINES.spacing && placeMine(w, P.x, P.z)) {
@@ -253,7 +238,7 @@ export function tickWeapons(w: World, dt: number): void {
 export function placeMine(w: World, x: number, z: number): boolean {
   const lv = w.weapons.mines ?? 0;
   if (lv <= 0) return false;
-  const s = WEAPONS.mines.stats(lv);
+  const s = weaponStats(w, 'mines');
   let count = 0;
   for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === ProjKind.Mine) count++;
   if (count >= s.n) return false;
@@ -267,7 +252,7 @@ export function placeMine(w: World, x: number, z: number): boolean {
   p.life = MINES.life;
   p.age = 0;
   p.dmg = s.dmg;
-  p.pierce = s.chain; // 1 : explosion en chaîne (niveau 5)
+  p.pierce = s.chain; // 1 : explosion en chaîne (ligne « chaîne »)
   p.r = s.r;
   p.armed = false;
   p.hit0 = p.hit1 = p.hit2 = -1;
@@ -354,8 +339,7 @@ export function tickProjectiles(w: World, dt: number): void {
         if (d < 0.9 || p.life <= 0) {
           if (d < 0.9 && w.trait === Trait.Rapporteur) {
             // Braconnier : attraper le boomerang rend une partie de la recharge
-            const lv = w.weapons.boomerang ?? 0;
-            if (lv > 0) w.wstate.boomT -= WEAPONS.boomerang.stats(lv).cd * P.cdMul * TRAIT.rapporteur.refund;
+            if ((w.weapons.boomerang ?? 0) > 0) w.wstate.boomT -= weaponStats(w, 'boomerang').cd * P.cdMul * TRAIT.rapporteur.refund;
           }
           w.freeProj(i);
           continue;
@@ -363,7 +347,7 @@ export function tickProjectiles(w: World, dt: number): void {
       }
       p.x += p.vx * dt;
       p.z += p.vz * dt;
-      const n = w.grid.query(w.enemies, p.x, p.z, 0.6, MAX_ENEMY_R, hits);
+      const n = w.grid.query(w.enemies, p.x, p.z, 0.6 * P.sizeMul, MAX_ENEMY_R, hits);
       for (let k = 0; k < n; k++) {
         const e = w.enemies[hits[k]];
         if (w.t - e.lastBoom > BOOMERANG.rehit) {
@@ -376,7 +360,7 @@ export function tickProjectiles(w: World, dt: number): void {
     // orbe
     p.x += p.vx * dt;
     p.z += p.vz * dt;
-    const n = w.grid.query(w.enemies, p.x, p.z, 0.3, MAX_ENEMY_R, hits);
+    const n = w.grid.query(w.enemies, p.x, p.z, 0.3 * P.sizeMul, MAX_ENEMY_R, hits);
     for (let k = 0; k < n; k++) {
       const j = hits[k];
       const id = w.enemies[j].id;

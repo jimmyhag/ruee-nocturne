@@ -15,16 +15,15 @@ import {
   STEP,
   SWARM_TYPE,
   VOLANT_TYPE,
-  WEAPON_MAX,
   ZONES,
 } from './balance';
 import { dropChest, hitEnemy } from './combat';
-import { availableEvolution, chestCards, rollChoices } from './progression';
+import { chestCards, rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
 import { Ev, Mode, ProjKind } from './types';
-import type { Input, WeaponKey } from './types';
-import { EVOLUTIONS, WEAPON_KEYS } from './weapons/defs';
+import type { Input } from './types';
+import { WEAPON_KEYS } from './weapons/defs';
 import { World } from './world';
 
 const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
@@ -85,50 +84,6 @@ describe('boomerang et mines', () => {
     expect(blasts).toBeGreaterThanOrEqual(1);
     const brute = w.enemies.find((e) => e.alive && e.type === 2);
     expect(brute ? brute.hp : 0).toBeLessThan(hp);
-  });
-});
-
-describe('évolutions', () => {
-  /** Dégâts infligés en 10 s à un mur de 40 Brutes immortelles, arme au niveau 5, évoluée ou non. */
-  function damage10s(key: WeaponKey, evolved: boolean): number {
-    const w = new World(33);
-    god(w);
-    w.weapons = { [key]: WEAPON_MAX };
-    if (evolved) w.evolved[key] = true;
-    for (let i = 0; i < 40; i++) spawnEnemy(w, 2, (i / 40) * Math.PI * 2, 2 + (i % 6)); // de 2 à 7 u : couvre les deux rayons des lames
-    for (let i = 0; i < w.enemyCount; i++) w.enemies[i].hp = w.enemies[i].max = 1e9;
-    let total = 0;
-    for (let f = 0; f < 600; f++) {
-      step(w, still, STEP);
-      for (let e = 0; e < w.eventCount; e++) if (w.events[e].type === Ev.Hit) total += w.events[e].v;
-    }
-    return total;
-  }
-  it.each(Object.keys(EVOLUTIONS) as WeaponKey[])('%s évoluée fait ≈ ×2,5 dégâts (entre ×1,8 et ×4)', (k) => {
-    const base = damage10s(k, false),
-      evo = damage10s(k, true);
-    expect(base).toBeGreaterThan(0);
-    expect(evo / base).toBeGreaterThan(1.8);
-    expect(evo / base).toBeLessThan(4);
-  });
-  it('l’évolution est disponible avec l’arme au max et le passif associé, et un coffre la garantit en première carte', () => {
-    const w = new World(34);
-    w.weapons = { orbe: WEAPON_MAX };
-    expect(availableEvolution(w)).toBeNull();
-    w.passives = { force: 1 };
-    expect(availableEvolution(w)).toBe('orbe');
-    rollChoices(w, false);
-    expect(w.cards.some((c) => c.kind === 'e')).toBe(false); // une montée de niveau n'offre pas l'évolution
-    rollChoices(w, true);
-    expect(w.cards[0].kind).toBe('e');
-    expect(w.cards[0].key).toBe('orbe');
-    // l'appliquer évolue l'arme et émet Evolve
-    w.pending = 1;
-    w.mode = Mode.LevelUp;
-    step(w, { ...still, pick: 0 }, STEP);
-    expect(w.evolved.orbe).toBe(true);
-    expect(count(w, Ev.Evolve)).toBe(1);
-    expect(availableEvolution(w)).toBeNull();
   });
 });
 

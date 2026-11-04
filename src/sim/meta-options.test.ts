@@ -127,21 +127,21 @@ describe('armes débloquées', () => {
 });
 
 describe('emplacements (phase 10)', () => {
-  it('rollChoices ne propose pas de nouvelle arme ni de nouveau passif au-delà des emplacements ; le kit de départ ne compte pas', () => {
+  it('rollChoices ne propose pas de nouvelle arme ni de nouveau tome au-delà des emplacements ; le kit de départ ne compte pas', () => {
     const w = new World(11, { slots: { weapons: 1, passives: 2 } });
     expect(w.maxWeapons).toBe(1);
-    expect(w.maxPassives).toBe(2);
+    expect(w.maxTomes).toBe(2);
     for (let i = 0; i < 40; i++) {
       rollChoices(w);
       for (const c of w.cards) {
         if (c.kind === 'w') expect(c.key, 'seule l’arme de départ peut monter').toBe('orbe');
       }
     }
-    // deux passifs pris : plus aucun nouveau passif proposé, mais ceux possédés montent encore
-    w.passives = { force: 1, vitesse: 1 };
+    // deux tomes pris : plus aucun nouveau tome proposé, mais ceux possédés montent encore
+    w.tomes = { degats: 1, mouvement: 1 };
     for (let i = 0; i < 40; i++) {
       rollChoices(w);
-      for (const c of w.cards) if (c.kind === 's') expect(['force', 'vitesse']).toContain(c.key);
+      for (const c of w.cards) if (c.kind === 't') expect(['degats', 'mouvement']).toContain(c.key);
     }
     // Revenante : deux armes de départ avec un seul emplacement → les deux montent, pas de troisième
     const r = new World(12, { character: 'revenante', slots: { weapons: 1, passives: 2 } });

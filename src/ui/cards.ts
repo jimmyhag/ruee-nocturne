@@ -1,16 +1,16 @@
-// Libellés du contenu (armes, passifs, évolutions, ennemis, personnages, boutique, succès) : la sim ne porte que
+// Libellés du contenu (armes, tomes, lignes de stats, ennemis, personnages, boutique, succès) : la sim ne porte que
 // des clés (PLAN.md §4.2), les textes vivent ici, dans les deux langues. Aucun DOM : testable sous Vitest.
 import type { Achievement } from '../meta/achievements';
-import { CHARACTERS, ENEMIES, EVOLVE, SHOP } from '../sim/balance';
-import type { Card, CharacterKey, PassiveKey, WeaponKey } from '../sim/types';
-import { EVOLUTIONS, WEAPONS } from '../sim/weapons/defs';
+import { CHARACTERS, ENEMIES, SHOP, TOMES, WEAPON_LINES } from '../sim/balance';
+import type { StatLine } from '../sim/balance';
+import type { Card, CharacterKey, TomeKey, WeaponKey } from '../sim/types';
+import type { World } from '../sim/world';
+import { weaponStats } from '../sim/weapons/defs';
 import { fmtNum, fmtTime, t } from '../i18n';
 
 export const weaponName = (k: WeaponKey): string => t(`weapon.${k}.name`);
-export const passiveName = (k: PassiveKey): string => t(`passive.${k}.name`);
-export const passiveText = (k: PassiveKey): string => t(`passive.${k}.text`);
-/** Nom de l'évolution d'une arme, ou « Évolution » si elle n'en a pas. */
-export const evolutionName = (k: WeaponKey): string => (EVOLUTIONS[k] ? t(`evo.${k}.name`) : t('card.evolution'));
+export const tomeName = (k: TomeKey): string => t(`tome.${k}.name`);
+export const tomeText = (k: TomeKey): string => t(`tome.${k}.text`);
 export const characterName = (k: CharacterKey): string => t(`char.${k}.name`);
 export const characterText = (k: CharacterKey): string => t(`char.${k}.text`);
 /** Passif signature du personnage (phase 6) : nom et règle ; chaîne vide pour l'Éclaireuse. */
@@ -29,61 +29,58 @@ export const achName = (a: Achievement): string => t(`ach.${a.id}.name`);
 export const achText = (a: Achievement): string => t(`ach.${a.id}.text`, { n: a.goal });
 export const achUnlock = (a: Achievement): string => t(`ach.${a.id}.unlock`);
 
-/** Description d'une arme à un niveau donné : gabarit paramétré par ses stats (pluriels compris). */
-export function weaponText(k: WeaponKey, lv: number): string {
-  const s = WEAPONS[k].stats(lv);
-  switch (k) {
-    case 'orbe':
-      return t('weapon.orbe.text', { n: s.n, dmg: s.dmg, pierce: s.pierce > 1 ? t('weapon.orbe.pierce') : '' });
-    case 'aura':
-      return t('weapon.aura.text', { r: +s.r.toFixed(1), dmg: s.dmg });
-    case 'lames':
-      return t('weapon.lames.text', { n: s.n, dmg: s.dmg });
-    case 'foudre':
-      return t('weapon.foudre.text', { n: s.chain + 1, dmg: s.dmg });
-    case 'boomerang':
-      return t('weapon.boomerang.text', { n: s.n, range: s.range, dmg: s.dmg });
-    case 'mines':
-      return t('weapon.mines.text', {
-        n: s.n,
-        dmg: s.dmg,
-        r: +s.r.toFixed(1),
-        chain: s.chain ? t('weapon.mines.chain') : '',
-      });
+/** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */
+function lineValue(l: StatLine): string {
+  if (l.kind === 'pct' || (l.kind === 'add' && Math.abs(l.step) < 1 && l.stat !== 'regen' && l.stat !== 'luck')) {
+    const v = Math.round(l.step * 100);
+    return `${v > 0 ? '+' : '−'}${Math.abs(v)} %`;
   }
+  return `${l.step > 0 ? '+' : '−'}${fmtNum(Math.abs(l.step))}`;
 }
-
-/** Description d'une évolution (valeurs lues dans balance.ts, jamais recopiées). */
-export function evolutionText(k: WeaponKey): string {
-  switch (k) {
-    case 'orbe':
-      return t('evo.orbe.text', { n: EVOLVE.nova.n });
-    case 'aura':
-      return t('evo.aura.text', {
-        rMul: EVOLVE.soleil.rMul,
-        dmgMul: EVOLVE.soleil.dmgMul,
-        heal: EVOLVE.soleil.healPerKill,
-      });
-    case 'lames':
-      return t('evo.lames.text', { mul: EVOLVE.tempete.spdMul });
-    case 'foudre':
-      return t('evo.foudre.text', { div: EVOLVE.orage.cdDiv, plus: EVOLVE.orage.chainPlus });
-    default:
-      return '';
-  }
+/** Texte d'une ligne de stat (arme : `line.w.<stat>`, tome : `line.t.<stat>`), ex. « +7 % dégâts », « +1 projectile ». */
+export function lineText(kind: 'w' | 't', l: StatLine): string {
+  return t(`line.${kind}.${l.stat}`, { v: lineValue(l) });
 }
-
+/** Les lignes d'une carte, dans l'ordre (vide pour un soin). */
+export function cardLines(c: Card): string[] {
+  const out: string[] = [];
+  if (c.kind === 'heal') return out;
+  const lines = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey] : TOMES[c.key as TomeKey];
+  for (const s of [c.s0, c.s1, c.s2]) if (s >= 0) out.push(lineText(c.kind, lines[s]));
+  return out;
+}
 export function cardTitle(c: Card): string {
   if (c.kind === 'w') return weaponName(c.key as WeaponKey);
-  if (c.kind === 's') return passiveName(c.key as PassiveKey);
-  if (c.kind === 'e') return evolutionName(c.key as WeaponKey);
+  if (c.kind === 't') return tomeName(c.key as TomeKey);
   return t('card.heal');
 }
+/** Corps d'une carte : les lignes séparées par « · » (nouvelle arme ou nouveau tome : sa règle d'abord). */
 export function cardText(c: Card): string {
-  if (c.kind === 'w') return weaponText(c.key as WeaponKey, c.lv);
-  if (c.kind === 's') return passiveText(c.key as PassiveKey);
-  if (c.kind === 'e') return evolutionText(c.key as WeaponKey);
-  return t('card.healText');
+  if (c.kind === 'heal') return t('card.healText');
+  const lines = cardLines(c).join(' · ');
+  if (c.lv === 1) return `${c.kind === 'w' ? t(`weapon.${c.key}.text`) : tomeText(c.key as TomeKey)} — ${lines}`;
+  return lines;
+}
+/** Nom de la rareté d'une carte (1 ligne : commune, 2 : rare, 3 : épique). */
+export const rarityName = (n: number): string => t(`card.rarity.${Math.max(1, Math.min(3, n))}`);
+
+/** Résumé des stats courantes d'une arme possédée (inventaire, écran de mort) : gabarit paramétré par ses stats. */
+export function weaponSummary(w: World, k: WeaponKey): string {
+  const s = weaponStats(w, k);
+  switch (k) {
+    case 'orbe':
+      return t('weapon.orbe.stats', { n: s.n, dmg: Math.round(s.dmg), pierce: s.pierce });
+    case 'aura':
+      return t('weapon.aura.stats', { r: +s.r.toFixed(1), dmg: Math.round(s.dmg) });
+    case 'lames':
+      return t('weapon.lames.stats', { n: s.n, dmg: Math.round(s.dmg) });
+    case 'foudre':
+      return t('weapon.foudre.stats', { n: s.chain + 1, dmg: Math.round(s.dmg) });
+    case 'boomerang':
+      return t('weapon.boomerang.stats', { n: s.n, range: Math.round(s.range), dmg: Math.round(s.dmg) });
+    case 'mines':
+      return t('weapon.mines.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+  }
 }
 
 /** Valeur d'un succès (temps ou compteur) dans la langue courante. */

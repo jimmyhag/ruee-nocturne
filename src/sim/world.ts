@@ -1,5 +1,5 @@
-import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX, HAZARDS } from './balance';
-import { PASSIVES } from './weapons/defs';
+import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TOMES, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX, HAZARDS } from './balance';
+import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
 import { Ev, Mode, ProjKind, ShotKind, Trait, HurtSrc } from './types';
@@ -10,7 +10,7 @@ import type {
   GameEvent,
   Gem,
   Input,
-  PassiveKey,
+  TomeKey,
   Player,
   Projectile,
   Shot,
@@ -65,15 +65,19 @@ export class World {
   lastHurt: HurtSrc = HurtSrc.Contact; // dernière source de dégâts (cause de mort dans la CLI)
   boredomUntil = 0;
 
-  // armes et passifs
+  // armes et tomes (phase 12) : niveau = nombre d'améliorations ; lignes prises par stat dans wmods / tmods
   weapons: Partial<Record<WeaponKey, number>> = { orbe: 1 };
+  tomes: Partial<Record<TomeKey, number>> = {};
+  wmods: Record<WeaponKey, Int16Array>;
+  tmods: Partial<Record<TomeKey, Int16Array>> = {};
+  wstats: Record<WeaponKey, Record<string, number>>; // stats courantes (refreshStats), lues par la sim et le rendu
+  triples = 0; // cartes à 3 lignes prises (succès « Triple ligne »)
+  weaponLvBest = 1; // meilleur niveau d'arme du run (succès « Érudit »)
   unlocked: Set<WeaponKey> | null = null; // null = toutes les armes proposables
-  // emplacements (phase 10) : plafond d'armes et de passifs piochables ; le kit de départ du personnage ne compte pas
+  // emplacements (phase 10) : plafond d'armes et de tomes piochables ; le kit de départ du personnage ne compte pas
   maxWeapons = MAX_WEAPONS;
-  maxPassives = MAX_PASSIVES;
+  maxTomes = MAX_PASSIVES;
   bladeRangeMul = 1; // Bûcheron : lames à portée +20 %
-  passives: Partial<Record<PassiveKey, number>> = {};
-  evolved: Partial<Record<WeaponKey, boolean>> = {};
   wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0, boomT: 0.8, mineT: 0, mineDist: 0, fireDist: 0 };
   trait: Trait = Trait.None; // passif signature du personnage (phase 6)
   // compteurs de défis (phase 6) : distance parcourue, plus longue période sans dégât
@@ -95,17 +99,36 @@ export class World {
     this.rng = new Rng(seed);
     this.player = makePlayer(opts);
     const ch = CHARACTERS.find((c) => c.key === (opts?.character ?? 'eclaireuse')) ?? CHARACTERS[0];
-    this.weapons = { [ch.weapon]: ch.weaponLevel };
+    this.wmods = {} as Record<WeaponKey, Int16Array>;
+    this.wstats = {} as Record<WeaponKey, Record<string, number>>;
+    for (const k of WEAPON_KEYS) {
+      this.wmods[k] = new Int16Array(WEAPON_LINES[k].length);
+      this.wstats[k] = { ...WEAPONS[k].base };
+    }
+    this.weapons = { [ch.weapon]: 1 };
     if (ch.weapon2) this.weapons[ch.weapon2] = 1;
     this.bladeRangeMul = ch.bladeRangeMul;
     this.trait = ch.trait;
     if (ch.trait === Trait.DejaMorte) this.player.revives += TRAIT.dejamorte.revives;
-    if (ch.startPassives)
-      for (const k in ch.startPassives) {
-        const pk = k as PassiveKey;
-        const lv = ch.startPassives[pk] ?? 0;
-        this.passives[pk] = lv;
-        for (let i = 0; i < lv; i++) PASSIVES[pk].apply(this);
+    // kit de départ : lignes fixes (hors plafond d'emplacements, comme avant)
+    if (ch.startLines)
+      for (const k in ch.startLines) {
+        const wk = k as WeaponKey;
+        const names = ch.startLines[wk] ?? [];
+        for (const stat of names) this.wmods[wk][lineIndex(WEAPON_LINES[wk], stat)]++;
+        this.weapons[wk] = 1 + names.length;
+      }
+    if (ch.startTomes)
+      for (const k in ch.startTomes) {
+        const tk = k as TomeKey;
+        const names = ch.startTomes[tk] ?? [];
+        const mods = (this.tmods[tk] = new Int16Array(8));
+        for (const stat of names) {
+          const i = lineIndex(TOMES[tk], stat);
+          mods[i]++;
+          applyTomeLine(this, tk, i);
+        }
+        this.tomes[tk] = names.length;
       }
     if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
     if (opts?.slots) {
@@ -113,11 +136,12 @@ export class World {
         Math.max(1, Math.min(MAX_WEAPONS, opts.slots.weapons | 0)),
         Object.keys(this.weapons).length,
       );
-      this.maxPassives = Math.max(
+      this.maxTomes = Math.max(
         Math.max(1, Math.min(MAX_PASSIVES, opts.slots.passives | 0)),
-        Object.keys(this.passives).length,
+        Object.keys(this.tomes).length,
       );
     }
+    refreshStats(this);
     for (let i = 0; i < CAPS.enemies; i++) this.enemies.push(makeEnemy());
     for (let i = 0; i < CAPS.projectiles; i++) this.projs.push(makeProj());
     for (let i = 0; i < CAPS.shots; i++) this.shots.push(makeShot());
@@ -413,6 +437,18 @@ export function makePlayer(opts?: WorldOptions): Player {
     cdMul: 1 - tier('cd') * per('cd'),
     luck: tier('luck') * per('luck'),
     goldMul: 1 + tier('gold') * per('gold'),
+    projAdd: 0,
+    sizeMul: 1,
+    projSpeedMul: 1,
+    projLifeMul: 1,
+    eliteDmgMul: 1,
+    kbMul: 1,
+    armor: 0,
+    dashCdMul: 1,
+    dashInvulAdd: 0,
+    xpMul: 1,
+    chestGoldMul: 1,
+    eliteGold: 0,
     revives: tier('revive'),
     dashTime: ch.dashTime,
     level: 1,

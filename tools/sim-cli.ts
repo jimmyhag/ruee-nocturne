@@ -82,8 +82,12 @@ interface RunResult {
   killsAt10: number;
   levelAt10: number;
   weapons: Record<string, number>;
-  passives: Record<string, number>;
-  evolved: string[];
+  tomes: Record<string, number>;
+  triples: number; // cartes à 3 lignes prises (phase 12)
+  weaponLvBest: number; // meilleur niveau d'arme du run
+  weaponLvAt10: number; // meilleur niveau d'arme à 10 min (−1 si mort avant)
+  cards: number; // cartes prises
+  lines: number; // lignes reçues
   deathBy: string;
   eruptions: number; // phase 11 : éruptions subies (pics sortis sous le joueur)…
   eruptionHits: number; // …et combien l'ont touché (lisibilité du télégraphe pour le bot)
@@ -102,7 +106,10 @@ function runOnce(seed: number): RunResult {
   const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
   let frame = 0;
   let killsAt10 = -1,
-    levelAt10 = -1;
+    levelAt10 = -1,
+    weaponLvAt10 = -1,
+    cardsTaken = 0,
+    linesTaken = 0;
   let lastHurtType = 'inconnu';
   let eruptions = 0,
     eruptionHits = 0;
@@ -126,6 +133,10 @@ function runOnce(seed: number): RunResult {
       bot.decide(w, frame, inp);
       frame++;
     }
+    if (inp.pick >= 0 && w.cards[inp.pick]) {
+      cardsTaken++;
+      linesTaken += w.cards[inp.pick].n;
+    }
     step(w, inp, STEP);
     if (inp.pick >= 0) enforceAllowed(w, ALLOWED);
     for (let i = 0; i < w.eventCount; i++) {
@@ -148,6 +159,7 @@ function runOnce(seed: number): RunResult {
     if (w.t >= 600 && killsAt10 < 0) {
       killsAt10 = w.kills;
       levelAt10 = w.player.level;
+      weaponLvAt10 = w.weaponLvBest;
     }
     if (Math.floor(w.t / 60) >= alive.length) alive.push(1);
     if (w.mode === Mode.Dead) break;
@@ -161,8 +173,12 @@ function runOnce(seed: number): RunResult {
     killsAt10,
     levelAt10,
     weapons: { ...w.weapons } as Record<string, number>,
-    passives: { ...w.passives } as Record<string, number>,
-    evolved: Object.keys(w.evolved),
+    tomes: { ...w.tomes } as Record<string, number>,
+    triples: w.triples,
+    weaponLvBest: w.weaponLvBest,
+    weaponLvAt10,
+    cards: cardsTaken,
+    lines: linesTaken,
     deathBy: w.mode === Mode.Dead ? (HURT_NAMES[w.lastHurt] ?? lastHurtType) : '—',
     eruptions,
     eruptionHits,
@@ -197,8 +213,6 @@ for (const r of results)
     picks[k] = (picks[k] ?? 0) + 1;
     totalPicks++;
   }
-const evolutions: Record<string, number> = {};
-for (const r of results) for (const k of r.evolved) evolutions[k] = (evolutions[k] ?? 0) + 1;
 // variance inter-builds : médiane de kills@10 par arme principale (la plus haute hors départ) ; max / min des groupes ≥ 5 runs
 const byBuild: Record<string, number[]> = {};
 for (const r of results) {
@@ -262,7 +276,8 @@ const summary = {
       50,
     ),
     marathonPct: (100 * results.filter((r) => r.distance >= goal('marathon')).length) / RUNS,
-    metamorphePct: (100 * results.filter((r) => r.evolved.length >= goal('metamorphe')).length) / RUNS,
+    eruditPct: (100 * results.filter((r) => r.weaponLvBest >= goal('erudit')).length) / RUNS,
+    triple1Pct: (100 * results.filter((r) => r.triples >= goal('triple1')).length) / RUNS,
   },
   killsAt10p50: at10.length
     ? pct(
@@ -279,7 +294,31 @@ const summary = {
   pickPct: Object.fromEntries(
     Object.entries(picks).map(([k, v]) => [k, Math.round((100 * v) / Math.max(1, totalPicks))]),
   ),
-  evolutionPct: Object.fromEntries(Object.entries(evolutions).map(([k, v]) => [k, Math.round((100 * v) / RUNS)])),
+  // phase 12 : lignes par carte, part de cartes épiques, niveau d'arme principale à 10 min
+  linesPerCard: +(
+    results.reduce((a, r) => a + r.lines, 0) /
+    Math.max(
+      1,
+      results.reduce((a, r) => a + r.cards, 0),
+    )
+  ).toFixed(2),
+  triplePct: Math.round(
+    (100 * results.reduce((a, r) => a + r.triples, 0)) /
+      Math.max(
+        1,
+        results.reduce((a, r) => a + r.cards, 0),
+      ),
+  ),
+  weaponLvAt10p50: at10.length
+    ? pct(
+        at10.map((r) => r.weaponLvAt10),
+        50,
+      )
+    : -1,
+  weaponLvBestP50: pct(
+    results.map((r) => r.weaponLvBest),
+    50,
+  ),
   buildMedians,
   killsVarianceRatio,
   eruptionsPerRun: +(results.reduce((a, r) => a + r.eruptions, 0) / RUNS).toFixed(1),
@@ -316,7 +355,7 @@ lines.push(
   `or          p50 ${summary.goldP50} · ${(summary.goldP50 / summary.firstTierCost).toFixed(1)} premier(s) palier(s) par run · ${summary.runsToMax.toFixed(0)} runs pour tout maxer un personnage`,
 );
 lines.push(
-  `défis       sans dégât p50 ${mmss(summary.challenges.noHitP50)} (Intouchable ${summary.challenges.intouchablePct.toFixed(0)} %) · distance p50 ${Math.round(summary.challenges.distanceP50)} u (Marathon ${summary.challenges.marathonPct.toFixed(0)} %) · Métamorphe ${summary.challenges.metamorphePct.toFixed(0)} %`,
+  `défis       sans dégât p50 ${mmss(summary.challenges.noHitP50)} (Intouchable ${summary.challenges.intouchablePct.toFixed(0)} %) · distance p50 ${Math.round(summary.challenges.distanceP50)} u (Marathon ${summary.challenges.marathonPct.toFixed(0)} %) · Érudit ${summary.challenges.eruditPct.toFixed(0)} % · Triple ligne ${summary.challenges.triple1Pct.toFixed(0)} %`,
 );
 lines.push(
   `picks       ${Object.entries(summary.pickPct)
@@ -324,13 +363,7 @@ lines.push(
     .join(' · ')}`,
 );
 lines.push(
-  `évolutions  ${
-    Object.entries(summary.evolutionPct).length
-      ? Object.entries(summary.evolutionPct)
-          .map(([k, v]) => `${k} ${v} %`)
-          .join(' · ')
-      : 'aucune'
-  }`,
+  `lignes      ${summary.linesPerCard} par carte · ${summary.triplePct} % de cartes épiques · arme principale niv ${summary.weaponLvAt10p50} à 10 min, ${summary.weaponLvBestP50} en fin de run`,
 );
 lines.push(
   `kills@10/build ${Object.entries(summary.buildMedians)

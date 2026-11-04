@@ -1,73 +1,118 @@
-// Armes : tables de stats, textes, et comportement sur un monde minimal (sim-testing §1).
+// Armes : bases, lignes de stats (phase 12), tomes, et comportement sur un monde minimal (sim-testing §1).
 import { describe, expect, it } from 'vitest';
-import { STEP, WEAPON_MAX } from '../balance';
+import { STEP, TOMES, TOME_KEYS, WEAPON_LINES } from '../balance';
 import { spawnEnemy } from '../spawner';
 import { startRun, step } from '../step';
 import { Ev, HitSrc } from '../types';
-import type { Input, PassiveKey, WeaponKey } from '../types';
+import type { Input, TomeKey, WeaponKey } from '../types';
 import { World } from '../world';
-import { PASSIVES, PASSIVE_KEYS, WEAPONS, WEAPON_KEYS } from './defs';
+import { WEAPONS, WEAPON_KEYS, applyTomeLine, refreshStats, weaponStats } from './defs';
 
 const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
 
-describe('fiches d’armes', () => {
-  it('six armes, stats définies à chaque niveau (textes : src/ui/cards.test.ts)', () => {
+describe('fiches d’armes et lignes', () => {
+  it('six armes, une base finie et des lignes qui touchent une stat de la base', () => {
     expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines']);
     for (const k of WEAPON_KEYS) {
       const d = WEAPONS[k];
       expect(d.glyph.length).toBeGreaterThan(0);
-      for (let lv = 1; lv <= WEAPON_MAX; lv++) {
-        const s = d.stats(lv);
-        for (const v of Object.values(s)) expect(Number.isFinite(v), `${k} lv${lv}`).toBe(true);
+      for (const v of Object.values(d.base)) expect(Number.isFinite(v), k).toBe(true);
+      expect(WEAPON_LINES[k].length).toBeGreaterThanOrEqual(3);
+      for (const l of WEAPON_LINES[k]) {
+        expect(d.base, `${k} ${l.stat}`).toHaveProperty(l.stat);
+        expect(l.weight).toBeGreaterThan(0);
+        if (l.kind === 'pct' && l.step < 0) expect(l.max, `${k} ${l.stat} : une baisse en % doit être plafonnée`).toBeDefined();
       }
+      expect(WEAPON_LINES[k].some((l) => l.stat === 'dmg')).toBe(true);
     }
   });
-  it('les dégâts montent avec le niveau, les recharges descendent', () => {
-    for (const k of WEAPON_KEYS) {
-      for (let lv = 2; lv <= WEAPON_MAX; lv++) {
-        const a = WEAPONS[k].stats(lv - 1),
-          b = WEAPONS[k].stats(lv);
-        expect(b.dmg, `${k} dmg lv${lv}`).toBeGreaterThan(a.dmg);
-        if ('cd' in a) expect(b.cd, `${k} cd lv${lv}`).toBeLessThan(a.cd);
-      }
-    }
-    expect(WEAPONS.orbe.stats(4).pierce).toBe(2);
-    expect(WEAPONS.orbe.stats(3).n).toBe(2);
-    expect(WEAPONS.aura.stats(1).r).toBeCloseTo(2.2);
+  it('les lignes s’additionnent sur la base : Orbe +7 % ×3 = 12,1 dégâts, +1 projectile ×2 = 3 tirs', () => {
+    const w = new World(1);
+    expect(weaponStats(w, 'orbe').dmg).toBeCloseTo(10);
+    w.wmods.orbe[0] = 3; // dmg
+    w.wmods.orbe[2] = 2; // n
+    refreshStats(w);
+    expect(weaponStats(w, 'orbe').dmg).toBeCloseTo(12.1);
+    expect(weaponStats(w, 'orbe').n).toBe(3);
+    // les objets de stats sont réutilisés (zéro allocation côté appelant)
+    const ref = weaponStats(w, 'orbe');
+    refreshStats(w);
+    expect(weaponStats(w, 'orbe')).toBe(ref);
+  });
+  it('une ligne de recharge plafonnée ne passe jamais sous 40 % de la base', () => {
+    const w = new World(2);
+    const l = WEAPON_LINES.orbe[1];
+    w.wmods.orbe[1] = l.max!;
+    refreshStats(w);
+    expect(weaponStats(w, 'orbe').cd).toBeGreaterThanOrEqual(0.95 * 0.4 - 1e-9);
+  });
+  it('tome Projectiles : +1 projectile pour toutes les armes (cibles de la Foudre comprises), taille et vitesse', () => {
+    const w = new World(3);
+    w.player.projAdd = 2;
+    w.player.sizeMul = 1.5;
+    w.player.projSpeedMul = 2;
+    refreshStats(w);
+    expect(weaponStats(w, 'orbe').n).toBe(3);
+    expect(weaponStats(w, 'boomerang').n).toBe(3);
+    expect(weaponStats(w, 'lames').n).toBe(4);
+    expect(weaponStats(w, 'mines').n).toBe(7);
+    expect(weaponStats(w, 'foudre').chain).toBe(5);
+    expect(weaponStats(w, 'aura').r).toBeCloseTo(2.2 * 1.5);
+    expect(weaponStats(w, 'orbe').speed).toBeCloseTo(34);
   });
 });
 
-describe('passifs', () => {
-  it('chaque passif modifie le joueur comme son texte l’annonce', () => {
-    for (const k of PASSIVE_KEYS as PassiveKey[]) {
-      const w = new World(1);
-      const before = { ...w.player };
-      w.player.hp = 50;
-      PASSIVES[k].apply(w);
-      const P = w.player;
-      switch (k) {
-        case 'vitesse':
-          expect(P.speed).toBeCloseTo(before.speed * 1.1);
-          break;
-        case 'coeur':
-          expect(P.maxHp).toBe(before.maxHp + 25);
-          expect(P.hp).toBe(75);
-          break;
-        case 'regen':
-          expect(P.regen).toBeCloseTo(before.regen + 0.6);
-          break;
-        case 'aimant':
-          expect(P.magnet).toBeCloseTo(before.magnet * 1.35);
-          break;
-        case 'force':
-          expect(P.dmgMul).toBeCloseTo(before.dmgMul + 0.15);
-          break;
-        case 'cadence':
-          expect(P.cdMul).toBeCloseTo(before.cdMul * 0.92);
-          break;
+describe('tomes', () => {
+  it('chaque ligne de chaque tome modifie le joueur dans le bon sens', () => {
+    for (const k of TOME_KEYS as TomeKey[]) {
+      for (let i = 0; i < TOMES[k].length; i++) {
+        const w = new World(1);
+        const before = { ...w.player };
+        w.player.hp = 50;
+        applyTomeLine(w, k, i);
+        const P = w.player;
+        const stat = TOMES[k][i].stat;
+        switch (stat) {
+          case 'dmg':
+            expect(P.dmgMul).toBeCloseTo(before.dmgMul + 0.04);
+            break;
+          case 'cd':
+            expect(P.cdMul).toBeCloseTo(before.cdMul - 0.03);
+            break;
+          case 'proj':
+            expect(P.projAdd).toBe(1);
+            break;
+          case 'hp':
+            expect(P.maxHp).toBe(before.maxHp + 8);
+            expect(P.hp).toBe(58);
+            break;
+          case 'armor':
+            expect(P.armor).toBeCloseTo(0.03);
+            break;
+          case 'speed':
+            expect(P.speed).toBeCloseTo(before.speed * 1.03);
+            break;
+          case 'xp':
+            expect(P.xpMul).toBeCloseTo(1.06);
+            break;
+          case 'luck':
+            expect(P.luck).toBeCloseTo(before.luck + 0.5);
+            break;
+          case 'gold':
+            expect(P.goldMul).toBeCloseTo(before.goldMul + 0.08);
+            break;
+          default:
+            expect(JSON.stringify(P)).not.toBe(JSON.stringify(before)); // la ligne change quelque chose
+        }
       }
-      expect(PASSIVES[k].max).toBeGreaterThanOrEqual(4);
     }
+  });
+  it('l’armure est bornée à 45 % et la recharge à 25 %', () => {
+    const w = new World(2);
+    for (let i = 0; i < 40; i++) applyTomeLine(w, 'vitalite', 2);
+    expect(w.player.armor).toBeCloseTo(0.45);
+    for (let i = 0; i < 60; i++) applyTomeLine(w, 'cadence', 0);
+    expect(w.player.cdMul).toBeCloseTo(0.25);
   });
 });
 
@@ -92,7 +137,7 @@ describe('comportement sur un monde minimal', () => {
     const r = hitsWithin(k, 180);
     expect(r.hit).toBeGreaterThan(0);
   });
-  it('un Spectre (10 PV) meurt d’un Orbe niveau 1 (10 dégâts) au premier impact', () => {
+  it('un Spectre (10 PV) meurt d’un Orbe de base (10 dégâts) au premier impact', () => {
     const r = hitsWithin('orbe', 120);
     expect(r.dead).toBe(true);
   });
@@ -105,11 +150,13 @@ describe('comportement sur un monde minimal', () => {
       step(w, still, STEP);
       for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Bolt) bolts++;
     }
-    expect(bolts).toBeGreaterThanOrEqual(2); // chain = 3 au niveau 1 : au moins la cible et un voisin
+    expect(bolts).toBeGreaterThanOrEqual(2); // chain = 3 : au moins la cible et un voisin
   });
   it('les lames reculent les ennemis et ne frappent pas deux fois en 0,4 s', () => {
     const w = new World(5);
     w.weapons = { lames: 2 };
+    w.wmods.lames[1] = 1; // 3 lames
+    refreshStats(w);
     const i = spawnEnemy(w, 2, 0, 2.6); // Brute sur l’orbite des lames
     const hpBefore = w.enemies[i].hp;
     let hits = 0;
@@ -124,7 +171,7 @@ describe('comportement sur un monde minimal', () => {
   it('l’aura pulse à période fixe et émet AuraPulse', () => {
     const w = new World(8);
     startRun(w);
-    w.weapons = { aura: 3 };
+    w.weapons = { aura: 1 };
     let pulses = 0;
     for (let f = 0; f < 120; f++) {
       step(w, still, STEP);

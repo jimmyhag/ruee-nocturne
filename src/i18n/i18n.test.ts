@@ -7,8 +7,8 @@ import fr from './fr.json';
 import en from './en.json';
 import { fmtNum, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './index';
 import { ACHIEVEMENTS } from '../meta/achievements';
-import { CHARACTERS, ENEMIES, SHOP } from '../sim/balance';
-import { EVOLUTIONS, PASSIVE_KEYS, WEAPON_KEYS } from '../sim/weapons/defs';
+import { CHARACTERS, ENEMIES, SHOP, TOMES, TOME_KEYS, WEAPON_LINES } from '../sim/balance';
+import { WEAPON_KEYS } from '../sim/weapons/defs';
 
 const FR = fr as Record<string, string>;
 const EN = en as Record<string, string>;
@@ -37,9 +37,14 @@ describe('dictionnaires', () => {
 
 describe('clés dérivées du contenu', () => {
   const need: string[] = [];
-  for (const k of WEAPON_KEYS) need.push(`weapon.${k}.name`);
-  for (const k of PASSIVE_KEYS) need.push(`passive.${k}.name`, `passive.${k}.text`);
-  for (const k of Object.keys(EVOLUTIONS)) need.push(`evo.${k}.name`, `evo.${k}.text`);
+  for (const k of WEAPON_KEYS) {
+    need.push(`weapon.${k}.name`, `weapon.${k}.text`);
+    for (const l of WEAPON_LINES[k]) need.push(`line.w.${l.stat}`);
+  }
+  for (const k of TOME_KEYS) {
+    need.push(`tome.${k}.name`, `tome.${k}.text`);
+    for (const l of TOMES[k]) need.push(`line.t.${l.stat}`);
+  }
   for (const c of CHARACTERS) {
     need.push(`char.${c.key}.name`, `char.${c.key}.text`);
     if (c.key !== 'eclaireuse') need.push(`char.${c.key}.trait`);
@@ -86,7 +91,8 @@ describe('t, pluriel, formats', () => {
     expect(fmtNum(2000)).toBe('2 000');
     expect(ordinal(1)).toBe('1er');
     expect(ordinal(2)).toBe('2e');
-    expect(t('weapon.orbe.text', { n: 2, dmg: 15, pierce: '' })).toBe("2 tirs vers l'ennemi le plus proche, 15 dégâts");
+    expect(t('weapon.orbe.stats', { n: 2, dmg: 15, pierce: 1 })).toBe('2 tirs, 15 dégâts, transperce 1');
+    expect(t('weapon.orbe.stats', { n: 1, dmg: 10, pierce: 1 })).toBe('1 tir, 10 dégâts, transperce 1');
   });
   it('anglais : 1 seul au singulier, nombres à l’anglaise', () => {
     setLang('en');

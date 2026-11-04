@@ -1,9 +1,9 @@
 import { ENEMIES, PLAYER } from '../sim/balance';
-import type { Card, PassiveKey, WeaponKey } from '../sim/types';
-import { EVOLUTIONS, PASSIVES, WEAPONS } from '../sim/weapons/defs';
+import type { Card, TomeKey, WeaponKey } from '../sim/types';
+import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
 import type { World } from '../sim/world';
 import { fmtTime, onLangChange, t } from '../i18n';
-import { cardText, cardTitle, enemyName, passiveName, weaponName } from './cards';
+import { cardLines, cardText, cardTitle, enemyName, rarityName, tomeName, weaponName } from './cards';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -158,10 +158,8 @@ export class Hud {
   kit(w: World): void {
     const parts: string[] = [];
     for (const k in w.weapons) parts.push(`<span>${weaponName(k as WeaponKey)} ${w.weapons[k as WeaponKey]}</span>`);
-    for (const k in w.passives)
-      parts.push(
-        `<span style="color:var(--muted)">${passiveName(k as PassiveKey)} ${w.passives[k as PassiveKey]}</span>`,
-      );
+    for (const k in w.tomes)
+      parts.push(`<span style="color:var(--muted)">${tomeName(k as TomeKey)} ${w.tomes[k as TomeKey]}</span>`);
     this.els.kit.innerHTML = parts.join('');
   }
 
@@ -195,20 +193,25 @@ export function renderCards(container: HTMLElement, cards: Card[]): void {
           c.lv === 1
             ? `<span class="badge new">${t('card.newWeapon')}</span>`
             : `<span class="badge">${t('card.level', { n: c.lv })}</span>`;
-      } else if (c.kind === 's') {
-        const d = PASSIVES[c.key as PassiveKey];
+      } else if (c.kind === 't') {
+        const d = TOME_LOOK[c.key as TomeKey];
         glyph = d.glyph;
         color = d.color;
-        badge = `<span class="badge">${t('card.level', { n: c.lv })}</span>`;
-      } else if (c.kind === 'e') {
-        const d = EVOLUTIONS[c.key as WeaponKey];
-        if (d) {
-          glyph = d.glyph;
-          color = d.color;
-        }
-        badge = `<span class="badge evo">${t('card.evolution')}</span>`;
+        badge =
+          c.lv === 1
+            ? `<span class="badge new">${t('card.newTome')}</span>`
+            : `<span class="badge">${t('card.level', { n: c.lv })}</span>`;
       }
-      return `<button class="card" data-i="${i}"><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div>${badge}<p>${cardText(c)}</p></button>`;
+      // rareté = nombre de lignes : 2 → rare (cadre bleu), 3 → épique (cadre or) ; le badge de rareté suit
+      const rarity = c.kind === 'heal' ? '' : c.n >= 3 ? ' epic' : c.n === 2 ? ' rare' : '';
+      const rb = rarity ? `<span class="badge${rarity}">${rarityName(c.n)}</span>` : '';
+      const lines = cardLines(c);
+      const intro = c.lv === 1 ? `<p>${c.kind === 'w' ? t(`weapon.${c.key}.text`) : t(`tome.${c.key}.text`)}</p>` : '';
+      const body =
+        c.kind === 'heal'
+          ? `<p>${cardText(c)}</p>`
+          : `${intro}<ul class="lines">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
+      return `<button class="card${rarity}" data-i="${i}"><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}</div>${body}</button>`;
     })
     .join('');
 }
