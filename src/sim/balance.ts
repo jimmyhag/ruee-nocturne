@@ -132,7 +132,7 @@ export const SPAWN = {
   rate: (t: number) =>
     Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
   hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 85 + Math.max(0, t - 900) / 50, // phase 12 : milieu plus doux (t/150 et /70 avant), fin de partie plus raide (+2,5 à 20:00) : 16 % de runs maxés allaient au bout // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
-  dmgScale: (t: number) => 1 + t / 500 + Math.max(0, t - 900) / 65, // phase 12 : ×4,1 à 20:00 (t/450 avant) ; après 15:00 les dégâts montent plus vite : une build qui a explosé n'est plus limitée par les PV ennemis
+  dmgScale: (t: number) => 1 + t / 500 + Math.max(0, t - 900) / 45, // phase 12 : ×4,1 à 20:00 (t/450 avant) ; après 15:00 les dégâts montent plus vite : une build qui a explosé n'est plus limitée par les PV ennemis
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
   ringMax: 30, // hors écran (fog à 16–44)
@@ -419,17 +419,18 @@ export const OUTFIT = { price: 400 };
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
   { key: 'eclaireuse', weapon: 'orbe', trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '', price: 0 },
-  { key: 'bucheron', weapon: 'lames', startLines: { lames: ['n', 'dmg'] }, // phase 10 : Lames 3 (une lame et des dégâts en plus) ; à Lames 2, 3:31 et 41 % de morts < 3 min
+  { key: 'bucheron', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 (4 lames, 21 dégâts) : avec 1 lame et 1 ligne de dégâts, 2:24 et 71 % de morts < 3 min
     trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10', price: 0 },
   { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
   { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
-  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg'] }, trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
+  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'dmg', 'dmg', 'dmg', 'cd', 'range'] }, // ≈ l'ancien Boomerang 2 (20 dégâts, recharge 1,6 s, portée 9,5)
+    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
   { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
     dashTime: PLAYER.dashTime * TRAIT.trainee.dashMul, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
   { key: 'revenante', weapon: 'foudre', weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'win', price: 0 },
-  { key: 'colporteur', weapon: 'lames', startLines: { lames: ['n', 'dmg'] }, // phase 10 : Lames 3 ; à Lames 2, 3:18 et 43 % de morts < 3 min
+  { key: 'colporteur', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 ; avec 1 lame et 1 ligne de dégâts, 2:19 et 78 % de morts < 3 min
     startTomes: { chance: ['luck', 'luck'], or: ['gold', 'gold', 'gold'] }, // ≈ Trèfle 1 et Bourse 1 d'avant
     trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];
