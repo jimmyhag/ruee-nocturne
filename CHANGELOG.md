@@ -19,7 +19,7 @@ Le saut et le dash servent à autre chose qu'à fuir : on monte, on passe au-des
 
 - Projectiles ennemis : plafond 96 → 128 (éruptions et ondes).
 - Première éruption à 2:30 et dégâts 18 (× montée des dégâts) après mesure : à 2:00 et 20 PV, les morts avant 3 minutes passaient de 13 à 22 %.
-- Survie médiane (bot average, 100 runs) : départ **4:31** (4:25 en 1.5.0), 80 % des runs passent 3 minutes ; personnage complet **14:28** (15:09). Éruptions : 7–8 % des causes de mort.
+- Survie médiane (bot average, 100 runs) : départ **4:40** (4:25 en 1.5.0), 83 % des runs passent 3 minutes ; personnage complet **14:28** (15:09). Éruptions : 6–8 % des causes de mort. Les plateaux restent à 24 u du départ : à 12 u, le bot se faisait coincer au pied (+5 points de morts avant 3 minutes).
 
 ## 1.5.0 — 4 nov. 2026 (phase 10 « Progression lente »)
 
