@@ -2,7 +2,7 @@
 // Sortie : shots/<projet>-<écran>.png
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { openGame, startRun } from './helpers';
+import { openCharacters, openGame, startRun } from './helpers';
 
 const shot = (name: string, project: string) => ({
   path: `shots/${project}-${name}.png`,
@@ -192,7 +192,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   );
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('#chars .card.char.locked')).toHaveCount(0);
-  await page.locator('#chars').evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await openCharacters(page); // phase 14 : feuille « Personnage »
   await page.waitForTimeout(300);
   await page.screenshot(shot('personnages', p));
   // phase 8 : la boutique du personnage choisi, avec la rangée de personnages et quelques paliers

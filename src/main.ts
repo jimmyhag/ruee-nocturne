@@ -60,7 +60,7 @@ import {
   slotsLine,
 } from './ui/meta-ui';
 import type { CharacterKey } from './sim/types';
-import { installDebugHooks } from './debug';
+import { installDebugHooks, debugEnabled } from './debug';
 import { Pwa } from './platform/pwa';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -107,8 +107,30 @@ const audio = new AudioBus();
 const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnDash'));
 
 // ---------- état applicatif ----------
-type AppMode = 'menu' | 'play' | 'levelup' | 'pause' | 'over' | 'shop' | 'achievements' | 'settings' | 'account';
-const SCREENS = ['menu', 'levelup', 'pause', 'over', 'shop', 'achievements', 'settings', 'account'] as const;
+type AppMode =
+  | 'menu'
+  | 'play'
+  | 'levelup'
+  | 'pause'
+  | 'over'
+  | 'shop'
+  | 'achievements'
+  | 'settings'
+  | 'account'
+  | 'characters'
+  | 'help';
+const SCREENS = [
+  'menu',
+  'levelup',
+  'pause',
+  'over',
+  'shop',
+  'achievements',
+  'settings',
+  'account',
+  'characters',
+  'help',
+] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 let dailyRun = false; // partie en cours = défi du jour
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
@@ -161,6 +183,7 @@ function resize(): void {
   sizeH = h;
   sizeDpr = dpr;
   scene?.resize(w, h);
+  if (scene) scene.menuWide = w > 900 && w > h; // cadrage de l'accueil (phase 14)
 }
 addEventListener('resize', resize);
 addEventListener('orientationchange', resize);
@@ -169,6 +192,7 @@ resize();
 
 function showOnly(id: AppMode | null): void {
   for (const s of SCREENS) $(s).hidden = s !== id;
+  document.body.classList.toggle('menu-home', id === 'menu');
   $('vignette').hidden = world === null; // vignette douce sur le jeu (phase 9), pas sur le menu ni ses écrans
 }
 function updateBestLine(): void {
@@ -182,7 +206,7 @@ function updateBestLine(): void {
     const best = dailyBest(meta);
     $('dailyBtn').textContent = best > 0 ? t('menu.dailyBest', { time: fmtTime(best) }) : t('menu.daily');
   }
-  $('shopBtn').textContent = t('menu.shopGold', { gold: t('gold', { n: Math.round(meta.gold) }) });
+  $('shopLabel').textContent = t('menu.shopGold', { gold: t('gold', { n: Math.round(meta.gold) }) }); // le bouton garde son icône
 }
 /** Applique les réglages (HUD, gaucher, vibrations, son, langue) au DOM et aux libellés. */
 function applySettings(): void {
@@ -210,13 +234,17 @@ function vibrate(ms: number): void {
     /* non supporté */
   }
 }
-function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account'): void {
-  if (app === 'menu' || app === 'over' || app === 'pause') backTo = app;
+function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account' | 'characters' | 'help'): void {
+  if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings')
+    backTo = app === 'settings' ? 'menu' : app;
   app = id;
   if (id === 'shop') renderShopScreen();
   else if (id === 'achievements') renderAchievements($('achList'), meta);
   else if (id === 'account') openAccount();
-  else {
+  else if (id === 'characters') renderCharacters($('chars'), meta, $('charInfo'));
+  else if (id === 'help') {
+    /* statique */
+  } else {
     applySettings();
     $('settingsMsg').textContent = '';
   }
@@ -247,6 +275,7 @@ function applyLangStatic(): void {
 function applyLang(): void {
   applyLangStatic();
   applyFx();
+  applyQuality(); // le libellé « Rendu : … » suivait l'ancienne langue
   applySettings();
   setPerf(perfOn);
   if (world) hud.kit(world);
@@ -496,6 +525,14 @@ $('achBtn').onclick = () => openScreen('achievements');
 $('settingsBtn').onclick = () => openScreen('settings');
 $('accountBtn').onclick = () => openScreen('account');
 $('accountBackBtn').onclick = closeScreen;
+$('charsBtn').onclick = () => openScreen('characters');
+$('charactersBackBtn').onclick = closeScreen;
+$('helpBtn').onclick = () => openScreen('help');
+$('helpBackBtn').onclick = closeScreen;
+$('helpPlayBtn').onclick = () => {
+  closeScreen();
+  startGame();
+};
 $('pauseSettingsBtn').onclick = () => openScreen('settings');
 $('shopBackBtn').onclick = closeScreen;
 $('achBackBtn').onclick = closeScreen;
@@ -1379,6 +1416,13 @@ function applyMeta(): void {
 }
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
+resize(); // cadrage de l'accueil une fois la scène connue (menuWide)
+// premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
+if (!meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
+  meta.seenHelp = true;
+  saveMeta(meta);
+  openScreen('help');
+}
 let metaLoaded = false;
 loadMeta().then((m) => {
   if (JSON.stringify(m) !== JSON.stringify(meta)) {

@@ -1,7 +1,7 @@
 // Localisation (phase 5) : bascule à chaud depuis les réglages, persistance, détection automatique de la langue
 // du navigateur, et priorité du réglage sur la détection.
 import { expect, test } from '@playwright/test';
-import { openGame, startRun } from './helpers';
+import { openCharacters, openGame, startRun } from './helpers';
 
 test('réglages : passer en anglais traduit le menu, les cartes et l’écran de mort ; le choix survit au rechargement', async ({
   page,
@@ -20,7 +20,10 @@ test('réglages : passer en anglais traduit le menu, les cartes et l’écran de
   await page.locator('#settingsBackBtn').click();
   await expect(page.locator('#playBtn')).toHaveText('Play');
   await expect(page.locator('#shopBtn')).toContainText('gold');
+  await openCharacters(page);
   await expect(page.locator('#chars .card.char').first()).toContainText('Scout');
+  await expect(page.locator('#characters h2')).toHaveText('Character');
+  await page.locator('#charactersBackBtn').click();
 
   // en jeu : montée de niveau puis mort, tout en anglais
   await startRun(page, 42);

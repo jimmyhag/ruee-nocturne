@@ -1,6 +1,6 @@
 // Porte de phase 4 : un nouveau joueur obtient son premier déblocage en moins de 3 runs ; export/import vérifié.
 import { expect, test } from '@playwright/test';
-import { openGame, startRun } from './helpers';
+import { openCharacters, openGame, startRun } from './helpers';
 
 /** Profil vierge : on remplace la méta par défaut via le hook de debug (IndexedDB + localStorage). */
 async function freshProfile(page: import('@playwright/test').Page): Promise<void> {
@@ -134,6 +134,7 @@ test('personnage : le Bûcheron débloqué devient sélectionnable et démarre a
   await openGame(page);
   await page.evaluate(() => (window as any).__game.setMeta({ version: 3, achievements: ['survie3', 'survie10'] }));
   await expect(page.locator('#chars .card.char.locked')).toHaveCount(7); // 9 personnages, 2 débloqués
+  await openCharacters(page);
   await page.locator('#chars .card.char[data-char="bucheron"]').click();
   await expect(page.locator('#chars .card.char[data-char="bucheron"]')).toHaveClass(/selected/);
   await startRun(page, 4);
@@ -170,6 +171,7 @@ test('personnage acheté en or : la Veilleuse se débloque en moins de 5 runs d�
   }
   expect(runs + 1, 'runs nécessaires').toBeLessThan(5);
   await expect(veilleuse.locator('.buychar')).not.toHaveClass(/poor/);
+  await openCharacters(page);
   await veilleuse.locator('.buychar').click();
   await expect(veilleuse).not.toHaveClass(/locked/);
   await expect(veilleuse).toHaveClass(/selected/);

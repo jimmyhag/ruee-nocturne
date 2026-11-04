@@ -58,8 +58,8 @@ export default defineConfig({
         display: 'fullscreen',
         display_override: ['fullscreen', 'standalone'],
         orientation: 'any',
-        background_color: '#1c1226',
-        theme_color: '#1c1226',
+        background_color: '#0f1628',
+        theme_color: '#0f1628',
         categories: ['games'],
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },

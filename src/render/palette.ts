@@ -1,13 +1,15 @@
 // Palette partagée rendu ↔ UI. Les mêmes valeurs sont dans index.html (:root).
 export const PAL = {
-  ink: 0x1c1226,
-  fog: 0x5d4f7d,
-  paper: 0xfff1db,
-  muted: 0xc7b3cf,
-  accent: 0xff8a3d,
-  hp: 0xff5470,
-  xp: 0x59d8ff,
-  gold: 0xffcc4d,
+  // phase 14 : nuit bleue profonde, lanternes chaudes (les anciennes valeurs violettes : 1c1226 / 5d4f7d / ff8a3d / ffcc4d)
+  ink: 0x0f1628,
+  fog: 0x182341,
+  paper: 0xf3ecdc,
+  muted: 0x9aa4c2,
+  accent: 0xffb347,
+  hp: 0xff5d73,
+  xp: 0x5fd3ff,
+  gold: 0xffd166,
+  lantern: 0xffb347, // lumière des lanternes et des halos chauds
   grass1: [63, 104, 88] as const,
   grass2: [72, 118, 98] as const,
   tree: 0x2d5248,
@@ -23,15 +25,15 @@ export const PAL = {
   mine: 0xff6a3d,
   spit: 0x8cf08c,
   telegraph: 0xff3b5c,
-  dust: 0xc7b3cf,
-  cream: 0xfff1db,
+  dust: 0x9aa4c2,
+  cream: 0xf3ecdc,
   gem: 0x59d8ff,
   gem2: 0xff7ad0,
   gem3: 0xffcc4d,
   // cycle de lumière : crépuscule (0:00) → nuit (8:00) → aube (20:00)
   light: {
-    dusk: { fog: 0x5d4f7d, sky: 0xffd9c2, ground: 0x3a2f55, hemi: 0.9, sun: 0xffe2b8, sunI: 0.85 },
-    night: { fog: 0x2b2546, sky: 0x8fa3ff, ground: 0x1d1830, hemi: 0.75, sun: 0x9db4ff, sunI: 0.5 },
-    dawn: { fog: 0x8a6a7a, sky: 0xffe9c9, ground: 0x4a3350, hemi: 1.0, sun: 0xffc89a, sunI: 0.9 },
+    dusk: { fog: 0x182341, sky: 0xffcfa6, ground: 0x1a2340, hemi: 0.9, sun: 0xffd6a8, sunI: 0.85 },
+    night: { fog: 0x0f1628, sky: 0x7f95d6, ground: 0x0c1220, hemi: 0.75, sun: 0x9db4ff, sunI: 0.5 },
+    dawn: { fog: 0x3b3f66, sky: 0xffe4c2, ground: 0x2a2d4e, hemi: 1.0, sun: 0xffc89a, sunI: 0.9 },
   },
 };

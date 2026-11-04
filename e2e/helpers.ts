@@ -28,6 +28,13 @@ export async function startRun(page: Page, variant = 1): Promise<void> {
   await page.waitForFunction(() => (window as any).__game.app === 'play');
 }
 
+/** Phase 14 : la grille des personnages vit dans la feuille « Personnage » ; on l'ouvre avant d'y cliquer. */
+export async function openCharacters(page: Page): Promise<void> {
+  if (await page.locator('#characters').isVisible()) return;
+  await page.locator('#charsBtn').click();
+  await page.locator('#characters').waitFor({ state: 'visible' });
+}
+
 export async function appMode(page: Page): Promise<string> {
   return page.evaluate(() => (window as any).__game.app as string);
 }

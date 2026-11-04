@@ -73,7 +73,7 @@ export function renderAccount(v: AccountView): void {
   msg.textContent = v.msg;
   msg.classList.toggle('error', v.error && v.msg !== '');
   for (const b of $('account').querySelectorAll<HTMLButtonElement>('button:not(#accountBackBtn)')) b.disabled = v.busy;
-  $('accountBtn').textContent = accountLabel(v);
+  $('accountLabel').textContent = accountLabel(v); // le bouton garde son icône SVG
 }
 
 /** Code d'erreur Firebase (`auth/xxx`, `permission-denied`…) → clé i18n `account.err.*`, repli générique. */

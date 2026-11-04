@@ -69,7 +69,6 @@
   "over.unlocked": "Unlocked: {list}",
   "shop.title": "Shop",
   "shop.titleFor": "Shop · {name}",
-  "shop.back": "Back",
   "shop.max": "Max",
   "slots.title": "Slots",
   "shop.perChar": "Character tiers",
@@ -84,7 +83,6 @@
   "slots.passives_other": "{n} tomes",
   "slots.summary": "Slots: {w} · {p}",
   "ach.title": "Achievements",
-  "ach.back": "Back",
   "ach.done": "Done",
   "ach.unlocks": "unlocks {what}",
   "settings.title": "Settings",
@@ -112,7 +110,6 @@
   "settings.reset": "Erase everything",
   "settings.saveAria": "JSON save",
   "settings.savePlaceholder": "Paste an exported save here, then “Import”",
-  "settings.back": "Back",
   "settings.exportFile": "ruee-nocturne-save",
   "settings.exported": "Save exported (file downloaded and text below).",
   "settings.notASave": "This text is not a Ruée Nocturne save.",
@@ -338,7 +335,6 @@
   "account.choice.local": "This device · {time} · {gold} · {runs}",
   "account.choice.cloud": "My account · {time} · {gold} · {runs}",
   "account.retry": "Retry",
-  "account.back": "Back",
   "account.err.invalid-email": "Invalid e-mail address.",
   "account.err.missing-password": "Enter a password.",
   "account.err.weak-password": "Password too short (at least 6 characters).",
@@ -354,5 +350,9 @@
   "account.err.operation-not-allowed": "This sign-in method is not enabled.",
   "account.err.permission-denied": "The server refused the save.",
   "account.err.unavailable": "Server unreachable: try again later.",
-  "account.err.generic": "That did not work. Try again."
+  "account.err.generic": "That did not work. Try again.",
+  "menu.characters": "Character",
+  "menu.help": "How to play",
+  "help.title": "How to play",
+  "menu.close": "Close"
 }

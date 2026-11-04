@@ -1,10 +1,11 @@
 // Tenues (phase 7) : achat en or sous la grille des personnages, bascule, persistance après rechargement.
 import { expect, test } from '@playwright/test';
-import { openGame } from './helpers';
+import { openCharacters, openGame } from './helpers';
 
 test('tenue alternative : achat à 400 or, aperçu changé, choix conservé après rechargement', async ({ page }) => {
   await openGame(page);
   await page.evaluate(() => (window as any).__game.setMeta({ version: 3, gold: 450 }));
+  await openCharacters(page); // phase 14 : les tenues sont dans la feuille « Personnage »
   const alt = page.locator('#charInfo [data-outfit="1"]');
   const classic = page.locator('#charInfo [data-outfit="0"]');
   await expect(classic).toHaveAttribute('aria-pressed', 'true');
@@ -38,6 +39,7 @@ test('tenue alternative : achat à 400 or, aperçu changé, choix conservé apr�
   );
   await page.reload();
   await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await openCharacters(page);
   await expect(page.locator('#charInfo [data-outfit="1"]')).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => (window as any).__game.scene.modelSkin)).toBe(1);
   // sans or, l'achat d'une autre tenue est refusé
