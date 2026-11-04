@@ -4,9 +4,11 @@ const WHITE = new THREE.Color(0xffffff);
 
 /** InstancedMesh prêt pour un usage dynamique : couleurs allouées à pleine capacité, count = 0. */
 export function makeInstanced(geo: THREE.BufferGeometry, mat: THREE.Material, cap: number): THREE.InstancedMesh {
-  const m = new THREE.InstancedMesh(geo, mat, cap);
+  // capacité ≥ 1 : à 0, `instanceColor` resterait null (création paresseuse dans setColorAt) et le rendu planterait
+  const n = Math.max(1, cap);
+  const m = new THREE.InstancedMesh(geo, mat, n);
   m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  for (let i = 0; i < cap; i++) m.setColorAt(i, WHITE);
+  for (let i = 0; i < n; i++) m.setColorAt(i, WHITE);
   m.instanceColor!.setUsage(THREE.DynamicDrawUsage);
   m.count = 0;
   m.frustumCulled = false;

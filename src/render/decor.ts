@@ -47,7 +47,7 @@ export const lampHeadGeometry = () => new THREE.BoxGeometry(0.3, 0.34, 0.3).tran
 export const plateauGeometry = () =>
   build([
     { shape: 'cyl', size: [1, 1.08, 1], pos: [0, 0.5, 0], color: 0x6b6280, seg: 10 },
-    { shape: 'cyl', size: [0.94, 0.94, 0.06], pos: [0, 1.0, 0], color: 0x4f7a62, seg: 10 },
+    { shape: 'cyl', size: [0.94, 0.94, 0.06], pos: [0, 0.97, 0], color: 0x4f7a62, seg: 10 }, // dessus à 1,0 exactement : le joueur et son ombre sont posés dessus
   ]);
 
 /** Nombre de touffes et de lucioles (statique / par frame). */

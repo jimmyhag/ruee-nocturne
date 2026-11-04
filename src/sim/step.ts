@@ -181,7 +181,8 @@ function stepEnemies(w: World, dt: number): void {
     }
     let mx = mv[0],
       mz = mv[1];
-    if (!ignoresGround(e.type)) {
+    const flies = ignoresGround(e.type);
+    if (!flies) {
       const slow = w.speedAt(e.x, e.z);
       mx *= slow;
       mz *= slow;
@@ -208,7 +209,6 @@ function stepEnemies(w: World, dt: number): void {
     e.z += (mz + e.kz) * dt;
     e.kx *= decay;
     e.kz *= decay;
-    const flies = ignoresGround(e.type);
     if (!flies) {
       // plateaux : les marcheurs (et les boss) butent au pied
       w.resolvePlateaux(e.x, e.z, 0, e.r, out2);
