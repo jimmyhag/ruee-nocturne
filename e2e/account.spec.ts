@@ -58,6 +58,7 @@ test('clavier : Espace et Entrée restent au champ texte (compte et sauvegarde),
   await page.locator('#settingsBackBtn').click();
   // champ e-mail du panneau Compte (le formulaire est caché tant que les comptes sont indisponibles : on le montre)
   await page.locator('#accountBtn').click();
+  await expect(page.locator('#accStatus')).toContainText(/indisponibles|not available/, { timeout: 10_000 }); // rendu final
   await page.evaluate(() => ((document.getElementById('accSignedOut') as HTMLElement).hidden = false));
   await page.locator('#accEmail').click();
   await page.keyboard.type('x y');
