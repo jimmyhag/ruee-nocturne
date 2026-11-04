@@ -321,10 +321,10 @@ export class GameScene {
     const rounds = makeInstanced(roundTreeGeometry(), vc(), treeCap);
     const rocks = makeInstanced(new THREE.DodecahedronGeometry(0.8, 0), lam(PAL.rock), DECOR.rocks);
     const posts = makeInstanced(lampPostGeometry(), vc(), DECOR.lamps);
-    const lamps = makeInstanced(lampHeadGeometry(), new THREE.MeshBasicMaterial({ color: PAL.gold }), DECOR.lamps);
+    const lamps = makeInstanced(lampHeadGeometry(), new THREE.MeshBasicMaterial({ color: PAL.lantern }), DECOR.lamps); // phase 15 : lumière chaude des lanternes
     const halos = makeInstanced(
       new THREE.CircleGeometry(2.4, 18).rotateX(-Math.PI / 2),
-      additive(PAL.gold, 0.1),
+      additive(PAL.lantern, 0.12),
       DECOR.lamps,
     );
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
