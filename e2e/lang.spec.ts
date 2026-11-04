@@ -50,7 +50,7 @@ test.describe('navigateur en anglais', () => {
   });
   test('un réglage explicite « français » prime sur le navigateur, même via setMeta', async ({ page }) => {
     await openGame(page);
-    await page.evaluate(() => (window as any).__game.setMeta({ version: 2, settings: { lang: 'fr' } }));
+    await page.evaluate(() => (window as any).__game.setMeta({ version: 3, settings: { lang: 'fr' } }));
     await expect(page.locator('#playBtn')).toHaveText('Jouer');
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
   });

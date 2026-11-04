@@ -1,6 +1,6 @@
 // Méta (phase 4) : migration v1 → v2, export/import, succès, boutique, défi du jour. Aucun DOM : tout est pur.
 import { describe, expect, it } from 'vitest';
-import { OUTFIT, SHOP } from '../sim/balance';
+import { MAX_PASSIVES, MAX_WEAPONS, OUTFIT, SHOP, SLOTS } from '../sim/balance';
 import {
   ACHIEVEMENTS,
   checkAchievements,
@@ -12,12 +12,24 @@ import {
 } from './achievements';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './daily';
 import { DEFAULT_META, exportMeta, importMeta, normalizeMeta } from './save';
-import { buy, buyCharacter, buyOutfit, characterPrice, outfitOf, shopCost, shopTiers, worldOptions } from './shop';
+import {
+  buy,
+  buyCharacter,
+  buyOutfit,
+  buySlot,
+  characterPrice,
+  nextSlot,
+  outfitOf,
+  shopCost,
+  shopTiers,
+  slotState,
+  worldOptions,
+} from './shop';
 
 const fresh = () => normalizeMeta(DEFAULT_META);
 
 describe('sauvegarde', () => {
-  it('migre une méta v1 : record, runs, kills et réglages conservés, compteurs initialisés', () => {
+  it('migre une méta v1 ou v2 (phase 10) : progression remise à zéro, son et réglages conservés, bannière à montrer', () => {
     const v1 = {
       version: 1,
       bestTime: 421,
@@ -29,20 +41,38 @@ describe('sauvegarde', () => {
       fxChosen: true,
     };
     const m = normalizeMeta(v1);
-    expect(m.version).toBe(2);
-    expect(m.bestTime).toBe(421);
-    expect(m.runs).toBe(7);
+    expect(m.version).toBe(3);
+    expect(m.bestTime).toBe(0);
+    expect(m.runs).toBe(0);
     expect(m.muted).toBe(true);
-    expect(m.stats.kills).toBe(3100);
-    expect(m.stats.bestTime).toBe(421);
+    expect(m.reducedFx).toBe(true);
+    expect(m.stats.kills).toBe(0);
     expect(m.gold).toBe(0);
     expect(m.shops).toEqual({});
-    expect(shopTiers(m, 'eclaireuse')).toEqual(SHOP.lines.map(() => 0));
-    expect(m.character).toBe('eclaireuse');
+    expect(m.slots).toEqual({ weapons: 1, passives: 2 });
+    expect(m.seenReset).toBe(false); // elle avait du vécu : on prévient
+    const v2 = normalizeMeta({
+      version: 3,
+      gold: 1234,
+      achievements: ['survie3'],
+      bought: ['veilleuse'],
+      settings: { lang: 'en', quality: 'pixel', hudScale: 1.2 },
+    });
+    expect(v2.gold).toBe(1234); // une v3 n'est pas touchée
+    const old = normalizeMeta({ ...v2, version: 2 });
+    expect(old.gold).toBe(0);
+    expect(old.achievements).toEqual([]);
+    expect(old.bought).toEqual([]);
+    expect(old.settings.lang).toBe('en');
+    expect(old.settings.quality).toBe('pixel');
+    expect(old.settings.hudScale).toBe(1.2);
+    expect(old.seenReset).toBe(false);
+    expect(normalizeMeta({ version: 2 }).seenReset).toBe(true); // sauvegarde vierge : rien à annoncer
+    expect(importMeta(exportMeta(old))!.version).toBe(3);
   });
   it('borne et nettoie un import douteux (paliers trop hauts, personnage inconnu, valeurs non numériques)', () => {
     const m = normalizeMeta({
-      version: 2,
+      version: 3,
       gold: '12',
       shop: [99, -3, 'x'],
       character: 'dragon',
@@ -65,15 +95,15 @@ describe('sauvegarde', () => {
     expect(m.settings.quality).toBe('auto');
     m.settings.quality = 'pixel';
     expect(importMeta(exportMeta(m))!.settings.quality).toBe('pixel');
-    expect(normalizeMeta({ version: 2, settings: { quality: 'ultra' } }).settings.quality).toBe('auto');
-    expect(normalizeMeta({ version: 2, settings: { quality: 'net' } }).settings.quality).toBe('net');
+    expect(normalizeMeta({ version: 3, settings: { quality: 'ultra' } }).settings.quality).toBe('auto');
+    expect(normalizeMeta({ version: 3, settings: { quality: 'net' } }).settings.quality).toBe('net');
   });
   it('réglage de langue : auto par défaut, fr et en conservés à l’export/import', () => {
     expect(fresh().settings.lang).toBe('auto');
     const m = fresh();
     m.settings.lang = 'en';
     expect(importMeta(exportMeta(m))!.settings.lang).toBe('en');
-    expect(normalizeMeta({ version: 2, settings: { lang: 'fr' } }).settings.lang).toBe('fr');
+    expect(normalizeMeta({ version: 3, settings: { lang: 'fr' } }).settings.lang).toBe('fr');
   });
   it('export puis import : aller-retour sans perte, et refus d’un JSON étranger', () => {
     const m = fresh();
@@ -212,7 +242,7 @@ describe('personnages (phase 6)', () => {
     expect(unlockedCharacters(m)).toEqual(['eclaireuse', 'veilleuse']);
     const back = importMeta(exportMeta(m))!;
     expect(back.bought).toEqual(['veilleuse']);
-    expect(normalizeMeta({ version: 2, bought: ['dragon', 'eclaireuse', 'sapeur'] }).bought).toEqual(['sapeur']);
+    expect(normalizeMeta({ version: 3, bought: ['dragon', 'eclaireuse', 'sapeur'] }).bought).toEqual(['sapeur']);
   });
   it('les défis sont des succès sur un seul run : Intouchable débloque le Feu follet, « il te manquait » ignore les défis', () => {
     const m = fresh();
@@ -247,12 +277,42 @@ describe('tenues (phase 7)', () => {
   });
   it('normalisation : clés inconnues et valeurs autres que 1 écartées', () => {
     const n = normalizeMeta({
-      version: 2,
+      version: 3,
       outfits: ['dragon', 'sapeur'],
       outfit: { sapeur: 1, dragon: 1, veilleuse: 7 },
     });
     expect(n.outfits).toEqual(['sapeur']);
     expect(n.outfit).toEqual({ sapeur: 1 });
     expect(outfitOf(n, 'sapeur')).toBe(1);
+  });
+});
+
+describe('emplacements (phase 10)', () => {
+  it('départ 1 arme / 2 améliorations ; déblocage dans l’ordre, par succès puis or ; défi du jour au maximum', () => {
+    const m = fresh();
+    expect(m.slots).toEqual({ weapons: 1, passives: 2 });
+    expect(worldOptions(m, ['orbe']).slots).toEqual({ weapons: 1, passives: 2 });
+    expect(worldOptions(m, ['orbe'], true).slots).toEqual({ weapons: MAX_WEAPONS, passives: MAX_PASSIVES });
+    expect(nextSlot(m)).toBe(0);
+    expect(slotState(m, 0)).toBe('locked'); // arme 2 : succès « Première nuit » manquant
+    expect(buySlot(m, 0)).toBe(false);
+    m.achievements.push(SLOTS[0].ach);
+    expect(slotState(m, 0)).toBe('poor');
+    m.gold = SLOTS[0].price;
+    expect(slotState(m, 0)).toBe('buyable');
+    expect(slotState(m, 2)).toBe('later'); // arme 3 : il faut d'abord l'arme 2
+    expect(buySlot(m, 0)).toBe(true);
+    expect(m.gold).toBe(0);
+    expect(m.slots.weapons).toBe(2);
+    expect(slotState(m, 0)).toBe('owned');
+    expect(buySlot(m, 0)).toBe(false);
+    expect(nextSlot(m)).toBe(1);
+    // import borné : jamais sous le départ ni au-dessus du maximum
+    expect(normalizeMeta({ version: 3, slots: { weapons: 9, passives: 0 } }).slots).toEqual({
+      weapons: 4,
+      passives: 2,
+    });
+    const back = importMeta(exportMeta(m))!;
+    expect(back.slots.weapons).toBe(2);
   });
 });

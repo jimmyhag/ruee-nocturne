@@ -323,6 +323,24 @@ export const WEAPON_MAX = 5;
 export const MAX_WEAPONS = 4;
 export const MAX_PASSIVES = 4;
 
+// emplacements (phase 10, progression lente) : on part avec 1 arme (celle du personnage) et 2 améliorations ;
+// chaque emplacement suivant se débloque par un succès ET de l'or, pour tous les personnages à la fois.
+// Les armes et passifs de départ d'un personnage ne comptent pas contre le plafond (identité conservée).
+export interface SlotUnlock {
+  kind: 'weapon' | 'passive';
+  n: number; // numéro de l'emplacement obtenu (2 = 2e arme…)
+  ach: string; // succès requis (id dans src/meta/achievements.ts)
+  price: number; // or
+}
+export const SLOTS_START = { weapons: 1, passives: 2 };
+export const SLOTS: SlotUnlock[] = [
+  { kind: 'weapon', n: 2, ach: 'survie3', price: 300 },
+  { kind: 'passive', n: 3, ach: 'kills500', price: 800 },
+  { kind: 'weapon', n: 3, ach: 'boss1', price: 1500 },
+  { kind: 'passive', n: 4, ach: 'survie10', price: 3000 },
+  { kind: 'weapon', n: 4, ach: 'survie15', price: 5000 },
+];
+
 export const CHOICE = {
   ownedWeight: 1.6, // favorise la cohérence de build
   newWeight: 1.3, // découverte

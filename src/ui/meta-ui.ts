@@ -1,11 +1,11 @@
 // Écrans de méta en DOM natif : personnages, boutique, succès, réglages, progression de l'écran de mort.
 // Rendus à l'ouverture d'un écran (jamais par frame) : innerHTML est acceptable ici. Textes : src/i18n via cards.ts.
-import { CHARACTERS, OUTFIT, SHOP } from '../sim/balance';
+import { CHARACTERS, OUTFIT, SHOP, SLOTS } from '../sim/balance';
 import { ACHIEVEMENTS, closest, progress, unlockedCharacters } from '../meta/achievements';
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
 import type { CharacterKey } from '../sim/types';
-import { outfitOf, shopCost, shopTiers } from '../meta/shop';
+import { outfitOf, shopCost, shopTiers, slotState } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
 import {
@@ -89,6 +89,42 @@ export function renderShopChars(container: HTMLElement, m: Meta): string[] {
   if (sel && container.scrollWidth > container.clientWidth + 4)
     container.scrollLeft = Math.max(0, sel.offsetLeft - (container.clientWidth - sel.offsetWidth) / 2);
   return unlocked;
+}
+
+/** Nom d'un emplacement (« Arme n°2 », « Amélioration n°3 »). */
+export const slotName = (i: number): string => t(`slot.${SLOTS[i].kind}`, { n: SLOTS[i].n });
+/** Condition d'un emplacement en une phrase : succès puis prix. */
+export function slotCondition(i: number): string {
+  const u = SLOTS[i];
+  const a = ACH_BY_ID.get(u.ach);
+  return t('slot.need', { name: a ? achName(a) : u.ach, gold: t('gold', { n: u.price }) });
+}
+/** Résumé des emplacements possédés (menu) : « Emplacements : 1 arme · 2 améliorations ». */
+export function slotsLine(m: Meta): string {
+  return t('slots.summary', {
+    w: t('slots.weapons', { n: m.slots.weapons }),
+    p: t('slots.passives', { n: m.slots.passives }),
+  });
+}
+
+/** Lignes des emplacements (phase 10) : nom, succès requis avec barre, prix et bouton ; dans l'ordre de déblocage. */
+export function renderSlots(container: HTMLElement, m: Meta): void {
+  container.innerHTML = SLOTS.map((u, i) => {
+    const st = slotState(m, i);
+    const a = ACH_BY_ID.get(u.ach);
+    const p = a ? progress(a, m) : 1;
+    const achDone = !a || m.achievements.includes(a.id);
+    const cond = a
+      ? `<span class="cond">${esc(achName(a))}${achDone ? ' ✓' : ` · ${esc(achValue(a, Math.min(a.get(m.stats), a.goal)))} / ${esc(achValue(a, a.goal))}`}</span>${achDone ? '' : `<div class="bar"><i style="width:${(p * 100).toFixed(0)}%"></i></div>`}`
+      : '';
+    const right =
+      st === 'owned'
+        ? `<span class="badge">${esc(t('slot.owned'))}</span>`
+        : st === 'later'
+          ? `<span class="badge">${esc(t('slot.later'))}</span>`
+          : `<button class="ghost buy" data-slot="${i}" ${st === 'buyable' ? '' : 'disabled'}>${esc(t('gold', { n: u.price }))}</button>`;
+    return `<div class="shoprow slotrow ${st}"><div><h3>${u.kind === 'weapon' ? '⚔' : '✦'} ${esc(slotName(i))}</h3>${cond}</div>${right}</div>`;
+  }).join('');
 }
 
 /** Lignes de la boutique d'un personnage : palier courant, coût du suivant, bouton d'achat (désactivé si l'or manque). */

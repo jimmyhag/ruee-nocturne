@@ -2,7 +2,7 @@
 //   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { CHARACTERS, SHOP, STEP, ENEMIES } from '../src/sim/balance';
+import { CHARACTERS, ENEMIES, MAX_PASSIVES, MAX_WEAPONS, SHOP, SLOTS_START, STEP } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { Ev, Mode } from '../src/sim/types';
 import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
@@ -37,6 +37,14 @@ const UPGRADES: number[] = SHOP.lines.map((l) => {
   }
   return Math.max(0, Math.min(l.tiers, +UPGRADES_ARG || 0));
 });
+// --slots start|max|w,p : emplacements d'armes et d'améliorations (phase 10) ; défaut start = 1 arme, 2 améliorations
+const SLOTS_ARG = args.get('slots') ?? (UPGRADES_ARG === 'max' ? 'max' : 'start');
+const SLOT_OPT =
+  SLOTS_ARG === 'max'
+    ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES }
+    : SLOTS_ARG === 'start'
+      ? { ...SLOTS_START }
+      : { weapons: +SLOTS_ARG.split(',')[0] || 1, passives: +SLOTS_ARG.split(',')[1] || 2 };
 // --profile naked|maxed : jeu de cibles (défaut : naked si --upgrades 0, maxed sinon)
 const PROFILE = (args.get('profile') ?? (UPGRADES_ARG === '0' ? 'naked' : 'maxed')) as keyof typeof PROFILES;
 if (!PROFILES[PROFILE]) {
@@ -85,7 +93,7 @@ interface RunResult {
 }
 
 function runOnce(seed: number): RunResult {
-  const w = new World(seed, { character: CHARACTER, upgrades: UPGRADES });
+  const w = new World(seed, { character: CHARACTER, upgrades: UPGRADES, slots: SLOT_OPT });
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
@@ -206,6 +214,7 @@ const summary = {
   weapons: WEAPONS,
   character: CHARACTER,
   upgrades: UPGRADES_ARG,
+  slots: `${SLOT_OPT.weapons},${SLOT_OPT.passives}`,
   profile: PROFILE,
   survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
@@ -271,7 +280,7 @@ const summary = {
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · paliers ${UPGRADES_ARG} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · paliers ${UPGRADES_ARG} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,

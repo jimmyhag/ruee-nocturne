@@ -895,6 +895,41 @@
         gap: 8px;
         width: 100%;
       }
+      /* emplacements (phase 10) */
+      .h3 {
+        margin: 6px 0 0;
+        font-family: var(--f-display);
+        font-weight: 400;
+        font-size: 18px;
+        color: var(--gold);
+        width: 100%;
+        text-align: left;
+      }
+      .slotrow .bar {
+        margin-top: 4px;
+        width: 160px;
+        max-width: 100%;
+      }
+      .slotrow .cond {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .slotrow.owned {
+        opacity: 0.7;
+      }
+      .slotrow.later {
+        opacity: 0.55;
+      }
+      .slotline {
+        color: var(--gold);
+        font-weight: 700;
+      }
+      .resetnote {
+        background: var(--ink-2);
+        border: 2px solid var(--accent);
+        border-radius: 12px;
+        padding: 8px 12px;
+      }
       /* boutique par personnage (phase 8) : rangée de pastilles, défilement horizontal sur téléphone */
       .shopchars {
         display: flex;
@@ -1309,6 +1344,10 @@
           ><button class="ghost" id="settingsBtn" data-i18n="menu.settings">Réglages</button>
         </div>
         <p class="note" id="bestLine" data-i18n="menu.noRecord">Aucun record pour l'instant</p>
+        <p class="note slotline" id="slotLine">1 arme · 2 améliorations</p>
+        <p class="note resetnote" id="resetNote" data-i18n="menu.resetNote" hidden>
+          Nouvelle progression : tout le monde repart de zéro. Tes réglages sont conservés.
+        </p>
         <button class="ghost" id="installBtn" hidden data-i18n="menu.install">Installer l'app</button>
         <p class="note" id="iosHint" hidden data-i18n="menu.iosHint">
           Sur iPhone : Partager, puis « Sur l'écran d'accueil »
@@ -1324,6 +1363,7 @@
         <div>
           <h2 class="h2 lv" id="luTitle">Niveau 2</h2>
           <p class="note" data-i18n="levelup.hint">Choisis une amélioration</p>
+          <p class="note slotline" id="luSlots"></p>
         </div>
         <div class="cards" id="cards"></div>
       </div>
@@ -1356,6 +1396,7 @@
           <div><b id="oBest">0:00</b><span data-i18n="over.best">Record</span></div>
         </div>
         <p class="note" id="oMsg"></p>
+        <p class="note slotline" id="oNext" hidden></p>
         <p class="unlocked" id="oUnlocked" hidden></p>
         <div class="achs" id="oProgress"></div>
         <div class="btnrow"><button class="big" id="againBtn" data-i18n="over.again">Rejouer</button></div>
@@ -1372,6 +1413,10 @@
           <h2 class="h2" id="shopTitle">Boutique · Éclaireuse</h2>
           <p class="gold" id="shopGold">0 or</p>
         </div>
+        <!-- emplacements (phase 10) : communs à tous les personnages, débloqués par succès + or -->
+        <h3 class="h3" data-i18n="slots.title">Emplacements</h3>
+        <div class="shop slots" id="slotList"></div>
+        <h3 class="h3" id="shopCharTitle" data-i18n="shop.perChar">Paliers du personnage</h3>
         <div class="shopchars" id="shopChars"></div>
         <div class="shop" id="shopLines"></div>
         <div class="btnrow"><button class="big" id="shopBackBtn" data-i18n="shop.back">Retour</button></div>

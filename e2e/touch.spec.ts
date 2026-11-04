@@ -55,7 +55,7 @@ test.describe('tactile', () => {
 
   test('mode gaucher : les boutons SAUT et DASH passent à gauche et restent utilisables', async ({ page }) => {
     await openGame(page);
-    await page.evaluate(() => (window as any).__game.setMeta({ version: 2, settings: { lefty: true } }));
+    await page.evaluate(() => (window as any).__game.setMeta({ version: 3, settings: { lefty: true } }));
     await expect(page.locator('body')).toHaveClass(/lefty/);
     await page.locator('#playBtn').tap();
     await page.waitForFunction(() => (window as any).__game.app === 'play');
@@ -69,7 +69,7 @@ test.describe('tactile', () => {
 
   test('HUD « Grand » : l’anneau du joystick reste sous le doigt (le zoom ne touche pas #touch)', async ({ page }) => {
     await openGame(page);
-    await page.evaluate(() => (window as any).__game.setMeta({ version: 2, settings: { hudScale: 1.2 } }));
+    await page.evaluate(() => (window as any).__game.setMeta({ version: 3, settings: { hudScale: 1.2 } }));
     await page.locator('#playBtn').tap();
     await page.waitForFunction(() => (window as any).__game.app === 'play');
     const cdp = await page.context().newCDPSession(page);

@@ -4,7 +4,7 @@ import { openGame } from './helpers';
 
 test('tenue alternative : achat à 400 or, aperçu changé, choix conservé après rechargement', async ({ page }) => {
   await openGame(page);
-  await page.evaluate(() => (window as any).__game.setMeta({ version: 2, gold: 450 }));
+  await page.evaluate(() => (window as any).__game.setMeta({ version: 3, gold: 450 }));
   const alt = page.locator('#charInfo [data-outfit="1"]');
   const classic = page.locator('#charInfo [data-outfit="0"]');
   await expect(classic).toHaveAttribute('aria-pressed', 'true');
@@ -41,7 +41,7 @@ test('tenue alternative : achat à 400 or, aperçu changé, choix conservé apr�
   await expect(page.locator('#charInfo [data-outfit="1"]')).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => (window as any).__game.scene.modelSkin)).toBe(1);
   // sans or, l'achat d'une autre tenue est refusé
-  await page.evaluate(() => (window as any).__game.setMeta({ version: 2, gold: 10, character: 'eclaireuse' }));
+  await page.evaluate(() => (window as any).__game.setMeta({ version: 3, gold: 10, character: 'eclaireuse' }));
   await page.locator('#charInfo [data-outfit="1"]').click();
   meta = await page.evaluate(() => (window as any).__game.meta);
   expect(meta.outfits).toEqual([]);

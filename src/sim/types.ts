@@ -195,6 +195,7 @@ export interface WorldOptions {
   character?: CharacterKey; // défaut : Éclaireuse
   upgrades?: number[]; // palier acheté par ligne de boutique (ordre de SHOP.lines), défaut 0
   unlocked?: WeaponKey[]; // armes proposables ; undefined = toutes
+  slots?: { weapons: number; passives: number }; // emplacements débloqués (phase 10) ; undefined = plafonds max
 }
 export type PassiveKey = 'vitesse' | 'coeur' | 'regen' | 'aimant' | 'force' | 'cadence' | 'trefle' | 'bourse';
 

@@ -1,7 +1,7 @@
 // Sauvegarde méta : IndexedDB via idb-keyval, repli localStorage, jamais bloquante.
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { get, set } from 'idb-keyval';
-import { CHARACTERS, SHOP } from '../sim/balance';
+import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, SHOP, SLOTS_START } from '../sim/balance';
 import { ACHIEVEMENT_IDS } from './achievements';
 import type { CharacterKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -30,7 +30,7 @@ export interface MetaSettings {
   quality: QualitySetting; // phase 9 : 'auto' = net avec repli automatique si l'appareil ne suit pas, 'net', 'pixel'
 }
 export interface Meta {
-  version: 2;
+  version: 3; // 3 (phase 10) : progression remise à zéro, emplacements d'armes et d'améliorations
   bestTime: number;
   bestKills: number;
   runs: number;
@@ -48,6 +48,8 @@ export interface Meta {
   outfits: CharacterKey[]; // personnages dont la tenue alternative est achetée (phase 7)
   outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
+  slots: { weapons: number; passives: number }; // emplacements débloqués (phase 10), communs à tous les personnages
+  seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   settings: MetaSettings;
 }
 /** Rendu (phase 9) : auto (net, repli automatique), net, pixel (résolution réduite, look d'origine). */
@@ -55,7 +57,7 @@ export type QualitySetting = 'auto' | 'net' | 'pixel';
 export const QUALITY_SETTINGS: readonly QualitySetting[] = ['auto', 'net', 'pixel'];
 const KEY = 'ruee-meta';
 export const DEFAULT_META: Meta = {
-  version: 2,
+  version: 3,
   bestTime: 0,
   bestKills: 0,
   runs: 0,
@@ -85,8 +87,32 @@ export const DEFAULT_META: Meta = {
   outfits: [],
   outfit: {},
   daily: { date: '', times: [] },
+  slots: { ...SLOTS_START },
+  seenReset: true,
   settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto' },
 };
+
+/** Réglages normalisés seuls (conservés par la remise à zéro et la migration). */
+function normalizeSettings(se: Record<string, unknown>): MetaSettings {
+  return {
+    vibrate: bool(se.vibrate, true),
+    hudScale: [0.85, 1, 1.2].includes(num(se.hudScale, 1)) ? num(se.hudScale, 1) : 1,
+    lefty: bool(se.lefty, false),
+    lang: LANG_SETTINGS.includes(se.lang as LangSetting) ? (se.lang as LangSetting) : 'auto',
+    quality: QUALITY_SETTINGS.includes(se.quality as QualitySetting) ? (se.quality as QualitySetting) : 'auto',
+  };
+}
+
+/** Remise à zéro de la progression : tout repart de DEFAULT_META sauf ce qui relève de l'appareil (son, effets, réglages). */
+export function resetProgress(m: Meta): Meta {
+  return normalizeMeta({
+    ...DEFAULT_META,
+    muted: m.muted,
+    reducedFx: m.reducedFx,
+    fxChosen: m.fxChosen,
+    settings: m.settings,
+  });
+}
 
 const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
@@ -96,10 +122,24 @@ const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : 
  * un JSON collé par le joueur ne peut rien injecter d'autre que des nombres, booléens et identifiants connus.
  */
 export function normalizeMeta(raw: unknown): Meta {
-  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const r0 = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  // phase 10 : une sauvegarde d'avant la version 3 (nouvelle progression) est remise à zéro, réglages conservés ;
+  // la bannière « nouvelle progression » s'affiche une fois si elle avait du vécu
+  const r: Record<string, unknown> =
+    num(r0.version) < 3
+      ? {
+          ...DEFAULT_META,
+          muted: r0.muted,
+          reducedFx: r0.reducedFx,
+          fxChosen: r0.fxChosen,
+          settings: r0.settings,
+          seenReset: !(num(r0.runs) > 0 || num(r0.gold) > 0),
+        }
+      : r0;
   const st = (r.stats && typeof r.stats === 'object' ? r.stats : {}) as Record<string, unknown>;
   const se = (r.settings && typeof r.settings === 'object' ? r.settings : {}) as Record<string, unknown>;
   const da = (r.daily && typeof r.daily === 'object' ? r.daily : {}) as Record<string, unknown>;
+  const sl = (r.slots && typeof r.slots === 'object' ? r.slots : {}) as Record<string, unknown>;
   const isKey = (k: unknown): k is CharacterKey => CHARACTERS.some((c) => c.key === k);
   const tiers = (raw: unknown) => {
     const arr = Array.isArray(raw) ? raw : [];
@@ -120,7 +160,7 @@ export function normalizeMeta(raw: unknown): Meta {
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
   return {
-    version: 2,
+    version: 3,
     bestTime,
     bestKills: Math.max(0, num(r.bestKills)),
     runs,
@@ -161,13 +201,12 @@ export function normalizeMeta(raw: unknown): Meta {
             .slice(0, 10)
         : [],
     },
-    settings: {
-      vibrate: bool(se.vibrate, true),
-      hudScale: [0.85, 1, 1.2].includes(num(se.hudScale, 1)) ? num(se.hudScale, 1) : 1,
-      lefty: bool(se.lefty, false),
-      lang: LANG_SETTINGS.includes(se.lang as LangSetting) ? (se.lang as LangSetting) : 'auto',
-      quality: QUALITY_SETTINGS.includes(se.quality as QualitySetting) ? (se.quality as QualitySetting) : 'auto',
+    settings: normalizeSettings(se),
+    slots: {
+      weapons: Math.max(SLOTS_START.weapons, Math.min(MAX_WEAPONS, num(sl.weapons, SLOTS_START.weapons) | 0)),
+      passives: Math.max(SLOTS_START.passives, Math.min(MAX_PASSIVES, num(sl.passives, SLOTS_START.passives) | 0)),
     },
+    seenReset: bool(r.seenReset, true),
   };
 }
 

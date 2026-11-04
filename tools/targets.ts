@@ -18,16 +18,17 @@ export interface Target {
 }
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const economy: Target = {
-  name: 'or p50 ≥ 2 premiers paliers',
-  min: 2,
+  name: 'or p50 ≥ 0,75 premier palier', // un run nu de 4 min ≈ 170 or : un palier (200) tous les 1–2 runs, l'arme n°2 (300) en 2 runs
+  min: 0.75,
   max: 1e9,
   get: (s) => s.goldP50 / s.firstTierCost,
   fmt: (v) => '×' + v.toFixed(1),
 };
 export const NAKED: Target[] = [
-  { name: 'survie p50 5–7 min', min: 300, max: 420, get: (s) => s.survival.p50, fmt: mmss },
+  { name: 'survie p50 4–6 min', min: 240, max: 360, get: (s) => s.survival.p50, fmt: mmss }, // phase 10 : 1 arme, 2 améliorations, 0 palier
   { name: 'fin atteinte ≤ 3 %', min: 0, max: 3, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
-  { name: 'morts <3 min ≤ 15 %', min: 0, max: 15, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'passent 3 min ≥ 40 %', min: 40, max: 100, get: (s) => s.aliveCurve[2], fmt: (v) => v + ' %' }, // l'arme n°2 (succès « Première nuit ») reste atteignable
   economy,
 ];
 export const MAXED: Target[] = [
