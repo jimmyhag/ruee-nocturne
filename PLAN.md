@@ -84,17 +84,19 @@ Semelles de vent (vitesse), Cœur de pierre (PV max), Sève vive (régén), Aima
 |---|---|---|
 | Spectre | Masse de base, lent | — |
 | Dard | Rapide, fragile, vient en nuées | Sifflement |
-| Brute | Tank, pousse | Pas lourds |
+| Brute | Tank, pousse ; **l'élite charge** en ligne (7 u à 16 u/s, phase 11) : on la traverse en dash ou on s'écarte | Couloir rouge au sol 0,6 s |
 | Volant | Ignore le sol, oblige à sauter ou anticiper | Ombre au sol |
 | Cracheur | Reste à distance, projectile lent et esquivable | Ligne de visée 0,6 s |
 | Élite | Variante dorée de n'importe quel type, ×6 PV, lâche un coffre | Aura dorée |
-| **Gardien** (5:00) | Boss charge en ligne | Recul + rugissement |
+| **Gardien** (5:00) | Boss charge en ligne ; **onde de choc** toutes les 6 s (3 s en phase 2) qui s'étend à 9 u/s jusqu'à 14 u : se saute (phase 11) | Recul + rugissement ; anneau rouge qui grandit |
 | **Essaim-mère** (10:00) | Boss qui pond des Dards | Pulsation |
 | **Colosse** (15:00) | Boss zones au sol | Cercles rouges 1 s |
 | **Faucheur** (20:00) | Fin de run, quasi-invincible | Musique coupée |
+| **Éruptions** (dès 2:30, phase 11) | Le sol : une fissure suit le joueur (7 u/s, plus vite qu'il ne marche) pendant 0,8 s puis un pic blesse et projette qui est **au sol** ; toutes les 9 s, 4 s à 15:00 | Cercle rouge qui se remplit, sous les pieds |
 
 ### 3.4 Terrain
 - 1 carte V1 : clairière infinie procédurale (arbres, rochers, lanternes) avec **zones** : clairière ouverte, bois dense (couloirs), lac (ralentit). Les obstacles créent des décisions de trajectoire.
+- **Plateaux** (phase 11) : 14 disques de roche de 2,5–4 u de rayon et 1,4 u de haut, placés par la seed hors lacs et bois, à 24 u au moins du départ (la clairière de départ reste ouverte). Ils se montent **d'un saut** (1,7 u) : le bord est un mur vu d'en bas, on le passe en l'air et on atterrit dessus, on retombe en sortant. Les marcheurs et les boss butent au pied ; Volants, crachats, cercles du Colosse, onde du Gardien et éruptions atteignent un joueur perché : un répit, pas un abri.
 - Cycle de lumière lié au temps de run : crépuscule → nuit → aube (lisibilité du temps restant sans regarder le chrono).
 
 ### 3.5 Personnages (9, phase 6 ; 3 en V1)
@@ -178,6 +180,7 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 ### 4.5 Entrées
 - Clavier (ZQSD/WASD/flèches, Espace, Maj), **manette** (Gamepad API, deadzone 0,2), tactile (joystick flottant sous le pouce gauche, boutons droite, rebinding gauche/droite).
 - Un seul `InputState` normalisé par frame : `{move: vec2, jump, dash, pause}`.
+- **Le saut et le dash servent** (phase 11) : le saut monte sur les plateaux et passe au-dessus des éruptions et de l'onde du Gardien (en l'air ≥ 0,9 u au-dessus du sol local : hors de portée des marcheurs, des crachats et des zones) ; le dash (0,32 s d'invulnérabilité) traverse une charge de Brute élite ou sort d'une éruption. Aucun des deux n'attaque : ce sont des outils de déplacement et d'esquive.
 
 ### 4.6 Audio
 - Web Audio API. Pas de bibliothèque. Un `AudioBus` avec 3 canaux (musique, SFX, UI), limiteur simple, **pool de voix** (max 24 SFX simultanés, les tirs les moins récents coupés).

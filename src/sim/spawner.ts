@@ -1,4 +1,4 @@
-import { BOSSES, CAPS, ELITE, ENEMIES, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
+import { BOSS_TYPE, BOSSES, CAPS, ELITE, ELITE_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -27,7 +27,8 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.bob = w.rng.range(0, TAU);
   e.state = 0;
   e.timer = type === VOLANT_TYPE ? w.rng.range(0.5, VOLANT.divePeriod) : 0; // plongées désynchronisées
-  e.aim = 0;
+  e.aim = type === BOSS_TYPE ? HAZARDS.ring.first : 0; // Gardien : minuteur de l'anneau de choc (phase 11)
+  if (elite && type === ELITE_TYPE) e.timer = HAZARDS.charge.first; // Brute élite : première charge différée
   e.tx = e.tz = 0;
   e.phase2 = false;
   return w.enemyCount - 1;

@@ -1,9 +1,10 @@
-import { CRACHEUR_TYPE, ENEMIES, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { CRACHEUR_TYPE, ENEMIES, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickBoss, tickFlyer, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
 import { applyCard, rollChoices, tickChests, tickGems } from './progression';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { Ev, Mode, ShotKind, Trait } from './types';
+import { Ev, HurtSrc, Mode, ShotKind, Trait } from './types';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
 import type { World } from './world';
@@ -34,6 +35,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
   stepEnemies(w, dt);
+  tickEruptions(w);
   tickShots(w, dt);
   tickWeapons(w, dt);
   tickProjectiles(w, dt);
@@ -101,23 +103,31 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.vz = iz * sp;
   P.x += P.vx * dt;
   P.z += P.vz * dt;
-  if (!P.onGround) {
-    P.vy -= PLAYER.gravity * dt;
-    P.y += P.vy * dt;
-    if (P.y <= 0) {
-      P.y = 0;
-      P.vy = 0;
-      P.onGround = true;
-      w.emit(Ev.Land, P.x, 0, P.z);
-      if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
-    }
-  }
   P.dashCd -= dt;
   P.invul -= dt;
   if (P.recoil > 0) P.recoil = Math.max(0, P.recoil - dt);
   w.resolveObstacles(P.x, P.z, 0.4, out2);
+  // plateaux (phase 11) : le bord est un mur vu d'en bas, on le passe en l'air (y ≥ h − edgeTol) et on atterrit dessus
+  w.resolvePlateaux(out2[0], out2[1], P.y, 0.4, out2);
   P.x = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[0]));
   P.z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
+  const ground = w.groundAt(P.x, P.z);
+  if (P.onGround && P.y > ground) {
+    // on sort du bord : chute
+    P.onGround = false;
+    P.vy = 0;
+  }
+  if (!P.onGround) {
+    P.vy -= PLAYER.gravity * dt;
+    P.y += P.vy * dt;
+    if (P.y <= ground) {
+      P.y = ground;
+      P.vy = 0;
+      P.onGround = true;
+      w.emit(Ev.Land, P.x, ground, P.z);
+      if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
+    }
+  }
   P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   P.walk += l * dt * 12;
   // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de dash
@@ -140,7 +150,11 @@ function stepEnemies(w: World, dt: number): void {
   const decay = Math.pow(KNOCKBACK_DECAY, dt);
   let hurt = 0;
   const grid = w.grid;
-  const airborne = P.y >= PLAYER.airborneSafeY;
+  // en l'air : au-dessus du sol local (un joueur posé sur un plateau n'est pas « en l'air » pour les Volants et le Faucheur)
+  const ground = w.groundAt(P.x, P.z);
+  const airborne = P.y - ground >= PLAYER.airborneSafeY;
+  // hors de portée des ennemis au sol : en l'air ou perché (ils butent au pied du plateau)
+  const aboveGround = P.y >= PLAYER.airborneSafeY;
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (!e.alive) continue;
@@ -157,6 +171,7 @@ function stepEnemies(w: World, dt: number): void {
     }
     // déplacement voulu selon le rôle
     if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
+    else if (isCharger(e)) tickCharger(w, e, dt, dx, dz, d, mv);
     else if (e.type === VOLANT_TYPE) tickFlyer(w, e, dt, dx, dz, d, mv);
     else if (e.type === CRACHEUR_TYPE) tickSpitter(w, e, dt, dx, dz, d, mv);
     else {
@@ -166,7 +181,8 @@ function stepEnemies(w: World, dt: number): void {
     }
     let mx = mv[0],
       mz = mv[1];
-    if (!ignoresGround(e.type)) {
+    const flies = ignoresGround(e.type);
+    if (!flies) {
       const slow = w.speedAt(e.x, e.z);
       mx *= slow;
       mz *= slow;
@@ -193,14 +209,32 @@ function stepEnemies(w: World, dt: number): void {
     e.z += (mz + e.kz) * dt;
     e.kx *= decay;
     e.kz *= decay;
+    if (!flies) {
+      // plateaux : les marcheurs (et les boss) butent au pied
+      w.resolvePlateaux(e.x, e.z, 0, e.r, out2);
+      e.x = out2[0];
+      e.z = out2[1];
+    }
     e.face = Math.atan2(dx, dz);
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     const canHurt = e.type === VOLANT_TYPE ? e.state === 2 : true;
-    if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
-      const dmg = def.dmg * e.dmgMul * dt;
-      P.hp -= dmg;
-      hurt += dmg;
+    if (canHurt && d < e.r + PLAYER.radius && !(flies ? airborne : aboveGround) && P.invul <= 0) {
+      if (e.state === 2 && isCharger(e)) {
+        // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
+        const dmg = HAZARDS.charge.dmg * e.dmgMul;
+        P.hp -= dmg;
+        hurt += dmg;
+        P.invul = Math.max(P.invul, HAZARDS.charge.invul);
+        e.state = 3;
+        e.timer = HAZARDS.charge.recover;
+        w.lastHurt = HurtSrc.Charge;
+      } else {
+        const dmg = def.dmg * e.dmgMul * dt;
+        P.hp -= dmg;
+        hurt += dmg;
+        w.lastHurt = HurtSrc.Contact;
+      }
     }
   }
   if (hurt > 0) {
@@ -213,7 +247,7 @@ function stepEnemies(w: World, dt: number): void {
 /** Projectiles ennemis : crachats (mobiles) et cercles du Colosse (immobiles, explosent à la fin). */
 function tickShots(w: World, dt: number): void {
   const P = w.player;
-  const airborne = P.y >= PLAYER.airborneSafeY;
+  const airborne = P.y - w.groundAt(P.x, P.z) >= PLAYER.airborneSafeY; // les tirs atteignent un joueur perché
   let hurt = 0;
   for (let i = w.shotCount - 1; i >= 0; i--) {
     const s = w.shots[i];
@@ -230,16 +264,48 @@ function tickShots(w: World, dt: number): void {
       if (inside && !airborne && P.invul <= 0) {
         P.hp -= s.dmg;
         hurt += s.dmg;
+        w.lastHurt = HurtSrc.Spit;
         w.freeShot(i);
         continue;
       }
       if (s.life <= 0) w.freeShot(i);
+    } else if (s.kind === ShotKind.Ring) {
+      // onde de choc : le rayon grandit, blesse une fois au passage de l'anneau (au sol)
+      s.r += HAZARDS.ring.speed * dt;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (!s.hit && Math.abs(dist - s.r) < HAZARDS.ring.width * 0.5 + PLAYER.radius && !airborne && P.invul <= 0) {
+        P.hp -= s.dmg;
+        hurt += s.dmg;
+        s.hit = true;
+        w.lastHurt = HurtSrc.Ring;
+      }
+      if (s.life <= 0) w.freeShot(i);
+    } else if (s.kind === ShotKind.Eruption) {
+      if (s.life > 0) {
+        // la fissure suit le joueur (plus vite qu'il ne marche) : seuls le saut et le dash l'esquivent
+        const dd = Math.sqrt(dx * dx + dz * dz);
+        const k = dd > 1e-6 ? Math.min(HAZARDS.eruption.track, dd / dt) / dd : 0;
+        s.vx = dx * k;
+        s.vz = dz * k;
+      } else {
+        // pic : blesse et projette le joueur au sol (sol local : un plateau n'abrite pas)
+        w.emit(Ev.Eruption, s.x, w.groundAt(s.x, s.z), s.z, s.r);
+        if (inside && !airborne && P.invul <= 0) {
+          P.hp -= s.dmg;
+          hurt += s.dmg;
+          P.vy = HAZARDS.eruption.launch;
+          P.onGround = false;
+          w.lastHurt = HurtSrc.Eruption;
+        }
+        w.freeShot(i);
+      }
     } else if (s.life <= 0) {
       // zone : explose
       w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
       if (inside && !airborne && P.invul <= 0) {
         P.hp -= s.dmg;
         hurt += s.dmg;
+        w.lastHurt = HurtSrc.Zone;
       }
       w.freeShot(i);
     }

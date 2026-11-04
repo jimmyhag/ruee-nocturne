@@ -3,8 +3,12 @@ import {
   BOSS,
   CAPS,
   DECOR,
+  ELITE_TYPE,
   ENEMIES,
+  HAZARDS,
+  PLATEAUX,
   REAPER_TYPE,
+  STEP,
   SWARM_TYPE,
   TRAIT,
   VOLANT,
@@ -23,6 +27,7 @@ import {
   grassGeometry,
   lampHeadGeometry,
   lampPostGeometry,
+  plateauGeometry,
   roundTreeGeometry,
 } from './decor';
 import { buildEnemyGeometries } from './enemies';
@@ -110,6 +115,7 @@ export class GameScene {
   private spitW: InstanceWriter;
   private zoneW: InstanceWriter; // cercles rouges du Colosse (anneau)
   private zoneFillW: InstanceWriter; // disque qui se remplit pendant le télégraphe
+  private ringW: InstanceWriter; // ondes de choc du Gardien (phase 11) : anneau fin, rayon = portée du coup
   private chestW: InstanceWriter;
   private gemW: InstanceWriter;
   private bladeW: InstanceWriter;
@@ -235,6 +241,9 @@ export class GameScene {
     this.zoneW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.9, 1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 96),
     );
+    this.ringW = new InstanceWriter(
+      makeInstanced(new THREE.RingGeometry(0.955, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 8),
+    );
     this.zoneFillW = new InstanceWriter(
       makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.35), 96),
     );
@@ -252,6 +261,7 @@ export class GameScene {
       this.spitW.mesh,
       this.zoneW.mesh,
       this.zoneFillW.mesh,
+      this.ringW.mesh,
       this.chestW.mesh,
       this.gemW.mesh,
       this.dashGhostW.mesh,
@@ -281,6 +291,7 @@ export class GameScene {
       this.spitW,
       this.zoneW,
       this.zoneFillW,
+      this.ringW,
       this.chestW,
       this.gemW,
       this.dashGhostW,
@@ -313,7 +324,9 @@ export class GameScene {
       DECOR.lamps,
     );
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
-    const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap); // phase 9 : +1 appel
+    // ombres des arbres et des plateaux (phase 9 : +1 appel ; phase 11 : les plateaux partagent le mesh)
+    const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap + PLATEAUX.n);
+    const plateaux = makeInstanced(plateauGeometry(), vc(), PLATEAUX.n); // phase 11 : +1 appel
     const tint = new THREE.Color();
     let nf = 0,
       nr = 0;
@@ -335,7 +348,23 @@ export class GameScene {
       d.updateMatrix();
       treeShadows.setMatrixAt(i, d.matrix);
     }
-    treeShadows.count = nTrees;
+    // plateaux : fût (r, h, r), teinte variée, ombre portée au pied côté opposé au soleil
+    for (let i = 0; i < w.plateaux.length; i++) {
+      const p = w.plateaux[i];
+      d.position.set(p.x, 0, p.z);
+      d.rotation.set(0, (i * 1.1) % TAU, 0);
+      d.scale.set(p.r, PLATEAUX.h, p.r);
+      d.updateMatrix();
+      plateaux.setMatrixAt(i, d.matrix);
+      plateaux.setColorAt(i, tint.setScalar(0.9 + ((i * 5) % 6) * 0.03));
+      d.position.set(p.x + 0.7, 0.02, p.z + 0.5);
+      d.rotation.set(0, 0, 0);
+      d.scale.setScalar(p.r * 1.25);
+      d.updateMatrix();
+      treeShadows.setMatrixAt(nTrees + i, d.matrix);
+    }
+    treeShadows.count = nTrees + w.plateaux.length;
+    plateaux.count = w.plateaux.length;
     for (let i = 0; i < DECOR.rocks; i++) {
       const o = w.obstacles[nTrees + i];
       const s = o.r / 0.75;
@@ -382,7 +411,7 @@ export class GameScene {
     rocks.count = DECOR.rocks;
     posts.count = lamps.count = halos.count = DECOR.lamps;
     grass.count = ng;
-    for (const m of [treeShadows, firs, rounds, rocks, posts, lamps, halos, grass]) {
+    for (const m of [treeShadows, plateaux, firs, rounds, rocks, posts, lamps, halos, grass]) {
       m.instanceMatrix.needsUpdate = true;
       m.instanceColor!.needsUpdate = true;
       this.scene.add(m);
@@ -555,8 +584,9 @@ export class GameScene {
       M.glowDisc.position.set(px, 0.07, pz);
       M.glowDisc.scale.setScalar(1 + Math.sin(now * 11) * 0.05); // vacillement
     }
-    this.blob.position.set(px, 0.03, pz);
-    this.blob.scale.setScalar(Math.max(0.4, 1 - py * 0.25));
+    const ground = w.groundAt(px, pz); // ombre du joueur posée sur le sol local (plateaux)
+    this.blob.position.set(px, ground + 0.03, pz);
+    this.blob.scale.setScalar(Math.max(0.4, 1 - (py - ground) * 0.25));
 
     // dash : 1 particule crème par frame + silhouettes en fondu
     if (P.dashT > 0) {
@@ -587,6 +617,7 @@ export class GameScene {
     this.shadowW.begin();
     this.eliteW.begin();
     this.aims.begin();
+    this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
     for (let i = 0; i < w.enemyCount; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -624,6 +655,24 @@ export class GameScene {
       } else {
         this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, Math.sin(now * 5 + e.bob) * 0.2, 0, s, s * S.enemyStretch);
         if (e.type === 5 && e.aim > 0) this.aims.add(ex, 0.9, ez, px, 0.9, pz, e.aim); // ligne de visée du Cracheur
+        if (e.elite && e.type === ELITE_TYPE && e.state === 1) {
+          // Brute élite qui arme sa charge : couloir rouge au sol jusqu'au point d'arrivée, qui s'élargit (0 → largeur réelle)
+          const C = HAZARDS.charge;
+          const f = 1 - e.timer / C.telegraph;
+          const half = C.dist * 0.5 + e.r;
+          this.zoneFillW.put(
+            ex + e.tx * half,
+            0.045,
+            ez + e.tz * half,
+            Math.atan2(-e.tz, e.tx),
+            half,
+            this.cTele,
+            0,
+            0,
+            1,
+            0.25 + f * e.r * 0.9,
+          );
+        }
       }
       if (e.type !== VOLANT_TYPE) this.shadowW.put(ex, 0.03, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow);
       if (e.elite) this.eliteW.put(ex, 0.06, ez, now * 1.5, e.r * 1.3, this.cGold);
@@ -636,7 +685,7 @@ export class GameScene {
     // crachats et cercles rouges (projectiles ennemis)
     this.spitW.begin();
     this.zoneW.begin();
-    this.zoneFillW.begin();
+    this.ringW.begin();
     for (let i = 0; i < w.shotCount; i++) {
       const sh = w.shots[i];
       if (sh.kind === ShotKind.Spit) {
@@ -648,15 +697,25 @@ export class GameScene {
           1,
           this.cSpit,
         );
+      } else if (sh.kind === ShotKind.Ring) {
+        // onde de choc du Gardien : anneau qui grandit, posé au sol (le joueur la saute)
+        const r = sh.r + HAZARDS.ring.speed * alpha * STEP;
+        this.ringW.put(sh.x, 0.06, sh.z, 0, r, this.cTele);
       } else {
-        const f = 1 - Math.max(0, sh.life / BOSS.zoneTelegraph); // 0 → 1 : le disque se remplit
-        this.zoneW.put(sh.x, 0.05, sh.z, 0, sh.r, this.cTele);
-        this.zoneFillW.put(sh.x, 0.045, sh.z, 0, sh.r * f, this.cTele);
+        // cercle du Colosse (immobile) ou fissure d'éruption (suit le joueur, posée sur le sol local) : le disque se remplit
+        const eruption = sh.kind === ShotKind.Eruption;
+        const f = 1 - Math.max(0, sh.life / (eruption ? HAZARDS.eruption.telegraph : BOSS.zoneTelegraph));
+        const sx = eruption ? lerp(sh.px, sh.x, alpha) : sh.x,
+          sz = eruption ? lerp(sh.pz, sh.z, alpha) : sh.z;
+        const gy = eruption ? w.groundAt(sx, sz) : 0;
+        this.zoneW.put(sx, gy + 0.05, sz, 0, sh.r, this.cTele);
+        this.zoneFillW.put(sx, gy + 0.045, sz, 0, sh.r * f, this.cTele);
       }
     }
     this.spitW.end();
     this.zoneW.end();
     this.zoneFillW.end();
+    this.ringW.end();
 
     // coffres : flottent et tournent ; coffre de boss plus gros
     this.chestW.begin();

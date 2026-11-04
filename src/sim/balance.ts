@@ -31,7 +31,7 @@ export const GRID_HALF_CELLS = 80; // grille centrée joueur : 160 cellules × 2
 export const CAPS = {
   enemies: 520, // perf mobile (PLAN §4.3)
   projectiles: 250,
-  shots: 96, // crachats ennemis : 12 Cracheurs × 2,2 s de vie / 2,5 s de période, large
+  shots: 128, // crachats ennemis (12 Cracheurs × 2,2 s de vie / 2,5 s de période) + éruptions et anneaux (phase 11)
   gems: 900,
   chests: 16, // jamais plus de quelques coffres au sol en pratique (une élite / 40 s)
   events: 1024,
@@ -54,6 +54,52 @@ export const ZONES = {
   woods: 4,
   woodR: 22,
   minFromCenter: 24, // le départ reste une clairière ouverte
+};
+
+// plateaux (phase 11, PLAN §3.4) : disques de roche surélevés que l'on monte d'un saut (jumpVel 9,5 ⇒ ~1,7 u > h)
+// Les ennemis au sol butent au pied ; Volants, crachats, zones et Faucheur passent : un répit, pas un abri.
+export const PLATEAUX = {
+  n: 14,
+  rMin: 2.5,
+  rMax: 4,
+  h: 1.4,
+  edgeTol: 0.2, // en l'air à y ≥ h − edgeTol, on passe le bord et on atterrit dessus
+  minDist: 18, // entre deux centres
+  minFromCenter: 24, // le départ reste une clairière ouverte, comme les lacs et les bois (à 12 u : +5 points de morts avant 3 min, le bot se fait coincer au pied)
+};
+
+// dangers à esquiver par le mouvement (phase 11, PLAN §3.1) : le saut et le dash servent à autre chose qu'à fuir
+export const HAZARDS = {
+  eruption: {
+    after: 150, // première éruption à 2:30 : le joueur a appris à bouger (à 2:00 : morts avant 3 min 13 % → 22 %)
+    period0: 9, // entre deux éruptions à 2:30…
+    period1: 4, // …et à `at` (15:00) puis constant
+    at: 900,
+    r: 1.6,
+    telegraph: 0.8, // fenêtre de saut utile : en l'air ≥ 0,9 u entre 0,11 et 0,62 s après l'impulsion ⇒ sauter à mi-télégraphe
+    track: 7, // u/s : la fissure suit le joueur (6,2 u/s en marchant) ; seuls le saut et le dash (×3,2) l'esquivent
+    dmg: 15, // × dmgScale (×1,33 à 2:30 ⇒ 20 PV, un cinquième de la vie ; 45 PV à 15:00) ; à 18 la part des morts par éruption en maxé montait à 18 % sur une seed (porte ≤ 15 %)
+    launch: 6, // vitesse verticale donnée au joueur touché : projeté, lisible
+  },
+  ring: {
+    first: 3, // s après l'apparition du Gardien
+    period: 6, // phase 2 : /2
+    speed: 9, // u/s
+    width: 0.8, // épaisseur de l'onde
+    maxR: 14,
+    dmg: 14, // × dmgScale ; une fois par onde
+  },
+  charge: {
+    first: 2.5, // s après l'apparition d'une Brute élite
+    range: 9, // charge seulement si le joueur est à moins de 9 u
+    telegraph: 0.6, // ligne au sol : le dash (invulnérable 0,32 s) la traverse, un pas de côté suffit aussi
+    dist: 7,
+    speed: 16,
+    recover: 0.7, // à l'arrêt après la charge : fenêtre de punition
+    period: 5,
+    dmg: 16, // × dmgScale, en un coup (le contact normal continue par ailleurs)
+    invul: 0.5, // invulnérabilité après le coup : pas de double peine avec le contact
+  },
 };
 
 export const XP = {

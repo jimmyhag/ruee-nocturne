@@ -871,6 +871,21 @@ function handleEvents(w: World, now: number): void {
         audio.roar();
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         break;
+      case Ev.Eruption:
+        // pic sorti du sol : gerbe de roche vers le haut + anneau de poussière, secousse, coup sourd
+        S.particles.burst(e.x, e.y + 0.2, e.z, PAL.rock, (14 * fx) | 0, 3, 9);
+        S.particles.ring(e.x, e.y + 0.15, e.z, PAL.dust, (12 * fx) | 0, e.v * 3, 1.5);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
+        audio.eruption();
+        break;
+      case Ev.Ring:
+        S.particles.ring(e.x, 0.3, e.z, PAL.telegraph, (10 * fx) | 0, 6, 1);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+        audio.ring();
+        break;
+      case Ev.Charge:
+        audio.charge();
+        break;
       case Ev.Spit:
         S.particles.burst(e.x, e.y, e.z, PAL.spit, (3 * fx) | 0, 2, 2, false);
         audio.spit();

@@ -1,8 +1,8 @@
-import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TRAIT, XP, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX, HAZARDS } from './balance';
 import { PASSIVES } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Ev, Mode, ProjKind, ShotKind, Trait } from './types';
+import { Ev, Mode, ProjKind, ShotKind, Trait, HurtSrc } from './types';
 import type {
   Card,
   Chest,
@@ -61,6 +61,8 @@ export class World {
   reaperSpawned = false;
   nextId = 1;
   lastAction = 0; // dernier coup donné ou reçu
+  nextEruption = HAZARDS.eruption.after; // phase 11 : prochaine éruption (temps de jeu)
+  lastHurt: HurtSrc = HurtSrc.Contact; // dernière source de dégâts (cause de mort dans la CLI)
   boredomUntil = 0;
 
   // armes et passifs
@@ -85,6 +87,7 @@ export class World {
   treeCount = 0; // obstacles[0..treeCount) = arbres, puis rochers
   lakes: Obstacle[] = [];
   woods: Obstacle[] = [];
+  plateaux: Obstacle[] = []; // phase 11 : disques surélevés de hauteur PLATEAUX.h
   private obstacleGrid = new Map<number, number[]>();
 
   constructor(seed: number, opts?: WorldOptions) {
@@ -123,6 +126,7 @@ export class World {
     for (let i = 0; i < CAPS.events; i++) this.events.push({ type: Ev.Hit, x: 0, y: 0, z: 0, x2: 0, y2: 0, z2: 0, v: 0 });
     const r = new Rng(this.seed ^ 0x9e3779b9);
     this.generateZones(r);
+    this.generatePlateaux(r);
     this.generateObstacles(r);
   }
 
@@ -253,6 +257,65 @@ export class World {
   private inLake(x: number, z: number): boolean {
     return this.speedAt(x, z) < 1;
   }
+  /** Plateaux : hors lacs et bois, loin du départ et les uns des autres (tirage par rejet, borné). */
+  private generatePlateaux(r: Rng): void {
+    for (let i = 0; i < PLATEAUX.n; i++) {
+      for (let tries = 0; tries < 200; tries++) {
+        const x = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8),
+          z = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8),
+          rad = r.range(PLATEAUX.rMin, PLATEAUX.rMax);
+        if (x * x + z * z < (PLATEAUX.minFromCenter + rad) ** 2) continue;
+        if (!this.clearOfZones(x, z, rad + 1) || !this.clearOfPlateaux(x, z, PLATEAUX.minDist)) continue;
+        this.plateaux.push({ x, z, r: rad });
+        break;
+      }
+    }
+  }
+  private clearOfZones(x: number, z: number, pad: number): boolean {
+    for (const l of this.lakes) if ((x - l.x) ** 2 + (z - l.z) ** 2 < (l.r + pad) ** 2) return false;
+    for (const wd of this.woods) if ((x - wd.x) ** 2 + (z - wd.z) ** 2 < (wd.r + pad) ** 2) return false;
+    return true;
+  }
+  private clearOfPlateaux(x: number, z: number, pad: number): boolean {
+    for (const p of this.plateaux) if ((x - p.x) ** 2 + (z - p.z) ** 2 < (p.r + pad) ** 2) return false;
+    return true;
+  }
+  /** Hauteur du sol en (x, z) : PLATEAUX.h sur un plateau, 0 ailleurs. O(nombre de plateaux), sans allocation. */
+  groundAt(x: number, z: number): number {
+    const ps = this.plateaux;
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
+      const dx = x - p.x,
+        dz = z - p.z;
+      if (dx * dx + dz * dz < p.r * p.r) return PLATEAUX.h;
+    }
+    return 0;
+  }
+  /**
+   * Repousse (x,z) hors des plateaux dont le dessus est au-dessus de `y` (bord = mur) ; ceux que l'on survole
+   * (y ≥ h − edgeTol) laissent passer. Écrit dans out[0], out[1].
+   */
+  resolvePlateaux(x: number, z: number, y: number, pad: number, out: Float64Array): void {
+    const ps = this.plateaux;
+    if (y < PLATEAUX.h - PLATEAUX.edgeTol) {
+      for (let i = 0; i < ps.length; i++) {
+        const p = ps[i];
+        const dx = x - p.x,
+          dz = z - p.z,
+          d2 = dx * dx + dz * dz,
+          m = p.r + pad;
+        if (d2 < m * m) {
+          if (d2 > 1e-8) {
+            const d = Math.sqrt(d2);
+            x = p.x + (dx / d) * m;
+            z = p.z + (dz / d) * m;
+          } else x = p.x + m;
+        }
+      }
+    }
+    out[0] = x;
+    out[1] = z;
+  }
   private generateObstacles(r: Rng): void {
     const addOne = (x: number, z: number, radius: number) => {
       this.obstacles.push({ x, z, r: radius });
@@ -267,7 +330,7 @@ export class World {
         do {
           x = r.range(-WORLD_HALF, WORLD_HALF);
           z = r.range(-WORLD_HALF, WORLD_HALF);
-        } while (x * x + z * z < 64 || this.inLake(x, z));
+        } while (x * x + z * z < 64 || this.inLake(x, z) || !this.clearOfPlateaux(x, z, 1.2));
         addOne(x, z, baseR * r.range(sMin, sMax));
       }
     };
@@ -419,7 +482,7 @@ function makeProj(): Projectile {
   };
 }
 function makeShot(): Shot {
-  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0 };
+  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false };
 }
 function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };
