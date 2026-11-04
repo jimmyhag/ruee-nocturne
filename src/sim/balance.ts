@@ -78,7 +78,7 @@ export const HAZARDS = {
     r: 1.6,
     telegraph: 0.8, // fenêtre de saut utile : en l'air ≥ 0,9 u entre 0,11 et 0,62 s après l'impulsion ⇒ sauter à mi-télégraphe
     track: 7, // u/s : la fissure suit le joueur (6,2 u/s en marchant) ; seuls le saut et le dash (×3,2) l'esquivent
-    dmg: 15, // × dmgScale (×1,33 à 2:30 ⇒ 20 PV, un cinquième de la vie ; 45 PV à 15:00) ; à 18 la part des morts par éruption en maxé montait à 18 % sur une seed (porte ≤ 15 %)
+    dmg: 13, // × dmgScale (×1,27 à 2:30 ⇒ 17 PV ; 34 PV à 15:00) ; phase 12 : 15 → 13, les éruptions faisaient 16 % des morts d'un personnage complet (porte ≤ 15 %)
     launch: 6, // vitesse verticale donnée au joueur touché : projeté, lisible
   },
   ring: {
@@ -131,8 +131,8 @@ export const SPAWN = {
   midTo: 900,
   rate: (t: number) =>
     Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
-  hpScale: (t: number) => 1 + t / 190 + Math.max(0, Math.min(t, 900) - 420) / 95, // phase 12 : montée par petites lignes, PV ennemis plus doux (t/150 et /70 avant) // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
-  dmgScale: (t: number) => 1 + t / 500, // phase 12 : ×3,4 à 20:00 (t/450 avant : les lignes de Vitalité montent moins vite que Cœur de pierre)
+  hpScale: (t: number) => 1 + t / 190 + Math.max(0, Math.min(t, 900) - 420) / 110, // phase 12 : montée par petites lignes, PV ennemis plus doux (t/150 et /70 avant) // ×2 à 2:30, ×9,3 à 12:00, ×15,9 à 20:00 (/100 : le plateau 7–12 min subsistait, 4 paliers collaient au maxé)
+  dmgScale: (t: number) => 1 + t / 560, // phase 12 : ×3,1 à 20:00 (t/450 avant : les lignes de Vitalité montent moins vite que Cœur de pierre)
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
   ringMax: 30, // hors écran (fog à 16–44)
