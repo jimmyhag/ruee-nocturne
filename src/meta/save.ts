@@ -50,6 +50,7 @@ export interface Meta {
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
   slots: { weapons: number; passives: number }; // emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
+  seenHelp: boolean; // aide « Comment jouer » déjà vue au premier lancement (phase 14 ; propre à l'appareil)
   settings: MetaSettings;
 }
 /** Rendu (phase 9) : auto (net, repli automatique), net, pixel (résolution réduite, look d'origine). */
@@ -89,6 +90,7 @@ export const DEFAULT_META: Meta = {
   daily: { date: '', times: [] },
   slots: { ...SLOTS_START },
   seenReset: true,
+  seenHelp: false,
   settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto' },
 };
 
@@ -111,6 +113,7 @@ export function resetProgress(m: Meta): Meta {
     reducedFx: m.reducedFx,
     fxChosen: m.fxChosen,
     settings: m.settings,
+    seenHelp: m.seenHelp,
   });
 }
 
@@ -134,6 +137,7 @@ export function normalizeMeta(raw: unknown): Meta {
           fxChosen: r0.fxChosen,
           settings: r0.settings,
           seenReset: !(num(r0.runs) > 0 || num(r0.gold) > 0),
+          seenHelp: r0.seenHelp,
         }
       : r0;
   const st = (r.stats && typeof r.stats === 'object' ? r.stats : {}) as Record<string, unknown>;
@@ -207,6 +211,7 @@ export function normalizeMeta(raw: unknown): Meta {
       passives: Math.max(SLOTS_START.passives, Math.min(MAX_PASSIVES, num(sl.passives, SLOTS_START.passives) | 0)),
     },
     seenReset: bool(r.seenReset, true),
+    seenHelp: bool(r.seenHelp, false),
   };
 }
 

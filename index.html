@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <meta name="theme-color" content="#1c1226" />
+    <meta name="theme-color" content="#0f1628" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -63,15 +63,24 @@
           U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
       :root {
-        --ink: #1c1226;
-        --ink-2: #2b1d3a;
-        --ink-3: #3d2b52;
-        --paper: #fff1db;
-        --muted: #c7b3cf;
-        --accent: #ff8a3d;
-        --hp: #ff5470;
-        --xp: #59d8ff;
-        --gold: #ffcc4d;
+        /* phase 14 : nuit bleue profonde, lanternes chaudes ; mêmes valeurs dans src/render/palette.ts */
+        --ink: #0f1628;
+        --ink-2: #141c33;
+        --ink-3: #2a3657;
+        --paper: #f3ecdc;
+        --muted: #9aa4c2;
+        --accent: #ffb347;
+        --accent-dim: rgba(255, 179, 71, 0.16);
+        --hp: #ff5d73;
+        --xp: #5fd3ff;
+        --gold: #ffd166;
+        --glass: rgba(20, 28, 51, 0.9);
+        --glass-2: rgba(255, 255, 255, 0.06);
+        --line: rgba(255, 255, 255, 0.09);
+        --line-2: rgba(255, 255, 255, 0.14);
+        --scrim: rgba(15, 22, 40, 0.72);
+        --radius: 14px;
+        --radius-l: 20px;
         --f-display: 'Lilita One', 'Arial Black', Impact, sans-serif;
         --f-body: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
         color-scheme: dark;
@@ -123,7 +132,7 @@
         position: fixed;
         inset: 0;
         pointer-events: none;
-        background: radial-gradient(ellipse at center, transparent 55%, rgba(28, 18, 38, 0.35) 100%);
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(15, 22, 40, 0.4) 100%);
       }
       #flash {
         position: fixed;
@@ -229,7 +238,7 @@
         position: absolute;
         inset: 0 auto 0 0;
         width: 100%;
-        background: #fff1db88;
+        background: #f3ecdc88;
         transition: width 0.4s ease-out;
       }
       .hpbar span {
@@ -250,7 +259,7 @@
       .kit span {
         font-size: 11px;
         font-weight: 600;
-        background: #1c1226b3;
+        background: #0f1628b3;
         border: 1px solid var(--ink-3);
         padding: 1px 6px;
         border-radius: 4px;
@@ -293,7 +302,7 @@
         height: 38px;
         border-radius: 10px;
         border: 2px solid var(--ink-3);
-        background: #1c1226bf;
+        background: #0f1628bf;
         font-family: var(--f-display);
         font-size: 15px;
       }
@@ -333,7 +342,7 @@
         font:
           12px/1.5 ui-monospace,
           monospace;
-        background: #1c1226d9;
+        background: #0f1628d9;
         border: 1px solid var(--ink-3);
         padding: 8px 10px;
         border-radius: 8px;
@@ -429,7 +438,7 @@
         font-weight: 600;
         padding: 4px 9px;
         border-radius: 6px;
-        background: #1c1226bf;
+        background: #0f1628bf;
         border: 1px solid var(--ink-3);
       }
       .keys b {
@@ -456,8 +465,8 @@
         height: 120px;
         margin: -60px 0 0 -60px;
         border-radius: 50%;
-        border: 3px solid #fff1db59;
-        background: #1c122659;
+        border: 3px solid #f3ecdc59;
+        background: #0f162859;
         opacity: 0;
         transition: opacity 0.15s;
       }
@@ -511,67 +520,194 @@
         transform: translateY(3px);
         box-shadow: 0 1px 0 var(--ink);
       }
+      /* ---------- écrans (phase 14 : écran-titre immersif, feuilles, boutons) ---------- */
       .screen {
         position: fixed;
         inset: 0;
-        /* flex + margin auto sur le panneau : centré quand il tient, défilable depuis le haut quand il dépasse
-           (place-items: center coupait le haut des longs écrans sur téléphone) */
+        /* flex + margin auto sur la feuille : centrée quand elle tient, défilable depuis le haut quand elle dépasse */
         display: flex;
         flex-direction: column;
         align-items: center;
         overflow-y: auto;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
-        background: #1c1226b8;
-        padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
-        padding-left: max(16px, env(safe-area-inset-left, 0px));
-        padding-right: max(16px, env(safe-area-inset-right, 0px));
+        background: var(--scrim);
+        padding-top: calc(env(safe-area-inset-top, 0px) + 18px);
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+        padding-left: max(14px, env(safe-area-inset-left, 0px));
+        padding-right: max(14px, env(safe-area-inset-right, 0px));
         touch-action: pan-y;
       }
+      /* feuille : panneau sombre à bord fin ; `.panel` reste le nom utilisé par le HTML et les tests */
       .panel {
-        width: min(560px, 100%);
+        width: min(600px, 100%);
         margin: auto;
         flex-shrink: 0;
+        box-sizing: border-box;
         display: grid;
-        gap: 18px;
+        gap: 16px;
         justify-items: center;
         text-align: center;
+        padding: 18px 18px 20px;
+        border-radius: var(--radius-l);
+        border: 1px solid var(--line);
+        background: var(--glass);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      }
+      .sheet-head {
+        display: grid;
+        grid-template-columns: 44px 1fr 44px;
+        align-items: center;
+        width: 100%;
+        gap: 8px;
+      }
+      .sheet-head .h2 {
+        grid-column: 2;
+        font-size: clamp(26px, 6vw, 34px);
+        text-shadow: none;
+      }
+      .sheet-head .close {
+        grid-column: 3;
+        justify-self: end;
+      }
+      .sheet-head .sub {
+        grid-column: 2;
+        margin: -8px 0 0;
+      }
+      /* ---------- accueil ---------- */
+      #menu {
+        background: transparent;
+        overflow: hidden;
+        justify-content: space-between;
+        align-items: stretch;
+        /* un léger dégradé en haut et en bas : le logo et les boutons lisibles sur la clairière, le centre libre */
+        background:
+          linear-gradient(to bottom, rgba(15, 22, 40, 0.75), rgba(15, 22, 40, 0) 32%),
+          linear-gradient(to top, rgba(15, 22, 40, 0.88), rgba(15, 22, 40, 0) 46%);
+      }
+      .home-top,
+      .home-bottom {
+        display: grid;
+        gap: 10px;
+        justify-items: center;
+        text-align: center;
+      }
+      .home-top {
+        padding-top: 6px;
+      }
+      .home-bottom {
+        gap: 14px;
+        padding-bottom: 4px;
       }
       .title {
         margin: 0;
         font-family: var(--f-display);
         font-weight: 400;
-        font-size: clamp(46px, 13vw, 92px);
-        line-height: 0.9;
+        font-size: clamp(44px, 11vw, 84px);
+        line-height: 0.92;
+        letter-spacing: 0.01em;
         color: var(--paper);
         text-shadow:
-          4px 4px 0 var(--accent),
-          8px 8px 0 var(--hp),
-          12px 12px 0 var(--ink);
+          0 4px 0 rgba(0, 0, 0, 0.45),
+          0 0 42px rgba(255, 179, 71, 0.28);
         text-wrap: balance;
-        transform: rotate(-3deg);
+      }
+      .best {
+        font-size: 14px;
+        color: var(--paper);
+        opacity: 0.85;
+        font-variant-numeric: tabular-nums;
+      }
+      .playrow {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+      }
+      /* barre d'icônes : rangée en bas sur téléphone, colonne à gauche sur grand écran */
+      .menubar {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .btn-icon {
+        display: grid;
+        justify-items: center;
+        gap: 4px;
+        min-width: 72px;
+        max-width: 150px;
+        padding: 8px 10px 7px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: var(--glass);
+        color: var(--paper);
+        font: 600 11px/1.1 var(--f-body);
+        letter-spacing: 0.01em;
+        transition:
+          border-color 0.12s,
+          background 0.12s,
+          transform 0.08s;
+      }
+      .btn-icon svg {
+        width: 24px;
+        height: 24px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .btn-icon span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .btn-icon:hover,
+      .btn-icon:focus-visible {
+        border-color: var(--accent);
+        background: var(--glass-2);
+      }
+      .btn-icon:active {
+        transform: translateY(2px);
+      }
+      .btn-icon.close {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 22px;
+        line-height: 1;
+        display: grid;
+        place-items: center;
+      }
+      .foot {
+        font-size: 11px;
+        opacity: 0.7;
+      }
+      .foot a {
+        color: inherit;
       }
       .tag {
         margin: 6px 0 0;
         max-width: 36ch;
         color: var(--muted);
-        font-size: 16px;
+        font-size: 15px;
         line-height: 1.45;
         text-wrap: balance;
       }
+      /* aide (touches), déplacée dans sa feuille */
       .ctrl {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 8px 14px;
+        gap: 10px 14px;
         align-items: center;
         text-align: left;
-        background: #2b1d3ad9;
-        border: 2px solid var(--ink-3);
-        border-radius: 14px;
-        padding: 14px 16px;
         width: 100%;
-        max-width: 420px;
+        max-width: 440px;
         box-sizing: border-box;
         margin: 0;
       }
@@ -588,46 +724,68 @@
         font-size: 12px;
         font-weight: 800;
         padding: 3px 7px;
-        border-radius: 5px;
+        border-radius: 6px;
         background: var(--paper);
         color: var(--ink);
         box-shadow: 0 2px 0 var(--muted);
         white-space: nowrap;
       }
+      /* ---------- boutons ---------- */
       button.big {
         font-family: var(--f-display);
-        font-size: 26px;
+        font-size: 25px;
         letter-spacing: 0.03em;
-        padding: 12px 44px;
-        border-radius: 14px;
-        border: 3px solid var(--ink);
-        background: var(--gold);
+        padding: 13px 46px;
+        min-height: 56px;
+        border-radius: var(--radius);
+        border: 1px solid rgba(0, 0, 0, 0.35);
+        background: linear-gradient(to bottom, #ffe08a, var(--gold));
         color: var(--ink);
         box-shadow:
-          0 6px 0 var(--ink),
-          0 6px 0 3px var(--accent);
+          0 4px 0 #b8862f,
+          0 10px 24px rgba(255, 209, 102, 0.28);
+        transition: transform 0.08s;
       }
       button.big:active {
-        transform: translateY(4px);
-        box-shadow: 0 2px 0 var(--ink);
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 #b8862f;
+      }
+      button.big:disabled {
+        opacity: 0.7;
+        cursor: default;
       }
       .ghost {
         font-weight: 600;
-        padding: 10px 18px;
-        border-radius: 10px;
-        border: 2px solid var(--ink-3);
-        background: var(--ink-2);
+        font-size: 14px;
+        padding: 10px 16px;
+        min-height: 44px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line-2);
+        background: var(--glass-2);
+        color: var(--paper);
+        transition:
+          border-color 0.12s,
+          background 0.12s;
+      }
+      .ghost:hover,
+      .ghost:focus-visible {
+        border-color: var(--accent);
+      }
+      .ghost.selected {
+        border-color: var(--accent);
+        background: var(--accent-dim);
       }
       a.ghost {
         color: inherit;
         text-decoration: none;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
       }
       .btnrow {
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 10px;
+        gap: 8px;
       }
       .note {
         margin: 0;
@@ -638,9 +796,9 @@
         margin: 0;
         font-family: var(--f-display);
         font-weight: 400;
-        font-size: clamp(34px, 9vw, 54px);
+        font-size: clamp(32px, 8vw, 48px);
         line-height: 1;
-        text-shadow: 3px 3px 0 var(--ink);
+        text-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
       }
       .h2.lv {
         color: var(--xp);
@@ -651,10 +809,11 @@
       .h2.dead.win {
         color: var(--gold);
       }
+      /* ---------- cartes ---------- */
       .cards {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 12px;
+        gap: 10px;
         width: 100%;
       }
       .card {
@@ -664,9 +823,10 @@
         justify-items: start;
         text-align: left;
         padding: 14px;
-        border-radius: 14px;
-        border: 3px solid var(--ink-3);
-        background: var(--ink-2);
+        border-radius: var(--radius);
+        border: 1px solid var(--line-2);
+        background: var(--glass-2);
+        color: var(--paper);
         transition:
           transform 0.1s,
           border-color 0.1s;
@@ -702,7 +862,7 @@
         }
         100% {
           border-color: var(--gold);
-          background: var(--ink-2);
+          background: var(--glass-2);
           transform: scale(1);
         }
       }
@@ -757,8 +917,8 @@
       .card.epic {
         border-color: var(--gold);
         box-shadow:
-          0 0 0 2px rgba(255, 204, 77, 0.35),
-          0 0 24px rgba(255, 204, 77, 0.35);
+          0 0 0 1px rgba(255, 209, 102, 0.35),
+          0 0 24px rgba(255, 209, 102, 0.3);
       }
       .badge.rare {
         background: var(--xp);
@@ -795,6 +955,7 @@
         color: var(--muted);
         margin-left: auto;
       }
+      /* ---------- écran de mort ---------- */
       .stats {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -802,9 +963,9 @@
         width: 100%;
       }
       .stats div {
-        background: var(--ink-2);
-        border: 2px solid var(--ink-3);
-        border-radius: 12px;
+        background: var(--glass-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
         padding: 10px 6px;
         display: grid;
         gap: 2px;
@@ -825,7 +986,7 @@
         color: var(--gold);
         font-weight: 800;
       }
-      /* phase 4 : personnages, boutique, succès, réglages */
+      /* ---------- personnages (feuille dédiée depuis la phase 14) ---------- */
       .chars {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -845,7 +1006,8 @@
       }
       .card.char.selected {
         border-color: var(--accent);
-        box-shadow: 0 0 0 2px var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+        background: var(--accent-dim);
       }
       .card.char.locked {
         opacity: 0.55;
@@ -853,7 +1015,7 @@
       }
       .card.char.locked:hover {
         transform: none;
-        border-color: var(--ink-3);
+        border-color: var(--line-2);
       }
       /* achat en or (phase 6) : un faux bouton dans la carte verrouillée ; gris tant que l'or manque */
       .buychar {
@@ -879,63 +1041,65 @@
         color: var(--gold);
         font-style: normal;
       }
-      /* tenues (phase 7) : deux boutons à pastille sous la ligne d'information */
+      /* tenues (phase 7) : deux pastilles sous la ligne d'information */
       .outfits {
         display: flex;
         gap: 8px;
         justify-content: center;
         margin-top: 8px;
       }
-      .outfit {
+      .outfit,
+      .shopchar {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         font: 700 13px var(--f-body);
-        color: var(--ink);
-        background: var(--paper);
-        border: 2px solid transparent;
+        color: var(--paper);
+        background: var(--glass-2);
+        border: 1px solid var(--line-2);
         border-radius: 999px;
         padding: 4px 10px 4px 5px;
-        min-height: 32px;
+        min-height: 34px;
         cursor: pointer;
       }
-      .outfit i {
+      .outfit i,
+      .shopchar i {
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        border: 2px solid var(--ink);
+        border: 2px solid rgba(0, 0, 0, 0.35);
         flex: none;
       }
-      .outfit.sel {
+      .outfit.sel,
+      .shopchar.sel {
         border-color: var(--accent);
-        background: #ffe3c8;
+        background: var(--accent-dim);
       }
       .outfit.locked {
         opacity: 0.85;
       }
       .outfit .price {
-        color: #7a5a00;
+        color: var(--gold);
       }
       .outfit .price.poor {
         color: var(--muted);
       }
+      /* ---------- boutique ---------- */
       .gold {
         font-family: var(--f-display);
         font-size: 22px;
         color: var(--gold);
-        text-shadow: 0 2px 0 var(--ink);
       }
       .shop {
         display: grid;
         gap: 8px;
         width: 100%;
       }
-      /* emplacements (phase 10) */
       .h3 {
         margin: 6px 0 0;
         font-family: var(--f-display);
         font-weight: 400;
-        font-size: 18px;
+        font-size: 17px;
         color: var(--gold);
         width: 100%;
         text-align: left;
@@ -960,10 +1124,11 @@
         font-weight: 700;
       }
       .resetnote {
-        background: var(--ink-2);
-        border: 2px solid var(--accent);
-        border-radius: 12px;
+        background: var(--glass);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius);
         padding: 8px 12px;
+        max-width: 420px;
       }
       /* boutique par personnage (phase 8) : rangée de pastilles, défilement horizontal sur téléphone */
       .shopchars {
@@ -980,25 +1145,12 @@
       }
       .shopchar {
         flex: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
         scroll-snap-align: center;
-        font: 700 13px var(--f-body);
-        color: var(--ink);
-        background: var(--paper);
-        border: 2px solid transparent;
-        border-radius: 999px;
-        padding: 4px 10px 4px 5px;
         min-height: 32px;
-        cursor: pointer;
       }
       .shopchar i {
         width: 18px;
         height: 18px;
-        border-radius: 50%;
-        border: 2px solid var(--ink);
-        flex: none;
       }
       .shopchar b {
         font-size: 11px;
@@ -1006,10 +1158,6 @@
         color: var(--gold);
         border-radius: 999px;
         padding: 0 6px;
-      }
-      .shopchar.sel {
-        border-color: var(--accent);
-        background: #ffe3c8;
       }
       .shopchar.locked {
         opacity: 0.45;
@@ -1021,9 +1169,9 @@
         justify-content: space-between;
         gap: 12px;
         text-align: left;
-        background: var(--ink-2);
-        border: 2px solid var(--ink-3);
-        border-radius: 12px;
+        background: var(--glass-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
         padding: 10px 12px;
       }
       .shoprow h3 {
@@ -1041,7 +1189,8 @@
         white-space: nowrap;
         background: var(--gold);
         color: var(--ink);
-        border-color: var(--ink);
+        border-color: transparent;
+        font-weight: 800;
       }
       .shoprow .buy:disabled {
         background: var(--ink-3);
@@ -1061,6 +1210,7 @@
       .pips i.on {
         background: var(--gold);
       }
+      /* ---------- succès ---------- */
       .achs {
         display: grid;
         gap: 8px;
@@ -1068,9 +1218,9 @@
         text-align: left;
       }
       .ach {
-        background: var(--ink-2);
-        border: 2px solid var(--ink-3);
-        border-radius: 12px;
+        background: var(--glass-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
         padding: 8px 12px;
       }
       .ach.done {
@@ -1111,10 +1261,15 @@
       .ach.done .bar i {
         background: var(--gold);
       }
+      /* ---------- réglages et compte ---------- */
       .settings {
         display: grid;
         gap: 10px;
         width: 100%;
+      }
+      .settings .btnrow > .note {
+        width: 100%;
+        margin-bottom: -2px;
       }
       .settings textarea {
         width: 100%;
@@ -1123,10 +1278,10 @@
         font:
           12px/1.4 ui-monospace,
           monospace;
-        background: var(--ink-2);
+        background: var(--ink);
         color: var(--paper);
-        border: 2px solid var(--ink-3);
-        border-radius: 10px;
+        border: 1px solid var(--line-2);
+        border-radius: var(--radius);
         padding: 8px;
       }
       /* phase 13 : champs du compte ; 16 px minimum, sinon iOS zoome au focus */
@@ -1134,24 +1289,19 @@
         width: 100%;
         box-sizing: border-box;
         font: 16px/1.3 var(--f-body, system-ui, sans-serif);
-        background: var(--ink-2);
+        background: var(--ink);
         color: var(--paper);
-        border: 2px solid var(--ink-3);
-        border-radius: 10px;
+        border: 1px solid var(--line-2);
+        border-radius: var(--radius);
         padding: 10px 12px;
       }
-      .settings input:focus {
+      .settings input:focus,
+      .settings textarea:focus {
         outline: none;
         border-color: var(--gold);
       }
       .accstatus:empty {
         display: none;
-      }
-      .accbtn {
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
       #accMsg.error {
         color: var(--accent);
@@ -1160,7 +1310,35 @@
         font-family: var(--f-display);
         font-size: 20px;
         color: var(--gold);
-        text-shadow: 0 2px 0 var(--ink);
+      }
+      /* grand écran paysage : logo et boutons à gauche, le personnage 3D occupe la droite */
+      @media (min-width: 900px) and (orientation: landscape) {
+        #menu {
+          padding-left: max(56px, env(safe-area-inset-left, 0px));
+          padding-top: calc(env(safe-area-inset-top, 0px) + 40px);
+          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 36px);
+          background: linear-gradient(
+            to right,
+            rgba(15, 22, 40, 0.82),
+            rgba(15, 22, 40, 0.45) 40%,
+            rgba(15, 22, 40, 0) 62%
+          );
+        }
+        .home-top,
+        .home-bottom {
+          justify-items: start;
+          text-align: left;
+          max-width: 460px;
+        }
+        .title {
+          font-size: 92px;
+        }
+        .playrow {
+          justify-content: flex-start;
+        }
+        .menubar {
+          justify-content: flex-start;
+        }
       }
       /* pas sur #touch : le joystick flottant se place en coordonnées écran, un zoom le décalerait sous le doigt */
       #hud,
@@ -1177,6 +1355,7 @@
         /* téléphone : une rangée qui défile au doigt, à crans, trois cartes visibles */
         .chars {
           display: flex;
+          align-items: flex-start;
           overflow-x: auto;
           scroll-snap-type: x mandatory;
           touch-action: pan-x pan-y;
@@ -1204,7 +1383,7 @@
         }
         #perf {
           font-size: 13px;
-          background: #1c1226f2;
+          background: #0f1628f2;
           top: auto;
           bottom: calc(env(safe-area-inset-bottom, 0px) + 120px);
           transform: none;
@@ -1245,9 +1424,6 @@
         * {
           transition: none !important;
           animation: none !important;
-        }
-        .title {
-          transform: none;
         }
       }
     </style>
@@ -1303,25 +1479,75 @@
       </div>
     </div>
 
-    <section id="menu" class="screen">
-      <div class="panel">
-        <div>
-          <h1 class="title">Ruée<br />Nocturne</h1>
-          <p class="tag" data-i18n="menu.tag">
-            La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter et tenir le plus
-            longtemps possible.
-          </p>
+    <!-- phase 14 : écran-titre immersif. La clairière 3D occupe l'écran ; le logo en haut, Jouer et la barre d'icônes en
+         bas ; personnages, boutique, succès, compte et réglages s'ouvrent dans des feuilles -->
+    <section id="menu" class="screen home">
+      <div class="home-top">
+        <h1 class="title">Ruée<br />Nocturne</h1>
+        <p class="note best" id="bestLine" data-i18n="menu.noRecord">Aucun record pour l'instant</p>
+        <p class="note slotline" id="slotLine">1 arme · 2 améliorations</p>
+        <p class="note resetnote" id="resetNote" data-i18n="menu.resetNote" hidden>
+          Nouvelle progression : tout le monde repart de zéro. Tes réglages sont conservés.
+        </p>
+      </div>
+      <div class="home-bottom">
+        <div class="playrow">
+          <button class="big" id="playBtn" data-i18n="menu.play">Jouer</button
+          ><button class="ghost" id="dailyBtn" hidden data-i18n="menu.daily">Défi du jour</button>
         </div>
-        <dl class="ctrl">
-          <dt><span class="cap" data-i18n="menu.keys.move">ZQSD</span> <span class="cap">↑↓←→</span></dt>
-          <dd data-i18n="menu.ctrl.move">Se déplacer (joystick sous le pouce sur mobile, stick gauche à la manette)</dd>
-          <dt><span class="cap" data-i18n="keys.space">Espace</span></dt>
-          <dd data-i18n="menu.ctrl.jump">Sauter par-dessus la horde</dd>
-          <dt><span class="cap" data-i18n="keys.shift">Maj</span></dt>
-          <dd data-i18n="menu.ctrl.dash">Dash, invincible pendant l'élan</dd>
-          <dt><span class="cap">1 2 3</span></dt>
-          <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
-        </dl>
+        <nav class="menubar" id="menuBar" aria-label="Menu">
+          <button class="btn-icon" id="charsBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg
+            ><span data-i18n="menu.characters">Personnage</span></button
+          ><button class="btn-icon" id="shopBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 8h12l1 13H5z" />
+              <path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg
+            ><span id="shopLabel" data-i18n="menu.shop">Boutique</span></button
+          ><button class="btn-icon" id="achBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg
+            ><span data-i18n="menu.achievements">Succès</span></button
+          ><button class="btn-icon" id="accountBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="10" r="3.2" />
+              <path d="M6 19c1.2-2.6 3.4-4 6-4s4.8 1.4 6 4" /></svg
+            ><span id="accountLabel" data-i18n="menu.account">Compte</span></button
+          ><button class="btn-icon" id="settingsBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+              /></svg
+            ><span data-i18n="menu.settings">Réglages</span>
+          </button>
+        </nav>
+        <button class="ghost" id="installBtn" hidden data-i18n="menu.install">Installer l'app</button>
+        <p class="note" id="iosHint" hidden data-i18n="menu.iosHint">
+          Sur iPhone : Partager, puis « Sur l'écran d'accueil »
+        </p>
+        <p class="note foot">
+          <span id="version"></span> · <a href="/a-propos.html" id="aboutLink" data-i18n="menu.about">À propos</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="characters" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="menu.characters">Personnage</h2>
+          <button
+            class="btn-icon close"
+            id="charactersBackBtn"
+            aria-label="Fermer"
+            data-i18n-attr="aria-label:menu.close"
+          >
+            ×
+          </button>
+        </header>
         <!-- Cartes de personnages : état d'un profil vierge, rendu tel quel avant le script (aucun décalage de mise en
              page au chargement) ; src/ui/meta-ui.ts les remplace dès que la méta est lue -->
         <div class="chars" id="chars">
@@ -1398,26 +1624,32 @@
           </button>
         </div>
         <p class="note charinfo" id="charInfo"><b>Éclaireuse</b> · +15 % de vitesse, dash plus court</p>
-        <button class="big" id="playBtn" data-i18n="menu.play">Jouer</button>
-        <div class="btnrow">
-          <button class="ghost" id="dailyBtn" hidden data-i18n="menu.daily">Défi du jour</button
-          ><button class="ghost" id="shopBtn" data-i18n="menu.shop">Boutique</button
-          ><button class="ghost" id="achBtn" data-i18n="menu.achievements">Succès</button
-          ><button class="ghost" id="settingsBtn" data-i18n="menu.settings">Réglages</button>
-        </div>
-        <p class="note" id="bestLine" data-i18n="menu.noRecord">Aucun record pour l'instant</p>
-        <p class="note slotline" id="slotLine">1 arme · 2 améliorations</p>
-        <p class="note resetnote" id="resetNote" data-i18n="menu.resetNote" hidden>
-          Nouvelle progression : tout le monde repart de zéro. Tes réglages sont conservés.
+      </div>
+    </section>
+
+    <section id="help" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="help.title">Comment jouer</h2>
+          <button class="btn-icon close" id="helpBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <p class="tag" data-i18n="menu.tag">
+          La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter et tenir le plus
+          longtemps possible.
         </p>
-        <button class="ghost accbtn" id="accountBtn" data-i18n="menu.account">Compte</button>
-        <button class="ghost" id="installBtn" hidden data-i18n="menu.install">Installer l'app</button>
-        <p class="note" id="iosHint" hidden data-i18n="menu.iosHint">
-          Sur iPhone : Partager, puis « Sur l'écran d'accueil »
-        </p>
-        <p class="note">
-          <span id="version"></span> · <a href="/a-propos.html" id="aboutLink" data-i18n="menu.about">À propos</a>
-        </p>
+        <dl class="ctrl">
+          <dt><span class="cap" data-i18n="menu.keys.move">ZQSD</span> <span class="cap">↑↓←→</span></dt>
+          <dd data-i18n="menu.ctrl.move">Se déplacer (joystick sous le pouce sur mobile, stick gauche à la manette)</dd>
+          <dt><span class="cap" data-i18n="keys.space">Espace</span></dt>
+          <dd data-i18n="menu.ctrl.jump">Sauter par-dessus la horde</dd>
+          <dt><span class="cap" data-i18n="keys.shift">Maj</span></dt>
+          <dd data-i18n="menu.ctrl.dash">Dash, invincible pendant l'élan</dd>
+          <dt><span class="cap">1 2 3</span></dt>
+          <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
+        </dl>
+        <div class="btnrow"><button class="big" id="helpPlayBtn" data-i18n="menu.play">Jouer</button></div>
       </div>
     </section>
 
@@ -1472,31 +1704,47 @@
 
     <section id="shop" class="screen" hidden>
       <div class="panel">
-        <div>
+        <header class="sheet-head">
           <h2 class="h2" id="shopTitle">Boutique · Éclaireuse</h2>
-          <p class="gold" id="shopGold">0 or</p>
-        </div>
+          <button class="btn-icon close" id="shopBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+          <p class="gold sub" id="shopGold">0 or</p>
+        </header>
         <!-- emplacements (phase 10) : communs à tous les personnages, débloqués par succès + or -->
         <h3 class="h3" data-i18n="slots.title">Emplacements</h3>
         <div class="shop slots" id="slotList"></div>
         <h3 class="h3" id="shopCharTitle" data-i18n="shop.perChar">Paliers du personnage</h3>
         <div class="shopchars" id="shopChars"></div>
         <div class="shop" id="shopLines"></div>
-        <div class="btnrow"><button class="big" id="shopBackBtn" data-i18n="shop.back">Retour</button></div>
       </div>
     </section>
 
     <section id="achievements" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2" data-i18n="ach.title">Succès</h2>
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="ach.title">Succès</h2>
+          <button class="btn-icon close" id="achBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
         <div class="achs" id="achList"></div>
-        <div class="btnrow"><button class="big" id="achBackBtn" data-i18n="ach.back">Retour</button></div>
       </div>
     </section>
 
     <section id="settings" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2" data-i18n="settings.title">Réglages</h2>
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="settings.title">Réglages</h2>
+          <button
+            class="btn-icon close"
+            id="settingsBackBtn"
+            aria-label="Fermer"
+            data-i18n-attr="aria-label:menu.close"
+          >
+            ×
+          </button>
+        </header>
         <div class="settings">
           <div class="btnrow">
             <button class="ghost" id="setSoundBtn">Son : activé</button
@@ -1526,7 +1774,7 @@
           <p class="note" id="settingsMsg"></p>
         </div>
         <div class="btnrow">
-          <button class="big" id="settingsBackBtn" data-i18n="settings.back">Retour</button
+          <button class="ghost" id="helpBtn" data-i18n="menu.help">Comment jouer</button
           ><a class="ghost" href="/a-propos.html" data-i18n="menu.about">À propos</a>
         </div>
       </div>
@@ -1535,7 +1783,12 @@
     <!-- phase 13 : compte facultatif (Google ou e-mail), progression synchronisée ; Firebase chargé à l'ouverture seulement -->
     <section id="account" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2" data-i18n="account.title">Compte</h2>
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="account.title">Compte</h2>
+          <button class="btn-icon close" id="accountBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
         <div class="settings">
           <p class="note" data-i18n="account.intro">
             Un compte garde ta progression (record, or, boutique, succès) et la retrouve sur un autre appareil. Tes
@@ -1612,9 +1865,6 @@
             <button class="ghost" id="accRetryBtn" data-i18n="account.retry">Réessayer</button>
           </div>
           <p class="note" id="accMsg"></p>
-        </div>
-        <div class="btnrow">
-          <button class="big" id="accountBackBtn" data-i18n="account.back">Retour</button>
         </div>
       </div>
     </section>

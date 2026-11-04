@@ -36,9 +36,9 @@ describe('frontière progression / appareil', () => {
   it('PROGRESS_KEYS couvre toute la méta sauf les cinq clés d’appareil', () => {
     const all = Object.keys(DEFAULT_META).sort();
     expect([...PROGRESS_KEYS, ...DEVICE_KEYS].sort()).toEqual(all);
-    expect(DEVICE_KEYS).toEqual(['muted', 'reducedFx', 'fxChosen', 'settings', 'seenReset']);
+    expect(DEVICE_KEYS).toEqual(['muted', 'reducedFx', 'fxChosen', 'settings', 'seenReset', 'seenHelp']);
   });
-  it('progressOf ne transporte ni réglages, ni son, ni effets', () => {
+  it('progressOf ne transporte ni réglages, ni son, ni effets, ni aide vue', () => {
     const p = progressOf(played()) as unknown as Record<string, unknown>;
     for (const k of DEVICE_KEYS) expect(p).not.toHaveProperty(k);
     expect(p.runs).toBe(9);

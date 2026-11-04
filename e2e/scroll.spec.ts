@@ -20,12 +20,13 @@ test.describe('défilement tactile', () => {
     await cdp.detach();
   }
 
-  test('les réglages, la boutique et le menu défilent au doigt quand ils dépassent l’écran', async ({ page }) => {
+  test('les réglages, la boutique et les succès défilent au doigt quand ils dépassent l’écran', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 420 }); // fenêtre basse : chaque écran dépasse et doit défiler
     await openGame(page);
-    for (const [btn, screen] of [
-      ['settingsBtn', 'settings'],
-      ['shopBtn', 'shop'],
+    for (const [btn, screen, back] of [
+      ['settingsBtn', 'settings', 'settingsBackBtn'],
+      ['shopBtn', 'shop', 'shopBackBtn'],
+      ['achBtn', 'achievements', 'achBackBtn'],
     ] as const) {
       await page.locator('#' + btn).click();
       const el = page.locator('#' + screen);
@@ -38,12 +39,15 @@ test.describe('défilement tactile', () => {
       await swipeUp(page, 187, 380, 300);
       await expect.poll(() => el.evaluate((s) => s.scrollTop), { timeout: 3000 }).toBeGreaterThan(40);
       await page.screenshot({ path: `shots/mobile-${screen}-bas.png` });
-      await page.locator(`#${screen}BackBtn`).click();
+      await page.locator('#' + back).click();
     }
-    // le menu lui-même
+    // phase 14 : l'accueil ne défile pas (overflow caché, pas de glissement possible). Pas de geste CDP ici : sur le
+    // Chromium livré avec Playwright, Input.dispatchTouchEvent ne rend jamais la main sur cet écran non défilable
+    // (le test expirait en CI, alors qu'il passe sur Chromium 153) ; la propriété CSS est ce qui garantit le comportement.
     const menu = page.locator('#menu');
-    await swipeUp(page, 187, 380, 300);
-    await expect.poll(() => menu.evaluate((s) => s.scrollTop), { timeout: 3000 }).toBeGreaterThan(40);
+    await expect(menu).toBeVisible();
+    expect(await menu.evaluate((s) => getComputedStyle(s).overflowY)).toBe('hidden');
+    expect(await menu.evaluate((s) => s.scrollTop)).toBe(0);
   });
 
   test('en jeu, glisser le doigt sur le canvas ne fait rien défiler', async ({ page }) => {

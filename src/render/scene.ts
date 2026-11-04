@@ -867,15 +867,20 @@ export class GameScene {
     this.renderer.render(this.scene, this.camera);
   }
 
-  /** Caméra d'attente (menu) : tourne autour de l'origine. */
+  /** Écran large (PC paysage) : le personnage se place dans le tiers droit, le logo et les boutons à gauche (phase 14). */
+  menuWide = false;
+
+  /** Caméra d'attente (menu, phase 14) : plan rapproché, le personnage fait face à la caméra qui oscille lentement. */
   renderIdle(now: number, dt: number): void {
     this.lightCycle(0);
     this.fireflies.update(0, 0, now, 0.6);
     this.player.visible = true;
     this.player.position.set(0, 0, 0);
     this.player.scale.set(1, 1, 1);
-    this.player.rotation.y = now * 0.4;
-    this.model.torso.position.y = this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0;
+    const a = Math.sin(now * 0.18) * 0.45; // ±26° autour de la face
+    this.player.rotation.y = a; // le modèle regarde vers +z : face à la caméra
+    this.model.torso.position.y =
+      (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + Math.sin(now * 2.2) * 0.015;
     if (this.model.glowDisc) this.model.glowDisc.position.set(0, 0.07, 0);
     this.blob.position.set(0, 0.03, 0);
     for (let i = 0; i < this.writers.length; i++) {
@@ -887,9 +892,13 @@ export class GameScene {
     this.aura.visible = this.auraDisc.visible = false;
     this.particles.update(dt);
     this.bolts.update(dt);
-    const a = now * 0.12;
-    this.camPos.set(Math.sin(a) * 14, 8, Math.cos(a) * 14);
-    this.camLook.set(0, 1, 0);
+    // large : caméra à 6,5 u, regard décalé vers la gauche de l'écran pour laisser la place au logo ; étroit (portrait) :
+    // un peu plus loin et plus haut, le personnage occupe le centre-bas sous le logo
+    const wide = this.menuWide;
+    const r = wide ? 6.2 : 11;
+    const off = wide ? 1.7 : 0;
+    this.camPos.set(Math.sin(a) * r - Math.cos(a) * off, wide ? 2.4 : 3.2, Math.cos(a) * r + Math.sin(a) * off);
+    this.camLook.set(-Math.cos(a) * off, wide ? 1.0 : 0.5, Math.sin(a) * off); // portrait : regard bas, le personnage monte entre le logo et Jouer
     this.camera.position.copy(this.camPos);
     this.camera.lookAt(this.camLook);
     this.renderer.render(this.scene, this.camera);

@@ -69,7 +69,6 @@
   "over.unlocked": "Débloqué : {list}",
   "shop.title": "Boutique",
   "shop.titleFor": "Boutique · {name}",
-  "shop.back": "Retour",
   "shop.max": "Max",
   "slots.title": "Emplacements",
   "shop.perChar": "Paliers du personnage",
@@ -84,7 +83,6 @@
   "slots.passives_other": "{n} tomes",
   "slots.summary": "Emplacements : {w} · {p}",
   "ach.title": "Succès",
-  "ach.back": "Retour",
   "ach.done": "Obtenu",
   "ach.unlocks": "débloque {what}",
   "settings.title": "Réglages",
@@ -112,7 +110,6 @@
   "settings.reset": "Tout effacer",
   "settings.saveAria": "Sauvegarde JSON",
   "settings.savePlaceholder": "Colle ici une sauvegarde exportée, puis « Importer »",
-  "settings.back": "Retour",
   "settings.exportFile": "ruee-nocturne-sauvegarde",
   "settings.exported": "Sauvegarde exportée (fichier téléchargé et texte ci-dessous).",
   "settings.notASave": "Ce texte n'est pas une sauvegarde Ruée Nocturne.",
@@ -338,7 +335,6 @@
   "account.choice.local": "Cet appareil · {time} · {gold} · {runs}",
   "account.choice.cloud": "Mon compte · {time} · {gold} · {runs}",
   "account.retry": "Réessayer",
-  "account.back": "Retour",
   "account.err.invalid-email": "Adresse e-mail invalide.",
   "account.err.missing-password": "Entre un mot de passe.",
   "account.err.weak-password": "Mot de passe trop court (6 caractères minimum).",
@@ -354,5 +350,9 @@
   "account.err.operation-not-allowed": "Ce mode de connexion n'est pas activé.",
   "account.err.permission-denied": "Sauvegarde refusée par le serveur.",
   "account.err.unavailable": "Serveur injoignable : réessaie plus tard.",
-  "account.err.generic": "Ça n'a pas marché. Réessaie."
+  "account.err.generic": "Ça n'a pas marché. Réessaie.",
+  "menu.characters": "Personnage",
+  "menu.help": "Comment jouer",
+  "help.title": "Comment jouer",
+  "menu.close": "Fermer"
 }
