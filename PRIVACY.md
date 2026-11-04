@@ -1,18 +1,36 @@
 # Politique de confidentialité
 
-**Ruée Nocturne ne collecte aucune donnée personnelle.** Aucune information ne quitte ton appareil.
+**Ruée Nocturne se joue sans compte, et dans ce cas aucune donnée ne quitte ton appareil.** Depuis la version 1.8.0, tu peux créer un compte facultatif pour retrouver ta progression sur un autre appareil : seule cette progression est alors enregistrée en ligne, rien d'autre.
 
-## Ce que le jeu enregistre, et où
+## Sans compte : ce que le jeu enregistre, et où
 
-- Ta progression (record, or, boutique, succès, personnage choisi, meilleurs temps du défi du jour) et tes réglages (son, vibrations, taille du HUD, gaucher, langue) sont enregistrés **uniquement sur ton appareil**, dans le stockage du navigateur (IndexedDB, avec un repli localStorage).
+- Ta progression (record, or, boutique, succès, personnages, tenues, emplacements, meilleurs temps du défi du jour) et tes réglages (son, vibrations, taille du HUD, gaucher, langue, rendu) sont enregistrés **uniquement sur ton appareil**, dans le stockage du navigateur (IndexedDB, avec un repli localStorage).
 - Tu peux voir exactement ce qui est enregistré avec **Réglages → Exporter la sauvegarde** : c'est un fichier JSON lisible. **Tout effacer** supprime ces données ; désinstaller l'app ou vider les données du site aussi.
 - Le jeu ne lit rien d'autre sur ton appareil : ni contacts, ni position, ni photos, ni presse-papiers.
+- Aucune requête ne part vers un service de compte tant que tu n'ouvres pas le panneau Compte (un test automatisé le vérifie à chaque version).
+
+## Avec un compte (facultatif)
+
+Le panneau **Compte** du menu propose une connexion avec Google ou avec une adresse e-mail et un mot de passe. Ces comptes sont gérés par **Firebase Authentication** (Google) ; la progression est stockée dans **Cloud Firestore** (Google), dans la région `europe-west1`, dans un document propre à ton compte que toi seul peux lire et modifier (règles de sécurité publiées avec le jeu : `firestore.rules`).
+
+Ce qui est enregistré avec un compte :
+
+- l'identifiant du compte et l'adresse e-mail (et, pour Google, l'identifiant Google du compte) ; le mot de passe n'est jamais stocké en clair ni connu du jeu ;
+- ta **progression** : record, or, boutique, succès, personnages achetés, tenues, emplacements, compteurs cumulés (vaincus, boss…), personnage choisi, meilleurs temps du défi du jour ; et la date de la dernière synchronisation.
+
+Ce qui n'est **jamais** enregistré en ligne : tes réglages (son, effets, vibrations, HUD, gaucher, langue, rendu), ton nom, ton pseudo, ta position, le contenu de tes parties.
+
+Fonctionnement : la progression est envoyée après chaque changement et relue au menu ; au premier login sur un appareil qui a déjà une progression différente de celle du compte, le jeu te demande laquelle garder. Hors ligne, tout reste sur l'appareil et repart au retour du réseau.
+
+**Suppression** : « Supprimer mon compte et ses données » dans le panneau Compte efface immédiatement la sauvegarde en ligne et le compte. Ta progression reste sur l'appareil. Se déconnecter ne supprime rien en ligne.
+
+Lors d'une connexion avec Google, le navigateur charge des scripts de Google (`apis.google.com`) le temps de la connexion ; ils sont soumis à la [politique de confidentialité de Google](https://policies.google.com/privacy).
 
 ## Ce que le jeu n'envoie pas
 
-- Pas de compte, pas de connexion, pas de classement en ligne (le défi du jour est classé localement).
-- Pas de mesure d'audience, pas de traceur, pas de cookie, pas de publicité, pas de SDK tiers.
-- Aucun appel réseau pendant une partie. Les seules requêtes sont le téléchargement des fichiers du jeu et de ses mises à jour (le service worker vérifie s'il existe une nouvelle version quand tu ouvres l'app).
+- Pas de classement en ligne (le défi du jour est classé localement), pas de pseudo, pas de contenu partagé.
+- Pas de mesure d'audience, pas de traceur, pas de cookie, pas de publicité, pas de SDK tiers hors Firebase (chargé seulement si tu ouvres le panneau Compte ou si tu es connecté).
+- Aucun appel réseau pendant une partie. Les seules requêtes sont le téléchargement des fichiers du jeu et de ses mises à jour (le service worker vérifie s'il existe une nouvelle version quand tu ouvres l'app), et, si tu es connecté, l'envoi de ta progression entre deux parties.
 
 ## Hébergement
 
@@ -20,10 +38,10 @@ Le site est servi par Firebase Hosting (Google). Comme tout serveur web, il peut
 
 ## Enfants
 
-Le jeu ne demande ni ne traite aucune donnée : il convient à tous les âges sous cet angle. Le contenu est un jeu d'action stylisé (silhouettes low-poly, pas de sang).
+Un compte n'est pas nécessaire pour jouer. Sans compte, le jeu ne demande ni ne traite aucune donnée ; avec un compte, seule une adresse e-mail et la progression sont enregistrées. Le contenu est un jeu d'action stylisé (silhouettes low-poly, pas de sang).
 
 ## Contact
 
-Questions : ouvre un ticket sur le dépôt GitHub du projet (lien dans la page « À propos » du jeu).
+Questions ou demande de suppression : ouvre un ticket sur le dépôt GitHub du projet (lien dans la page « À propos » du jeu).
 
-_Dernière mise à jour : novembre 2026._
+_Dernière mise à jour : novembre 2026 (version 1.8.0)._

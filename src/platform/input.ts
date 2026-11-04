@@ -1,6 +1,13 @@
 import type { Input } from '../sim/types';
 
 /** Fusionne clavier, joystick tactile et manette en un Input normalisé par step. */
+/** Le focus est dans un champ de saisie : le clavier appartient au champ, pas au jeu. */
+function isEditable(t: EventTarget | null): boolean {
+  if (!(t instanceof HTMLElement)) return false;
+  const tag = t.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable;
+}
+
 export class InputManager {
   private keys: Record<string, boolean> = {};
   private jumpQueued = false;
@@ -15,6 +22,7 @@ export class InputManager {
 
   constructor(stick: HTMLElement, knob: HTMLElement, jumpBtn: HTMLElement, dashBtn: HTMLElement) {
     addEventListener('keydown', (e) => {
+      if (isEditable(e.target)) return; // champ texte (compte, sauvegarde) : Espace, Entrée et chiffres restent au navigateur
       this.keys[e.code] = true;
       if (e.repeat) return;
       if (/^Digit[1-4]$/.test(e.code)) this.pickQueued = +e.code.slice(5) - 1;

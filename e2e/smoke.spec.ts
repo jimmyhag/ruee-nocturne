@@ -63,5 +63,13 @@ test('le service worker est enregistré et la page se recharge hors ligne', asyn
   await page.reload();
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await expect(page.locator('#playBtn')).toBeVisible();
+  // phase 13 : le panneau Compte s'ouvre hors ligne (chunk précaché ou import() qui échoue proprement) et se ferme
+  await page.locator('#accountBtn').click();
+  await expect(page.locator('#account')).toBeVisible();
+  await expect(page.locator('#accStatus')).toContainText(/indisponibles|not available|Connexion|Connecting/, {
+    timeout: 10_000,
+  });
+  await page.locator('#accountBackBtn').click();
+  await expect(page.locator('#playBtn')).toBeVisible();
   await context.unroute('**/*');
 });

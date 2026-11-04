@@ -1129,6 +1129,33 @@
         border-radius: 10px;
         padding: 8px;
       }
+      /* phase 13 : champs du compte ; 16 px minimum, sinon iOS zoome au focus */
+      .settings input {
+        width: 100%;
+        box-sizing: border-box;
+        font: 16px/1.3 var(--f-body, system-ui, sans-serif);
+        background: var(--ink-2);
+        color: var(--paper);
+        border: 2px solid var(--ink-3);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .settings input:focus {
+        outline: none;
+        border-color: var(--gold);
+      }
+      .accstatus:empty {
+        display: none;
+      }
+      .accbtn {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #accMsg.error {
+        color: var(--accent);
+      }
       .unlocked {
         font-family: var(--f-display);
         font-size: 20px;
@@ -1383,6 +1410,7 @@
         <p class="note resetnote" id="resetNote" data-i18n="menu.resetNote" hidden>
           Nouvelle progression : tout le monde repart de zéro. Tes réglages sont conservés.
         </p>
+        <button class="ghost accbtn" id="accountBtn" data-i18n="menu.account">Compte</button>
         <button class="ghost" id="installBtn" hidden data-i18n="menu.install">Installer l'app</button>
         <p class="note" id="iosHint" hidden data-i18n="menu.iosHint">
           Sur iPhone : Partager, puis « Sur l'écran d'accueil »
@@ -1500,6 +1528,93 @@
         <div class="btnrow">
           <button class="big" id="settingsBackBtn" data-i18n="settings.back">Retour</button
           ><a class="ghost" href="/a-propos.html" data-i18n="menu.about">À propos</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- phase 13 : compte facultatif (Google ou e-mail), progression synchronisée ; Firebase chargé à l'ouverture seulement -->
+    <section id="account" class="screen" hidden>
+      <div class="panel">
+        <h2 class="h2" data-i18n="account.title">Compte</h2>
+        <div class="settings">
+          <p class="note" data-i18n="account.intro">
+            Un compte garde ta progression (record, or, boutique, succès) et la retrouve sur un autre appareil. Tes
+            réglages restent sur cet appareil. C'est facultatif : sans compte, tout reste ici.
+          </p>
+          <p class="note accstatus" id="accStatus"></p>
+          <div class="settings" id="accSignedOut" hidden>
+            <div class="btnrow">
+              <button class="ghost" id="accGoogleBtn" data-i18n="account.google">Continuer avec Google</button>
+            </div>
+            <p class="note" id="accIosHint" hidden data-i18n="account.iosHint">
+              Sur l'app installée, la fenêtre Google peut ne pas s'ouvrir : utilise l'e-mail et le mot de passe, ou
+              ouvre ruee-nocturne.web.app dans Safari.
+            </p>
+            <p class="note" data-i18n="account.or">ou avec un e-mail</p>
+            <form class="settings" id="accForm" novalidate>
+              <input
+                id="accEmail"
+                type="email"
+                autocomplete="email"
+                inputmode="email"
+                autocapitalize="off"
+                spellcheck="false"
+                placeholder="Adresse e-mail"
+                aria-label="Adresse e-mail"
+                data-i18n-attr="aria-label:account.email;placeholder:account.email"
+              />
+              <input
+                id="accPwd"
+                type="password"
+                autocomplete="current-password"
+                minlength="6"
+                placeholder="Mot de passe (6 caractères minimum)"
+                aria-label="Mot de passe (6 caractères minimum)"
+                data-i18n-attr="aria-label:account.password;placeholder:account.password"
+              />
+              <div class="btnrow">
+                <button class="ghost" id="accSignInBtn" type="submit" data-i18n="account.signIn">Se connecter</button
+                ><button class="ghost" id="accSignUpBtn" type="button" data-i18n="account.signUp">
+                  Créer un compte</button
+                ><button class="ghost" id="accForgotBtn" type="button" data-i18n="account.forgot">
+                  Mot de passe oublié
+                </button>
+              </div>
+            </form>
+          </div>
+          <div class="settings" id="accSignedIn" hidden>
+            <p class="note" id="accSync"></p>
+            <div class="btnrow">
+              <button class="ghost" id="accSignOutBtn" data-i18n="account.signOut">Se déconnecter</button
+              ><button class="ghost" id="accDeleteBtn" data-i18n="account.delete">
+                Supprimer mon compte et ses données
+              </button>
+            </div>
+            <input
+              id="accDeletePwd"
+              type="password"
+              autocomplete="current-password"
+              hidden
+              placeholder="Confirme ton mot de passe pour supprimer le compte"
+              aria-label="Confirme ton mot de passe pour supprimer le compte"
+              data-i18n-attr="aria-label:account.deletePwd;placeholder:account.deletePwd"
+            />
+          </div>
+          <div class="settings" id="accChoice" hidden>
+            <p class="note" data-i18n="account.choice.text">
+              Cet appareil et ton compte ont chacun une progression. Laquelle garder ? L'autre sera remplacée.
+            </p>
+            <div class="btnrow">
+              <button class="ghost" id="accKeepLocal"></button><button class="ghost" id="accKeepCloud"></button>
+            </div>
+          </div>
+          <div class="btnrow" id="accRetryRow" hidden>
+            <button class="ghost" id="accRetryBtn" data-i18n="account.retry">Réessayer</button>
+          </div>
+          <p class="note" id="accMsg"></p>
+        </div>
+        <div class="btnrow">
+          <button class="big" id="accountBackBtn" data-i18n="account.back">Retour</button>
         </div>
       </div>
     </section>

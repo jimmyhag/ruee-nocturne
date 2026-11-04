@@ -2,6 +2,26 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.8.0 — 4 nov. 2026 (phase 13 « Comptes »)
+
+Un compte facultatif pour retrouver sa progression sur un autre appareil. Sans compte, rien ne change.
+
+### Ajouté
+
+- **Compte** (bouton « Compte » au menu) : connexion avec Google ou avec une adresse e-mail et un mot de passe (création, connexion, mot de passe oublié). La progression (record, or, boutique, succès, personnages, emplacements) est enregistrée sur le compte et retrouvée sur n'importe quel appareil ; les réglages restent propres à chaque appareil.
+- Synchronisation : envoi après chaque changement (regroupé), lecture au menu ; au premier login sur un appareil qui a déjà une progression différente de celle du compte, le joueur choisit laquelle garder ; hors ligne, tout reste local et repart au retour du réseau.
+- « Supprimer mon compte et ses données » (deux appuis) : la sauvegarde en ligne et le compte disparaissent, la progression locale reste.
+- Règles de sécurité Firestore versionnées (`firestore.rules`) et déployées par la CI avant chaque mise en ligne.
+
+### Modifié
+
+- Politique de confidentialité (`PRIVACY.md`, page « À propos ») : deux modes, sans compte (rien ne quitte l'appareil) et avec compte (e-mail, identifiant et progression sur Firebase ; jamais les réglages, pas d'analytics).
+- Le module Firebase n'est téléchargé qu'à l'ouverture du panneau Compte ou quand une session est connue : le premier chargement du jeu ne change pas, un joueur sans compte n'émet aucune requête (test automatisé).
+
+### Corrigé
+
+- Dans un champ texte (zone de sauvegarde, compte), Espace, Entrée et les chiffres restent au champ : avant, Espace était avalé par le saut et Entrée lançait la partie.
+
 ## 1.7.0 — 4 nov. 2026 (phase 12 « Lignes de stats »)
 
 La progression en run devient longue et granulaire : les armes et les tomes se montent par petites lignes de stats, jusqu'à 100 fois.

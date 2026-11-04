@@ -16,7 +16,8 @@ description: Livraison du jeu en PWA installable (Android, iOS, desktop) — man
 - Précache : app shell, JS, CSS, polices, icônes, sons essentiels. `globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ogg,m4a,json}']`, `maximumFileSizeToCacheInBytes: 4 Mo`.
 - Runtime : rien n’est externe. Les polices (Lilita One, Rubik ; SIL OFL) sont auto-hébergées dans `public/fonts/` et précachées : pas de CSS bloquante venant d’une autre origine (phase 5, Lighthouse).
 - UI de mise à jour : bannière « Nouvelle version disponible — Recharger », affichée **uniquement** au menu ou à l'écran de mort, jamais en jeu. `updateSW(true)` au clic.
-- `navigateFallback: '/index.html'`, `cleanupOutdatedCaches: true`.
+- `navigateFallback: '/index.html'`, `navigateFallbackDenylist: [/^\/__\//]` (URL réservées de Firebase Hosting : `/__/auth/handler`, `/__/firebase/init.json`), `cleanupOutdatedCaches: true`.
+- Firebase (phase 13) : aucun `runtimeCaching` pour `*.googleapis.com` ; le chunk `account-*.js` est précaché comme le reste (un joueur connecté hors ligne voit « Connecté · hors ligne »), mais il n'est chargé par la page qu'à la demande.
 
 ## 3. Installation
 - Android/desktop : capter `beforeinstallprompt`, afficher un bouton « Installer l'app » au menu, appeler `prompt()` au clic, masquer après `appinstalled`.
@@ -51,4 +52,5 @@ description: Livraison du jeu en PWA installable (Android, iOS, desktop) — man
 - Tester le service worker avec `npm run preview` (ou le déploiement), **jamais** en `npm run dev`.
 - Un SW qui précache un fichier manquant échoue en bloc : vérifier `dist/` après build.
 - Changer `theme_color` ou les icônes → certains Android gardent l'ancien jusqu'à désinstallation ; c'est normal.
-- iOS limite le stockage des PWA non utilisées 7 jours : la sauvegarde méta doit proposer l'export JSON.
+- iOS limite le stockage des PWA non utilisées 7 jours : la sauvegarde méta doit proposer l'export JSON (et, depuis la phase 13, le compte).
+- Connexion Google par redirection : sans la `navigateFallbackDenylist` ci-dessus, le service worker sert `index.html` à la place de `/__/auth/handler` et la connexion boucle sur le menu. `authDomain` doit être l'hôte du site (`*.web.app`), sinon Safari bloque le stockage tiers de l'iframe d'authentification. Sur l'app installée iOS, le popup ne revient pas : proposer l'e-mail.

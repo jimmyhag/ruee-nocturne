@@ -240,6 +240,12 @@ export async function loadMeta(): Promise<Meta> {
   return normalizeMeta(DEFAULT_META);
 }
 
+let onSaved: ((m: Meta) => void) | null = null;
+/** Un seul écouteur, appelé après chaque saveMeta : la synchronisation du compte (phase 13) s'y branche. */
+export function onMetaSaved(cb: ((m: Meta) => void) | null): void {
+  onSaved = cb;
+}
+
 export function saveMeta(m: Meta): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(m));
@@ -247,6 +253,7 @@ export function saveMeta(m: Meta): void {
     /* ignoré */
   }
   set(KEY, m).catch(() => {});
+  onSaved?.(m);
 }
 
 /** Export JSON (réglages → « Exporter ») : lisible, versionné. */

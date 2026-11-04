@@ -14,7 +14,7 @@ Survivor 3D low-poly, jouable sur téléphone et PC, livré en PWA installable e
 - 6 ennemis, 3 boss scriptés (5:00, 10:00, 15:00), le Faucheur à 20:00.
 - Saut et dash invincible : la horde se traverse, les Volants plongent, les Colosses télégraphient.
 - Méta : or, boutique permanente, 11 succès à barres, 3 personnages, défi du jour, écran de mort qui dit ce qu'il te manquait.
-- Aucune donnée ne quitte l'appareil ([PRIVACY.md](PRIVACY.md)). Sauvegarde locale exportable en JSON.
+- Sauvegarde locale exportable en JSON ; compte facultatif (Google ou e-mail) pour retrouver sa progression sur un autre appareil. Sans compte, aucune donnée ne quitte l'appareil ([PRIVACY.md](PRIVACY.md)).
 
 ## Développer
 

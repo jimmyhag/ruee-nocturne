@@ -1,19 +1,20 @@
 # Stack et état de la base (v0.1 + phase 0, 2 nov. 2026)
 
-| Composant        | Version | Note                                                                                                              |
-| ---------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
-| Node             | 22      | CI et déploiement (Vite 8 exige ≥ 22.12) ; Node 25 en local fonctionne avec un avertissement `EBADENGINE`         |
-| Vite             | 8.3     | `SINGLE=1` → build en un fichier (artifact / test rapide), sans PWA                                               |
-| TypeScript       | 6.0     | strict, `noUnusedLocals`. TS 7 (port natif) n'expose pas l'API JS requise par typescript-eslint : voir GATES.md   |
-| Three.js         | 0.187.0 | `InstancedMesh.setColorAt` alloue sur la capacité (plus de piège r128) ; `three.core.js` séparé                   |
-| Vitest           | 5.1     | sim uniquement, couverture v8 sur `src/sim/` avec seuil 80 % (branches 70 %)                                      |
-| Playwright       | 1.64    | Chromium SwiftShader, projets `desktop` 1280×720 et `mobile` iPhone 13 tactile, sert le build de prod (`preview`) |
-| ESLint           | 10      | flat config, `typescript-eslint` recommended, `eslint-config-prettier`                                            |
-| Prettier         | 3.9     | `singleQuote`, `printWidth` 120, LF. Les docs de Jimmy et les skills ne sont pas reformatés (`.prettierignore`)   |
-| vite-plugin-pwa  | 2.0     | `generateSW`, `registerType: 'prompt'`, manifest complet, polices Google en CacheFirst                            |
-| simple-git-hooks | 2.14    | pre-commit : `lint` + `typecheck` + `test`                                                                        |
-| tsx              | 4       | CLI sim, bench, génération d'icônes                                                                               |
-| idb-keyval       | 6.2     | sauvegarde méta, repli localStorage                                                                               |
+| Composant        | Version | Note                                                                                                                                    |
+| ---------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Node             | 22      | CI et déploiement (Vite 8 exige ≥ 22.12) ; Node 25 en local fonctionne avec un avertissement `EBADENGINE`                               |
+| Vite             | 8.3     | `SINGLE=1` → build en un fichier (artifact / test rapide), sans PWA                                                                     |
+| TypeScript       | 6.0     | strict, `noUnusedLocals`. TS 7 (port natif) n'expose pas l'API JS requise par typescript-eslint : voir GATES.md                         |
+| Three.js         | 0.187.0 | `InstancedMesh.setColorAt` alloue sur la capacité (plus de piège r128) ; `three.core.js` séparé                                         |
+| Vitest           | 5.1     | sim uniquement, couverture v8 sur `src/sim/` avec seuil 80 % (branches 70 %)                                                            |
+| Playwright       | 1.64    | Chromium SwiftShader, projets `desktop` 1280×720 et `mobile` iPhone 13 tactile, sert le build de prod (`preview`)                       |
+| ESLint           | 10      | flat config, `typescript-eslint` recommended, `eslint-config-prettier`                                                                  |
+| Prettier         | 3.9     | `singleQuote`, `printWidth` 120, LF. Les docs de Jimmy et les skills ne sont pas reformatés (`.prettierignore`)                         |
+| vite-plugin-pwa  | 2.0     | `generateSW`, `registerType: 'prompt'`, manifest complet, polices Google en CacheFirst                                                  |
+| simple-git-hooks | 2.14    | pre-commit : `lint` + `typecheck` + `test`                                                                                              |
+| tsx              | 4       | CLI sim, bench, génération d'icônes                                                                                                     |
+| idb-keyval       | 6.2     | sauvegarde méta, repli localStorage                                                                                                     |
+| firebase         | 13.2    | phase 13 : `firebase/app`, `firebase/auth`, `firebase/firestore/lite`, dans le seul chunk `account-*.js` chargé à la demande (65 ko gz) |
 
 ## Ce qui est fait (phase 1 largement couverte, début de phase 2)
 

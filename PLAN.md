@@ -23,7 +23,7 @@
 
 **Plateformes** : Chrome/Edge/Firefox desktop, Chrome Android, Safari iOS (PWA). Cible de performance : 60 fps sur un Android milieu de gamme de 2021 (type Pixel 4a / Galaxy A52).
 
-**Hors périmètre V1** : multijoueur, serveur, achats, comptes en ligne, store natif (Capacitor envisageable en V2).
+**Hors périmètre V1** : multijoueur, serveur de jeu, achats, classement en ligne, store natif (Capacitor envisageable en V2). Les **comptes** (Google, e-mail / mot de passe) sont entrés en phase 13 à la demande de Jimmy : facultatifs, ils ne servent qu'à retrouver sa progression.
 
 ---
 
@@ -193,10 +193,11 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 ### 4.7 Sauvegarde
 - Méta en IndexedDB (`idb-keyval`), versionnée avec migrations. Export/import JSON depuis les réglages.
 - Jamais de sauvegarde de run en cours en V1 (une partie se termine).
+- **Compte facultatif (phase 13)** : Firebase Authentication (Google, e-mail / mot de passe) et Cloud Firestore `saves/{uid}` = `{ v, updatedAt, progress }`. Seule la **progression** est synchronisée (`PROGRESS_KEYS` dans `src/meta/sync.ts` : tout `Meta` sauf son, effets, réglages, `seenReset`) ; le document reçu passe par `normalizeMeta` comme un import JSON. Décision à trois versions (base / local / nuage) : premier login avec deux progressions différentes → le joueur choisit ; nuage changé et local propre → on prend le nuage ; vrai conflit → la plus récente gagne. Firebase n'est chargé (`import()`) qu'à l'ouverture du panneau Compte ou quand une session est connue : sans compte, aucune requête ne part.
 
 ### 4.8 PWA
 - `display: fullscreen`, orientation libre, icônes maskable, écran de démarrage, mise à jour avec bannière « Nouvelle version — Recharger ».
-- Tout l'app shell et les assets précachés. Jouable hors-ligne au second lancement.
+- Tout l'app shell et les assets précachés. Jouable hors-ligne au second lancement. `navigateFallbackDenylist: [/^\/__\//]` : les URL réservées de Firebase Hosting (`/__/auth/handler`, `/__/firebase/init.json`) ne reçoivent jamais `index.html`.
 - Bouton « Installer » dans le menu (`beforeinstallprompt`), aide iOS (Partager → Sur l'écran d'accueil).
 
 ---
@@ -261,6 +262,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 12 — Lignes de stats (après la 1.6.0)
 - Les armes s'améliorent jusqu'à 100 fois par cartes à 1–3 lignes de stats aléatoires (dégâts, recharge, projectiles, vitesse, perforation, rayon…) ; les 8 passifs deviennent 8 tomes (Dégâts, Cadence, Projectiles, Vitalité, Mouvement, Savoir, Chance, Or) qui donnent eux aussi 1–3 lignes ; rareté par nombre de lignes (commune, rare, épique) décalée par la chance ; plus d'évolutions.
 - **Porte** : cibles des profils nu et maxé inchangées ; arme principale entre 15 et 30 améliorations à 10 min (la montée est longue) ; lignes par carte ≈ 1,4 ; e2e : nouveau joueur, carte épique lisible desktop et mobile, FR/EN des lignes ; zéro allocation dans le tirage et le recalcul des stats.
+
+### Phase 13 — Comptes (après la 1.7.0)
+- Compte facultatif : connexion Google ou e-mail / mot de passe (réinitialisation par e-mail), progression synchronisée sur Firestore (§4.7), panneau Compte au menu (statut, synchronisation, déconnexion, suppression du compte et de ses données), choix local / compte au premier login, règles Firestore versionnées et déployées par la CI. Le jeu reste jouable sans compte ; les réglages ne quittent jamais l'appareil (PRIVACY.md).
+- **Porte** : Google et e-mail testés par Jimmy sur iPhone (Safari et app installée) et sur PC ; progression retrouvée sur un second appareil ; choix local / compte vérifié ; suppression vérifiée (document absent dans la console) ; e2e « zéro requête Firebase sans compte » ; chunk principal ≤ +5 ko gz, Lighthouse perf mobile ≥ 85 inchangé ; règles vérifiées au Rules Playground (lecture d'un autre uid refusée).
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
