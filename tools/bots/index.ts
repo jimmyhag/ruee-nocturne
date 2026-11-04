@@ -68,6 +68,8 @@ function cardValue(w: World, c: Card): number {
   if (c.kind === 'heal') return w.player.hp / w.player.maxHp < 0.4 ? 100 : 5;
   let v = lineValue(c, c.s0) + lineValue(c, c.s1) + lineValue(c, c.s2);
   if (c.kind === 'w' && c.lv === 1) v += 18; // une arme de plus : une base entière
+  // un joueur moyen concentre ses lignes sur son arme principale (les % se cumulent) : bonus croissant avec le niveau
+  if (c.kind === 'w' && c.lv > 1) v *= 1 + Math.min(0.6, 0.04 * c.lv);
   if (c.kind === 't' && c.key === 'vitalite' && w.player.hp / w.player.maxHp < 0.4) v += 15;
   return v;
 }

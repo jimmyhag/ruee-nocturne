@@ -41,29 +41,29 @@ Chaque montée de niveau propose **3 cartes** (4 avec la chance), tirées ainsi 
 4. Garantie : au moins 1 carte d'arme si le joueur a < 2 armes **et un emplacement libre** ; jamais 3 tomes.
 5. Pool vide → soin complet.
 
-Le texte d'une carte dit **chaque ligne concrètement** (« +7 % dégâts », « +1 projectile ») ; une nouvelle arme ou un nouveau tome montre d'abord sa règle. La montée est **longue** : 100 améliorations par arme ou tome, jamais atteintes en 20 min (≈ 35 cartes par run) ; le niveau 5 d'avant (≈ ×3 de DPS) se retrouve vers 10–12 améliorations.
+Le texte d'une carte dit **chaque ligne concrètement** (« +7 % dégâts », « +1 projectile ») ; une nouvelle arme ou un nouveau tome montre d'abord sa règle. La montée est **longue** : 100 améliorations par arme ou tome, jamais atteintes en 20 min (courbe d'XP aplatie : ≈ 35 cartes à 10 min, une toutes les ~15 s) ; le niveau 5 d'avant (≈ ×3 de DPS) se retrouve vers 10–12 améliorations. Les ennemis montent un peu moins vite qu'avant (`hpScale` t/190, `dmgScale` t/500) : la puissance arrive par petites touches.
 
 ## 4. Armes : grammaire de design
 Chaque arme répond à : **portée** (contact / courte / longue), **ciblage** (auto / direction / zone / aléatoire), **rythme** (continu / salve / lent et fort). Deux armes ne doivent jamais partager les trois.
 
 | Arme | Portée | Ciblage | Rythme | Fantasme | Lignes (step) |
 |---|---|---|---|---|---|
-| Orbe | longue | auto plus proche | salve | sniper | dégâts +7 %, recharge −4 %, +1 projectile (max +5), vitesse +8 %, +1 perforation (max +3) |
-| Halo | contact | zone autour | continu | tank | dégâts +7 %, rayon +5 %, période −4 % |
-| Lames | courte | orbite | continu | derviche | dégâts +7 %, +1 lame (max +8), rayon +4 %, rotation +6 % |
-| Foudre | longue | aléatoire + chaîne | lent fort | mage | dégâts +7 %, recharge −4 %, +1 cible (max +10) |
-| Boomerang | longue | direction regard | salve | contrôle de ligne | dégâts +7 %, recharge −4 %, portée +6 %, +1 boomerang (max +3), vitesse +6 % |
-| Mines | contact | là où je passe | pose | piégeur / kiting | dégâts +7 %, recharge −4 %, rayon +5 %, +1 mine (max +12), chaîne (unique) |
+| Orbe | longue | auto plus proche | salve | sniper | dégâts +10 %, recharge −5 %, +1 projectile (max +5), vitesse +8 %, +1 perforation (max +3) |
+| Halo | contact | zone autour | continu | tank | dégâts +10 %, rayon +6 %, période −5 % |
+| Lames | courte | orbite | continu | derviche | dégâts +10 %, +1 lame (max +8), rayon +4 %, rotation +6 % |
+| Foudre | longue | aléatoire + chaîne | lent fort | mage | dégâts +10 %, recharge −5 %, +1 cible (max +10) |
+| Boomerang | longue | direction regard | salve | contrôle de ligne | dégâts +10 %, recharge −5 %, portée +6 %, +1 boomerang (max +3), vitesse +6 % |
+| Mines | contact | là où je passe | pose | piégeur / kiting | dégâts +10 %, recharge −5 %, rayon +5 %, +1 mine (max +12), chaîne (unique) |
 
-Les lignes en % s'additionnent sur la base (`base × (1 + step · n)`), les lignes entières s'ajoutent ; les baisses en % sont plafonnées (−60 % de recharge au plus). Une ligne rare apporte un **changement qualitatif** (un projectile de plus se voit), les lignes en % font grimper lentement.
+Les lignes en % se cumulent (`base × (1 + step)^n`), les lignes entières s'ajoutent ; les baisses en % sont plafonnées (15 lignes de recharge : ×0,46). Une ligne rare apporte un **changement qualitatif** (un projectile de plus se voit), les lignes en % font grimper lentement.
 
 ## 5. Tomes (phase 12, à la place des passifs et des évolutions)
 Huit tomes, 4 emplacements, chaque carte tire 1 à 3 lignes dans sa famille, effets additifs sur la base du joueur :
-- **Dégâts** : dégâts +4 %, dégâts aux élites et boss +8 %, recul +10 %.
-- **Cadence** : recharge −3 % (plancher 25 %), durée des projectiles +6 %.
+- **Dégâts** : dégâts +8 %, dégâts aux élites et boss +8 %, recul +10 %.
+- **Cadence** : recharge −4 % (plancher 25 %), durée des projectiles +6 %.
 - **Projectiles** : +1 projectile pour toutes les armes (rare, max 3), taille +6 %, vitesse des projectiles +6 %.
-- **Vitalité** : +8 PV max, régénération +0,25/s, dégâts subis −3 % (plafond −45 %).
-- **Mouvement** : course +3 %, recharge du dash −6 % (plancher 40 %), invulnérabilité du dash +0,03 s.
+- **Vitalité** : +12 PV max, régénération +0,4/s, dégâts subis −3 % (plafond −45 %).
+- **Mouvement** : course +5 %, recharge du dash −6 % (plancher 40 %), invulnérabilité du dash +0,03 s.
 - **Savoir** : XP +6 %, collecte +8 %.
 - **Chance** : chance +0,5 (lignes rares, 4e carte, coffres), or des coffres +20 %.
 - **Or** : or +8 %, +1 or par élite vaincue.

@@ -19,7 +19,7 @@ La sim est pure et déterministe : c'est ce qui permet de **tester un jeu comme 
 ## 2. Bots de playtest (`tools/bots/`)
 Un bot = `decide(world): InputState` + `pick(cards, world): number`. Trois niveaux :
 - **naive** : se déplace en cercle constant, prend la carte 0. Mesure le plancher.
-- **average** : fuit le centre de masse des ennemis dans un rayon de 8 u, dash quand ≥ 6 ennemis à < 2 u, saute quand un Volant est à < 3 u, pick = carte qui augmente le plus le DPS théorique, avec 30 % d'aléatoire. Phase 11 : saute sur une éruption (< 0,4 s) ou une onde du Gardien (< 0,3 s) imminentes, dashe à travers une charge de Brute élite, saute quand il bute trois frames de suite (pied de plateau, arbre). **C'est le bot de référence pour les cibles.**
+- **average** : fuit le centre de masse des ennemis dans un rayon de 8 u, dash quand ≥ 6 ennemis à < 2 u, saute quand un Volant est à < 3 u, pick = somme de la valeur des lignes de la carte (phase 12 : +1 projectile ≈ 22, +10 % dégâts ≈ 7…) avec un bonus de concentration sur l'arme la plus montée, 30 % d'aléatoire. Phase 11 : saute sur une éruption (< 0,4 s) ou une onde du Gardien (< 0,3 s) imminentes, dashe à travers une charge de Brute élite, saute quand il bute trois frames de suite (pied de plateau, arbre). **C'est le bot de référence pour les cibles.**
 - **greedy** : idem mais va chercher gemmes et coffres, pick optimal sans aléatoire. Mesure le plafond.
 
 ## 3. CLI d'équilibrage (`tools/sim-cli.ts`, `npm run sim`)
