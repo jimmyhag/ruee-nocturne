@@ -352,13 +352,13 @@ Chemin d'équilibrage (chaque étape = 100 runs) : la version additive à +7 % a
 
 Écart résiduel : **fin atteinte 15 %** en maxé (cible 3–12, soit 3 runs sur 100 de trop) : la distribution est bimodale (la moitié meurt entre 10 et 13 min sur l'Essaim-mère, les éruptions et les crachats ; le reste a une build qui a explosé et tient jusqu'au Faucheur). Raidir encore la fin de partie n'a plus d'effet mesurable (24 → 20 → 16 → 15 % sur trois crans) : c'est l'armure et la régénération qui portent ces runs. À régler avec Jimmy selon le ressenti (plafond de l'armure, ou acceptation d'un peu plus de fins pour un personnage complet). Les éruptions font 19 % des morts en maxé (porte phase 11 ≤ 15 %) : part relative qui monte parce que les autres causes baissent, pas parce qu'elles tuent plus (12 PV au lieu de 15).
 
-| Mesure | Valeur                                                                                                                                                                 | Comment                               |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Tirage | 1 ligne 67 %, 2 lignes 25 %, 3 lignes 8 % à chance nulle ; lignes plafonnées jamais tirées ; une nouvelle arme arrive avec sa base et une ligne                        | `progression.ts`, `combat.test.ts`    |
-| Stats  | Orbe +10 % ×3 = 13,3 dégâts, +1 projectile ×2 = 3 tirs ; tome Projectiles +2 : Orbe 3, Boomerang 3, Lames 4, Mines 7, Foudre 5 cibles ; armure ≤ 36 %, recharge ≥ 25 % | `weapons.test.ts`                     |
-| Cartes | rareté lisible : cadre bleu (2 lignes), cadre or + lueur (3 lignes), badge de rareté, lignes en liste ; « Nouvelle arme » et « Nouveau tome » distingués               | `docs/captures/phase-12/cartes-*.png` |
-| Bench  | p50 0,45 ms, p95 0,76 ms (Orbe à 9 projectiles transperçants), tas +0,18 Mo                                                                                            | `npm run bench`                       |
-| Tests  | **307 Vitest** (lignes, tomes, rareté, cartes, i18n des 30 lignes), §§E2E§§                                                                                            | `npm test`, `npm run test:e2e`        |
+| Mesure | Valeur                                                                                                                                                                                                                       | Comment                               |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Tirage | 1 ligne 67 %, 2 lignes 25 %, 3 lignes 8 % à chance nulle ; lignes plafonnées jamais tirées ; une nouvelle arme arrive avec sa base et une ligne                                                                              | `progression.ts`, `combat.test.ts`    |
+| Stats  | Orbe +10 % ×3 = 13,3 dégâts, +1 projectile ×2 = 3 tirs ; tome Projectiles +2 : Orbe 3, Boomerang 3, Lames 4, Mines 7, Foudre 5 cibles ; armure ≤ 36 %, recharge ≥ 25 %                                                       | `weapons.test.ts`                     |
+| Cartes | rareté lisible : cadre bleu (2 lignes), cadre or + lueur (3 lignes), badge de rareté, lignes en liste ; « Nouvelle arme » et « Nouveau tome » distingués                                                                     | `docs/captures/phase-12/cartes-*.png` |
+| Bench  | p50 0,33–0,43 ms, p95 **0,58–0,68 ms** (Orbe à 9 projectiles transperçants, 11 cartes en 10 s), tas +0,21 Mo ; avant la relecture perf : p95 3,9–5,4 ms (désoptimisation V8 à chaque première ligne de tome, voir décisions) | `npm run bench`                       |
+| Tests  | **307 Vitest** (lignes, tomes, rareté, cartes, i18n des 30 lignes), §§E2E§§                                                                                                                                                  | `npm test`, `npm run test:e2e`        |
 
 Décisions de la phase :
 
@@ -367,6 +367,7 @@ Décisions de la phase :
 - **Les ennemis montent un peu moins vite au milieu, beaucoup plus vite à la fin** : la puissance arrive par petites touches, mais une build qui a explosé après 15:00 doit encore pouvoir tomber.
 - **Le bot lit les crachats et concentre ses lignes** : sans cela les cibles ne se mesuraient qu'à travers ses défauts (crachats 57 % des morts).
 - **Kit de départ converti en lignes fixes** (Bûcheron et Colporteur : +1 lame +dégâts ; Braconnier : +dégâts ; Colporteur : 2 lignes de Chance et 3 d'Or).
+- **Relecture `perf-reviewer`** : régression ×8 du p95 du bench (0,6 → 3,9–5,4 ms, pointes à 41 ms) diagnostiquée : les champs numériques de `Player` et de `wstats` naissaient entiers (0, 1, 10) et devenaient fractionnaires à la première ligne de tome ou de % ; V8 dépréciait alors la forme de l'objet et désoptimisait `stepEnemies`/`tickShots` pendant une dizaine de steps après chaque carte (un à-coup de 0,25 s en jeu). Correction : chaque champ est écrit une fois en flottant puis remis à sa valeur dans `makePlayer` et au constructeur du monde → p95 0,58–0,68 ms. Appliqué aussi : lames instanciées 8 → 13 (2 + 8 lignes + 3 du tome), boomerangs 32 → 64, tampon `near` à 9 tirs, `tmods` préalloués (aucune allocation en run), plafonds des tomes regroupés dans `TOME_CAPS`, lignes `taille` (max 15) et `durée` (max 10) bornées, critère `max ≤ 20 ms` ajouté au bench.
 
 ## Décisions prises en cours de route
 

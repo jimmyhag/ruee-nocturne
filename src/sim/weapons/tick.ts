@@ -8,8 +8,8 @@ import { weaponStats } from './defs';
 const MAX_ENEMY_R = 2.6; // Colosse
 const TAU = Math.PI * 2;
 // tampons réutilisés (zéro allocation)
-const near = new Int32Array(8);
-const nearD = new Float64Array(8);
+const near = new Int32Array(9); // Orbe : 1 + 5 lignes + 3 (tome Projectiles) tirs au plus
+const nearD = new Float64Array(9);
 const seen = new Int32Array(16);
 const hits = new Int32Array(256);
 

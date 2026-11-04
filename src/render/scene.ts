@@ -230,7 +230,7 @@ export class GameScene {
       makeInstanced(new THREE.IcosahedronGeometry(0.22, 0), additive(0xffffff, 0.6), 250 * FEEL.trail.projGhosts),
     );
     this.boomW = new InstanceWriter(
-      makeInstanced(new THREE.BoxGeometry(1.1, 0.12, 0.32), new THREE.MeshBasicMaterial({ color: 0xffffff }), 32),
+      makeInstanced(new THREE.BoxGeometry(1.1, 0.12, 0.32), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64), // 7 boomerangs par lancer à recharge courte (phase 12)
     );
     this.mineW = new InstanceWriter(
       makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
@@ -277,8 +277,11 @@ export class GameScene {
     this.scene.add(this.aura, this.auraDisc);
     // lames : un InstancedMesh (6 draw calls → 1) + fantômes additifs (3 par lame)
     const bladeGeo = new THREE.BoxGeometry(1.0, 0.1, 0.26);
-    this.bladeW = new InstanceWriter(makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 8));
-    this.bladeGhostW = new InstanceWriter(makeInstanced(bladeGeo, additive(0xffffff, 0.5), 8 * FEEL.trail.bladeGhosts));
+    // 13 lames au plus : 2 de base + 8 lignes + 3 du tome Projectiles (phase 12)
+    this.bladeW = new InstanceWriter(makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 13));
+    this.bladeGhostW = new InstanceWriter(
+      makeInstanced(bladeGeo, additive(0xffffff, 0.5), 13 * FEEL.trail.bladeGhosts),
+    );
     this.scene.add(this.bladeW.mesh, this.bladeGhostW.mesh);
     this.writers.push(
       ...this.enemyW,

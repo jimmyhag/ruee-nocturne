@@ -49,8 +49,6 @@ function fillLines(w: World, c: Card, lines: StatLine[], taken: ArrayLike<number
   c.n = c.s2 >= 0 ? 3 : c.s1 >= 0 ? 2 : c.s0 >= 0 ? 1 : 0;
 }
 
-const NO_TAKEN = new Int16Array(8); // tome pas encore possédé : aucune ligne prise
-
 /**
  * Tire 3 cartes (4 avec la chance) selon survivor-design §3 : armes et tomes non maxés, pondérés (possédé ×1,6, nouveau ×1,3),
  * chaque carte avec 1 à 3 lignes. Écrit dans w.cards.
@@ -83,7 +81,7 @@ export function rollChoices(w: World): void {
     c.kind = 't';
     c.key = k;
     c.lv = lv + 1;
-    fillLines(w, c, TOMES[k], w.tmods[k] ?? NO_TAKEN, rollLineCount(w));
+    fillLines(w, c, TOMES[k], w.tmods[k]!, rollLineCount(w));
     if (c.n === 0) continue;
     n++;
     weights.push(lv > 0 ? CHOICE.ownedWeight : CHOICE.newWeight);
@@ -138,7 +136,7 @@ function applyLine(w: World, c: Card, s: number): void {
   if (c.kind === 'w') w.wmods[c.key as WeaponKey][s]++;
   else if (c.kind === 't') {
     const k = c.key as TomeKey;
-    (w.tmods[k] ??= new Int16Array(8))[s]++;
+    w.tmods[k]![s]++;
     applyTomeLine(w, k, s);
   }
 }

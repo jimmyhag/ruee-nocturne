@@ -1,4 +1,4 @@
-import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TOMES, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX, HAZARDS } from './balance';
+import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX, HAZARDS } from './balance';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
@@ -69,7 +69,7 @@ export class World {
   weapons: Partial<Record<WeaponKey, number>> = { orbe: 1 };
   tomes: Partial<Record<TomeKey, number>> = {};
   wmods: Record<WeaponKey, Int16Array>;
-  tmods: Partial<Record<TomeKey, Int16Array>> = {};
+  tmods: Partial<Record<TomeKey, Int16Array>> = {}; // remplis pour toutes les clés au constructeur
   wstats: Record<WeaponKey, Record<string, number>>; // stats courantes (refreshStats), lues par la sim et le rendu
   triples = 0; // cartes à 3 lignes prises (succès « Triple ligne »)
   weaponLvBest = 1; // meilleur niveau d'arme du run (succès « Érudit »)
@@ -103,8 +103,16 @@ export class World {
     this.wstats = {} as Record<WeaponKey, Record<string, number>>;
     for (const k of WEAPON_KEYS) {
       this.wmods[k] = new Int16Array(WEAPON_LINES[k].length);
-      this.wstats[k] = { ...WEAPONS[k].base };
+      // objets de stats : chaque champ est écrit une fois en flottant puis remis à sa base, pour que V8 leur donne
+      // d'emblée une représentation « double » (sinon la première ligne en % change la forme et désoptimise la boucle chaude)
+      const st: Record<string, number> = {};
+      for (const stat in WEAPONS[k].base) {
+        st[stat] = 0.5;
+        st[stat] = WEAPONS[k].base[stat];
+      }
+      this.wstats[k] = st;
     }
+    for (const k of TOME_KEYS) this.tmods[k] = new Int16Array(8); // préalloués : aucune allocation ni changement de forme en run
     this.weapons = { [ch.weapon]: 1 };
     if (ch.weapon2) this.weapons[ch.weapon2] = 1;
     this.bladeRangeMul = ch.bladeRangeMul;
@@ -122,7 +130,7 @@ export class World {
       for (const k in ch.startTomes) {
         const tk = k as TomeKey;
         const names = ch.startTomes[tk] ?? [];
-        const mods = (this.tmods[tk] = new Int16Array(8));
+        const mods = this.tmods[tk]!;
         for (const stat of names) {
           const i = lineIndex(TOMES[tk], stat);
           mods[i]++;
@@ -417,7 +425,7 @@ export function makePlayer(opts?: WorldOptions): Player {
   };
   const per = (key: string) => SHOP.lines.find((l) => l.key === key)!.per;
   const maxHp = Math.round((PLAYER.hp + ch.hpAdd) * ch.hpMul + tier('hp') * per('hp'));
-  return {
+  const p: Player = {
     x: 0,
     z: 0,
     y: 0,
@@ -462,7 +470,41 @@ export function makePlayer(opts?: WorldOptions): Player {
     walk: 0,
     recoil: 0,
   };
+  // Représentation V8 : ces champs sont entiers au départ (0 ou 1) et deviennent fractionnaires à la première ligne de tome ;
+  // écrire une fois un flottant puis la valeur initiale leur donne d'emblée la forme « double », sinon chaque première
+  // ligne d'un nouveau type déprécie la forme de Player et désoptimise stepEnemies/tickShots pendant une dizaine de steps.
+  for (const k of DOUBLE_FIELDS) {
+    const v = p[k];
+    p[k] = 0.5;
+    p[k] = v;
+  }
+  return p;
 }
+/** Champs numériques de Player qui peuvent devenir fractionnaires en run (tomes, boutique). */
+const DOUBLE_FIELDS = [
+  'regen',
+  'speed',
+  'magnet',
+  'dmgMul',
+  'cdMul',
+  'luck',
+  'goldMul',
+  'projSpeedMul',
+  'projLifeMul',
+  'eliteDmgMul',
+  'kbMul',
+  'armor',
+  'sizeMul',
+  'dashCdMul',
+  'dashInvulAdd',
+  'xpMul',
+  'chestGoldMul',
+  'eliteGold',
+  'hp',
+  'maxHp',
+  'dashTime',
+  'xp',
+] as const satisfies readonly (keyof Player)[];
 function makeEnemy(): Enemy {
   return {
     alive: false,

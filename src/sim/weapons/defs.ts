@@ -1,4 +1,4 @@
-import { TOMES, WEAPON_LINES } from '../balance';
+import { TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
 import type { TomeKey, WeaponKey } from '../types';
 import type { World } from '../world';
 
@@ -86,7 +86,7 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
       P.kbMul += l.step;
       break;
     case 'cd':
-      P.cdMul = Math.max(0.25, P.cdMul - l.step);
+      P.cdMul = Math.max(TOME_CAPS.cdMin, P.cdMul - l.step);
       break;
     case 'life':
       P.projLifeMul += l.step;
@@ -108,13 +108,13 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
       P.regen += l.step;
       break;
     case 'armor':
-      P.armor = Math.min(0.36, P.armor + l.step);
+      P.armor = Math.min(TOME_CAPS.armorMax, P.armor + l.step);
       break;
     case 'speed':
       P.speed *= 1 + l.step;
       break;
     case 'dashcd':
-      P.dashCdMul = Math.max(0.4, P.dashCdMul - l.step);
+      P.dashCdMul = Math.max(TOME_CAPS.dashCdMin, P.dashCdMul - l.step);
       break;
     case 'dashinvul':
       P.dashInvulAdd += l.step;

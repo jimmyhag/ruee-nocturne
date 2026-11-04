@@ -1,4 +1,4 @@
-// Bench : 400 ennemis forcés, 600 steps. Échoue si p95 > 6 ms ou tas +2 Mo.
+// Bench : 400 ennemis forcés, 600 steps. Échoue si p95 > 6 ms, max > 20 ms ou tas +2 Mo.
 import { STEP } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { spawnEnemy } from '../src/sim/spawner';
@@ -46,6 +46,7 @@ const heapMb = (heap1 - heap0) / 1048576;
 console.log(
   `steps 600 · ennemis ~${w.enemyCount} · p50 ${p(0.5)} ms · p95 ${p(0.95)} ms · max ${times[times.length - 1].toFixed(3)} ms · tas ${heapMb >= 0 ? '+' : ''}${heapMb.toFixed(2)} Mo`,
 );
-const ok = +p(0.95) <= 6 && heapMb <= 2;
-console.log(ok ? 'BENCH OK' : 'BENCH ÉCHEC (p95 ≤ 6 ms, tas ≤ +2 Mo)');
+const maxMs = times[times.length - 1];
+const ok = +p(0.95) <= 6 && maxMs <= 20 && heapMb <= 2; // max : une désoptimisation V8 après une carte se voit ici (phase 12)
+console.log(ok ? 'BENCH OK' : 'BENCH ÉCHEC (p95 ≤ 6 ms, max ≤ 20 ms, tas ≤ +2 Mo)');
 process.exit(ok ? 0 : 1);

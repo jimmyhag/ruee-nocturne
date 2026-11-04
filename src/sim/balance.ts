@@ -333,17 +333,17 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
   cadence: [
     { stat: 'cd', step: 0.04, kind: 'add', max: 18, weight: 3 },
-    { stat: 'life', step: 0.06, kind: 'add', weight: 2 },
+    { stat: 'life', step: 0.06, kind: 'add', max: 10, weight: 2 }, // ×1,6 au plus : le pool de projectiles (250) ne sature pas
   ],
   projectiles: [
     { stat: 'proj', step: 1, kind: 'add', max: 3, weight: 1 },
-    { stat: 'size', step: 0.06, kind: 'add', weight: 3 },
+    { stat: 'size', step: 0.06, kind: 'add', max: 15, weight: 3 }, // ×1,9 au plus : le Halo reste lisible
     { stat: 'pspeed', step: 0.06, kind: 'add', weight: 2 },
   ],
   vitalite: [
     { stat: 'hp', step: 12, kind: 'add', weight: 3 },
     { stat: 'regen', step: 0.4, kind: 'add', weight: 2 },
-    { stat: 'armor', step: 0.03, kind: 'add', max: 12, weight: 2 }, // plafond 36 % : à 45 % les runs complets ne mouraient plus après 15:00
+    { stat: 'armor', step: 0.03, kind: 'add', max: 12, weight: 2 }, // 12 × 3 % = TOME_CAPS.armorMax
   ],
   mouvement: [
     { stat: 'speed', step: 0.05, kind: 'add', weight: 3 },
@@ -364,6 +364,9 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
 };
 export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
+// planchers et plafonds des effets cumulés des tomes (applyTomeLine) : la recharge ne descend pas sous 25 % de la base,
+// l'armure n'annule pas plus de 36 % des dégâts (à 45 % les runs complets ne mouraient plus après 15:00), le dash garde 40 % de recharge
+export const TOME_CAPS = { cdMin: 0.25, armorMax: 0.36, dashCdMin: 0.4 };
 // rareté d'une carte = nombre de lignes : 1 (67 %), 2 (25 %), 3 (8 %) ; chaque point de chance décale vers 2 et 3
 export const RARITY = {
   two: 0.25,
