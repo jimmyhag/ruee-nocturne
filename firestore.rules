@@ -1,0 +1,36 @@
+rules_version = '2';
+// Règles Firestore (phase 13) : un document de progression par compte, lisible et modifiable par son seul propriétaire.
+// Les clés de `progress` sont celles de PROGRESS_KEYS (src/meta/sync.ts) : un test Vitest vérifie qu'elles correspondent.
+// Le client ne fait jamais confiance au document (normalizeMeta à la lecture) ; ici on borne la forme et les tailles.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /saves/{uid} {
+      function me() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+      function p() {
+        return request.resource.data.progress;
+      }
+      allow get, delete: if me();
+      allow list: if false;
+      allow create, update: if me()
+        && request.resource.data.keys().hasOnly(['v', 'updatedAt', 'progress'])
+        && request.resource.data.v == 1
+        && request.resource.data.updatedAt is number
+        && p() is map
+        && p().keys().hasOnly(['version', 'bestTime', 'bestKills', 'runs', 'totalKills', 'gold', 'goldEarned',
+             'shops', 'stats', 'achievements', 'bought', 'character', 'outfits', 'outfit', 'daily', 'slots'])
+        && p().achievements is list && p().achievements.size() <= 64
+        && p().bought is list && p().bought.size() <= 16
+        && p().outfits is list && p().outfits.size() <= 16
+        && p().shops is map && p().shops.size() <= 16
+        && p().outfit is map && p().outfit.size() <= 16
+        && p().stats is map && p().stats.size() <= 32
+        && p().daily is map && p().daily.times is list && p().daily.times.size() <= 10
+        && p().character is string && p().character.size() <= 32;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -24,6 +24,7 @@
     "prepare": "simple-git-hooks"
   },
   "dependencies": {
+    "firebase": "^13.2.0",
     "idb-keyval": "^6.2.2",
     "three": "^0.187.0"
   },
