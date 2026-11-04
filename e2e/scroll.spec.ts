@@ -41,9 +41,12 @@ test.describe('défilement tactile', () => {
       await page.screenshot({ path: `shots/mobile-${screen}-bas.png` });
       await page.locator('#' + back).click();
     }
-    // phase 14 : l'accueil tient dans l'écran, il ne défile pas
+    // phase 14 : l'accueil ne défile pas (overflow caché, pas de glissement possible). Pas de geste CDP ici : sur le
+    // Chromium livré avec Playwright, Input.dispatchTouchEvent ne rend jamais la main sur cet écran non défilable
+    // (le test expirait en CI, alors qu'il passe sur Chromium 153) ; la propriété CSS est ce qui garantit le comportement.
     const menu = page.locator('#menu');
-    await swipeUp(page, 187, 380, 300);
+    await expect(menu).toBeVisible();
+    expect(await menu.evaluate((s) => getComputedStyle(s).overflowY)).toBe('hidden');
     expect(await menu.evaluate((s) => s.scrollTop)).toBe(0);
   });
 
