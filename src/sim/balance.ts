@@ -287,7 +287,8 @@ export const CHARACTERS: CharacterDef[] = [
   { key: 'veilleuse', weapon: 'aura', weaponLevel: 1, trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
   { key: 'braconnier', weapon: 'boomerang', weaponLevel: 2, trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
   { key: 'sapeur', weapon: 'mines', weaponLevel: 1, trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
-  { key: 'feufollet', weapon: 'orbe', weaponLevel: 1, trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.5, dashTime: PLAYER.dashTime * TRAIT.trainee.dashMul, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
+  { key: 'feufollet', weapon: 'orbe', weaponLevel: 1, trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
+    dashTime: PLAYER.dashTime * TRAIT.trainee.dashMul, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
   { key: 'revenante', weapon: 'foudre', weaponLevel: 1, weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'win', price: 0 },
   { key: 'colporteur', weapon: 'lames', weaponLevel: 3, // phase 10 : Lames 2 seule faisait 3:18 et 43 % de morts < 3 min
     startPassives: { trefle: 1, bourse: 1 }, trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
@@ -336,11 +337,13 @@ export interface SlotUnlock {
 }
 export const SLOTS_START = { weapons: 1, passives: 2 };
 export const SLOTS: SlotUnlock[] = [
+  // prix ≈ 1,5–2 runs d'or au moment où le succès tombe (relecture phase 10 : l'or par run passe de 170 à 7 000
+  // entre le 1er et le 10e run ; à 800 / 1 500 / 3 000 / 5 000 les emplacements coûtaient moins d'un run dès le 3e)
   { kind: 'weapon', n: 2, ach: 'survie3', price: 300 },
-  { kind: 'passive', n: 3, ach: 'kills500', price: 800 },
-  { kind: 'weapon', n: 3, ach: 'boss1', price: 1500 },
-  { kind: 'passive', n: 4, ach: 'survie10', price: 3000 },
-  { kind: 'weapon', n: 4, ach: 'survie15', price: 5000 },
+  { kind: 'passive', n: 3, ach: 'kills500', price: 2000 },
+  { kind: 'weapon', n: 3, ach: 'boss1', price: 4000 },
+  { kind: 'passive', n: 4, ach: 'survie10', price: 8000 },
+  { kind: 'weapon', n: 4, ach: 'survie15', price: 12000 },
 ];
 
 export const CHOICE = {

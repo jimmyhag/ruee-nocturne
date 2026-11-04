@@ -74,7 +74,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 | Boomerang | Aller-retour en ligne, traverse | 5 | — |
 | Mines | Posées sur le passage, explosent au contact | 5 | — |
 
-Maximum 4 armes + 4 passifs par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 améliorations** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 800, 1 500, 3 000, 5 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
+Maximum 4 armes + 4 passifs par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 améliorations** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 2 000, 4 000, 8 000, 12 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
 
 ### 3.2 Passifs (8)
 Semelles de vent (vitesse), Cœur de pierre (PV max), Sève vive (régén), Aimant (collecte), Gants lourds (dégâts), Sablier fêlé (recharge), Trèfle (chance : qualité des coffres et des choix), Bourse (or ×).

@@ -8,11 +8,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 ### Ajouté
 
-- **Emplacements** : on part avec une seule arme (celle du personnage) et deux améliorations. Les emplacements suivants se débloquent pour tous les personnages, dans l'ordre, par un succès et de l'or : Arme n°2 (« Première nuit », 300 or), Amélioration n°3 (« Faucheuse en herbe », 800 or), Arme n°3 (« Gardienne tombée », 1 500 or), Amélioration n°4 (« Dix minutes », 3 000 or), Arme n°4 (« Quart d'heure », 5 000 or). Bloc « Emplacements » en tête de la boutique, résumé dans le menu, rappel à la montée de niveau, prochain emplacement sur l'écran de mort. Les armes et passifs de départ d'un personnage (Revenante, Colporteur) ne comptent pas contre le plafond. Le défi du jour joue au maximum.
+- **Emplacements** : on part avec une seule arme (celle du personnage) et deux améliorations. Les emplacements suivants se débloquent pour tous les personnages, dans l'ordre, par un succès et de l'or : Arme n°2 (« Première nuit », 300 or), Amélioration n°3 (« Faucheuse en herbe », 2 000 or), Arme n°3 (« Gardienne tombée », 4 000 or), Amélioration n°4 (« Dix minutes », 8 000 or), Arme n°4 (« Quart d'heure », 12 000 or). Bloc « Emplacements » en tête de la boutique, résumé dans le menu, rappel à la montée de niveau, prochain emplacement sur l'écran de mort. Les armes et passifs de départ d'un personnage (Revenante, Colporteur) ne comptent pas contre le plafond. Le défi du jour joue au maximum.
 - `npm run sim -- --slots start|max|w,p` ; le profil nu de la CI est désormais le départ réel.
 
 ### Modifié
 
+- Feu follet : 60 PV (50) : seul avec l'Orbe il passait sous 4 minutes.
 - Bûcheron et Colporteur partent avec **Lames niveau 3** (niveau 2) : seuls avec les Lames, ils mouraient avant 3 min dans plus de 40 % des runs.
 - Survie médiane au départ (bot average, 100 runs) : **4:25** (87 % des runs passent 3 minutes, 13 % meurent avant), 2 armes sans palier 5:14, 3 armes et 3 améliorations avec 4 paliers 12:07, personnage complet 15:09.
 

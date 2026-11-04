@@ -73,7 +73,7 @@ Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90
 
 ## 8. Méta-progression (phase 4, refondue en phase 8)
 - Or : 1 par kill ×`goldMul`, ×3 élite, ×20 boss, bonus de fin = secondes survécues / 10.
-- Emplacements (phase 10) : `SLOTS` dans `balance.ts`, débloqués dans l'ordre par un succès **et** de l'or (300 → 5 000), communs à tous les personnages ; profil nu de la sim = départ (1 arme, 2 améliorations).
+- Emplacements (phase 10) : `SLOTS` dans `balance.ts`, débloqués dans l'ordre par un succès **et** de l'or (300 → 12 000, ≈ 1,5–2 runs d'or au moment où le succès tombe), communs à tous les personnages ; profil nu de la sim = départ (1 arme, 2 améliorations).
 - Boutique **par personnage** : 8 lignes, 8 paliers chacune (réanimation : 1), coût `200 · 1.3^palier` (200 → 1 255, ≈ 34 000 or par personnage). Un run « nu » (≈ 6 min, ≈ 600 or) paie **1 à 2 paliers** ; un personnage complet ≈ 30 runs.
 - Le joueur nu est en dessous de la courbe (dégâts ×0,95) et le milieu de partie (7:00 → 15:00) est raide : la puissance achetée doit se traduire en **minutes**, pas en falaise. Les paliers sont petits (+3 PV, +2 % dégâts, −1 % recharge…) parce que la survie est très sensible à la puissance (en phase 8, hp +40 / dégâts ×1,2 / recharge ×0,88 faisaient passer de 5 à 16 min).
 - Succès visibles avec barre : chaque run doit faire avancer au moins 2 succès (sinon ajuster les seuils).
