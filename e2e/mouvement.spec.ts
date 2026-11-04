@@ -23,9 +23,18 @@ async function godMode(page: import('@playwright/test').Page): Promise<void> {
 async function hp(page: import('@playwright/test').Page): Promise<number> {
   return page.evaluate(() => (window as any).__game.world.player.hp as number);
 }
+/** Saut immédiat : touche Espace, ou tap tactile au centre du bouton (coordonnées lues une fois : pas d'attente d'actionnabilité). */
+let jumpBox: { x: number; y: number } | null = null;
 async function jump(page: import('@playwright/test').Page, touch: boolean): Promise<void> {
-  if (touch) await page.locator('#btnJump').tap();
-  else await page.keyboard.press('Space');
+  if (!touch) {
+    await page.keyboard.press('Space');
+    return;
+  }
+  if (!jumpBox) {
+    const b = (await page.locator('#btnJump').boundingBox())!;
+    jumpBox = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  }
+  await page.touchscreen.tap(jumpBox.x, jumpBox.y);
 }
 
 test('un plateau bloque au sol et se monte d’un saut ; les marcheurs restent au pied', async ({ page, hasTouch }) => {
@@ -33,6 +42,7 @@ test('un plateau bloque au sol et se monte d’un saut ; les marcheurs restent a
   await openGame(page);
   await startRun(page);
   await godMode(page);
+  jumpBox = null;
   const p = await page.evaluate(() => {
     const w = (window as any).__game.world;
     const pl = w.plateaux[0];
@@ -92,6 +102,7 @@ test('une éruption blesse au sol et se saute à mi-télégraphe', async ({ page
   await openGame(page);
   await startRun(page);
   await godMode(page);
+  jumpBox = null;
   const arm = () =>
     page.evaluate(() => {
       const w = (window as any).__game.world;
@@ -137,7 +148,7 @@ test('une éruption blesse au sol et se saute à mi-télégraphe', async ({ page
   // 2) saut quand la fissure est à mi-course : indemne
   before = await hp(page);
   await arm();
-  await waitShot(KIND_ERUPTION, 0.45);
+  await waitShot(KIND_ERUPTION, 0.5);
   await jump(page, hasTouch);
   await waitGone(KIND_ERUPTION);
   await page.evaluate(() => {
@@ -153,6 +164,7 @@ test('l’onde de choc du Gardien blesse une fois au sol et se saute', async ({ 
   await openGame(page);
   await startRun(page);
   await godMode(page);
+  jumpBox = null;
   const ring = () =>
     page.evaluate((k) => {
       const w = (window as any).__game.world;
@@ -180,7 +192,7 @@ test('l’onde de choc du Gardien blesse une fois au sol et se saute', async ({ 
   await ring();
   await gone();
   expect(before - (await hp(page))).toBeCloseTo(30, 0);
-  // saute quand l'anneau est à ~3,5 u (0,3 s avant la bande de contact : en l'air de 0,11 à 0,62 s après l'impulsion)
+  // saute quand l'anneau est à ~4,3 u (0,38 s avant la bande de contact : en l'air de 0,11 à 0,62 s après l'impulsion)
   before = await hp(page);
   await ring();
   await page.waitForFunction(
@@ -188,7 +200,7 @@ test('l’onde de choc du Gardien blesse une fois au sol et se saute', async ({ 
       const w = (window as any).__game.world;
       for (let i = 0; i < w.shotCount; i++) {
         const s = w.shots[i];
-        if (s.kind === k && 5 - s.r < 3.6) return true;
+        if (s.kind === k && 5 - s.r < 4.3) return true;
       }
       return false;
     },
