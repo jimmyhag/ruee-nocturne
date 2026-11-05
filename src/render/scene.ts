@@ -24,9 +24,12 @@ import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadProps } from './models';
+import { enemyOutlineMaterial, loadEnemyModels } from './enemyModels';
+import type { BakedEnemy } from './enemyModels';
+import { writeLoopPose, writeOncePose } from './pose';
 import type { PropGeometry, PropKey } from './models';
 import { Mode, ProjKind, ShotKind, Spell } from '../sim/types';
-import type { CharacterKey } from '../sim/types';
+import type { CharacterKey, Enemy } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
@@ -50,7 +53,7 @@ import {
 import { buildEnemyGeometries } from './enemies';
 import { setDetail } from './parts';
 import { TerrainView } from './terrain';
-import { toonGradient, toonMaterial } from './toon';
+import { OUTLINE, toonGradient, toonMaterial } from './toon';
 import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -96,6 +99,10 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+const ENEMY_TINT_KEEP = 0.72;
+const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude) // phase 21 : part de blanc dans la teinte d'un squelette (os clairs, type reconnaissable)
+const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
+const ENEMY_STRIDE = 0.42; // tours de marche par unité de vitesse (Spectre 2,7 u/s : ≈ 1,1 pas par seconde)
 const CHEST_ELITE = new THREE.Color(0xffd98a); // coffre d'élite : même modèle que celui de carte, teinté d'or
 const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1, 40, 24]; // phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24)
 
@@ -140,6 +147,14 @@ export class GameScene {
 
   private enemyW: InstanceWriter[] = [];
   private enemyColor: THREE.Color[] = [];
+  /** phase 21 : squelettes KayKit chargés (lu par les tests e2e) ; le procédural reste le repli */
+  enemyKind: 'proc' | 'gltf' = 'proc';
+  private enemyBaked: (BakedEnemy | null)[] = [];
+  private enemyMorph: (Float32Array | null)[] = []; // morphTexture.image.data de chaque type (ligne = 1 + poses)
+  private bossOutline: (THREE.InstancedMesh | null)[] = [];
+  private enemyHop = 1; // hop et roulis des silhouettes procédurales, adoucis pour des squelettes qui marchent
+  private enemyRoll = 1;
+  private cFlash = WHITE; // flash du coup : blanc sur les couleurs de sommet, surexposé sur une texture
   private eliteColor: THREE.Color[] = [];
   private shadowW: InstanceWriter; // ombres douces de tous les ennemis (phase 9)
   private eliteW: InstanceWriter; // anneaux dorés des élites
@@ -295,6 +310,10 @@ export class GameScene {
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
       this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.55));
     }
+    // phase 21 : squelettes KayKit (et crâne des Volants) dès qu'enemies.glb et props.glb sont là
+    Promise.all([loadEnemyModels(), loadProps()])
+      .then(([en, p]) => this.applyEnemyModels(en, p))
+      .catch((e: unknown) => console.warn('modèles des ennemis indisponibles, repli procédural', e));
     // phase 9 : une ombre douce sous chaque ennemi (un seul appel pour tous) ; celle des Volants grossit au télégraphe
     this.shadowW = new InstanceWriter(makeInstanced(shadowGeometry(1), shadowMaterial(0.4), CAPS.enemies));
     this.eliteW = new InstanceWriter(
@@ -760,6 +779,98 @@ export class GameScene {
     for (const m of this.decorProc) m.visible = false;
     this.propX = this.propZ = 1e9;
   }
+  /**
+   * Phase 21 : géométries cuites (poses en cibles de morph) et texture squelette à la place des silhouettes ; une
+   * morphTexture par type, allouée à pleine capacité (même piège que les couleurs d'instance) ; contour des boss par
+   * un InstancedMesh jumeau qui partage matrices et poses. Tout est construit avant d'échanger.
+   */
+  private applyEnemyModels(en: (BakedEnemy | null)[], p: Record<PropKey, PropGeometry>): void {
+    const todo: (() => void)[] = [];
+    for (let t = 0; t < this.enemyW.length; t++) {
+      const b = en[t] ?? null;
+      const mesh = this.enemyW[t].mesh;
+      if (!b) {
+        if (t !== VOLANT_TYPE) continue;
+        // Volant : crâne flottant (statique ; roulis et tangage viennent de la matrice d'instance)
+        const g = p.skull.geometry.clone();
+        g.computeBoundingBox();
+        const bb = g.boundingBox!;
+        const k = 1.05 / Math.max(1e-3, bb.max.x - bb.min.x);
+        g.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, -(bb.min.z + bb.max.z) / 2)
+          .scale(k, k, k)
+          .rotateX(-0.6); // face levée vers la caméra (vue 3/4 haute) : orbites et dents lisibles de loin
+        const m = new THREE.MeshToonMaterial({ map: p.skull.map, gradientMap: toonGradient() });
+        todo.push(() => {
+          mesh.geometry.dispose();
+          mesh.geometry = g;
+          mesh.material = m;
+        });
+        continue;
+      }
+      const geo = this.qualityLevel > 0 ? b.geo.net : b.geo.pixel;
+      const mat = new THREE.MeshToonMaterial({ map: b.map, vertexColors: true, gradientMap: toonGradient() });
+      const len = 1 + b.loop + b.action,
+        cap = mesh.instanceMatrix.count;
+      const data = new Float32Array(len * cap);
+      const tex = new THREE.DataTexture(data, len, cap, THREE.RedFormat, THREE.FloatType);
+      tex.needsUpdate = true;
+      let outline: THREE.InstancedMesh | null = null;
+      if (b.boss) {
+        outline = new THREE.InstancedMesh(geo, enemyOutlineMaterial(OUTLINE.boss), cap);
+        outline.instanceMatrix = mesh.instanceMatrix; // mêmes matrices et mêmes poses : aucune écriture en plus
+        outline.morphTexture = tex;
+        outline.count = 0;
+        outline.frustumCulled = false;
+      }
+      todo.push(() => {
+        mesh.geometry.dispose();
+        mesh.geometry = geo;
+        mesh.material = mat;
+        mesh.morphTexture = tex;
+        mesh.updateMorphTargets();
+        if (outline) {
+          outline.updateMorphTargets();
+          this.scene.add(outline);
+        }
+        this.enemyMorph[t] = data;
+        this.bossOutline[t] = outline;
+      });
+    }
+    for (const f of todo) f();
+    this.enemyBaked = en;
+    // la couleur d'instance multiplie la texture : teinte du type adoucie (les os restent clairs), élites dorées
+    for (let t = 0; t < this.enemyW.length; t++) {
+      if (!en[t] && t !== VOLANT_TYPE) continue;
+      this.enemyColor[t].set(PAL.enemy[t]).lerp(BONE, ENEMY_TINT_KEEP);
+      this.eliteColor[t].set(PAL.enemy[t]).lerp(this.cGold, 0.7).lerp(WHITE, 0.2);
+    }
+    this.cFlash = ENEMY_FLASH;
+    this.enemyHop = 0.25;
+    this.enemyRoll = 0.25;
+    this.enemyKind = 'gltf';
+  }
+  /** Poses de l'ennemi qui vient d'être écrit (dernière instance de son type) : marche en boucle, ou geste. */
+  private poseEnemy(t: number, e: Enemy, now: number): void {
+    const data = this.enemyMorph[t];
+    if (!data) return;
+    const b = this.enemyBaked[t]!;
+    const len = 1 + b.loop + b.action;
+    const row = this.enemyW[t].n - 1;
+    if (row < 0) return;
+    if (b.action) {
+      // Archer et Cracheur : visée 0 → 1 ; Sorcier et boss : geste en boucle pendant le télégraphe (state 1)
+      if ((t === ARCHER_TYPE && e.state === 1) || (t === 5 && e.aim > 0)) {
+        writeOncePose(data, row, len, b.loop, b.action, e.aim);
+        return;
+      }
+      if (e.state === 1 && (b.boss || t === 10)) {
+        writeLoopPose(data, row, len, b.loop, b.action, now * 0.9 + e.bob);
+        return;
+      }
+    }
+    const cyc = e.stun > 0 ? 0.1 : now * ENEMIES[t].speed * ENEMY_STRIDE + e.bob * 0.16;
+    writeLoopPose(data, row, len, 0, b.loop, cyc);
+  }
   /** Arbres et lanternes à moins de PROP_DRAW u du joueur dans les écrivains KayKit (au plus 64 arbres de chaque sorte). */
   private sortNearDecor(px: number, pz: number): void {
     this.propX = px;
@@ -830,6 +941,11 @@ export class GameScene {
     setDetail(level > 0 ? 12 : 7);
     // formes procédurales plus lisses (ou non) : modèle reconstruit ; le héros glTF ne dépend pas du détail
     if (this.heroKind !== 'gltf') this.setCharacter(this.modelKey, this.modelSkin, true);
+    // phase 21 : ennemis de masse en version simplifiée en pixel (≈ 150 triangles), détaillée sinon (≈ 330)
+    for (let t = 0; t < this.enemyW.length; t++) {
+      const b = this.enemyBaked[t];
+      if (b && this.enemyMorph[t]) this.enemyW[t].mesh.geometry = level > 0 ? b.geo.net : b.geo.pixel;
+    }
     this.groundMat.map = this.groundTex(level > 0);
     this.groundMat.needsUpdate = true;
     this.renderer.domElement.classList.toggle('pixel', level === 0);
@@ -1016,11 +1132,15 @@ export class GameScene {
       const ex = lerp(e.px, e.x, alpha),
         ez = lerp(e.pz, e.z, alpha);
       const boss = def.boss;
-      const hop = boss ? 0 : Math.abs(Math.sin(now * 8 + e.bob)) * (e.type === 1 ? 0.12 : 0.1);
+      const hop = boss
+        ? 0
+        : Math.abs(Math.sin(now * 8 + e.bob)) *
+          (e.type === 1 ? 0.12 : 0.1) *
+          (e.type === VOLANT_TYPE ? 1 : this.enemyHop);
       // phase 19 : un ennemi étourdi pâlit (jaune), un ennemi ralenti bleuit ; le flash blanc du coup passe avant
       const col =
         e.flash > 0
-          ? WHITE
+          ? this.cFlash
           : e.stun > 0
             ? this.cStun
             : e.slowT > 0
@@ -1047,15 +1167,22 @@ export class GameScene {
         );
       } else if (e.type === SWARM_TYPE) {
         s *= e.state === 1 ? 1.25 : 1 + Math.sin(now * 3) * 0.04; // pulsation à la ponte
-        this.enemyW[e.type].put(ex, ey, ez, now * 0.6, s, col);
+        // procédural : la masse tourne sur elle-même ; squelette : il regarde où il va
+        this.enemyW[e.type].put(ex, ey, ez, this.enemyMorph[e.type] ? e.face : now * 0.6, s, col);
+        this.poseEnemy(e.type, e, now);
       } else if (e.type === REAPER_TYPE) {
-        this.enemyW[e.type].put(ex, ey, ez, now * 0.8, s, col);
+        this.enemyW[e.type].put(ex, ey, ez, this.enemyMorph[e.type] ? e.face : now * 0.8, s, col);
+        this.poseEnemy(e.type, e, now);
       } else if (boss) {
-        this.enemyW[e.type].put(ex, ey, ez, e.type === 3 ? now * 1.4 : e.face, s, col);
+        this.enemyW[e.type].put(ex, ey, ez, e.type === 3 && !this.enemyMorph[3] ? now * 1.4 : e.face, s, col);
+        this.poseEnemy(e.type, e, now);
       } else if (e.type === 1) {
         this.enemyW[1].put(ex, ey, ez, e.face, s, col, 0, 0, s, s * S.enemyStretch);
+        this.poseEnemy(1, e, now);
       } else {
-        this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, Math.sin(now * 5 + e.bob) * 0.2, 0, s, s * S.enemyStretch);
+        const roll = Math.sin(now * 5 + e.bob) * 0.2 * this.enemyRoll;
+        this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, roll, 0, s, s * S.enemyStretch);
+        this.poseEnemy(e.type, e, now);
         if (e.type === 5 && e.aim > 0) this.aims.add(ex, 0.9, ez, px, 0.9, pz, e.aim); // ligne de visée du Cracheur
         // phase 16 : ligne de visée de l'Archer, figée dans la direction du tir (16 u : la portée de la flèche)
         if (e.type === ARCHER_TYPE && e.state === 1)
@@ -1084,7 +1211,14 @@ export class GameScene {
         this.shadowW.put(ex, eg + 0.05, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow, this.tRx, this.tRz);
       if (e.elite) this.eliteW.put(ex, eg + 0.08, ez, now * 1.5, e.r * 1.3, this.cGold, this.tRx, this.tRz);
     }
-    for (let t = 0; t < this.enemyW.length; t++) this.enemyW[t].end();
+    for (let t = 0; t < this.enemyW.length; t++) {
+      const wr = this.enemyW[t];
+      wr.end();
+      const mt = wr.mesh.morphTexture;
+      if (mt && this.enemyMorph[t] && wr.n > 0) mt.needsUpdate = true;
+      const o = this.bossOutline[t];
+      if (o) o.count = wr.n;
+    }
     this.shadowW.end();
     this.eliteW.end();
     this.aims.end();

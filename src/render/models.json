@@ -199,7 +199,7 @@
   },
   "props": {
     "file": "props.glb",
-    "bytes": 315648,
+    "bytes": 322584,
     "nodes": {
       "tree_dead": 256,
       "tree_dead_m": 216,
@@ -218,7 +218,51 @@
       "coins": 1776,
       "sword": 300,
       "axe": 274,
-      "bomb": 310
+      "bomb": 310,
+      "skull": 344
+    }
+  },
+  "enemies": {
+    "file": "enemies.glb",
+    "bytes": 596720,
+    "lods": {
+      "hi": 1800,
+      "mid": 330,
+      "lo": 110
+    },
+    "models": {
+      "minion": {
+        "anims": ["Walking_D_Skeletons"],
+        "tris": {
+          "hi": 1800,
+          "mid": 325,
+          "lo": 110
+        }
+      },
+      "warrior": {
+        "anims": ["Walking_A", "1H_Melee_Attack_Chop", "2H_Melee_Attack_Chop"],
+        "tris": {
+          "hi": 2683,
+          "mid": 489,
+          "lo": 164
+        }
+      },
+      "mage": {
+        "anims": ["Walking_A", "Spellcast_Shoot", "Spellcast_Summon"],
+        "tris": {
+          "hi": 2591,
+          "mid": 471,
+          "lo": 160
+        }
+      },
+      "rogue": {
+        "anims": ["Running_A", "Walking_A", "1H_Ranged_Shoot"],
+        "tris": {
+          "hi": 2431,
+          "mid": 449,
+          "lo": 157
+        }
+      }
     }
   }
 }
