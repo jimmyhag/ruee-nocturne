@@ -22,11 +22,13 @@ import {
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
-import { ProjKind, ShotKind, Spell } from '../sim/types';
+import { Mode, ProjKind, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
+import { HeroAnim, buildHero, spellAnim } from './heroes';
+import type { HeroModel } from './heroes';
 import {
   Fireflies,
   GRASS,
@@ -114,6 +116,12 @@ export class GameScene {
 
   private player = new THREE.Group(); // contient le modèle du personnage courant (src/render/characters.ts)
   private model: CharacterModel;
+  /** phase 20 : modèle affiché, procédural (repli) ou glTF animé ; lu par les tests e2e */
+  heroKind: 'proc' | 'gltf' = 'proc';
+  private heroAnim: HeroModel['anim'] | null = null;
+  private heroPending = false;
+  private heroReq = 0; // numéro de la dernière demande de héros (une réponse périmée est ignorée)
+  private hurtAnimT = 0; // délai avant de rejouer l'animation de coup reçu
   modelKey: CharacterKey = 'eclaireuse'; // lus par les tests e2e via __game.scene
   modelSkin = 0;
   private blob: THREE.Mesh;
@@ -548,11 +556,28 @@ export class GameScene {
 
   /** Change le personnage affiché (menu : aperçu ; partie : personnage choisi) et sa tenue. Idempotent. */
   setCharacter(key: CharacterKey, skin = 0, force = false): void {
-    if (!force && key === this.modelKey && skin === this.modelSkin) return;
-    const old = this.model;
-    const next = buildCharacter(key, skin);
+    // même personnage : rien à faire, sauf si le héros glTF n'a encore jamais été demandé (modèle de départ procédural)
+    if (!force && key === this.modelKey && skin === this.modelSkin && (this.heroKind === 'gltf' || this.heroPending))
+      return;
     this.modelKey = key;
     this.modelSkin = skin;
+    // repli procédural tout de suite, puis le héros glTF (phase 20) dès qu'il est chargé ; hors ligne, le repli reste
+    this.swapModel(buildCharacter(key, skin), null);
+    const req = ++this.heroReq;
+    this.heroPending = true;
+    buildHero(key, skin).then(
+      (hero) => {
+        if (req !== this.heroReq) return hero.dispose(); // personnage changé entre-temps
+        this.heroPending = false;
+        this.swapModel(hero, hero.anim);
+      },
+      () => {
+        if (req === this.heroReq) this.heroPending = false; // hors ligne : le repli reste, nouvel essai au prochain choix
+      },
+    );
+  }
+  private swapModel(next: CharacterModel, anim: HeroModel['anim'] | null): void {
+    const old = this.model;
     this.player.remove(old.group);
     if (old.glowDisc) this.scene.remove(old.glowDisc);
     this.player.add(next.group);
@@ -562,6 +587,22 @@ export class GameScene {
     ghost.geometry = next.silhouette.clone();
     old.dispose();
     this.model = next;
+    this.heroAnim = anim;
+    this.heroKind = anim ? 'gltf' : 'proc';
+  }
+  /** Sort lancé (Ev.Spell) : animation propre au sort sur le héros glTF. */
+  onSpell(s: Spell): void {
+    this.heroAnim?.trigger(spellAnim(s), s === 1 ? 1.4 : 1.3);
+  }
+  /** Coup encaissé (Ev.PlayerHurt) : sursaut, au plus toutes les 0,6 s (le contact blesse à chaque pas). */
+  onHurt(): void {
+    if (this.hurtAnimT > 0 || !this.heroAnim) return;
+    this.hurtAnimT = 0.6;
+    this.heroAnim.trigger(HeroAnim.Hit, 1.6);
+  }
+  /** Nouvelle partie : le héros repart de l'animation de repos (la mort reste figée sinon). */
+  resetHero(): void {
+    this.heroAnim?.reset();
   }
 
   resize(wpx: number, hpx: number): void {
@@ -620,6 +661,7 @@ export class GameScene {
   /** Atterrissage du joueur : lance le ressort d'écrasement (valeurs neutres depuis la PR #6). */
   onLand(): void {
     this.landT = 0;
+    this.heroAnim?.trigger(HeroAnim.Land, 2);
   }
 
   /** Cycle de lumière lié au temps de run : crépuscule 0:00 → nuit 8:00 → aube 20:00 (le temps se lit sans chrono). */
@@ -675,12 +717,22 @@ export class GameScene {
       M.legL.rotation.x = sw;
       M.legR.rotation.x = -sw;
     }
-    // flottants : ondulation et léger balancement ; marcheurs : bob de course
+    // flottants : ondulation et léger balancement ; marcheurs : bob de course (procédural seulement : le héros glTF a
+    // sa propre course)
+    const A = this.heroAnim;
     M.torso.position.y = M.float
       ? 0.18 + Math.sin(now * 3.2) * 0.08
-      : moving && P.onGround
+      : moving && P.onGround && !A
         ? Math.abs(Math.cos(P.walk)) * 0.06
         : 0;
+    if (A) {
+      // phase 20 : animation de fond depuis l'état de la sim (lecture seule) ; la mort se joue une fois
+      if (this.hurtAnimT > 0) this.hurtAnimT -= dt;
+      if (w.mode === Mode.Dead) A.trigger(HeroAnim.Death);
+      const sp = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
+      const base = !P.onGround ? HeroAnim.Fall : moving && !M.float ? HeroAnim.Run : HeroAnim.Idle;
+      A.update(dt, base, Math.max(0.6, Math.min(1.8, sp / 6.2)));
+    }
     M.torso.rotation.z = M.float ? Math.sin(now * 2.1) * 0.06 : 0;
     // tir : le corps s'écrase (1+r, 1−0,8r, 1+r), r porté par la sim (Player.recoil)
     const rc = P.recoil;
@@ -1141,7 +1193,8 @@ export class GameScene {
     const a = Math.sin(now * 0.18) * 0.45; // ±26° autour de la face
     this.player.rotation.y = a; // le modèle regarde vers +z : face à la caméra
     this.model.torso.position.y =
-      (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + Math.sin(now * 2.2) * 0.015;
+      (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + (this.heroAnim ? 0 : Math.sin(now * 2.2) * 0.015);
+    this.heroAnim?.update(dt, HeroAnim.Idle, 1);
     if (this.model.glowDisc) {
       this.model.glowDisc.position.set(0, 0.07, 0);
       this.model.glowDisc.rotation.set(0, 0, 0);
