@@ -27,6 +27,7 @@ export interface Enemy {
   tx: number;
   tz: number;
   phase2: boolean; // boss : phase à 50 % PV déclenchée
+  detour: number; // phase 16 : s restantes où il suit le champ de flux case par case (il butait sur un obstacle)
 }
 
 export const enum ProjKind {

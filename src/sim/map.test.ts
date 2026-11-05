@@ -123,6 +123,30 @@ describe('carte construite (phase 16)', () => {
     expect(b.walls).toEqual(a.walls);
     expect(Array.from(b.solid)).toEqual(Array.from(a.solid));
   });
+  it('toute case libre de la grille du flux est atteinte depuis le joueur (aucune poche à cette résolution)', () => {
+    for (const seed of [MAP.seed, 2, 9]) {
+      const w = new World(seed);
+      for (const [px, pz] of [
+        [0, 0],
+        [60, -40],
+        [-90, 100],
+      ]) {
+        w.player.x = px;
+        w.player.z = pz;
+        w.flow.compute(w);
+        const S = FLOW.half * 2;
+        let lost = 0;
+        for (let lj = 0; lj < S; lj++)
+          for (let li = 0; li < S; li++) {
+            const gi = li + w.flow.oi,
+              gj = lj + w.flow.oj;
+            if (gi < 0 || gj < 0 || gi >= w.solidN || gj >= w.solidN) continue;
+            if (!w.solid[gj * w.solidN + gi] && w.flow.dist[lj * S + li] < 0) lost++;
+          }
+        expect(lost, `seed ${seed} joueur ${px},${pz}`).toBe(0);
+      }
+    }
+  });
   it('la grille des cases pleines couvre les murets', () => {
     const w = new World(5);
     const s = w.walls[0];
@@ -130,7 +154,9 @@ describe('carte construite (phase 16)', () => {
       mz = (s.z1 + s.z2) / 2;
     const i = Math.floor((mx + WORLD_HALF) / FLOW.cell),
       j = Math.floor((mz + WORLD_HALF) / FLOW.cell);
-    expect(w.solid[j * w.solidN + i]).toBe(1);
+    let any = 0;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) any |= w.solid[(j + b) * w.solidN + i + a];
+    expect(any).toBe(1);
   });
 });
 

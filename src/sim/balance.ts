@@ -88,10 +88,12 @@ export const MAP = {
 
 // champ de flux (phase 16) : les ennemis au sol contournent les ouvrages au lieu de buter dessus
 export const FLOW = {
-  cell: 1.25, // côté d'une case
-  half: 40, // demi-côté de la grille locale, en cases : 100 u de côté, couvre la distance de réapparition (50 u)
+  cell: 1, // côté d'une case (1,25 u fermait des passages de 3 u : des poches que le flux n'atteignait pas)
+  half: 50, // demi-côté de la grille locale, en cases : 100 u de côté, couvre la distance de réapparition (50 u)
   period: 0.2, // recalcul (s)
-  clear: 0.5, // une case est pleine si son centre est à moins de r + 0,5 u d'un obstacle
+  clear: 0.2, // une case est pleine si son centre est à moins de r + 0,2 u d'un obstacle (passage de 3 u : 2,6 u libres)
+  blocked: 0.35, // un marcheur qui avance de moins de 35 % de sa vitesse voulue bute sur un obstacle…
+  detour: 0.6, // …et suit alors le flux case par case pendant 0,6 s : il glisse autour au lieu de pousser tout droit
 };
 
 // dangers à esquiver par le mouvement (phase 11, PLAN §3.1) : le saut et le dash servent à autre chose qu'à fuir

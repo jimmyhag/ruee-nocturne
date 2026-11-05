@@ -1,4 +1,4 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
@@ -184,7 +184,7 @@ function stepEnemies(w: World, dt: number): void {
         mvz = mv[1],
         sp2 = mvx * mvx + mvz * mvz;
       if (sp2 > 1e-8 && mvx * dx + mvz * dz > 0) {
-        w.flow.steer(e.x, e.z, dx / d, dz / d, fl);
+        w.flow.steer(e.x, e.z, dx / d, dz / d, fl, e.detour > 0);
         const sp = Math.sqrt(sp2);
         mv[0] = fl[0] * sp;
         mv[1] = fl[1] * sp;
@@ -219,9 +219,15 @@ function stepEnemies(w: World, dt: number): void {
     e.z += (mz + e.kz) * dt;
     e.kx *= decay;
     e.kz *= decay;
+    if (e.detour > 0) e.detour -= dt;
     if (!flies && !def.boss && w.nearObstacle(e.x, e.z)) {
-      // phase 16 : les marcheurs butent sur tous les obstacles (le champ de flux les a déjà orientés vers un passage)
+      // phase 16 : les marcheurs butent sur tous les obstacles (le champ de flux les a déjà orientés vers un passage) ;
+      // s'ils n'avancent presque plus, ils suivent le flux case par case un moment (ils glissent autour)
       w.resolveObstacles(e.x, e.z, e.r, out2, 0);
+      const want = (mx * mx + mz * mz) * dt * dt,
+        gx = out2[0] - e.px,
+        gz = out2[1] - e.pz;
+      if (want > 1e-6 && gx * gx + gz * gz < want * FLOW.blocked * FLOW.blocked) e.detour = FLOW.detour;
       e.x = out2[0];
       e.z = out2[1];
     }

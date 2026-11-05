@@ -32,6 +32,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   if (elite && type === ELITE_TYPE) e.timer = HAZARDS.charge.first; // Brute élite : première charge différée
   e.tx = e.tz = 0;
   e.phase2 = false;
+  e.detour = 0;
   return w.enemyCount - 1;
 }
 

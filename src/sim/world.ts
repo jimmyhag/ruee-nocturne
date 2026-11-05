@@ -502,6 +502,7 @@ function makeEnemy(): Enemy {
     tx: 0,
     tz: 0,
     phase2: false,
+    detour: 0,
   };
 }
 function makeProj(): Projectile {

@@ -78,8 +78,9 @@ export class FlowField {
   /**
    * Direction de marche pour un ennemi au sol en (x, z) dont la direction directe vers le joueur est (ux, uz), unitaire.
    * Écrit une direction unitaire dans out[0], out[1] : la directe si elle fait progresser, sinon vers la meilleure voisine.
+   * `detour` : l'ennemi butait sur un obstacle, on ignore la directe et on suit le flux case par case.
    */
-  steer(x: number, z: number, ux: number, uz: number, out: Float64Array): void {
+  steer(x: number, z: number, ux: number, uz: number, out: Float64Array, detour = false): void {
     out[0] = ux;
     out[1] = uz;
     if (!this.ready) return;
@@ -88,16 +89,20 @@ export class FlowField {
       lj = Math.floor((z + WORLD_HALF) / C) - this.oj;
     if (li < 1 || lj < 1 || li >= S - 1 || lj >= S - 1) return; // hors grille : tout droit
     const d0 = this.dist[lj * S + li];
-    if (d0 <= 1) return; // case du joueur ou voisine, ou case pleine/non atteinte (on pousse tout droit, la collision corrige)
-    const ahead = this.at(x + ux * C, z + uz * C);
-    if (ahead >= 0 && ahead < d0) return; // tout droit progresse
-    let best = d0,
+    if (d0 >= 0 && d0 <= 1) return; // case du joueur ou voisine
+    if (d0 > 1 && !detour) {
+      const ahead = this.at(x + ux * C, z + uz * C);
+      if (ahead >= 0 && ahead < d0) return; // tout droit progresse
+    }
+    // case pleine (collé contre un muret, dans la marge) ou détour : vers la voisine libre la plus proche du joueur.
+    // Diagonale seulement si les deux cases orthogonales sont libres : deux cases en diagonale peuvent être de part et
+    // d'autre d'un muret oblique (1,41 u > 1,3 u d'épaisseur avec les marges), deux cases orthogonales jamais.
+    let best = d0 < 0 ? 0x7fff : d0,
       bk = -1;
     for (let k = 0; k < 8; k++) {
       const n = (lj + DJ[k]) * S + (li + DI[k]);
       const dn = this.dist[n];
       if (dn < 0 || dn >= best) continue;
-      // diagonale : seulement si les deux cases orthogonales sont libres (pas de coin coupé contre un muret)
       if (k >= 4 && (this.dist[lj * S + li + DI[k]] < 0 || this.dist[(lj + DJ[k]) * S + li] < 0)) continue;
       best = dn;
       bk = k;
