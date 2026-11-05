@@ -22,6 +22,7 @@ import {
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadProps } from './models';
 import type { PropGeometry, PropKey } from './models';
 import { Mode, ProjKind, ShotKind, Spell } from '../sim/types';
@@ -91,6 +92,8 @@ const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
 /** Distance² sous laquelle coffres de carte et sanctuaires sont dessinés (phase 18 : au-delà, seule la colonne). */
 const POI_DRAW2 = 50 * 50;
 const PROP_DRAW = 48; // phase 20 : rayon du décor KayKit autour du joueur (le brouillard masque au-delà)
+const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
+const GRAVE_NEAR = 16; // …dont au plus 16 dessinés autour du joueur (≈ 1,3 k triangles chacun)
 const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1, 40, 24]; // phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24)
 
 interface Ghost {
@@ -170,6 +173,8 @@ export class GameScene {
   private decorProc: THREE.Object3D[] = []; // décor procédural remplacé quand les objets sont chargés
   private treeData = new Float32Array(0); // x, y, z, ry, s, sorte (0 sapin, 1 rond) par arbre
   private lampData = new Float32Array(0); // x, y, z par lanterne
+  private graveData = new Float32Array(0); // x, y, z, ry par petit cimetière (tombes et citrouille, phase 20)
+  private propGraveW: InstanceWriter;
   private propX = 1e9; // position du joueur au dernier tri du décor proche
   private propZ = 1e9;
   private cChest = new THREE.Color(PAL.gold); // couleur d'instance des coffres (blanche une fois le modèle texturé chargé)
@@ -332,7 +337,8 @@ export class GameScene {
     for (let k = 0; k < 4; k++)
       this.propTreeW.push(new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), 64)));
     this.propLampW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), 32));
-    for (const pw of [...this.propTreeW, this.propLampW]) this.scene.add(pw.mesh);
+    this.propGraveW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), GRAVE_NEAR));
+    for (const pw of [...this.propTreeW, this.propLampW, this.propGraveW]) this.scene.add(pw.mesh);
     loadProps().then(
       (p) => this.applyProps(p),
       () => undefined, // hors ligne : le décor procédural reste
@@ -540,6 +546,19 @@ export class GameScene {
       d.updateMatrix();
       halos.setMatrixAt(i, d.matrix);
     }
+    // phase 20 : petits cimetières (tombes, citrouille) au pied des arbres, hors lacs ; dessinés seulement en KayKit
+    const G: number[] = [];
+    for (let i = 0; i < GRAVES && nTrees > 0; i++) {
+      const o = w.obstacles[(i * 61 + 7) % nTrees];
+      const ang = (i * 2.399 + 1.1) % TAU;
+      const x = o.x + Math.sin(ang) * (o.r + 1.8),
+        z = o.z + Math.cos(ang) * (o.r + 1.8);
+      let wet = false;
+      for (const l of w.lakes) if ((x - l.x) * (x - l.x) + (z - l.z) * (z - l.z) < (l.r + 1) * (l.r + 1)) wet = true;
+      if (wet || Math.abs(x) > WORLD_HALF - 2 || Math.abs(z) > WORLD_HALF - 2) continue;
+      G.push(x, gy(x, z) - 0.05, z, ang + Math.PI);
+    }
+    this.graveData = new Float32Array(G);
     // herbe : touffes autour des arbres, jamais dans un lac
     let ng = 0;
     for (let i = 0; i < GRASS; i++) {
@@ -698,6 +717,32 @@ export class GameScene {
     const trees: PropKey[] = ['tree_pine', 'tree_pine_y', 'tree_dead', 'tree_dead_m'];
     for (let k = 0; k < 4; k++) swap(this.propTreeW[k], norm(p[trees[k]], k < 2 ? 4.6 : 4.0, 'y'), mat(p[trees[k]]));
     swap(this.propLampW, norm(p.lantern, 2.4, 'y'), mat(p.lantern));
+    // petit cimetière : stèle, tombe et citrouille fusionnées (même texture Halloween ⇒ un appel)
+    const at = (g: THREE.BufferGeometry, x: number, z: number, ry: number) => g.rotateY(ry).translate(x, 0, z);
+    const graveParts = [
+      at(norm(p.gravestone, 1.2, 'y'), 0, 0, 0),
+      at(norm(p.grave, 0.95, 'y'), 1.25, 0.45, -0.35),
+      at(norm(p.pumpkin, 0.62, 'y'), -1.0, 0.7, 0.6),
+    ];
+    const sameMap = p.grave.map === p.gravestone.map && p.pumpkin.map === p.gravestone.map;
+    swap(this.propGraveW, sameMap ? mergeGeometries(graveParts)! : graveParts[0], mat(p.gravestone));
+    // échoppe : caisses, tonneau et pièces KayKit autour de l'étal procédural (auvent et colporteur gardés)
+    const dress: [PropKey, number, number, number, number, number][] = [
+      ['crates', 1.25, -1.65, 0, -0.05, 0.25],
+      ['barrel', 0.9, 1.6, 0, 0.1, 0],
+      ['coins', 0.3, 0.5, 0.86, 0.35, 0.5],
+    ];
+    const byMap = new Map<THREE.Texture | null, THREE.BufferGeometry[]>();
+    for (const [key, h, x, y, z, ry] of dress) {
+      const g = norm(p[key], h, 'y').rotateY(ry).translate(x, y, z);
+      const list = byMap.get(p[key].map) ?? [];
+      list.push(g);
+      byMap.set(p[key].map, list);
+    }
+    for (const [map, list] of byMap) {
+      const g = list.length > 1 ? mergeGeometries(list)! : list[0];
+      this.stall.add(new THREE.Mesh(g, mat({ geometry: g, map })));
+    }
     this.cChest = this.cBladeCol = this.cBoomCol = WHITE;
     this.propsReady = true;
     for (const m of this.decorProc) m.visible = false;
@@ -727,6 +772,14 @@ export class GameScene {
       if (dx * dx + dz * dz < R2) this.propLampW.put(L[i], L[i + 1], L[i + 2], i * 0.7, 1, WHITE);
     }
     this.propLampW.end();
+    this.propGraveW.begin();
+    const G = this.graveData;
+    for (let i = 0; i < G.length; i += 4) {
+      const dx = G[i] - px,
+        dz = G[i + 2] - pz;
+      if (dx * dx + dz * dz < R2) this.propGraveW.put(G[i], G[i + 1], G[i + 2], G[i + 3], 1, WHITE);
+    }
+    this.propGraveW.end();
   }
 
   resize(wpx: number, hpx: number): void {
