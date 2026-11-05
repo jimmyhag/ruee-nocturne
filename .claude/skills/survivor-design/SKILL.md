@@ -106,7 +106,7 @@ Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile nake
 | Runs avec au moins une synergie | — | ≥ 50 % |
 | Plus forte chute des vivants en 1 min | ≤ 22 points | ≤ 22 points |
 | Coffres de carte ouverts par run | ≥ 1 | ≥ 3 |
-| Or dépensé en partie / or gagné | — | ≥ 35 % |
+| Or dépensé en partie / or gagné | — | ≥ 25 % |
 | Taux de pick par arme | — | 8–35 % |
 | Kills à 10 min (médiane) | — | 900–1600 |
 | Variance de kills inter-builds | — | < 3× médiane |

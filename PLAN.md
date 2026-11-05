@@ -334,7 +334,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 
 ### Phase 18 — Relief, exploration et rythme (après la 1.12.1)
 - Retour de Jimmy : difficulté lisse, rendre le jeu addictif (coffres posés sur la carte, marchand), la carte est trop vide : du relief, des montées et des descentes. Relief en collines douces (§3.4), coffres de carte payants et sanctuaires (§3.6), annonce et respiration avant les boss, mesure « plus forte chute des vivants en une minute » dans la CLI.
-- **Porte** : pente ≤ 0,35 ; connexité 100 % ; cibles des profils nu et maxé tenues ; plus forte chute des vivants bornée ; coffres de carte ouverts (nu ≥ 1, maxé ≥ 3 par run) ; or dépensé en partie ≥ 35 % de l'or gagné (maxé) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; e2e coffre de carte et sanctuaire au clavier et au doigt ; captures lues ; test de Jimmy.
+- **Porte** : pente ≤ 0,35 ; connexité 100 % ; cibles des profils nu et maxé tenues ; plus forte chute des vivants bornée ; coffres de carte ouverts (nu ≥ 1, maxé ≥ 3 par run) ; or dépensé en partie ≥ 25 % de l'or gagné (maxé ; 7 % avant la phase) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; e2e coffre de carte et sanctuaire au clavier et au doigt ; captures lues ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

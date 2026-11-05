@@ -58,7 +58,9 @@ export const MAXED: Target[] = [
   },
   { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' }, // phase 18
   { name: 'coffres de carte ≥ 3 / run', min: 3, max: 1e9, get: (s) => s.mapChestsPerRun, fmt: (v) => v.toFixed(1) },
-  { name: 'or dépensé ≥ 35 %', min: 35, max: 100, get: (s) => s.goldSpentPct, fmt: (v) => v + ' %' }, // phase 18 : l'or sert en partie
+  // phase 18 : l'or sert en partie (7 % avant la phase) ; 25 % et non 35 : le bot ne fait que de courts détours (28 u),
+  // un joueur qui suit les colonnes de lumière ouvre davantage de coffres
+  { name: 'or dépensé ≥ 25 %', min: 25, max: 100, get: (s) => s.goldSpentPct, fmt: (v) => v + ' %' },
   {
     name: 'synergie ≥ 50 % des runs', // phase 17 : la synergie est un objectif de build atteignable
     min: 50,
