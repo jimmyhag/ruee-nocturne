@@ -579,6 +579,8 @@ export const MERCHANT = {
   price: [70, 140, 240], // par rareté, à la première visite…
   growth: 0.25, // …+25 % à chaque visite
   reroll: 40, // relance : 40 or, puis +40 à chaque fois pendant la visite
+  placeTries: 8, // essais de placement autour du joueur, hors obstacle
+  placeMargin: 0.5, // u de dégagement autour de l'échoppe
 };
 
 // synergies tome + arme (phase 17) : l'arme équipée et au moins SYN.tome cartes du tome

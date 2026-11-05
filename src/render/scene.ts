@@ -992,6 +992,7 @@ export class GameScene {
 
   snapCamera(w: World): void {
     this.zoom = 1;
+    this.stallVisit = -1; // nouveau run : l'échoppe se tourne de nouveau vers le joueur à sa première visite
     this.landT = -1;
     for (const g of this.ghosts) g.life = 0;
     this.camPos.set(w.player.x, 12.5 * this.camScale, w.player.z + 10.5 * this.camScale);

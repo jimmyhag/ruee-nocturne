@@ -36,13 +36,13 @@ export function tickMerchant(w: World): void {
     M.next++;
     // place libre près du joueur : quelques essais autour de lui, repoussée hors des obstacles
     const P = w.player;
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < MERCHANT.placeTries; k++) {
       const a = w.rng.range(0, TAU),
         d = w.rng.range(MERCHANT.distMin, MERCHANT.distMax);
-      w.resolveObstacles(P.x + Math.sin(a) * d, P.z + Math.cos(a) * d, MERCHANT.r + 0.5, out2, 0);
+      w.resolveObstacles(P.x + Math.sin(a) * d, P.z + Math.cos(a) * d, MERCHANT.r + MERCHANT.placeMargin, out2, 0);
       M.x = out2[0];
       M.z = out2[1];
-      if (!w.nearObstacle(M.x, M.z) || k === 7) break;
+      if (!w.nearObstacle(M.x, M.z) || k === MERCHANT.placeTries - 1) break;
     }
     M.active = true;
     M.until = w.t + MERCHANT.stay;

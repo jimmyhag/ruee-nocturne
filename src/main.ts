@@ -436,6 +436,7 @@ function merchantAct(code: number): void {
   inp.pick = code;
   step(world, inp, STEP);
   inp.pick = -1;
+  handleEvents(world, performance.now() / 1000); // objet acheté, synergie : bannière, son, particules
   hud.kit(world);
   if (world.mode === Mode.Merchant) {
     if (world.itemOrder.length > before) audio.select('wnew');
@@ -479,6 +480,7 @@ function choose(i: number): void {
     inp.pick = i;
     step(world, inp, STEP); // applique la carte ; peut re-rouler si plusieurs niveaux en attente
     inp.pick = -1;
+    handleEvents(world, performance.now() / 1000); // objet de coffre, synergie : bannière, son, particules
     hud.kit(world);
     if (world.mode === Mode.LevelUp) openLevelUp();
     else {

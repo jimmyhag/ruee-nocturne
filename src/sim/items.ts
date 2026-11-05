@@ -117,9 +117,10 @@ export function merchantOffers(w: World): number {
 
 export const itemIndex = (key: ItemKey): number => ITEM_KEYS.indexOf(key);
 
+let talismanBusy = false;
 /** Talisman orageux : appelé à chaque kill ; tous les ITEM.talisman.every kills, la foudre frappe les plus proches. */
 export function talismanKill(w: World): void {
-  if (!w.items[It.Talisman]) return;
+  if (!w.items[It.Talisman] || talismanBusy) return;
   if (++w.talismanKills < ITEM.talisman.every) return;
   w.talismanKills = 0;
   const T = ITEM.talisman;
@@ -145,6 +146,7 @@ export function talismanKill(w: World): void {
     if (best < 0) break;
     marks[k] = best;
   }
+  talismanBusy = true; // une frappe qui tue rappelle talismanKill : pas de réécriture de talismanMarks en cours de lecture
   for (let k = 0; k < T.targets; k++) {
     const i = marks[k];
     if (i < 0) break;
@@ -155,4 +157,5 @@ export function talismanKill(w: World): void {
     const dmg = (e.max * (def.boss ? T.bossFrac : T.frac)) / Math.max(0.01, P.dmgMul);
     hitEnemy(w, i, dmg, 0, P.x, P.z, HitSrc.Talisman);
   }
+  talismanBusy = false;
 }

@@ -120,7 +120,14 @@ export class Hud {
         this.cache.mDeg = deg;
         this.els.merchantArrow.style.transform = `rotate(${deg}deg)`;
       }
-      this.text('merchantDist', `${Math.round(Math.sqrt(dx * dx + dz * dz))} m · ${Math.ceil(M.until - w.t)} s`);
+      // la chaîne n'est construite que si la distance ou les secondes changent (zéro allocation par frame)
+      const md = Math.round(Math.sqrt(dx * dx + dz * dz)),
+        ms = Math.ceil(M.until - w.t);
+      if (this.cache.mDist !== md || this.cache.mSecs !== ms) {
+        this.cache.mDist = md;
+        this.cache.mSecs = ms;
+        this.text('merchantDist', `${md} m · ${ms} s`);
+      }
     }
     // fantôme de PV : rattrape en 400 ms (transition CSS) → lisibilité de la quantité perdue
     this.width('hpghost', P.hp / P.maxHp);

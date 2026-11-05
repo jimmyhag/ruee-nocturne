@@ -176,6 +176,7 @@ function stepEnemies(w: World, dt: number): void {
   const airborne = P.y >= PLAYER.airborneSafeY;
   let shooters = 0;
   // Épines (phase 17) : le renvoi de dégâts tombe toutes les ITEM.epines.period s, pas à chaque pas (moins de chiffres)
+  const sablier = w.items[It.Sablier] === 1; // Sablier fêlé : élites et boss ralentis
   let thorns = false;
   if (w.items[It.Epines]) {
     w.thornT -= dt;
@@ -226,7 +227,7 @@ function stepEnemies(w: World, dt: number): void {
       }
     }
     // phase 17 : Sablier fêlé, élites et boss ralentis
-    if (w.items[It.Sablier] && (e.elite || def.boss)) {
+    if (sablier && (e.elite || def.boss)) {
       mv[0] *= ITEM.sablier.slow;
       mv[1] *= ITEM.sablier.slow;
     }
