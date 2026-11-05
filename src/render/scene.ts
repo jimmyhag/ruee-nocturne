@@ -835,7 +835,8 @@ export class GameScene {
       }
       todo.push(() => {
         mesh.geometry.dispose();
-        mesh.geometry = geo;
+        // niveau choisi à l'échange : la qualité a pu changer pendant la compilation asynchrone
+        mesh.geometry = this.qualityLevel > 0 ? b.geo.net : b.geo.pixel;
         mesh.material = mat;
         mesh.morphTexture = tex;
         mesh.updateMorphTargets();
