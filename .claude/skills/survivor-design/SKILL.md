@@ -91,6 +91,9 @@ Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90
 - Personnages : 3 au départ dont 2 à débloquer ; stats de départ **différentes mais pas meilleures**.
 - Défi quotidien : seed = `hash(date UTC)`, même tirage de cartes pour tous ; classement local des 10 meilleurs temps.
 
+- **Rythme et exploration** (phase 18) : la carte doit toujours offrir un but proche (coffre de carte payant, sanctuaire, signalés par une colonne de lumière). Le prix d'un coffre de carte suit l'or gagné (×(1 + t/250)) et monte à chaque ouverture : l'or a un usage pendant toute la partie, sans que le kit complet ouvre tout sans y penser. Avec 6 objets, un coffre donne un bonus de sanctuaire (aucun cul-de-sac). Avant chaque boss : annonce 15 s avant et spawn à 60 % les 10 dernières secondes (tension → respiration → pic).
+- **Difficulté lisse** : la CLI mesure la plus forte chute des vivants en une minute ; une falaise (≥ 25 points) fait quitter. Les rampes de densité commencent en pente douce (terme `t − 480` /360 plutôt qu'un seuil sec à 10:00).
+
 ## 9. Cibles d'équilibrage mesurées par simulation
 Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile naked|maxed` (`tools/targets.ts`) :
 | Métrique | Nu (`--profile naked`) | Maxé (`--profile maxed`) |
@@ -101,6 +104,9 @@ Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile nake
 | Runs qui passent 3 min (arme n°2 accessible) | ≥ 40 % | — |
 | Or gardé médian par run (après le marchand) | ≥ 0,5 emplacement n°2 (150 or) | — |
 | Runs avec au moins une synergie | — | ≥ 50 % |
+| Plus forte chute des vivants en 1 min | ≤ 22 points | ≤ 22 points |
+| Coffres de carte ouverts par run | ≥ 1 | ≥ 3 |
+| Or dépensé en partie / or gagné | — | ≥ 35 % |
 | Taux de pick par arme | — | 8–35 % |
 | Kills à 10 min (médiane) | — | 900–1600 |
 | Variance de kills inter-builds | — | < 3× médiane |

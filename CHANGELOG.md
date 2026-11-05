@@ -2,6 +2,22 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.13.0 — 5 nov. 2026 (phase 18 « Relief, exploration et rythme »)
+
+La carte n'est plus plate ni vide : on monte, on descend, et il y a toujours quelque chose à aller chercher.
+
+### Ajouté
+
+- **Relief** : des collines douces partout sur la carte (jusqu'à 5–6 u de haut, jamais de falaise). Monter ralentit, descendre accélère, pour toi comme pour les ennemis. Les creux sont plus sombres et bleutés, les sommets plus clairs.
+- **Coffres de carte** (20) : sur les sommets, dans les ruines et les cercles de pierres. Reste un instant dessus pour l'ouvrir ; il se paie avec l'or de la partie (40 or au départ, de plus en plus cher au fil des coffres et du temps). Il donne un objet au choix, ou un bonus pour la partie si tu portes déjà 6 objets.
+- **Sanctuaires** (10) : reste 4 s dans le cercle de pierres pendant que les ennemis arrivent, puis choisis un bonus pour la partie parmi 3 (PV, dégâts, vitesse, recharge, collecte ou or).
+- **Colonnes de lumière** au-dessus des coffres (dorées si tu peux payer, grises sinon) et des sanctuaires (bleues) : on les voit de loin.
+- **Annonce des boss** : « Le Gardien approche… » 15 s avant, et moins d'ennemis les 10 dernières secondes pour se placer.
+
+### Modifié
+
+- Difficulté plus régulière : plus de « mur » à 10:00 (la montée de densité commence plus tôt et plus doucement), le Gardien a un peu moins de PV, la fin de partie est un peu moins raide.
+
 ## 1.12.1 — 5 nov. 2026
 
 ### Ajouté

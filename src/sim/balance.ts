@@ -80,7 +80,7 @@ export const MAPCHEST = {
   hold: 0.6, // …ce temps (s) pour ouvrir : on n'ouvre rien par accident, même règle au clavier et au doigt
   price: 40, // or, premier coffre…
   growth: 0.35, // …+35 % par coffre ouvert…
-  timeScale: 400, // …et × (1 + t / 400) : ×2 à 6:40, ×3 à 13:20 (l'or gagné croît avec le temps)
+  timeScale: 250, // …et × (1 + t / 250) : ×2 à 4:10, ×3 à 8:20 (l'or gagné croît avec le temps ; /400 : 23 % de l'or dépensé en maxé)
   placeShare: 0.4, // part des coffres posés dans les lieux construits (le reste sur les hauteurs)
 };
 export const SHRINE = {
