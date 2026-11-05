@@ -103,6 +103,9 @@ interface RunResult {
   items: string[]; // phase 17 : objets obtenus (coffres et marchand), dans l'ordre
   bought: number; // dont achetés au marchand
   synergies: string[]; // synergies actives en fin de run
+  mapChests: number; // phase 18 : coffres de carte ouverts
+  shrines: number; // sanctuaires pris
+  goldEarned: number; // or gagné (gardé + dépensé)
   // défis (phase 6)
   noHit: number; // plus longue période sans dégât (s)
   distance: number; // u parcourus
@@ -254,6 +257,9 @@ function runOnce(seed: number): RunResult {
     items: w.itemOrder.map((i) => ITEM_KEYS[i]),
     bought,
     synergies: SYNERGIES.filter((_, i) => w.syn[i]).map((s) => s.key),
+    mapChests: w.mapChestsOpened,
+    shrines: w.shrinesUsed,
+    goldEarned: Math.round(w.gold + w.goldSpent),
     noHit: w.noHitBest,
     distance: w.distance,
     aliveAtMinute: alive,
@@ -346,6 +352,16 @@ const summary = {
     ]),
   ),
   synergyRunPct: (100 * results.filter((r) => r.synergies.length > 0).length) / RUNS,
+  // phase 18 : points d'intérêt et part de l'or dépensé en partie (coffres de carte + marchand)
+  mapChestsPerRun: +(results.reduce((a, r) => a + r.mapChests, 0) / RUNS).toFixed(2),
+  shrinesPerRun: +(results.reduce((a, r) => a + r.shrines, 0) / RUNS).toFixed(2),
+  goldSpentPct: Math.round(
+    (100 * results.reduce((a, r) => a + r.goldSpent, 0)) /
+      Math.max(
+        1,
+        results.reduce((a, r) => a + r.goldEarned, 0),
+      ),
+  ),
   synergyPct: Object.fromEntries(
     SYNERGIES.map((s) => [s.key, Math.round((100 * results.filter((r) => r.synergies.includes(s.key)).length) / RUNS)]),
   ),
@@ -426,7 +442,10 @@ const summary = {
     Math.round((100 * results.filter((r) => r.time >= (m + 1) * 60).length) / RUNS),
   ),
   runsPerMin: Math.round((RUNS / elapsed) * 60),
+  maxDrop: 0, // phase 18 : plus forte chute des vivants en une minute (points), calculée ci-dessous
 };
+for (let m = 1; m < summary.aliveCurve.length; m++)
+  summary.maxDrop = Math.max(summary.maxDrop, summary.aliveCurve[m - 1] - summary.aliveCurve[m]);
 
 const lines: string[] = [];
 lines.push(
@@ -478,7 +497,10 @@ lines.push(
 lines.push(
   `coincés     ${summary.stuckTotal} ennemis immobiles > 3 s près du joueur, dans ${summary.stuckRuns} run(s) sur ${RUNS}`,
 );
-lines.push(`vivants/min ${summary.aliveCurve.join(' ')}`);
+lines.push(`vivants/min ${summary.aliveCurve.join(' ')}  (plus forte chute ${summary.maxDrop} pts en 1 min)`);
+lines.push(
+  `carte       ${summary.mapChestsPerRun} coffres de carte et ${summary.shrinesPerRun} sanctuaires par run · ${summary.goldSpentPct} % de l'or gagné dépensé en partie`,
+);
 const checks = checkTargets(summary, PROFILES[PROFILE]);
 lines.push(`cibles      ${checks.map((c) => `${c.ok ? '✔' : '✘'} ${c.name} (${c.value})`).join('  ')}`);
 if (!checks.every((c) => c.ok)) lines.push('cibles non atteintes : à régler dans balance.ts (survivor-design §9)');
