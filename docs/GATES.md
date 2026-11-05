@@ -347,14 +347,15 @@ Relecture `balance-playtester` (6 simulations de 100 runs) : troisième seed (44
 
 ## Phase 19 — mesures détaillées (5 nov. 2026, conteneur Linux)
 
-| Mesure                                    | Valeur                                                                                        | Comment                                 |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Profil nu (Éclaireuse, 200 runs, seed 42) | p50 **5:41**, fin 8 %, morts < 3 min 10 %, chute max 22 pts/min ; Bond 0,95 lancer par minute | toutes les cibles tenues                |
-| Profil maxé (200 runs)                    | p50 **10:59**, fin 2 %, chute max 16 pts/min, or dépensé 29 % ; Bond 0,93 / min               | toutes les cibles tenues                |
-| Personnages (60 runs)                     | nu 4:51 (Veilleuse) à 6:36 (Bûcheron) ; maxé 9:50 à 11:36                                     | ± 3 min de l'Éclaireuse                 |
-| Part des kills du sort                    | 0–9 % pour huit sorts ; Bourse 36 % → **30 %** (30 dégâts / 6 s → 16 / 8 s)                   | cible ≤ 30 %                            |
-| Rendu à 400 ennemis                       | 36 appels / 135 k tris au plus pendant un sort (filet : +1 appel quand il est posé, 0 sinon)  | relecture `perf-reviewer`, spec jetable |
-| Bench                                     | p50 0,40 ms, p95 2,3 ms, tas +0,20 Mo, avec un Bond toutes les 45 frames                      | `npm run bench`                         |
+| Mesure                                           | Valeur                                                                                                                                                                             | Comment                                                                                            |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Profil nu (Éclaireuse, 200 runs, seed 42)        | p50 **5:41**, fin 8 %, morts < 3 min 10 %, chute max 22 pts/min ; Bond 0,95 lancer par minute                                                                                      | toutes les cibles tenues                                                                           |
+| Profil maxé (200 runs)                           | p50 **10:59**, fin 2 %, chute max 16 pts/min, or dépensé 29 % ; Bond 0,93 / min                                                                                                    | toutes les cibles tenues                                                                           |
+| Personnages (60 runs)                            | nu 4:51 (Veilleuse) à 6:36 (Bûcheron) ; maxé 9:50 à 11:36                                                                                                                          | ± 3 min de l'Éclaireuse                                                                            |
+| Part des kills du sort                           | 0–9 % pour huit sorts ; Bourse 36 % → **30 %** (30 dégâts / 6 s → 16 / 8 s)                                                                                                        | cible ≤ 30 %                                                                                       |
+| Relecture `balance-playtester` (60 runs × 9 × 2) | aucun personnage hors ± 3 min ; morts < 3 min ≤ 18 % (Veilleuse) ; cas limites : Bourse à 30 % des kills, Clignement 0,72 lancer / min en maxé (le bot ne l'utilise qu'au contact) | essayé `bourse.perGold` 0,08 et `clignement.cd` 4 : sans effet mesurable (30 %, 0,72), non retenus |
+| Rendu à 400 ennemis                              | 36 appels / 135 k tris au plus pendant un sort (filet : +1 appel quand il est posé, 0 sinon)                                                                                       | relecture `perf-reviewer`, spec jetable                                                            |
+| Bench                                            | p50 0,40 ms, p95 2,3 ms, tas +0,20 Mo, avec un Bond toutes les 45 frames                                                                                                           | `npm run bench`                                                                                    |
 
 Décisions prises :
 
