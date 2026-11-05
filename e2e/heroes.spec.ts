@@ -28,6 +28,7 @@ test('le héros glTF remplace le modèle procédural, au menu puis en partie', a
   const p = info.project.name;
   await openGame(page);
   await page.evaluate((m) => (window as any).__game.setMeta(m), { ...ALL, character: 'bucheron' });
+  await page.evaluate(() => (window as any).__game.scene.setCharacter('bucheron', 0));
   await page.waitForFunction(
     () => (window as any).__game.scene.modelKey === 'bucheron' && (window as any).__game.scene.heroKind === 'gltf',
     null,

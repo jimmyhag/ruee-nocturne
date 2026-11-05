@@ -28,6 +28,25 @@ export function loadGLTF(file: string): Promise<GLTF> {
   return p;
 }
 
+/**
+ * Attributs quantifiés (entiers normalisés, meshopt) → flottants : sinon applyMatrix4 réécrit dans un Int16 borné à
+ * [-1, 1] et écrase le modèle. Ne garde que position, normale et UV (attributs communs aux maillages fusionnés).
+ */
+function toFloat(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  for (const name of Object.keys(g.attributes)) {
+    if (name !== 'position' && name !== 'normal' && name !== 'uv') {
+      g.deleteAttribute(name);
+      continue;
+    }
+    const a = g.attributes[name] as THREE.BufferAttribute;
+    if (a.array instanceof Float32Array && !a.normalized) continue;
+    const f = new Float32Array(a.count * a.itemSize);
+    for (let i = 0; i < a.count; i++) for (let k = 0; k < a.itemSize; k++) f[i * a.itemSize + k] = a.getComponent(i, k);
+    g.setAttribute(name, new THREE.BufferAttribute(f, a.itemSize));
+  }
+  return g;
+}
+
 export interface PropGeometry {
   geometry: THREE.BufferGeometry;
   map: THREE.Texture | null;
@@ -51,10 +70,8 @@ export function loadProps(): Promise<Record<PropKey, PropGeometry>> {
       holder.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
-        const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
-        // attributs communs seulement (certains maillages n'ont pas d'UV) : position, normale, uv
-        for (const name of Object.keys(g.attributes))
-          if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+        const g = toFloat(m.geometry.clone());
+        g.applyMatrix4(m.matrixWorld);
         parts.push(g.index ? g.toNonIndexed() : g);
         const mat = m.material as THREE.MeshStandardMaterial;
         map ??= mat.map ?? null;
