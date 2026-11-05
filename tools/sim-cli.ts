@@ -175,14 +175,18 @@ function runOnce(seed: number): RunResult {
         if (!en.alive || def.boss || en.type === 4 || en.type === 5 || en.type === 9 || en.type === 10) continue;
         const d = Math.hypot(en.x - w.player.x, en.z - w.player.z);
         const rec = last.get(en.id) ?? { x: en.x, z: en.z, still: 0, counted: false };
-        // un bouchon dans une brèche (au moins trois voisins collés) n'est pas un ennemi coincé : c'est la foule
-        let crowd = 0;
-        for (let q = 0; q < w.enemyCount && crowd < 3; q++) {
-          const o = w.enemies[q];
-          if (o !== en && o.alive && Math.hypot(o.x - en.x, o.z - en.z) < en.r + o.r + 0.3) crowd++;
+        // candidat seulement s'il est près du joueur et n'a presque pas bougé ; un bouchon dans une brèche (au moins
+        // trois voisins collés) n'est pas un ennemi coincé, c'est la foule (compté seulement pour les candidats : O(n))
+        let near = d < 30 && d > en.r + 3 && Math.hypot(en.x - rec.x, en.z - rec.z) < 0.25;
+        if (near) {
+          let crowd = 0;
+          for (let q = 0; q < w.enemyCount && crowd < 3; q++) {
+            const o = w.enemies[q];
+            if (o !== en && o.alive && Math.hypot(o.x - en.x, o.z - en.z) < en.r + o.r + 0.3) crowd++;
+          }
+          near = crowd < 3;
         }
-        const near = d < 30 && d > en.r + 3 && crowd < 3;
-        rec.still = near && Math.hypot(en.x - rec.x, en.z - rec.z) < 0.25 ? rec.still + 0.5 : 0;
+        rec.still = near ? rec.still + 0.5 : 0;
         if (rec.still >= 3 && !rec.counted) {
           rec.counted = true;
           stuck++;
