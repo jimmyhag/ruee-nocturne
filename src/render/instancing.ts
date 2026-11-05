@@ -18,6 +18,8 @@ export function makeInstanced(geo: THREE.BufferGeometry, mat: THREE.Material, ca
 /** Écriture rapide d'une instance : position, rotation Y, scale uniforme (ou non), couleur. */
 export class InstanceWriter {
   n = 0;
+  /** index de la dernière instance écrite, -1 si le dernier put a été refusé (capacité pleine) */
+  last = -1;
   private d = new THREE.Object3D();
   constructor(public mesh: THREE.InstancedMesh) {}
   begin(): void {
@@ -35,7 +37,11 @@ export class InstanceWriter {
     sy = s,
     sz = s,
   ): void {
-    if (this.n >= this.mesh.instanceMatrix.count) return;
+    if (this.n >= this.mesh.instanceMatrix.count) {
+      this.last = -1;
+      return;
+    }
+    this.last = this.n;
     const d = this.d;
     d.position.set(x, y, z);
     d.rotation.set(rx, ry, rz, 'XZY'); // inclinaison (rx, rz) indépendante de la rotation ry (phase 18 : ombres sur les pentes)

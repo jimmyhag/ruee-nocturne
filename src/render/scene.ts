@@ -7,6 +7,8 @@ import {
   ENEMIES,
   ARCHER,
   ARCHER_TYPE,
+  CRACHEUR_TYPE,
+  SORCIER_TYPE,
   HAZARDS,
   MAPCHEST,
   MERCHANT,
@@ -99,8 +101,8 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
-const ENEMY_TINT_KEEP = 0.72;
-const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude) // phase 21 : part de blanc dans la teinte d'un squelette (os clairs, type reconnaissable)
+const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
+const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
 const ENEMY_STRIDE = 0.42; // tours de marche par unité de vitesse (Spectre 2,7 u/s : ≈ 1,1 pas par seconde)
 const CHEST_ELITE = new THREE.Color(0xffd98a); // coffre d'élite : même modèle que celui de carte, teinté d'or
@@ -784,8 +786,10 @@ export class GameScene {
    * morphTexture par type, allouée à pleine capacité (même piège que les couleurs d'instance) ; contour des boss par
    * un InstancedMesh jumeau qui partage matrices et poses. Tout est construit avant d'échanger.
    */
-  private applyEnemyModels(en: (BakedEnemy | null)[], p: Record<PropKey, PropGeometry>): void {
+  private async applyEnemyModels(en: (BakedEnemy | null)[], p: Record<PropKey, PropGeometry>): Promise<void> {
     const todo: (() => void)[] = [];
+    // programmes compilés en tâche de fond avant l'échange (relecture perf : 5 à 7 shaders d'un coup sinon, en jeu)
+    const probes = new THREE.Group();
     for (let t = 0; t < this.enemyW.length; t++) {
       const b = en[t] ?? null;
       const mesh = this.enemyW[t].mesh;
@@ -800,6 +804,7 @@ export class GameScene {
           .scale(k, k, k)
           .rotateX(-0.6); // face levée vers la caméra (vue 3/4 haute) : orbites et dents lisibles de loin
         const m = new THREE.MeshToonMaterial({ map: p.skull.map, gradientMap: toonGradient() });
+        probes.add(new THREE.InstancedMesh(g, m, 1));
         todo.push(() => {
           mesh.geometry.dispose();
           mesh.geometry = g;
@@ -814,6 +819,9 @@ export class GameScene {
       const data = new Float32Array(len * cap);
       const tex = new THREE.DataTexture(data, len, cap, THREE.RedFormat, THREE.FloatType);
       tex.needsUpdate = true;
+      const probe = new THREE.InstancedMesh(geo, mat, 1);
+      probe.morphTexture = tex;
+      probes.add(probe);
       let outline: THREE.InstancedMesh | null = null;
       if (b.boss) {
         outline = new THREE.InstancedMesh(geo, enemyOutlineMaterial(OUTLINE.boss), cap);
@@ -821,6 +829,9 @@ export class GameScene {
         outline.morphTexture = tex;
         outline.count = 0;
         outline.frustumCulled = false;
+        const op = new THREE.InstancedMesh(geo, outline.material, 1);
+        op.morphTexture = tex;
+        probes.add(op);
       }
       todo.push(() => {
         mesh.geometry.dispose();
@@ -836,8 +847,9 @@ export class GameScene {
         this.bossOutline[t] = outline;
       });
     }
+    await this.renderer.compileAsync(probes, this.camera, this.scene).catch(() => undefined);
+    this.enemyBaked = en; // avant l'échange : poseEnemy lit enemyBaked dès que enemyMorph[t] existe
     for (const f of todo) f();
-    this.enemyBaked = en;
     // la couleur d'instance multiplie la texture : teinte du type adoucie (les os restent clairs), élites dorées
     for (let t = 0; t < this.enemyW.length; t++) {
       if (!en[t] && t !== VOLANT_TYPE) continue;
@@ -855,15 +867,15 @@ export class GameScene {
     if (!data) return;
     const b = this.enemyBaked[t]!;
     const len = 1 + b.loop + b.action;
-    const row = this.enemyW[t].n - 1;
+    const row = this.enemyW[t].last; // -1 : instance refusée (capacité pleine), rien à poser
     if (row < 0) return;
     if (b.action) {
       // Archer et Cracheur : visée 0 → 1 ; Sorcier et boss : geste en boucle pendant le télégraphe (state 1)
-      if ((t === ARCHER_TYPE && e.state === 1) || (t === 5 && e.aim > 0)) {
+      if ((t === ARCHER_TYPE && e.state === 1) || (t === CRACHEUR_TYPE && e.aim > 0)) {
         writeOncePose(data, row, len, b.loop, b.action, e.aim);
         return;
       }
-      if (e.state === 1 && (b.boss || t === 10)) {
+      if (e.state === 1 && (b.boss || t === SORCIER_TYPE)) {
         writeLoopPose(data, row, len, b.loop, b.action, now * 0.9 + e.bob);
         return;
       }
