@@ -185,7 +185,7 @@
   "char.veilleuse.trait": "Ember: the Halo grows 8% per minute, up to +40%",
   "char.braconnier.name": "Poacher",
   "char.braconnier.text": "Level 2 Boomerang from the start, +10 HP",
-  "char.braconnier.trait": "Retriever: catching a boomerang refunds half its cooldown",
+  "char.braconnier.trait": "Retriever: catching a boomerang refunds 30% of its cooldown",
   "char.sapeur.name": "Sapper",
   "char.sapeur.text": "Mines from the start, −20% HP, a bit slower",
   "char.sapeur.trait": "Demolisher: every landing drops a mine",

@@ -87,7 +87,7 @@ describe('passifs', () => {
     for (let f = 0; f < 20; f++) step(w, still, STEP);
     expect(e.hp).toBeLessThan(hp0);
   });
-  it('Braconnier : un boomerang attrapé au retour rend la moitié de la recharge', () => {
+  it('Braconnier : un boomerang attrapé au retour rend une part de la recharge', () => {
     const w = make('braconnier');
     spawnEnemy(w, 0, 0, 20); // cible lointaine pour que le lancer parte
     let caught = false;

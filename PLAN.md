@@ -113,7 +113,7 @@ Un personnage = une arme de départ + un passif signature (une règle de jeu, pa
 | Bûcheron | +30 PV, lames à portée +20 % | Lames 2 | Fendeur : les Lames repoussent 50 % plus fort | Survivre 10 min |
 | Vieille sorcière | −30 % PV | Foudre | Paratonnerre : la Foudre vise d'abord le plus proche | 500 kills cumulés |
 | Veilleuse | +20 PV | Halo | Braise : le Halo grandit de 8 % par minute, max +40 % | 800 or |
-| Braconnier | +10 PV | Boomerang 2 | Rapporteur : un boomerang attrapé rend la moitié de sa recharge | 1 200 or |
+| Braconnier | +10 PV | Boomerang (2 lignes de dégâts) | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
 | Sapeur | −20 % PV, vitesse 0,92 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
 | Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : dash 2× plus long qui laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
 | Revenante | −55 % PV, vitesse 0,9 | Foudre et Halo | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air | Vaincre le Faucheur |

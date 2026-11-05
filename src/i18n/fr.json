@@ -185,7 +185,7 @@
   "char.veilleuse.trait": "Braise : le Halo grandit de 8 % par minute, jusqu'à +40 %",
   "char.braconnier.name": "Braconnier",
   "char.braconnier.text": "Boomerang niveau 2 dès le départ, +10 PV",
-  "char.braconnier.trait": "Rapporteur : un boomerang attrapé au retour rend la moitié de sa recharge",
+  "char.braconnier.trait": "Rapporteur : un boomerang attrapé au retour rend 30 % de sa recharge",
   "char.sapeur.name": "Sapeur",
   "char.sapeur.text": "Mines dès le départ, −20 % PV, un peu plus lent",
   "char.sapeur.trait": "Démolisseur : chaque atterrissage de saut pose une mine",

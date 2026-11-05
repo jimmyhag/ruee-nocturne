@@ -473,7 +473,9 @@ export const RARITY = {
 export const TRAIT = {
   fendeur: { kbMul: 1.5 }, // Bûcheron : recul des Lames ×1,5
   braise: { perMin: 0.1, max: 0.5 }, // Veilleuse : rayon du Halo +10 %/min, plafonné à +50 % (5:00) ; 8 %/40 % donnait p50 5:26
-  rapporteur: { refund: 0.6 }, // Braconnier : un boomerang attrapé rend 60 % de la recharge (50 % et Boomerang 1 : p50 4:47, 25 % de morts)
+  // Braconnier : un boomerang attrapé rend 30 % de la recharge. Phase 17 : 60 % avec 4 lignes de dégâts valaient à eux seuls
+  // ≈ +11 min de médiane au kit de départ (15:23 contre 5:46 pour l'Éclaireuse) ; 30 % et 2 lignes : 5:31 (60 runs)
+  rapporteur: { refund: 0.3 },
   trainee: { dashMul: 2, spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25, kb: 0.6 }, // Feu follet : dash 2× plus long, feu 1,5 s à 8 PV/s
   dejamorte: { revives: 1, airXpMul: 2 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP
   marchand: { offers: 4 }, // Colporteur (phase 17) : les coffres proposent 4 objets
@@ -515,7 +517,7 @@ export const CHARACTERS: CharacterDef[] = [
   { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
   { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
-  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'dmg', 'dmg', 'dmg', 'cd', 'range'] }, // ≈ l'ancien Boomerang 2 (20 dégâts, recharge 1,6 s, portée 9,5)
+  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'dmg', 'cd', 'range'] }, // phase 17 : 4 → 2 lignes de dégâts (avec le remboursement à 30 %)
     trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
   { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
