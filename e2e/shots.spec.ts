@@ -94,7 +94,12 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   await openGame(page);
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
   await startRun(page, 7);
-  await page.evaluate(() => (window as any).__game.debug.god());
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    // l'XP du kill d'élite déclenchait parfois une montée de niveau pendant la fenêtre de capture (« partie interrompue »)
+    g.world.player.need = 1e9;
+  });
   // élite : une Brute à 1 PV posée à 2 u, tuée par la première arme qui la touche
   await page.evaluate(() => (window as any).__game.debug.weak(2, 2));
   await freezeAfterKill(page, 140);
