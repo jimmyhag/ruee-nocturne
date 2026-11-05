@@ -8,6 +8,7 @@ import {
   ARCHER,
   ARCHER_TYPE,
   HAZARDS,
+  MERCHANT,
   REAPER_TYPE,
   STEP,
   SWARM_TYPE,
@@ -28,6 +29,8 @@ import {
   grassGeometry,
   lampHeadGeometry,
   lampPostGeometry,
+  MERCHANT_LANTERN,
+  stallGeometry,
   worksGeometry,
   roundTreeGeometry,
 } from './decor';
@@ -122,6 +125,11 @@ export class GameScene {
   private zoneFillW: InstanceWriter; // disque qui se remplit pendant le télégraphe
   private ringW: InstanceWriter; // ondes de choc du Gardien (phase 11) : anneau fin, rayon = portée du coup
   private chestW: InstanceWriter;
+  // phase 17 : échoppe du marchand (une seule, visible pendant sa visite) : 3 appels de rendu quand elle est là
+  private stall = new THREE.Group();
+  private stallLamp: THREE.Mesh;
+  private stallRing: THREE.Mesh;
+  private stallVisit = -1;
   private gemW: InstanceWriter;
   private bladeW: InstanceWriter;
   private bladeGhostW: InstanceWriter;
@@ -318,6 +326,22 @@ export class GameScene {
       this.bladeW,
       this.bladeGhostW,
     );
+
+    // échoppe : corps toon à contour cuit, lanterne lumineuse, anneau au sol = zone d'entrée (MERCHANT.r)
+    const stallBody = new THREE.Mesh(stallGeometry(), toonMaterial({ vertexColors: true }));
+    this.stallLamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 0.28, 0.22),
+      new THREE.MeshBasicMaterial({ color: PAL.lantern }),
+    );
+    this.stallLamp.position.set(MERCHANT_LANTERN.x, MERCHANT_LANTERN.y, MERCHANT_LANTERN.z);
+    this.stallRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.9, 1, 40).rotateX(-Math.PI / 2),
+      additive(PAL.lantern, 0.55),
+    );
+    this.stallRing.position.y = 0.04;
+    this.stall.add(stallBody, this.stallLamp);
+    this.stall.visible = this.stallRing.visible = false;
+    this.scene.add(this.stall, this.stallRing);
 
     this.particles = new Particles(this.scene);
     this.fireflies = new Fireflies(this.scene);
@@ -772,6 +796,24 @@ export class GameScene {
       this.chestW.put(c.x, 0.45 + Math.sin(now * 2.5 + i) * 0.12, c.z, now * 1.2, (c.boss ? 1.4 : 1) * pop, this.cGold);
     }
     this.chestW.end();
+
+    // échoppe du marchand : apparition en 0,4 s, anneau qui respire, lanterne qui vacille
+    const MR = w.merchant;
+    this.stall.visible = this.stallRing.visible = MR.active;
+    if (MR.active) {
+      const left = MR.until - w.t;
+      const pop = Math.min(1, (MERCHANT.stay - left) / 0.4, left / 0.4);
+      this.stall.position.set(MR.x, 0, MR.z);
+      if (this.stallVisit !== MR.visit) {
+        this.stallVisit = MR.visit; // orientée vers le joueur à son arrivée, puis fixe
+        this.stall.rotation.y = Math.atan2(P.x - MR.x, P.z - MR.z);
+      }
+      this.stall.scale.setScalar(Math.max(0.01, pop));
+      this.stallLamp.scale.setScalar(0.9 + Math.sin(now * 9) * 0.08 + Math.sin(now * 23) * 0.04);
+      this.stallRing.position.x = MR.x;
+      this.stallRing.position.z = MR.z;
+      this.stallRing.scale.setScalar(MERCHANT.r * (1 + Math.sin(now * 3) * 0.04) * pop);
+    }
 
     // gemmes : apparition 0 → 1,3 → 1 en 120 ms, rotation continue
     this.gemW.begin();

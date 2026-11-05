@@ -46,6 +46,45 @@ export const lampPostGeometry = () =>
   ]);
 export const lampHeadGeometry = () => new THREE.BoxGeometry(0.3, 0.34, 0.3).translate(0, 1.76, 0);
 /**
+ * Échoppe du marchand (phase 17) : comptoir, deux montants, auvent rayé, le colporteur encapuchonné derrière, des sacs.
+ * Origine au sol, face au +z ; contour toon cuit. Une seule instance à la fois (pas d'InstancedMesh) ; la lanterne est
+ * un mesh lumineux à part (MERCHANT_LANTERN_Y).
+ */
+export function stallGeometry(): THREE.BufferGeometry {
+  const WOOD = 0x7a5238,
+    DARK = 0x3a2a2e,
+    CLOTH = 0xc0504d,
+    CLOTH2 = 0xe8d8b0,
+    CLOAK = 0x4a4f7a;
+  const parts: (Prim & { color: number })[] = [
+    { shape: 'box', size: [1.9, 0.8, 0.6], pos: [0, 0.4, 0.35], color: WOOD },
+    { shape: 'box', size: [2.0, 0.08, 0.7], pos: [0, 0.82, 0.35], color: DARK },
+    { shape: 'cyl', size: [0.07, 0.07, 2.3], pos: [-0.9, 1.15, -0.35], color: DARK, seg: 5 },
+    { shape: 'cyl', size: [0.07, 0.07, 2.3], pos: [0.9, 1.15, -0.35], color: DARK, seg: 5 },
+    { shape: 'cyl', size: [0.06, 0.06, 1.9], pos: [-0.9, 0.95, 0.6], color: DARK, seg: 5 },
+    { shape: 'cyl', size: [0.06, 0.06, 1.9], pos: [0.9, 0.95, 0.6], color: DARK, seg: 5 },
+    // auvent : trois bandes alternées, penchées vers l'avant
+    { shape: 'box', size: [0.7, 0.07, 1.4], pos: [-0.7, 2.15, 0.15], rot: [0.32, 0, 0], color: CLOTH },
+    { shape: 'box', size: [0.7, 0.07, 1.4], pos: [0, 2.15, 0.15], rot: [0.32, 0, 0], color: CLOTH2 },
+    { shape: 'box', size: [0.7, 0.07, 1.4], pos: [0.7, 2.15, 0.15], rot: [0.32, 0, 0], color: CLOTH },
+    // colporteur : manteau, capuche, deux yeux qui luisent
+    { shape: 'cone', size: [0.42, 1.25], pos: [0, 0.62, -0.25], color: CLOAK, seg: 6 },
+    { shape: 'ico', size: [0.26], pos: [0, 1.38, -0.25], color: CLOAK },
+    { shape: 'box', size: [0.07, 0.05, 0.04], pos: [-0.08, 1.38, -0.02], color: 0xffd27a },
+    { shape: 'box', size: [0.07, 0.05, 0.04], pos: [0.08, 1.38, -0.02], color: 0xffd27a },
+    // marchandises sur le comptoir
+    { shape: 'ico', size: [0.14], pos: [-0.55, 0.98, 0.35], color: PAL.gem },
+    { shape: 'box', size: [0.24, 0.2, 0.2], pos: [0.5, 0.96, 0.35], rot: [0, 0.4, 0], color: PAL.gold },
+    { shape: 'cyl', size: [0.08, 0.1, 0.26], pos: [0.05, 0.99, 0.4], color: 0x9fd6c9, seg: 5 },
+    // sacs au pied
+    { shape: 'ico', size: [0.28], pos: [-1.2, 0.24, 0.5], color: 0x8a6a4a },
+    { shape: 'ico', size: [0.22], pos: [1.2, 0.2, 0.6], color: 0x8a6a4a },
+  ];
+  return withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB);
+}
+/** Hauteur de la lanterne pendue à l'auvent de l'échoppe (coin avant droit). */
+export const MERCHANT_LANTERN = { x: 1.0, y: 1.75, z: 0.75 };
+/**
  * Plateau (phase 11) : fût de roche légèrement évasé (rayon 1, hauteur 1, origine au sol) coiffé d'un disque de mousse
  * qui laisse une lèvre de pierre ; mis à l'échelle (r, h, r) par instance. 10 segments : 80 triangles, 14 instances.
  */

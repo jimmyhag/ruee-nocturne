@@ -1,4 +1,4 @@
-// Objets passifs (phase 17, PLAN §3.7) : obtenus dans les coffres et chez le marchand. Chaque objet est une règle :
+// Objets passifs (phase 17, PLAN §3.6) : obtenus dans les coffres et chez le marchand. Chaque objet est une règle :
 // soit un effet appliqué une fois au joueur à l'obtention, soit un drapeau (w.items[It.X]) lu par la boucle de jeu.
 import { ENEMIES, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, TRAIT } from './balance';
 import { hitEnemy } from './combat';

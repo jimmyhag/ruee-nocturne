@@ -241,7 +241,7 @@ export function renderCards(
       if (c.kind === 'i') {
         glyph = ITEM_GLYPH[c.key as ItemKey];
         color = RARITY_COLOR[c.lv];
-        badge = `<span class="badge new">${t('card.item')}</span>`;
+        badge = `<span class="badge new item">${t('card.item')}</span>`;
         if (shop) {
           const sold = c.s1 === 1;
           off = sold || shop.full || shop.gold < c.s0;

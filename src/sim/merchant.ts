@@ -1,4 +1,4 @@
-// Marchand (phase 17, PLAN §3.7) : une échoppe s'installe près du joueur aux heures MERCHANT.times et reste
+// Marchand (phase 17, PLAN §3.6) : une échoppe s'installe près du joueur aux heures MERCHANT.times et reste
 // MERCHANT.stay s. Y entrer met la partie en pause (Mode.Merchant) : objets en vente (w.offers, kind 'i'), relance, départ.
 // On paie avec l'or de la partie ; ce qui n'est pas dépensé reste acquis à la fin du run.
 import { MERCHANT } from './balance';

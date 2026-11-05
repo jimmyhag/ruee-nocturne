@@ -268,7 +268,9 @@ const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).
 
 const t0 = Date.now();
 const results: RunResult[] = [];
-for (let i = 0; i < RUNS; i++) results.push(runOnce(SEED * 1000 + i));
+for (let i = 0; i < RUNS; i++) {
+  results.push(runOnce(SEED * 1000 + i));
+}
 const elapsed = (Date.now() - t0) / 1000;
 
 const times = results.map((r) => r.time);

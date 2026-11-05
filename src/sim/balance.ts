@@ -530,7 +530,7 @@ export const CHARACTERS: CharacterDef[] = [
 // phase 17 : la boutique par personnage (8 lignes × 8 paliers) est retirée, sur demande de Jimmy. La puissance hors
 // tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
 
-// objets passifs (phase 17, PLAN §3.7) : une règle de jeu chacun, uniques, au plus ITEM.max par run
+// objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun, uniques, au plus ITEM.max par run
 export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse'];
 /** Index fixes (drapeaux de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
@@ -568,7 +568,7 @@ export const ITEM = {
   bourse: { goldMul: 0.4, discount: 0.15 },
 };
 
-// marchand (phase 17, PLAN §3.7) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
+// marchand (phase 17, PLAN §3.6) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
 export const MERCHANT = {
   times: [150, 390, 630, 870], // 2:30, 6:30, 10:30, 14:30
   distMin: 10,

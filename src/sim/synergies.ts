@@ -1,4 +1,4 @@
-// Synergies tome + arme (phase 17, PLAN §3.7) : une synergie s'active quand l'arme est équipée et que le tome a reçu
+// Synergies tome + arme (phase 17, PLAN §3.6) : une synergie s'active quand l'arme est équipée et que le tome a reçu
 // au moins SYN.tome cartes. Les effets de stats sont appliqués par refreshStats (weapons/defs.ts), les autres par la
 // boucle de jeu (Rempart dans step.ts) ou une fois à l'activation (Moisson).
 import { SYN, SYNERGIES, Syn } from './balance';

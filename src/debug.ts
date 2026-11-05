@@ -1,13 +1,14 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, STEP, WEAPON_LINES } from './sim/balance';
+import { CAPS, ITEM_KEYS, MERCHANT, STEP, WEAPON_LINES } from './sim/balance';
 import { dropChest } from './sim/combat';
+import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
 import { refreshStats } from './sim/weapons/defs';
 import { step } from './sim/step';
-import { Mode } from './sim/types';
-import type { Input, WeaponKey } from './sim/types';
+import { Ev, Mode } from './sim/types';
+import type { Input, ItemKey, WeaponKey } from './sim/types';
 import type { World } from './sim/world';
 
 export interface DebugHost {
@@ -117,10 +118,39 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       world.player.z = world.player.pz = z;
       host.scene?.snapCamera(world);
     },
-    /** Pose un coffre sous le joueur (boss : 3 à 5 cartes). */
+    /** Pose un coffre sous le joueur (phase 17 : un objet à choisir ; boss : deux). */
     chest(boss = false): void {
       const world = w();
       if (world) dropChest(world, world.player.x, world.player.z + 0.3, boss);
+    },
+    /** Fait venir le marchand à `dist` u devant le joueur, maintenant (phase 17 : tests, captures). */
+    merchant(dist = 4): void {
+      const world = w();
+      if (!world) return;
+      const M = world.merchant;
+      M.active = true;
+      M.x = world.player.x;
+      M.z = world.player.z - dist;
+      M.until = world.t + MERCHANT.stay;
+      M.visit++;
+      M.rolled = M.inside = false;
+      M.rerolls = 0;
+      world.emit(Ev.MerchantArrive, M.x, 0, M.z, MERCHANT.stay);
+    },
+    /** Donne un objet passif (clé ITEM_KEYS) : captures du HUD. */
+    item(key: ItemKey): void {
+      const world = w();
+      if (!world) return;
+      gainItem(world, ITEM_KEYS.indexOf(key));
+      host.afterSimJump();
+    },
+    /** Active la synergie d'index `i` (SYNERGIES) sans ses conditions : captures du HUD. */
+    synergy(i: number): void {
+      const world = w();
+      if (!world) return;
+      world.syn[i] = 1;
+      refreshStats(world);
+      host.afterSimJump();
     },
     /** Pose un ennemi de type `type` à `dist` u avec `hp` PV : la prochaine arme qui le touche le tue (captures de kill). */
     weak(type: number, dist = 2, hp = 1): void {

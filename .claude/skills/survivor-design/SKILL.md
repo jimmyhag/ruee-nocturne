@@ -77,32 +77,36 @@ Un ennemi existe pour poser une **question** au joueur :
 - Séparation entre ennemis par grille spatiale (cellule 2,5 u), poussée `3.2·(rr−d)/rr`. Pas de pathfinding : steering direct + glissement le long des obstacles.
 
 ## 7. Boss : scripts courts
-Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90 s. Récompense : aimant global + soin complet + coffre 3–5 cartes. PV ∝ `hpScale(t) · (1 + 0.8·bossIndex)`.
+Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90 s. Récompense : aimant global + soin complet + coffre de boss (deux objets passifs à choisir, phase 17). PV ∝ `hpScale(t) · (1 + 0.8·bossIndex)`.
 
-## 8. Méta-progression (phase 4, refondue en phase 8)
+## 8. Méta-progression (phase 4, refondue en phases 8, 10 et 17)
 - Or : 1 par kill ×`goldMul`, ×3 élite, ×20 boss, bonus de fin = secondes survécues / 10.
 - Emplacements (phase 10) : `SLOTS` dans `balance.ts`, débloqués dans l'ordre par un succès **et** de l'or (300 → 12 000, ≈ 1,5–2 runs d'or au moment où le succès tombe), communs à tous les personnages ; profil nu de la sim = départ (1 arme, 2 améliorations).
-- Boutique **par personnage** : 8 lignes, 8 paliers chacune (réanimation : 1), coût `200 · 1.3^palier` (200 → 1 255, ≈ 34 000 or par personnage). Un run « nu » (≈ 6 min, ≈ 600 or) paie **1 à 2 paliers** ; un personnage complet ≈ 30 runs.
-- Le joueur nu est en dessous de la courbe (dégâts ×0,95) et le milieu de partie (7:00 → 15:00) est raide : la puissance achetée doit se traduire en **minutes**, pas en falaise. Les paliers sont petits (+3 PV, +2 % dégâts, −1 % recharge…) parce que la survie est très sensible à la puissance (en phase 8, hp +40 / dégâts ×1,2 / recharge ×0,88 faisaient passer de 5 à 16 min).
+- **Pas de stats permanentes** (phase 17, demande de Jimmy) : la boutique par personnage de la phase 8 est retirée, son or rendu (`legacyShopSpent` dans `src/meta/save.ts`). La puissance se construit pendant le run.
+- **Objets passifs** (`ITEM` dans `balance.ts`, PLAN §3.6) : une règle de jeu chacun, uniques, 6 au plus ; coffres (1 parmi 3) et marchand. Règle de design : un objet change une décision (où se placer, quand sauter, combien dépenser), jamais un « +3 % » ; aucun objet ne doit valoir plus de 2× l'objet moyen en survie (`npm run sim -- --no-item <clé>` pour l'ablation).
+- **Marchand** (`MERCHANT`) : quatre visites (2:30, 6:30, 10:30, 14:30), prix par rareté +25 % par visite, payés avec l'or **de la partie** : chaque achat retarde un emplacement ou un personnage. C'est le dilemme qui remplace la boutique.
+- **Synergies** (`SYNERGIES`, `SYN`) : une paire tome + arme, active à 3 cartes du tome ; la carte qui en complète une est marquée « Synergie ». Le joueur moyen doit en activer au moins une dans la moitié des runs complets.
+- La survie est très sensible à la puissance (en phase 8, hp +40 / dégâts ×1,2 / recharge ×0,88 faisaient passer de 5 à 16 min) : un effet d'objet ou de synergie se règle par petits pas et par la CLI.
 - Succès visibles avec barre : chaque run doit faire avancer au moins 2 succès (sinon ajuster les seuils).
 - Personnages : 3 au départ dont 2 à débloquer ; stats de départ **différentes mais pas meilleures**.
 - Défi quotidien : seed = `hash(date UTC)`, même tirage de cartes pour tous ; classement local des 10 meilleurs temps.
 
 ## 9. Cibles d'équilibrage mesurées par simulation
-Deux profils (phase 8), `npm run sim -- --runs 200 --bot average --upgrades 0|max` (`tools/targets.ts`) :
-| Métrique | Nu (`--upgrades 0`) | Maxé (`--upgrades max`) |
+Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile naked|maxed` (`tools/targets.ts`) :
+| Métrique | Nu (`--profile naked`) | Maxé (`--profile maxed`) |
 |---|---|---|
 | Médiane de survie | 4–6 min (1 arme, 2 améliorations) | 13–16 min (4/4) |
 | Runs atteignant le Faucheur | ≤ 3 % | 3–12 % |
 | Runs morts avant 3 min | ≤ 20 % | < 10 % |
 | Runs qui passent 3 min (arme n°2 accessible) | ≥ 40 % | — |
-| Or médian par run | ≥ 0,75 premier palier | — |
+| Or gardé médian par run (après le marchand) | ≥ 0,5 emplacement n°2 (150 or) | — |
+| Runs avec au moins une synergie | — | ≥ 50 % |
 | Taux de pick par arme | — | 8–35 % |
 | Kills à 10 min (médiane) | — | 900–1600 |
 | Variance de kills inter-builds | — | < 3× médiane |
-| Niveau à 10 min (médiane) | — | 16–20 |
+| Niveau à 10 min (médiane) | — | 24–32 |
 
-Les neuf personnages restent à ± 3 min de l'Éclaireuse dans chaque profil. `--upgrades hp=8,revive=0` isole une ligne.
+Les neuf personnages restent à ± 3 min de l'Éclaireuse dans chaque profil. `--no-item phenix,talisman` retire des objets des tirages (ablation) ; la CLI imprime aussi objets par run, part de chaque objet, or dépensé au marchand et part de chaque synergie.
 
 Un écart = on ajuste `balance.ts`, on relance, on documente l'avant/après dans la PR. Pas d'ajustement « au ressenti » sans chiffre.
 
