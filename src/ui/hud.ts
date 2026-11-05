@@ -172,18 +172,18 @@ export class Hud {
     if (kind === 1) {
       // l'état (prix, pas assez d'or, 6 objets) ne change que rarement : la chaîne n'est reconstruite qu'à ce moment
       const price = mapChestPrice(w),
-        full = !canGainItem(w),
-        poor = !full && w.gold < price,
+        full = !canGainItem(w), // 6 objets : le coffre donne un bonus (phase 18)
+        poor = w.gold < price,
         key = price * 4 + (full ? 1 : 0) + (poor ? 2 : 0);
       if (this.cache.poiKey !== key || this.cache.poiOn !== kind) {
         this.cache.poiKey = key;
         const g = t('gold', { n: price });
-        this.els.poiText.textContent = full
-          ? t('mapchest.full')
-          : poor
-            ? t('mapchest.poor', { gold: g })
+        this.els.poiText.textContent = poor
+          ? t('mapchest.poor', { gold: g })
+          : full
+            ? t('mapchest.boon', { gold: g })
             : t('mapchest.price', { gold: g });
-        this.els.poiChip.classList.toggle('poor', full || poor);
+        this.els.poiChip.classList.toggle('poor', poor);
       }
     } else if (kind === 2 && this.cache.poiOn !== kind) {
       this.cache.poiKey = -1;

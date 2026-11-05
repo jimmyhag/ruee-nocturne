@@ -409,8 +409,8 @@
   "shrine.title": "Shrine",
   "shrine.hint": "Pick a bonus for this run",
   "mapchest.price": "Chest · {gold}",
-  "mapchest.full": "Chest · carrying 6 items",
   "mapchest.poor": "Chest · {gold} (not enough gold)",
   "banner.bossWarn": "{name} is coming…",
-  "banner.shrine": "Shrine activated"
+  "banner.shrine": "Shrine activated",
+  "mapchest.boon": "Chest · {gold} (6 items: a bonus)"
 }

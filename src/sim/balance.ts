@@ -216,7 +216,9 @@ export const SPAWN = {
   midFrom: 420,
   midTo: 900,
   rate: (t: number) =>
-    Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
+    // phase 18 : la rampe de fin de partie démarre à 8:00 en douceur (/360) au lieu de 10:00 (/260) : même densité à 15:00,
+    // plus de mur au moment de l'Essaim-mère (−22 points de vivants en une minute à 10:00)
+    Math.min(20, 0.7 + t / 240 + Math.max(0, t - 480) / 360 + Math.max(0, Math.min(t, 900) - 420) / 120),
   // phase 16 : fin de partie /50 → /5 (après 15:00 seulement : la médiane maxée tombe avant) ; avec la carte et les tireurs
   // plafonnés, la moitié des runs maxés vivants à 15:00 allaient au bout (fin 24 %). Mesuré (200 runs maxés) : /15 → 17 %,
   // /8 → 13 %, /5 → 7 % (cible 3–12 %). ×2 à 2:30, ×9,3 à 12:00, ×24 à 16:00, ×74 à 20:00

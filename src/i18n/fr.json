@@ -409,8 +409,8 @@
   "shrine.title": "Sanctuaire",
   "shrine.hint": "Choisis un bonus pour la partie",
   "mapchest.price": "Coffre · {gold}",
-  "mapchest.full": "Coffre · 6 objets portés",
   "mapchest.poor": "Coffre · {gold} (pas assez d'or)",
   "banner.bossWarn": "{name} approche…",
-  "banner.shrine": "Sanctuaire activé"
+  "banner.shrine": "Sanctuaire activé",
+  "mapchest.boon": "Coffre · {gold} (6 objets : un bonus)"
 }

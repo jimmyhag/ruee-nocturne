@@ -91,9 +91,12 @@ export function mapChestPrice(w: World): number {
   const base = MAPCHEST.price * Math.pow(1 + MAPCHEST.growth, w.mapChestsOpened);
   return Math.round(base * (w.items[It.Bourse] ? 1 - ITEM.bourse.discount : 1));
 }
-/** Le coffre de carte peut-il être ouvert maintenant (or et place) ? */
+/**
+ * Le coffre de carte peut-il être ouvert maintenant ? Il faut l'or ; avec 6 objets portés, il donne un bonus de
+ * sanctuaire au lieu d'un objet (l'or garde un usage jusqu'à la fin de la partie).
+ */
 export function canOpenMapChest(w: World): boolean {
-  return canGainItem(w) && w.gold >= mapChestPrice(w);
+  return w.gold >= mapChestPrice(w);
 }
 
 /** Coffres de carte et sanctuaires, à chaque pas de jeu (Mode.Play). ≈ 30 tests de distance, aucune allocation. */
@@ -116,7 +119,8 @@ export function tickPOI(w: World, dt: number): void {
       w.gold -= price;
       w.goldSpent += price;
       w.mapChestsOpened++;
-      w.itemPicks++;
+      if (canGainItem(w)) w.itemPicks++;
+      else w.boonPicks++; // 6 objets portés : un bonus pour la partie
       w.emit(Ev.MapChestOpen, c.x, 0.5, c.z, price);
     }
   }

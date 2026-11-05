@@ -74,16 +74,12 @@ describe('coffres de carte', () => {
     expect(w.cards.every((k) => k.kind === 'i')).toBe(true);
     expect(mapChestPrice(w)).toBe(Math.round(MAPCHEST.price * (1 + MAPCHEST.growth)));
   });
-  it('sans assez d’or, ou avec 6 objets, le coffre ne s’ouvre pas ; sortir remet l’attente à zéro', () => {
+  it('sans assez d’or, le coffre ne s’ouvre pas ; sortir remet l’attente à zéro', () => {
     const w = new World(2);
     calm(w);
     const c = w.mapChests[0];
     go(w, c.x, c.z);
     w.gold = MAPCHEST.price - 1;
-    for (let f = 0; f < 90; f++) step(w, still, STEP);
-    expect(c.open).toBe(false);
-    w.gold = 1e4;
-    for (let i = 0; i < ITEM.max; i++) gainItem(w, i);
     for (let f = 0; f < 90; f++) step(w, still, STEP);
     expect(c.open).toBe(false);
     const w2 = new World(2);
@@ -96,6 +92,18 @@ describe('coffres de carte', () => {
     go(w2, c2.x + 10, c2.z);
     step(w2, still, STEP);
     expect(c2.hold).toBe(0);
+  });
+  it('avec 6 objets portés, le coffre de carte donne un choix de bonus (l’or garde un usage)', () => {
+    const w = new World(6);
+    calm(w);
+    for (let i = 0; i < ITEM.max; i++) gainItem(w, i);
+    const c = w.mapChests[0];
+    go(w, c.x, c.z);
+    w.gold = 1000;
+    for (let f = 0; f < 90 && w.mode === Mode.Play; f++) step(w, still, STEP);
+    expect(c.open).toBe(true);
+    expect(w.mode).toBe(Mode.LevelUp);
+    expect(w.cards.every((k) => k.kind === 'b')).toBe(true);
   });
 });
 
