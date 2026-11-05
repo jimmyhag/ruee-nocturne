@@ -49,19 +49,33 @@ export function buildTerrain(w: World, r: Rng): void {
     }
   // sommets adoucis : là où des collines se chevauchent, la hauteur sature vers TERRAIN.peak
   for (let k = 0; k < H.length; k++) H[k] = TERRAIN.peak * Math.tanh(H[k] / TERRAIN.peak);
-  // 3. aplanissements : clairière de départ (à 0), lacs (cuvette plate), puis lieux construits (à leur hauteur moyenne,
-  // en dernier : rien ne les déforme ensuite)
+  // 3. aplanissements : clairière de départ (à 0), lieux construits (à leur hauteur moyenne), lacs en dernier (cuvette
+  // plate à un niveau fixé une fois : les fondus des lieux voisins ne la remontent pas)
   flattenDisk(w, 0, 0, TERRAIN.startFlat, TERRAIN.startBlend, 0);
-  for (const l of w.lakes)
-    flattenDisk(w, l.x, l.z, l.r, TERRAIN.lakeBlend, Math.max(0, sampleMean(w, l.x, l.z, l.r) - TERRAIN.lakeDepth));
-  for (const pl of w.places) {
+  const lakeLevel = w.lakes.map((l) => Math.max(0, sampleMean(w, l.x, l.z, l.r) - TERRAIN.lakeDepth));
+  const levels = w.places.map((pl) => {
     // un lieu voisin du départ se pose au niveau de la clairière (sinon son aplat mordrait la clairière)
     const d = Math.hypot(pl.x, pl.z) - pl.r - TERRAIN.placeBlend;
-    const near = smooth(TERRAIN.startFlat, TERRAIN.startFlat + TERRAIN.startBlend, d);
-    flattenDisk(w, pl.x, pl.z, pl.r, TERRAIN.placeBlend, sampleMean(w, pl.x, pl.z, pl.r) * near);
-  }
-  // 4. pente bornée : passes de Lipschitz (on n'abaisse que ce qui dépasse un voisin + maxSlope · distance)
+    return sampleMean(w, pl.x, pl.z, pl.r) * smooth(TERRAIN.startFlat, TERRAIN.startFlat + TERRAIN.startBlend, d);
+  });
+  const flats = () => {
+    for (let i = 0; i < w.places.length; i++) {
+      const pl = w.places[i];
+      flattenDisk(w, pl.x, pl.z, pl.r, TERRAIN.placeBlend, levels[i]);
+    }
+    for (let i = 0; i < w.lakes.length; i++) {
+      const l = w.lakes[i];
+      flattenDisk(w, l.x, l.z, l.r, TERRAIN.lakeBlend, lakeLevel[i]);
+    }
+  };
+  flats();
+  // 4. pente bornée : passes de Lipschitz (on n'abaisse que ce qui dépasse un voisin + maxSlope · distance) ; elles
+  // peuvent écorner un aplat voisin d'une pente : on repose les aplats et on recommence (2 tours suffisent)
   limitSlope(H, N, C);
+  for (let round = 0; round < 2; round++) {
+    flats();
+    limitSlope(H, N, C);
+  }
 }
 
 /** Hauteur moyenne échantillonnée dans un disque (grille). */

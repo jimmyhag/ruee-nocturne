@@ -1,10 +1,13 @@
-import { ENEMIES, ITEM_KEYS, ITEM_RARITY, PLAYER } from '../sim/balance';
-import type { Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
+import { ENEMIES, ITEM_KEYS, ITEM_RARITY, MAPCHEST, PLAYER, SHRINE } from '../sim/balance';
+import { canGainItem } from '../sim/items';
+import { mapChestPrice } from '../sim/poi';
+import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
 import type { World } from '../sim/world';
 import { fmtTime, onLangChange, t } from '../i18n';
 import {
+  BOON_GLYPH,
   ITEM_GLYPH,
   RARITY_COLOR,
   cardLines,
@@ -47,6 +50,9 @@ export class Hud {
     merchantChip: $('merchantChip'),
     merchantArrow: $('merchantArrow'),
     merchantDist: $('merchantDist'),
+    poiChip: $('poiChip'),
+    poiText: $('poiText'),
+    poiFill: $('poiFill'),
     dashbar: $('dashbar'),
     btnDash: $('btnDash'),
     flash: $('flash'),
@@ -134,6 +140,58 @@ export class Hud {
         this.text('merchantDist', `${md} m · ${ms} s`);
       }
     }
+    // phase 18 : coffre de carte ou sanctuaire tout proche : prix (ou pourquoi on ne peut pas) et jauge d'ouverture
+    let kind = 0, // 0 rien, 1 coffre, 2 sanctuaire
+      fill = 0,
+      best = 36; // 6 u²
+    for (let i = 0; i < w.mapChests.length; i++) {
+      const c = w.mapChests[i];
+      if (c.open) continue;
+      const d2 = (c.x - P.x) ** 2 + (c.z - P.z) ** 2;
+      if (d2 < best) {
+        best = d2;
+        kind = 1;
+        fill = c.hold / MAPCHEST.hold;
+      }
+    }
+    const sr2 = (SHRINE.r + 2) ** 2;
+    for (let i = 0; i < w.shrines.length; i++) {
+      const s = w.shrines[i];
+      if (s.used) continue;
+      const d2 = (s.x - P.x) ** 2 + (s.z - P.z) ** 2;
+      if (d2 < sr2 && (kind === 0 || d2 < best)) {
+        best = d2;
+        kind = 2;
+        fill = s.charge / SHRINE.charge;
+      }
+    }
+    if (this.cache.poiOn !== kind) {
+      this.els.poiChip.hidden = kind === 0;
+      this.els.poiChip.classList.toggle('shrine', kind === 2);
+    }
+    if (kind === 1) {
+      // l'état (prix, pas assez d'or, 6 objets) ne change que rarement : la chaîne n'est reconstruite qu'à ce moment
+      const price = mapChestPrice(w),
+        full = !canGainItem(w),
+        poor = !full && w.gold < price,
+        key = price * 4 + (full ? 1 : 0) + (poor ? 2 : 0);
+      if (this.cache.poiKey !== key || this.cache.poiOn !== kind) {
+        this.cache.poiKey = key;
+        const g = t('gold', { n: price });
+        this.els.poiText.textContent = full
+          ? t('mapchest.full')
+          : poor
+            ? t('mapchest.poor', { gold: g })
+            : t('mapchest.price', { gold: g });
+        this.els.poiChip.classList.toggle('poor', full || poor);
+      }
+    } else if (kind === 2 && this.cache.poiOn !== kind) {
+      this.cache.poiKey = -1;
+      this.els.poiText.textContent = t('shrine.title');
+      this.els.poiChip.classList.remove('poor');
+    }
+    this.cache.poiOn = kind;
+    if (kind !== 0) this.width('poiFill', fill);
     // fantôme de PV : rattrape en 400 ms (transition CSS) → lisibilité de la quantité perdue
     this.width('hpghost', P.hp / P.maxHp);
     this.text('hptxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
@@ -275,6 +333,10 @@ export function renderCards(
           off = sold || shop.full || shop.gold < c.s0;
           price = `<span class="badge price${off ? ' off' : ''}">${sold ? t('merchant.sold') : t('gold', { n: c.s0 })}</span>`;
         }
+      } else if (c.kind === 'b') {
+        glyph = BOON_GLYPH[c.key as BoonKey];
+        color = '#5fd3ff';
+        badge = `<span class="badge new boon">${t('card.boon')}</span>`;
       } else if (c.kind === 'w') {
         const d = WEAPONS[c.key as WeaponKey];
         glyph = d.glyph;
@@ -297,11 +359,11 @@ export function renderCards(
       const rb = rarity ? `<span class="badge${rarity}">${rarityName(c.n)}</span>` : '';
       const lines = cardLines(c);
       const intro =
-        c.lv === 1 && c.kind !== 'i'
+        c.lv === 1 && c.kind !== 'i' && c.kind !== 'b'
           ? `<p>${c.kind === 'w' ? t(`weapon.${c.key}.text`) : t(`tome.${c.key}.text`)}</p>`
           : '';
       const body =
-        c.kind === 'heal' || c.kind === 'i'
+        c.kind === 'heal' || c.kind === 'i' || c.kind === 'b'
           ? `<p>${cardText(c)}</p>`
           : `${intro}<ul class="lines">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
       // phase 17 : la carte qui complète une synergie dit ce qu'elle débloque

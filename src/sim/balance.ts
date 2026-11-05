@@ -49,11 +49,11 @@ export const DECOR = {
 // sur les obstacles : toute pente se franchit). La sim garde y = hauteur au-dessus du sol local ; le rendu ajoute le sol.
 export const TERRAIN = {
   cell: 2, // u : grille de hauteurs (interpolation bilinéaire)
-  hills: 46, // collines gaussiennes
+  hills: 70, // collines gaussiennes (partout : la carte ne doit plus paraître plate)
   rMin: 14, // rayon (≈ 2σ)…
   rMax: 30,
   hMin: 1.5, // …et hauteur au sommet
-  hMax: 4,
+  hMax: 4.5,
   peak: 6, // les collines qui se chevauchent sont adoucies au-delà (tanh) : sommets ≈ 4–6 u
   wave: 0.5, // ondulation de basse fréquence (amplitude, u)
   waveLen: 70, // u

@@ -8,8 +8,10 @@ import {
   ARCHER,
   ARCHER_TYPE,
   HAZARDS,
+  MAPCHEST,
   MERCHANT,
   REAPER_TYPE,
+  SHRINE,
   STEP,
   SWARM_TYPE,
   TRAIT,
@@ -17,6 +19,7 @@ import {
   VOLANT_TYPE,
   WORLD_HALF,
 } from '../sim/balance';
+import { canOpenMapChest } from '../sim/poi';
 import { ProjKind, ShotKind } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
@@ -29,6 +32,8 @@ import {
   grassGeometry,
   lampHeadGeometry,
   lampPostGeometry,
+  mapChestGeometry,
+  shrineGeometry,
   MERCHANT_LANTERN,
   stallGeometry,
   worksGeometry,
@@ -36,6 +41,7 @@ import {
 } from './decor';
 import { buildEnemyGeometries } from './enemies';
 import { setDetail } from './parts';
+import { TerrainView } from './terrain';
 import { toonMaterial } from './toon';
 import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
@@ -125,6 +131,23 @@ export class GameScene {
   private zoneFillW: InstanceWriter; // disque qui se remplit pendant le télégraphe
   private ringW: InstanceWriter; // ondes de choc du Gardien (phase 11) : anneau fin, rayon = portée du coup
   private chestW: InstanceWriter;
+  // phase 18 : relief (sol déplacé, tout est posé au sol local)
+  readonly terrain = new TerrainView();
+  private gy = this.terrain.gy;
+  private groundMesh: THREE.Mesh | null = null;
+  private tRx = 0; // inclinaison du sol au dernier point demandé (tilt) : ombres et cercles collés à la pente
+  private tRz = 0;
+  private camGy = 0; // hauteur du sol suivie par la caméra (amortie)
+  // phase 18 : points d'intérêt (coffres de carte, sanctuaires) et colonnes de lumière qui les signalent de loin
+  private mapChestW: InstanceWriter;
+  private holdW: InstanceWriter; // anneau qui se remplit pendant l'ouverture
+  private shrineW: InstanceWriter;
+  private shrineGlowW: InstanceWriter; // runes du sanctuaire : s'allument avec la jauge
+  private beamW: InstanceWriter;
+  private cBeamGold = new THREE.Color(PAL.gold);
+  private cBeamGrey = new THREE.Color(0x8a8fa8);
+  private cBeamBlue = new THREE.Color(PAL.xp);
+  private cPoi = new THREE.Color();
   // phase 17 : échoppe du marchand (une seule, visible pendant sa visite) : 3 appels de rendu quand elle est là
   private stall = new THREE.Group();
   private stallLamp: THREE.Mesh;
@@ -204,10 +227,8 @@ export class GameScene {
     this.scene.add(rim);
 
     // sol
-    this.groundMat = new THREE.MeshLambertMaterial({ map: this.groundTex(true) });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2), this.groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    this.scene.add(ground);
+    // phase 18 : le sol est un maillage en relief construit avec le décor (buildDecor), couleurs par sommet
+    this.groundMat = new THREE.MeshLambertMaterial({ map: this.groundTex(true), vertexColors: true });
 
     // joueur : modèle du personnage (torse fusionné, jambes animées, pièces lumineuses, halo au sol)
     this.model = buildCharacter(this.modelKey, this.modelSkin);
@@ -327,6 +348,26 @@ export class GameScene {
       this.bladeGhostW,
     );
 
+    // points d'intérêt (phase 18) : 5 appels de plus au plus (coffres, anneau, sanctuaires, runes, colonnes)
+    this.mapChestW = new InstanceWriter(makeInstanced(mapChestGeometry(), toonMaterial({ vertexColors: true }), 24));
+    this.holdW = new InstanceWriter(
+      makeInstanced(new THREE.RingGeometry(0.82, 1, 32).rotateX(-Math.PI / 2), additive(0xffffff, 0.85), 4),
+    );
+    this.shrineW = new InstanceWriter(makeInstanced(shrineGeometry(), toonMaterial({ vertexColors: true }), 12));
+    this.shrineGlowW = new InstanceWriter(
+      makeInstanced(new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2), additive(0xffffff, 0.7), 12),
+    );
+    // colonne de lumière : cylindre ouvert, additif, 16 u de haut, visible au-dessus des arbres
+    this.beamW = new InstanceWriter(
+      makeInstanced(
+        new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
+        additive(0xffffff, 0.22),
+        36,
+      ),
+    );
+    this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
+    this.writers.push(this.mapChestW, this.holdW, this.shrineW, this.shrineGlowW, this.beamW);
+
     // échoppe : corps toon à contour cuit, lanterne lumineuse, anneau au sol = zone d'entrée (MERCHANT.r)
     const stallBody = new THREE.Mesh(stallGeometry(), toonMaterial({ vertexColors: true }));
     this.stallLamp = new THREE.Mesh(
@@ -348,11 +389,18 @@ export class GameScene {
     this.bolts = new Bolts(this.scene);
     this.aims = new AimLines(this.scene);
     this.dmg = new DamageNumbers(dmgLayer);
+    // phase 18 : les effets reçoivent des y au-dessus du sol local (comme la sim) ; le sol est ajouté ici
+    this.particles.ground = this.bolts.ground = this.aims.ground = this.dmg.ground = this.fireflies.ground = this.gy;
   }
 
   /** Décor statique généré depuis les obstacles et zones de la sim (même seed ⇒ même décor). */
   buildDecor(w: World): void {
     const d = new THREE.Object3D();
+    // sol en relief (phase 18) : un appel, ≈ 8 k triangles ; sa grille sert aussi à poser tout le reste
+    if (this.groundMesh) this.scene.remove(this.groundMesh);
+    this.groundMesh = this.terrain.build(w, this.groundMat);
+    this.scene.add(this.groundMesh);
+    const gy = this.gy;
     const nTrees = w.treeCount;
     const treeCap = DECOR.trees + DECOR.woodTrees;
     const vc = () => toonMaterial({ vertexColors: true });
@@ -380,14 +428,15 @@ export class GameScene {
       const round = i % 3 === 2;
       const m = round ? rounds : firs;
       const k = round ? nr++ : nf++;
-      d.position.set(o.x, 0, o.z);
+      d.position.set(o.x, gy(o.x, o.z) - 0.1, o.z);
       d.rotation.set(0, (i * 2.399) % TAU, 0);
       d.scale.set(s, s * (0.9 + ((i * 11) % 7) * 0.04), s);
       d.updateMatrix();
       m.setMatrixAt(k, d.matrix);
       m.setColorAt(k, tint.setScalar(0.86 + ((i * 7) % 10) * 0.03));
-      d.position.set(o.x + 0.4, 0.02, o.z + 0.3); // ombre légèrement décalée côté opposé au soleil
-      d.rotation.set(0, 0, 0);
+      d.position.set(o.x + 0.4, gy(o.x + 0.4, o.z + 0.3) + 0.04, o.z + 0.3); // ombre décalée côté opposé au soleil
+      this.tilt(o.x + 0.4, o.z + 0.3);
+      d.rotation.set(this.tRx, 0, this.tRz);
       d.scale.setScalar(o.r * 1.7);
       d.updateMatrix();
       treeShadows.setMatrixAt(i, d.matrix);
@@ -395,8 +444,9 @@ export class GameScene {
     // menhirs : ombre portée au pied côté opposé au soleil
     for (let i = 0; i < nStones; i++) {
       const o = w.obstacles[w.rockEnd + i];
-      d.position.set(o.x + 0.6, 0.02, o.z + 0.45);
-      d.rotation.set(0, 0, 0);
+      d.position.set(o.x + 0.6, gy(o.x + 0.6, o.z + 0.45) + 0.04, o.z + 0.45);
+      this.tilt(o.x + 0.6, o.z + 0.45);
+      d.rotation.set(this.tRx, 0, this.tRz);
       d.scale.setScalar(o.r * 1.9);
       d.updateMatrix();
       treeShadows.setMatrixAt(nTrees + i, d.matrix);
@@ -406,7 +456,7 @@ export class GameScene {
     for (let i = 0; i < nRocks; i++) {
       const o = w.obstacles[nTrees + i];
       const s = o.r / 0.75;
-      d.position.set(o.x, 0.3 * s, o.z);
+      d.position.set(o.x, gy(o.x, o.z) + 0.3 * s, o.z);
       d.rotation.set(0, (i * 1.7) % TAU, 0);
       d.scale.setScalar(s);
       d.updateMatrix();
@@ -416,14 +466,16 @@ export class GameScene {
     for (let i = 0; i < DECOR.lamps; i++) {
       const c = w.stoneCenters[i];
       const o = c ?? w.obstacles[(i * 37) % nTrees];
-      if (c) d.position.set(c.x, 0, c.z);
-      else d.position.set(o.x + 2.2, 0, o.z + 1.3);
+      if (c) d.position.set(c.x, gy(c.x, c.z), c.z);
+      else d.position.set(o.x + 2.2, gy(o.x + 2.2, o.z + 1.3), o.z + 1.3);
       d.rotation.set(0, 0, 0);
       d.scale.setScalar(0.9);
       d.updateMatrix();
       posts.setMatrixAt(i, d.matrix);
       lamps.setMatrixAt(i, d.matrix);
-      d.position.y = 0.06;
+      d.position.y += 0.08;
+      this.tilt(d.position.x, d.position.z);
+      d.rotation.set(this.tRx, 0, this.tRz);
       d.updateMatrix();
       halos.setMatrixAt(i, d.matrix);
     }
@@ -438,7 +490,7 @@ export class GameScene {
       let wet = false;
       for (const l of w.lakes) if ((x - l.x) * (x - l.x) + (z - l.z) * (z - l.z) < l.r * l.r) wet = true;
       if (wet || Math.abs(x) > WORLD_HALF - 1 || Math.abs(z) > WORLD_HALF - 1) continue;
-      d.position.set(x, 0, z);
+      d.position.set(x, gy(x, z) - 0.05, z);
       d.rotation.set(0, (i * 1.3) % TAU, 0);
       d.scale.setScalar(1.2 + ((i * 5) % 6) * 0.16);
       d.updateMatrix();
@@ -457,7 +509,7 @@ export class GameScene {
       this.scene.add(m);
     }
     // ouvrages (phase 16) : murets, troncs et menhirs en une seule géométrie statique, un appel de rendu
-    const works = worksGeometry(w);
+    const works = worksGeometry(w, gy);
     if (works) this.scene.add(new THREE.Mesh(works, vc()));
     // lacs : disque bleu + anneau de rive qui scintille (animé dans render)
     for (const m of this.lakeMeshes) this.scene.remove(m);
@@ -465,13 +517,21 @@ export class GameScene {
     for (const l of w.lakes) {
       const water = new THREE.Mesh(new THREE.CircleGeometry(l.r, 40), flat(PAL.lake, 0.6));
       water.rotation.x = -Math.PI / 2;
-      water.position.set(l.x, 0.04, l.z);
+      water.position.set(l.x, gy(l.x, l.z) + 0.25, l.z); // fond de cuvette plat (phase 18) : l'eau au-dessus
       const shore = new THREE.Mesh(new THREE.RingGeometry(l.r * 0.93, l.r, 40), additive(PAL.paper, 0.35));
       shore.rotation.x = -Math.PI / 2;
-      shore.position.set(l.x, 0.05, l.z);
+      shore.position.set(l.x, gy(l.x, l.z) + 0.27, l.z);
       this.scene.add(water, shore);
       this.lakeMeshes.push(water, shore);
     }
+  }
+
+  /** Inclinaison du sol en (x, z) dans tRx / tRz : un disque plat posé là épouse la pente. Aucune allocation. */
+  private tilt(x: number, z: number): void {
+    const gx = (this.gy(x + 0.6, z) - this.gy(x - 0.6, z)) / 1.2,
+      gz = (this.gy(x, z + 0.6) - this.gy(x, z - 0.6)) / 1.2;
+    this.tRx = Math.atan(gz);
+    this.tRz = -Math.atan(gx);
   }
 
   /** Change le personnage affiché (menu : aperçu ; partie : personnage choisi) et sa tenue. Idempotent. */
@@ -584,12 +644,13 @@ export class GameScene {
     const px = lerp(P.px, P.x, alpha),
       pz = lerp(P.pz, P.z, alpha),
       py = lerp(P.py, P.y, alpha);
+    const gp = this.gy(px, pz); // phase 18 : sol local sous le joueur (la sim donne y au-dessus du sol)
     this.lightCycle(w.t);
     this.fireflies.update(px, pz, now, this.night);
     this.particles.billboardRx = -Math.atan2(this.camPos.y - this.camLook.y, this.camPos.z - this.camLook.z);
 
     // joueur
-    this.player.position.set(px, py, pz);
+    this.player.position.set(px, py + gp, pz);
     const target = Math.atan2(P.dirX, P.dirZ);
     let diff = target - this.face;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -624,10 +685,13 @@ export class GameScene {
     this.player.visible = !(P.invul > 0 && P.dashT <= 0 && Math.floor(now * 20) % 2 === 1) || hurtFlash;
     if (M.glowDisc) {
       M.glowDisc.visible = this.player.visible;
-      M.glowDisc.position.set(px, 0.07, pz);
+      M.glowDisc.position.set(px, gp + 0.1, pz);
+      this.tilt(px, pz);
+      M.glowDisc.rotation.set(this.tRx, 0, this.tRz); // géométrie déjà à plat
       M.glowDisc.scale.setScalar(1 + Math.sin(now * 11) * 0.05); // vacillement
     }
-    this.blob.position.set(px, 0.03, pz);
+    this.blob.position.set(px, gp + 0.06, pz);
+    this.blob.rotation.set(this.tRx, 0, this.tRz); // géométrie déjà à plat
     this.blob.scale.setScalar(Math.max(0.4, 1 - py * 0.25));
 
     // dash : 1 particule crème par frame + silhouettes en fondu
@@ -638,7 +702,7 @@ export class GameScene {
         const g = this.ghosts[this.ghostNext];
         this.ghostNext = (this.ghostNext + 1) % FEEL.trail.dashGhosts;
         g.x = px;
-        g.y = py;
+        g.y = py + gp;
         g.z = pz;
         g.ry = this.face;
         g.life = FEEL.trail.dashGhostLife;
@@ -670,11 +734,12 @@ export class GameScene {
       const hop = boss ? 0 : Math.abs(Math.sin(now * 8 + e.bob)) * (e.type === 1 ? 0.12 : 0.1);
       const col = e.flash > 0 ? WHITE : e.elite ? this.eliteColor[e.type] : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
-      const ey = e.y + hop;
+      const eg = this.gy(ex, ez);
+      const ey = e.y + hop + eg;
       if (e.type === VOLANT_TYPE) {
         // ombre au sol : grossit pendant le télégraphe (0,6 s avant la plongée)
         const tele = e.state === 1 ? 1 + (1 - Math.max(0, e.timer / VOLANT.telegraph)) * 1.6 : 1;
-        this.shadowW.put(ex, 0.04, ez, 0, 0.6 * tele * (e.state === 2 ? 0.6 : 1), this.cShadow);
+        this.shadowW.put(ex, eg + 0.06, ez, 0, 0.6 * tele * (e.state === 2 ? 0.6 : 1), this.cShadow);
         this.enemyW[e.type].put(
           ex,
           ey,
@@ -707,7 +772,7 @@ export class GameScene {
           const half = C.dist * 0.5 + e.r;
           this.zoneFillW.put(
             ex + e.tx * half,
-            0.045,
+            eg + 0.08,
             ez + e.tz * half,
             Math.atan2(-e.tz, e.tx),
             half,
@@ -719,8 +784,10 @@ export class GameScene {
           );
         }
       }
-      if (e.type !== VOLANT_TYPE) this.shadowW.put(ex, 0.03, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow);
-      if (e.elite) this.eliteW.put(ex, 0.06, ez, now * 1.5, e.r * 1.3, this.cGold);
+      if (e.type !== VOLANT_TYPE || e.elite) this.tilt(ex, ez);
+      if (e.type !== VOLANT_TYPE)
+        this.shadowW.put(ex, eg + 0.05, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow, this.tRx, this.tRz);
+      if (e.elite) this.eliteW.put(ex, eg + 0.08, ez, now * 1.5, e.r * 1.3, this.cGold, this.tRx, this.tRz);
     }
     for (let t = 0; t < this.enemyW.length; t++) this.enemyW[t].end();
     this.shadowW.end();
@@ -736,49 +803,44 @@ export class GameScene {
     for (let i = 0; i < w.shotCount; i++) {
       const sh = w.shots[i];
       if (sh.kind === ShotKind.Spit) {
-        this.spitW.put(
-          lerp(sh.px, sh.x, alpha),
-          0.45 + Math.sin(now * 9 + i) * 0.1,
-          lerp(sh.pz, sh.z, alpha),
-          now * 5,
-          1,
-          this.cSpit,
-        );
+        const sx = lerp(sh.px, sh.x, alpha),
+          sz = lerp(sh.pz, sh.z, alpha);
+        this.spitW.put(sx, this.gy(sx, sz) + 0.45 + Math.sin(now * 9 + i) * 0.1, sz, now * 5, 1, this.cSpit);
       } else if (sh.kind === ShotKind.Arrow) {
-        this.arrowW.put(
-          lerp(sh.px, sh.x, alpha),
-          1.0,
-          lerp(sh.pz, sh.z, alpha),
-          Math.atan2(sh.vx, sh.vz),
-          1,
-          this.cArrow,
-        );
+        const sx = lerp(sh.px, sh.x, alpha),
+          sz = lerp(sh.pz, sh.z, alpha);
+        this.arrowW.put(sx, this.gy(sx, sz) + 1.0, sz, Math.atan2(sh.vx, sh.vz), 1, this.cArrow);
       } else if (sh.kind === ShotKind.Fireball) {
         // boule de feu : arc en cloche du Sorcier vers le cercle, qui se remplit au sol pendant le vol
         const f = Math.min(1, 1 - (sh.life - alpha * STEP) / sh.t0);
+        const g0 = this.gy(sh.ox, sh.oz),
+          g1 = this.gy(sh.x, sh.z);
         this.fireW.put(
           sh.ox + (sh.x - sh.ox) * f,
-          0.9 + Math.sin(f * Math.PI) * 4.5 + (1 - f) * 0.6,
+          g0 + (g1 - g0) * f + 0.9 + Math.sin(f * Math.PI) * 4.5 + (1 - f) * 0.6,
           sh.oz + (sh.z - sh.oz) * f,
           now * 6,
           1 + Math.sin(now * 20) * 0.08,
           this.cFireball,
         );
-        this.zoneW.put(sh.x, 0.05, sh.z, 0, sh.r, this.cTele);
-        this.zoneFillW.put(sh.x, 0.045, sh.z, 0, sh.r * f, this.cTele);
+        this.tilt(sh.x, sh.z);
+        this.zoneW.put(sh.x, g1 + 0.1, sh.z, 0, sh.r, this.cTele, this.tRx, this.tRz);
+        this.zoneFillW.put(sh.x, g1 + 0.09, sh.z, 0, sh.r * f, this.cTele, this.tRx, this.tRz);
       } else if (sh.kind === ShotKind.Ring) {
         // onde de choc du Gardien : anneau qui grandit, posé au sol (le joueur la saute)
         const r = sh.r + HAZARDS.ring.speed * alpha * STEP;
-        this.ringW.put(sh.x, 0.06, sh.z, 0, r, this.cTele);
+        this.tilt(sh.x, sh.z);
+        this.ringW.put(sh.x, this.gy(sh.x, sh.z) + 0.15, sh.z, 0, r, this.cTele, this.tRx, this.tRz);
       } else {
         // cercle du Colosse (immobile) ou fissure d'éruption (suit le joueur, posée sur le sol local) : le disque se remplit
         const eruption = sh.kind === ShotKind.Eruption;
         const f = 1 - Math.max(0, sh.life / (eruption ? HAZARDS.eruption.telegraph : BOSS.zoneTelegraph));
         const sx = eruption ? lerp(sh.px, sh.x, alpha) : sh.x,
           sz = eruption ? lerp(sh.pz, sh.z, alpha) : sh.z;
-        const gy = 0;
-        this.zoneW.put(sx, gy + 0.05, sz, 0, sh.r, this.cTele);
-        this.zoneFillW.put(sx, gy + 0.045, sz, 0, sh.r * f, this.cTele);
+        const gy = this.gy(sx, sz);
+        this.tilt(sx, sz);
+        this.zoneW.put(sx, gy + 0.1, sz, 0, sh.r, this.cTele, this.tRx, this.tRz);
+        this.zoneFillW.put(sx, gy + 0.09, sz, 0, sh.r * f, this.cTele, this.tRx, this.tRz);
       }
     }
     this.spitW.end();
@@ -793,9 +855,62 @@ export class GameScene {
     for (let i = 0; i < w.chestCount; i++) {
       const c = w.chests[i];
       const pop = Math.min(1, c.age / 0.25);
-      this.chestW.put(c.x, 0.45 + Math.sin(now * 2.5 + i) * 0.12, c.z, now * 1.2, (c.boss ? 1.4 : 1) * pop, this.cGold);
+      this.chestW.put(
+        c.x,
+        this.gy(c.x, c.z) + 0.45 + Math.sin(now * 2.5 + i) * 0.12,
+        c.z,
+        now * 1.2,
+        (c.boss ? 1.4 : 1) * pop,
+        this.cGold,
+      );
     }
     this.chestW.end();
+
+    // coffres de carte et sanctuaires (phase 18) : colonne de lumière dorée (abordable), grise (pas assez d'or ou 6 objets),
+    // bleue (sanctuaire) ; anneau qui se remplit pendant l'ouverture ; runes qui s'allument avec la jauge du sanctuaire
+    this.mapChestW.begin();
+    this.holdW.begin();
+    this.shrineW.begin();
+    this.shrineGlowW.begin();
+    this.beamW.begin();
+    const affordable = canOpenMapChest(w);
+    for (let i = 0; i < w.mapChests.length; i++) {
+      const c = w.mapChests[i];
+      if (c.open) continue;
+      const g = this.gy(c.x, c.z);
+      this.tilt(c.x, c.z);
+      this.mapChestW.put(c.x, g - 0.02, c.z, i * 1.7, 1.05, WHITE, this.tRx, this.tRz);
+      const bw = 1 + Math.sin(now * 2 + i) * 0.06;
+      this.beamW.put(c.x, g, c.z, 0, bw, affordable ? this.cBeamGold : this.cBeamGrey, 0, 0, 1, bw);
+      if (c.hold > 0) {
+        const f = Math.min(1, c.hold / MAPCHEST.hold);
+        this.holdW.put(
+          c.x,
+          g + 0.1,
+          c.z,
+          0,
+          MAPCHEST.r * (0.4 + f * 0.6),
+          this.cPoi.copy(this.cBeamGold).multiplyScalar(0.5 + f),
+          this.tRx,
+          this.tRz,
+        );
+      }
+    }
+    for (let i = 0; i < w.shrines.length; i++) {
+      const sr = w.shrines[i];
+      const g = this.gy(sr.x, sr.z);
+      this.tilt(sr.x, sr.z);
+      this.shrineW.put(sr.x, g - 0.05, sr.z, i * 0.9, SHRINE.r * 0.9, WHITE, this.tRx, this.tRz);
+      const f = sr.used ? 0 : sr.charge / SHRINE.charge;
+      this.cPoi.copy(this.cBeamBlue).multiplyScalar(sr.used ? 0.12 : 0.35 + f * 1.2 + Math.sin(now * 3 + i) * 0.08);
+      this.shrineGlowW.put(sr.x, g + 0.12, sr.z, now * 0.4, SHRINE.r * (1 + f * 0.08), this.cPoi, this.tRx, this.tRz);
+      if (!sr.used) this.beamW.put(sr.x, g, sr.z, 0, 1 + f * 0.6, this.cBeamBlue, 0, 0, 1, 1 + f * 0.6);
+    }
+    this.mapChestW.end();
+    this.holdW.end();
+    this.shrineW.end();
+    this.shrineGlowW.end();
+    this.beamW.end();
 
     // échoppe du marchand : apparition en 0,4 s, anneau qui respire, lanterne qui vacille
     const MR = w.merchant;
@@ -803,15 +918,17 @@ export class GameScene {
     if (MR.active) {
       const left = MR.until - w.t;
       const pop = Math.min(1, (MERCHANT.stay - left) / 0.4, left / 0.4);
-      this.stall.position.set(MR.x, 0, MR.z);
+      const sg = this.gy(MR.x, MR.z);
+      this.stall.position.set(MR.x, sg, MR.z);
       if (this.stallVisit !== MR.visit) {
         this.stallVisit = MR.visit; // orientée vers le joueur à son arrivée, puis fixe
         this.stall.rotation.y = Math.atan2(P.x - MR.x, P.z - MR.z);
       }
       this.stall.scale.setScalar(Math.max(0.01, pop));
       this.stallLamp.scale.setScalar(0.9 + Math.sin(now * 9) * 0.08 + Math.sin(now * 23) * 0.04);
-      this.stallRing.position.x = MR.x;
-      this.stallRing.position.z = MR.z;
+      this.stallRing.position.set(MR.x, sg + 0.08, MR.z);
+      this.tilt(MR.x, MR.z);
+      this.stallRing.rotation.set(this.tRx, 0, this.tRz);
       this.stallRing.scale.setScalar(MERCHANT.r * (1 + Math.sin(now * 3) * 0.04) * pop);
     }
 
@@ -827,7 +944,7 @@ export class GameScene {
       }
       this.gemW.put(
         g.x,
-        0.4 + Math.sin(now * 3 + g.x) * 0.1,
+        this.gy(g.x, g.z) + 0.4 + Math.sin(now * 3 + g.x) * 0.1,
         g.z,
         now * 2 + g.z,
         big * pop,
@@ -845,29 +962,30 @@ export class GameScene {
     for (let i = 0; i < w.projCount; i++) {
       const p = w.projs[i];
       const x = lerp(p.px, p.x, alpha),
-        z = lerp(p.pz, p.z, alpha);
+        z = lerp(p.pz, p.z, alpha),
+        y = p.y + this.gy(x, z); // phase 18 : y de la sim au-dessus du sol local
       if (p.kind === ProjKind.Boomerang) {
-        this.boomW.put(x, p.y, z, p.age * 22, 1, this.cBoom);
+        this.boomW.put(x, y, z, p.age * 22, 1, this.cBoom);
         continue;
       }
       if (p.kind === ProjKind.Mine) {
         const blink = p.age < 0.3 ? 0.5 + p.age : 1 + Math.sin(now * 6 + p.x) * 0.1;
-        this.mineW.put(x, p.y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
+        this.mineW.put(x, y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
         continue;
       }
       if (p.kind === ProjKind.Fire) {
         // plaque de feu : s'éteint en rétrécissant, vacille
         const fade = Math.max(0.2, p.life / TRAIT.trainee.life);
         const s = (2.4 + Math.sin(now * 30 + p.z) * 0.3) * fade;
-        this.mineW.put(x, p.y, z, now * 9 + p.x, s, this.cFire, 0, 0, s * 0.25); // plate : un quart de hauteur
+        this.mineW.put(x, y + 0.05, z, now * 9 + p.x, s, this.cFire, 0, 0, s * 0.25); // plate : un quart de hauteur
         continue;
       }
       const grow = Math.min(1, p.age / 0.06);
       const sc = (1.7 + Math.sin(now * 40 + p.x) * 0.2) * grow * orbeScale;
-      this.projW.put(x, p.y, z, now * 7, sc, this.cProj, now * 9, 0);
+      this.projW.put(x, y, z, now * 7, sc, this.cProj, now * 9, 0);
       for (let j = 1; j <= FEEL.trail.projGhosts; j++) {
         const back = Math.min(j * FEEL.trail.projGhostDt, p.age);
-        this.trailW.put(x - p.vx * back, p.y, z - p.vz * back, 0, sc * (1.15 - j * 0.2), this.cTrail[j - 1]);
+        this.trailW.put(x - p.vx * back, y, z - p.vz * back, 0, sc * (1.15 - j * 0.2), this.cTrail[j - 1]);
       }
     }
     this.projW.end();
@@ -881,8 +999,11 @@ export class GameScene {
       const r = weaponStats(w, 'aura').r;
       const pulse = w.wstate.auraPulse;
       this.aura.visible = this.auraDisc.visible = true;
-      this.aura.position.set(px, 0.06, pz);
-      this.auraDisc.position.set(px, 0.05, pz);
+      this.tilt(px, pz);
+      this.aura.position.set(px, gp + 0.12, pz);
+      this.auraDisc.position.set(px, gp + 0.1, pz);
+      this.aura.rotation.set(-Math.PI / 2 + this.tRx, 0, this.tRz);
+      this.auraDisc.rotation.set(-Math.PI / 2 + this.tRx, 0, this.tRz);
       this.aura.scale.setScalar(r * (1 + pulse * 0.06));
       this.auraDisc.scale.setScalar(r);
       const m = this.aura.material as THREE.MeshBasicMaterial;
@@ -899,7 +1020,7 @@ export class GameScene {
       const sL = weaponStats(w, 'lames');
       const r = sL.r * w.bladeRangeMul;
       const bs = w.player.sizeMul;
-      const by = py + 0.8;
+      const by = py + gp + 0.8;
       for (let i = 0; i < sL.n; i++) {
         const a = w.wstate.bladeA + (i * TAU) / sL.n;
         this.bladeW.put(px + Math.sin(a) * r, by, pz + Math.cos(a) * r, a + Math.PI / 2, bs, this.cPaper);
@@ -935,12 +1056,13 @@ export class GameScene {
     const look = 1.2; // avance dans la direction du mouvement
     const tx = px + P.dirX * look * (moving ? 1 : 0),
       tz = pz + P.dirZ * look * (moving ? 1 : 0);
+    this.camGy += (gp - this.camGy) * k; // phase 18 : la caméra suit le relief, amortie
     this.camPos.x += (tx - this.camPos.x) * k;
-    this.camPos.y += (12.5 * cs - this.camPos.y) * k;
+    this.camPos.y += (this.camGy + 12.5 * cs - this.camPos.y) * k;
     this.camPos.z += (tz + 10.5 * cs - this.camPos.z) * k;
     this.camLook.x += (tx - this.camLook.x) * k;
     this.camLook.z += (tz - 0.8 - this.camLook.z) * k;
-    this.camLook.y = 0.8;
+    this.camLook.y = this.camGy + 0.8;
     this.camera.position.copy(this.camPos);
     if (this.shake > 0) {
       const a = Math.min(FEEL.shake.max, this.shake) * 0.6;
@@ -967,8 +1089,12 @@ export class GameScene {
     this.player.rotation.y = a; // le modèle regarde vers +z : face à la caméra
     this.model.torso.position.y =
       (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + Math.sin(now * 2.2) * 0.015;
-    if (this.model.glowDisc) this.model.glowDisc.position.set(0, 0.07, 0);
-    this.blob.position.set(0, 0.03, 0);
+    if (this.model.glowDisc) {
+      this.model.glowDisc.position.set(0, 0.07, 0);
+      this.model.glowDisc.rotation.set(0, 0, 0);
+    }
+    this.blob.position.set(0, 0.03, 0); // menu : clairière de départ, plate
+    this.blob.rotation.set(0, 0, 0);
     for (let i = 0; i < this.writers.length; i++) {
       this.writers[i].begin();
       this.writers[i].end();
@@ -995,8 +1121,9 @@ export class GameScene {
     this.stallVisit = -1; // nouveau run : l'échoppe se tourne de nouveau vers le joueur à sa première visite
     this.landT = -1;
     for (const g of this.ghosts) g.life = 0;
-    this.camPos.set(w.player.x, 12.5 * this.camScale, w.player.z + 10.5 * this.camScale);
-    this.camLook.set(w.player.x, 0.8, w.player.z);
+    this.camGy = this.gy(w.player.x, w.player.z);
+    this.camPos.set(w.player.x, this.camGy + 12.5 * this.camScale, w.player.z + 10.5 * this.camScale);
+    this.camLook.set(w.player.x, this.camGy + 0.8, w.player.z);
   }
 
   info(): { calls: number; triangles: number; width: number; height: number; level: number } {

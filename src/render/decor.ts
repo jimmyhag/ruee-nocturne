@@ -82,6 +82,40 @@ export function stallGeometry(): THREE.BufferGeometry {
   ];
   return withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB);
 }
+/** Coffre de carte (phase 18) : caisse de bois cerclée d'or, couvercle bombé, serrure ; origine au sol, contour toon. */
+export function mapChestGeometry(): THREE.BufferGeometry {
+  const WOOD = 0x6b4630,
+    GOLD = PAL.gold;
+  return withOutline(
+    build([
+      { shape: 'box', size: [1.1, 0.62, 0.74], pos: [0, 0.31, 0], color: WOOD },
+      { shape: 'cyl', size: [0.37, 0.37, 1.1], pos: [0, 0.62, 0], rot: [0, 0, Math.PI / 2], color: WOOD, seg: 8 },
+      { shape: 'box', size: [0.12, 0.66, 0.78], pos: [-0.38, 0.33, 0], color: GOLD },
+      { shape: 'box', size: [0.12, 0.66, 0.78], pos: [0.38, 0.33, 0], color: GOLD },
+      { shape: 'box', size: [0.2, 0.24, 0.06], pos: [0, 0.5, 0.39], color: GOLD },
+    ]),
+    OUTLINE.decor,
+    OUTLINE_RGB,
+  );
+}
+/** Sanctuaire (phase 18) : six pierres levées en cercle (rayon 1 avant mise à l'échelle) et une dalle centrale. */
+export function shrineGeometry(): THREE.BufferGeometry {
+  const parts: (Prim & { color: number })[] = [
+    { shape: 'cyl', size: [0.55, 0.62, 0.16], pos: [0, 0.08, 0], color: 0x8a86a8, seg: 10 },
+  ];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    parts.push({
+      shape: 'box',
+      size: [0.16, 0.5 + (k % 2) * 0.16, 0.16],
+      pos: [Math.sin(a), 0.28, Math.cos(a)],
+      rot: [0, a, 0],
+      color: STONE,
+    });
+  }
+  return withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB);
+}
+
 /** Hauteur de la lanterne pendue à l'auvent de l'échoppe (coin avant droit). */
 export const MERCHANT_LANTERN = { x: 1.0, y: 1.75, z: 0.75 };
 /**
@@ -92,7 +126,7 @@ export const MERCHANT_LANTERN = { x: 1.0, y: 1.75, z: 0.75 };
  * Ouvrages de la carte (phase 16) : murets, troncs couchés et menhirs cuits en UNE géométrie statique (un seul appel de
  * rendu pour toute la carte), chaque pièce avec son contour toon. Construit une fois, au chargement du décor.
  */
-export function worksGeometry(w: World): THREE.BufferGeometry | null {
+export function worksGeometry(w: World, gy: (x: number, z: number) => number = () => 0): THREE.BufferGeometry | null {
   const pieces: THREE.BufferGeometry[] = [];
   const piece = (parts: (Prim & { color: number })[]) =>
     pieces.push(withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB));
@@ -120,7 +154,7 @@ export function worksGeometry(w: World): THREE.BufferGeometry | null {
         parts.push({
           shape: 'box',
           size: [bl * 0.96, hj, s.r * 2 * (0.94 + (b % 2) * 0.06)],
-          pos: [mx + ux * t, hj / 2, mz + uz * t],
+          pos: [mx + ux * t, gy(mx + ux * t, mz + uz * t) + hj / 2, mz + uz * t],
           rot: [0, -th + (((b * 13) % 5) - 2) * 0.02, 0],
           color: c,
         });
@@ -131,11 +165,18 @@ export function worksGeometry(w: World): THREE.BufferGeometry | null {
       const ux = dx / L,
         uz = dz / L;
       piece([
-        { shape: 'cyl', size: [s.r, s.r, L], pos: [mx, s.r, mz], rot: [0, -th, Math.PI / 2], color: TRUNK, seg: 8 },
+        {
+          shape: 'cyl',
+          size: [s.r, s.r, L],
+          pos: [mx, gy(mx, mz) + s.r, mz],
+          rot: [0, -th, Math.PI / 2],
+          color: TRUNK,
+          seg: 8,
+        },
         {
           shape: 'cyl',
           size: [s.r * 0.86, s.r * 0.86, 0.04],
-          pos: [s.x1 - ux * 0.01, s.r, s.z1 - uz * 0.01],
+          pos: [s.x1 - ux * 0.01, gy(mx, mz) + s.r, s.z1 - uz * 0.01],
           rot: [0, -th, Math.PI / 2],
           color: WOOD_CUT,
           seg: 8,
@@ -143,7 +184,7 @@ export function worksGeometry(w: World): THREE.BufferGeometry | null {
         {
           shape: 'cyl',
           size: [s.r * 0.86, s.r * 0.86, 0.04],
-          pos: [s.x2 + ux * 0.01, s.r, s.z2 + uz * 0.01],
+          pos: [s.x2 + ux * 0.01, gy(mx, mz) + s.r, s.z2 + uz * 0.01],
           rot: [0, -th, Math.PI / 2],
           color: WOOD_CUT,
           seg: 8,
@@ -158,9 +199,17 @@ export function worksGeometry(w: World): THREE.BufferGeometry | null {
       h = 2.4 + ((k * 5) % 4) * 0.25,
       a = (k * 2.399) % (Math.PI * 2),
       tilt: [number, number, number] = [((k % 3) - 1) * 0.07, a, ((k % 2) * 2 - 1) * 0.06];
+    const g = gy(o.x, o.z);
     piece([
-      { shape: 'cyl', size: [o.r * 0.62, o.r * 1.0, h], pos: [o.x, h / 2 - 0.1, o.z], rot: tilt, color: STONE, seg: 6 },
-      { shape: 'cone', size: [o.r * 0.64, 0.45], pos: [o.x, h - 0.02, o.z], rot: tilt, color: MOSS, seg: 6 },
+      {
+        shape: 'cyl',
+        size: [o.r * 0.62, o.r * 1.0, h],
+        pos: [o.x, g + h / 2 - 0.1, o.z],
+        rot: tilt,
+        color: STONE,
+        seg: 6,
+      },
+      { shape: 'cone', size: [o.r * 0.64, 0.45], pos: [o.x, g + h - 0.02, o.z], rot: tilt, color: MOSS, seg: 6 },
     ]);
   }
   return pieces.length ? merge(pieces) : null;
@@ -172,6 +221,8 @@ export const FIREFLIES = 90;
 
 /** Lucioles : points additifs qui dérivent autour du joueur, visibles la nuit (opacité pilotée par le cycle). */
 export class Fireflies {
+  /** Sol local (phase 18) : les lucioles flottent au-dessus des collines. */
+  ground: (x: number, z: number) => number = () => 0;
   readonly points: THREE.Points;
   private pos: Float32Array;
   private attr: THREE.BufferAttribute;
@@ -224,9 +275,11 @@ export class Fireflies {
       dx -= T * Math.round(dx / T);
       let dz = this.oz[i] - pz;
       dz -= T * Math.round(dz / T);
-      p[i * 3] = px + dx + Math.sin(now * 0.5 + ph) * 1.6;
-      p[i * 3 + 1] = 0.7 + Math.sin(now * 1.1 + ph * 2) * 0.45 + 0.45;
-      p[i * 3 + 2] = pz + dz + Math.cos(now * 0.4 + ph * 1.7) * 1.6;
+      const fx = px + dx + Math.sin(now * 0.5 + ph) * 1.6,
+        fz = pz + dz + Math.cos(now * 0.4 + ph * 1.7) * 1.6;
+      p[i * 3] = fx;
+      p[i * 3 + 1] = this.ground(fx, fz) + 0.7 + Math.sin(now * 1.1 + ph * 2) * 0.45 + 0.45;
+      p[i * 3 + 2] = fz;
     }
     this.attr.needsUpdate = true;
   }

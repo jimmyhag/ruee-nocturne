@@ -10,7 +10,7 @@ import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, renderCards } from './ui/hud';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, itemName, synergyName } from './ui/cards';
+import { achName, achUnlock, enemyName, itemName, synergyName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import type { Achievement } from './meta/achievements';
@@ -391,11 +391,14 @@ function openLevelUp(): void {
   app = 'levelup';
   // phase 17 : un coffre propose des objets passifs (même écran, autre titre)
   const chest = world.cards[0]?.kind === 'i';
+  const shrine = world.cards[0]?.kind === 'b'; // phase 18 : bonus de sanctuaire
   $('luTitle').textContent = chest
     ? t('chest.title')
-    : t('levelup.title', { n: world.player.level - world.pending + 1 });
-  $('luHint').textContent = chest ? t('chest.hint') : t('levelup.hint');
-  $('luSlots').hidden = chest; // les emplacements d'armes et de tomes ne disent rien d'un choix d'objet
+    : shrine
+      ? t('shrine.title')
+      : t('levelup.title', { n: world.player.level - world.pending + 1 });
+  $('luHint').textContent = chest ? t('chest.hint') : shrine ? t('shrine.hint') : t('levelup.hint');
+  $('luSlots').hidden = chest || shrine; // les emplacements d'armes et de tomes ne disent rien d'un objet ni d'un bonus
   $('luSlots').textContent = t('levelup.slots', {
     w: Object.keys(world.weapons).length,
     wMax: world.maxWeapons,
@@ -1273,6 +1276,23 @@ function handleEvents(w: World, now: number): void {
       case Ev.MerchantArrive:
         hud.banner(t('banner.merchant'));
         audio.chest();
+        break;
+      case Ev.MapChestOpen:
+        // phase 18 : coffre de carte payé : pièces qui jaillissent, puis le choix d'objet
+        S.particles.burst(e.x, e.y, e.z, PAL.gold, (26 * fx) | 0, 6, 7);
+        S.particles.ring(e.x, 0.2, e.z, PAL.gold, (14 * fx) | 0, 3, 3);
+        audio.mapChest();
+        hud.flash('gold');
+        break;
+      case Ev.ShrineDone:
+        S.particles.ring(e.x, 0.2, e.z, PAL.xp, (36 * fx) | 0, 4.5, 7);
+        S.particles.burst(e.x, 1, e.z, PAL.xp, (20 * fx) | 0, 3, 9, false);
+        audio.shrine();
+        hud.banner(t('banner.shrine'));
+        break;
+      case Ev.BossWarn:
+        hud.banner(t('banner.bossWarn', { name: enemyName(e.x2) }));
+        audio.bossWarn();
         break;
       case Ev.MerchantLeave:
         break;

@@ -208,6 +208,23 @@ export class AudioBus {
     this.tone(this.ui, 659, 0.1, 'triangle', 0.26, 0, PRIO.levelUp, 0.08);
     this.tone(this.ui, 784, 0.2, 'triangle', 0.3, 0, PRIO.levelUp, 0.16);
   }
+  /** Coffre de carte payé (phase 18) : pièces qui tintent puis l'arpège du coffre. */
+  mapChest(): void {
+    this.tone(this.ui, 1180, 0.05, 'square', 0.12, 0, PRIO.levelUp);
+    this.tone(this.ui, 1480, 0.05, 'square', 0.12, 0, PRIO.levelUp, 0.05);
+    this.chest();
+  }
+  /** Sanctuaire chargé (phase 18) : accord clair et long. */
+  shrine(): void {
+    this.tone(this.ui, 392, 0.7, 'sine', 0.3, 0, PRIO.levelUp);
+    this.tone(this.ui, 587, 0.7, 'sine', 0.25, 0, PRIO.levelUp, 0.06);
+    this.tone(this.ui, 784, 0.8, 'triangle', 0.22, 0, PRIO.levelUp, 0.12);
+  }
+  /** Un boss approche (phase 18) : battement grave qui monte. */
+  bossWarn(): void {
+    this.tone(this.sfx, 55, 0.5, 'sawtooth', 0.32, 25, PRIO.boss);
+    this.tone(this.sfx, 55, 0.5, 'sawtooth', 0.32, 35, PRIO.boss, 0.55);
+  }
   /** Évolution d'arme : accord grave + brillance. */
   evolve(): void {
     this.tone(this.ui, 110, 0.6, 'sawtooth', 0.35, 110, PRIO.levelUp);
