@@ -525,15 +525,15 @@ export const RARITY = {
 export const SPELL_KEYS = ['bond', 'tourbillon', 'clignement', 'eclat', 'collet', 'petard', 'comete', 'voile', 'bourse'] as const;
 export const SPELL = {
   slow: 0.5, // vitesse des ennemis ralentis (Voile, boss dans un Collet ou un Éclat)
-  bond: { cd: 2.5, orbs: 6, dmg: 14, speed: 15, pierce: 2 }, // Éclaireuse : dash PLAYER.dashTime, puis orbes en étoile à l'arrivée
+  bond: { cd: 3, orbs: 6, dmg: 14, speed: 15, pierce: 2 }, // Éclaireuse : dash PLAYER.dashTime, puis orbes en étoile à l'arrivée
   tourbillon: { cd: 7, dur: 1.2, r: 3, period: 0.2, dmg: 12, kb: 7, dmgTaken: 0.5, speedMul: 0.8 }, // Bûcheron
   clignement: { cd: 5, dist: 6, invul: 0.4, targets: 6, dmg: 35, chainR: 7 }, // Sorcière : éclairs depuis le point de départ
   eclat: { cd: 8, r: 6, dmg: 12, kb: 14, stun: 1.2, bossSlow: 2 }, // Veilleuse
   collet: { cd: 7, range: 7, r: 3, dur: 3, dps: 6, period: 0.25 }, // Braconnier : immobilise (boss : ralentis)
   petard: { cd: 6, r: 3.5, dmg: 55, kb: 12, jumpMul: 1.6 }, // Sapeur : l'atterrissage pose une mine (Démolisseur)
-  comete: { cd: 1.8, time: 0.4 }, // Feu follet : dash 2× plus long que le Bond, la Traînée y pose du feu
+  comete: { cd: 2.2, time: 0.4 }, // Feu follet : dash 2× plus long que le Bond, la Traînée y pose du feu
   voile: { cd: 8, dur: 1.5, speedMul: 1.3, r: 1.4, slow: 2 }, // Revenante : invulnérable, ralentit ce qu'elle frôle
-  bourse: { cd: 7, range: 5, r: 3.5, dmg: 24, perGold: 0.1, maxBonus: 60 }, // Colporteur : +1 dégât par 10 or gardés (+60 max) ; 30 dégâts / 6 s faisaient 36 % des kills (nu)
+  bourse: { cd: 8, range: 5, r: 3.5, dmg: 16, perGold: 0.1, maxBonus: 60 }, // Colporteur : +1 dégât par 10 or gardés (+60 max) ; 30 dégâts / 6 s : 36 % des kills (nu), 24 / 7 s : 34 %
 };
 
 // personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).

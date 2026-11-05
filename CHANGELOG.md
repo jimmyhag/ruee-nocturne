@@ -2,6 +2,31 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.14.0 — 5 nov. 2026 (phase 19 « Un sort par classe »)
+
+Chaque personnage a maintenant son propre sort, sur le bouton de l'ancien dash (Maj au clavier, bouton à l'écran).
+
+### Ajouté
+
+- **Neuf sorts de classe** :
+  - **Bond** (Éclaireuse) : un élan invulnérable, puis 6 orbes en étoile.
+  - **Tourbillon** (Bûcheron) : il tournoie 1,2 s, frappe tout autour et encaisse moitié moins.
+  - **Clignement** (Sorcière) : elle se téléporte de 6 u, et des éclairs frappent là où elle était.
+  - **Éclat** (Veilleuse) : une onde de lumière repousse et étourdit tout autour.
+  - **Collet** (Braconnier) : il lance un filet ; les ennemis pris restent figés 3 s.
+  - **Pétard** (Sapeur) : une explosion sous ses pieds le projette en l'air.
+  - **Comète** (Feu follet) : un long élan qui laisse du feu.
+  - **Voile** (Revenante) : 1,5 s de spectre, intouchable et rapide.
+  - **Bourse** (Colporteur) : une bourse explosive, plus forte avec l'or que tu gardes.
+- **Chaque sort a son son, sa gerbe et ses effets qui durent** : filet au sol, bras de lumière du Tourbillon, silhouettes du Voile. Les ennemis étourdis pâlissent, les ennemis ralentis bleuissent.
+- **Nom et glyphe du sort** sur le bouton, à côté de la touche Maj et sur la fiche de chaque personnage.
+
+### Modifié
+
+- **Tome Mouvement** : réduit la recharge du sort (−6 % par ligne) et augmente sa puissance (+8 %), au lieu de jouer sur le dash.
+- **Cape** : rend invulnérable 0,4 s après chaque sort et réduit sa recharge de 15 %.
+- Le personnage ne clignote plus pendant l'invulnérabilité d'un sort, seulement après un coup encaissé.
+
 ## 1.13.1 — 5 nov. 2026 (suivi de la phase 18)
 
 ### Modifié

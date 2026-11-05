@@ -465,7 +465,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           cast = close >= 3 || charged || P.hp < P.maxHp * 0.35;
           break;
         default: // Bond, Comète, Clignement : l'esquive de l'ancien dash
-          cast = close >= 2 || charged;
+          cast = close >= 3 || charged;
       }
       out.spell = cast && P.spellCd <= 0;
       out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.spell;
