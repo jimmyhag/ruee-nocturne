@@ -4,6 +4,7 @@ import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitte
 import { compactEnemies } from './combat';
 import { applyCard, nextChoice, tickChests, tickGems } from './progression';
 import { merchantInput, tickMerchant } from './merchant';
+import { tickPOI } from './poi';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
 import { Ev, HitSrc, HurtSrc, Mode, ShotKind, Trait } from './types';
@@ -51,6 +52,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickGems(w, dt);
   tickChests(w, dt);
   tickMerchant(w); // phase 17 : peut ouvrir l'échoppe (Mode.Merchant)
+  tickPOI(w, dt); // phase 18 : coffres de carte et sanctuaires
   // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
   if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
@@ -67,8 +69,8 @@ export function step(w: World, input: Input, dt: number): void {
     w.mode = Mode.Dead;
     w.gold += w.t * GOLD.perSecond * w.player.goldMul; // bonus de fin : secondes survécues / 10
     w.emit(Ev.Death, w.player.x, 1, w.player.z, w.t);
-  } else if ((w.mode as Mode) === Mode.Play && (w.itemPicks > 0 || w.pending > 0)) {
-    nextChoice(w); // objets des coffres d'abord, puis montées de niveau
+  } else if ((w.mode as Mode) === Mode.Play && (w.itemPicks > 0 || w.boonPicks > 0 || w.pending > 0)) {
+    nextChoice(w); // objets des coffres d'abord, puis bonus de sanctuaire, puis montées de niveau
   }
 }
 
@@ -119,7 +121,8 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.invul = Math.max(P.invul, PLAYER.dashInvul + P.dashInvulAdd);
     w.emit(Ev.Dash, P.x, P.y, P.z);
   }
-  let sp = P.speed * (P.onGround ? w.speedAt(P.x, P.z) : 1); // lac : ralentit au sol seulement
+  // lac : ralentit au sol seulement ; phase 18 : la pente aussi (montée plus lente, descente plus rapide)
+  let sp = P.speed * (P.onGround ? w.speedAt(P.x, P.z) * w.slopeMul(P.x, P.z, ix, iz) : 1);
   if (P.dashT > 0) {
     P.dashT -= dt;
     sp *= PLAYER.dashMul;
@@ -137,7 +140,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   w.resolveObstacles(P.x, P.z, 0.4, out2, P.y);
   P.x = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[0]));
   P.z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
-  const ground = 0; // phase 16 : plus de plateaux, le sol est plat
+  const ground = 0; // y = hauteur au-dessus du sol local (phase 18 : le relief est ajouté par le rendu)
   if (!P.onGround) {
     P.vy -= PLAYER.gravity * dt;
     P.y += P.vy * dt;
@@ -234,7 +237,7 @@ function stepEnemies(w: World, dt: number): void {
     let mx = mv[0],
       mz = mv[1];
     if (!flies) {
-      const slow = w.speedAt(e.x, e.z);
+      const slow = w.speedAt(e.x, e.z) * w.slopeMul(e.x, e.z, mx, mz); // lac et pente (phase 18)
       mx *= slow;
       mz *= slow;
       if (!def.boss) {

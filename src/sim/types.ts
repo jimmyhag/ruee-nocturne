@@ -169,6 +169,9 @@ export const enum Ev {
   MerchantArrive, // phase 17 : l'échoppe apparaît en (x,z)
   MerchantLeave, // phase 17 : l'échoppe repart
   Shockwave, // phase 17 : onde d'atterrissage des Bottes de saut en (x,z), v = rayon
+  MapChestOpen, // phase 18 : coffre de carte ouvert en (x,z), v = prix payé
+  ShrineDone, // phase 18 : sanctuaire chargé en (x,z) → choix d'un bonus
+  BossWarn, // phase 18 : un boss arrive dans BOSS_WARN.lead s, v = index du boss (1..)
 }
 
 export interface GameEvent {
@@ -234,6 +237,8 @@ export interface WorldOptions {
 export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouvement' | 'savoir' | 'chance' | 'or';
 
 /** Objets passifs (phase 17) : une règle de jeu chacun, obtenus dans les coffres et chez le marchand. */
+/** Bonus de sanctuaire (phase 18) : permanents pour la partie. */
+export type BoonKey = 'hp' | 'dmg' | 'speed' | 'cd' | 'magnet' | 'gold';
 export type ItemKey =
   | 'phenix'
   | 'cape'
@@ -254,8 +259,8 @@ export type ItemKey =
  * s0 = prix chez le marchand (0 dans un coffre), s1 = 1 si déjà vendu.
  */
 export interface Card {
-  kind: 'w' | 't' | 'heal' | 'i';
-  key: WeaponKey | TomeKey | ItemKey | '';
+  kind: 'w' | 't' | 'heal' | 'i' | 'b'; // 'b' : bonus de sanctuaire (phase 18)
+  key: WeaponKey | TomeKey | ItemKey | BoonKey | '';
   lv: number; // niveau atteint si prise (1 = nouvelle)
   n: number; // nombre de lignes (rareté)
   s0: number;

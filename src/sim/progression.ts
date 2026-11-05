@@ -1,9 +1,10 @@
 import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, TOME_MAX, WEAPON_LINES, WEAPON_MAX, XP, It } from './balance';
+import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
 import type { StatLine } from './balance';
 import { Ev, Mode } from './types';
-import type { Card, ItemKey, TomeKey, WeaponKey } from './types';
+import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from './types';
 import { WEAPON_KEYS, applyTomeLine, refreshStats } from './weapons/defs';
 import type { World } from './world';
 
@@ -153,6 +154,13 @@ export function applyCard(w: World, idx: number): void {
     nextChoice(w);
     return;
   }
+  if (c.kind === 'b') {
+    // phase 18 : bonus d'un sanctuaire
+    applyBoon(w, c.key as BoonKey);
+    w.boonPicks--;
+    nextChoice(w);
+    return;
+  }
   if (c.kind === 'w') {
     w.weapons[c.key as WeaponKey] = c.lv;
     if (c.lv > w.weaponLvBest) w.weaponLvBest = c.lv;
@@ -186,6 +194,11 @@ export function nextChoice(w: World): void {
     }
   }
   w.itemPicks = 0;
+  if (w.boonPicks > 0) {
+    rollBoonChoices(w, w.cards);
+    w.mode = Mode.LevelUp;
+    return;
+  }
   if (w.pending > 0) {
     w.mode = Mode.LevelUp;
     rollChoices(w);

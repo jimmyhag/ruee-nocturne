@@ -1,4 +1,4 @@
-import { ARCHER, ARCHER_TYPE, BOSS_TYPE, BOSSES, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, ARCHER_TYPE, BOSS_TYPE, BOSS_WARN, BOSSES, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -50,6 +50,15 @@ export function respawnNear(w: World, i: number): void {
 export function tickSpawner(w: World, dt: number): void {
   const t = w.t;
   let rate = SPAWN.rate(t);
+  // phase 18 : respiration avant un boss (annonce BOSS_WARN.lead s avant, spawn adouci les BOSS_WARN.lull dernières s)
+  if (w.nextBoss <= SPAWN.bossPeriod * BOSSES.length) {
+    const left = w.nextBoss - t;
+    if (left <= BOSS_WARN.lead && w.bossWarned !== w.nextBoss) {
+      w.bossWarned = w.nextBoss;
+      w.emit(Ev.BossWarn, w.player.x, 0, w.player.z, w.bossCount + 1, BOSSES[Math.min(w.bossCount, BOSSES.length - 1)]);
+    }
+    if (left <= BOSS_WARN.lull) rate *= BOSS_WARN.lullMul;
+  }
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (t - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < t) w.boredomUntil = t + SPAWN.boredomFor;
   if (w.boredomUntil > t) rate *= SPAWN.boredomMul;

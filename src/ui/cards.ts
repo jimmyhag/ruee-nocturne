@@ -1,9 +1,9 @@
 // Libellés du contenu (armes, tomes, lignes de stats, ennemis, personnages, boutique, succès) : la sim ne porte que
 // des clés (PLAN.md §4.2), les textes vivent ici, dans les deux langues. Aucun DOM : testable sous Vitest.
 import type { Achievement } from '../meta/achievements';
-import { CHARACTERS, ENEMIES, SYNERGIES, TOMES, WEAPON_LINES } from '../sim/balance';
+import { BOON, CHARACTERS, ENEMIES, SYNERGIES, TOMES, WEAPON_LINES } from '../sim/balance';
 import type { StatLine } from '../sim/balance';
-import type { Card, CharacterKey, ItemKey, TomeKey, WeaponKey } from '../sim/types';
+import type { BoonKey, Card, CharacterKey, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
 import { fmtNum, fmtTime, t } from '../i18n';
@@ -18,6 +18,13 @@ export const characterTrait = (k: CharacterKey): string => (k === 'eclaireuse' ?
 /** Nom d'un ennemi par son type (index dans ENEMIES). */
 export const enemyName = (type: number): string => t(`enemy.${ENEMIES[type].key}`);
 /** Objets passifs (phase 17) : nom, règle, glyphe et couleur (par rareté). */
+/** Bonus de sanctuaire (phase 18) : nom et effet chiffré (BOON). */
+export const boonName = (k: BoonKey): string => t(`boon.${k}.name`);
+export const boonText = (k: BoonKey): string => {
+  const v = BOON[k];
+  return t(`boon.${k}.text`, { v: k === 'hp' ? String(v) : fmtNum(Math.round(v * 100)) });
+};
+export const BOON_GLYPH: Record<BoonKey, string> = { hp: '♥', dmg: '⚔', speed: '»', cd: '↻', magnet: '◎', gold: '◉' };
 export const itemName = (k: ItemKey): string => t(`item.${k}.name`);
 export const itemText = (k: ItemKey): string => t(`item.${k}.text`);
 export const ITEM_GLYPH: Record<ItemKey, string> = {
@@ -63,6 +70,7 @@ export function cardLines(c: Card): string[] {
   const out: string[] = [];
   if (c.kind === 'heal') return out;
   if (c.kind === 'i') return [itemText(c.key as ItemKey)];
+  if (c.kind === 'b') return [boonText(c.key as BoonKey)];
   const lines = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey] : TOMES[c.key as TomeKey];
   for (const s of [c.s0, c.s1, c.s2]) if (s >= 0) out.push(lineText(c.kind, lines[s]));
   return out;
@@ -71,12 +79,14 @@ export function cardTitle(c: Card): string {
   if (c.kind === 'w') return weaponName(c.key as WeaponKey);
   if (c.kind === 't') return tomeName(c.key as TomeKey);
   if (c.kind === 'i') return itemName(c.key as ItemKey);
+  if (c.kind === 'b') return boonName(c.key as BoonKey);
   return t('card.heal');
 }
 /** Corps d'une carte : les lignes séparées par « · » (nouvelle arme ou nouveau tome : sa règle d'abord). */
 export function cardText(c: Card): string {
   if (c.kind === 'heal') return t('card.healText');
   if (c.kind === 'i') return itemText(c.key as ItemKey);
+  if (c.kind === 'b') return boonText(c.key as BoonKey);
   const lines = cardLines(c).join(' · ');
   if (c.lv === 1) return `${c.kind === 'w' ? t(`weapon.${c.key}.text`) : tomeText(c.key as TomeKey)} — ${lines}`;
   return lines;

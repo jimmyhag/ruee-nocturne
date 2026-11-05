@@ -1,7 +1,7 @@
 // Toutes les constantes de gameplay. Chaque ligne dit pourquoi.
 // Unités : mètres (u), secondes, PV.
 
-import type { EnemyKey, ItemKey, TomeKey, WeaponKey } from './types';
+import type { BoonKey, EnemyKey, ItemKey, TomeKey, WeaponKey } from './types';
 import { Trait } from './types';
 
 export const STEP = 1 / 60; // pas fixe de la simulation
@@ -44,6 +44,57 @@ export const DECOR = {
   rocks: 90, // phase 16 : 240 → 90
   lamps: 160,
 };
+
+// relief (phase 18, PLAN §3.4) : collines douces qu'on monte et descend, jamais de marche (le champ de flux reste un BFS
+// sur les obstacles : toute pente se franchit). La sim garde y = hauteur au-dessus du sol local ; le rendu ajoute le sol.
+export const TERRAIN = {
+  cell: 2, // u : grille de hauteurs (interpolation bilinéaire)
+  hills: 46, // collines gaussiennes
+  rMin: 14, // rayon (≈ 2σ)…
+  rMax: 30,
+  hMin: 1.5, // …et hauteur au sommet
+  hMax: 4,
+  peak: 6, // les collines qui se chevauchent sont adoucies au-delà (tanh) : sommets ≈ 4–6 u
+  wave: 0.5, // ondulation de basse fréquence (amplitude, u)
+  waveLen: 70, // u
+  startFlat: 22, // clairière de départ plate…
+  startBlend: 12, // …fondue sur 12 u
+  lakeDepth: 0.8, // fond plat des lacs sous la berge
+  lakeBlend: 7,
+  placeBlend: 6, // lieux construits posés à plat (murets, cercles de pierres)
+  maxSlope: 0.35, // pente maximale (≈ 19°), imposée après coup
+};
+export const SLOPE = {
+  k: 1.1, // vitesse × (1 − k · pente dans le sens de la marche) : montée plus lente, descente plus rapide…
+  min: 0.75, // …bornée
+  max: 1.15,
+};
+
+// points d'intérêt (phase 18, PLAN §3.6) : coffres posés sur la carte (payés avec l'or de la partie, prix croissant) et
+// sanctuaires (rester dedans pour gagner un bonus permanent) ; repérés de loin par une colonne de lumière
+export const MAPCHEST = {
+  count: 20,
+  spacing: 22, // u entre deux coffres
+  fromStart: 32, // aucun dans la clairière de départ
+  r: 1.2, // rester dans ce rayon…
+  hold: 0.6, // …ce temps (s) pour ouvrir : on n'ouvre rien par accident, même règle au clavier et au doigt
+  price: 40, // or, premier coffre…
+  growth: 0.35, // …+35 % par coffre ouvert
+  placeShare: 0.4, // part des coffres posés dans les lieux construits (le reste sur les hauteurs)
+};
+export const SHRINE = {
+  count: 10,
+  spacing: 34,
+  fromStart: 40,
+  r: 3, // rayon du cercle
+  charge: 4, // s à rester dedans
+  decay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
+  offers: 3,
+};
+export const BOON_KEYS: BoonKey[] = ['hp', 'dmg', 'speed', 'cd', 'magnet', 'gold'];
+export const BOON = { hp: 12, dmg: 0.08, speed: 0.06, cd: 0.06, magnet: 0.25, gold: 0.2 };
+// respiration avant un boss (phase 18) : bannière d'annonce, puis le spawn redescend le temps de se placer
+export const BOSS_WARN = { lead: 15, lull: 10, lullMul: 0.6 };
 
 // zones de terrain (PLAN §3.4) : lacs qui ralentissent, bois denses qui canalisent
 export const ZONES = {
