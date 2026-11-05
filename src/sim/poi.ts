@@ -88,7 +88,8 @@ export function buildPOI(w: World, r: Rng): void {
 
 /** Prix du prochain coffre de carte (la Bourse du colporteur le baisse aussi). */
 export function mapChestPrice(w: World): number {
-  const base = MAPCHEST.price * Math.pow(1 + MAPCHEST.growth, w.mapChestsOpened);
+  // le prix suit aussi l'or gagné, qui croît avec le temps (sinon un kit complet ouvre tout sans y penser)
+  const base = MAPCHEST.price * Math.pow(1 + MAPCHEST.growth, w.mapChestsOpened) * (1 + w.t / MAPCHEST.timeScale);
   return Math.round(base * (w.items[It.Bourse] ? 1 - ITEM.bourse.discount : 1));
 }
 /**

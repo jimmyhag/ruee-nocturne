@@ -79,7 +79,8 @@ export const MAPCHEST = {
   r: 1.2, // rester dans ce rayon…
   hold: 0.6, // …ce temps (s) pour ouvrir : on n'ouvre rien par accident, même règle au clavier et au doigt
   price: 40, // or, premier coffre…
-  growth: 0.35, // …+35 % par coffre ouvert
+  growth: 0.35, // …+35 % par coffre ouvert…
+  timeScale: 400, // …et × (1 + t / 400) : ×2 à 6:40, ×3 à 13:20 (l'or gagné croît avec le temps)
   placeShare: 0.4, // part des coffres posés dans les lieux construits (le reste sur les hauteurs)
 };
 export const SHRINE = {
@@ -222,7 +223,8 @@ export const SPAWN = {
   // phase 16 : fin de partie /50 → /5 (après 15:00 seulement : la médiane maxée tombe avant) ; avec la carte et les tireurs
   // plafonnés, la moitié des runs maxés vivants à 15:00 allaient au bout (fin 24 %). Mesuré (200 runs maxés) : /15 → 17 %,
   // /8 → 13 %, /5 → 7 % (cible 3–12 %). ×2 à 2:30, ×9,3 à 12:00, ×24 à 16:00, ×74 à 20:00
-  hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 85 + Math.max(0, t - 900) / 5,
+  // phase 18 : fin de partie /5 → /8 (les coffres de carte et les sanctuaires remplacent une part de la puissance)
+  hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 85 + Math.max(0, t - 900) / 8,
   dmgScale: (t: number) => 1 + t / 500 + Math.max(0, t - 900) / 45, // phase 12 : ×4,1 à 20:00 (t/450 avant) ; après 15:00 les dégâts montent plus vite : une build qui a explosé n'est plus limitée par les PV ennemis
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,
@@ -281,7 +283,7 @@ export const ENEMIES: EnemyDef[] = [
   { key: 'spectre', hp: 10, speed: 2.7, r: 0.55, dmg: 12, xp: 1, y: 0.62, kbMul: 1, boss: false },
   { key: 'dard', hp: 7, speed: 4.6, r: 0.45, dmg: 6, xp: 1, y: 0.55, kbMul: 1, boss: false },
   { key: 'brute', hp: 80, speed: 1.8, r: 1.0, dmg: 24, xp: 4, y: 1.0, kbMul: 1 / 3, boss: false },
-  { key: 'gardien', hp: 900, speed: 2.3, r: 2.0, dmg: 40, xp: 40, y: 2.2, kbMul: 0, boss: true },
+  { key: 'gardien', hp: 820, speed: 2.3, r: 2.0, dmg: 40, xp: 40, y: 2.2, kbMul: 0, boss: true },
   { key: 'volant', hp: 12, speed: 3.4, r: 0.5, dmg: 16, xp: 1, y: 1.6, kbMul: 0.5, boss: false },
   { key: 'cracheur', hp: 30, speed: 2.4, r: 0.6, dmg: 8, xp: 2, y: 0.8, kbMul: 0.7, boss: false },
   { key: 'essaim', hp: 1600, speed: 1.6, r: 2.4, dmg: 30, xp: 40, y: 2.4, kbMul: 0, boss: true },
