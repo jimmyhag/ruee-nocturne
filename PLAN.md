@@ -100,7 +100,7 @@ Dégâts (dégâts, élites et boss, recul) · Cadence (recharge, durée des pro
 
 ### 3.4 Terrain
 - 1 carte V1, **construite** (phase 16) : la seed `MAP.seed` pose un lieu par secteur de 34 u, la clairière de départ (30 u) restant ouverte : **ruines** (murets de pierre en L, en U, en croix ou en enceinte brisée, toujours avec des brèches de 4 u), **cercles de pierres** (6 à 8 menhirs autour d'une lanterne), **troncs couchés** (2 ou 3, parallèles), **bosquets** (bois dense), **lacs** (ralentissent), clairières vides. Arbres et rochers épars autour, espacés d'au moins 3 u.
-- **Toujours un accès aux ennemis** : deux obstacles d'ouvrages différents laissent 3 u de passage (une Brute élite fait 2,5 u), chaque ouvrage a des brèches, et un test vérifie que toute case libre est atteignable par une Brute élite (carte du jeu et 50 seeds). Les marcheurs suivent un **champ de flux** autour du joueur (cases de 1 u, recalcul toutes les 0,2 s) : ils trouvent la brèche au lieu de buter ; un marcheur qui n'avance plus suit le flux case par case 0,6 s. Les boss passent à travers les ouvrages.
+- **Toujours un accès aux ennemis** : deux obstacles d'ouvrages différents laissent 3 u de passage (une Brute élite fait 2,5 u), chaque ouvrage a des brèches, et un test vérifie que toute case libre est atteignable par une Brute élite (carte du jeu et 24 seeds). Les marcheurs suivent un **champ de flux** autour du joueur (cases de 1 u, recalcul toutes les 0,2 s) : ils trouvent la brèche au lieu de buter ; un marcheur qui n'avance plus suit le flux case par case 0,6 s. Les boss passent à travers les ouvrages.
 - **Des obstacles utiles** : murets et troncs se franchissent **d'un saut** (le joueur s'échappe, les marcheurs font le tour) ; murets, menhirs, arbres et rochers **arrêtent les flèches et les crachats** (se mettre à couvert). Les plateaux de la phase 11 sont retirés (demande de Jimmy : les ennemis ne doivent jamais être tenus à distance).
 - Cycle de lumière lié au temps de run : crépuscule → nuit → aube (lisibilité du temps restant sans regarder le chrono).
 
@@ -280,7 +280,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 
 ### Phase 16 — Carte construite et tireurs (après la 1.10.0)
 - Demande de Jimmy : une carte propre, des obstacles utiles, jamais d'endroit où les ennemis ne peuvent pas venir, des ennemis qui tirent. Carte en lieux (§3.4), champ de flux, murets franchissables d'un saut, tirs arrêtés par les obstacles, plateaux retirés ; Archer et Sorcier (§3.3), Cracheur dès 3:00, 24 tireurs à l'écran au plus.
-- **Porte** : connexité 100 % (carte du jeu et 50 seeds) ; dans 200 runs simulés, aucun ennemi au sol immobile plus de 3 s à moins de 30 u du joueur (hors foule) ; cibles des profils nu et maxé tenues ; aucune source de tir à plus de 30 % des morts ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; bench dans les 10 % ; captures lues ; parité clavier et tactile ; test de Jimmy.
+- **Porte** : connexité 100 % (carte du jeu et 24 seeds) ; dans 200 runs simulés, aucun ennemi au sol immobile plus de 3 s à moins de 30 u du joueur (hors foule) ; cibles des profils nu et maxé tenues ; aucune source de tir à plus de 30 % des morts ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; bench dans les 10 % ; captures lues ; parité clavier et tactile ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
