@@ -165,9 +165,10 @@ export const SPAWN = {
   midTo: 900,
   rate: (t: number) =>
     Math.min(20, 0.7 + t / 240 + Math.max(0, t - 600) / 260 + Math.max(0, Math.min(t, 900) - 420) / 120), // ≈ 11,2/s à 20:00
-  // phase 16 : fin de partie /50 → /15 (après 15:00 seulement : la médiane maxée tombe avant) ; avec la carte et les tireurs
-  // plafonnés, la moitié des runs maxés vivants à 15:00 allaient au bout (fin 24 %). ×2 à 2:30, ×9,3 à 12:00, ×16,3 à 16:00, ×33,7 à 20:00
-  hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 85 + Math.max(0, t - 900) / 15,
+  // phase 16 : fin de partie /50 → /5 (après 15:00 seulement : la médiane maxée tombe avant) ; avec la carte et les tireurs
+  // plafonnés, la moitié des runs maxés vivants à 15:00 allaient au bout (fin 24 %). Mesuré (200 runs maxés) : /15 → 17 %,
+  // /8 → 13 %, /5 → 7 % (cible 3–12 %). ×2 à 2:30, ×9,3 à 12:00, ×24 à 16:00, ×74 à 20:00
+  hpScale: (t: number) => 1 + t / 170 + Math.max(0, Math.min(t, 900) - 420) / 85 + Math.max(0, t - 900) / 5,
   dmgScale: (t: number) => 1 + t / 500 + Math.max(0, t - 900) / 45, // phase 12 : ×4,1 à 20:00 (t/450 avant) ; après 15:00 les dégâts montent plus vite : une build qui a explosé n'est plus limitée par les PV ennemis
   spdScale: (t: number) => 1 + Math.min(t / 600, 0.35),
   ringMin: 24,

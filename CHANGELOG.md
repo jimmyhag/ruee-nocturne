@@ -19,6 +19,7 @@ Une carte pensée, toujours ouverte, et des ennemis qui tirent.
 - **Toujours un accès aux ennemis** : les plateaux surélevés sont retirés ; les ennemis contournent les ouvrages par le chemin le plus court et trouvent toujours un passage (vérifié sur toute la carte).
 - Le Cracheur arrive dès 3:00 (6:00 avant) ; au plus 24 tireurs à l'écran.
 - Moins d'arbres et de rochers épars, mieux espacés : le terrain se lit.
+- Après 15:00, les ennemis encaissent nettement plus : un personnage complet ne survit plus aussi souvent jusqu'au Faucheur (environ 7 % des parties au lieu de 20 %).
 
 ## 1.10.0 — 4 nov. 2026 (phase 15 « Direction artistique toon »)
 
