@@ -169,7 +169,13 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       if (missing <= 0) return;
       const n = Math.min(20, missing);
       const base = world.rng.next() * Math.PI * 2;
-      for (let i = 0; i < n; i++) spawnEnemy(world, i % 3, base + (i / n) * Math.PI * 2, 14 + (i % 5) * 2.5);
+      for (let i = 0; i < n; i++)
+        spawnEnemy(
+          world,
+          i % 20 === 0 ? 9 : i % 20 === 10 ? 10 : i % 3,
+          base + (i / n) * Math.PI * 2,
+          14 + (i % 5) * 2.5,
+        );
     },
   };
 

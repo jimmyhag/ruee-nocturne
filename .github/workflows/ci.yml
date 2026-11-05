@@ -59,7 +59,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write # commentaire d'équilibrage sur la PR
-    timeout-minutes: 15
+    timeout-minutes: 25 # phase 16 : carte et champ de flux, deux profils de 200 runs ≈ 12–16 min
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

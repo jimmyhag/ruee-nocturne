@@ -71,7 +71,8 @@ Plus d'évolutions (décision de Jimmy, 4 nov. 2026) : la récompense de run est
 
 ## 6. Ennemis : rôles, pas stats
 Un ennemi existe pour poser une **question** au joueur :
-- Spectre : « gères-tu la masse ? » — Dard : « peux-tu te retourner vite ? » — Brute : « as-tu du recul / du perçage ? » — Volant : « sautes-tu au bon moment ? » — Cracheur : « bouges-tu quand même ? » — Élite : « vas-tu chercher le coffre dans la masse ? »
+- Spectre : « gères-tu la masse ? » — Dard : « peux-tu te retourner vite ? » — Brute : « as-tu du recul / du perçage ? » — Volant : « sautes-tu au bon moment ? » — Cracheur : « bouges-tu quand même ? » — Archer (phase 16) : « lis-tu la ligne de visée, te mets-tu à couvert ? » — Sorcier (phase 16) : « sors-tu du cercle à temps ? » — Élite : « vas-tu chercher le coffre dans la masse ? »
+- Tireurs (phase 16) : une bande tirée avant les marcheurs (`SPAWN.shooterShare`, 4 → 18 %), plafonnée à 24 à l'écran ; leurs tirs ne doivent jamais faire plus de 30 % des morts d'un profil (CLI, « cause mort »). Le terrain les contre : les tirs droits s'arrêtent sur les obstacles.
 - Chaque type a une **silhouette** (forme), une **couleur**, un **son d'approche**, une **vitesse** reconnaissables en 0,2 s.
 - Séparation entre ennemis par grille spatiale (cellule 2,5 u), poussée `3.2·(rr−d)/rr`. Pas de pathfinding : steering direct + glissement le long des obstacles.
 

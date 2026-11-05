@@ -2,6 +2,25 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.11.0 — 5 nov. 2026 (phase 16 « Carte construite et tireurs »)
+
+Une carte pensée, toujours ouverte, et des ennemis qui tirent.
+
+### Ajouté
+
+- **Lieux construits** : ruines de murets en pierre (en L, en U, en croix, enceintes brisées), cercles de pierres autour d'une lanterne, troncs couchés, bosquets et lacs, répartis sur toute la carte ; la clairière de départ reste dégagée.
+- **Obstacles utiles** : on franchit un muret ou un tronc d'un saut pour échapper à la meute, qui doit faire le tour ; murets, menhirs, arbres et rochers arrêtent les flèches et les crachats.
+- **Archer** (dès 1:30) : garde ses distances, vise une demi-seconde (ligne fine) puis tire une flèche rapide ; un pas de côté, un dash ou un muret l'esquive. L'Archer doré tire une volée de trois.
+- **Sorcier** (dès 4:00) : lance une boule de feu en cloche qui retombe là où vous étiez ; un cercle rouge se remplit au sol pendant le vol.
+- Sons et éclats pour chaque tir, et pour un tir arrêté par un obstacle.
+
+### Modifié
+
+- **Toujours un accès aux ennemis** : les plateaux surélevés sont retirés ; les ennemis contournent les ouvrages par le chemin le plus court et trouvent toujours un passage (vérifié sur toute la carte).
+- Le Cracheur arrive dès 3:00 (6:00 avant) ; au plus 24 tireurs à l'écran.
+- Moins d'arbres et de rochers épars, mieux espacés : le terrain se lit.
+- Après 15:00, les ennemis encaissent nettement plus : un personnage complet ne survit plus aussi souvent jusqu'au Faucheur (environ 7 % des parties au lieu de 20 %).
+
 ## 1.10.0 — 4 nov. 2026 (phase 15 « Direction artistique toon »)
 
 Fini les cubes : ombrage toon à trois tons, contours sombres, formes arrondies.

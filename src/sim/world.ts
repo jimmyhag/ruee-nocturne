@@ -1,4 +1,6 @@
-import { CAPS, CHARACTERS, DECOR, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, PLATEAUX, HAZARDS } from './balance';
+import { CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
+import { buildMap, buildZones, cellKey, segDist } from './map';
+import { FlowField } from './flow';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
@@ -22,6 +24,17 @@ export interface Obstacle {
   x: number;
   z: number;
   r: number;
+}
+
+/** Obstacle long (phase 16) : segment épaissi. kind 0 = muret, 1 = tronc couché ; tous deux se sautent (h). */
+export interface Wall {
+  x1: number;
+  z1: number;
+  x2: number;
+  z2: number;
+  r: number;
+  h: number;
+  kind: number;
 }
 
 export class World {
@@ -88,11 +101,22 @@ export class World {
 
   // décor (généré par seed, collisions) et zones
   obstacles: Obstacle[] = [];
-  treeCount = 0; // obstacles[0..treeCount) = arbres, puis rochers
+  treeCount = 0; // obstacles[0..treeCount) = arbres, [treeCount..rockEnd) = rochers, [rockEnd..) = menhirs (phase 16)
+  rockEnd = 0;
+  walls: Wall[] = []; // phase 16 : murets et troncs couchés
+  places: Obstacle[] = []; // phase 16 : emprise des lieux construits (arbres épars exclus)
+  stoneCenters: Obstacle[] = []; // phase 16 : centres des cercles de pierres (une lanterne au milieu)
   lakes: Obstacle[] = [];
   woods: Obstacle[] = [];
-  plateaux: Obstacle[] = []; // phase 11 : disques surélevés de hauteur PLATEAUX.h
-  private obstacleGrid = new Map<number, number[]>();
+  readonly obstacleGrid = new Map<number, number[]>();
+  readonly wallGrid = new Map<number, number[]>();
+  /** Cases pleines de toute la carte (FLOW.cell), lues par le champ de flux ; solidN cases de côté. */
+  readonly solidN = Math.ceil((2 * WORLD_HALF) / FLOW.cell);
+  readonly solid = new Uint8Array(this.solidN * this.solidN);
+  /** Cases proches d'un obstacle (marge d'un rayon d'ennemi) : hors de ces cases, la collision des ennemis est sautée. */
+  readonly near = new Uint8Array(this.solidN * this.solidN);
+  readonly flow = new FlowField(); // phase 16 : les ennemis au sol contournent les ouvrages
+  shooters = 0; // phase 16 : tireurs vivants (Archer, Cracheur, Sorcier), compté à chaque pas
 
   constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
@@ -157,9 +181,8 @@ export class World {
     for (let i = 0; i < CAPS.chests; i++) this.chests.push({ alive: false, x: 0, z: 0, age: 0, boss: false });
     for (let i = 0; i < CAPS.events; i++) this.events.push({ type: Ev.Hit, x: 0, y: 0, z: 0, x2: 0, y2: 0, z2: 0, v: 0 });
     const r = new Rng(this.seed ^ 0x9e3779b9);
-    this.generateZones(r);
-    this.generatePlateaux(r);
-    this.generateObstacles(r);
+    buildZones(this, r);
+    buildMap(this, r);
   }
 
   // ---------- événements ----------
@@ -260,22 +283,7 @@ export class World {
     this.chests[last].alive = false;
   }
 
-  // ---------- zones et décor ----------
-  /** Lacs (ralentissent) et bois denses (couloirs), loin du départ. */
-  private generateZones(r: Rng): void {
-    const place = (n: number, rMin: number, rMax: number, out: Obstacle[]) => {
-      for (let i = 0; i < n; i++) {
-        let x: number, z: number;
-        do {
-          x = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8);
-          z = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8);
-        } while (x * x + z * z < ZONES.minFromCenter * ZONES.minFromCenter);
-        out.push({ x, z, r: r.range(rMin, rMax) });
-      }
-    };
-    place(ZONES.lakes, ZONES.lakeRMin, ZONES.lakeRMax, this.lakes);
-    place(ZONES.woods, ZONES.woodR, ZONES.woodR, this.woods);
-  }
+  // ---------- zones et décor (génération : src/sim/map.ts) ----------
   /** Multiplicateur de vitesse au sol en (x, z) : 0,55 dans un lac, 1 ailleurs. O(nombre de lacs). */
   speedAt(x: number, z: number): number {
     for (let i = 0; i < this.lakes.length; i++) {
@@ -286,126 +294,86 @@ export class World {
     }
     return 1;
   }
-  private inLake(x: number, z: number): boolean {
-    return this.speedAt(x, z) < 1;
-  }
-  /** Plateaux : hors lacs et bois, loin du départ et les uns des autres (tirage par rejet, borné). */
-  private generatePlateaux(r: Rng): void {
-    for (let i = 0; i < PLATEAUX.n; i++) {
-      for (let tries = 0; tries < 200; tries++) {
-        const x = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8),
-          z = r.range(-WORLD_HALF * 0.8, WORLD_HALF * 0.8),
-          rad = r.range(PLATEAUX.rMin, PLATEAUX.rMax);
-        if (x * x + z * z < (PLATEAUX.minFromCenter + rad) ** 2) continue;
-        if (!this.clearOfZones(x, z, rad + 1) || !this.clearOfPlateaux(x, z, PLATEAUX.minDist)) continue;
-        this.plateaux.push({ x, z, r: rad });
-        break;
-      }
-    }
-  }
-  private clearOfZones(x: number, z: number, pad: number): boolean {
-    for (const l of this.lakes) if ((x - l.x) ** 2 + (z - l.z) ** 2 < (l.r + pad) ** 2) return false;
-    for (const wd of this.woods) if ((x - wd.x) ** 2 + (z - wd.z) ** 2 < (wd.r + pad) ** 2) return false;
-    return true;
-  }
-  private clearOfPlateaux(x: number, z: number, pad: number): boolean {
-    for (const p of this.plateaux) if ((x - p.x) ** 2 + (z - p.z) ** 2 < (p.r + pad) ** 2) return false;
-    return true;
-  }
-  /** Hauteur du sol en (x, z) : PLATEAUX.h sur un plateau, 0 ailleurs. O(nombre de plateaux), sans allocation. */
-  groundAt(x: number, z: number): number {
-    const ps = this.plateaux;
-    for (let i = 0; i < ps.length; i++) {
-      const p = ps[i];
-      const dx = x - p.x,
-        dz = z - p.z;
-      if (dx * dx + dz * dz < p.r * p.r) return PLATEAUX.h;
-    }
-    return 0;
-  }
   /**
-   * Repousse (x,z) hors des plateaux dont le dessus est au-dessus de `y` (bord = mur) ; ceux que l'on survole
-   * (y ≥ h − edgeTol) laissent passer. Écrit dans out[0], out[1].
+   * Repousse (x,z) hors des obstacles proches (cercles puis murets et troncs). Un murets ou un tronc ne bloque pas ce qui
+   * passe au-dessus (y ≥ h − MAP.overTol : le joueur en plein saut). Écrit dans out[0], out[1]. Aucune allocation.
    */
-  resolvePlateaux(x: number, z: number, y: number, pad: number, out: Float64Array): void {
-    const ps = this.plateaux;
-    if (y < PLATEAUX.h - PLATEAUX.edgeTol) {
-      for (let i = 0; i < ps.length; i++) {
-        const p = ps[i];
-        const dx = x - p.x,
-          dz = z - p.z,
-          d2 = dx * dx + dz * dz,
-          m = p.r + pad;
-        if (d2 < m * m) {
-          if (d2 > 1e-8) {
-            const d = Math.sqrt(d2);
-            x = p.x + (dx / d) * m;
-            z = p.z + (dz / d) * m;
-          } else x = p.x + m;
-        }
-      }
-    }
-    out[0] = x;
-    out[1] = z;
-  }
-  private generateObstacles(r: Rng): void {
-    const addOne = (x: number, z: number, radius: number) => {
-      this.obstacles.push({ x, z, r: radius });
-      const k = Math.floor(x / TREE_CELL) * 65536 + Math.floor(z / TREE_CELL);
-      let arr = this.obstacleGrid.get(k);
-      if (!arr) this.obstacleGrid.set(k, (arr = []));
-      arr.push(this.obstacles.length - 1);
-    };
-    const add = (n: number, sMin: number, sMax: number, baseR: number) => {
-      for (let i = 0; i < n; i++) {
-        let x: number, z: number;
-        do {
-          x = r.range(-WORLD_HALF, WORLD_HALF);
-          z = r.range(-WORLD_HALF, WORLD_HALF);
-        } while (x * x + z * z < 64 || this.inLake(x, z) || !this.clearOfPlateaux(x, z, 1.2));
-        addOne(x, z, baseR * r.range(sMin, sMax));
-      }
-    };
-    add(DECOR.trees, 0.8, 1.7, 0.7); // arbres (indices 0..379)
-    // bois denses : arbres supplémentaires dans les disques de bois, en laissant des couloirs (anneaux)
-    for (let i = 0; i < DECOR.woodTrees; i++) {
-      const wd = this.woods[i % this.woods.length];
-      const a = r.range(0, Math.PI * 2);
-      const d = Math.sqrt(r.next()) * wd.r;
-      const x = wd.x + Math.sin(a) * d,
-        z = wd.z + Math.cos(a) * d;
-      // couloir : on évite une bande radiale de 3 u autour de 0,5·r, et le lac
-      if (Math.abs(d - wd.r * 0.5) < 1.5 || this.inLake(x, z) || Math.abs(x) > WORLD_HALF || Math.abs(z) > WORLD_HALF)
-        continue;
-      addOne(x, z, 0.7 * r.range(0.9, 1.6));
-    }
-    this.treeCount = this.obstacles.length;
-    add(DECOR.rocks, 0.5, 1.4, 0.75); // rochers
-  }
-  /** Repousse (x,z) hors des obstacles proches. Écrit dans out[0], out[1]. */
-  resolveObstacles(x: number, z: number, pad: number, out: Float64Array): void {
+  resolveObstacles(x: number, z: number, pad: number, out: Float64Array, y = 0): void {
     const tx = Math.floor(x / TREE_CELL),
       tz = Math.floor(z / TREE_CELL);
     for (let a = -1; a <= 1; a++) {
       for (let b = -1; b <= 1; b++) {
-        const arr = this.obstacleGrid.get((tx + a) * 65536 + (tz + b));
-        if (!arr) continue;
-        for (let k = 0; k < arr.length; k++) {
-          const o = this.obstacles[arr[k]];
-          const dx = x - o.x,
-            dz = z - o.z,
-            d2 = dx * dx + dz * dz,
-            m = o.r + pad;
-          if (d2 < m * m && d2 > 1e-8) {
-            const d = Math.sqrt(d2);
-            x = o.x + (dx / d) * m;
-            z = o.z + (dz / d) * m;
+        const k = cellKey(tx + a, tz + b);
+        const arr = this.obstacleGrid.get(k);
+        if (arr)
+          for (let n = 0; n < arr.length; n++) {
+            const o = this.obstacles[arr[n]];
+            const dx = x - o.x,
+              dz = z - o.z,
+              d2 = dx * dx + dz * dz,
+              m = o.r + pad;
+            if (d2 < m * m && d2 > 1e-8) {
+              const d = Math.sqrt(d2);
+              x = o.x + (dx / d) * m;
+              z = o.z + (dz / d) * m;
+            }
           }
-        }
+        const ws = this.wallGrid.get(k);
+        if (ws)
+          for (let n = 0; n < ws.length; n++) {
+            const s = this.walls[ws[n]];
+            if (y >= s.h - MAP.overTol) continue;
+            const ux = s.x2 - s.x1,
+              uz = s.z2 - s.z1,
+              l2 = ux * ux + uz * uz;
+            let t = l2 > 1e-9 ? ((x - s.x1) * ux + (z - s.z1) * uz) / l2 : 0;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            const qx = s.x1 + ux * t,
+              qz = s.z1 + uz * t,
+              dx = x - qx,
+              dz = z - qz,
+              d2 = dx * dx + dz * dz,
+              m = s.r + pad;
+            if (d2 < m * m && d2 > 1e-8) {
+              const d = Math.sqrt(d2);
+              x = qx + (dx / d) * m;
+              z = qz + (dz / d) * m;
+            }
+          }
       }
     }
     out[0] = x;
     out[1] = z;
+  }
+  /** (x, z) est-il assez près d'un obstacle pour qu'un ennemi puisse le toucher ? Une lecture de tableau. */
+  nearObstacle(x: number, z: number): boolean {
+    const N = this.solidN,
+      i = Math.floor((x + WORLD_HALF) / FLOW.cell),
+      j = Math.floor((z + WORLD_HALF) / FLOW.cell);
+    return i >= 0 && j >= 0 && i < N && j < N && this.near[j * N + i] === 1;
+  }
+  /** Un tir droit (flèche, crachat) de rayon r en (x, z) touche-t-il un obstacle ? Grille 3 × 3, aucune allocation. */
+  blocksShot(x: number, z: number, r: number): boolean {
+    const tx = Math.floor(x / TREE_CELL),
+      tz = Math.floor(z / TREE_CELL);
+    for (let a = -1; a <= 1; a++)
+      for (let b = -1; b <= 1; b++) {
+        const k = cellKey(tx + a, tz + b);
+        const arr = this.obstacleGrid.get(k);
+        if (arr)
+          for (let n = 0; n < arr.length; n++) {
+            const o = this.obstacles[arr[n]];
+            const m = o.r + r;
+            if ((x - o.x) * (x - o.x) + (z - o.z) * (z - o.z) < m * m) return true;
+          }
+        const ws = this.wallGrid.get(k);
+        if (ws)
+          for (let n = 0; n < ws.length; n++) {
+            const s = this.walls[ws[n]];
+            if (segDist(x, z, s.x1, s.z1, s.x2, s.z2) < s.r + r) return true;
+          }
+      }
+    return false;
   }
 
   weaponLevel(k: WeaponKey): number {
@@ -534,6 +502,7 @@ function makeEnemy(): Enemy {
     tx: 0,
     tz: 0,
     phase2: false,
+    detour: 0,
   };
 }
 function makeProj(): Projectile {
@@ -560,7 +529,7 @@ function makeProj(): Projectile {
   };
 }
 function makeShot(): Shot {
-  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false };
+  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false, ox: 0, oz: 0, t0: 1 };
 }
 function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };

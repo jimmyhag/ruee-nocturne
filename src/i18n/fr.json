@@ -150,6 +150,8 @@
   "enemy.essaim": "Essaim-mère",
   "enemy.colosse": "Colosse",
   "enemy.faucheur": "Faucheur",
+  "enemy.archer": "Archer",
+  "enemy.sorcier": "Sorcier",
   "char.eclaireuse.name": "Éclaireuse",
   "char.eclaireuse.text": "+15 % de vitesse, dash plus court",
   "char.bucheron.name": "Bûcheron",

@@ -224,6 +224,18 @@ export class AudioBus {
   spit(): void {
     this.tone(this.sfx, 240, 0.08, 'square', 0.14, -120, PRIO.hit);
   }
+  /** Flèche de l'Archer (phase 16) : claquement de corde, sifflement bref descendant. */
+  arrow(): void {
+    this.tone(this.sfx, 1400, 0.09, 'triangle', 0.12, -900, PRIO.hit);
+  }
+  /** Boule de feu du Sorcier (phase 16) : souffle qui monte (le cercle au sol dit où elle tombe). */
+  cast(): void {
+    this.tone(this.sfx, 180, 0.35, 'sawtooth', 0.16, 260, PRIO.hit);
+  }
+  /** Tir arrêté par un muret ou un arbre (phase 16) : petit choc mat. */
+  thud(): void {
+    this.tone(this.sfx, 150, 0.06, 'square', 0.1, -60, PRIO.hit);
+  }
   /** Éruption : coup sourd qui monte, grave (le sol crache). */
   eruption(): void {
     this.tone(this.sfx, 55, 0.3, 'square', 0.4, 60, PRIO.kill);

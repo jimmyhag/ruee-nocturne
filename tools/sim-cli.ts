@@ -91,6 +91,7 @@ interface RunResult {
   deathBy: string;
   eruptions: number; // phase 11 : éruptions subies (pics sortis sous le joueur)…
   eruptionHits: number; // …et combien l'ont touché (lisibilité du télégraphe pour le bot)
+  stuck: number; // phase 16 : ennemis au sol immobiles plus de 3 s à moins de 30 u du joueur, hors foule (porte : 0)
   gold: number; // or du run (phase 8 : économie de la boutique)
   // défis (phase 6)
   noHit: number; // plus longue période sans dégât (s)
@@ -120,9 +121,14 @@ function runOnce(seed: number): RunResult {
     [HurtSrc.Charge]: 'charge',
     [HurtSrc.Spit]: 'crachat',
     [HurtSrc.Zone]: 'zone',
+    [HurtSrc.Arrow]: 'flèche',
+    [HurtSrc.Fire]: 'feu',
   };
   const alive: number[] = [];
   const maxFrames = UNTIL / STEP;
+  // phase 16 : ennemis coincés (au sol, hors boss et tireurs, ni au contact) : échantillon toutes les 0,5 s
+  const last = new Map<number, { x: number; z: number; still: number; counted: boolean }>();
+  let stuck = 0;
   while (frame < maxFrames) {
     if (w.mode === Mode.LevelUp) {
       inp.pick = pickAllowed(bot, w, w.cards, ALLOWED);
@@ -162,6 +168,44 @@ function runOnce(seed: number): RunResult {
       weaponLvAt10 = w.weaponLvBest;
     }
     if (Math.floor(w.t / 60) >= alive.length) alive.push(1);
+    if (frame % 30 === 0 && w.mode === Mode.Play) {
+      for (let k = 0; k < w.enemyCount; k++) {
+        const en = w.enemies[k];
+        const def = ENEMIES[en.type];
+        if (!en.alive || def.boss || en.type === 4 || en.type === 5 || en.type === 9 || en.type === 10) continue;
+        const d = Math.hypot(en.x - w.player.x, en.z - w.player.z);
+        const rec = last.get(en.id) ?? { x: en.x, z: en.z, still: 0, counted: false };
+        // candidat seulement s'il est près du joueur et n'a presque pas bougé ; un bouchon dans une brèche (au moins
+        // trois voisins collés) n'est pas un ennemi coincé, c'est la foule (compté seulement pour les candidats : O(n))
+        let near = d < 30 && d > en.r + 3 && Math.hypot(en.x - rec.x, en.z - rec.z) < 0.25;
+        if (near) {
+          let crowd = 0;
+          for (let q = 0; q < w.enemyCount && crowd < 3; q++) {
+            const o = w.enemies[q];
+            if (o !== en && o.alive && Math.hypot(o.x - en.x, o.z - en.z) < en.r + o.r + 0.3) crowd++;
+          }
+          near = crowd < 3;
+        }
+        rec.still = near ? rec.still + 0.5 : 0;
+        if (rec.still >= 3 && !rec.counted) {
+          rec.counted = true;
+          stuck++;
+          if (process.env.STUCK_DEBUG) {
+            let crowd = 0;
+            for (let q = 0; q < w.enemyCount; q++) {
+              const o = w.enemies[q];
+              if (o !== en && o.alive && Math.hypot(o.x - en.x, o.z - en.z) < en.r + o.r + 0.3) crowd++;
+            }
+            console.error(
+              `coincé seed=${seed} t=${w.t.toFixed(0)} type=${def.key} d=${d.toFixed(1)} près obstacle=${w.nearObstacle(en.x, en.z)} flux=${w.flow.at(en.x, en.z)} voisins=${crowd} pos=${en.x.toFixed(1)},${en.z.toFixed(1)}`,
+            );
+          }
+        }
+        rec.x = en.x;
+        rec.z = en.z;
+        last.set(en.id, rec);
+      }
+    }
     if (w.mode === Mode.Dead) break;
   }
   return {
@@ -182,6 +226,7 @@ function runOnce(seed: number): RunResult {
     deathBy: w.mode === Mode.Dead ? (HURT_NAMES[w.lastHurt] ?? lastHurtType) : '—',
     eruptions,
     eruptionHits,
+    stuck,
     gold: Math.round(w.gold),
     noHit: w.noHitBest,
     distance: w.distance,
@@ -322,6 +367,8 @@ const summary = {
   buildMedians,
   killsVarianceRatio,
   eruptionsPerRun: +(results.reduce((a, r) => a + r.eruptions, 0) / RUNS).toFixed(1),
+  stuckTotal: results.reduce((a, r) => a + r.stuck, 0),
+  stuckRuns: results.filter((r) => r.stuck > 0).length,
   eruptionHitPct: Math.round(
     (100 * results.reduce((a, r) => a + r.eruptionHits, 0)) /
       Math.max(
@@ -377,6 +424,9 @@ lines.push(
 );
 lines.push(
   `éruptions   ${summary.eruptionsPerRun} par run · ${summary.eruptionHitPct} % touchent le bot · ${summary.deathBy['éruption'] ?? 0} % des morts`,
+);
+lines.push(
+  `coincés     ${summary.stuckTotal} ennemis immobiles > 3 s près du joueur, dans ${summary.stuckRuns} run(s) sur ${RUNS}`,
 );
 lines.push(`vivants/min ${summary.aliveCurve.join(' ')}`);
 const checks = checkTargets(summary, PROFILES[PROFILE]);
