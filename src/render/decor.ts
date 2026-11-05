@@ -12,7 +12,6 @@ import type { World } from '../sim/world';
 const TRUNK = 0x5a3d3a;
 const WOOD_CUT = 0xc9a77a; // tranche de tronc
 const STONE = 0x7d7894; // pierre des murets et menhirs, froide comme la nuit bleue
-const STONE_TOP = 0x9c98b0;
 const MOSS = 0x56806a;
 const LEAF2 = 0x37604f; // feuillage un peu plus clair (feuillu)
 const build = (parts: (Prim & { color: number })[]) => merge(parts.map((p) => paintHex(primGeometry(p), p.color)));
@@ -68,24 +67,26 @@ export function worksGeometry(w: World): THREE.BufferGeometry | null {
       mz = (s.z1 + s.z2) / 2;
     const v = ((i * 7) % 5) * 0.06; // teinte variée d'un pan à l'autre
     if (s.kind === 0) {
-      // muret : corps de pierre, chaperon plus clair qui déborde un peu
-      const body = new THREE.Color(STONE).multiplyScalar(0.92 + v).getHex();
-      piece([
-        {
+      // muret de pierres sèches : blocs d'environ 1,1 u, hauteurs et teintes légèrement variées (lisible, pas une dalle)
+      const span = L + s.r * 1.6,
+        n = Math.max(2, Math.round(span / 1.1)),
+        bl = span / n,
+        ux = dx / L,
+        uz = dz / L;
+      const parts: (Prim & { color: number })[] = [];
+      for (let b = 0; b < n; b++) {
+        const t = -span / 2 + (b + 0.5) * bl,
+          hj = s.h * (0.9 + (((i + b) * 7) % 4) * 0.05),
+          c = new THREE.Color(STONE).multiplyScalar(0.88 + v + ((i * 3 + b * 5) % 4) * 0.04).getHex();
+        parts.push({
           shape: 'box',
-          size: [L + s.r * 1.6, s.h - 0.14, s.r * 2],
-          pos: [mx, (s.h - 0.14) / 2, mz],
-          rot: [0, -th, 0],
-          color: body,
-        },
-        {
-          shape: 'box',
-          size: [L + s.r * 1.9, 0.16, s.r * 2.2],
-          pos: [mx, s.h - 0.08, mz],
-          rot: [0, -th, 0],
-          color: STONE_TOP,
-        },
-      ]);
+          size: [bl * 0.96, hj, s.r * 2 * (0.94 + (b % 2) * 0.06)],
+          pos: [mx + ux * t, hj / 2, mz + uz * t],
+          rot: [0, -th + (((b * 13) % 5) - 2) * 0.02, 0],
+          color: c,
+        });
+      }
+      piece(parts);
     } else {
       // tronc couché : écorce, deux tranches claires aux bouts
       const ux = dx / L,
@@ -111,21 +112,16 @@ export function worksGeometry(w: World): THREE.BufferGeometry | null {
       ]);
     }
   }
-  // menhirs : pierres dressées, légèrement penchées, plus hautes que le joueur
+  // menhirs : pierres dressées à six pans, effilées vers le haut, légèrement penchées, coiffées de mousse
   for (let i = w.rockEnd; i < w.obstacles.length; i++) {
     const o = w.obstacles[i];
     const k = i - w.rockEnd,
       h = 2.4 + ((k * 5) % 4) * 0.25,
-      a = (k * 2.399) % (Math.PI * 2);
+      a = (k * 2.399) % (Math.PI * 2),
+      tilt: [number, number, number] = [((k % 3) - 1) * 0.07, a, ((k % 2) * 2 - 1) * 0.06];
     piece([
-      {
-        shape: 'box',
-        size: [o.r * 1.6, h, o.r * 1.2],
-        pos: [o.x, h / 2 - 0.1, o.z],
-        rot: [((k % 3) - 1) * 0.06, a, ((k % 2) * 2 - 1) * 0.05],
-        color: STONE,
-      },
-      { shape: 'box', size: [o.r * 1.3, 0.3, o.r * 1.0], pos: [o.x, h - 0.12, o.z], rot: [0, a, 0], color: MOSS },
+      { shape: 'cyl', size: [o.r * 0.62, o.r * 1.0, h], pos: [o.x, h / 2 - 0.1, o.z], rot: tilt, color: STONE, seg: 6 },
+      { shape: 'cone', size: [o.r * 0.64, 0.45], pos: [o.x, h - 0.02, o.z], rot: tilt, color: MOSS, seg: 6 },
     ]);
   }
   return pieces.length ? merge(pieces) : null;

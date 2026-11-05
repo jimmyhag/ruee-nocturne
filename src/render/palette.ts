@@ -17,7 +17,7 @@ export const PAL = {
   lake: 0x3a8fc4,
   // index = type d'ennemi : une couleur franche par silhouette (survivor-design §6)
   // Spectre, Dard, Brute, Gardien, Volant, Cracheur, Essaim-mère, Colosse, Faucheur
-  enemy: [0xc04a8a, 0xffb43d, 0x7a5ad8, 0xff3b5c, 0x9bf0e4, 0x6fd36f, 0xe05aa3, 0x7f8fb3, 0x24192f],
+  enemy: [0xc04a8a, 0xffb43d, 0x7a5ad8, 0xff3b5c, 0x9bf0e4, 0x6fd36f, 0xe05aa3, 0x7f8fb3, 0x24192f, 0x3fa7d6, 0xb455e0], // phase 16 : Archer bleu acier, Sorcier violet
   proj: 0xffe27a,
   trail: [0xffcc4d, 0xffa53d, 0xff7a3d, 0xff5470],
   bolt: 0xd8f4ff,
