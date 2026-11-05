@@ -15,6 +15,8 @@
 | tsx              | 4       | CLI sim, bench, génération d'icônes                                                                                                     |
 | idb-keyval       | 6.2     | sauvegarde méta, repli localStorage                                                                                                     |
 | firebase         | 13.2    | phase 13 : `firebase/app`, `firebase/auth`, `firebase/firestore/lite`, dans le seul chunk `account-*.js` chargé à la demande (65 ko gz) |
+| @gltf-transform  | 4.5     | phase 20, dev uniquement : `npm run assets` (`tools/assets/build.ts`) produit `public/models/*.glb` et `src/render/models.json`         |
+| meshoptimizer    | 1.3     | phase 20, dev uniquement : encodeur meshopt ; le décodeur d'exécution vient de `three/examples` (aucune dépendance de prod)             |
 
 ## Ce qui est fait (phase 1 largement couverte, début de phase 2)
 
@@ -49,3 +51,10 @@
 - Rendu en chunk séparé (`import('./render/scene')`, `modulepreload` injecté par `vite.config.ts`), évalué à la première interaction ; `GameScene.warmup()` = `compileAsync`. `__game.scene` peut être `null` avant.
 - Polices auto-hébergées (`public/fonts/`), plus aucune origine externe. `a-propos/index.html` : seconde entrée Vite, page statique bilingue.
 - Mesure Lighthouse : `npm run lh` (`tools/lighthouse.mjs` + `tools/lh-median.mjs`), bloquante en CI. Playwright : `PW_CHROMIUM=<binaire>` pour un Chromium déjà installé (ici `/opt/pw-browsers/chromium`), `PW_PORT` pour le port.
+
+## Phase 20 (5 nov. 2026)
+
+- Modèles KayKit (CC0) : 6 fichiers de héros (370 à 410 ko, 185 à 210 ko gzip) et `props.glb` (316 ko, 206 ko gzip), 2,6 Mo en tout. Un joueur ne télécharge que son héros et les objets (≈ 390 ko gzip) : pas de précache, `runtimeCaching` CacheFirst sur `/models/`.
+- `src/render/models.ts` : `GLTFLoader` + `MeshoptDecoder` (three/examples), cache par fichier, nouvel essai après un échec. `loadProps()` déquantifie (`toFloat`) avant de cuire les transformations, sinon `applyMatrix4` écrase les Int16 normalisés.
+- `src/render/heroes.ts` : `SkeletonUtils.clone`, parties skinnées fusionnées en une `SkinnedMesh` (quantification `scene` à l'export, indispensable), coque de contour à normales lissées, `HeroAnimator` (fond + ponctuels, zéro allocation).
+- Les modèles procéduraux restent le repli tant que rien n'est chargé (hors ligne à la première visite, réseau bloqué : test e2e).

@@ -71,7 +71,7 @@ export const enum HeroAnim {
   SpellLong,
   SpellRaise,
 }
-const CLIP_NAMES = [
+export const CLIP_NAMES = [
   'Idle',
   'Running_A',
   'Jump_Start',

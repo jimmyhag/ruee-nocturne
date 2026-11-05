@@ -2,6 +2,27 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.15.0 — 5 nov. 2026 (phase 20 « Vraie 3D : héros, armes et décor »)
+
+Les personnages, leurs armes et le décor passent en vrais modèles 3D, animés et dessinés à la main (packs KayKit de Kay Lousberg, domaine public CC0).
+
+### Ajouté
+
+- **Neuf héros en modèles animés** :
+  - chacun a son allure : dague et cape pour l'Éclaireuse, hache à deux mains pour le Bûcheron, bâton et chapeau pour la Sorcière, épée et lanterne pour la Veilleuse, arbalète et capuche pour le Braconnier, casque et bouclier pour le Sapeur, baguette et lueur pour le Feu follet, squelette encapuchonné pour la Revenante, chope et chapeau pour le Colporteur ;
+  - ils courent, sautent, se réceptionnent, encaissent et tombent ;
+  - chaque sort a son geste : élan, moulinet, incantation, lancer, bras levés ;
+  - les deux tenues de chaque personnage recolorent le modèle, sans toucher à la peau.
+- **Armes en modèles** : épées en orbite pour les Lames, haches qui tournent à plat pour le Boomerang, bombes pour les Mines.
+- **Objets** : coffres en bois cerclé, sanctuaire à bougies, échoppe du marchand avec caisses, tonneau et pièces.
+- **Décor** : sapins d'automne, arbres morts, lanternes sur potence, petits cimetières (stèle, tombe, citrouille) au pied des arbres.
+- Crédits KayKit dans CREDITS.md et la page À propos.
+
+### Modifié
+
+- Les modèles se chargent à la demande : chaque joueur ne télécharge que son héros et les objets (≈ 390 ko). Tant qu'ils ne sont pas là (hors ligne à la première visite), le jeu garde ses formes d'avant.
+- Les ennemis ne changent pas encore (phase 21).
+
 ## 1.14.0 — 5 nov. 2026 (phase 19 « Un sort par classe »)
 
 Chaque personnage a maintenant son propre sort, sur le bouton de l'ancien dash (Maj au clavier, bouton à l'écran).

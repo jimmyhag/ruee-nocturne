@@ -240,6 +240,7 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 - Matériaux : `MeshLambertMaterial` / `MeshToonMaterial`. Pas de PBR. Palette unique (`src/render/palette.ts` = `:root` d'index.html) : nuit bleue `#0f1628` / brouillard `#182341`, texte `#f3ecdc`, accent lanterne `#ffb347`, or `#ffd166`, PV `#ff5d73`, XP `#5fd3ff` (phase 14).
 - Post-traitement : aucun sur mobile. Optionnel desktop : bloom léger, vignette.
 - Caméra : vue 3/4 haute, suit le joueur avec amorti, légère avance dans la direction du mouvement, recul au boss.
+- **Modèles 3D (phase 20)** : héros, armes et décor en modèles **KayKit (CC0, Kay Lousberg)**, produits par `npm run assets` (`tools/assets/` : animations utiles seulement, accessoires choisis, compression meshopt) dans `public/models/` et décrits par `src/render/models.json`. Chargés par `GLTFLoader` et le décodeur meshopt de `three/examples` (aucune dépendance de prod). Héros : parties skinnées fusionnées en une `SkinnedMesh` + coque de contour, `HeroAnimator` piloté par l'état de la sim (lecture seule). Objets : géométries injectées dans les `InstanceWriter` existants (un appel par sorte) ; arbres, lanternes et petits cimetières dessinés à moins de 48 u du joueur. **Le modèle procédural reste le repli** tant que rien n'est chargé ou si le réseau manque. Les ennemis restent procéduraux jusqu'à la phase 21.
 
 ### 4.5 Entrées
 - Clavier (ZQSD/WASD/flèches, Espace, Maj), **manette** (Gamepad API, deadzone 0,2), tactile (joystick flottant sous le pouce gauche, boutons droite, rebinding gauche/droite).
@@ -259,7 +260,7 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 
 ### 4.8 PWA
 - `display: fullscreen`, orientation libre, icônes maskable, écran de démarrage, mise à jour avec bannière « Nouvelle version — Recharger ».
-- Tout l'app shell et les assets précachés. Jouable hors-ligne au second lancement. `navigateFallbackDenylist: [/^\/__\//]` : les URL réservées de Firebase Hosting (`/__/auth/handler`, `/__/firebase/init.json`) ne reçoivent jamais `index.html`.
+- Tout l'app shell et les assets précachés. Jouable hors-ligne au second lancement. Exception (phase 20) : les modèles `public/models/` ne sont pas précachés (2,6 Mo) ; chaque joueur ne télécharge que son héros et `props.glb`, mis en cache à l'usage (CacheFirst), et le repli procédural couvre le premier lancement hors ligne. `navigateFallbackDenylist: [/^\/__\//]` : les URL réservées de Firebase Hosting (`/__/auth/handler`, `/__/firebase/init.json`) ne reçoivent jamais `index.html`.
 - Bouton « Installer » dans le menu (`beforeinstallprompt`), aide iOS (Partager → Sur l'écran d'accueil).
 
 ---
@@ -354,8 +355,16 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Retour d'un testeur via Jimmy : « beaucoup trop générique ». Le dash commun est remplacé par un sort propre à chaque classe (§3.5, §4.5), sur le même bouton. Effets, son et retour visuel pour chacun (règle 3), ennemis étourdis ou ralentis lisibles (teinte), bots qui lancent chaque type de sort à son moment, ligne « sort » dans la CLI.
 - **Porte** : 9 sorts distincts, chacun testé (Vitest) ; captures des 9 sorts lues (PC et iPhone) ; e2e du sort au clavier et au doigt ; cibles de l'Éclaireuse tenues dans les deux profils ; 9 personnages à ± 3 min ; morts < 3 min ≤ 20 % (nu) ; sort ≥ 0,75 lancer par minute chez le bot et ≤ 30 % des kills ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; zéro allocation par frame ; test de Jimmy et de son testeur.
 
-### Phase 20 — Vraie 3D (esquissée, à ne pas commencer avant la fin de la phase 19)
-- Demande de Jimmy : une 3D « vraiment propre » pour les personnages, ennemis, armes, projectiles et objets. Décisions (5 nov.) : modèles de **packs CC0** (KayKit, Quaternius, Kenney ; licence vérifiée pack par pack, crédits dans `CREDITS.md`), chargés en glTF par `GLTFLoader` (déjà dans `three/examples`, aucune dépendance npm en plus), **Three.js conservé** (sim, tests et PWA intacts). Points à trancher au plan : animations des 400 ennemis (squelettes instanciés ou poses précalculées), budget de téléchargement (Lighthouse), budget de triangles.
+### Phase 20 — Vraie 3D : héros, armes et décor (après la 1.14.0)
+- Demande de Jimmy : une 3D « vraiment propre » pour les personnages, ennemis, armes, projectiles et objets. Décisions (5 nov.) : modèles de **packs CC0**, **Three.js conservé** (sim, tests et PWA intacts), deux phases : **phase 20 = joueur et décor**, phase 21 = ennemis. Seule l'organisation GitHub KayKit est joignable depuis l'environnement de build (kenney.nl, quaternius.com et itch.io bloqués) : tout vient de KayKit (Adventurers, Skeletons, Halloween Bits, Dungeon Remastered), licence CC0 vérifiée.
+- **Héros** : 9 personnages sur 6 modèles (§4.4), distingués par accessoires, teinte et échelle ; les 2 tenues décalent la teinte de la texture palette (peau épargnée). Animations : repos, course (vitesse liée au déplacement), saut, réception, coup reçu, mort, une animation par sort (Bond et Comète : esquive ; Tourbillon : moulinet ; Clignement et Éclat : tir de sort ; Collet et Bourse : lancer ; Pétard : bras levés ; Voile : incantation longue).
+- **Armes et objets** : épée en orbite (Lames), hache couchée qui tourne (Boomerang), bombe (Mines), coffres d'élite et de carte, sanctuaire à bougies, échoppe habillée de caisses, tonneau et pièces. Orbe, Foudre et Halo restent des effets de lumière.
+- **Décor** : sapins et arbres morts, lanternes, petits cimetières (stèle, tombe, citrouille) au pied des arbres. Mêmes positions qu'avant (aucun changement de sim ni de collision) ; murets, menhirs et troncs restent procéduraux.
+- Décisions prises : budget de téléchargement relevé de 350 ko à **450 ko par héros** et de 2,5 Mo à **3,2 Mo au total** (mesuré : 370 à 410 ko, 2,6 Mo ; ≈ 390 ko gzip réellement téléchargés par joueur) ; modèles non précachés (cache à l'usage) ; la Revenante prend le Skeleton Rogue (le pack Skeletons sert aussi la phase 21).
+- **Porte** : les 9 héros sont des modèles KayKit animés (repos, course, saut, sort, coup reçu, mort) dans leurs 2 tenues, avec repli procédural testé (réseau bloqué) ; armes, coffres, sanctuaires, échoppe et décor en modèles CC0 crédités (CREDITS.md, À propos) ; manifeste testé (Vitest : 9 personnages, fichiers, animations, budget) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; zéro allocation par frame ; bench inchangé ; captures lues (PC et iPhone) ; test de Jimmy.
+
+### Phase 21 — Ennemis en vrais modèles (esquissée, après la phase 20)
+- Les 400 ennemis en modèles KayKit (Skeletons : guerrier, mage, sbire, voyou) et monstres CC0. Points à trancher au plan : animation de masse sans un `AnimationMixer` par ennemi (poses précalculées dans une texture d'animation, lues par le shader instancié), budget de triangles (≤ 150 k à 400 ennemis : modèles à ≈ 250 triangles ou niveaux de détail), lisibilité des élites et des tireurs.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

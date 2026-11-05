@@ -2,7 +2,18 @@
 
 Ruée Nocturne est un jeu de **Jimmy Haggege**. Le code a été écrit avec [Claude Code](https://claude.com/claude-code) (Anthropic), phase par phase, à partir du plan de conception `PLAN.md`.
 
-Tout ce qui se voit et s'entend dans le jeu est produit par le code : les formes sont des primitives low-poly générées au lancement, les sons sont synthétisés par Web Audio. Il n'y a ni sprite, ni modèle 3D, ni fichier audio tiers.
+Depuis la phase 20 (1.15.0), les personnages, leurs armes et une partie du décor sont des modèles 3D KayKit (voir plus bas). Le reste est produit par le code : les ennemis, les effets et les ouvrages sont des primitives low-poly générées au lancement, et les sons sont synthétisés par Web Audio. Il n'y a ni sprite ni fichier audio tiers.
+
+## Modèles 3D
+
+| Pack                                                                                                              | Auteur                                  | Licence                                                       | Ce qui en vient                                                                             |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [KayKit Character Pack : Adventurers](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) | [Kay Lousberg](https://kaylousberg.com) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | héros (Rogue, Barbarian, Mage, Knight), épée des lames, hache du boomerang, bombe des mines |
+| [KayKit Character Pack : Skeletons](https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0)    | Kay Lousberg                            | CC0 1.0                                                       | la Revenante (Skeleton Rogue)                                                               |
+| [KayKit Halloween Bits](https://github.com/KayKit-Game-Assets/KayKit-Halloween-Bits-1.0)                          | Kay Lousberg                            | CC0 1.0                                                       | arbres, lanternes, sanctuaire, tombes, citrouilles                                          |
+| [KayKit Dungeon Remastered](https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0)                  | Kay Lousberg                            | CC0 1.0                                                       | coffres, caisses, tonneau et pièces de l'échoppe                                            |
+
+Le crédit n'est pas exigé par la licence CC0 ; il est donné quand même. Les fichiers de `public/models/` sont produits par `npm run assets` (`tools/assets/`) : animations utiles seulement, accessoires choisis, compression meshopt. Les packs d'origine ne sont pas dans le dépôt.
 
 ## Bibliothèques
 
@@ -14,7 +25,7 @@ Tout ce qui se voit et s'entend dans le jeu est produit par le code : les formes
 | [Workbox](https://developer.chrome.com/docs/workbox)                               | MIT        | précache et mise à jour de l'app            |
 | [vite-plugin-singlefile](https://github.com/richardtallent/vite-plugin-singlefile) | MIT        | build en un seul fichier (artefact de test) |
 
-Outils de développement : TypeScript, Vitest, Playwright, ESLint, Prettier, Lighthouse, GitHub Actions, Firebase Hosting.
+Outils de développement : [glTF Transform](https://gltf-transform.dev/) (MIT) et [meshoptimizer](https://github.com/zeux/meshoptimizer) (MIT) pour le pipeline de modèles, TypeScript, Vitest, Playwright, ESLint, Prettier, Lighthouse, GitHub Actions, Firebase Hosting.
 
 ## Polices
 
