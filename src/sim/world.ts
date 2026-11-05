@@ -1,6 +1,9 @@
-import { CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
+import { TERRAIN_N, buildTerrain, heightAt, slopeMul } from './terrain';
+import { buildPOI } from './poi';
+import type { MapChest, Shrine } from './poi';
 import { makeMerchant } from './merchant';
 import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
@@ -111,6 +114,8 @@ export class World {
   woods: Obstacle[] = [];
   readonly obstacleGrid = new Map<number, number[]>();
   readonly wallGrid = new Map<number, number[]>();
+  /** Relief (phase 18) : hauteurs du sol sur une grille de TERRAIN.cell u (src/sim/terrain.ts). */
+  readonly height = new Float32Array(TERRAIN_N * TERRAIN_N);
   /** Cases pleines de toute la carte (FLOW.cell), lues par le champ de flux ; solidN cases de côté. */
   readonly solidN = Math.ceil((2 * WORLD_HALF) / FLOW.cell);
   readonly solid = new Uint8Array(this.solidN * this.solidN);
@@ -124,6 +129,14 @@ export class World {
   readonly itemBan = new Uint8Array(ITEM_KEYS.length);
   itemOrder: number[] = []; // ordre d'obtention (HUD)
   itemPicks = 0; // choix d'objet en attente (coffres)
+  // phase 18 : points d'intérêt (src/sim/poi.ts)
+  readonly mapChests: MapChest[] = [];
+  readonly shrines: Shrine[] = [];
+  mapChestsOpened = 0;
+  shrinesUsed = 0;
+  boonPicks = 0; // choix de bonus de sanctuaire en attente
+  readonly boons = new Uint8Array(BOON_KEYS.length); // bonus pris (CLI, HUD)
+  bossWarned = 0; // échéance du dernier boss annoncé (BOSS_WARN)
   readonly syn = new Uint8Array(SYNERGIES.length);
   talismanKills = 0;
   readonly talismanMarks = new Int32Array(ITEM.talisman.targets);
@@ -197,6 +210,8 @@ export class World {
     const r = new Rng(this.seed ^ 0x9e3779b9);
     buildZones(this, r);
     buildMap(this, r);
+    buildTerrain(this, r); // après la carte : les lieux construits sont posés à plat
+    buildPOI(this, r); // après le relief : coffres et sanctuaires sur les hauteurs
   }
 
   // ---------- événements ----------
@@ -295,6 +310,16 @@ export class World {
       this.chests[last] = a;
     }
     this.chests[last].alive = false;
+  }
+
+  // ---------- relief (phase 18) ----------
+  /** Hauteur du sol en (x, z). */
+  heightAt(x: number, z: number): number {
+    return heightAt(this.height, x, z);
+  }
+  /** Multiplicateur de vitesse de la pente pour un déplacement (vx, vz) depuis (x, z). */
+  slopeMul(x: number, z: number, vx: number, vz: number): number {
+    return slopeMul(this.height, x, z, vx, vz);
   }
 
   // ---------- zones et décor (génération : src/sim/map.ts) ----------

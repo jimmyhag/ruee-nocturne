@@ -1,11 +1,23 @@
-import type { Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
+import type { BoonKey, Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { ShotKind } from '../../src/sim/types';
 import { Rng } from '../../src/sim/rng';
-import { ELITE_TYPE, ENEMIES, HAZARDS, MERCHANT, STEP, TOMES, VOLANT_TYPE, WEAPON_LINES } from '../../src/sim/balance';
+import {
+  ELITE_TYPE,
+  ENEMIES,
+  HAZARDS,
+  MAPCHEST,
+  MERCHANT,
+  SHRINE,
+  STEP,
+  TOMES,
+  VOLANT_TYPE,
+  WEAPON_LINES,
+} from '../../src/sim/balance';
 import { canGainItem } from '../../src/sim/items';
 import { MERCHANT_LEAVE, canAffordAny } from '../../src/sim/merchant';
 import { cardSynergy } from '../../src/sim/synergies';
+import { canOpenMapChest } from '../../src/sim/poi';
 
 export interface Bot {
   name: string;
@@ -46,6 +58,8 @@ export const naive: Bot = {
   shop: () => MERCHANT_LEAVE,
 };
 
+/** Valeur d'un bonus de sanctuaire pour le bot (phase 18). */
+const BOON_VALUE: Record<BoonKey, number> = { dmg: 16, hp: 15, cd: 14, speed: 10, magnet: 8, gold: 6 };
 /** Valeur d'un objet passif pour le bot (phase 17) : ordre de préférence d'un joueur moyen. */
 const ITEM_VALUE: Record<ItemKey, number> = {
   phenix: 40,
@@ -106,6 +120,7 @@ function lineValue(c: Card, s: number): number {
 function cardValue(w: World, c: Card): number {
   if (c.kind === 'heal') return w.player.hp / w.player.maxHp < 0.4 ? 100 : 5;
   if (c.kind === 'i') return ITEM_VALUE[c.key as ItemKey];
+  if (c.kind === 'b') return BOON_VALUE[c.key as BoonKey];
   let v = lineValue(c, c.s0) + lineValue(c, c.s1) + lineValue(c, c.s2);
   if (c.kind === 'w' && c.lv === 1) v += 18; // une arme de plus : une base entière
   // un joueur moyen concentre ses lignes sur son arme principale (les % se cumulent) : bonus croissant avec le niveau
@@ -171,6 +186,9 @@ export interface AverageOptions {
   chestRadius?: number;
   /** Rayon (u) dans lequel l'échoppe du marchand attire le bot, s'il peut y acheter (phase 17). */
   merchantRadius?: number;
+  /** Rayons (u) dans lesquels un coffre de carte abordable et un sanctuaire attirent le bot (phase 18). */
+  mapChestRadius?: number;
+  shrineRadius?: number;
 }
 
 /**
@@ -185,6 +203,8 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
   const pullFree = opts.gemPullFree ?? 1.2;
   const chestR2 = (opts.chestRadius ?? 10) ** 2;
   const merchantR2 = (opts.merchantRadius ?? 15) ** 2;
+  const mapChestR2 = (opts.mapChestRadius ?? 28) ** 2; // la colonne de lumière se voit de loin
+  const shrineR2 = (opts.shrineRadius ?? 15) ** 2;
   const r = new Rng(seed);
   let stuck = 0; // frames consécutives où le joueur n'a presque pas avancé malgré l'entrée (muret, tronc, arbre)
   return {
@@ -334,6 +354,60 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           out.mz += (mz / l) * k;
         }
       }
+      // phase 18 : coffre de carte abordable à portée → on y va et on reste dessus le temps de l'ouvrir ;
+      // sanctuaire à portée → on y va quand ce n'est pas la cohue, on reste dans le cercle tant que personne ne colle
+      let stay = false;
+      if (canOpenMapChest(w)) {
+        let bd = mapChestR2,
+          bx = 0,
+          bz = 0;
+        for (let i = 0; i < w.mapChests.length; i++) {
+          const c = w.mapChests[i];
+          if (c.open) continue;
+          const d = (c.x - P.x) ** 2 + (c.z - P.z) ** 2;
+          if (d < bd) {
+            bd = d;
+            bx = c.x - P.x;
+            bz = c.z - P.z;
+          }
+        }
+        if (bd < mapChestR2) {
+          if (bd < MAPCHEST.r * MAPCHEST.r * 0.5 && close < 4) stay = true;
+          else {
+            const l = Math.sqrt(bd) || 1,
+              k = n > 0 ? pullFleeing * 2.2 : pullFree * 2.2;
+            out.mx += (bx / l) * k;
+            out.mz += (bz / l) * k;
+          }
+        }
+      }
+      if (!stay && n < 8) {
+        let bd = shrineR2,
+          bx = 0,
+          bz = 0;
+        for (let i = 0; i < w.shrines.length; i++) {
+          const s = w.shrines[i];
+          if (s.used) continue;
+          const d = (s.x - P.x) ** 2 + (s.z - P.z) ** 2;
+          if (d < bd) {
+            bd = d;
+            bx = s.x - P.x;
+            bz = s.z - P.z;
+          }
+        }
+        if (bd < shrineR2) {
+          if (bd < (SHRINE.r * 0.6) ** 2 && close < 2) stay = true;
+          else {
+            const l = Math.sqrt(bd) || 1,
+              k = n > 0 ? pullFleeing * 1.6 : pullFree * 1.8;
+            out.mx += (bx / l) * k;
+            out.mz += (bz / l) * k;
+          }
+        }
+      }
+      if (stay) {
+        out.mx = out.mz = 0;
+      }
       // attiré par la gemme la plus proche dans gemRadius (même en fuyant)
       let gx = 0,
         gz = 0,
@@ -347,7 +421,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           gz = g.z - P.z;
         }
       }
-      if (gd < gemR2) {
+      if (gd < gemR2 && !stay) {
         const l = Math.sqrt(gd) || 1;
         const k = n > 0 ? pullFleeing : pullFree;
         out.mx += (gx / l) * k;
@@ -386,6 +460,8 @@ export function makeGreedy(seed: number): Bot {
     gemPullFree: 1.6,
     chestRadius: 22,
     merchantRadius: 24,
+    mapChestRadius: 30,
+    shrineRadius: 24,
   });
 }
 

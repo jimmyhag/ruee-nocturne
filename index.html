@@ -998,6 +998,50 @@
       #merchantChip[hidden] {
         display: none;
       }
+      #poiChip {
+        position: fixed; /* #hud ne couvre que le haut de l'écran : la puce se place par rapport à la fenêtre */
+        left: 50%;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 14px;
+        border-radius: 12px;
+        background: var(--glass);
+        border: 1px solid var(--gold);
+        color: var(--paper);
+        font-weight: 800;
+        font-size: 13px;
+        pointer-events: none;
+      }
+      #poiChip[hidden] {
+        display: none;
+      }
+      #poiChip.poor {
+        border-color: var(--ink-3);
+        color: var(--muted);
+      }
+      #poiChip.shrine {
+        border-color: var(--xp);
+      }
+      #poiBar {
+        width: 120px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--ink-3);
+        overflow: hidden;
+      }
+      #poiFill {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--gold);
+      }
+      #poiChip.shrine #poiFill {
+        background: var(--xp);
+      }
       /* téléphone : le kit (armes, tomes) occupe la colonne de gauche ; la pastille passe à droite, sous les kills */
       @media (max-width: 480px) {
         #merchantChip {
@@ -1553,6 +1597,10 @@
       </div>
       <div id="merchantChip" hidden>
         <span id="merchantArrow">▲</span><span data-i18n="merchant.chip">Marchand</span><span id="merchantDist"></span>
+      </div>
+      <!-- phase 18 : coffre de carte ou sanctuaire tout proche (prix, jauge) -->
+      <div id="poiChip" hidden>
+        <span id="poiText"></span><i id="poiBar"><b id="poiFill"></b></i>
       </div>
       <div id="bossbar" hidden>
         <span id="bossname">LE GARDIEN</span>

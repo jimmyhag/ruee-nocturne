@@ -22,9 +22,13 @@ interface Particle {
   grav: boolean;
 }
 const PART_CAP = FEEL.particles.cap;
+/** Hauteur du sol local (phase 18) : les effets reçoivent des y au-dessus du sol, comme la sim. Défaut : sol plat. */
+export type GroundFn = (x: number, z: number) => number;
+const FLAT: GroundFn = () => 0;
 
 /** Pool unique de particules (InstancedMesh, cap 500). Plein : on remplace la plus ancienne, on ne saute jamais un effet. */
 export class Particles {
+  ground: GroundFn = FLAT;
   mesh: THREE.InstancedMesh;
   private w: InstanceWriter;
   private items: Particle[] = [];
@@ -77,7 +81,7 @@ export class Particles {
       const a = rnd(0, TAU),
         sp = rnd(speed * 0.4, speed);
       p.x = x;
-      p.y = y;
+      p.y = y + this.ground(x, z);
       p.z = z;
       p.vx = Math.sin(a) * sp + dx * speed * bias;
       p.vz = Math.cos(a) * sp + dz * speed * bias;
@@ -93,7 +97,7 @@ export class Particles {
       const p = this.alloc();
       const a = (i / n) * TAU;
       p.x = x + Math.sin(a) * 0.4;
-      p.y = y;
+      p.y = y + this.ground(x, z);
       p.z = z + Math.cos(a) * 0.4;
       p.vx = Math.sin(a) * speed;
       p.vz = Math.cos(a) * speed;
@@ -121,9 +125,10 @@ export class Particles {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.z += p.vz * dt;
-      if (p.y < 0.08 && p.grav) {
-        // rebond au sol 0,3
-        p.y = 0.08;
+      const floor = p.grav ? this.ground(p.x, p.z) + 0.08 : -1e9;
+      if (p.y < floor) {
+        // rebond au sol local 0,3
+        p.y = floor;
         p.vy *= -0.3;
         p.vx *= 0.6;
         p.vz *= 0.6;
@@ -138,6 +143,7 @@ export class Particles {
 
 const BOLT_CAP = 800;
 export class Bolts {
+  ground: GroundFn = FLAT;
   private pos = new Float32Array(BOLT_CAP * 3);
   private geo = new THREE.BufferGeometry();
   private lines: THREE.LineSegments;
@@ -153,6 +159,8 @@ export class Bolts {
   }
   add(ax: number, ay: number, az: number, bx: number, by: number, bz: number): void {
     const b = this.items[this.count < 40 ? this.count++ : 0];
+    ay += this.ground(ax, az);
+    by += this.ground(bx, bz);
     for (let i = 0; i <= 6; i++) {
       const f = i / 6,
         j = i === 0 || i === 6 ? 0 : 0.5;
@@ -190,6 +198,7 @@ export class Bolts {
 const AIM_CAP = 64;
 /** Lignes de visée des Cracheurs (télégraphe 0,6 s) : segments rouges dont la longueur suit la progression. */
 export class AimLines {
+  ground: GroundFn = FLAT;
   private pos = new Float32Array(AIM_CAP * 6);
   private geo = new THREE.BufferGeometry();
   private n = 0;
@@ -207,6 +216,8 @@ export class AimLines {
   add(ax: number, ay: number, az: number, bx: number, by: number, bz: number, f: number): void {
     if (this.n >= AIM_CAP) return;
     const o = this.n * 6;
+    ay += this.ground(ax, az);
+    by += this.ground(bx, bz);
     this.pos[o] = ax;
     this.pos[o + 1] = ay;
     this.pos[o + 2] = az;
@@ -239,6 +250,7 @@ const MERGE_SLOTS = 16;
  * 40 ennemis écrit quelques chiffres lisibles, pas 40 illisibles, et le nombre d'écritures DOM par frame est borné.
  */
 export class DamageNumbers {
+  ground: GroundFn = FLAT;
   private items: DmgItem[] = [];
   private idx = 0;
   private v = new THREE.Vector3();
@@ -254,6 +266,7 @@ export class DamageNumbers {
   }
   add(x: number, y: number, z: number, v: number): void {
     const D = FEEL.damageNumbers;
+    y += this.ground(x, z);
     const r2 = D.mergeRadius * D.mergeRadius;
     for (let k = 0; k < this.frameN; k++) {
       const d = this.items[this.frame[k]];
