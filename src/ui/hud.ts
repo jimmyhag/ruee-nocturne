@@ -14,6 +14,7 @@ import {
   itemName,
   rarityName,
   synergyName,
+  synergyText,
   tomeName,
   weaponName,
 } from './cards';
@@ -198,7 +199,8 @@ export class Hud {
       parts.push(
         `<span class="item" title="${itemName(ITEM_KEYS[i])}" style="color:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_GLYPH[ITEM_KEYS[i]]}</span>`,
       );
-    for (let i = 0; i < w.syn.length; i++) if (w.syn[i]) parts.push(`<span class="syn">✦ ${synergyName(i)}</span>`);
+    for (let i = 0; i < w.syn.length; i++)
+      if (w.syn[i]) parts.push(`<span class="syn" title="${synergyText(i)}">✦ ${synergyName(i)}</span>`);
     this.els.kit.innerHTML = parts.join('');
   }
 
@@ -276,7 +278,9 @@ export function renderCards(
         c.kind === 'heal' || c.kind === 'i'
           ? `<p>${cardText(c)}</p>`
           : `${intro}<ul class="lines">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
-      return `<button class="card${rarity}${off ? ' off' : ''}" data-i="${i}" ${off ? 'aria-disabled="true"' : ''}><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}${synBadge}${price}</div>${body}</button>`;
+      // phase 17 : la carte qui complète une synergie dit ce qu'elle débloque
+      const synLine = syn >= 0 ? `<p class="synline">✦ ${synergyText(syn)}</p>` : '';
+      return `<button class="card${rarity}${off ? ' off' : ''}" data-i="${i}" ${off ? 'aria-disabled="true"' : ''}><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}${synBadge}${price}</div>${body}${synLine}</button>`;
     })
     .join('');
 }

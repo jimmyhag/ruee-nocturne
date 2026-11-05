@@ -67,11 +67,11 @@ describe('rng', () => {
 
 describe('progression', () => {
   it('courbe needFor', () => {
-    // phase 12 : courbe aplatie (≈ 3× plus de cartes) : 5 + 2·lv + 0,15·lv²
-    expect(XP.needFor(1)).toBe(7);
-    expect(XP.needFor(5)).toBe(18);
-    expect(XP.needFor(10)).toBe(40);
-    expect(XP.needFor(20)).toBe(105);
+    // phase 12 : courbe aplatie (≈ 3× plus de cartes) : 5 + 2·lv + 0,15·lv² ; phase 17 : ×0,45 (les coffres donnent des objets)
+    expect(XP.needFor(1)).toBe(3);
+    expect(XP.needFor(5)).toBe(8);
+    expect(XP.needFor(10)).toBe(18);
+    expect(XP.needFor(20)).toBe(47);
   });
   it('tirage : jamais 3 passifs quand on a < 2 armes, 3 cartes distinctes', () => {
     for (let s = 0; s < 300; s++) {

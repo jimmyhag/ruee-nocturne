@@ -1,7 +1,7 @@
 // Synergies tome + arme (phase 17, PLAN §3.6) : une synergie s'active quand l'arme est équipée et que le tome a reçu
 // au moins SYN.tome cartes. Les effets de stats sont appliqués par refreshStats (weapons/defs.ts), les autres par la
-// boucle de jeu (Rempart dans step.ts) ou une fois à l'activation (Moisson).
-import { SYN, SYNERGIES, Syn } from './balance';
+// boucle de jeu (Rempart dans step.ts) ou une fois à l'activation (Moisson ; PV max et armure de toute synergie).
+import { SYN, SYNERGIES, Syn, TOME_CAPS } from './balance';
 import { Ev } from './types';
 import type { Card } from './types';
 import type { World } from './world';
@@ -16,6 +16,12 @@ export function updateSynergies(w: World): boolean {
       w.syn[i] = 1;
       changed = true;
       if (i === Syn.Moisson) w.player.magnet *= 1 + SYN.moisson.magnet;
+      // chaque synergie renforce le joueur, d'autant plus qu'elle est la k-ième (le kit complet en réunit plusieurs)
+      const k = synergyCount(w);
+      const P = w.player;
+      P.maxHp += SYN.hp * k;
+      P.hp += SYN.hp * k;
+      P.armor = Math.min(TOME_CAPS.armorMax, P.armor + SYN.armor * k);
       w.emit(Ev.Synergy, w.player.x, w.player.y + 1.5, w.player.z, i);
     }
   }

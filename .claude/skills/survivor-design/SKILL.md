@@ -85,7 +85,7 @@ Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90
 - **Pas de stats permanentes** (phase 17, demande de Jimmy) : la boutique par personnage de la phase 8 est retirée, son or rendu (`legacyShopSpent` dans `src/meta/save.ts`). La puissance se construit pendant le run.
 - **Objets passifs** (`ITEM` dans `balance.ts`, PLAN §3.6) : une règle de jeu chacun, uniques, 6 au plus ; coffres (1 parmi 3) et marchand. Règle de design : un objet change une décision (où se placer, quand sauter, combien dépenser), jamais un « +3 % » ; aucun objet ne doit valoir plus de 2× l'objet moyen en survie (`npm run sim -- --no-item <clé>` pour l'ablation).
 - **Marchand** (`MERCHANT`) : quatre visites (2:30, 6:30, 10:30, 14:30), prix par rareté +25 % par visite, payés avec l'or **de la partie** : chaque achat retarde un emplacement ou un personnage. C'est le dilemme qui remplace la boutique.
-- **Synergies** (`SYNERGIES`, `SYN`) : une paire tome + arme, active à 3 cartes du tome ; la carte qui en complète une est marquée « Synergie ». Le joueur moyen doit en activer au moins une dans la moitié des runs complets.
+- **Synergies** (`SYNERGIES`, `SYN`) : une paire tome + arme, active à 3 cartes du tome ; la carte qui en complète une est marquée « Synergie ». Le joueur moyen doit en activer au moins une dans la moitié des runs complets. Leçon de la phase 17 : les lignes d'arme se cumulent en multiplicatif, donc **concentrer** bat **diversifier** ; et les kills plafonnent au spawn (≈ 1 500 à 10 min quelle que soit la build), la survie se joue sur la défense et les boss. Sans boutique, seules les synergies (effets francs + PV max et armure croissants avec leur rang) donnent l'avantage au kit complet. Le profil nu est très sensible aux dégâts de base (×0,95 → ×1,0 : 5:43 → 11:21 avec la courbe d'XP de la phase 17).
 - La survie est très sensible à la puissance (en phase 8, hp +40 / dégâts ×1,2 / recharge ×0,88 faisaient passer de 5 à 16 min) : un effet d'objet ou de synergie se règle par petits pas et par la CLI.
 - Succès visibles avec barre : chaque run doit faire avancer au moins 2 succès (sinon ajuster les seuils).
 - Personnages : 3 au départ dont 2 à débloquer ; stats de départ **différentes mais pas meilleures**.
@@ -95,8 +95,8 @@ Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90
 Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile naked|maxed` (`tools/targets.ts`) :
 | Métrique | Nu (`--profile naked`) | Maxé (`--profile maxed`) |
 |---|---|---|
-| Médiane de survie | 4–6 min (1 arme, 2 améliorations) | 13–16 min (4/4) |
-| Runs atteignant le Faucheur | ≤ 3 % | 3–12 % |
+| Médiane de survie | 4–6 min (1 arme, 2 tomes) | 10–13 min (4/4) ; ≥ nu + 3 min |
+| Runs atteignant le Faucheur | ≤ 8 % | 1–12 % |
 | Runs morts avant 3 min | ≤ 20 % | < 10 % |
 | Runs qui passent 3 min (arme n°2 accessible) | ≥ 40 % | — |
 | Or gardé médian par run (après le marchand) | ≥ 0,5 emplacement n°2 (150 or) | — |
@@ -104,7 +104,8 @@ Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile nake
 | Taux de pick par arme | — | 8–35 % |
 | Kills à 10 min (médiane) | — | 900–1600 |
 | Variance de kills inter-builds | — | < 3× médiane |
-| Niveau à 10 min (médiane) | — | 24–32 |
+| Niveau à 10 min (médiane) | — | 32–42 (phase 17 : toutes les cartes viennent des niveaux) |
+| Arme principale à 10 min | — | niveau 8–30 |
 
 Les neuf personnages restent à ± 3 min de l'Éclaireuse dans chaque profil. `--no-item phenix,talisman` retire des objets des tirages (ablation) ; la CLI imprime aussi objets par run, part de chaque objet, or dépensé au marchand et part de chaque synergie.
 

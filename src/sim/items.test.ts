@@ -252,7 +252,11 @@ describe('synergies', () => {
     const card: Card = { kind: 't', key: 'cadence', lv: SYN.tome, n: 1, s0: 0, s1: -1, s2: -1 };
     expect(cardSynergy(w, card)).toBe(Syn.Orage);
     w.tomes = { cadence: SYN.tome };
+    const hp0 = w.player.maxHp,
+      armor0 = w.player.armor;
     expect(updateSynergies(w)).toBe(true);
+    expect(w.player.maxHp).toBe(hp0 + SYN.hp); // 1re synergie : SYN.hp, SYN.armor
+    expect(w.player.armor).toBeCloseTo(armor0 + SYN.armor, 6);
     expect(count(w, Ev.Synergy)).toBe(1);
     expect(updateSynergies(w)).toBe(false);
     expect(synergyCount(w)).toBe(1);
@@ -262,6 +266,11 @@ describe('synergies', () => {
     // une nouvelle arme dont le tome est déjà là complète aussi une synergie
     w.tomes.projectiles = SYN.tome;
     expect(cardSynergy(w, { kind: 'w', key: 'orbe', lv: 1, n: 1, s0: 0, s1: -1, s2: -1 })).toBe(Syn.Essaim);
+    // la 2e synergie rapporte deux fois plus
+    w.weapons.orbe = 1;
+    const hp1 = w.player.maxHp;
+    updateSynergies(w);
+    expect(w.player.maxHp).toBe(hp1 + 2 * SYN.hp);
   });
   it('Rempart : le contact d’un ennemi dans le Halo fait moins mal', () => {
     const hurt = (rempart: boolean) => {

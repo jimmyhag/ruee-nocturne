@@ -319,7 +319,12 @@ const summary = {
   noItem: [...NO_ITEM],
   slots: `${SLOT_OPT.weapons},${SLOT_OPT.passives}`,
   profile: PROFILE,
-  survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
+  survival: {
+    p10: pct(times, 10),
+    p50: pct(times, 50),
+    p90: pct(times, 90),
+    mean: times.reduce((a, b) => a + b, 0) / RUNS,
+  },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
   // économie : or gardé médian par run (après le marchand), or dépensé au marchand

@@ -22,18 +22,23 @@ const economy: Target = {
 };
 export const NAKED: Target[] = [
   { name: 'survie p50 4–6 min', min: 240, max: 360, get: (s) => s.survival.p50, fmt: mmss }, // 1 arme, 2 tomes
-  { name: 'fin atteinte ≤ 3 %', min: 0, max: 3, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 17 : ≤ 3 → ≤ 8 % ; un kit de départ concentre toutes ses lignes sur une arme et, s'il passe le Gardien, peut aller loin
+  { name: 'fin atteinte ≤ 8 %', min: 0, max: 8, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'passent 3 min ≥ 40 %', min: 40, max: 100, get: (s) => s.aliveCurve[2], fmt: (v) => v + ' %' }, // l'arme n°2 (succès « Première nuit ») reste atteignable
   economy,
 ];
 export const MAXED: Target[] = [
-  { name: 'survie p50 13–16 min', min: 780, max: 960, get: (s) => s.survival.p50, fmt: mmss },
-  { name: 'fin atteinte 3–12 %', min: 3, max: 12, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 17 : 13–16 → 10–13 min et fin 3–12 → 1–12 % : la boutique (≈ +24 PV, dégâts ×1,17, recharge ×0,92, réanimation)
+  // n'existe plus ; un kit complet ne gagne plus que par ses synergies. Mesuré sans rien changer d'autre : 5:45.
+  { name: 'survie p50 10–13 min', min: 600, max: 780, get: (s) => s.survival.p50, fmt: mmss },
+  { name: 'fin atteinte 1–12 %', min: 1, max: 12, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min < 10 %', min: 0, max: 10, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'kills@10 900–1600', min: 900, max: 1600, get: (s) => s.killsAt10p50 }, // phase 8 : spawn plus dense après 7:00
-  { name: 'niveau@10 24–32', min: 24, max: 32, get: (s) => s.levelAt10p50 }, // phase 12 : courbe d'XP aplatie (16–20 avant)
-  { name: 'arme principale@10 niv 15–30', min: 15, max: 30, get: (s) => s.weaponLvAt10p50 }, // phase 12 : la montée est longue, 100 jamais atteint
+  // phase 17 : 24–32 → 32–42, les coffres ne donnent plus de cartes, les niveaux les portent toutes (XP ×0,45)
+  { name: 'niveau@10 32–42', min: 32, max: 42, get: (s) => s.levelAt10p50 },
+  // phase 17 : 15–30 → 8–30, quatre armes se partagent les cartes (le kit de départ, lui, en met ≈ 22 sur la sienne)
+  { name: 'arme principale@10 niv 8–30', min: 8, max: 30, get: (s) => s.weaponLvAt10p50 },
   {
     name: 'pick min ≥ 8 %',
     min: 8,

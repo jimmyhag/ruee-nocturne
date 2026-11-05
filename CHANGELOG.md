@@ -2,6 +2,23 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.12.0 — 5 nov. 2026 (phase 17 « Marchand, objets passifs et synergies »)
+
+La puissance ne s'achète plus entre les parties : elle se construit pendant la partie.
+
+### Ajouté
+
+- **Objets passifs** (12) : Plume de phénix (une réanimation), Cape de brume, Lanterne du veilleur, Cœur de pierre, Talisman orageux, Sablier fêlé, Épines, Bottes de saut, Œil du chasseur, Aimant d'âme, Fer à cheval, Bourse du colporteur. Chacun change une règle du jeu ; uniques, 6 au plus, affichés sous les armes.
+- **Coffres** : un coffre propose 3 objets au choix (4 avec le Colporteur), un coffre de boss deux choix ; avec 6 objets, un sac d'or.
+- **Le marchand** passe à 2:30, 6:30, 10:30 et 14:30 et reste 45 s : une flèche au bord de l'écran indique son échoppe. Y entrer met la partie en pause ; on achète avec l'or de la partie, on relance les offres ou on part. Clavier : 1–4, R, Échap ; boutons au doigt.
+- **Synergies** (8) : une arme et le tome associé (3 cartes) déclenchent un bonus (Orage, Essaim, Brasier, Tourbillon, Charge creuse, Ricochet, Moisson, Rempart) ; à la montée de niveau, la carte qui en complète une est marquée « Synergie ».
+
+### Modifié
+
+- **La boutique par personnage est retirée** : tout l'or dépensé en paliers est rendu à l'ouverture du jeu. La feuille devient « Emplacements » ; l'or sert aux emplacements, aux personnages et aux tenues.
+- Le Colporteur : ses coffres proposent 4 objets (au lieu d'au moins 3 cartes).
+- Équilibrage refait sans la boutique : §§EQUILIBRAGE§§
+
 ## 1.11.0 — 5 nov. 2026 (phase 16 « Carte construite et tireurs »)
 
 Une carte pensée, toujours ouverte, et des ennemis qui tirent.

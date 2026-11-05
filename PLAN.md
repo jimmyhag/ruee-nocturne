@@ -148,18 +148,18 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 
 **Marchand** : une échoppe s'installe à 10–14 u du joueur à 2:30, 6:30, 10:30 et 14:30, hors obstacle, et reste 45 s (flèche au bord de l'écran, distance, secondes restantes). Y entrer met la partie en pause : 3 objets (4 avec le Fer à cheval) à 70 / 140 / 240 or selon la rareté, +25 % par visite ; relancer coûte 40 or, puis 80, 120… ; on paie avec l'or de la partie, ce qui reste est gardé à la fin. Clavier : 1–4 acheter, R relancer, Échap partir ; boutons tactiles équivalents. On n'y rentre de nouveau qu'après en être sorti.
 
-**Synergies tome + arme** : actives dès que l'arme est équipée et que le tome a reçu 3 cartes ; bannière et son, icône dans le HUD ; une carte qui en complète une porte le badge « Synergie » à la montée de niveau.
+**Synergies tome + arme** : actives dès que l'arme est équipée et que le tome a reçu 3 cartes ; bannière et son, icône dans le HUD ; une carte qui en complète une porte le badge « Synergie » et dit ce qu'elle débloque. Chaque synergie ajoute aussi des PV max et de l'armure, d'autant plus qu'elle est la 2e, la 3e… (k-ième : +20·k PV, +3·k % d'armure) : c'est ce qui rend un kit complet (4 armes, 4 tomes, plusieurs paires possibles) plus fort qu'un kit de départ.
 
 | Synergie | Paire | Effet |
 |---|---|---|
-| Orage | Cadence + Foudre | +2 cibles en chaîne |
-| Essaim | Projectiles + Orbe | +1 orbe, +1 perforation |
-| Brasier | Dégâts + Halo | dégâts du Halo +35 % |
-| Tourbillon | Mouvement + Lames | lames 40 % plus rapides, rayon +10 % |
-| Charge creuse | Dégâts + Mines | rayon des mines +30 % |
-| Ricochet | Chance + Boomerang | +1 boomerang, portée +15 % |
-| Moisson | Savoir + Lames | rayon de collecte +30 % |
-| Rempart | Vitalité + Halo | −15 % de dégâts des ennemis dans le Halo |
+| Orage | Cadence + Foudre | +4 cibles en chaîne |
+| Essaim | Projectiles + Orbe | +1 orbe, +1 perforation (seule paire du kit de départ de l'Éclaireuse : modérée) |
+| Brasier | Dégâts + Halo | dégâts du Halo +80 % |
+| Tourbillon | Mouvement + Lames | lames 60 % plus rapides, rayon +25 % |
+| Charge creuse | Dégâts + Mines | rayon des mines +60 % |
+| Ricochet | Chance + Boomerang | +2 boomerangs, portée +30 % |
+| Moisson | Savoir + Lames | rayon de collecte +50 % |
+| Rempart | Vitalité + Halo | −40 % de dégâts des ennemis dans le Halo |
 
 Décision prise : les synergies sont des bonus de stats ou des règles simples plutôt que de nouveaux comportements d'arme (brûlure, rebond, rotation au dash) : même lisibilité, aucun nouvel objet de pool dans la boucle chaude, réglables par la CLI.
 
@@ -323,7 +323,8 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 
 ### Phase 17 — Marchand, objets passifs et synergies (après la 1.11.0)
 - Retour de Jimmy : plus d'amélioration permanente par personnage, un système de tomes plus stratégique, un marchand qui vend des passifs, des coffres qui donnent des objets. Boutique par personnage retirée (sauvegarde version 4 : l'or des paliers est rendu, `shops` n'est plus écrit) ; 12 objets passifs, coffres → choix d'objets, marchand en partie, 8 synergies tome + arme (§3.6). La feuille « Boutique » devient « Emplacements » (décision prise : garder la feuille et son bouton plutôt que déplacer les emplacements dans la feuille Personnage, moins de changements d'interface pour le même résultat). CLI : profils nu (emplacements de départ) et maxé (tous les emplacements), `--upgrades` retiré, `--no-item` pour l'ablation, mesures d'objets, d'or dépensé et de synergies.
-- **Porte** : cibles des profils nu et maxé tenues ; ≥ 50 % des runs maxés activent au moins une synergie ; chaque objet obtenu au moins une fois sur 200 runs ; aucun objet à plus de 2× l'effet moyen en survie (ablation) ; migration testée (l'or des paliers rendu exactement, une fois) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; zéro allocation par frame ; e2e coffre et marchand au clavier et au tactile ; captures lues (coffre, échoppe, marchand, HUD) ; test de Jimmy.
+- Équilibrage (décisions prises) : courbe d'XP ×0,45 (les cartes des coffres passent dans les niveaux) ; cibles maxées ramenées de 13–16 à **10–13 min** (fin 1–12 %) et fin du profil nu ≤ 8 % : sans boutique, un kit complet ne gagne plus que par ses synergies, et un kit de départ qui concentre ses lignes sur une arme peut aller loin s'il passe le Gardien. Niveau à 10 min 32–42, arme principale 8–30.
+- **Porte** : cibles des profils nu et maxé tenues (maxé ≥ nu + 3 min en médiane) ; ≥ 50 % des runs maxés activent au moins une synergie ; chaque objet obtenu au moins une fois sur 200 runs ; aucun objet à plus de 2× l'effet moyen en survie (ablation) ; migration testée (l'or des paliers rendu exactement, une fois) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; zéro allocation par frame ; e2e coffre et marchand au clavier et au tactile ; captures lues (coffre, échoppe, marchand, HUD) ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

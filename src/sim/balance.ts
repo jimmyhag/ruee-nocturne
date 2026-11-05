@@ -137,9 +137,10 @@ export const HAZARDS = {
 };
 
 export const XP = {
-  // needFor(lv) = 5 + 2·lv + 0,15·lv²  → lv1:7, lv5:18, lv10:40, lv20:105, lv40:325 (phase 12 : ≈ 3× plus de cartes qu'avant,
-  // ≈ 35 à 10 min, une carte toutes les ~15 s : la montée est longue et faite de petites lignes ; avant : 5 + 4·lv + 0,6·lv²)
-  needFor: (lv: number) => Math.floor(5 + lv * 2 + lv * lv * 0.15),
+  // needFor(lv) = 0,45·(5 + 2·lv + 0,15·lv²)  → lv1:3, lv10:18, lv20:47, lv40:146 (phase 12 : la montée est longue et faite de
+  // petites lignes ; phase 17 : ×0,45, les coffres ne donnent plus de cartes mais des objets, les niveaux portent toutes les
+  // cartes : ≈ 37 niveaux à 10 min au lieu de 26 + ≈ 12 cartes de coffre)
+  needFor: (lv: number) => Math.floor((5 + lv * 2 + lv * lv * 0.15) * 0.45),
   gemMergeAbove: 880, // au-delà, les nouvelles gemmes fusionnent avec une existante
   magnetAccel: 45,
   magnetMax: 26,
@@ -581,16 +582,22 @@ export const MERCHANT = {
 };
 
 // synergies tome + arme (phase 17) : l'arme équipée et au moins SYN.tome cartes du tome
+// phase 17 : sans la boutique, les synergies sont ce qui rend un kit complet (4 armes, 4 tomes) plus fort qu'un kit de
+// départ (une arme qui concentre toutes ses lignes) : effets francs, et chaque synergie active ajoute des PV max et de
+// l'armure, d'autant plus qu'elle est la 2e, la 3e… (k-ième synergie : hp·k, armor·k). Mesuré (60 runs maxés) : synergies
+// de base 8:03 ; effets francs + 20 PV fixes 9:39 ; bonus progressif 10:52 ; le kit de départ n'a qu'une paire possible.
 export const SYN = {
   tome: 3,
-  orage: { chain: 2 }, // Cadence + Foudre
-  essaim: { pierce: 1, n: 1 }, // Projectiles + Orbe
-  brasier: { dmg: 0.35 }, // Dégâts + Halo
-  tourbillon: { spd: 0.4, r: 0.1 }, // Mouvement + Lames
-  charge: { r: 0.3 }, // Dégâts + Mines
-  ricochet: { n: 1, range: 0.15 }, // Chance + Boomerang
-  moisson: { magnet: 0.3 }, // Savoir + Lames
-  rempart: { dmgTaken: 0.85 }, // Vitalité + Halo : contact des ennemis dans le Halo
+  hp: 20, // PV max par synergie, × son rang
+  armor: 0.03, // armure par synergie, × son rang (plafond TOME_CAPS.armorMax)
+  orage: { chain: 4 }, // Cadence + Foudre
+  essaim: { pierce: 1, n: 1 }, // Projectiles + Orbe (la seule paire du kit de départ de l'Éclaireuse : modérée)
+  brasier: { dmg: 0.8 }, // Dégâts + Halo
+  tourbillon: { spd: 0.6, r: 0.25 }, // Mouvement + Lames
+  charge: { r: 0.6 }, // Dégâts + Mines
+  ricochet: { n: 2, range: 0.3 }, // Chance + Boomerang
+  moisson: { magnet: 0.5 }, // Savoir + Lames
+  rempart: { dmgTaken: 0.6 }, // Vitalité + Halo : contact des ennemis dans le Halo
 };
 export interface Synergy {
   key: string;
