@@ -29,6 +29,7 @@ test('coffre : un choix d’objets passifs, l’objet rejoint le HUD', async ({ 
   const items = await page.evaluate(() => [...(window as any).__game.world.itemOrder] as number[]);
   expect(items.length).toBe(1);
   await expect(page.locator('#kit .item')).toHaveCount(1);
+  await expect(page.locator('#banner')).toContainText('Objet'); // bannière « Objet : … » (perf-reviewer : elle se perdait)
   expect(key.length).toBeGreaterThan(2);
 });
 

@@ -395,6 +395,7 @@ function openLevelUp(): void {
     ? t('chest.title')
     : t('levelup.title', { n: world.player.level - world.pending + 1 });
   $('luHint').textContent = chest ? t('chest.hint') : t('levelup.hint');
+  $('luSlots').hidden = chest; // les emplacements d'armes et de tomes ne disent rien d'un choix d'objet
   $('luSlots').textContent = t('levelup.slots', {
     w: Object.keys(world.weapons).length,
     wMax: world.maxWeapons,

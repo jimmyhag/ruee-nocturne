@@ -134,13 +134,13 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Plume de phénix | une réanimation à 25 % PV | épique |
 | Cape de brume | dash 50 % plus long, invulnérabilité du dash +0,2 s | rare |
 | Lanterne du veilleur | rayon de collecte ×1,6 | commun |
-| Cœur de pierre | +25 PV max, −5 % vitesse | commun |
+| Cœur de pierre | +30 PV max, −3 % vitesse | commun |
 | Talisman orageux | tous les 25 kills, la foudre frappe les 5 ennemis les plus proches (50 % de leurs PV, 5 % pour un boss) | rare |
 | Sablier fêlé | élites et boss ralentis de 20 % | rare |
 | Épines | un ennemi au contact reçoit 3× les dégâts qu'il inflige | commun |
 | Bottes de saut | saut 15 % plus haut ; l'atterrissage repousse les ennemis proches | commun |
 | Œil du chasseur | +25 % de dégâts contre élites et boss | rare |
-| Aimant d'âme | chaque gemme ramassée soigne 0,25 PV | commun |
+| Aimant d'âme | chaque gemme ramassée soigne 0,15 PV | commun |
 | Fer à cheval | +1 Chance ; le marchand propose un objet de plus | rare |
 | Bourse du colporteur | +40 % d'or ramassé, prix du marchand −15 % | commun |
 

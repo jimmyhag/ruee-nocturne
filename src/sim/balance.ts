@@ -558,13 +558,13 @@ export const ITEM = {
   chestGoldIfFull: 60, // coffre sans objet possible : sac d'or (× multiplicateurs d'or)
   cape: { dashMul: 1.5, invulAdd: 0.2 },
   lanterne: { magnetMul: 1.6 },
-  coeur: { hp: 25, speedMul: 0.95 },
+  coeur: { hp: 30, speedMul: 0.97 },
   talisman: { every: 25, targets: 5, frac: 0.5, bossFrac: 0.05, range: 14 }, // part des PV max retirée à chaque cible
   sablier: { slow: 0.8 }, // élites et boss
   epines: { mul: 3, period: 0.25 }, // dégâts renvoyés (× ceux du contact), appliqués toutes les 0,25 s
   bottes: { jumpMul: 1.15, r: 3.2, kb: 9 },
   oeil: { eliteDmg: 0.25 },
-  aimant: { heal: 0.25 }, // PV par gemme ramassée
+  aimant: { heal: 0.15 }, // PV par gemme ramassée
   fer: { luck: 1 },
   bourse: { goldMul: 0.4, discount: 0.15 },
 };
