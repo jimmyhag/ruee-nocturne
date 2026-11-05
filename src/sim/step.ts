@@ -288,7 +288,8 @@ function stepEnemies(w: World, dt: number): void {
     e.face = Math.atan2(dx, dz);
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
-    const canHurt = e.type === VOLANT_TYPE ? e.state === 2 : true;
+    // phase 19 : un ennemi étourdi (Éclat, Collet) ne blesse pas : une Brute figée en pleine charge ne la porte pas
+    const canHurt = e.stun > 0 ? false : e.type === VOLANT_TYPE ? e.state === 2 : true;
     if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)

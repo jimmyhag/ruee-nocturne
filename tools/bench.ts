@@ -32,6 +32,7 @@ const times: number[] = [];
 for (let i = 0; i < 600; i++) {
   inp.mx = Math.cos(i / 60);
   inp.mz = Math.sin(i / 60);
+  inp.spell = i % 45 === 0; // phase 19 : le sort de classe est lancé régulièrement (Bond de l'Éclaireuse)
   w.player.hp = 1e9;
   const t0 = performance.now();
   step(w, inp, STEP);

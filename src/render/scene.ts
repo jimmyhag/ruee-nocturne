@@ -21,6 +21,7 @@ import {
   WORLD_HALF,
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
+import { spellSize } from '../sim/spells';
 import { ProjKind, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
@@ -205,6 +206,7 @@ export class GameScene {
   private ghosts: Ghost[] = [];
   private ghostNext = 0;
   private lastGhost = 0;
+  private lastWhirl = 0; // phase 19 : cadence des particules du Tourbillon
 
   private camPos = new THREE.Vector3(0, 14, 12);
   private camLook = new THREE.Vector3();
@@ -694,7 +696,8 @@ export class GameScene {
     this.player.scale.set(sxz, sy, sxz);
     // clignote pendant l'invulnérabilité qui suit un coup encaissé, pas pendant celle d'un sort (phase 19 : Clignement, Voile)
     this.player.visible =
-      !(P.invul > 0 && P.dashT <= 0 && w.t - w.hurtAt < 1.5 && Math.floor(now * 20) % 2 === 1) || hurtFlash;
+      !(P.invul > 0 && P.dashT <= 0 && w.t - w.hurtAt < FEEL.trail.hurtBlink && Math.floor(now * 20) % 2 === 1) ||
+      hurtFlash;
     if (M.glowDisc) {
       M.glowDisc.visible = this.player.visible;
       M.glowDisc.position.set(px, gp + 0.1, pz);
@@ -731,8 +734,9 @@ export class GameScene {
     }
     this.dashGhostW.end();
     // phase 19 : Tourbillon (trois haches de lumière qui tournent autour du Bûcheron) et filet du Collet
-    if (P.spellT > 0 && w.spell === Spell.Tourbillon) {
-      const r = SPELL.tourbillon.r * (1 + (P.spellPow - 1) * 0.5);
+    if (P.spellT > 0 && w.spell === Spell.Tourbillon && now - this.lastWhirl >= FEEL.trail.whirlEvery) {
+      this.lastWhirl = now;
+      const r = SPELL.tourbillon.r * spellSize(P);
       // trois bras de lumière dorée, deux points par bras (du milieu au bord du rayon de frappe)
       for (let k = 0; k < 3; k++) {
         const a = now * 14 + k * 2.094;
@@ -745,7 +749,7 @@ export class GameScene {
     this.netW.begin();
     if (P.spellT > 0 && w.spell === Spell.Collet) {
       const S2 = w.sstate,
-        r = SPELL.collet.r * (1 + (P.spellPow - 1) * 0.5);
+        r = SPELL.collet.r * spellSize(P);
       this.tilt(S2.x, S2.z);
       this.netW.put(S2.x, this.gy(S2.x, S2.z) + 0.08, S2.z, now * 0.3, r, WHITE, this.tRx, this.tRz);
     }

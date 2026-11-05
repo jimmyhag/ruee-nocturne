@@ -525,6 +525,12 @@ export const RARITY = {
 export const SPELL_KEYS = ['bond', 'tourbillon', 'clignement', 'eclat', 'collet', 'petard', 'comete', 'voile', 'bourse'] as const;
 export const SPELL = {
   slow: 0.5, // vitesse des ennemis ralentis (Voile, boss dans un Collet ou un Éclat)
+  sizeShare: 0.5, // rayons et durées : moitié du bonus de puissance (tome Mouvement)
+  maxEnemyR: 2.6, // marge des requêtes de zone : plus grand rayon d'ennemi (Colosse)
+  blinkStep: 0.5, // u : pas du Clignement jusqu'au premier obstacle
+  holdPad: 0.05, // s : un ennemi reste figé un peu plus d'une impulsion du Collet (pas de trou entre deux)
+  kbBlink: 2, // recul des éclairs du Clignement
+  kbBourse: 6, // recul de l'explosion de la Bourse
   bond: { cd: 3, orbs: 6, dmg: 14, speed: 15, pierce: 2 }, // Éclaireuse : dash PLAYER.dashTime, puis orbes en étoile à l'arrivée
   tourbillon: { cd: 7, dur: 1.2, r: 3, period: 0.2, dmg: 12, kb: 7, dmgTaken: 0.5, speedMul: 0.8 }, // Bûcheron
   clignement: { cd: 5, dist: 6, invul: 0.4, targets: 6, dmg: 35, chainR: 7 }, // Sorcière : éclairs depuis le point de départ

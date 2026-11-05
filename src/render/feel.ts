@@ -42,6 +42,8 @@ export const FEEL = {
     levelUp: { n: 30, speed: 5, up: 6 },
   },
   trail: {
+    hurtBlink: 1.5, // s après un coup pendant lesquelles l'invulnérabilité fait clignoter le joueur (pas celle d'un sort)
+    whirlEvery: 1 / 60, // s entre deux salves de particules du Tourbillon (débit indépendant de l'écran)
     projGhosts: 4, // fantômes à t − j·28 ms
     projGhostDt: 0.028,
     dashGhosts: 6, // silhouettes du joueur

@@ -2,16 +2,16 @@
 // castSpell est appelé par stepPlayer (déplacements : Bond, Comète, Clignement, Pétard, Voile) ; les coups sont portés par
 // tickSpells, après la reconstruction de la grille (ses indices d'ennemis ne sont valides qu'entre build et compactage).
 // Zéro allocation : tampons de module, état dans w.sstate et dans le joueur.
-import { ENEMIES, ITEM, It, PLAYER, PLAY_LIMIT, SPELL } from './balance';
+import { CAPS, ENEMIES, ITEM, It, PLAYER, PLAY_LIMIT, SPELL } from './balance';
 import { hitEnemy } from './combat';
 import { Ev, HitSrc, Spell } from './types';
 import type { Player } from './types';
 import { fireAngle } from './weapons/tick';
 import type { World } from './world';
 
-const MAX_ENEMY_R = 2.6; // Colosse
+const MAX_ENEMY_R = SPELL.maxEnemyR;
 const TAU = Math.PI * 2;
-const hits = new Int32Array(256);
+const hits = new Int32Array(CAPS.enemies); // une zone peut couvrir toute la foule (Éclat dans 400 ennemis)
 const bolts = new Int32Array(16);
 
 /** Recharge de base par sort, dans l'ordre de l'énumération Spell. */
@@ -31,9 +31,9 @@ const CD = [
 export function spellCooldown(w: World): number {
   return CD[w.spell] * w.player.spellCdMul;
 }
-/** Rayons et durées : la moitié du bonus de puissance (tome Mouvement). */
-function size(P: Player): number {
-  return 1 + (P.spellPow - 1) * 0.5;
+/** Rayons et durées : une part du bonus de puissance (tome Mouvement). Exporté pour le rendu (filet, Tourbillon). */
+export function spellSize(P: Player): number {
+  return 1 + (P.spellPow - 1) * SPELL.sizeShare;
 }
 /** Coup de sort : compté pour la CLI (part des kills faits par le sort). */
 function zap(w: World, i: number, dmg: number, kb: number, fx: number, fz: number): void {
@@ -54,7 +54,7 @@ export function castSpell(w: World, dirX: number, dirZ: number): void {
   S.x = P.x;
   S.z = P.z;
   if (w.items[It.Cape]) P.invul = Math.max(P.invul, ITEM.cape.invul); // phase 19 : Cape, invulnérable après chaque sort
-  const k = size(P);
+  const k = spellSize(P);
   switch (w.spell) {
     case Spell.Bond:
       P.dashT = P.dashTime;
@@ -74,10 +74,10 @@ export function castSpell(w: World, dirX: number, dirZ: number): void {
       const C = SPELL.clignement;
       let x = P.x,
         z = P.z;
-      const steps = Math.ceil((C.dist * k) / 0.5);
+      const steps = Math.ceil((C.dist * k) / SPELL.blinkStep);
       for (let s = 1; s <= steps; s++) {
-        const nx = clampLimit(P.x + dirX * 0.5 * s),
-          nz = clampLimit(P.z + dirZ * 0.5 * s);
+        const nx = clampLimit(P.x + dirX * SPELL.blinkStep * s),
+          nz = clampLimit(P.z + dirZ * SPELL.blinkStep * s);
         if (w.blocksShot(nx, nz, PLAYER.radius)) break;
         x = nx;
         z = nz;
@@ -122,7 +122,7 @@ function impact(w: World, x: number, z: number, r: number): void {
 export function tickSpells(w: World, dt: number): void {
   const P = w.player,
     S = w.sstate;
-  const k = size(P),
+  const k = spellSize(P),
     pow = P.spellPow;
   if (S.pending) {
     S.pending = false;
@@ -152,7 +152,7 @@ export function tickSpells(w: World, dt: number): void {
         for (let t = 0; t < m; t++) {
           const e = w.enemies[bolts[t]];
           w.emit(Ev.Bolt, S.x, 1.2, S.z, 0, e.x, e.y + 0.8, e.z);
-          zap(w, bolts[t], C.dmg * pow, 2, S.x, S.z);
+          zap(w, bolts[t], C.dmg * pow, SPELL.kbBlink, S.x, S.z);
         }
         impact(w, S.x, S.z, 1.2);
         break;
@@ -183,7 +183,7 @@ export function tickSpells(w: World, dt: number): void {
           r = B.r * k;
         const dmg = (B.dmg + Math.min(B.maxBonus, w.gold * B.perGold)) * pow;
         const n = w.grid.query(w.enemies, S.x, S.z, r, MAX_ENEMY_R, hits);
-        for (let q = 0; q < n; q++) zap(w, hits[q], dmg, 6, S.x, S.z);
+        for (let q = 0; q < n; q++) zap(w, hits[q], dmg, SPELL.kbBourse, S.x, S.z);
         impact(w, S.x, S.z, r);
         break;
       }
@@ -221,8 +221,8 @@ export function tickSpells(w: World, dt: number): void {
         const n = w.grid.query(w.enemies, S.x, S.z, C.r * k, MAX_ENEMY_R, hits);
         for (let q = 0; q < n; q++) {
           const e = w.enemies[hits[q]];
-          if (ENEMIES[e.type].boss) e.slowT = Math.max(e.slowT, C.period + 0.05);
-          else e.stun = Math.max(e.stun, C.period + 0.05);
+          if (ENEMIES[e.type].boss) e.slowT = Math.max(e.slowT, C.period + SPELL.holdPad);
+          else e.stun = Math.max(e.stun, C.period + SPELL.holdPad);
           zap(w, hits[q], C.dps * C.period * pow, 0, S.x, S.z);
         }
       }
