@@ -17,7 +17,7 @@ La puissance ne s'achète plus entre les parties : elle se construit pendant la 
 
 - **La boutique par personnage est retirée** : tout l'or dépensé en paliers est rendu à l'ouverture du jeu. La feuille devient « Emplacements » ; l'or sert aux emplacements, aux personnages et aux tenues.
 - Le Colporteur : ses coffres proposent 4 objets (au lieu d'au moins 3 cartes).
-- Équilibrage refait sans la boutique : §§EQUILIBRAGE§§
+- Équilibrage refait sans la boutique : on monte de niveau plus vite (les cartes des coffres passent dans les niveaux) ; chaque synergie donne en plus des PV max et de l'armure, davantage à la 2e, à la 3e… Pour un joueur moyen simulé, une partie avec les emplacements de départ dure environ 6 min en médiane, avec tous les emplacements environ 10 min.
 
 ## 1.11.0 — 5 nov. 2026 (phase 16 « Carte construite et tireurs »)
 

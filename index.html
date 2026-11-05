@@ -976,6 +976,16 @@
       #merchantChip[hidden] {
         display: none;
       }
+      /* téléphone : le kit (armes, tomes) occupe la colonne de gauche ; la pastille passe à droite, sous les kills */
+      @media (max-width: 480px) {
+        #merchantChip {
+          left: auto;
+          right: 12px;
+          transform: none;
+          top: calc(env(safe-area-inset-top, 0px) + 70px);
+          font-size: 12px;
+        }
+      }
       #merchantArrow {
         display: inline-block;
         color: var(--accent);
