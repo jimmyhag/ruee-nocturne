@@ -2,6 +2,20 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.10.0 — 4 nov. 2026 (phase 15 « Direction artistique toon »)
+
+Fini les cubes : ombrage toon à trois tons, contours sombres, formes arrondies.
+
+### Ajouté
+
+- **Rendu toon** : personnages, ennemis et décor passent à un ombrage à trois tons (ombre, demi-teinte, lumière) à bandes nettes ; le soleil est un peu plus fort pour que les tons se lisent la nuit.
+- **Contours** : un contour bleu nuit presque noir entoure les personnages, les ennemis (plus épais sur les boss) et les plateaux. Il est cuit dans les géométries (coque inversée fusionnée) : aucun appel de rendu en plus, les budgets ne bougent pas.
+- **Formes arrondies** : sur les personnages et les boss, toute boîte assez épaisse devient une boîte à bords arrondis (têtes, torses, corps du Colosse) ; les plaques fines (ailes, visières, lames) restent nettes. Les ennemis de masse gardent des boîtes simples sous leur contour (budget de triangles à 400 ennemis).
+
+### Modifié
+
+- Sol : plus de damier marqué, une prairie à peine mouchetée. Lanternes à la couleur chaude de la palette. Lumière de la nuit un peu plus présente.
+
 ## 1.9.0 — 4 nov. 2026 (phase 14 « Interface »)
 
 Un menu de vrai jeu : la clairière plein écran, le personnage devant toi, des panneaux propres.

@@ -272,7 +272,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Porte** : captures desktop et iPhone lues (accueil, Personnage, Boutique, Réglages, mort, montée de niveau) ; e2e complets verts avec les feuilles ; Lighthouse accessibilité ≥ 90 et perf inchangée ; budget de rendu en jeu inchangé ; test de Jimmy sur iPhone et PC.
 
 ### Phase 15 — Direction artistique toon (après la 1.9.0)
-- Rendu toon à contours noirs (`MeshToonMaterial` à 3 tons, contour par coque inversée instanciée : +1 draw call par famille, pas d'`EffectComposer`), modèles arrondis (capsules, têtes sphériques, biseaux, normales lissées), sol en terrain avec herbe en nappes, palette nuit bleue étendue aux ennemis.
+- Rendu toon à contours noirs (`MeshToonMaterial` à 3 tons, contour par coque inversée instanciée : +1 draw call par famille, pas d'`EffectComposer`), modèles arrondis (boîtes arrondies sur les personnages et les boss, normales lissées ; les ennemis de masse restent en boîtes brutes pour le budget de triangles), sol en terrain avec herbe en nappes, palette nuit bleue étendue aux ennemis.
 - **Porte** : ≤ 40 draw calls, ≤ 150 k tris à 400 ennemis, bench inchangé, captures lues, `perf-reviewer`, test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
