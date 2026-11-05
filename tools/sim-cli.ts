@@ -2,7 +2,16 @@
 //   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { CHARACTERS, ENEMIES, MAX_PASSIVES, MAX_WEAPONS, SHOP, SLOTS_START, STEP } from '../src/sim/balance';
+import {
+  CHARACTERS,
+  ENEMIES,
+  ITEM_KEYS,
+  MAX_PASSIVES,
+  MAX_WEAPONS,
+  SLOTS_START,
+  STEP,
+  SYNERGIES,
+} from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { HurtSrc, Ev, Mode } from '../src/sim/types';
 import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
@@ -10,7 +19,7 @@ import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
 import { ACHIEVEMENTS } from '../src/meta/achievements';
 import { enforceAllowed, makeBot, pickAllowed } from './bots';
-import { PROFILES, checkTargets, shopTotalCost } from './targets';
+import { PROFILES, REF_PRICE, checkTargets } from './targets';
 
 const args = new Map<string, string>();
 for (let i = 2; i < process.argv.length; i += 2)
@@ -27,30 +36,27 @@ if (!CHARACTERS.some((c) => c.key === CHARACTER)) {
   console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : ${CHARACTERS.map((c) => c.key).join(', ')}`);
   process.exit(2);
 }
-// --upgrades 0|max|<n>|hp=8,revive=0,… : paliers de boutique (uniformes, ou par ligne, bornés) ; défaut 0 = run « nu »
-const UPGRADES_ARG = args.get('upgrades') ?? '0';
-const UPGRADES: number[] = SHOP.lines.map((l) => {
-  if (UPGRADES_ARG === 'max') return l.tiers;
-  if (UPGRADES_ARG.includes('=')) {
-    const m = UPGRADES_ARG.split(',').find((p) => p.trim().startsWith(l.key + '='));
-    return m ? Math.max(0, Math.min(l.tiers, +m.split('=')[1] || 0)) : 0;
-  }
-  return Math.max(0, Math.min(l.tiers, +UPGRADES_ARG || 0));
-});
-// --slots start|max|w,p : emplacements d'armes et d'améliorations (phase 10) ; défaut start = 1 arme, 2 améliorations
-const SLOTS_ARG = args.get('slots') ?? (UPGRADES_ARG === 'max' ? 'max' : 'start');
+// --profile naked|maxed : jeu de cibles et emplacements par défaut (phase 17 : la boutique par personnage n'existe plus)
+const PROFILE = (args.get('profile') ?? 'naked') as keyof typeof PROFILES;
+if (!PROFILES[PROFILE]) {
+  console.error(`--profile : « ${PROFILE} » inconnu. Valeurs : ${Object.keys(PROFILES).join(', ')}`);
+  process.exit(2);
+}
+// --slots start|max|w,p : emplacements d'armes et de tomes ; défaut start (nu) ou max (maxé)
+const SLOTS_ARG = args.get('slots') ?? (PROFILE === 'maxed' ? 'max' : 'start');
 const SLOT_OPT =
   SLOTS_ARG === 'max'
     ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES }
     : SLOTS_ARG === 'start'
       ? { ...SLOTS_START }
       : { weapons: +SLOTS_ARG.split(',')[0] || 1, passives: +SLOTS_ARG.split(',')[1] || 2 };
-// --profile naked|maxed : jeu de cibles (défaut : naked si --upgrades 0, maxed sinon)
-const PROFILE = (args.get('profile') ?? (UPGRADES_ARG === '0' ? 'naked' : 'maxed')) as keyof typeof PROFILES;
-if (!PROFILES[PROFILE]) {
-  console.error(`--profile : « ${PROFILE} » inconnu. Valeurs : ${Object.keys(PROFILES).join(', ')}`);
-  process.exit(2);
-}
+// --no-item phenix,talisman : objets jamais obtenus (sim d'ablation de la porte 17)
+const NO_ITEM = new Set((args.get('no-item') ?? '').split(',').filter((k) => k.length > 0));
+for (const k of NO_ITEM)
+  if (!(ITEM_KEYS as readonly string[]).includes(k)) {
+    console.error(`--no-item : « ${k} » inconnu. Valeurs : ${ITEM_KEYS.join(', ')}`);
+    process.exit(2);
+  }
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
   ? (WEAPONS_ARG.split(',')
@@ -92,7 +98,11 @@ interface RunResult {
   eruptions: number; // phase 11 : éruptions subies (pics sortis sous le joueur)…
   eruptionHits: number; // …et combien l'ont touché (lisibilité du télégraphe pour le bot)
   stuck: number; // phase 16 : ennemis au sol immobiles plus de 3 s à moins de 30 u du joueur, hors foule (porte : 0)
-  gold: number; // or du run (phase 8 : économie de la boutique)
+  gold: number; // or gardé en fin de run (après les achats au marchand)
+  goldSpent: number; // phase 17 : or dépensé au marchand
+  items: string[]; // phase 17 : objets obtenus (coffres et marchand), dans l'ordre
+  bought: number; // dont achetés au marchand
+  synergies: string[]; // synergies actives en fin de run
   // défis (phase 6)
   noHit: number; // plus longue période sans dégât (s)
   distance: number; // u parcourus
@@ -100,8 +110,11 @@ interface RunResult {
 }
 
 function runOnce(seed: number): RunResult {
-  const w = new World(seed, { character: CHARACTER, upgrades: UPGRADES, slots: SLOT_OPT });
+  const w = new World(seed, { character: CHARACTER, slots: SLOT_OPT });
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
+  // ablation : un objet exclu n'est jamais tiré (coffres et marchand)
+  for (const k of NO_ITEM) w.itemBan[ITEM_KEYS.indexOf(k as never)] = 1;
+  let bought = 0;
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
   const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
@@ -134,10 +147,19 @@ function runOnce(seed: number): RunResult {
       inp.pick = pickAllowed(bot, w, w.cards, ALLOWED);
       inp.mx = inp.mz = 0;
       inp.jump = inp.dash = false;
+    } else if (w.mode === Mode.Merchant) {
+      inp.pick = bot.shop(w);
+      inp.mx = inp.mz = 0;
+      inp.jump = inp.dash = false;
     } else {
       inp.pick = -1;
       bot.decide(w, frame, inp);
       frame++;
+    }
+    if (w.mode === Mode.Merchant) {
+      step(w, inp, STEP);
+      for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === Ev.Item && w.events[i].x2 === 1) bought++;
+      continue;
     }
     if (inp.pick >= 0 && w.cards[inp.pick]) {
       cardsTaken++;
@@ -228,6 +250,10 @@ function runOnce(seed: number): RunResult {
     eruptionHits,
     stuck,
     gold: Math.round(w.gold),
+    goldSpent: Math.round(w.goldSpent),
+    items: w.itemOrder.map((i) => ITEM_KEYS[i]),
+    bought,
+    synergies: SYNERGIES.filter((_, i) => w.syn[i]).map((s) => s.key),
     noHit: w.noHitBest,
     distance: w.distance,
     aliveAtMinute: alive,
@@ -288,27 +314,34 @@ const summary = {
   seed: SEED,
   weapons: WEAPONS,
   character: CHARACTER,
-  upgrades: UPGRADES_ARG,
+  noItem: [...NO_ITEM],
   slots: `${SLOT_OPT.weapons},${SLOT_OPT.passives}`,
   profile: PROFILE,
   survival: { p10: pct(times, 10), p50: pct(times, 50), p90: pct(times, 90) },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
-  // économie (phase 8) : or médian par run, paliers payés par run au 1er coût, runs pour tout maxer un personnage
+  // économie : or gardé médian par run (après le marchand), or dépensé au marchand
   goldP50: pct(
     results.map((r) => r.gold),
     50,
   ),
-  firstTierCost: Math.round(SHOP.base),
-  runsToMax:
-    shopTotalCost() /
-    Math.max(
-      1,
-      pct(
-        results.map((r) => r.gold),
-        50,
-      ),
-    ),
+  goldSpentP50: pct(
+    results.map((r) => r.goldSpent),
+    50,
+  ),
+  // phase 17 : objets par run, part achetée, objets vus sur l'ensemble des runs, synergies
+  itemsPerRun: +(results.reduce((a, r) => a + r.items.length, 0) / RUNS).toFixed(2),
+  boughtPerRun: +(results.reduce((a, r) => a + r.bought, 0) / RUNS).toFixed(2),
+  itemPct: Object.fromEntries(
+    ITEM_KEYS.filter((k) => !NO_ITEM.has(k)).map((k) => [
+      k,
+      Math.round((100 * results.filter((r) => r.items.includes(k)).length) / RUNS),
+    ]),
+  ),
+  synergyRunPct: (100 * results.filter((r) => r.synergies.length > 0).length) / RUNS,
+  synergyPct: Object.fromEntries(
+    SYNERGIES.map((s) => [s.key, Math.round((100 * results.filter((r) => r.synergies.includes(s.key)).length) / RUNS)]),
+  ),
   // défis (phase 6) : médianes et part des runs qui les atteignent (Intouchable 3 min, Marathon 2 000 u, Métamorphe 2 évolutions)
   challenges: {
     noHitP50: pct(
@@ -390,7 +423,7 @@ const summary = {
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} · paliers ${UPGRADES_ARG} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
@@ -399,7 +432,17 @@ lines.push(
   `morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`,
 );
 lines.push(
-  `or          p50 ${summary.goldP50} · ${(summary.goldP50 / summary.firstTierCost).toFixed(1)} premier(s) palier(s) par run · ${summary.runsToMax.toFixed(0)} runs pour tout maxer un personnage`,
+  `or          gardé p50 ${summary.goldP50} (×${(summary.goldP50 / REF_PRICE).toFixed(1)} emplacement n°2) · dépensé au marchand p50 ${summary.goldSpentP50}`,
+);
+lines.push(
+  `objets      ${summary.itemsPerRun} par run (${summary.boughtPerRun} achetés) · ${Object.entries(summary.itemPct)
+    .map(([k, v]) => `${k} ${v} %`)
+    .join(' · ')}`,
+);
+lines.push(
+  `synergies   ${summary.synergyRunPct.toFixed(0)} % des runs · ${Object.entries(summary.synergyPct)
+    .map(([k, v]) => `${k} ${v} %`)
+    .join(' · ')}`,
 );
 lines.push(
   `défis       sans dégât p50 ${mmss(summary.challenges.noHitP50)} (Intouchable ${summary.challenges.intouchablePct.toFixed(0)} %) · distance p50 ${Math.round(summary.challenges.distanceP50)} u (Marathon ${summary.challenges.marathonPct.toFixed(0)} %) · Érudit ${summary.challenges.eruditPct.toFixed(0)} % · Triple ligne ${summary.challenges.triple1Pct.toFixed(0)} %`,

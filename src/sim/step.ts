@@ -1,10 +1,12 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
-import { applyCard, rollChoices, tickChests, tickGems } from './progression';
+import { applyCard, nextChoice, tickChests, tickGems } from './progression';
+import { merchantInput, tickMerchant } from './merchant';
+import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { Ev, HurtSrc, Mode, ShotKind, Trait } from './types';
+import { Ev, HitSrc, HurtSrc, Mode, ShotKind, Trait } from './types';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
 import type { World } from './world';
@@ -31,6 +33,10 @@ export function step(w: World, input: Input, dt: number): void {
     if (input.pick >= 0) applyCard(w, input.pick);
     return;
   }
+  if (w.mode === Mode.Merchant) {
+    if (input.pick >= 0) merchantInput(w, input.pick); // phase 17 : achat, relance ou départ
+    return;
+  }
   w.t += dt;
   stepPlayer(w, input, dt);
   tickSpawner(w, dt);
@@ -44,6 +50,7 @@ export function step(w: World, input: Input, dt: number): void {
   compactEnemies(w);
   tickGems(w, dt);
   tickChests(w, dt);
+  tickMerchant(w); // phase 17 : peut ouvrir l'échoppe (Mode.Merchant)
   // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
   if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
@@ -60,10 +67,28 @@ export function step(w: World, input: Input, dt: number): void {
     w.mode = Mode.Dead;
     w.gold += w.t * GOLD.perSecond * w.player.goldMul; // bonus de fin : secondes survécues / 10
     w.emit(Ev.Death, w.player.x, 1, w.player.z, w.t);
-  } else if (w.pending > 0) {
-    w.mode = Mode.LevelUp;
-    rollChoices(w);
+  } else if ((w.mode as Mode) === Mode.Play && (w.itemPicks > 0 || w.pending > 0)) {
+    nextChoice(w); // objets des coffres d'abord, puis montées de niveau
   }
+}
+
+/** Bottes de saut (phase 17) : l'atterrissage repousse les ennemis au sol dans ITEM.bottes.r. */
+function landingShockwave(w: World): void {
+  const P = w.player,
+    B = ITEM.bottes;
+  for (let i = 0; i < w.enemyCount; i++) {
+    const e = w.enemies[i];
+    if (!e.alive || ENEMIES[e.type].boss) continue;
+    const dx = e.x - P.x,
+      dz = e.z - P.z,
+      d2 = dx * dx + dz * dz;
+    if (d2 > B.r * B.r || d2 < 1e-6) continue;
+    const d = Math.sqrt(d2),
+      k = B.kb * ENEMIES[e.type].kbMul * (1 - d / B.r);
+    e.kx += (dx / d) * k;
+    e.kz += (dz / d) * k;
+  }
+  w.emit(Ev.Shockwave, P.x, 0, P.z, B.r);
 }
 
 function stepPlayer(w: World, input: Input, dt: number): void {
@@ -84,7 +109,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.dirZ = iz / l;
   }
   if (input.jump && P.onGround) {
-    P.vy = PLAYER.jumpVel;
+    P.vy = PLAYER.jumpVel * P.jumpMul; // phase 17 : Bottes de saut
     P.onGround = false;
     w.emit(Ev.Jump, P.x, P.y, P.z);
   }
@@ -122,6 +147,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       P.onGround = true;
       w.emit(Ev.Land, P.x, ground, P.z);
       if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
+      if (w.items[It.Bottes]) landingShockwave(w); // phase 17 : l'atterrissage repousse les ennemis proches
     }
   }
   P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
@@ -149,6 +175,15 @@ function stepEnemies(w: World, dt: number): void {
   // en l'air : hors de portée du contact (phase 16 : sol plat, plus de plateaux)
   const airborne = P.y >= PLAYER.airborneSafeY;
   let shooters = 0;
+  // Épines (phase 17) : le renvoi de dégâts tombe toutes les ITEM.epines.period s, pas à chaque pas (moins de chiffres)
+  let thorns = false;
+  if (w.items[It.Epines]) {
+    w.thornT -= dt;
+    if (w.thornT <= 0) {
+      w.thornT = ITEM.epines.period;
+      thorns = true;
+    }
+  }
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (!e.alive) continue;
@@ -189,6 +224,11 @@ function stepEnemies(w: World, dt: number): void {
         mv[0] = fl[0] * sp;
         mv[1] = fl[1] * sp;
       }
+    }
+    // phase 17 : Sablier fêlé, élites et boss ralentis
+    if (w.items[It.Sablier] && (e.elite || def.boss)) {
+      mv[0] *= ITEM.sablier.slow;
+      mv[1] *= ITEM.sablier.slow;
     }
     let mx = mv[0],
       mz = mv[1];
@@ -246,10 +286,14 @@ function stepEnemies(w: World, dt: number): void {
         e.timer = HAZARDS.charge.recover;
         w.lastHurt = HurtSrc.Charge;
       } else {
-        const dmg = def.dmg * e.dmgMul * dt * (1 - P.armor);
+        // phase 17 : Rempart (Vitalité + Halo), le contact d'un ennemi dans le Halo est réduit
+        const inHalo = w.syn[Syn.Rempart] && d < w.wstats.aura.r;
+        const dmg = def.dmg * e.dmgMul * dt * (1 - P.armor) * (inHalo ? SYN.rempart.dmgTaken : 1);
         P.hp -= dmg;
         hurt += dmg;
         w.lastHurt = HurtSrc.Contact;
+        // phase 17 : Épines, le contact est renvoyé (par paquets, toutes les ITEM.epines.period s)
+        if (thorns) hitEnemy(w, i, def.dmg * e.dmgMul * ITEM.epines.period * ITEM.epines.mul, 0, P.x, P.z, HitSrc.Thorns);
       }
     }
   }

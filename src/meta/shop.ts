@@ -1,32 +1,9 @@
-// Boutique permanente (survivor-design §8) : coûts, achat, et traduction en options de monde pour la sim.
-import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, OUTFIT, SHOP, SLOTS } from '../sim/balance';
+// Achats permanents à l'or : personnages, tenues, emplacements (phase 17 : plus de boutique par personnage), et
+// traduction de la méta en options de monde pour la sim.
+import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, OUTFIT, SLOTS } from '../sim/balance';
 import type { CharacterKey } from '../sim/types';
 import type { WorldOptions } from '../sim/types';
 import type { Meta } from './save';
-
-/** Coût du prochain palier d'une ligne (palier courant `tier`), ou Infinity si la ligne est au max. */
-export function shopCost(line: number, tier: number): number {
-  const l = SHOP.lines[line];
-  if (!l || tier >= l.tiers) return Infinity;
-  return Math.round(SHOP.base * Math.pow(SHOP.growth, tier));
-}
-
-/** Paliers d'un personnage (zéros s'il n'a rien acheté) ; le tableau retourné n'est pas partagé avec la méta. */
-export function shopTiers(m: Meta, key: CharacterKey): number[] {
-  const t = m.shops[key];
-  return SHOP.lines.map((_, i) => t?.[i] ?? 0);
-}
-
-/** Achète le prochain palier d'une ligne pour un personnage si l'or suffit. Retourne true si l'achat a eu lieu. */
-export function buy(m: Meta, key: CharacterKey, line: number): boolean {
-  const tiers = shopTiers(m, key);
-  const cost = shopCost(line, tiers[line]);
-  if (!Number.isFinite(cost) || m.gold < cost) return false;
-  m.gold -= cost;
-  tiers[line] += 1;
-  m.shops[key] = tiers;
-  return true;
-}
 
 /** Prix d'un personnage en or (0 : pas en vente, il se débloque par un succès). */
 export function characterPrice(key: CharacterKey): number {
@@ -82,13 +59,12 @@ export function nextSlot(m: Meta): number {
 }
 
 /**
- * Options de monde issues de la méta (personnage choisi, paliers, armes débloquées).
- * `daily` : égalité entre joueurs — Éclaireuse, boutique ignorée, toutes les armes (même pool de cartes pour tous).
+ * Options de monde issues de la méta (personnage choisi, armes débloquées, emplacements).
+ * `daily` : égalité entre joueurs — Éclaireuse, toutes les armes, tous les emplacements (même pool de cartes pour tous).
  */
 export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily = false): WorldOptions {
   return {
     character: daily ? 'eclaireuse' : m.character,
-    upgrades: daily ? SHOP.lines.map(() => 0) : shopTiers(m, m.character),
     unlocked: daily ? undefined : unlocked,
     slots: daily ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES } : { ...m.slots }, // défi du jour : égalité
   };

@@ -2,6 +2,7 @@ import { ELITE, ENEMIES, GOLD, REAPER_TYPE, TRAIT, XP } from './balance';
 import { Ev, HitSrc, Mode, Trait } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
+import { talismanKill } from './items';
 
 /**
  * Inflige des dégâts à l'ennemi i depuis la source (fx, fz). Retourne true s'il meurt.
@@ -58,6 +59,7 @@ export function killEnemy(w: World, i: number): void {
   }
   // marque mort ; le retrait du pool se fait en fin de step (indices stables pendant le step)
   e.alive = false;
+  talismanKill(w); // phase 17 : Talisman orageux
 }
 
 export function dropGem(w: World, x: number, z: number, v: number): void {

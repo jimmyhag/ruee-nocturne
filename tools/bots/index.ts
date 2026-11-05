@@ -1,13 +1,35 @@
-import type { Card, Input, TomeKey, WeaponKey } from '../../src/sim/types';
+import type { Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { ShotKind } from '../../src/sim/types';
 import { Rng } from '../../src/sim/rng';
-import { ELITE_TYPE, ENEMIES, HAZARDS, STEP, TOMES, VOLANT_TYPE, WEAPON_LINES } from '../../src/sim/balance';
+import { ELITE_TYPE, ENEMIES, HAZARDS, MERCHANT, STEP, TOMES, VOLANT_TYPE, WEAPON_LINES } from '../../src/sim/balance';
+import { canGainItem } from '../../src/sim/items';
+import { MERCHANT_LEAVE, canAffordAny } from '../../src/sim/merchant';
+import { cardSynergy } from '../../src/sim/synergies';
 
 export interface Bot {
   name: string;
   decide(w: World, frame: number, out: Input): void;
   pick(w: World, cards: Card[]): number;
+  /** Échoppe ouverte (Mode.Merchant) : index de l'offre à acheter, ou MERCHANT_LEAVE. */
+  shop(w: World): number;
+}
+
+/** Échoppe (phase 17) : achète l'objet abordable le mieux noté, sinon part. Commun à tous les bots. */
+export function shopPick(w: World): number {
+  if (!canAffordAny(w)) return MERCHANT_LEAVE;
+  let best = MERCHANT_LEAVE,
+    bv = -1e9;
+  for (let i = 0; i < w.offers.length; i++) {
+    const c = w.offers[i];
+    if (c.kind !== 'i' || c.s1 === 1 || w.gold < c.s0) continue;
+    const v = ITEM_VALUE[c.key as ItemKey];
+    if (v > bv) {
+      bv = v;
+      best = i;
+    }
+  }
+  return best;
 }
 
 /** Plancher : tourne en cercle, prend la première carte. */
@@ -21,6 +43,23 @@ export const naive: Bot = {
     out.dash = false;
   },
   pick: () => 0,
+  shop: () => MERCHANT_LEAVE,
+};
+
+/** Valeur d'un objet passif pour le bot (phase 17) : ordre de préférence d'un joueur moyen. */
+const ITEM_VALUE: Record<ItemKey, number> = {
+  phenix: 40,
+  talisman: 26,
+  coeur: 22,
+  oeil: 20,
+  sablier: 18,
+  cape: 16,
+  epines: 15,
+  fer: 14,
+  lanterne: 13,
+  aimant: 12,
+  bottes: 10,
+  bourse: 9,
 };
 
 /** Valeur d'une ligne de stat pour le bot (phase 12) : gain relatif approximatif, +1 projectile pèse lourd. */
@@ -66,11 +105,13 @@ function lineValue(c: Card, s: number): number {
 /** Valeur d'une carte pour un bot : somme de ses lignes (phase 12) ; nouvelle arme et soin valorisés par règle simple. */
 function cardValue(w: World, c: Card): number {
   if (c.kind === 'heal') return w.player.hp / w.player.maxHp < 0.4 ? 100 : 5;
+  if (c.kind === 'i') return ITEM_VALUE[c.key as ItemKey];
   let v = lineValue(c, c.s0) + lineValue(c, c.s1) + lineValue(c, c.s2);
   if (c.kind === 'w' && c.lv === 1) v += 18; // une arme de plus : une base entière
   // un joueur moyen concentre ses lignes sur son arme principale (les % se cumulent) : bonus croissant avec le niveau
   if (c.kind === 'w' && c.lv > 1) v *= 1 + Math.min(0.6, 0.04 * c.lv);
   if (c.kind === 't' && c.key === 'vitalite' && w.player.hp / w.player.maxHp < 0.4) v += 15;
+  if (cardSynergy(w, c) >= 0) v += 25; // phase 17 : on construit sa build vers une synergie
   return v;
 }
 
@@ -128,6 +169,8 @@ export interface AverageOptions {
   gemPullFree?: number;
   /** Rayon (u) dans lequel un coffre attire le bot (greedy : de loin). */
   chestRadius?: number;
+  /** Rayon (u) dans lequel l'échoppe du marchand attire le bot, s'il peut y acheter (phase 17). */
+  merchantRadius?: number;
 }
 
 /**
@@ -141,6 +184,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
   const pullFleeing = opts.gemPullFleeing ?? 0.6;
   const pullFree = opts.gemPullFree ?? 1.2;
   const chestR2 = (opts.chestRadius ?? 10) ** 2;
+  const merchantR2 = (opts.merchantRadius ?? 15) ** 2;
   const r = new Rng(seed);
   let stuck = 0; // frames consécutives où le joueur n'a presque pas avancé malgré l'entrée (muret, tronc, arbre)
   return {
@@ -277,6 +321,19 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         out.mx += (kx / l) * k;
         out.mz += (kz / l) * k;
       }
+      // échoppe du marchand à portée, de l'or et une place libre : on y va (pas si on vient d'en sortir)
+      const M = w.merchant;
+      if (M.active && !M.inside && canGainItem(w) && (M.rolled ? canAffordAny(w) : w.gold >= MERCHANT.price[0])) {
+        const mx = M.x - P.x,
+          mz = M.z - P.z,
+          md = mx * mx + mz * mz;
+        if (md < merchantR2) {
+          const l = Math.sqrt(md) || 1;
+          const k = n > 0 ? pullFleeing * 2 : pullFree * 2;
+          out.mx += (mx / l) * k;
+          out.mz += (mz / l) * k;
+        }
+      }
       // attiré par la gemme la plus proche dans gemRadius (même en fuyant)
       let gx = 0,
         gz = 0,
@@ -312,6 +369,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         bestCard(w, cards, () => true),
       );
     },
+    shop: shopPick,
   };
 }
 
@@ -327,6 +385,7 @@ export function makeGreedy(seed: number): Bot {
     gemPullFleeing: 1.0,
     gemPullFree: 1.6,
     chestRadius: 22,
+    merchantRadius: 24,
   });
 }
 

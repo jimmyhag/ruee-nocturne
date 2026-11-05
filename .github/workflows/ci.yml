@@ -70,10 +70,10 @@ jobs:
       - name: Simulation d'équilibrage
         run: |
           mkdir -p sim
-          # phase 8 : deux profils, run « nu » (aucun palier) et personnage entièrement amélioré
-          npm run sim -- --runs 200 --bot average --seed 42 --upgrades 0 --out sim/ci-naked.json | tee sim/ci.txt || true
+          # deux profils : run « nu » (emplacements de départ) et tous les emplacements débloqués (phase 17)
+          npm run sim -- --runs 200 --bot average --seed 42 --profile naked --out sim/ci-naked.json | tee sim/ci.txt || true
           echo >> sim/ci.txt
-          npm run sim -- --runs 200 --bot average --seed 42 --upgrades max --out sim/ci-maxed.json | tee -a sim/ci.txt || true
+          npm run sim -- --runs 200 --bot average --seed 42 --profile maxed --out sim/ci-maxed.json | tee -a sim/ci.txt || true
       - name: Commentaire sur la PR
         uses: actions/github-script@v7
         with:

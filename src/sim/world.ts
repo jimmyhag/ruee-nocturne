@@ -1,6 +1,8 @@
-import { CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SHOP, SPAWN, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
+import { CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
+import { makeMerchant } from './merchant';
+import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
@@ -45,7 +47,6 @@ export class World {
   kills = 0;
   gold = 0;
   pending = 0; // montées de niveau (ou cartes de coffre) en attente
-  chestCards = 0; // > 0 : les `pending` en cours viennent d'un coffre (bannière « Coffre ×n »)
   player: Player;
 
   enemies: Enemy[] = [];
@@ -117,6 +118,19 @@ export class World {
   readonly near = new Uint8Array(this.solidN * this.solidN);
   readonly flow = new FlowField(); // phase 16 : les ennemis au sol contournent les ouvrages
   shooters = 0; // phase 16 : tireurs vivants (Archer, Cracheur, Sorcier), compté à chaque pas
+  // phase 17 : objets passifs (drapeaux par index de ITEM_KEYS), synergies, marchand
+  readonly items = new Uint8Array(ITEM_KEYS.length);
+  /** Objets exclus des tirages (sim d'ablation de la CLI) : jamais proposés, sans effet. */
+  readonly itemBan = new Uint8Array(ITEM_KEYS.length);
+  itemOrder: number[] = []; // ordre d'obtention (HUD)
+  itemPicks = 0; // choix d'objet en attente (coffres)
+  readonly syn = new Uint8Array(SYNERGIES.length);
+  talismanKills = 0;
+  readonly talismanMarks = new Int32Array(ITEM.talisman.targets);
+  thornT = 0; // Épines : minuteur du renvoi de dégâts
+  merchant: MerchantState = makeMerchant();
+  offers: Card[] = []; // offres du marchand (w.cards garde les cartes de niveau et de coffre)
+  goldSpent = 0; // or dépensé au marchand (CLI)
 
   constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
@@ -387,12 +401,7 @@ export class World {
 /** Joueur de départ : constantes PLAYER, puis personnage, puis paliers de boutique (opts). */
 export function makePlayer(opts?: WorldOptions): Player {
   const ch = CHARACTERS.find((c) => c.key === (opts?.character ?? 'eclaireuse')) ?? CHARACTERS[0];
-  const tier = (key: string) => {
-    const i = SHOP.lines.findIndex((l) => l.key === key);
-    return i >= 0 ? Math.max(0, Math.min(SHOP.lines[i].tiers, opts?.upgrades?.[i] ?? 0)) : 0;
-  };
-  const per = (key: string) => SHOP.lines.find((l) => l.key === key)!.per;
-  const maxHp = Math.round((PLAYER.hp + ch.hpAdd) * ch.hpMul + tier('hp') * per('hp'));
+  const maxHp = Math.round((PLAYER.hp + ch.hpAdd) * ch.hpMul); // phase 17 : plus de boutique par personnage
   const p: Player = {
     x: 0,
     z: 0,
@@ -407,12 +416,12 @@ export function makePlayer(opts?: WorldOptions): Player {
     hp: maxHp,
     maxHp,
     regen: 0,
-    speed: PLAYER.speed * ch.speedMul * (1 + tier('speed') * per('speed')),
-    magnet: PLAYER.magnet * (1 + tier('magnet') * per('magnet')),
-    dmgMul: PLAYER.dmgMul + tier('dmg') * per('dmg'),
-    cdMul: 1 - tier('cd') * per('cd'),
-    luck: tier('luck') * per('luck'),
-    goldMul: 1 + tier('gold') * per('gold'),
+    speed: PLAYER.speed * ch.speedMul,
+    magnet: PLAYER.magnet,
+    dmgMul: PLAYER.dmgMul,
+    cdMul: 1,
+    luck: 0,
+    goldMul: 1,
     projAdd: 0,
     sizeMul: 1,
     projSpeedMul: 1,
@@ -425,8 +434,9 @@ export function makePlayer(opts?: WorldOptions): Player {
     xpMul: 1,
     chestGoldMul: 1,
     eliteGold: 0,
-    revives: tier('revive'),
+    revives: 0,
     dashTime: ch.dashTime,
+    jumpMul: 1,
     level: 1,
     xp: 0,
     need: XP.needFor(1),
@@ -471,6 +481,7 @@ const DOUBLE_FIELDS = [
   'hp',
   'maxHp',
   'dashTime',
+  'jumpMul',
   'xp',
 ] as const satisfies readonly (keyof Player)[];
 function makeEnemy(): Enemy {

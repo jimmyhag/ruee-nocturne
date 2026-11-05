@@ -1,7 +1,7 @@
 // Toutes les constantes de gameplay. Chaque ligne dit pourquoi.
 // Unités : mètres (u), secondes, PV.
 
-import type { EnemyKey, TomeKey, WeaponKey } from './types';
+import type { EnemyKey, ItemKey, TomeKey, WeaponKey } from './types';
 import { Trait } from './types';
 
 export const STEP = 1 / 60; // pas fixe de la simulation
@@ -357,11 +357,7 @@ export const MINES = {
 
 export const CHEST = {
   pickupR: 1.1,
-  p3: 0.25, // 1 carte 70 %, 3 cartes 25 %, 5 cartes 5 % (jackpot rare, PLAN §2.3)
-  p5: 0.05,
-  luckShift: 0.04, // Trèfle : +4 pts par niveau vers 3 et 5 cartes
-  bossMin: 3, // coffre de boss : 3 à 5 cartes
-  bossMax: 5,
+  bossPicks: 2, // phase 17 : un coffre d'élite = un objet au choix, un coffre de boss = deux (avant : 1 à 5 cartes de niveau)
   gold: 10, // or par coffre
 };
 
@@ -479,7 +475,7 @@ export const TRAIT = {
   rapporteur: { refund: 0.6 }, // Braconnier : un boomerang attrapé rend 60 % de la recharge (50 % et Boomerang 1 : p50 4:47, 25 % de morts)
   trainee: { dashMul: 2, spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25, kb: 0.6 }, // Feu follet : dash 2× plus long, feu 1,5 s à 8 PV/s
   dejamorte: { revives: 1, airXpMul: 2 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP
-  marchand: { minCards: 3 }, // Colporteur : jamais de coffre à 1 carte
+  marchand: { offers: 4 }, // Colporteur (phase 17) : les coffres proposent 4 objets
 };
 
 export interface CharacterDef {
@@ -531,26 +527,97 @@ export const CHARACTERS: CharacterDef[] = [
 
 // boutique permanente (survivor-design §8), PAR PERSONNAGE depuis la phase 8 : 8 lignes, 8 paliers, coût base · growth^palier.
 // Un run nu (≈ 6 min, ≈ 700 or) paie 1 à 2 paliers ; un personnage complet ≈ 42 000 or ≈ 30 runs.
-export interface ShopLine {
-  key: 'hp' | 'dmg' | 'speed' | 'luck' | 'gold' | 'magnet' | 'cd' | 'revive'; // nom et texte : src/i18n (shop.<key>.name / .text)
-  per: number; // effet par palier
-  tiers: number;
+// phase 17 : la boutique par personnage (8 lignes × 8 paliers) est retirée, sur demande de Jimmy. La puissance hors
+// tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
+
+// objets passifs (phase 17, PLAN §3.7) : une règle de jeu chacun, uniques, au plus ITEM.max par run
+export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse'];
+/** Index fixes (drapeaux de w.items) : l'ordre suit ITEM_KEYS. */
+export const enum It {
+  Phenix = 0,
+  Cape,
+  Lanterne,
+  Coeur,
+  Talisman,
+  Sablier,
+  Epines,
+  Bottes,
+  Oeil,
+  Aimant,
+  Fer,
+  Bourse,
 }
-export const SHOP = {
-  base: 200,
-  growth: 1.3, // paliers : 200, 260, 338, 439, 571, 743, 965, 1 255 or (≈ 4 800 par ligne, ≈ 34 000 par personnage)
-  lines: [
-    // la survie est très sensible à la puissance (hp +40, dmg ×1,2, cd ×0,88 seuls : 5:11 → 16:03) : paliers petits
-    { key: 'hp', per: 3, tiers: 8 },
-    { key: 'dmg', per: 0.02, tiers: 8 },
-    { key: 'speed', per: 0.015, tiers: 8 },
-    { key: 'luck', per: 0.4, tiers: 8 }, // +0,4 Trèfle par palier : +3,2 au max (5 paliers de +1 avant)
-    { key: 'gold', per: 0.1, tiers: 8 },
-    { key: 'magnet', per: 0.1, tiers: 8 },
-    { key: 'cd', per: 0.01, tiers: 8 },
-    { key: 'revive', per: 1, tiers: 1 }, // une seule réanimation : deux seules valaient 5:11 → 13:18
-  ] as ShopLine[],
+/** Rareté par objet : 0 commun, 1 rare, 2 épique (couleur de carte, prix, poids de tirage). */
+export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0];
+export const ITEM = {
+  max: 6, // objets par run
+  offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
+  weight: [1, 0.55, 0.2], // poids de tirage par rareté…
+  luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance
+  chestGoldIfFull: 60, // coffre sans objet possible : sac d'or (× multiplicateurs d'or)
+  cape: { dashMul: 1.5, invulAdd: 0.2 },
+  lanterne: { magnetMul: 1.6 },
+  coeur: { hp: 25, speedMul: 0.95 },
+  talisman: { every: 25, targets: 5, frac: 0.5, bossFrac: 0.05, range: 14 }, // part des PV max retirée à chaque cible
+  sablier: { slow: 0.8 }, // élites et boss
+  epines: { mul: 3, period: 0.25 }, // dégâts renvoyés (× ceux du contact), appliqués toutes les 0,25 s
+  bottes: { jumpMul: 1.15, r: 3.2, kb: 9 },
+  oeil: { eliteDmg: 0.25 },
+  aimant: { heal: 0.25 }, // PV par gemme ramassée
+  fer: { luck: 1 },
+  bourse: { goldMul: 0.4, discount: 0.15 },
 };
+
+// marchand (phase 17, PLAN §3.7) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
+export const MERCHANT = {
+  times: [150, 390, 630, 870], // 2:30, 6:30, 10:30, 14:30
+  distMin: 10,
+  distMax: 14,
+  stay: 45, // s avant de repartir
+  r: 1.8, // entrer dans ce rayon ouvre l'échoppe
+  price: [70, 140, 240], // par rareté, à la première visite…
+  growth: 0.25, // …+25 % à chaque visite
+  reroll: 40, // relance : 40 or, puis +40 à chaque fois pendant la visite
+};
+
+// synergies tome + arme (phase 17) : l'arme équipée et au moins SYN.tome cartes du tome
+export const SYN = {
+  tome: 3,
+  orage: { chain: 2 }, // Cadence + Foudre
+  essaim: { pierce: 1, n: 1 }, // Projectiles + Orbe
+  brasier: { dmg: 0.35 }, // Dégâts + Halo
+  tourbillon: { spd: 0.4, r: 0.1 }, // Mouvement + Lames
+  charge: { r: 0.3 }, // Dégâts + Mines
+  ricochet: { n: 1, range: 0.15 }, // Chance + Boomerang
+  moisson: { magnet: 0.3 }, // Savoir + Lames
+  rempart: { dmgTaken: 0.85 }, // Vitalité + Halo : contact des ennemis dans le Halo
+};
+export interface Synergy {
+  key: string;
+  tome: TomeKey;
+  weapon: WeaponKey;
+}
+export const SYNERGIES: Synergy[] = [
+  { key: 'orage', tome: 'cadence', weapon: 'foudre' },
+  { key: 'essaim', tome: 'projectiles', weapon: 'orbe' },
+  { key: 'brasier', tome: 'degats', weapon: 'aura' },
+  { key: 'tourbillon', tome: 'mouvement', weapon: 'lames' },
+  { key: 'charge', tome: 'degats', weapon: 'mines' },
+  { key: 'ricochet', tome: 'chance', weapon: 'boomerang' },
+  { key: 'moisson', tome: 'savoir', weapon: 'lames' },
+  { key: 'rempart', tome: 'vitalite', weapon: 'aura' },
+];
+export const enum Syn {
+  Orage = 0,
+  Essaim,
+  Brasier,
+  Tourbillon,
+  Charge,
+  Ricochet,
+  Moisson,
+  Rempart,
+}
+
 export const REVIVE = {
   // phase 8 (relecture) : à 50 % et 2 s, la Réanimation à 200 or valait +4 min à elle seule (5:29 → 9:33) et sautait la falaise 2–6 min
   hpFrac: 0.25, // on revient à 25 % des PV max

@@ -1,14 +1,10 @@
-// Cibles d'équilibrage (survivor-design §9) pour le bot « average », en deux profils (phase 8) :
-// « naked » = aucun palier de boutique (le joueur doit sentir qu'il lui manque la boutique), « maxed » = tous les paliers.
-import { SHOP } from '../src/sim/balance';
+// Cibles d'équilibrage (survivor-design §9) pour le bot « average », en deux profils (phase 17) :
+// « naked » = emplacements de départ (1 arme, 2 tomes), « maxed » = tous les emplacements débloqués.
+// La boutique par personnage n'existe plus : la puissance d'un run vient des objets (coffres, marchand) et des synergies.
+import { SLOTS } from '../src/sim/balance';
 
-/** Or nécessaire pour tous les paliers de toutes les lignes (un personnage). */
-export function shopTotalCost(): number {
-  let total = 0;
-  for (const l of SHOP.lines)
-    for (let t = 0; t < l.tiers; t++) total += Math.round(SHOP.base * Math.pow(SHOP.growth, t));
-  return total;
-}
+/** Prix de référence de l'économie : le 2e emplacement d'arme, premier achat d'un nouveau joueur. */
+export const REF_PRICE = SLOTS.find((s) => s.kind === 'weapon' && s.n === 2)?.price ?? 300;
 export interface Target {
   name: string;
   min: number;
@@ -18,14 +14,14 @@ export interface Target {
 }
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const economy: Target = {
-  name: 'or p50 ≥ 0,75 premier palier', // un run nu de 4 min ≈ 170 or : un palier (200) tous les 1–2 runs, l'arme n°2 (300) en 2 runs
-  min: 0.75,
+  name: 'or gardé p50 ≥ 0,5 emplacement n°2', // après les achats au marchand : l'emplacement n°2 (300) en ≤ 2 runs
+  min: 0.5,
   max: 1e9,
-  get: (s) => s.goldP50 / s.firstTierCost,
+  get: (s) => s.goldP50 / REF_PRICE,
   fmt: (v) => '×' + v.toFixed(1),
 };
 export const NAKED: Target[] = [
-  { name: 'survie p50 4–6 min', min: 240, max: 360, get: (s) => s.survival.p50, fmt: mmss }, // phase 10 : 1 arme, 2 améliorations, 0 palier
+  { name: 'survie p50 4–6 min', min: 240, max: 360, get: (s) => s.survival.p50, fmt: mmss }, // 1 arme, 2 tomes
   { name: 'fin atteinte ≤ 3 %', min: 0, max: 3, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'passent 3 min ≥ 40 %', min: 40, max: 100, get: (s) => s.aliveCurve[2], fmt: (v) => v + ' %' }, // l'arme n°2 (succès « Première nuit ») reste atteignable
@@ -51,6 +47,13 @@ export const MAXED: Target[] = [
     max: 35,
     get: (s) => (Object.keys(s.pickPct).length ? Math.max(...Object.values<number>(s.pickPct)) : 0),
     fmt: (v) => v + ' %',
+  },
+  {
+    name: 'synergie ≥ 50 % des runs', // phase 17 : la synergie est un objectif de build atteignable
+    min: 50,
+    max: 100,
+    get: (s) => s.synergyRunPct,
+    fmt: (v) => v.toFixed(0) + ' %',
   },
   {
     name: 'variance kills inter-builds < 3×',

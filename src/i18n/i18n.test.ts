@@ -7,7 +7,7 @@ import fr from './fr.json';
 import en from './en.json';
 import { fmtNum, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './index';
 import { ACHIEVEMENTS } from '../meta/achievements';
-import { CHARACTERS, ENEMIES, SHOP, TOMES, TOME_KEYS, WEAPON_LINES } from '../sim/balance';
+import { CHARACTERS, ENEMIES, ITEM_KEYS, SYNERGIES, TOMES, TOME_KEYS, WEAPON_LINES } from '../sim/balance';
 import { WEAPON_KEYS } from '../sim/weapons/defs';
 
 const FR = fr as Record<string, string>;
@@ -49,7 +49,8 @@ describe('clés dérivées du contenu', () => {
     need.push(`char.${c.key}.name`, `char.${c.key}.text`);
     if (c.key !== 'eclaireuse') need.push(`char.${c.key}.trait`);
   }
-  for (const l of SHOP.lines) need.push(`shop.${l.key}.name`, `shop.${l.key}.text`);
+  for (const k of ITEM_KEYS) need.push(`item.${k}.name`, `item.${k}.text`);
+  for (const s of SYNERGIES) need.push(`syn.${s.key}.name`, `syn.${s.key}.text`);
   for (const a of ACHIEVEMENTS) {
     need.push(`ach.${a.id}.name`, `ach.${a.id}.text`);
     if (a.unlocks) need.push(`ach.${a.id}.unlock`);

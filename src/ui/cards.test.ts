@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { setLang } from '../i18n';
 import { ACHIEVEMENTS } from '../meta/achievements';
-import { CHARACTERS, ENEMIES, SHOP, TOMES, TOME_KEYS, WEAPON_LINES } from '../sim/balance';
+import { CHARACTERS, ENEMIES, ITEM_KEYS, SYNERGIES, TOMES, TOME_KEYS, WEAPON_LINES } from '../sim/balance';
 import { WEAPON_KEYS, refreshStats } from '../sim/weapons/defs';
 import type { Card } from '../sim/types';
 import { World } from '../sim/world';
@@ -19,8 +19,10 @@ import {
   enemyName,
   lineText,
   rarityName,
-  shopName,
-  shopText,
+  itemName,
+  itemText,
+  synergyName,
+  synergyText,
   tomeName,
   tomeText,
   weaponName,
@@ -105,9 +107,13 @@ describe('cartes', () => {
         expect(characterText(c.key).length).toBeGreaterThan(5);
         expect(characterTrait(c.key).length > 8 || c.key === 'eclaireuse', c.key).toBe(true);
       }
-      for (let i = 0; i < SHOP.lines.length; i++) {
-        expect(shopName(i).length).toBeGreaterThan(2);
-        expect(shopText(i).length).toBeGreaterThan(5);
+      for (const k of ITEM_KEYS) {
+        expect(itemName(k).length, k).toBeGreaterThan(2);
+        expect(itemText(k).length, k).toBeGreaterThan(5);
+      }
+      for (let i = 0; i < SYNERGIES.length; i++) {
+        expect(synergyName(i).length).toBeGreaterThan(2);
+        expect(synergyText(i)).toContain('+');
       }
       for (const a of ACHIEVEMENTS) {
         expect(achName(a).length, a.id).toBeGreaterThan(2);

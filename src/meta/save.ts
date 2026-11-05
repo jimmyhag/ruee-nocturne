@@ -1,7 +1,7 @@
 // Sauvegarde méta : IndexedDB via idb-keyval, repli localStorage, jamais bloquante.
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { get, set } from 'idb-keyval';
-import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, SHOP, SLOTS_START } from '../sim/balance';
+import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, SLOTS_START } from '../sim/balance';
 import { ACHIEVEMENT_IDS } from './achievements';
 import type { CharacterKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -30,7 +30,7 @@ export interface MetaSettings {
   quality: QualitySetting; // phase 9 : 'auto' = net avec repli automatique si l'appareil ne suit pas, 'net', 'pixel'
 }
 export interface Meta {
-  version: 3; // 3 (phase 10) : progression remise à zéro, emplacements d'armes et d'améliorations
+  version: 4; // 3 (phase 10) : progression remise à zéro, emplacements ; 4 (phase 17) : boutique par personnage retirée, or rendu
   bestTime: number;
   bestKills: number;
   runs: number;
@@ -40,7 +40,6 @@ export interface Meta {
   fxChosen: boolean; // true dès que le joueur a touché au réglage : sinon `prefers-reduced-motion` décide
   gold: number; // or disponible (boutique)
   goldEarned: number; // or gagné en tout (écran de mort)
-  shops: Partial<Record<CharacterKey, number[]>>; // paliers achetés par personnage et par ligne (ordre de SHOP.lines) ; absent = zéros (phase 8)
   stats: MetaStats;
   achievements: string[]; // identifiants des succès obtenus
   bought: CharacterKey[]; // personnages achetés en or (phase 6)
@@ -58,7 +57,7 @@ export type QualitySetting = 'auto' | 'net' | 'pixel';
 export const QUALITY_SETTINGS: readonly QualitySetting[] = ['auto', 'net', 'pixel'];
 const KEY = 'ruee-meta';
 export const DEFAULT_META: Meta = {
-  version: 3,
+  version: 4,
   bestTime: 0,
   bestKills: 0,
   runs: 0,
@@ -68,7 +67,6 @@ export const DEFAULT_META: Meta = {
   fxChosen: false,
   gold: 0,
   goldEarned: 0,
-  shops: {},
   stats: {
     kills: 0,
     dards: 0,
@@ -118,6 +116,21 @@ export function resetProgress(m: Meta): Meta {
 }
 
 const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+/**
+ * Boutique par personnage d'avant la phase 17 : 8 lignes, paliers à 200 × 1,3^t (la dernière, la réanimation, un seul
+ * palier). Sert seulement à rendre l'or dépensé. Exporté pour les tests.
+ */
+export const LEGACY_SHOP = { base: 200, growth: 1.3, tiers: [8, 8, 8, 8, 8, 8, 8, 1] };
+export function legacyShopSpent(raw: unknown): number {
+  const arr = Array.isArray(raw) ? raw : [];
+  let spent = 0;
+  for (let l = 0; l < LEGACY_SHOP.tiers.length; l++) {
+    const n = Math.max(0, Math.min(LEGACY_SHOP.tiers[l], num(arr[l]) | 0));
+    for (let t = 0; t < n; t++) spent += Math.round(LEGACY_SHOP.base * Math.pow(LEGACY_SHOP.growth, t));
+  }
+  return spent;
+}
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
 
 /**
@@ -145,17 +158,12 @@ export function normalizeMeta(raw: unknown): Meta {
   const da = (r.daily && typeof r.daily === 'object' ? r.daily : {}) as Record<string, unknown>;
   const sl = (r.slots && typeof r.slots === 'object' ? r.slots : {}) as Record<string, unknown>;
   const isKey = (k: unknown): k is CharacterKey => CHARACTERS.some((c) => c.key === k);
-  const tiers = (raw: unknown) => {
-    const arr = Array.isArray(raw) ? raw : [];
-    return SHOP.lines.map((l, i) => Math.max(0, Math.min(l.tiers, num(arr[i]) | 0)));
-  };
-  // boutique par personnage (phase 8) ; migration : l'ancienne boutique globale `shop` va à l'Éclaireuse
-  const shops: Partial<Record<CharacterKey, number[]>> = {};
+  // phase 17 : la boutique par personnage (phase 8) est retirée ; tout l'or dépensé en paliers est rendu (une fois :
+  // la sauvegarde normalisée n'a plus de `shops`). L'ancienne boutique globale `shop` (avant la phase 8) aussi.
+  let refund = 0;
   if (r.shops && typeof r.shops === 'object') {
-    for (const [k, v] of Object.entries(r.shops as Record<string, unknown>))
-      if (isKey(k) && Array.isArray(v)) shops[k] = tiers(v);
-  } else if (Array.isArray(r.shop)) shops.eclaireuse = tiers(r.shop);
-  for (const k of Object.keys(shops) as CharacterKey[]) if (shops[k]!.every((t) => t === 0)) delete shops[k];
+    for (const [k, v] of Object.entries(r.shops as Record<string, unknown>)) if (isKey(k)) refund += legacyShopSpent(v);
+  } else if (Array.isArray(r.shop)) refund += legacyShopSpent(r.shop);
   const character = isKey(r.character) ? r.character : 'eclaireuse';
   const outfitSel: Partial<Record<CharacterKey, number>> = {};
   if (r.outfit && typeof r.outfit === 'object')
@@ -164,7 +172,7 @@ export function normalizeMeta(raw: unknown): Meta {
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
   return {
-    version: 3,
+    version: 4,
     bestTime,
     bestKills: Math.max(0, num(r.bestKills)),
     runs,
@@ -172,9 +180,8 @@ export function normalizeMeta(raw: unknown): Meta {
     muted: bool(r.muted, false),
     reducedFx: bool(r.reducedFx, false),
     fxChosen: bool(r.fxChosen, false),
-    gold: Math.max(0, num(r.gold)),
+    gold: Math.max(0, num(r.gold)) + refund,
     goldEarned: Math.max(0, num(r.goldEarned)),
-    shops,
     stats: {
       // migration v1 → v2 : les compteurs cumulés repartent des champs v1 connus
       kills: Math.max(0, num(st.kills, totalKills)),
