@@ -79,6 +79,15 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/__\//], // URL réservées de Firebase Hosting (/__/auth/handler, /__/firebase/init.json) : jamais index.html à leur place (phase 13)
         cleanupOutdatedCaches: true,
         // polices auto-hébergées dans public/fonts (précachées par globPatterns) : plus aucune origine externe
+        // phase 20 : les modèles 3D (.glb, hors globPatterns) ne sont pas précachés : chaque joueur ne charge que son
+        // héros et les objets, gardés ensuite en cache (jeu hors ligne après la première partie)
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/models/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'models', expiration: { maxEntries: 16 } },
+          },
+        ],
       },
     }),
   ],

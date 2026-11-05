@@ -356,6 +356,7 @@ function startGame(variant?: number, daily = false): void {
   hud.kit(world);
   S.dmg.clear();
   S.snapCamera(world);
+  S.resetHero();
   hurtT = 0;
   hitStop.reset();
   applyFx();
@@ -1326,12 +1327,14 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.Jump:
         audio.jump();
+        S.onJump();
         break;
       case Ev.Land:
         S.onLand();
         S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
         break;
       case Ev.Spell:
+        if (e.y2 === 0) S.onSpell(e.v | 0); // phase 20 : animation du sort sur le héros
         spellFx(S, e.v | 0, e.y2 === 1, e.x, e.y, e.z, e.x2, e.z2, fx, reduced);
         audio.spell(e.v | 0, e.y2 === 1);
         break;
@@ -1383,6 +1386,7 @@ function handleEvents(w: World, now: number): void {
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         break;
       case Ev.PlayerHurt:
+        S.onHurt();
         hurtT = 0.15;
         vibrate(30);
         if (Math.random() < 0.12) audio.hurt();

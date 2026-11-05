@@ -22,11 +22,16 @@ import {
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
-import { ProjKind, ShotKind, Spell } from '../sim/types';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { loadProps } from './models';
+import type { PropGeometry, PropKey } from './models';
+import { Mode, ProjKind, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
+import { HeroAnim, buildHero, spellAnim } from './heroes';
+import type { HeroModel } from './heroes';
 import {
   Fireflies,
   GRASS,
@@ -45,7 +50,7 @@ import {
 import { buildEnemyGeometries } from './enemies';
 import { setDetail } from './parts';
 import { TerrainView } from './terrain';
-import { toonMaterial } from './toon';
+import { toonGradient, toonMaterial } from './toon';
 import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -55,6 +60,7 @@ import { PAL } from './palette';
 
 const TAU = Math.PI * 2;
 const WHITE = new THREE.Color(0xffffff);
+const MINE_IDLE = new THREE.Color(0xc4c8d6); // bombe KayKit non armée : texture assombrie
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lam = (c: number) => toonMaterial({ color: c }); // phase 15 : toon partout (sauf lumineux et sol)
 const additive = (color: number, opacity: number) =>
@@ -85,6 +91,12 @@ const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
 const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
 /** Distance² sous laquelle coffres de carte et sanctuaires sont dessinés (phase 18 : au-delà, seule la colonne). */
 const POI_DRAW2 = 50 * 50;
+const PROP_DRAW = 48; // phase 20 : rayon du décor KayKit autour du joueur (le brouillard masque au-delà)
+const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
+const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
+const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
+const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+const CHEST_ELITE = new THREE.Color(0xffd98a); // coffre d'élite : même modèle que celui de carte, teinté d'or
 const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1, 40, 24]; // phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24)
 
 interface Ghost {
@@ -114,6 +126,12 @@ export class GameScene {
 
   private player = new THREE.Group(); // contient le modèle du personnage courant (src/render/characters.ts)
   private model: CharacterModel;
+  /** phase 20 : modèle affiché, procédural (repli) ou glTF animé ; lu par les tests e2e */
+  heroKind: 'proc' | 'gltf' = 'proc';
+  private heroAnim: HeroModel['anim'] | null = null;
+  private heroPending = false;
+  private heroReq = 0; // numéro de la dernière demande de héros (une réponse périmée est ignorée)
+  private hurtAnimT = 0; // délai avant de rejouer l'animation de coup reçu
   modelKey: CharacterKey = 'eclaireuse'; // lus par les tests e2e via __game.scene
   modelSkin = 0;
   private blob: THREE.Mesh;
@@ -128,7 +146,8 @@ export class GameScene {
   private projW: InstanceWriter;
   private trailW: InstanceWriter;
   private boomW: InstanceWriter;
-  private mineW: InstanceWriter;
+  private mineW: InstanceWriter; // plaques de feu du Feu follet
+  private bombW: InstanceWriter; // mines (bombe KayKit une fois chargée)
   private spitW: InstanceWriter;
   private arrowW: InstanceWriter; // phase 16 : flèches des Archers
   private fireW: InstanceWriter; // phase 16 : boules de feu en vol
@@ -150,6 +169,20 @@ export class GameScene {
   private shrineW: InstanceWriter;
   private shrineGlowW: InstanceWriter; // runes du sanctuaire : s'allument avec la jauge
   private beamW: InstanceWriter;
+  // phase 20 : objets KayKit (CC0) ; arbres et lanternes dessinés autour du joueur seulement (≈ 300 triangles chacun)
+  propsReady = false; // lu par les tests e2e
+  private propTreeW: InstanceWriter[] = []; // sapin orange, sapin jaune, arbre mort, arbre mort moyen
+  private propLampW: InstanceWriter;
+  private decorProc: THREE.Object3D[] = []; // décor procédural remplacé quand les objets sont chargés
+  private treeData = new Float32Array(0); // x, y, z, ry, s, sorte (0 sapin, 1 rond) par arbre
+  private lampData = new Float32Array(0); // x, y, z par lanterne
+  private graveData = new Float32Array(0); // x, y, z, ry par petit cimetière (tombes et citrouille, phase 20)
+  private propGraveW: InstanceWriter;
+  private propX = 1e9; // position du joueur au dernier tri du décor proche
+  private propZ = 1e9;
+  private cChest = new THREE.Color(PAL.gold); // couleur d'instance des coffres (blanche une fois le modèle texturé chargé)
+  private cBladeCol = new THREE.Color(PAL.paper);
+  private cBoomCol = new THREE.Color(PAL.boomerang);
   private cBeamGold = new THREE.Color(PAL.gold);
   private cBeamGrey = new THREE.Color(0x8a8fa8);
   private cBeamBlue = new THREE.Color(PAL.xp);
@@ -166,9 +199,7 @@ export class GameScene {
   private cProj = new THREE.Color(PAL.proj);
   private cTrail = PAL.trail.map((c) => new THREE.Color(c));
   private cGem = [new THREE.Color(PAL.gem), new THREE.Color(PAL.gem2), new THREE.Color(PAL.gem3)];
-  private cPaper = new THREE.Color(PAL.paper);
   private cGold = new THREE.Color(PAL.gold);
-  private cBoom = new THREE.Color(PAL.boomerang);
   private cMine = new THREE.Color(PAL.mine);
   private cFire = new THREE.Color(PAL.accent); // traînée de feu du Feu follet (même mesh que les mines, plus large et plate)
   private cMineArmed = new THREE.Color(0xffffff);
@@ -282,6 +313,9 @@ export class GameScene {
     this.mineW = new InstanceWriter(
       makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
     );
+    this.bombW = new InstanceWriter(
+      makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
+    );
     this.spitW = new InstanceWriter(
       makeInstanced(new THREE.SphereGeometry(0.32, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
     );
@@ -302,6 +336,15 @@ export class GameScene {
     );
     this.chestW = new InstanceWriter(makeInstanced(new THREE.BoxGeometry(0.9, 0.62, 0.62), lam(PAL.gold), 16));
     this.netW = new InstanceWriter(makeInstanced(netGeometry(), flat(PAL.gold, 0.85), 2));
+    // phase 20 : écrivains du décor KayKit, géométries posées au chargement des objets (applyProps)
+    for (let k = 0; k < 4; k++)
+      this.propTreeW.push(new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), 64)));
+    this.propLampW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), LAMP_NEAR));
+    this.propGraveW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), GRAVE_NEAR));
+    for (const pw of [...this.propTreeW, this.propLampW, this.propGraveW]) this.scene.add(pw.mesh);
+    loadProps()
+      .then((p) => this.applyProps(p))
+      .catch((e: unknown) => console.warn('modèles du décor indisponibles, repli procédural', e)); // hors ligne aussi
     this.gemW = new InstanceWriter(
       makeInstanced(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 900),
     );
@@ -312,6 +355,7 @@ export class GameScene {
       this.trailW.mesh,
       this.boomW.mesh,
       this.mineW.mesh,
+      this.bombW.mesh,
       this.spitW.mesh,
       this.arrowW.mesh,
       this.fireW.mesh,
@@ -346,6 +390,7 @@ export class GameScene {
       this.trailW,
       this.boomW,
       this.mineW,
+      this.bombW,
       this.spitW,
       this.arrowW,
       this.fireW,
@@ -418,6 +463,8 @@ export class GameScene {
     const vc = () => toonMaterial({ vertexColors: true });
     // deux essences (sapin, feuillu) à couleurs par sommet : la couleur d'instance ne porte que la variation de teinte
     const firs = makeInstanced(firGeometry(), vc(), treeCap);
+    this.treeData = new Float32Array(nTrees * 6);
+    this.lampData = new Float32Array(DECOR.lamps * 3);
     const rounds = makeInstanced(roundTreeGeometry(), vc(), treeCap);
     const rocks = makeInstanced(new THREE.DodecahedronGeometry(0.8, 0), lam(PAL.rock), DECOR.rocks);
     const posts = makeInstanced(lampPostGeometry(), vc(), DECOR.lamps);
@@ -445,6 +492,13 @@ export class GameScene {
       d.scale.set(s, s * (0.9 + ((i * 11) % 7) * 0.04), s);
       d.updateMatrix();
       m.setMatrixAt(k, d.matrix);
+      const T = this.treeData;
+      T[i * 6] = o.x;
+      T[i * 6 + 1] = gy(o.x, o.z) - 0.1;
+      T[i * 6 + 2] = o.z;
+      T[i * 6 + 3] = (i * 2.399) % TAU;
+      T[i * 6 + 4] = s * (0.9 + ((i * 11) % 7) * 0.04);
+      T[i * 6 + 5] = round ? 1 : 0;
       m.setColorAt(k, tint.setScalar(0.86 + ((i * 7) % 10) * 0.03));
       d.position.set(o.x + 0.4, gy(o.x + 0.4, o.z + 0.3) + 0.04, o.z + 0.3); // ombre décalée côté opposé au soleil
       this.tilt(o.x + 0.4, o.z + 0.3);
@@ -484,6 +538,9 @@ export class GameScene {
       d.scale.setScalar(0.9);
       d.updateMatrix();
       posts.setMatrixAt(i, d.matrix);
+      this.lampData[i * 3] = d.position.x;
+      this.lampData[i * 3 + 1] = d.position.y;
+      this.lampData[i * 3 + 2] = d.position.z;
       lamps.setMatrixAt(i, d.matrix);
       d.position.y += 0.08;
       this.tilt(d.position.x, d.position.z);
@@ -491,6 +548,19 @@ export class GameScene {
       d.updateMatrix();
       halos.setMatrixAt(i, d.matrix);
     }
+    // phase 20 : petits cimetières (tombes, citrouille) au pied des arbres, hors lacs ; dessinés seulement en KayKit
+    const G: number[] = [];
+    for (let i = 0; i < GRAVES && nTrees > 0; i++) {
+      const o = w.obstacles[(i * 61 + 7) % nTrees];
+      const ang = (i * 2.399 + 1.1) % TAU;
+      const x = o.x + Math.sin(ang) * (o.r + 1.8),
+        z = o.z + Math.cos(ang) * (o.r + 1.8);
+      let wet = false;
+      for (const l of w.lakes) if ((x - l.x) * (x - l.x) + (z - l.z) * (z - l.z) < (l.r + 1) * (l.r + 1)) wet = true;
+      if (wet || Math.abs(x) > WORLD_HALF - 2 || Math.abs(z) > WORLD_HALF - 2) continue;
+      G.push(x, gy(x, z) - 0.05, z, ang + Math.PI);
+    }
+    this.graveData = new Float32Array(G);
     // herbe : touffes autour des arbres, jamais dans un lac
     let ng = 0;
     for (let i = 0; i < GRASS; i++) {
@@ -515,6 +585,9 @@ export class GameScene {
     rocks.count = nRocks;
     posts.count = lamps.count = halos.count = DECOR.lamps;
     grass.count = ng;
+    this.decorProc = [firs, rounds, posts, lamps];
+    for (const m of this.decorProc) m.visible = !this.propsReady;
+    this.propX = this.propZ = 1e9;
     for (const m of [treeShadows, firs, rounds, rocks, posts, lamps, halos, grass]) {
       m.instanceMatrix.needsUpdate = true;
       m.instanceColor!.needsUpdate = true;
@@ -548,20 +621,178 @@ export class GameScene {
 
   /** Change le personnage affiché (menu : aperçu ; partie : personnage choisi) et sa tenue. Idempotent. */
   setCharacter(key: CharacterKey, skin = 0, force = false): void {
-    if (!force && key === this.modelKey && skin === this.modelSkin) return;
-    const old = this.model;
-    const next = buildCharacter(key, skin);
+    // même personnage : rien à faire, sauf si le héros glTF n'a encore jamais été demandé (modèle de départ procédural)
+    if (!force && key === this.modelKey && skin === this.modelSkin && (this.heroKind === 'gltf' || this.heroPending))
+      return;
     this.modelKey = key;
     this.modelSkin = skin;
+    // repli procédural tout de suite, puis le héros glTF (phase 20) dès qu'il est chargé ; hors ligne, le repli reste
+    this.swapModel(buildCharacter(key, skin), null, true);
+    const req = ++this.heroReq;
+    this.heroPending = true;
+    buildHero(key, skin).then(
+      (hero) => {
+        if (req !== this.heroReq) return hero.dispose(); // personnage changé entre-temps
+        this.heroPending = false;
+        this.swapModel(hero, hero.anim, false); // fantôme de dash : silhouette procédurale gardée (≈ 4 k tris de moins)
+      },
+      () => {
+        if (req === this.heroReq) this.heroPending = false; // hors ligne : le repli reste, nouvel essai au prochain choix
+      },
+    );
+  }
+  private swapModel(next: CharacterModel, anim: HeroModel['anim'] | null, ghost: boolean): void {
+    const old = this.model;
     this.player.remove(old.group);
     if (old.glowDisc) this.scene.remove(old.glowDisc);
     this.player.add(next.group);
     if (next.glowDisc) this.scene.add(next.glowDisc);
-    const ghost = this.dashGhostW.mesh;
-    ghost.geometry.dispose();
-    ghost.geometry = next.silhouette.clone();
+    if (ghost) {
+      const g = this.dashGhostW.mesh;
+      g.geometry.dispose();
+      g.geometry = next.silhouette.clone();
+    }
     old.dispose();
     this.model = next;
+    this.heroAnim = anim;
+    this.heroKind = anim ? 'gltf' : 'proc';
+  }
+  /** Sort lancé (Ev.Spell) : animation propre au sort sur le héros glTF. */
+  onSpell(s: Spell): void {
+    this.heroAnim?.trigger(spellAnim(s), s === 1 ? 1.4 : 1.3);
+  }
+  /** Coup encaissé (Ev.PlayerHurt) : sursaut, au plus toutes les 0,6 s (le contact blesse à chaque pas). */
+  onHurt(): void {
+    if (this.hurtAnimT > 0 || !this.heroAnim) return;
+    this.hurtAnimT = 0.6;
+    this.heroAnim.trigger(HeroAnim.Hit, 1.6);
+  }
+  /** Nouvelle partie : le héros repart de l'animation de repos (la mort reste figée sinon). */
+  resetHero(): void {
+    this.heroAnim?.reset();
+  }
+
+  /** Objets KayKit chargés : géométries et matériaux toon texturés à la place des formes procédurales. */
+  private applyProps(p: Record<PropKey, PropGeometry>): void {
+    const mats = new Map<THREE.Texture | null, THREE.MeshToonMaterial>();
+    const mat = (g: PropGeometry) => {
+      let m = mats.get(g.map);
+      if (!m) {
+        m = new THREE.MeshToonMaterial({ map: g.map, gradientMap: toonGradient() });
+        mats.set(g.map, m);
+      }
+      return m;
+    };
+    /** Géométrie normalisée : `size` = hauteur (axis 'y') ou plus grande largeur au sol (axis 'xz'). */
+    const norm = (g: PropGeometry, size: number, axis: 'y' | 'xz', center = true) => {
+      const geo = g.geometry.clone();
+      geo.computeBoundingBox();
+      const b = geo.boundingBox!;
+      const ext = axis === 'y' ? b.max.y - b.min.y : Math.max(b.max.x - b.min.x, b.max.z - b.min.z);
+      const k = size / Math.max(1e-3, ext);
+      if (center) geo.translate(-(b.min.x + b.max.x) / 2, 0, -(b.min.z + b.max.z) / 2);
+      geo.scale(k, k, k);
+      return geo;
+    };
+    // tout est construit d'abord, puis échangé d'un coup : une exception en route laisse le décor procédural intact
+    const todo: [InstanceWriter, THREE.BufferGeometry, THREE.Material][] = [];
+    const swap = (wr: InstanceWriter, geo: THREE.BufferGeometry, m: THREE.Material) => todo.push([wr, geo, m]);
+    const merge = (list: THREE.BufferGeometry[]) => (list.length > 1 ? mergeGeometries(list) : null) ?? list[0];
+    // coffres d'élite et de carte : le même coffre (728 triangles ; le doré en pèse 1 568, jusqu'à 16 à l'écran),
+    // l'élite teinté d'or par la couleur d'instance ; le coffre flottant était centré, le modèle a l'origine au sol
+    swap(this.chestW, norm(p.chest, 1.0, 'xz').translate(0, -0.3, 0), mat(p.chest));
+    swap(this.mapChestW, norm(p.chest, 1.1, 'xz'), mat(p.chest));
+    swap(this.shrineW, norm(p.shrine, 1.0, 'xz'), mat(p.shrine));
+    // lame : épée couchée le long de x (comme l'ancienne boîte de 1 u) ; boomerang : hache à plat, tournant autour de y
+    const sword = norm(p.sword, 1.15, 'y').rotateZ(-Math.PI / 2);
+    swap(this.bladeW, sword, mat(p.sword));
+    // hache : manche le long de y, fer le long de x → couchée à plat (rotateX) et centrée, elle tourne sur elle-même
+    swap(
+      this.boomW,
+      norm(p.axe, 1.3, 'y')
+        .translate(0, -0.65, 0)
+        .rotateX(-Math.PI / 2),
+      mat(p.axe),
+    );
+    // mine : bombe posée au sol ; non armée, teinte sombre ; armée, texture pleine qui pulse
+    swap(this.bombW, norm(p.bomb, 0.8, 'y'), mat(p.bomb));
+    this.cMine = MINE_IDLE;
+    const trees: PropKey[] = ['tree_pine', 'tree_pine_y', 'tree_dead', 'tree_dead_m'];
+    for (let k = 0; k < 4; k++) swap(this.propTreeW[k], norm(p[trees[k]], k < 2 ? 4.6 : 4.0, 'y'), mat(p[trees[k]]));
+    swap(this.propLampW, norm(p.lantern, 2.4, 'y'), mat(p.lantern));
+    // petit cimetière : stèle, tombe et citrouille fusionnées (même texture Halloween ⇒ un appel)
+    const at = (g: THREE.BufferGeometry, x: number, z: number, ry: number) => g.rotateY(ry).translate(x, 0, z);
+    const graveParts = [
+      at(norm(p.gravestone, 1.2, 'y'), 0, 0, 0),
+      at(norm(p.grave, 0.95, 'y'), 1.25, 0.45, -0.35),
+      at(norm(p.pumpkin, 0.62, 'y'), -1.0, 0.7, 0.6),
+    ];
+    const sameMap = p.grave.map === p.gravestone.map && p.pumpkin.map === p.gravestone.map;
+    swap(this.propGraveW, sameMap ? merge(graveParts) : graveParts[0], mat(p.gravestone));
+    // échoppe : caisses, tonneau et pièces KayKit autour de l'étal procédural (auvent et colporteur gardés)
+    const dress: [PropKey, number, number, number, number, number][] = [
+      ['crates', 1.25, -1.65, 0, -0.05, 0.25],
+      ['barrel', 0.9, 1.6, 0, 0.1, 0],
+      ['coins', 0.3, 0.5, 0.86, 0.35, 0.5],
+    ];
+    const byMap = new Map<THREE.Texture | null, THREE.BufferGeometry[]>();
+    for (const [key, h, x, y, z, ry] of dress) {
+      const g = norm(p[key], h, 'y').rotateY(ry).translate(x, y, z);
+      const list = byMap.get(p[key].map) ?? [];
+      list.push(g);
+      byMap.set(p[key].map, list);
+    }
+    const stallParts: THREE.Mesh[] = [];
+    for (const [map, list] of byMap) {
+      const g = merge(list);
+      stallParts.push(new THREE.Mesh(g, mat({ geometry: g, map })));
+    }
+    for (const [wr, geo, m] of todo) {
+      wr.mesh.geometry.dispose();
+      wr.mesh.geometry = geo;
+      wr.mesh.material = m;
+    }
+    this.bladeGhostW.mesh.geometry = sword;
+    this.stall.add(...stallParts);
+    this.cChest = CHEST_ELITE;
+    this.cBladeCol = this.cBoomCol = WHITE;
+    this.propsReady = true;
+    for (const m of this.decorProc) m.visible = false;
+    this.propX = this.propZ = 1e9;
+  }
+  /** Arbres et lanternes à moins de PROP_DRAW u du joueur dans les écrivains KayKit (au plus 64 arbres de chaque sorte). */
+  private sortNearDecor(px: number, pz: number): void {
+    this.propX = px;
+    this.propZ = pz;
+    for (const wr of this.propTreeW) wr.begin();
+    const T = this.treeData,
+      R2 = PROP_DRAW * PROP_DRAW,
+      r2 = SMALL_DRAW * SMALL_DRAW;
+    for (let i = 0; i < T.length; i += 6) {
+      const dx = T[i] - px,
+        dz = T[i + 2] - pz;
+      if (dx * dx + dz * dz > R2) continue;
+      const idx = i / 6;
+      const kind = (T[i + 5] === 1 ? 2 : 0) + (idx % 2); // ronds → arbres morts, sapins → sapins, deux variantes
+      this.propTreeW[kind].put(T[i], T[i + 1], T[i + 2], T[i + 3], T[i + 4] * 0.75, WHITE);
+    }
+    for (const wr of this.propTreeW) wr.end();
+    this.propLampW.begin();
+    const L = this.lampData;
+    for (let i = 0; i < L.length; i += 3) {
+      const dx = L[i] - px,
+        dz = L[i + 2] - pz;
+      if (dx * dx + dz * dz < r2) this.propLampW.put(L[i], L[i + 1], L[i + 2], i * 0.7, 1, WHITE);
+    }
+    this.propLampW.end();
+    this.propGraveW.begin();
+    const G = this.graveData;
+    for (let i = 0; i < G.length; i += 4) {
+      const dx = G[i] - px,
+        dz = G[i + 2] - pz;
+      if (dx * dx + dz * dz < r2) this.propGraveW.put(G[i], G[i + 1], G[i + 2], G[i + 3], 1, WHITE);
+    }
+    this.propGraveW.end();
   }
 
   resize(wpx: number, hpx: number): void {
@@ -597,7 +828,8 @@ export class GameScene {
     this.qualityLevel = level;
     this.applySize();
     setDetail(level > 0 ? 12 : 7);
-    this.setCharacter(this.modelKey, this.modelSkin, true); // formes plus lisses (ou non) : modèle reconstruit
+    // formes procédurales plus lisses (ou non) : modèle reconstruit ; le héros glTF ne dépend pas du détail
+    if (this.heroKind !== 'gltf') this.setCharacter(this.modelKey, this.modelSkin, true);
     this.groundMat.map = this.groundTex(level > 0);
     this.groundMat.needsUpdate = true;
     this.renderer.domElement.classList.toggle('pixel', level === 0);
@@ -617,9 +849,15 @@ export class GameScene {
     return this.renderer.compileAsync(this.scene, this.camera).then(() => undefined);
   }
 
+  /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
+  onJump(): void {
+    this.heroAnim?.trigger(HeroAnim.Jump, 1.6);
+  }
+
   /** Atterrissage du joueur : lance le ressort d'écrasement (valeurs neutres depuis la PR #6). */
   onLand(): void {
     this.landT = 0;
+    this.heroAnim?.trigger(HeroAnim.Land, 2);
   }
 
   /** Cycle de lumière lié au temps de run : crépuscule 0:00 → nuit 8:00 → aube 20:00 (le temps se lit sans chrono). */
@@ -675,12 +913,22 @@ export class GameScene {
       M.legL.rotation.x = sw;
       M.legR.rotation.x = -sw;
     }
-    // flottants : ondulation et léger balancement ; marcheurs : bob de course
+    // flottants : ondulation et léger balancement ; marcheurs : bob de course (procédural seulement : le héros glTF a
+    // sa propre course)
+    const A = this.heroAnim;
     M.torso.position.y = M.float
       ? 0.18 + Math.sin(now * 3.2) * 0.08
-      : moving && P.onGround
+      : moving && P.onGround && !A
         ? Math.abs(Math.cos(P.walk)) * 0.06
         : 0;
+    if (A) {
+      // phase 20 : animation de fond depuis l'état de la sim (lecture seule) ; la mort se joue une fois
+      if (this.hurtAnimT > 0) this.hurtAnimT -= dt;
+      if (w.mode === Mode.Dead) A.trigger(HeroAnim.Death);
+      const sp = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
+      const base = !P.onGround ? HeroAnim.Fall : moving && !M.float ? HeroAnim.Run : HeroAnim.Idle;
+      A.update(dt, base, Math.max(0.6, Math.min(1.8, sp / 6.2)));
+    }
     M.torso.rotation.z = M.float ? Math.sin(now * 2.1) * 0.06 : 0;
     // tir : le corps s'écrase (1+r, 1−0,8r, 1+r), r porté par la sim (Player.recoil)
     const rc = P.recoil;
@@ -897,6 +1145,9 @@ export class GameScene {
     this.zoneFillW.end();
     this.ringW.end();
 
+    // phase 20 : arbres et lanternes KayKit autour du joueur (tri refait tous les 4 u de déplacement)
+    if (this.propsReady && (px - this.propX) ** 2 + (pz - this.propZ) ** 2 > 16) this.sortNearDecor(px, pz);
+
     // coffres : flottent et tournent ; coffre de boss plus gros
     this.chestW.begin();
     for (let i = 0; i < w.chestCount; i++) {
@@ -908,7 +1159,7 @@ export class GameScene {
         c.z,
         now * 1.2,
         (c.boss ? 1.4 : 1) * pop,
-        this.cGold,
+        this.cChest,
       );
     }
     this.chestW.end();
@@ -1012,18 +1263,19 @@ export class GameScene {
     this.trailW.begin();
     this.boomW.begin();
     this.mineW.begin();
+    this.bombW.begin();
     for (let i = 0; i < w.projCount; i++) {
       const p = w.projs[i];
       const x = lerp(p.px, p.x, alpha),
         z = lerp(p.pz, p.z, alpha),
         y = p.y + this.gy(x, z); // phase 18 : y de la sim au-dessus du sol local
       if (p.kind === ProjKind.Boomerang) {
-        this.boomW.put(x, y, z, p.age * 22, 1, this.cBoom);
+        this.boomW.put(x, y, z, p.age * 22, 1, this.cBoomCol);
         continue;
       }
       if (p.kind === ProjKind.Mine) {
         const blink = p.age < 0.3 ? 0.5 + p.age : 1 + Math.sin(now * 6 + p.x) * 0.1;
-        this.mineW.put(x, y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
+        this.bombW.put(x, y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
         continue;
       }
       if (p.kind === ProjKind.Fire) {
@@ -1045,6 +1297,7 @@ export class GameScene {
     this.trailW.end();
     this.boomW.end();
     this.mineW.end();
+    this.bombW.end();
 
     // halo (rayon = stats courantes : lignes « rayon » et tome Projectiles)
     const lvA = w.weapons.aura ?? 0;
@@ -1076,7 +1329,7 @@ export class GameScene {
       const by = py + gp + 0.8;
       for (let i = 0; i < sL.n; i++) {
         const a = w.wstate.bladeA + (i * TAU) / sL.n;
-        this.bladeW.put(px + Math.sin(a) * r, by, pz + Math.cos(a) * r, a + Math.PI / 2, bs, this.cPaper);
+        this.bladeW.put(px + Math.sin(a) * r, by, pz + Math.cos(a) * r, a + Math.PI / 2, bs, this.cBladeCol);
         for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
           const ag = a - k * sL.spd * 0.03;
           this.bladeGhostW.put(
@@ -1135,13 +1388,15 @@ export class GameScene {
   renderIdle(now: number, dt: number): void {
     this.lightCycle(0);
     this.fireflies.update(0, 0, now, 0.6);
+    if (this.propsReady && this.propX * this.propX + this.propZ * this.propZ > 16) this.sortNearDecor(0, 0); // menu : clairière
     this.player.visible = true;
     this.player.position.set(0, 0, 0);
     this.player.scale.set(1, 1, 1);
     const a = Math.sin(now * 0.18) * 0.45; // ±26° autour de la face
     this.player.rotation.y = a; // le modèle regarde vers +z : face à la caméra
     this.model.torso.position.y =
-      (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + Math.sin(now * 2.2) * 0.015;
+      (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + (this.heroAnim ? 0 : Math.sin(now * 2.2) * 0.015);
+    this.heroAnim?.update(dt, HeroAnim.Idle, 1);
     if (this.model.glowDisc) {
       this.model.glowDisc.position.set(0, 0.07, 0);
       this.model.glowDisc.rotation.set(0, 0, 0);

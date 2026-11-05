@@ -45,8 +45,18 @@ mesh.frustumCulled = false;                                // la boîte engloban
 
 ## Géométrie et modèles
 - V1 : primitives (box, cone, icosa, octa) composées en `Group`, puis fusionnées avec `BufferGeometryUtils.mergeGeometries` pour l'instancing (une géométrie par personnage/ennemi).
-- Si des modèles arrivent : glTF via `GLTFLoader`, ≤ 600 triangles par ennemi, ≤ 2000 pour le joueur, textures ≤ 256² en palette plate. Les charger une fois, extraire la géométrie, instancier.
+- Modèles glTF (voir plus bas) : ≤ 600 triangles par instance de décor nombreuse, ≤ 2000 pour un objet unique à l'écran ; héros KayKit ≈ 4,5 k triangles (un seul à l'écran). Les charger une fois, extraire la géométrie, instancier.
 - Animation : pas de skinning sur les ennemis (trop cher instancié). Hop sinusoïdal, rotation, squash & stretch via la matrice d'instance.
+
+### Modèles glTF (phase 20 : KayKit CC0)
+- **Pipeline** : `npm run assets` (`tools/assets/config.ts` choisit modèles, animations, accessoires et plafonds de triangles ; `build.ts` produit `public/models/*.glb` et `src/render/models.json`). Ne jamais commiter les packs sources.
+- gltf-transform : jeter les **samplers et channels** d'une animation avant l'animation elle-même, sinon `prune` garde leurs accessors (un héros pesait 2 Mo) ; retirer les pistes égales à la pose de repos ; `unpartition()` pour un seul buffer.
+- Héros skinnés : exporter avec `meshopt({ quantizationVolume: 'scene' })`. En quantification par maillage, chaque partie a son propre repère et la fusion en une `SkinnedMesh` n'affiche plus que la tête.
+- Objets statiques : **déquantifier** (`toFloat` dans `src/render/models.ts`) avant `applyMatrix4` : un Int16 normalisé est borné à [-1, 1] et le modèle s'aplatit.
+- Fusion skinnée (`mergeSkinned`) : mêmes attributs partout (UV ajoutés si absents, `skinIndex` en Uint16) ; un maillage émissif à part (yeux de la Revenante) plutôt qu'un attribut manquant qui casse tout.
+- Contour par coque inversée sur un modèle à arêtes vives : normales **lissées** pour l'extrusion + `polygonOffset`, sinon des traits noirs traversent le visage.
+- Les InstanceWriter du décor reçoivent la géométrie et le matériau du modèle une fois chargé (couleur d'instance blanche) : même nombre d'appels qu'avant. Décor dense (arbres, lanternes, cimetières) : seules les instances à moins de `PROP_DRAW` u sont écrites, re-triées tous les 4 u de déplacement.
+- Toujours un **repli procédural** : rien ne doit attendre un fichier pour être jouable.
 
 ## Terrain
 - Sol : `PlaneGeometry` avec `CanvasTexture` en damier bruité, `NearestFilter`, `RepeatWrapping`. Décor (arbres, rochers, lanternes) en `InstancedMesh` statique généré par seed, grille spatiale pour les collisions.
