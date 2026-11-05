@@ -2,6 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.12.1 — 5 nov. 2026
+
+### Ajouté
+
+- **L'or de la partie s'affiche en jeu**, à côté des ennemis vaincus, avec un petit rebond à chaque gain : on sait ce qu'on peut dépenser chez le marchand et ce qu'on gardera à la fin.
+
+### Modifié
+
+- Le Braconnier : un boomerang attrapé rend 30 % de sa recharge (au lieu de la moitié), et il part avec un Boomerang un peu moins fort ; il tenait trois fois plus longtemps que les autres personnages.
+
 ## 1.12.0 — 5 nov. 2026 (phase 17 « Marchand, objets passifs et synergies »)
 
 La puissance ne s'achète plus entre les parties : elle se construit pendant la partie.
@@ -17,7 +27,6 @@ La puissance ne s'achète plus entre les parties : elle se construit pendant la 
 
 - **La boutique par personnage est retirée** : tout l'or dépensé en paliers est rendu à l'ouverture du jeu. La feuille devient « Emplacements » ; l'or sert aux emplacements, aux personnages et aux tenues.
 - Le Colporteur : ses coffres proposent 4 objets (au lieu d'au moins 3 cartes).
-- Le Braconnier : un boomerang attrapé rend 30 % de sa recharge (au lieu de la moitié), et il part avec un Boomerang un peu moins fort ; il tenait trois fois plus longtemps que les autres personnages.
 - Équilibrage refait sans la boutique : on monte de niveau plus vite (les cartes des coffres passent dans les niveaux) ; chaque synergie donne en plus des PV max et de l'armure, davantage à la 2e, à la 3e… Pour un joueur moyen simulé, une partie avec les emplacements de départ dure environ 6 min en médiane, avec tous les emplacements environ 10 min.
 
 ## 1.11.0 — 5 nov. 2026 (phase 16 « Carte construite et tireurs »)

@@ -391,5 +391,6 @@
   "banner.item": "Item: {name}",
   "banner.synergy": "Synergy: {name}!",
   "banner.merchant": "The merchant has arrived",
-  "syn.bonus": "Each synergy: more max HP and armor, more with every new one."
+  "syn.bonus": "Each synergy: more max HP and armor, more with every new one.",
+  "hud.gold": "Run gold"
 }

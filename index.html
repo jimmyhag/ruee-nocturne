@@ -288,6 +288,28 @@
       .kills.pop {
         transform: scale(1.25);
       }
+      /* or de la partie (ce qui reste à la fin est gardé, ce qui est dépensé au marchand part) */
+      .goldc {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--f-display);
+        font-size: 20px;
+        color: var(--gold);
+        text-shadow: 0 2px 0 var(--ink);
+        font-variant-numeric: tabular-nums;
+        transition: transform 0.15s;
+      }
+      .goldc.pop {
+        transform: scale(1.18);
+      }
+      .goldc .coin {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #fff3c4, var(--gold) 55%, #b07a1c);
+        box-shadow: 0 1px 0 var(--ink);
+      }
       .kills small {
         font-family: var(--f-body);
         font-size: 11px;
@@ -1466,8 +1488,13 @@
           font-size: 22px;
           padding-top: 6px;
         }
-        .kills {
+        .kills,
+        .goldc {
           font-size: 16px;
+        }
+        .goldc .coin {
+          width: 11px;
+          height: 11px;
         }
         .kills small {
           display: none;
@@ -1517,6 +1544,9 @@
         </div>
         <div class="time" id="time">0:00</div>
         <div class="hright">
+          <div class="goldc" id="goldBox" aria-label="Or de la partie" data-i18n-attr="aria-label:hud.gold">
+            <i class="coin"></i><span id="goldN">0</span>
+          </div>
           <div class="kills" id="killsBox"><span id="kills">0</span> <small data-i18n="hud.kills">vaincus</small></div>
           <button id="pauseBtn" aria-label="Pause" data-i18n-attr="aria-label:hud.pause">II</button>
         </div>

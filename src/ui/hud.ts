@@ -38,6 +38,8 @@ export class Hud {
     time: $('time'),
     kills: $('kills'),
     killsBox: $('killsBox'),
+    goldN: $('goldN'),
+    goldBox: $('goldBox'),
     bossbar: $('bossbar'),
     bossname: $('bossname'),
     bossfill: $('bossfill'),
@@ -54,6 +56,7 @@ export class Hud {
   private bannerT = 0;
   private lastKillTens = 0;
   private killPopT = 0;
+  private goldPopT = 0;
   private lastXp = 0;
   private lastSweep = 0;
   private flashT = 0; // flash d'écran ponctuel (doré) en cours
@@ -75,10 +78,12 @@ export class Hud {
     this.cache = {};
     this.lastKillTens = 0;
     this.killPopT = 0;
+    this.goldPopT = 0;
     this.lastXp = 0;
     this.lastSweep = 0;
     this.flashT = 0;
     this.els.killsBox.classList.remove('pop');
+    this.els.goldBox.classList.remove('pop');
   }
   private text(k: keyof typeof this.els, v: string): void {
     if (this.cache[k] !== v) {
@@ -135,6 +140,20 @@ export class Hud {
     this.text('lvl', String(P.level));
     this.text('time', fmtTime(w.t));
     this.text('kills', String(w.kills));
+    // or de la partie : la chaîne n'est construite que quand le montant affiché change ; petit « pop » à chaque gain
+    const gold = Math.floor(w.gold);
+    if (this.cache.gold !== gold) {
+      const gained = typeof this.cache.gold === 'number' && gold > this.cache.gold;
+      this.cache.gold = gold;
+      this.els.goldN.textContent = String(gold);
+      if (gained) {
+        this.goldPopT = 0.12;
+        this.els.goldBox.classList.add('pop');
+      }
+    } else if (this.goldPopT > 0) {
+      this.goldPopT -= dt;
+      if (this.goldPopT <= 0) this.els.goldBox.classList.remove('pop');
+    }
     const tens = Math.floor(w.kills / 10);
     if (tens !== this.lastKillTens) {
       this.lastKillTens = tens;

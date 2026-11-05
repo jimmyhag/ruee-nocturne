@@ -44,6 +44,9 @@ test('marchand : on entre, on achète avec l’or de la partie, on relance, on p
     g.debug.merchant(6);
   });
   await expect(page.locator('#merchantChip')).toBeVisible();
+  // l'or de la partie est affiché dans le HUD (≈ 1000 posés ci-dessus, plus ce que rapportent les kills)
+  await expect(page.locator('#goldBox')).toBeVisible();
+  await expect(page.locator('#goldN')).toHaveText(/^1\d{3}$/);
   // on marche jusqu'à l'échoppe (elle est devant, vers −z) : on y téléporte le joueur pour ne pas dépendre du terrain
   await page.evaluate(() => {
     const g = (window as any).__game;
