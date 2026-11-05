@@ -572,7 +572,7 @@ export const CHARACTERS: CharacterDef[] = [
   { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
   { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
-  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'dmg', 'cd', 'range'] }, // phase 17 : 4 → 2 lignes de dégâts (avec le remboursement à 30 %)
+  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'cd', 'range'] }, // phase 17 : 4 → 2 lignes de dégâts (avec le remboursement à 30 %) ; phase 18 : 2 → 1 (relief et sanctuaires : nu 9:34, +3:48 sur l'Éclaireuse)
     trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
   { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
