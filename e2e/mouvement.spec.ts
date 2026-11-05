@@ -1,4 +1,4 @@
-// Phase 11 — mouvement utile : un plateau se monte d'un saut (clavier / bouton tactile), une éruption se saute,
+// Phase 11 — mouvement utile : un muret se franchit d'un saut (phase 16, clavier / bouton tactile), une éruption se saute,
 // l'onde de choc du Gardien se saute. Les ennemis ne font pas de dégâts pendant ces tests (dmgMul 0) : on isole le danger.
 import { expect, test } from '@playwright/test';
 import { collectConsoleErrors, openGame, player, startRun } from './helpers';
@@ -37,63 +37,43 @@ async function jump(page: import('@playwright/test').Page, touch: boolean): Prom
   await page.touchscreen.tap(jumpBox.x, jumpBox.y);
 }
 
-test('un plateau bloque au sol et se monte d’un saut ; les marcheurs restent au pied', async ({ page, hasTouch }) => {
+test('un muret bloque en marchant et se franchit d’un saut (phase 16)', async ({ page, hasTouch }) => {
   const errors = collectConsoleErrors(page);
   await openGame(page);
   await startRun(page);
   await godMode(page);
   jumpBox = null;
-  const p = await page.evaluate(() => {
+  // un muret nord-sud posé à 2 u à l'est du joueur (indexé dans la grille des murets comme ceux de la carte)
+  const wall = await page.evaluate(() => {
     const w = (window as any).__game.world;
-    const pl = w.plateaux[0];
     const P = w.player;
-    P.x = P.px = pl.x - pl.r - 1.5;
-    P.z = P.pz = pl.z;
-    P.y = P.py = 0;
+    P.y = 0;
     P.onGround = true;
-    return { x: pl.x, z: pl.z, r: pl.r, h: w.groundAt(pl.x, pl.z) as number };
-  });
-  expect(p.h).toBeCloseTo(1.4, 5);
-  await page.keyboard.down('KeyD'); // vers +x : le plateau est à l'est
-  // avance jusqu'au pied (le temps de jeu peut tourner lentement sous SwiftShader : on attend la position, pas un délai)
-  await page.waitForFunction((edge) => (window as any).__game.world.player.x > edge - 0.9, p.x - p.r, {
-    timeout: 15_000,
-  });
-  await page.waitForTimeout(400); // continue de pousser contre le bord
-  const blocked = await player(page);
-  expect(blocked.y).toBe(0);
-  expect(blocked.x).toBeLessThan(p.x - p.r); // bloqué au pied
-  expect(blocked.x).toBeGreaterThan(p.x - p.r - 1);
-  await jump(page, hasTouch);
-  await page.waitForFunction(
-    () => {
-      const w = (window as any).__game.world;
-      return w.player.onGround && w.player.y > 1;
-    },
-    null,
-    { timeout: 15_000 },
-  );
-  await page.keyboard.up('KeyD');
-  const up = await player(page);
-  expect(up.y).toBeCloseTo(p.h, 5);
-  expect(Math.hypot(up.x - p.x, up.z - p.z)).toBeLessThan(p.r);
-  // 1,5 s plus tard : aucun marcheur sur le plateau (ils butent au pied) ; le joueur n'a pas bougé
-  await page.waitForTimeout(1500);
-  const walkersOnTop = await page.evaluate(
-    (pl) => {
-      const w = (window as any).__game.world;
-      let n = 0;
-      for (let i = 0; i < w.enemyCount; i++) {
-        const e = w.enemies[i];
-        if (e.type === 4 || e.type === 8) continue; // Volant, Faucheur
-        if (Math.hypot(e.x - pl.x, e.z - pl.z) < pl.r) n++;
+    const x = P.x + 2,
+      z1 = P.z - 5,
+      z2 = P.z + 5;
+    w.walls.push({ x1: x, z1, x2: x, z2, r: 0.45, h: 1, kind: 0 });
+    const i = w.walls.length - 1;
+    for (let cx = Math.floor((x - 1) / 6); cx <= Math.floor((x + 1) / 6); cx++)
+      for (let cz = Math.floor((z1 - 1) / 6); cz <= Math.floor((z2 + 1) / 6); cz++) {
+        const k = cx * 65536 + cz;
+        const arr = w.wallGrid.get(k) ?? [];
+        arr.push(i);
+        w.wallGrid.set(k, arr);
       }
-      return n;
-    },
-    { x: p.x, z: p.z, r: p.r },
-  );
-  expect(walkersOnTop).toBe(0);
-  expect((await player(page)).y).toBeCloseTo(p.h, 5);
+    return { x };
+  });
+  await page.keyboard.down('KeyD'); // vers +x : le muret est à l'est
+  // avance jusqu'au muret (le temps de jeu peut tourner lentement sous SwiftShader : on attend la position, pas un délai)
+  await page.waitForFunction((x) => (window as any).__game.world.player.x > x - 1.0, wall.x, { timeout: 15_000 });
+  await page.waitForTimeout(400); // continue de pousser contre le muret
+  const blocked = await player(page);
+  expect(blocked.x).toBeLessThan(wall.x - 0.8); // bloqué : rayon du muret + rayon du joueur
+  await jump(page, hasTouch);
+  await page.waitForFunction((x) => (window as any).__game.world.player.x > x + 0.9, wall.x, { timeout: 15_000 });
+  await page.keyboard.up('KeyD');
+  await page.waitForFunction(() => (window as any).__game.world.player.onGround, null, { timeout: 15_000 });
+  expect((await player(page)).x).toBeGreaterThan(wall.x + 0.85); // de l'autre côté
   expect(errors).toEqual([]);
 });
 

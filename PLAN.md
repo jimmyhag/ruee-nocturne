@@ -81,15 +81,17 @@ Maximum 4 armes + 4 tomes par run (forcer les choix). **Phase 10** : on part ave
 ### 3.2 Tomes (8, phase 12 ; remplacent les passifs)
 Dégâts (dégâts, élites et boss, recul) · Cadence (recharge, durée des projectiles) · Projectiles (+1 projectile pour toutes les armes, taille, vitesse) · Vitalité (PV max, régénération, dégâts subis) · Mouvement (course, recharge et invulnérabilité du dash) · Savoir (XP, collecte) · Chance (lignes rares, coffres, 4e carte) · Or (or, or par élite). Une carte de tome tire elle aussi 1 à 3 lignes dans sa famille (`TOMES` dans `balance.ts`), jusqu'à 100 par tome.
 
-### 3.3 Ennemis (6) et boss (3)
+### 3.3 Ennemis (8) et boss (3)
 | Type | Rôle | Télégraphe |
 |---|---|---|
 | Spectre | Masse de base, lent | — |
 | Dard | Rapide, fragile, vient en nuées | Sifflement |
 | Brute | Tank, pousse ; **l'élite charge** en ligne (7 u à 16 u/s, phase 11) : on la traverse en dash ou on s'écarte | Couloir rouge au sol 0,6 s |
 | Volant | Ignore le sol, oblige à sauter ou anticiper | Ombre au sol |
-| Cracheur | Reste à distance, projectile lent et esquivable | Ligne de visée 0,6 s |
-| Élite | Variante dorée de n'importe quel type, ×6 PV, lâche un coffre | Aura dorée |
+| Cracheur | Reste à distance (dès 3:00, phase 16), projectile lent au sol, se saute ou s'évite | Ligne de visée 0,6 s |
+| **Archer** (phase 16, dès 1:30) | Garde 10–13 u, flèche rapide en ligne droite arrêtée par les obstacles ; l'élite tire une volée de trois | Ligne de visée fine 0,5 s, direction figée : un pas de côté, un dash ou un muret |
+| **Sorcier** (phase 16, dès 4:00) | Garde 12–15 u, boule de feu en cloche qui retombe là où était le joueur (passe au-dessus des murs) | Cercle rouge qui se remplit pendant le vol (1,1 s) |
+| Élite | Variante dorée d'un type de masse ou de l'Archer, ×6 PV, lâche un coffre | Aura dorée |
 | **Gardien** (5:00) | Boss charge en ligne ; **onde de choc** toutes les 6 s (3 s en phase 2) qui s'étend à 9 u/s jusqu'à 14 u : se saute (phase 11) | Recul + rugissement ; anneau rouge qui grandit |
 | **Essaim-mère** (10:00) | Boss qui pond des Dards | Pulsation |
 | **Colosse** (15:00) | Boss zones au sol | Cercles rouges 1 s |
@@ -97,8 +99,9 @@ Dégâts (dégâts, élites et boss, recul) · Cadence (recharge, durée des pro
 | **Éruptions** (dès 2:30, phase 11) | Le sol : une fissure suit le joueur (7 u/s, plus vite qu'il ne marche) pendant 0,8 s puis un pic blesse et projette qui est **au sol** ; toutes les 9 s, 4 s à 15:00 | Cercle rouge qui se remplit, sous les pieds |
 
 ### 3.4 Terrain
-- 1 carte V1 : clairière infinie procédurale (arbres, rochers, lanternes) avec **zones** : clairière ouverte, bois dense (couloirs), lac (ralentit). Les obstacles créent des décisions de trajectoire.
-- **Plateaux** (phase 11) : 14 disques de roche de 2,5–4 u de rayon et 1,4 u de haut, placés par la seed hors lacs et bois, à 24 u au moins du départ (la clairière de départ reste ouverte). Ils se montent **d'un saut** (1,7 u) : le bord est un mur vu d'en bas, on le passe en l'air et on atterrit dessus, on retombe en sortant. Les marcheurs et les boss butent au pied ; Volants, crachats, cercles du Colosse, onde du Gardien et éruptions atteignent un joueur perché : un répit, pas un abri.
+- 1 carte V1, **construite** (phase 16) : la seed `MAP.seed` pose un lieu par secteur de 34 u, la clairière de départ (30 u) restant ouverte : **ruines** (murets de pierre en L, en U, en croix ou en enceinte brisée, toujours avec des brèches de 4 u), **cercles de pierres** (6 à 8 menhirs autour d'une lanterne), **troncs couchés** (2 ou 3, parallèles), **bosquets** (bois dense), **lacs** (ralentissent), clairières vides. Arbres et rochers épars autour, espacés d'au moins 3 u.
+- **Toujours un accès aux ennemis** : deux obstacles d'ouvrages différents laissent 3 u de passage (une Brute élite fait 2,5 u), chaque ouvrage a des brèches, et un test vérifie que toute case libre est atteignable par une Brute élite (carte du jeu et 50 seeds). Les marcheurs suivent un **champ de flux** autour du joueur (cases de 1 u, recalcul toutes les 0,2 s) : ils trouvent la brèche au lieu de buter ; un marcheur qui n'avance plus suit le flux case par case 0,6 s. Les boss passent à travers les ouvrages.
+- **Des obstacles utiles** : murets et troncs se franchissent **d'un saut** (le joueur s'échappe, les marcheurs font le tour) ; murets, menhirs, arbres et rochers **arrêtent les flèches et les crachats** (se mettre à couvert). Les plateaux de la phase 11 sont retirés (demande de Jimmy : les ennemis ne doivent jamais être tenus à distance).
 - Cycle de lumière lié au temps de run : crépuscule → nuit → aube (lisibilité du temps restant sans regarder le chrono).
 
 ### 3.5 Personnages (9, phase 6 ; 3 en V1)
@@ -182,7 +185,7 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 ### 4.5 Entrées
 - Clavier (ZQSD/WASD/flèches, Espace, Maj), **manette** (Gamepad API, deadzone 0,2), tactile (joystick flottant sous le pouce gauche, boutons droite, rebinding gauche/droite).
 - Un seul `InputState` normalisé par frame : `{move: vec2, jump, dash, pause}`.
-- **Le saut et le dash servent** (phase 11) : le saut monte sur les plateaux et passe au-dessus des éruptions et de l'onde du Gardien (en l'air ≥ 0,9 u au-dessus du sol local : hors de portée des marcheurs, des crachats et des zones) ; le dash (0,32 s d'invulnérabilité) traverse une charge de Brute élite ou sort d'une éruption. Aucun des deux n'attaque : ce sont des outils de déplacement et d'esquive.
+- **Le saut et le dash servent** (phase 11) : le saut franchit les murets et les troncs (phase 16 ; il montait sur les plateaux en phase 11) et passe au-dessus des éruptions, de l'onde du Gardien et des crachats (en l'air ≥ 0,9 u : hors de portée des marcheurs, des crachats et des zones ; les flèches, elles, touchent aussi en l'air) ; le dash (0,32 s d'invulnérabilité) traverse une charge de Brute élite ou sort d'une éruption. Aucun des deux n'attaque : ce sont des outils de déplacement et d'esquive.
 
 ### 4.6 Audio
 - Web Audio API. Pas de bibliothèque. Un `AudioBus` avec 3 canaux (musique, SFX, UI), limiteur simple, **pool de voix** (max 24 SFX simultanés, les tirs les moins récents coupés).
@@ -274,6 +277,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 15 — Direction artistique toon (après la 1.9.0)
 - Rendu toon à contours noirs (`MeshToonMaterial` à 3 tons, contour par coque inversée instanciée : +1 draw call par famille, pas d'`EffectComposer`), modèles arrondis (boîtes arrondies sur les personnages et les boss, normales lissées ; les ennemis de masse restent en boîtes brutes pour le budget de triangles), sol en terrain avec herbe en nappes, palette nuit bleue étendue aux ennemis.
 - **Porte** : ≤ 40 draw calls, ≤ 150 k tris à 400 ennemis, bench inchangé, captures lues, `perf-reviewer`, test de Jimmy.
+
+### Phase 16 — Carte construite et tireurs (après la 1.10.0)
+- Demande de Jimmy : une carte propre, des obstacles utiles, jamais d'endroit où les ennemis ne peuvent pas venir, des ennemis qui tirent. Carte en lieux (§3.4), champ de flux, murets franchissables d'un saut, tirs arrêtés par les obstacles, plateaux retirés ; Archer et Sorcier (§3.3), Cracheur dès 3:00, 24 tireurs à l'écran au plus.
+- **Porte** : connexité 100 % (carte du jeu et 50 seeds) ; dans 200 runs simulés, aucun ennemi au sol immobile plus de 3 s à moins de 30 u du joueur (hors foule) ; cibles des profils nu et maxé tenues ; aucune source de tir à plus de 30 % des morts ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; bench dans les 10 % ; captures lues ; parité clavier et tactile ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
