@@ -80,6 +80,8 @@ const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
 
 // capacités d'instances par type d'ennemi (CAPS.enemies = 520 au total)
 const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
+/** Distance² sous laquelle coffres de carte et sanctuaires sont dessinés (phase 18 : au-delà, seule la colonne). */
+const POI_DRAW2 = 50 * 50;
 const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1, 40, 24]; // phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24)
 
 interface Ghost {
@@ -312,11 +314,9 @@ export class GameScene {
     );
 
     // armes
-    this.aura = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40), flat(PAL.xp, 0.35));
-    this.aura.rotation.x = -Math.PI / 2;
+    this.aura = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, 0.35)); // à plat : inclinable (phase 18)
     this.aura.visible = false;
-    this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40), flat(PAL.xp, 0.08));
-    this.auraDisc.rotation.x = -Math.PI / 2;
+    this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, 0.08));
     this.auraDisc.visible = false;
     this.scene.add(this.aura, this.auraDisc);
     // lames : un InstancedMesh (6 draw calls → 1) + fantômes additifs (3 par lame)
@@ -528,10 +528,10 @@ export class GameScene {
 
   /** Inclinaison du sol en (x, z) dans tRx / tRz : un disque plat posé là épouse la pente. Aucune allocation. */
   private tilt(x: number, z: number): void {
-    const gx = (this.gy(x + 0.6, z) - this.gy(x - 0.6, z)) / 1.2,
-      gz = (this.gy(x, z + 0.6) - this.gy(x, z - 0.6)) / 1.2;
-    this.tRx = Math.atan(gz);
-    this.tRz = -Math.atan(gx);
+    // pente ≤ 0,35 : atan(g) ≈ g à 4 % près, invisible ; une seule lecture bilinéaire (relecture perf-reviewer)
+    this.terrain.gyGrad(x, z);
+    this.tRx = -this.terrain.gradZ;
+    this.tRz = this.terrain.gradX;
   }
 
   /** Change le personnage affiché (menu : aperçu ; partie : personnage choisi) et sa tenue. Idempotent. */
@@ -878,11 +878,15 @@ export class GameScene {
       const c = w.mapChests[i];
       if (c.open) continue;
       const g = this.gy(c.x, c.z);
-      this.tilt(c.x, c.z);
-      this.mapChestW.put(c.x, g - 0.02, c.z, i * 1.7, 1.05, WHITE, this.tRx, this.tRz);
+      // le coffre ne se dessine qu'à moins de 50 u (au-delà, brouillard) ; la colonne de lumière, elle, se voit de loin
+      const nearC = (c.x - px) ** 2 + (c.z - pz) ** 2 < POI_DRAW2;
+      if (nearC) {
+        this.tilt(c.x, c.z);
+        this.mapChestW.put(c.x, g - 0.02, c.z, i * 1.7, 1.05, WHITE, this.tRx, this.tRz);
+      }
       const bw = 1 + Math.sin(now * 2 + i) * 0.06;
       this.beamW.put(c.x, g, c.z, 0, bw, affordable ? this.cBeamGold : this.cBeamGrey, 0, 0, 1, bw);
-      if (c.hold > 0) {
+      if (c.hold > 0 && nearC) {
         const f = Math.min(1, c.hold / MAPCHEST.hold);
         this.holdW.put(
           c.x,
@@ -899,11 +903,13 @@ export class GameScene {
     for (let i = 0; i < w.shrines.length; i++) {
       const sr = w.shrines[i];
       const g = this.gy(sr.x, sr.z);
-      this.tilt(sr.x, sr.z);
-      this.shrineW.put(sr.x, g - 0.05, sr.z, i * 0.9, SHRINE.r * 0.9, WHITE, this.tRx, this.tRz);
       const f = sr.used ? 0 : sr.charge / SHRINE.charge;
-      this.cPoi.copy(this.cBeamBlue).multiplyScalar(sr.used ? 0.12 : 0.35 + f * 1.2 + Math.sin(now * 3 + i) * 0.08);
-      this.shrineGlowW.put(sr.x, g + 0.12, sr.z, now * 0.4, SHRINE.r * (1 + f * 0.08), this.cPoi, this.tRx, this.tRz);
+      if ((sr.x - px) ** 2 + (sr.z - pz) ** 2 < POI_DRAW2) {
+        this.tilt(sr.x, sr.z);
+        this.shrineW.put(sr.x, g - 0.05, sr.z, i * 0.9, SHRINE.r * 0.9, WHITE, this.tRx, this.tRz);
+        this.cPoi.copy(this.cBeamBlue).multiplyScalar(sr.used ? 0.12 : 0.35 + f * 1.2 + Math.sin(now * 3 + i) * 0.08);
+        this.shrineGlowW.put(sr.x, g + 0.12, sr.z, now * 0.4, SHRINE.r * (1 + f * 0.08), this.cPoi, this.tRx, this.tRz);
+      }
       if (!sr.used) this.beamW.put(sr.x, g, sr.z, 0, 1 + f * 0.6, this.cBeamBlue, 0, 0, 1, 1 + f * 0.6);
     }
     this.mapChestW.end();
@@ -1002,8 +1008,8 @@ export class GameScene {
       this.tilt(px, pz);
       this.aura.position.set(px, gp + 0.12, pz);
       this.auraDisc.position.set(px, gp + 0.1, pz);
-      this.aura.rotation.set(-Math.PI / 2 + this.tRx, 0, this.tRz);
-      this.auraDisc.rotation.set(-Math.PI / 2 + this.tRx, 0, this.tRz);
+      this.aura.rotation.set(this.tRx, 0, this.tRz);
+      this.auraDisc.rotation.set(this.tRx, 0, this.tRz);
       this.aura.scale.setScalar(r * (1 + pulse * 0.06));
       this.auraDisc.scale.setScalar(r);
       const m = this.aura.material as THREE.MeshBasicMaterial;

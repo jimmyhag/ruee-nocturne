@@ -31,6 +31,32 @@ export class TerrainView {
     return a + (b - a) * tz;
   };
 
+  /** Pente du sol au dernier gyGrad (dh/dx, dh/dz). */
+  gradX = 0;
+  gradZ = 0;
+  /** Hauteur et pente (gradX, gradZ) en une seule lecture bilinéaire (les 4 mêmes coins). Aucune allocation. */
+  gyGrad(x: number, z: number): number {
+    const G = this.grid;
+    let fx = (x + WORLD_HALF) / CELL,
+      fz = (z + WORLD_HALF) / CELL;
+    fx = fx < 0 ? 0 : fx > N - 1.001 ? N - 1.001 : fx;
+    fz = fz < 0 ? 0 : fz > N - 1.001 ? N - 1.001 : fz;
+    const i = fx | 0,
+      j = fz | 0,
+      tx = fx - i,
+      tz = fz - j,
+      k = j * N + i;
+    const h00 = G[k],
+      h10 = G[k + 1],
+      h01 = G[k + N],
+      h11 = G[k + N + 1];
+    const a = h00 + (h10 - h00) * tx,
+      b = h01 + (h11 - h01) * tx;
+    this.gradX = ((h10 - h00) * (1 - tz) + (h11 - h01) * tz) / CELL;
+    this.gradZ = (b - a) / CELL;
+    return a + (b - a) * tz;
+  }
+
   /** Échantillonne la sim et construit le maillage du sol (couleurs par sommet : crêtes plus claires, creux plus sombres). */
   build(w: World, mat: THREE.Material): THREE.Mesh {
     for (let j = 0; j < N; j++)

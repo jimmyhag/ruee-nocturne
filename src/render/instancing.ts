@@ -38,7 +38,7 @@ export class InstanceWriter {
     if (this.n >= this.mesh.instanceMatrix.count) return;
     const d = this.d;
     d.position.set(x, y, z);
-    d.rotation.set(rx, ry, rz);
+    d.rotation.set(rx, ry, rz, 'XZY'); // inclinaison (rx, rz) indépendante de la rotation ry (phase 18 : ombres sur les pentes)
     d.scale.set(s, sy, sz);
     d.updateMatrix();
     this.mesh.setMatrixAt(this.n, d.matrix);
