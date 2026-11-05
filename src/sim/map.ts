@@ -2,7 +2,10 @@
 // sur une grille de secteurs, puis les arbres et rochers épars autour. Règle d'accès : deux obstacles d'ouvrages
 // différents laissent toujours MAP.pass u de passage, et chaque ouvrage a des brèches. Exécuté une fois à la création
 // du monde : les allocations y sont permises (rien ici ne tourne pendant un run).
-import { DECOR, FLOW, MAP, PLAY_LIMIT, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { DECOR, ELITE, ENEMIES, FLOW, MAP, PLAY_LIMIT, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+
+/** Plus gros rayon d'un marcheur (élite comprise, boss exclus) : marge de la grille `near` hors de laquelle la collision est sautée. */
+const ENEMY_MAX_R = Math.max(...ENEMIES.filter((d) => !d.boss).map((d) => d.r)) * ELITE.rMul;
 import type { Rng } from './rng';
 import type { Obstacle, Wall, World } from './world';
 
@@ -128,8 +131,8 @@ function ruinShape(kind: number): number[][] {
     }
     default: {
       // croix : quatre bras qui partent à 3 u du centre (entre deux bras voisins : 4,2 u, passage 3,3 u)
-      const a = 3,
-        e = 3 + h;
+      const a = MAP.crossGap,
+        e = MAP.crossGap + h;
       return [
         [0, a, 0, e],
         [0, -a, 0, -e],
@@ -150,7 +153,7 @@ function placeRuin(w: World, r: Rng, cx: number, cz: number): void {
 }
 
 function placeStones(w: World, r: Rng, cx: number, cz: number): void {
-  const n = 6 + Math.floor(r.next() * 3);
+  const n = MAP.stonesMin + Math.floor(r.next() * (MAP.stonesMax - MAP.stonesMin + 1));
   const a0 = r.range(0, TAU);
   for (let i = 0; i < n; i++) {
     const a = a0 + (i / n) * TAU;
@@ -167,7 +170,7 @@ function placeLogs(w: World, r: Rng, cx: number, cz: number): void {
   const start = w.walls.length;
   for (let i = 0; i < n; i++) {
     const off = (i - (n - 1) / 2) * MAP.logGap,
-      shift = r.range(-1.5, 1.5),
+      shift = r.range(-MAP.logShift, MAP.logShift),
       half = r.range(MAP.logLen[0], MAP.logLen[1]) / 2,
       px = cx - uz * off + ux * shift,
       pz = cz + ux * off + uz * shift;
@@ -197,7 +200,7 @@ function scatter(w: World, r: Rng, n: number, sMin: number, sMax: number, baseR:
 /** Génère toute la carte : lieux, bois, arbres et rochers épars, puis la grille des cases pleines (champ de flux). */
 export function buildMap(w: World, r: Rng): void {
   // 1. lieux par secteur (hors lacs, bois et clairière de départ)
-  const n = Math.floor((2 * (PLAY_LIMIT - 8)) / MAP.sector);
+  const n = Math.floor((2 * (PLAY_LIMIT - MAP.edge)) / MAP.sector);
   const o = -(n * MAP.sector) / 2;
   for (let i = 0; i < n; i++)
     for (let j = 0; j < n; j++) {
@@ -254,7 +257,7 @@ function buildSolid(w: World): void {
   w.near.fill(0);
   // near : cases à moins de r + NEAR d'un obstacle ; ailleurs, un ennemi (r ≤ 1,25) ne peut rien toucher et la
   // collision est sautée (la plupart de la carte est ouverte : c'est ce qui garde le pas des 400 ennemis bon marché)
-  const NEAR = 1.25 + C;
+  const NEAR = ENEMY_MAX_R + C;
   const mark = (sol: Uint8Array, x0: number, x1: number, z0: number, z1: number, inside: (x: number, z: number) => boolean) => {
     const i0 = Math.max(0, Math.floor((x0 + WORLD_HALF) / C)),
       i1 = Math.min(N - 1, Math.floor((x1 + WORLD_HALF) / C)),

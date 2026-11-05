@@ -15,8 +15,8 @@ w.wmods.orbe[4] = 3;
 w.player.projAdd = 3;
 refreshStats(w);
 // masse + Volants + Cracheurs : types 0,1,2 puis 4 et 5 (le modulo 5 ignore le Gardien, type 3)
-const MIX = [0, 1, 2, 4, 5]; // masse + Volants + Cracheurs (le Gardien, type 3, est exclu) ; hissé hors de la fenêtre de mesure du tas
-for (let i = 0; i < 390; i++) spawnEnemy(w, MIX[i % 5], (i / 390) * Math.PI * 2, 6 + (i % 17));
+const MIX = [0, 1, 2, 4, 5, 9, 10]; // masse + Volants + Cracheurs + Archers et Sorciers (phase 16 ; le Gardien, type 3, est exclu) ; hissé hors de la fenêtre de mesure du tas
+for (let i = 0; i < 390; i++) spawnEnemy(w, MIX[i % MIX.length], (i / 390) * Math.PI * 2, 6 + (i % 17));
 const inp = { mx: 0.7, mz: 0.3, jump: false, dash: false, pick: 0 };
 w.player.maxHp = 1e9; // invincible : on mesure le coût du step, pas la survie
 const gc = (globalThis as any).gc as (() => void) | undefined;
@@ -36,7 +36,7 @@ for (let i = 0; i < 600; i++) {
   const t0 = performance.now();
   step(w, inp, STEP);
   times.push(performance.now() - t0);
-  if (w.enemyCount < 380) for (let k = w.enemyCount; k < 400; k++) spawnEnemy(w, MIX[k % 5], k, 8 + (k % 13));
+  if (w.enemyCount < 380) for (let k = w.enemyCount; k < 400; k++) spawnEnemy(w, MIX[k % MIX.length], k, 8 + (k % 13));
 }
 gc?.();
 const heap1 = process.memoryUsage().heapUsed;

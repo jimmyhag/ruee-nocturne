@@ -287,7 +287,7 @@ function tickShots(w: World, dt: number): void {
         w.freeShot(i);
         continue;
       }
-      if (w.blocksShot(s.x, s.z, s.r)) {
+      if (w.nearObstacle(s.x, s.z) && w.blocksShot(s.x, s.z, s.r)) {
         w.emit(Ev.ShotBlocked, s.x, arrow ? 1 : 0.3, s.z, s.kind);
         w.freeShot(i);
         continue;

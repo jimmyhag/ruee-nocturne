@@ -84,6 +84,11 @@ export const MAP = {
   logLen: [5, 8],
   logGap: 4.6, // entre deux troncs parallèles (passage 3,7 u)
   start: 8, // aucun arbre ni rocher à moins de 8 u du départ
+  edge: 8, // marge entre les lieux et le bord de la zone jouable
+  crossGap: 3, // croix : les bras partent à 3 u du centre (entre deux bras voisins : 4,2 u, passage 3,3 u)
+  stonesMin: 6, // menhirs par cercle : 6 à 8
+  stonesMax: 8,
+  logShift: 1.5, // décalage des troncs le long de leur axe (± u)
 };
 
 // champ de flux (phase 16) : les ennemis au sol contournent les ouvrages au lieu de buter dessus
@@ -91,7 +96,8 @@ export const FLOW = {
   cell: 1, // côté d'une case (1,25 u fermait des passages de 3 u : des poches que le flux n'atteignait pas)
   half: 50, // demi-côté de la grille locale, en cases : 100 u de côté, couvre la distance de réapparition (50 u)
   period: 0.2, // recalcul (s)
-  clear: 0.2, // une case est pleine si son centre est à moins de r + 0,2 u d'un obstacle (passage de 3 u : 2,6 u libres)
+  clear: 0.5, // une case est pleine si son centre est à moins de r + 0,5 u d'un obstacle (passage de 3 u : 2 u libres ; les gros
+  // marcheurs ne rasent plus les murets)
   blocked: 0.35, // un marcheur qui avance de moins de 35 % de sa vitesse voulue bute sur un obstacle…
   detour: 0.6, // …et suit alors le flux case par case pendant 0,6 s : il glisse autour au lieu de pousser tout droit
 };
@@ -286,6 +292,8 @@ export const ARCHER = {
   shotR: 0.3,
   orbit: 0.5,
   fireMargin: 3,
+  firstShot: [0.8, 2], // s avant le premier tir d'un Archer ou d'un Sorcier qui arrive (désynchronisés)
+  muzzle: 0.2, // la flèche part à r + 0,2 u devant l'Archer
   volley: 3, // élite
   spread: 0.22, // rad entre deux flèches de la volée
 };
@@ -299,7 +307,7 @@ export const SORCIER = {
   windup: 0.35, // mains levées avant le lancer (lisible)
   cast: 1.1, // durée du vol = cercle rouge au sol qui se remplit
   r: 1.9,
-  dmg: 13, // × dmgScale
+  dmg: 11, // × dmgScale ; 13 → 11 : le feu faisait 26 % des morts d'un personnage complet (porte : une source de tir ≤ 30 %)
   orbit: 0.4,
   fireMargin: 3,
 };

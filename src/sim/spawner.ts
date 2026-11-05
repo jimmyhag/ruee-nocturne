@@ -1,4 +1,4 @@
-import { ARCHER_TYPE, BOSS_TYPE, BOSSES, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, ARCHER_TYPE, BOSS_TYPE, BOSSES, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -27,7 +27,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.bob = w.rng.range(0, TAU);
   e.state = 0;
   // plongées et premiers tirs désynchronisés (phase 16 : un tireur qui arrive ne tire pas tout de suite)
-  e.timer = type === VOLANT_TYPE ? w.rng.range(0.5, VOLANT.divePeriod) : type === ARCHER_TYPE || type === SORCIER_TYPE ? w.rng.range(0.8, 2) : 0;
+  e.timer = type === VOLANT_TYPE ? w.rng.range(0.5, VOLANT.divePeriod) : type === ARCHER_TYPE || type === SORCIER_TYPE ? w.rng.range(ARCHER.firstShot[0], ARCHER.firstShot[1]) : 0;
   e.aim = type === BOSS_TYPE ? HAZARDS.ring.first : 0; // Gardien : minuteur de l'anneau de choc (phase 11)
   if (elite && type === ELITE_TYPE) e.timer = HAZARDS.charge.first; // Brute élite : première charge différée
   e.tx = e.tz = 0;

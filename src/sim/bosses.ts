@@ -238,8 +238,8 @@ export function tickArcher(w: World, e: Enemy, dt: number, dx: number, dz: numbe
           vz = e.tx * sn + e.tz * c;
         s.kind = ShotKind.Arrow;
         s.r = A.shotR;
-        s.x = s.px = e.x + vx * (e.r + 0.2);
-        s.z = s.pz = e.z + vz * (e.r + 0.2);
+        s.x = s.px = e.x + vx * (e.r + A.muzzle);
+        s.z = s.pz = e.z + vz * (e.r + A.muzzle);
         s.vx = vx * A.shotSpeed;
         s.vz = vz * A.shotSpeed;
         s.life = A.shotLife;

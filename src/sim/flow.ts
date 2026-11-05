@@ -37,6 +37,8 @@ export class FlowField {
       q = this.queue;
     const pi = Math.floor((w.player.x + WORLD_HALF) / C),
       pj = Math.floor((w.player.z + WORLD_HALF) / C);
+    // la carte est statique : même case du joueur, même champ (le plus souvent quand il ne bouge pas ou tourne en rond)
+    if (this.ready && pi - FLOW.half === this.oi && pj - FLOW.half === this.oj) return;
     this.oi = pi - FLOW.half;
     this.oj = pj - FLOW.half;
     dist.fill(UNSEEN);
@@ -107,7 +109,26 @@ export class FlowField {
       best = dn;
       bk = k;
     }
-    if (bk < 0) return;
+    if (bk < 0) {
+      // case pleine entourée de cases pleines (enfoncé dans la marge d'un angle de muret) : on cherche à deux cases
+      if (d0 >= 0 || li < 2 || lj < 2 || li >= S - 2 || lj >= S - 2) return;
+      let bi = 0,
+        bj = 0;
+      for (let dj = -2; dj <= 2; dj++)
+        for (let di = -2; di <= 2; di++) {
+          const dn = this.dist[(lj + dj) * S + li + di];
+          if (dn >= 0 && dn < best) {
+            best = dn;
+            bi = di;
+            bj = dj;
+          }
+        }
+      if (bi === 0 && bj === 0) return;
+      const l = Math.sqrt(bi * bi + bj * bj);
+      out[0] = bi / l;
+      out[1] = bj / l;
+      return;
+    }
     const f = bk >= 4 ? INV_SQRT2 : 1;
     out[0] = DI[bk] * f;
     out[1] = DJ[bk] * f;

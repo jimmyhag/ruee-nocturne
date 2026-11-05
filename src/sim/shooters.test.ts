@@ -66,6 +66,7 @@ describe('Archer', () => {
     const w = quiet();
     w.walls.push({ x1: -3, z1: 4, x2: 3, z2: 4, r: MAP.wallR, h: MAP.wallH, kind: 0 });
     for (const k of [0 * 65536 + 0, -1 * 65536 + 0]) w.wallGrid.set(k, [0]);
+    w.near.fill(1); // le muret posé à la main : toute la zone compte comme proche d'un obstacle
     const i = spawnEnemy(w, ARCHER_TYPE, 0, 11);
     const e = w.enemies[i];
     e.timer = 0;

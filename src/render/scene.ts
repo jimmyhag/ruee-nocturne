@@ -246,7 +246,7 @@ export class GameScene {
       makeInstanced(new THREE.SphereGeometry(0.32, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
     );
     this.arrowW = new InstanceWriter(
-      makeInstanced(new THREE.BoxGeometry(0.07, 0.07, 0.95), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
+      makeInstanced(new THREE.BoxGeometry(0.13, 0.13, 0.95), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
     );
     this.fireW = new InstanceWriter(
       makeInstanced(new THREE.IcosahedronGeometry(0.42, 1), additive(0xffffff, 0.95), 32),
