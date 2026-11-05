@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.13.1 — 5 nov. 2026 (suivi de la phase 18)
+
+### Modifié
+
+- **Braconnier** : une ligne de dégâts de départ en moins sur le Boomerang (dégâts, recharge, portée). Avec le relief, les coffres de carte et les sanctuaires, il survivait près de 4 min de plus que les autres sans améliorations (9:34 contre 5:46 sur 200 runs) ; il revient à 5:45, avec 11 % de morts avant 3 min et 10:49 en profil maxé (relecture `balance-playtester`).
+
 ## 1.13.0 — 5 nov. 2026 (phase 18 « Relief, exploration et rythme »)
 
 La carte n'est plus plate ni vide : on monte, on descend, et il y a toujours quelque chose à aller chercher.
