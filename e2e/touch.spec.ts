@@ -56,7 +56,7 @@ test.describe('tactile', () => {
     await expect(page.locator('#perf')).toBeHidden();
   });
 
-  test('mode gaucher : les boutons SAUT et DASH passent à gauche et restent utilisables', async ({ page }) => {
+  test('mode gaucher : les boutons SAUT et SORT passent à gauche et restent utilisables', async ({ page }) => {
     await openGame(page);
     await page.evaluate(() => (window as any).__game.setMeta({ version: 3, settings: { lefty: true } }));
     await expect(page.locator('body')).toHaveClass(/lefty/);

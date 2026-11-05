@@ -1,6 +1,6 @@
 import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, REAPER_TYPE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
-import { Ev, Mode } from './sim/types';
+import { Ev, Mode, Spell } from './sim/types';
 import type { Input } from './sim/types';
 import { World } from './sim/world';
 import type { GameScene } from './render/scene';
@@ -1175,7 +1175,87 @@ $('installBtn').onclick = async () => {
 
 // ---------- événements de la sim → effets ----------
 // Règle 3 de CLAUDE.md : chaque coup porté produit flash (sim), recul (sim), son, chiffre et particules.
-const HIT_COLORS = [PAL.proj, PAL.xp, PAL.paper, PAL.bolt, PAL.boomerang, PAL.mine, PAL.accent]; // HitSrc (Fire : accent)
+// HitSrc : Orbe, Aura, Lames, Foudre, Boomerang, Mines, Fire, Thorns, Talisman, Spell (phase 19 : or du sort)
+/**
+ * Retour visuel d'un sort (phase 19, règle 3) : au lancement (x2, z2 = point visé ou d'arrivée), à l'impact (x2 = rayon).
+ * Les effets qui durent (filet, Tourbillon, Voile, ennemis étourdis) sont dessinés par la scène.
+ */
+function spellFx(
+  S: GameScene,
+  k: Spell,
+  impact: boolean,
+  x: number,
+  y: number,
+  z: number,
+  x2: number,
+  z2: number,
+  fx: number,
+  reduced: boolean,
+): void {
+  const P = S.particles;
+  if (!impact) {
+    switch (k) {
+      case Spell.Bond:
+      case Spell.Comete:
+        P.burst(x, y + 0.6, z, k === Spell.Comete ? PAL.accent : PAL.cream, (8 * fx) | 0, 3, 2);
+        break;
+      case Spell.Tourbillon:
+        P.ring(x, 0.4, z, PAL.paper, (14 * fx) | 0, 7, 1.5);
+        break;
+      case Spell.Clignement:
+        // éclat violet au départ et à l'arrivée
+        P.burst(x, y + 0.9, z, PAL.bolt, (14 * fx) | 0, 4, 3);
+        P.burst(x2, y + 0.9, z2, PAL.bolt, (14 * fx) | 0, 4, 3);
+        break;
+      case Spell.Voile:
+        P.ring(x, 0.6, z, PAL.xp, (16 * fx) | 0, 4, 2);
+        break;
+      case Spell.Collet:
+      case Spell.Bourse:
+        P.burst(x, y + 1, z, k === Spell.Bourse ? PAL.gold : PAL.paper, (6 * fx) | 0, 3, 2);
+        break;
+    }
+    return;
+  }
+  switch (k) {
+    case Spell.Eclat:
+      P.ring(x, 0.5, z, PAL.lantern, (30 * fx) | 0, x2 * 2.6, 2);
+      P.burst(x, 1, z, PAL.cream, (16 * fx) | 0, 5, 4);
+      if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+      break;
+    case Spell.Petard:
+      P.burst(x, 0.4, z, PAL.mine, (22 * fx) | 0, 7, 8);
+      P.ring(x, 0.2, z, PAL.accent, (20 * fx) | 0, x2 * 2.6, 1.5);
+      if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+      break;
+    case Spell.Bourse:
+      P.burst(x, 0.6, z, PAL.gold, (24 * fx) | 0, 6, 7);
+      P.ring(x, 0.2, z, PAL.gold, (16 * fx) | 0, x2 * 2.6, 1.2);
+      if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
+      break;
+    case Spell.Collet:
+      P.ring(x, 0.2, z, PAL.paper, (18 * fx) | 0, x2 * 1.5, 0.6);
+      break;
+    case Spell.Clignement:
+      P.burst(x, 0.8, z, PAL.bolt, (10 * fx) | 0, 5, 3);
+      break;
+    case Spell.Bond:
+      P.burst(x, 1, z, PAL.proj, (10 * fx) | 0, 5, 2);
+      break;
+  }
+}
+const HIT_COLORS = [
+  PAL.proj,
+  PAL.xp,
+  PAL.paper,
+  PAL.bolt,
+  PAL.boomerang,
+  PAL.mine,
+  PAL.accent,
+  PAL.paper,
+  PAL.bolt,
+  PAL.gold,
+];
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
   const reduced = reducedFx();
@@ -1251,7 +1331,8 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
         break;
       case Ev.Spell:
-        if (e.y2 === 0) audio.dash(); // provisoire : sons par sort plus bas (phase 19)
+        spellFx(S, e.v | 0, e.y2 === 1, e.x, e.y, e.z, e.x2, e.z2, fx, reduced);
+        audio.spell(e.v | 0, e.y2 === 1);
         break;
       case Ev.Pickup:
         audio.pickup(now);

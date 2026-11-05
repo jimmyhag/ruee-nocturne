@@ -12,6 +12,7 @@ import {
   MERCHANT,
   REAPER_TYPE,
   SHRINE,
+  SPELL,
   STEP,
   SWARM_TYPE,
   TRAIT,
@@ -20,7 +21,7 @@ import {
   WORLD_HALF,
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
-import { ProjKind, ShotKind } from '../sim/types';
+import { ProjKind, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
@@ -33,6 +34,7 @@ import {
   lampHeadGeometry,
   lampPostGeometry,
   mapChestGeometry,
+  netGeometry,
   shrineGeometry,
   MERCHANT_LANTERN,
   stallGeometry,
@@ -133,6 +135,7 @@ export class GameScene {
   private zoneFillW: InstanceWriter; // disque qui se remplit pendant le télégraphe
   private ringW: InstanceWriter; // ondes de choc du Gardien (phase 11) : anneau fin, rayon = portée du coup
   private chestW: InstanceWriter;
+  private netW: InstanceWriter; // phase 19 : filet du Collet (Braconnier)
   // phase 18 : relief (sol déplacé, tout est posé au sol local)
   readonly terrain = new TerrainView();
   private gy = this.terrain.gy;
@@ -175,6 +178,10 @@ export class GameScene {
   private cShadow = new THREE.Color(PAL.ink);
   private cBladeGhost = [0.6, 0.35, 0.15].map((f) => new THREE.Color(PAL.paper).multiplyScalar(f));
   private cGhost = new THREE.Color();
+  // phase 19 : ennemis étourdis (Éclat, Collet) ou ralentis (Voile), silhouettes du Voile
+  private cStun = new THREE.Color(0xfff1a8);
+  private cSlow = new THREE.Color(0x9fd8ff);
+  private cVoile = new THREE.Color(PAL.xp);
   private writers: InstanceWriter[] = []; // tous les InstanceWriter dynamiques (remise à zéro au menu)
 
   private aura: THREE.Mesh;
@@ -292,6 +299,7 @@ export class GameScene {
       makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.35), 96),
     );
     this.chestW = new InstanceWriter(makeInstanced(new THREE.BoxGeometry(0.9, 0.62, 0.62), lam(PAL.gold), 16));
+    this.netW = new InstanceWriter(makeInstanced(netGeometry(), flat(PAL.gold, 0.85), 2));
     this.gemW = new InstanceWriter(
       makeInstanced(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 900),
     );
@@ -309,6 +317,7 @@ export class GameScene {
       this.zoneFillW.mesh,
       this.ringW.mesh,
       this.chestW.mesh,
+      this.netW.mesh,
       this.gemW.mesh,
       this.dashGhostW.mesh,
     );
@@ -342,6 +351,7 @@ export class GameScene {
       this.zoneFillW,
       this.ringW,
       this.chestW,
+      this.netW,
       this.gemW,
       this.dashGhostW,
       this.bladeW,
@@ -694,9 +704,10 @@ export class GameScene {
     this.blob.rotation.set(this.tRx, 0, this.tRz); // géométrie déjà à plat
     this.blob.scale.setScalar(Math.max(0.4, 1 - py * 0.25));
 
-    // dash : 1 particule crème par frame + silhouettes en fondu
-    if (P.dashT > 0) {
-      this.particles.burst(px, py + 0.8, pz, PAL.cream, 1, 0, 0, false);
+    // dash (Bond, Comète) et Voile (phase 19) : 1 particule par frame + silhouettes en fondu
+    const voile = w.spell === Spell.Voile && P.spellT > 0;
+    if (P.dashT > 0 || voile) {
+      this.particles.burst(px, py + 0.8, pz, voile ? PAL.xp : PAL.cream, 1, 0, 0, false);
       if (now - this.lastGhost >= FEEL.trail.dashGhostEvery) {
         this.lastGhost = now;
         const g = this.ghosts[this.ghostNext];
@@ -713,10 +724,35 @@ export class GameScene {
       const g = this.ghosts[i];
       if (g.life <= 0) continue;
       g.life -= dt;
-      this.cGhost.setHex(PAL.accent).multiplyScalar(Math.max(0, g.life / FEEL.trail.dashGhostLife));
+      this.cGhost.copy(voile ? this.cVoile : this.cFire).multiplyScalar(Math.max(0, g.life / FEEL.trail.dashGhostLife));
       this.dashGhostW.put(g.x, g.y, g.z, g.ry, 1, this.cGhost);
     }
     this.dashGhostW.end();
+    // phase 19 : Tourbillon (trois haches de lumière qui tournent autour du Bûcheron) et filet du Collet
+    if (P.spellT > 0 && w.spell === Spell.Tourbillon) {
+      const r = SPELL.tourbillon.r * (1 + (P.spellPow - 1) * 0.5);
+      for (let k = 0; k < 3; k++) {
+        const a = now * 14 + k * 2.094;
+        this.particles.burst(
+          px + Math.sin(a) * r * 0.8,
+          py + 0.7,
+          pz + Math.cos(a) * r * 0.8,
+          PAL.paper,
+          1,
+          0.5,
+          0.5,
+          false,
+        );
+      }
+    }
+    this.netW.begin();
+    if (P.spellT > 0 && w.spell === Spell.Collet) {
+      const S2 = w.sstate,
+        r = SPELL.collet.r * (1 + (P.spellPow - 1) * 0.5);
+      this.tilt(S2.x, S2.z);
+      this.netW.put(S2.x, this.gy(S2.x, S2.z) + 0.08, S2.z, now * 0.3, r, WHITE, this.tRx, this.tRz);
+    }
+    this.netW.end();
 
     // ennemis : hop constant, flash blanc au coup, élites dorées avec anneau, Volants avec ombre
     for (let t = 0; t < this.enemyW.length; t++) this.enemyW[t].begin();
@@ -732,7 +768,17 @@ export class GameScene {
         ez = lerp(e.pz, e.z, alpha);
       const boss = def.boss;
       const hop = boss ? 0 : Math.abs(Math.sin(now * 8 + e.bob)) * (e.type === 1 ? 0.12 : 0.1);
-      const col = e.flash > 0 ? WHITE : e.elite ? this.eliteColor[e.type] : this.enemyColor[e.type];
+      // phase 19 : un ennemi étourdi pâlit (jaune), un ennemi ralenti bleuit ; le flash blanc du coup passe avant
+      const col =
+        e.flash > 0
+          ? WHITE
+          : e.stun > 0
+            ? this.cStun
+            : e.slowT > 0
+              ? this.cSlow
+              : e.elite
+                ? this.eliteColor[e.type]
+                : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
       const eg = this.gy(ex, ez);
       const ey = e.y + hop + eg;

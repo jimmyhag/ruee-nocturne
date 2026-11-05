@@ -274,6 +274,63 @@ export class AudioBus {
   throwSound(): void {
     this.tone(this.sfx, 700, 0.12, 'triangle', 0.14, -300, PRIO.shoot);
   }
+  /**
+   * Sorts de classe (phase 19) : un son par sort, au lancement (`impact` = false) ou à l'impact. `k` = index Spell.
+   * Bond et Comète gardent le souffle de l'ancien dash ; les autres ont leur timbre.
+   */
+  spell(k: number, impact: boolean): void {
+    const S = this.sfx,
+      P = PRIO.move;
+    switch (k) {
+      case 0: // Bond : souffle, puis salve claire
+        if (impact) this.tone(S, 980, 0.12, 'triangle', 0.16, 400, P);
+        else this.dash();
+        break;
+      case 1: // Tourbillon : sifflement qui tourne
+        this.tone(S, 420, 0.5, 'sawtooth', 0.14, 380, P);
+        this.tone(S, 640, 0.5, 'triangle', 0.1, -260, P, 0.1);
+        break;
+      case 2: // Clignement : craquement électrique
+        if (impact) this.bolt();
+        else this.tone(S, 1800, 0.14, 'square', 0.1, -1500, P);
+        break;
+      case 3: // Éclat : carillon lumineux
+        if (impact) {
+          this.tone(S, 784, 0.45, 'sine', 0.26, 0, P);
+          this.tone(S, 1175, 0.4, 'triangle', 0.18, 0, P, 0.04);
+        }
+        break;
+      case 4: // Collet : filet lancé, puis claquement des cordes
+        if (impact) this.tone(S, 260, 0.12, 'square', 0.18, -120, P);
+        else this.throwSound();
+        break;
+      case 5: // Pétard : détonation sèche et grave
+        if (impact) {
+          this.blast();
+          this.tone(S, 160, 0.2, 'sawtooth', 0.22, -110, P, 0.02);
+        }
+        break;
+      case 6: // Comète : souffle chaud
+        if (!impact) {
+          this.dash();
+          this.tone(S, 220, 0.3, 'sawtooth', 0.1, 180, P, 0.03);
+        }
+        break;
+      case 7: // Voile : nappe spectrale descendante
+        if (!impact) {
+          this.tone(S, 660, 0.7, 'sine', 0.2, -420, P);
+          this.tone(S, 990, 0.6, 'sine', 0.12, -600, P, 0.05);
+        }
+        break;
+      case 8: // Bourse : lancer, puis pièces qui éclatent
+        if (impact) {
+          this.blast();
+          this.tone(S, 1320, 0.06, 'square', 0.1, 0, P, 0.03);
+          this.tone(S, 1660, 0.06, 'square', 0.1, 0, P, 0.08);
+        } else this.throwSound();
+        break;
+    }
+  }
   /** Explosion (mine, cercle du Colosse). */
   blast(): void {
     this.tone(this.sfx, 70, 0.25, 'square', 0.3, -40, PRIO.kill);

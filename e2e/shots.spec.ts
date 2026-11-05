@@ -208,7 +208,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await page.evaluate(() => (window as any).__game.debug.warp(60));
   await pickUntilPlay(page);
   await page.evaluate(() => (window as any).__game.debug.spawn(0, 24, 5));
-  // un dash vers la droite : la traînée se pose derrière le joueur (durée comptée en temps de jeu : sous SwiftShader
+  // une Comète vers la droite : la traînée se pose derrière le joueur (durée comptée en temps de jeu : sous SwiftShader
   // en rendu net, la boucle avance moins vite que l'horloge)
   const t0 = await page.evaluate(() => (window as any).__game.world.t as number);
   await page.keyboard.down('KeyD');
@@ -223,7 +223,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
     for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === 3) n++;
     return n;
   });
-  expect(fires, 'plaques de feu posées par le dash').toBeGreaterThan(3);
+  expect(fires, 'plaques de feu posées par la Comète').toBeGreaterThan(3);
   await page.screenshot(shot('feufollet', p));
   await page.evaluate(() => (window as any).__game.debug.speed(1));
 });

@@ -30,6 +30,9 @@ export const NAKED: Target[] = [
   // phase 18 : difficulté lisse, pas de falaise (au plus 22 points perdus en une minute) ; on ouvre des coffres de carte
   { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' },
   { name: 'coffres de carte ≥ 1 / run', min: 1, max: 1e9, get: (s) => s.mapChestsPerRun, fmt: (v) => v.toFixed(1) },
+  // phase 19 : le sort de classe sert (au moins un lancer par minute) sans remplacer l'arme (au plus 30 % des kills)
+  { name: 'sort ≥ 1 / min', min: 1, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
+  { name: 'sort ≤ 30 % des kills', min: 0, max: 30, get: (s) => s.spellKillPct, fmt: (v) => v + ' %' },
 ];
 export const MAXED: Target[] = [
   // phase 17 : 13–16 → 10–13 min et fin 3–12 → 1–12 % : la boutique (≈ +24 PV, dégâts ×1,17, recharge ×0,92, réanimation)
@@ -58,6 +61,9 @@ export const MAXED: Target[] = [
   },
   { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' }, // phase 18
   { name: 'coffres de carte ≥ 3 / run', min: 3, max: 1e9, get: (s) => s.mapChestsPerRun, fmt: (v) => v.toFixed(1) },
+  // phase 19 : le sort de classe sert (au moins un lancer par minute) sans remplacer l'arme (au plus 30 % des kills)
+  { name: 'sort ≥ 1 / min', min: 1, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
+  { name: 'sort ≤ 30 % des kills', min: 0, max: 30, get: (s) => s.spellKillPct, fmt: (v) => v + ' %' },
   // phase 18 : l'or sert en partie (7 % avant la phase) ; 25 % et non 35 : le bot ne fait que de courts détours (28 u),
   // un joueur qui suit les colonnes de lumière ouvre davantage de coffres
   { name: 'or dépensé ≥ 25 %', min: 25, max: 100, get: (s) => s.goldSpentPct, fmt: (v) => v + ' %' },

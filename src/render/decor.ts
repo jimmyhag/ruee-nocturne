@@ -116,6 +116,23 @@ export function shrineGeometry(): THREE.BufferGeometry {
   return withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB);
 }
 
+/**
+ * Filet du Collet (phase 19) : disque de rayon 1, à plat, fait d'un cercle et de 5 + 5 cordes croisées. Une géométrie,
+ * mise à l'échelle par instance (rayon du sort).
+ */
+export function netGeometry(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [new THREE.RingGeometry(0.9, 1, 40)];
+  for (let k = -2; k <= 2; k++) {
+    const o = k * 0.36,
+      half = Math.sqrt(1 - o * o) * 0.95;
+    const a = new THREE.PlaneGeometry(half * 2, 0.05);
+    a.translate(0, o, 0);
+    const b = a.clone().rotateZ(Math.PI / 2);
+    parts.push(a.rotateZ(Math.PI / 4), b.rotateZ(Math.PI / 4));
+  }
+  return merge(parts).rotateX(-Math.PI / 2);
+}
+
 /** Hauteur de la lanterne pendue à l'auvent de l'échoppe (coin avant droit). */
 export const MERCHANT_LANTERN = { x: 1.0, y: 1.75, z: 0.75 };
 /**
