@@ -443,7 +443,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       let cast: boolean;
       switch (w.spell) {
         case Spell.Tourbillon:
-          cast = near3 >= 3;
+          cast = near3 >= 2;
           break;
         case Spell.Petard:
           cast = near3 >= 3 || hazard || charged;
@@ -465,7 +465,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           cast = close >= 3 || charged || P.hp < P.maxHp * 0.35;
           break;
         default: // Bond, Comète, Clignement : l'esquive de l'ancien dash
-          cast = close >= 3 || charged;
+          cast = close >= 2 || charged;
       }
       out.spell = cast && P.spellCd <= 0;
       out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.spell;

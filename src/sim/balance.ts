@@ -533,7 +533,7 @@ export const SPELL = {
   petard: { cd: 6, r: 3.5, dmg: 55, kb: 12, jumpMul: 1.6 }, // Sapeur : l'atterrissage pose une mine (Démolisseur)
   comete: { cd: 1.8, time: 0.4 }, // Feu follet : dash 2× plus long que le Bond, la Traînée y pose du feu
   voile: { cd: 8, dur: 1.5, speedMul: 1.3, r: 1.4, slow: 2 }, // Revenante : invulnérable, ralentit ce qu'elle frôle
-  bourse: { cd: 6, range: 5, r: 3.5, dmg: 30, perGold: 0.1, maxBonus: 60 }, // Colporteur : +1 dégât par 10 or gardés (+60 max)
+  bourse: { cd: 7, range: 5, r: 3.5, dmg: 24, perGold: 0.1, maxBonus: 60 }, // Colporteur : +1 dégât par 10 or gardés (+60 max) ; 30 dégâts / 6 s faisaient 36 % des kills (nu)
 };
 
 // personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).
