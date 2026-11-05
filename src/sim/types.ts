@@ -28,6 +28,8 @@ export interface Enemy {
   tz: number;
   phase2: boolean; // boss : phase à 50 % PV déclenchée
   detour: number; // phase 16 : s restantes où il suit le champ de flux case par case (il butait sur un obstacle)
+  stun: number; // phase 19 : s restantes d'immobilisation (Éclat, Collet) ; les boss n'y sont pas sensibles
+  slowT: number; // phase 19 : s restantes de ralentissement (Voile, boss pris dans un Collet ou un Éclat)
 }
 
 export const enum ProjKind {
@@ -130,6 +132,7 @@ export const enum HitSrc {
   Fire,
   Thorns, // phase 17 : objet Épines
   Talisman, // phase 17 : objet Talisman orageux
+  Spell, // phase 19 : sort de classe
 }
 
 export const enum Ev {
@@ -139,7 +142,7 @@ export const enum Ev {
   Shoot,
   Jump,
   Land,
-  Dash,
+  Spell, // phase 19 : sort lancé (v = Spell, y2 = 0 au lancement, 1 à l'impact ; (x2, z2) = point visé)
   Pickup,
   LevelUp,
   PlayerHurt,
@@ -189,7 +192,7 @@ export interface Input {
   mx: number; // [-1,1]
   mz: number;
   jump: boolean; // front montant géré par la plateforme
-  dash: boolean;
+  spell: boolean; // phase 19 : sort de classe (remplace le dash)
   pick: number; // -1 ou index de carte choisie (mode levelup)
 }
 
@@ -220,10 +223,23 @@ export const enum Trait {
   Braise, // Veilleuse : le Halo grandit avec le temps
   Rapporteur, // Braconnier : un boomerang attrapé rend de la recharge
   Demolisseur, // Sapeur : chaque atterrissage pose une mine
-  Trainee, // Feu follet : le dash laisse une traînée de feu
+  Trainee, // Feu follet : la Comète (son sort) laisse une traînée de feu
   DejaMorte, // Revenante : une réanimation gratuite, XP ×2 en l'air
   Marchand, // Colporteur : les coffres donnent au moins 3 cartes
 }
+/** Sort de classe (phase 19) : un par personnage, sur le bouton de l'ancien dash ; constantes dans SPELL. */
+export const enum Spell {
+  Bond = 0, // Éclaireuse : dash, puis salve d'orbes en étoile
+  Tourbillon, // Bûcheron : coups tout autour, dégâts subis réduits
+  Clignement, // Sorcière : téléportation, éclair en chaîne au départ
+  Eclat, // Veilleuse : onde qui repousse et étourdit
+  Collet, // Braconnier : filet lancé qui immobilise
+  Petard, // Sapeur : explosion sous ses pieds qui le projette en l'air
+  Comete, // Feu follet : dash long (la Traînée y pose du feu)
+  Voile, // Revenante : forme spectrale, invulnérable et rapide, ralentit ce qu'elle traverse
+  Bourse, // Colporteur : bourse lancée qui explose, plus fort avec l'or gardé
+}
+export type SpellKey = 'bond' | 'tourbillon' | 'clignement' | 'eclat' | 'collet' | 'petard' | 'comete' | 'voile' | 'bourse';
 /** Identifiants des ennemis (index = type dans ENEMIES) : clés d'affichage côté UI, la sim ne porte aucun texte. */
 export type EnemyKey = 'spectre' | 'dard' | 'brute' | 'gardien' | 'volant' | 'cracheur' | 'essaim' | 'colosse' | 'faucheur' | 'archer' | 'sorcier';
 
@@ -296,13 +312,13 @@ export interface Player {
   eliteDmgMul: number; // dégâts aux élites et boss
   kbMul: number; // recul
   armor: number; // part des dégâts subis annulée (≤ 0,36)
-  dashCdMul: number;
-  dashInvulAdd: number; // s
+  spellCdMul: number; // phase 19 : tome Mouvement (recharge du sort) et Cape
+  spellPow: number; // phase 19 : tome Mouvement (puissance du sort : dégâts, rayon, durée)
   xpMul: number;
   chestGoldMul: number;
   eliteGold: number; // or en plus par élite tuée
   revives: number; // réanimations restantes (boutique)
-  dashTime: number; // durée du dash (personnage)
+  dashTime: number; // durée du déplacement éclair (Bond, Comète ; 0 pour les autres sorts)
   jumpMul: number; // phase 17 : Bottes de saut
   level: number;
   xp: number;
@@ -310,7 +326,9 @@ export interface Player {
   dirX: number;
   dirZ: number;
   dashT: number;
-  dashCd: number;
+  spellCd: number; // s avant de pouvoir relancer le sort
+  spellT: number; // s restantes d'un sort qui dure (Tourbillon, Voile, Collet)
+  dmgTaken: number; // multiplicateur des dégâts subis (Tourbillon : 0,5 pendant le sort)
   invul: number;
   walk: number;
   recoil: number;

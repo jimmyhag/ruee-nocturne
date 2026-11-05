@@ -8,7 +8,7 @@ import type { Input, TomeKey, WeaponKey } from '../types';
 import { World } from '../world';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, refreshStats, weaponStats } from './defs';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 
 describe('fiches d’armes et lignes', () => {
   it('six armes, une base finie et des lignes qui touchent une stat de la base', () => {

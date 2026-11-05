@@ -11,7 +11,7 @@ function isEditable(t: EventTarget | null): boolean {
 export class InputManager {
   private keys: Record<string, boolean> = {};
   private jumpQueued = false;
-  private dashQueued = false;
+  private spellQueued = false;
   private pickQueued = -1;
   joy = { id: -1, active: false, ox: 0, oy: 0, x: 0, y: 0 };
   isTouch = matchMedia('(pointer: coarse)').matches;
@@ -20,7 +20,7 @@ export class InputManager {
   onConfirm: (() => void) | null = null;
   gamepadUsed = false;
 
-  constructor(stick: HTMLElement, knob: HTMLElement, jumpBtn: HTMLElement, dashBtn: HTMLElement) {
+  constructor(stick: HTMLElement, knob: HTMLElement, jumpBtn: HTMLElement, spellBtn: HTMLElement) {
     addEventListener('keydown', (e) => {
       if (isEditable(e.target)) return; // champ texte (compte, sauvegarde) : Espace, Entrée et chiffres restent au navigateur
       this.keys[e.code] = true;
@@ -30,7 +30,7 @@ export class InputManager {
         e.preventDefault();
         this.jumpQueued = true;
       }
-      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.dashQueued = true;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.spellQueued = true;
       if (e.code === 'Escape' || e.code === 'KeyP') this.onPause?.();
       if (e.code === 'Enter') this.onConfirm?.();
     });
@@ -46,7 +46,7 @@ export class InputManager {
         fn();
       });
     hold(jumpBtn, () => (this.jumpQueued = true));
-    hold(dashBtn, () => (this.dashQueued = true));
+    hold(spellBtn, () => (this.spellQueued = true));
 
     addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse') return;
@@ -102,7 +102,7 @@ export class InputManager {
     document.addEventListener('gesturestart', (e) => e.preventDefault()); // pincement Safari (événement propriétaire)
   }
 
-  private prevPadButtons = { jump: false, dash: false, pause: false, pick: -1 };
+  private prevPadButtons = { jump: false, spell: false, pause: false, pick: -1 };
 
   /** Remplit `out` pour ce step et consomme les fronts montants. */
   poll(out: Input): void {
@@ -130,22 +130,22 @@ export class InputManager {
       }
       const b = (i: number) => !!pad.buttons[i]?.pressed;
       if (b(0) && !this.prevPadButtons.jump) this.jumpQueued = true; // A
-      if ((b(1) || b(5) || b(7)) && !this.prevPadButtons.dash) this.dashQueued = true; // B / RB / RT
+      if ((b(1) || b(5) || b(7)) && !this.prevPadButtons.spell) this.spellQueued = true; // B / RB / RT
       if (b(9) && !this.prevPadButtons.pause) this.onPause?.();
       // cartes : A=1, X=2, Y=3 en mode level-up (gérées par l'UI via pick)
       const pick = b(2) ? 1 : b(3) ? 2 : -1;
       if (pick >= 0 && this.prevPadButtons.pick !== pick) this.pickQueued = pick;
       this.prevPadButtons.jump = b(0);
-      this.prevPadButtons.dash = b(1) || b(5) || b(7);
+      this.prevPadButtons.spell = b(1) || b(5) || b(7);
       this.prevPadButtons.pause = b(9);
       this.prevPadButtons.pick = pick;
     }
     out.mx = mx;
     out.mz = mz;
     out.jump = this.jumpQueued;
-    out.dash = this.dashQueued;
+    out.spell = this.spellQueued;
     out.pick = this.pickQueued;
-    this.jumpQueued = this.dashQueued = false;
+    this.jumpQueued = this.spellQueued = false;
     this.pickQueued = -1;
   }
 

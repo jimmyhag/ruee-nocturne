@@ -1,6 +1,6 @@
 // Objets passifs (phase 17, PLAN §3.6) : obtenus dans les coffres et chez le marchand. Chaque objet est une règle :
 // soit un effet appliqué une fois au joueur à l'obtention, soit un drapeau (w.items[It.X]) lu par la boucle de jeu.
-import { ENEMIES, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, TRAIT } from './balance';
+import { ENEMIES, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, TOME_CAPS, TRAIT } from './balance';
 import { hitEnemy } from './combat';
 import { Ev, HitSrc, Trait } from './types';
 import type { Card, ItemKey } from './types';
@@ -32,8 +32,7 @@ export function gainItem(w: World, i: number, bought = false): void {
       P.revives += 1;
       break;
     case It.Cape:
-      P.dashTime *= ITEM.cape.dashMul;
-      P.dashInvulAdd += ITEM.cape.invulAdd;
+      P.spellCdMul = Math.max(TOME_CAPS.spellCdMin, P.spellCdMul * ITEM.cape.cdMul); // phase 19 : l'invulnérabilité est dans castSpell
       break;
     case It.Lanterne:
       P.magnet *= ITEM.lanterne.magnetMul;

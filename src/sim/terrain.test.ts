@@ -6,7 +6,7 @@ import { TERRAIN_N } from './terrain';
 import type { Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
 const maxSlope = (w: World): number => {
   const H = w.height,
     N = TERRAIN_N;

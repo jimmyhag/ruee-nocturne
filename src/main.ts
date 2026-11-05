@@ -104,7 +104,7 @@ applyLangStatic();
 
 const hud = new Hud();
 const audio = new AudioBus();
-const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnDash'));
+const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnSpell'));
 
 // ---------- état applicatif ----------
 type AppMode =
@@ -168,7 +168,7 @@ function applyQuality(): void {
   $('qualityBtn').textContent = $('setQualityBtn').textContent = t('settings.quality.' + meta.settings.quality);
 }
 let perfOn = location.search.includes('debug');
-const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
 
 // Taille du rendu : l'événement `resize` ne suffit pas (écran pliable ouvert au lancement, rotation, barres iOS,
 // fenêtre redimensionnée avant la première frame) → on compare aussi la taille à chaque frame (zéro coût, zéro
@@ -1250,8 +1250,8 @@ function handleEvents(w: World, now: number): void {
         S.onLand();
         S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
         break;
-      case Ev.Dash:
-        audio.dash();
+      case Ev.Spell:
+        if (e.y2 === 0) audio.dash(); // provisoire : sons par sort plus bas (phase 19)
         break;
       case Ev.Pickup:
         audio.pickup(now);

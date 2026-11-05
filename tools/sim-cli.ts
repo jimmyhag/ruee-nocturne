@@ -120,7 +120,7 @@ function runOnce(seed: number): RunResult {
   let bought = 0;
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
-  const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+  const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
   let frame = 0;
   let killsAt10 = -1,
     levelAt10 = -1,
@@ -149,11 +149,11 @@ function runOnce(seed: number): RunResult {
     if (w.mode === Mode.LevelUp) {
       inp.pick = pickAllowed(bot, w, w.cards, ALLOWED);
       inp.mx = inp.mz = 0;
-      inp.jump = inp.dash = false;
+      inp.jump = inp.spell = false;
     } else if (w.mode === Mode.Merchant) {
       inp.pick = bot.shop(w);
       inp.mx = inp.mz = 0;
-      inp.jump = inp.dash = false;
+      inp.jump = inp.spell = false;
     } else {
       inp.pick = -1;
       bot.decide(w, frame, inp);

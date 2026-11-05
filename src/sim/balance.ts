@@ -2,7 +2,7 @@
 // Unités : mètres (u), secondes, PV.
 
 import type { BoonKey, EnemyKey, ItemKey, TomeKey, WeaponKey } from './types';
-import { Trait } from './types';
+import { Spell, Trait } from './types';
 
 export const STEP = 1 / 60; // pas fixe de la simulation
 
@@ -15,8 +15,7 @@ export const PLAYER = {
   jumpVel: 9.5, // ~1.7 u de hauteur, passe au-dessus d'une Brute
   gravity: 26,
   airborneSafeY: 0.9, // au-dessus, les ennemis au sol ne touchent plus
-  dashTime: 0.2, // Éclaireuse (référence) ; les autres personnages ont un dash plus long (CHARACTERS)
-  dashCd: 1.1,
+  dashTime: 0.2, // Bond de l'Éclaireuse (phase 19 : le dash n'existe plus que comme sort de deux classes, SPELL)
   dashMul: 3.2,
   dashInvul: 0.32, // un peu plus long que le dash : marge de sortie
   recoil: 0.14,
@@ -493,8 +492,8 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
   mouvement: [
     { stat: 'speed', step: 0.05, kind: 'add', weight: 3 },
-    { stat: 'dashcd', step: 0.06, kind: 'add', max: 10, weight: 2 },
-    { stat: 'dashinvul', step: 0.03, kind: 'add', max: 10, weight: 1 },
+    { stat: 'spellcd', step: 0.06, kind: 'add', max: 10, weight: 2 }, // phase 19 : recharge du sort de classe
+    { stat: 'spellpow', step: 0.08, kind: 'add', max: 10, weight: 1 }, // phase 19 : puissance du sort (dégâts ; rayon et durée à moitié)
   ],
   savoir: [
     { stat: 'xp', step: 0.06, kind: 'add', weight: 3 }, // pas de plafond : les runs maxés qui vont au bout cumulent 8 lignes contre 3,4 pour les morts après 15:00, mais plafonner à 8 ne changeait rien (15 % de fins dans les deux cas)
@@ -511,14 +510,30 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
 };
 export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
 // planchers et plafonds des effets cumulés des tomes (applyTomeLine) : la recharge ne descend pas sous 25 % de la base,
-// l'armure n'annule pas plus de 36 % des dégâts (à 45 % les runs complets ne mouraient plus après 15:00), le dash garde 40 % de recharge
-export const TOME_CAPS = { cdMin: 0.25, armorMax: 0.36, dashCdMin: 0.4 };
+// l'armure n'annule pas plus de 36 % des dégâts (à 45 % les runs complets ne mouraient plus après 15:00), le sort garde 40 % de recharge
+export const TOME_CAPS = { cdMin: 0.25, armorMax: 0.36, spellCdMin: 0.4 };
 // rareté d'une carte = nombre de lignes : 1 (67 %), 2 (25 %), 3 (8 %) ; chaque point de chance décale vers 2 et 3
 export const RARITY = {
   two: 0.25,
   three: 0.08,
   luckTwo: 0.02,
   luckThree: 0.01,
+};
+
+// sorts de classe (phase 19, PLAN §3.5) : un par personnage, sur le bouton de l'ancien dash. Dégâts × dmgMul du joueur
+// (hitEnemy) × spellPow (tome Mouvement) ; rayons et durées × (1 + (spellPow − 1) / 2). Recharge × spellCdMul.
+export const SPELL_KEYS = ['bond', 'tourbillon', 'clignement', 'eclat', 'collet', 'petard', 'comete', 'voile', 'bourse'] as const;
+export const SPELL = {
+  slow: 0.5, // vitesse des ennemis ralentis (Voile, boss dans un Collet ou un Éclat)
+  bond: { cd: 2.5, orbs: 6, dmg: 14, speed: 15, pierce: 2 }, // Éclaireuse : dash PLAYER.dashTime, puis orbes en étoile à l'arrivée
+  tourbillon: { cd: 7, dur: 1.2, r: 3, period: 0.2, dmg: 12, kb: 7, dmgTaken: 0.5, speedMul: 0.8 }, // Bûcheron
+  clignement: { cd: 5, dist: 6, invul: 0.4, targets: 6, dmg: 35, chainR: 7 }, // Sorcière : éclairs depuis le point de départ
+  eclat: { cd: 8, r: 6, dmg: 12, kb: 14, stun: 1.2, bossSlow: 2 }, // Veilleuse
+  collet: { cd: 7, range: 7, r: 3, dur: 3, dps: 6, period: 0.25 }, // Braconnier : immobilise (boss : ralentis)
+  petard: { cd: 6, r: 3.5, dmg: 55, kb: 12, jumpMul: 1.6 }, // Sapeur : l'atterrissage pose une mine (Démolisseur)
+  comete: { cd: 1.8, time: 0.4 }, // Feu follet : dash 2× plus long que le Bond, la Traînée y pose du feu
+  voile: { cd: 8, dur: 1.5, speedMul: 1.3, r: 1.4, slow: 2 }, // Revenante : invulnérable, ralentit ce qu'elle frôle
+  bourse: { cd: 6, range: 5, r: 3.5, dmg: 30, perGold: 0.1, maxBonus: 60 }, // Colporteur : +1 dégât par 10 or gardés (+60 max)
 };
 
 // personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).
@@ -531,7 +546,7 @@ export const TRAIT = {
   // Braconnier : un boomerang attrapé rend 30 % de la recharge. Phase 17 : 60 % avec 4 lignes de dégâts valaient à eux seuls
   // ≈ +11 min de médiane au kit de départ (15:23 contre 5:46 pour l'Éclaireuse) ; 30 % et 2 lignes : 5:31 (60 runs)
   rapporteur: { refund: 0.3 },
-  trainee: { dashMul: 2, spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25, kb: 0.6 }, // Feu follet : dash 2× plus long, feu 1,5 s à 8 PV/s
+  trainee: { spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25, kb: 0.6 }, // Feu follet : la Comète pose un feu de 1,5 s à 8 PV/s
   dejamorte: { revives: 1, airXpMul: 2 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP
   marchand: { offers: 4 }, // Colporteur (phase 17) : les coffres proposent 4 objets
 };
@@ -546,7 +561,7 @@ export interface CharacterDef {
   speedMul: number;
   hpAdd: number;
   hpMul: number;
-  dashTime: number;
+  spell: Spell; // phase 19 : sort de classe (bouton de l'ancien dash)
   bladeRangeMul: number;
   unlock: string; // identifiant de succès ('' = aucun)
   price: number; // or (0 = pas en vente) ; un personnage est débloqué par son succès OU son achat
@@ -566,21 +581,21 @@ export const OUTFIT = { price: 400 };
 
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
-  { key: 'eclaireuse', weapon: 'orbe', trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, dashTime: PLAYER.dashTime, bladeRangeMul: 1, unlock: '', price: 0 },
+  { key: 'eclaireuse', weapon: 'orbe', trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, spell: Spell.Bond, bladeRangeMul: 1, unlock: '', price: 0 },
   { key: 'bucheron', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 (4 lames, 21 dégâts) : avec 1 lame et 1 ligne de dégâts, 2:24 et 71 % de morts < 3 min
-    trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1.2, unlock: 'survie10', price: 0 },
-  { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
+    trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, spell: Spell.Tourbillon, bladeRangeMul: 1.2, unlock: 'survie10', price: 0 },
+  { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, spell: Spell.Clignement, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
-  { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 800 },
+  { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, spell: Spell.Eclat, bladeRangeMul: 1, unlock: '', price: 800 },
   { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'cd', 'range'] }, // phase 17 : 4 → 2 lignes de dégâts (avec le remboursement à 30 %) ; phase 18 : 2 → 1 (relief et sanctuaires : nu 9:34, +3:48 sur l'Éclaireuse)
-    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 1200 },
-  { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
+    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, spell: Spell.Collet, bladeRangeMul: 1, unlock: '', price: 1200 },
+  { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, spell: Spell.Petard, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
-    dashTime: PLAYER.dashTime * TRAIT.trainee.dashMul, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
-  { key: 'revenante', weapon: 'foudre', weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: 'win', price: 0 },
+    spell: Spell.Comete, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
+  { key: 'revenante', weapon: 'foudre', weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, spell: Spell.Voile, bladeRangeMul: 1, unlock: 'win', price: 0 },
   { key: 'colporteur', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 ; avec 1 lame et 1 ligne de dégâts, 2:19 et 78 % de morts < 3 min
     startTomes: { chance: ['luck', 'luck'], or: ['gold', 'gold', 'gold'] }, // ≈ Trèfle 1 et Bourse 1 d'avant
-    trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, dashTime: PLAYER.dashTime * 1.3, bladeRangeMul: 1, unlock: '', price: 2000 },
+    trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, spell: Spell.Bourse, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];
 
 // boutique permanente (survivor-design §8), PAR PERSONNAGE depuis la phase 8 : 8 lignes, 8 paliers, coût base · growth^palier.
@@ -613,7 +628,7 @@ export const ITEM = {
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…
   luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance
   chestGoldIfFull: 60, // coffre sans objet possible : sac d'or (× multiplicateurs d'or)
-  cape: { dashMul: 1.5, invulAdd: 0.2 },
+  cape: { invul: 0.4, cdMul: 0.85 }, // phase 19 : après chaque sort, 0,4 s d'invulnérabilité ; recharge du sort −15 %
   lanterne: { magnetMul: 1.6 },
   coeur: { hp: 30, speedMul: 0.97 },
   talisman: { every: 25, targets: 5, frac: 0.5, bossFrac: 0.05, range: 14 }, // part des PV max retirée à chaque cible

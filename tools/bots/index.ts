@@ -52,7 +52,7 @@ export const naive: Bot = {
     out.mx = Math.cos(a);
     out.mz = Math.sin(a);
     out.jump = false;
-    out.dash = false;
+    out.spell = false;
   },
   pick: () => 0,
   shop: () => MERCHANT_LEAVE,
@@ -99,8 +99,8 @@ const LINE_VALUE: Record<string, number> = {
   hp: 6,
   regen: 5,
   armor: 6,
-  dashcd: 3,
-  dashinvul: 2,
+  spellcd: 3,
+  spellpow: 2,
   xp: 6,
   magnet: 4,
   luck: 4,
@@ -433,8 +433,8 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         out.mx /= ml;
         out.mz /= ml;
       }
-      out.dash = (close >= 6 || charged) && P.dashCd <= 0;
-      out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.dash;
+      out.spell = (close >= 6 || charged) && P.spellCd <= 0;
+      out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.spell;
     },
     pick(w, cards) {
       if (r.next() < randomness) return r.int(cards.length);

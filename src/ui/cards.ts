@@ -3,7 +3,7 @@
 import type { Achievement } from '../meta/achievements';
 import { BOON, CHARACTERS, ENEMIES, SYNERGIES, TOMES, WEAPON_LINES } from '../sim/balance';
 import type { StatLine } from '../sim/balance';
-import type { BoonKey, Card, CharacterKey, ItemKey, TomeKey, WeaponKey } from '../sim/types';
+import type { BoonKey, Card, CharacterKey, ItemKey, SpellKey, TomeKey, WeaponKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
 import { fmtNum, fmtTime, t } from '../i18n';
@@ -25,6 +25,20 @@ export const boonText = (k: BoonKey): string => {
   return t(`boon.${k}.text`, { v: k === 'hp' ? String(v) : fmtNum(Math.round(v * 100)) });
 };
 export const BOON_GLYPH: Record<BoonKey, string> = { hp: '♥', dmg: '⚔', speed: '»', cd: '↻', magnet: '◎', gold: '◉' };
+// phase 19 : sorts de classe
+export const spellName = (k: SpellKey): string => t(`spell.${k}.name`);
+export const spellText = (k: SpellKey): string => t(`spell.${k}.text`);
+export const SPELL_GLYPH: Record<SpellKey, string> = {
+  bond: '»',
+  tourbillon: '✣',
+  clignement: 'ϟ',
+  eclat: '✺',
+  collet: '#',
+  petard: '✸',
+  comete: '☄',
+  voile: '☾',
+  bourse: '¤',
+};
 export const itemName = (k: ItemKey): string => t(`item.${k}.name`);
 export const itemText = (k: ItemKey): string => t(`item.${k}.text`);
 export const ITEM_GLYPH: Record<ItemKey, string> = {
@@ -49,10 +63,10 @@ export const achName = (a: Achievement): string => t(`ach.${a.id}.name`);
 export const achText = (a: Achievement): string => t(`ach.${a.id}.text`, { n: a.goal });
 export const achUnlock = (a: Achievement): string => t(`ach.${a.id}.unlock`);
 
-/** Lignes de tome qui réduisent quelque chose (recharge, recharge du dash, dégâts subis) : affichées avec « − ». */
-const REDUCES = new Set(['cd', 'dashcd', 'armor']);
-/** Lignes en valeur absolue bien que < 1 (PV/s, points de chance, secondes). */
-const ABSOLUTE = new Set(['regen', 'luck', 'dashinvul']);
+/** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
+const REDUCES = new Set(['cd', 'spellcd', 'armor']);
+/** Lignes en valeur absolue bien que < 1 (PV/s, points de chance). */
+const ABSOLUTE = new Set(['regen', 'luck']);
 /** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */
 function lineValue(l: StatLine, kind: 'w' | 't'): string {
   const sign = l.step > 0 !== (kind === 't' && REDUCES.has(l.stat)) ? '+' : '−';

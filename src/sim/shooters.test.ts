@@ -8,7 +8,7 @@ import { Ev, HurtSrc, ShotKind } from './types';
 import type { Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 
 /** Monde sans obstacles ni spawner, joueur immobile au centre, sans armes. */
 function quiet(): World {

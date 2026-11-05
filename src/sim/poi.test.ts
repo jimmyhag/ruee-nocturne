@@ -9,7 +9,7 @@ import { Ev, Mode } from './types';
 import type { Card, Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
 const count = (w: World, type: Ev) => {
   let n = 0;
   for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === type) n++;

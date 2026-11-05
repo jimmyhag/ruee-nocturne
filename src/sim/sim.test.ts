@@ -22,9 +22,9 @@ function snapshot(w: World): string {
 }
 
 function scriptedInput(frame: number): Input {
-  // tourne en cercle, saute toutes les 3 s, dash toutes les 5 s, prend toujours la carte 1
+  // tourne en cercle, saute toutes les 3 s, lance son sort toutes les 5 s, prend toujours la carte 1
   const a = frame / 90;
-  return { mx: Math.cos(a), mz: Math.sin(a), jump: frame % 180 === 0, dash: frame % 300 === 0, pick: 1 };
+  return { mx: Math.cos(a), mz: Math.sin(a), jump: frame % 180 === 0, spell: frame % 300 === 0, pick: 1 };
 }
 
 describe('déterminisme', () => {
@@ -87,10 +87,10 @@ describe('progression', () => {
     const w = new World(7);
     startRun(w);
     w.player.xp = 100; // force
-    step(w, { mx: 0, mz: 0, jump: false, dash: false, pick: -1 }, STEP);
+    step(w, { mx: 0, mz: 0, jump: false, spell: false, pick: -1 }, STEP);
     expect(w.mode).toBe(Mode.LevelUp);
     expect(w.cards.length).toBe(3);
-    step(w, { mx: 0, mz: 0, jump: false, dash: false, pick: 0 }, STEP);
+    step(w, { mx: 0, mz: 0, jump: false, spell: false, pick: 0 }, STEP);
     expect([Mode.Play, Mode.LevelUp]).toContain(w.mode);
   });
 });
@@ -99,7 +99,7 @@ describe('combat', () => {
   it('un bot immobile tue quelques ennemis puis meurt', () => {
     const w = new World(99);
     startRun(w);
-    const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+    const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
     for (let f = 0; f < 7200 && w.mode !== Mode.Dead; f++) step(w, still, STEP);
     expect(w.kills).toBeGreaterThan(0);
     expect(w.mode).toBe(Mode.Dead); // immobile, on meurt

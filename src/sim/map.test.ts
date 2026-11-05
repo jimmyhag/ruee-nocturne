@@ -8,8 +8,8 @@ import { step } from './step';
 import type { Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
-const input = (mx: number, mz: number, jump = false): Input => ({ mx, mz, jump, dash: false, pick: 0 });
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
+const input = (mx: number, mz: number, jump = false): Input => ({ mx, mz, jump, spell: false, pick: 0 });
 
 /** Distance libre de (x, z) au bord du plus proche obstacle (toute la carte, sans grille : test seulement). */
 function freeAt(w: World, x: number, z: number): number {

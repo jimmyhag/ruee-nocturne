@@ -12,7 +12,7 @@ import type { Card, Input } from './types';
 import { refreshStats } from './weapons/defs';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
 const count = (w: World, type: Ev) => {
   let n = 0;
   for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === type) n++;
@@ -32,7 +32,7 @@ describe('objets passifs', () => {
   it('les effets immédiats modifient le joueur une seule fois (un objet est unique)', () => {
     const w = new World(1);
     const P = w.player;
-    const base = { hp: P.maxHp, speed: P.speed, magnet: P.magnet, dash: P.dashTime, luck: P.luck, gold: P.goldMul };
+    const base = { hp: P.maxHp, speed: P.speed, magnet: P.magnet, cd: P.spellCdMul, luck: P.luck, gold: P.goldMul };
     gainItem(w, It.Coeur);
     gainItem(w, It.Coeur);
     expect(P.maxHp).toBe(base.hp + ITEM.coeur.hp);
@@ -40,8 +40,7 @@ describe('objets passifs', () => {
     gainItem(w, It.Lanterne);
     expect(P.magnet).toBeCloseTo(base.magnet * ITEM.lanterne.magnetMul, 6);
     gainItem(w, It.Cape);
-    expect(P.dashTime).toBeCloseTo(base.dash * ITEM.cape.dashMul, 6);
-    expect(P.dashInvulAdd).toBeCloseTo(ITEM.cape.invulAdd, 6);
+    expect(P.spellCdMul).toBeCloseTo(base.cd * ITEM.cape.cdMul, 6);
     gainItem(w, It.Fer);
     expect(P.luck).toBe(base.luck + ITEM.fer.luck);
     gainItem(w, It.Bourse);
@@ -307,7 +306,7 @@ describe('déterminisme (phase 17)', () => {
           mx = dx / l;
           mz = dz / l;
         }
-        step(w, { mx, mz, jump: false, dash: false, pick }, STEP);
+        step(w, { mx, mz, jump: false, spell: false, pick }, STEP);
         if (f === 100) dropChest(w, w.player.x, w.player.z + 0.5, f % 2 === 0);
         if (w.mode === Mode.Dead) break;
       }

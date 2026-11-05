@@ -7,7 +7,7 @@ import { Ev } from './types';
 import type { Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 
 /** Fait tourner le spawner seul (sans combat ni mort) pendant `seconds`. */
 function runSpawner(w: World, seconds: number, onStep?: (w: World) => void): void {

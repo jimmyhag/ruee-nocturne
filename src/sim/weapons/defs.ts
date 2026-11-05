@@ -130,11 +130,11 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
     case 'speed':
       P.speed *= 1 + l.step;
       break;
-    case 'dashcd':
-      P.dashCdMul = Math.max(TOME_CAPS.dashCdMin, P.dashCdMul - l.step);
+    case 'spellcd':
+      P.spellCdMul = Math.max(TOME_CAPS.spellCdMin, P.spellCdMul - l.step);
       break;
-    case 'dashinvul':
-      P.dashInvulAdd += l.step;
+    case 'spellpow':
+      P.spellPow += l.step;
       break;
     case 'xp':
       P.xpMul += l.step;
