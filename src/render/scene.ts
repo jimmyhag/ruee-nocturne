@@ -692,7 +692,9 @@ export class GameScene {
     }
     const sxz = 1 + (1 - sy) * 0.5; // volume à peu près conservé
     this.player.scale.set(sxz, sy, sxz);
-    this.player.visible = !(P.invul > 0 && P.dashT <= 0 && Math.floor(now * 20) % 2 === 1) || hurtFlash;
+    // clignote pendant l'invulnérabilité qui suit un coup encaissé, pas pendant celle d'un sort (phase 19 : Clignement, Voile)
+    this.player.visible =
+      !(P.invul > 0 && P.dashT <= 0 && w.t - w.hurtAt < 1.5 && Math.floor(now * 20) % 2 === 1) || hurtFlash;
     if (M.glowDisc) {
       M.glowDisc.visible = this.player.visible;
       M.glowDisc.position.set(px, gp + 0.1, pz);
@@ -731,18 +733,13 @@ export class GameScene {
     // phase 19 : Tourbillon (trois haches de lumière qui tournent autour du Bûcheron) et filet du Collet
     if (P.spellT > 0 && w.spell === Spell.Tourbillon) {
       const r = SPELL.tourbillon.r * (1 + (P.spellPow - 1) * 0.5);
+      // trois bras de lumière dorée, deux points par bras (du milieu au bord du rayon de frappe)
       for (let k = 0; k < 3; k++) {
         const a = now * 14 + k * 2.094;
-        this.particles.burst(
-          px + Math.sin(a) * r * 0.8,
-          py + 0.7,
-          pz + Math.cos(a) * r * 0.8,
-          PAL.paper,
-          1,
-          0.5,
-          0.5,
-          false,
-        );
+        for (let j = 1; j <= 2; j++) {
+          const d = r * (0.45 + j * 0.25);
+          this.particles.burst(px + Math.sin(a) * d, py + 0.6, pz + Math.cos(a) * d, PAL.lantern, 1, 0.8, 0.6, false);
+        }
       }
     }
     this.netW.begin();

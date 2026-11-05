@@ -443,18 +443,18 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       let cast: boolean;
       switch (w.spell) {
         case Spell.Tourbillon:
-          cast = near3 >= 5;
+          cast = near3 >= 3;
           break;
         case Spell.Petard:
-          cast = near3 >= 5 || hazard || charged;
+          cast = near3 >= 3 || hazard || charged;
           break;
         case Spell.Eclat:
-          cast = near6 >= 8 || close >= 4;
+          cast = near6 >= 5 || close >= 3;
           break;
         case Spell.Collet:
         case Spell.Bourse:
           // lancé vers le gros du danger : on vise la masse pour ce pas (la sim lance dans la direction de l'entrée)
-          cast = near8 >= 7;
+          cast = near8 >= 4;
           if (cast && P.spellCd <= 0) {
             const l = Math.sqrt(cx * cx + cz * cz) || 1;
             out.mx = cx / l;
@@ -462,10 +462,10 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           }
           break;
         case Spell.Voile:
-          cast = close >= 5 || charged || P.hp < P.maxHp * 0.35;
+          cast = close >= 3 || charged || P.hp < P.maxHp * 0.35;
           break;
         default: // Bond, Comète, Clignement : l'esquive de l'ancien dash
-          cast = close >= 6 || charged;
+          cast = close >= 3 || charged;
       }
       out.spell = cast && P.spellCd <= 0;
       out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.spell;

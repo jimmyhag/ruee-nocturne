@@ -63,7 +63,8 @@ Huit tomes, 4 emplacements, chaque carte tire 1 à 3 lignes dans sa famille, eff
 - **Cadence** : recharge −4 % (plancher 25 %), durée des projectiles +6 %.
 - **Projectiles** : +1 projectile pour toutes les armes (rare, max 3), taille +6 %, vitesse des projectiles +6 %.
 - **Vitalité** : +12 PV max, régénération +0,4/s, dégâts subis −3 % (plafond −36 %).
-- **Mouvement** : course +5 %, recharge du dash −6 % (plancher 40 %), invulnérabilité du dash +0,03 s.
+- **Mouvement** : course +5 %, recharge du sort de classe −6 % (plancher 40 %), puissance du sort +8 % (phase 19).
+- **Sorts de classe** (phase 19) : un par personnage, sur le bouton de l'ancien dash. Un sort donne une identité, pas la victoire : il doit servir au moins une fois par minute chez le bot et faire au plus 30 % des kills (l'arme reste la source principale). Tous les dangers restent esquivables sans sort d'esquive (saut, pas de côté). Le bot lance chaque type de sort à son moment (esquive : ennemis au contact ou charge ; zone : ≥ 3 ennemis dans le rayon ; lancer : ≥ 4 ennemis à portée, visée vers la masse).
 - **Savoir** : XP +6 %, collecte +8 %.
 - **Chance** : chance +0,5 (lignes rares, 4e carte, coffres), or des coffres +20 %.
 - **Or** : or +8 %, +1 or par élite vaincue.

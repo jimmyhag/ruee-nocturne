@@ -1224,8 +1224,9 @@ function spellFx(
       if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
       break;
     case Spell.Petard:
-      P.burst(x, 0.4, z, PAL.mine, (22 * fx) | 0, 7, 8);
-      P.ring(x, 0.2, z, PAL.accent, (20 * fx) | 0, x2 * 2.6, 1.5);
+      P.burst(x, 0.4, z, PAL.mine, (36 * fx) | 0, 9, 10);
+      P.burst(x, 0.4, z, PAL.gold, (18 * fx) | 0, 6, 7);
+      P.ring(x, 0.2, z, PAL.accent, (32 * fx) | 0, x2 * 3, 2);
       if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
       break;
     case Spell.Bourse:
