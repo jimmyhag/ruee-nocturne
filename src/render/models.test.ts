@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS } from '../sim/balance';
-import { BUDGET, HERO_ANIMS, PROPS } from '../../tools/assets/config';
+import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_ANIMS, PROPS } from '../../tools/assets/config';
+import { ENEMIES } from '../sim/balance';
+import { ENEMY_LOOKS } from './enemyModels';
 import { CLIP_NAMES, HERO_LOOKS } from './heroes';
 import MANIFEST from './models.json';
 
@@ -35,7 +37,7 @@ describe('modèles KayKit (phase 20)', () => {
     }
     const props = fs.statSync(path.join(DIR, MANIFEST.props.file)).size;
     expect(props).toBe(MANIFEST.props.bytes);
-    total += props;
+    total += props + MANIFEST.enemies.bytes;
     expect(total).toBeLessThanOrEqual(BUDGET.totalBytes);
   });
   it('tous les objets sont dans props.glb, sous leur plafond de triangles', () => {
@@ -44,6 +46,35 @@ describe('modèles KayKit (phase 20)', () => {
       expect(t, key).toBeGreaterThan(0);
       expect(t, key).toBeLessThanOrEqual(p.tris);
     }
+  });
+  it("phase 21 : chaque type d'ennemi a un squelette (le Volant : le crâne), avec ses clips", () => {
+    expect(ENEMY_LOOKS.length).toBe(ENEMIES.length);
+    ENEMY_LOOKS.forEach((look, t) => {
+      if (!look) {
+        expect(ENEMIES[t].key).toBe('volant');
+        expect((MANIFEST.props.nodes as Record<string, number>).skull).toBeGreaterThan(0);
+        return;
+      }
+      const m = (MANIFEST.enemies.models as Record<string, { anims: string[] }>)[look.model];
+      expect(m, `${ENEMIES[t].key} → ${look.model}`).toBeDefined();
+      for (const [clip] of look.clips) expect(m.anims, `${ENEMIES[t].key} : ${clip}`).toContain(clip);
+      const parts = [...ENEMY_MODELS[look.model].keep, ...ENEMY_MODELS[look.model].weapons.map(([f]) => f)];
+      for (const s of look.show) expect(parts, `${ENEMIES[t].key} : ${s}`).toContain(s);
+      expect(!!look.boss, ENEMIES[t].key).toBe(ENEMIES[t].boss);
+    });
+  });
+  it('phase 21 : niveaux de détail des squelettes tenus, enemies.glb dans son budget', () => {
+    for (const [key, m] of Object.entries(
+      MANIFEST.enemies.models as Record<string, { tris: Record<string, number> }>,
+    )) {
+      expect(m.tris.mid, key).toBeLessThan(m.tris.hi);
+      expect(m.tris.lo, key).toBeLessThan(m.tris.mid);
+      expect(m.tris.mid, key).toBeLessThanOrEqual(ENEMY_LODS.mid * 1.6); // accessoires et armes compris
+      expect(m.tris.lo, key).toBeLessThanOrEqual(ENEMY_LODS.lo * 1.6);
+    }
+    const bytes = fs.statSync(path.join(DIR, MANIFEST.enemies.file)).size;
+    expect(bytes).toBe(MANIFEST.enemies.bytes);
+    expect(bytes).toBeLessThanOrEqual(BUDGET.enemyBytes);
   });
   it('le crédit CC0 est porté par le manifeste et CREDITS.md', () => {
     expect(MANIFEST.source).toMatch(/KayKit.*Kay Lousberg.*CC0/);

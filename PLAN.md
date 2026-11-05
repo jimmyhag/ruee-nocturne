@@ -225,7 +225,7 @@ tools/
 |---|---|---|
 | Frame | ≤ 16,6 ms (60 fps) avec 400 ennemis | ≤ 8 ms avec 600 ennemis |
 | Draw calls | ≤ 40 | ≤ 80 |
-| Triangles | ≤ 150 k | ≤ 500 k |
+| Triangles | ≤ 250 k en rendu net, ≤ 150 k en pixel (phase 21, décision de Jimmy du 5 nov. : ennemis en vrais modèles) | ≤ 500 k |
 | Allocation JS / frame | 0 en régime permanent (pools partout) | idem |
 | Résolution interne | 1 × DPR (≤ 2) en net, repli automatique ×0,75 puis pixel (≈ 380 px de haut) si p95 > 24 ms | 1 × DPR |
 | Poids initial (gz) | ≤ 1,5 Mo | idem |
@@ -241,6 +241,7 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 - Post-traitement : aucun sur mobile. Optionnel desktop : bloom léger, vignette.
 - Caméra : vue 3/4 haute, suit le joueur avec amorti, légère avance dans la direction du mouvement, recul au boss.
 - **Modèles 3D (phase 20)** : héros, armes et décor en modèles **KayKit (CC0, Kay Lousberg)**, produits par `npm run assets` (`tools/assets/` : animations utiles seulement, accessoires choisis, compression meshopt) dans `public/models/` et décrits par `src/render/models.json`. Chargés par `GLTFLoader` et le décodeur meshopt de `three/examples` (aucune dépendance de prod). Héros : parties skinnées fusionnées en une `SkinnedMesh` + coque de contour, `HeroAnimator` piloté par l'état de la sim (lecture seule). Objets : géométries injectées dans les `InstanceWriter` existants (un appel par sorte) ; arbres, lanternes et petits cimetières dessinés à moins de 48 u du joueur. **Le modèle procédural reste le repli** tant que rien n'est chargé ou si le réseau manque. Les ennemis restent procéduraux jusqu'à la phase 21.
+- **Ennemis (phase 21)** : squelettes KayKit dans `public/models/enemies.glb`. Corps fusionné et simplifié en trois niveaux par meshopt (boss ≈ 1 800 triangles, masse ≈ 330 en rendu net, ≈ 110 en pixel). Au chargement, les poses (marche ou course, plus un geste) sont **cuites** par skinning CPU en cibles de morph absolues (`src/render/enemyModels.ts`). Chaque instance mélange deux poses voisines via `InstancedMesh.morphTexture` (`src/render/pose.ts`) : un appel par type, aucun mixer par ennemi. Le Volant est un crâne flottant. Les boss ont un contour (`InstancedMesh` jumeau qui partage matrices et poses). Les silhouettes procédurales restent le repli.
 
 ### 4.5 Entrées
 - Clavier (ZQSD/WASD/flèches, Espace, Maj), **manette** (Gamepad API, deadzone 0,2), tactile (joystick flottant sous le pouce gauche, boutons droite, rebinding gauche/droite).
@@ -363,8 +364,26 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Décisions prises : budget de téléchargement relevé de 350 ko à **450 ko par héros** et de 2,5 Mo à **3,2 Mo au total** (mesuré : 370 à 410 ko, 2,6 Mo ; ≈ 390 ko gzip réellement téléchargés par joueur) ; modèles non précachés (cache à l'usage) ; la Revenante prend le Skeleton Rogue (le pack Skeletons sert aussi la phase 21).
 - **Porte** : les 9 héros sont des modèles KayKit animés (repos, course, saut, sort, coup reçu, mort) dans leurs 2 tenues, avec repli procédural testé (réseau bloqué) ; armes, coffres, sanctuaires, échoppe et décor en modèles CC0 crédités (CREDITS.md, À propos) ; manifeste testé (Vitest : 9 personnages, fichiers, animations, budget) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; zéro allocation par frame ; bench inchangé ; captures lues (PC et iPhone) ; test de Jimmy.
 
-### Phase 21 — Ennemis en vrais modèles (esquissée, après la phase 20)
-- Les 400 ennemis en modèles KayKit (Skeletons : guerrier, mage, sbire, voyou) et monstres CC0. Points à trancher au plan : animation de masse sans un `AnimationMixer` par ennemi (poses précalculées dans une texture d'animation, lues par le shader instancié), budget de triangles (≤ 150 k à 400 ennemis : modèles à ≈ 250 triangles ou niveaux de détail), lisibilité des élites et des tireurs.
+### Phase 21 — Ennemis en vrais modèles (après la 1.15.0)
+- Suite de la phase 20 : la horde passe en squelettes KayKit (pack Skeletons : Minion, Warrior, Mage, Rogue ; seul pack de monstres joignable).
+
+  | Type | Modèle |
+  |---|---|
+  | Spectre | Minion qui marche |
+  | Dard | petit Rogue qui court, lame |
+  | Brute | Warrior casqué à la hache |
+  | Volant | crâne flottant (Halloween Bits) |
+  | Cracheur | Mage sans chapeau qui crache |
+  | Archer | Rogue encapuchonné à l'arbalète, qui vise |
+  | Sorcier | Mage au bâton qui lance |
+  | Boss | Warrior géant au bouclier (Gardien), Mage géant qui invoque (Essaim-mère), Warrior géant à la hache (Colosse), Rogue géant encapuchonné (Faucheur) |
+
+  Sim inchangée.
+- Décisions prises :
+  - **budget de triangles mobile relevé à 250 k en rendu net** (choix de Jimmy) ; 150 k en pixel, où les ennemis prennent leur version la plus simple ;
+  - animation de masse par **morphs instanciés** plutôt que par textures d'animation maison : three 0.187 les gère nativement (`InstancedMesh.setMorphAt`), donc aucun shader à maintenir ;
+  - pas de contour sur les ennemis de masse (budget de triangles ; les os clairs ressortent sur le sol nuit).
+- **Porte** : les 11 types d'ennemis sont en modèles CC0 ; la masse marche ou court avec des poses décalées ; Archer, Sorcier et Cracheur ont leur pose de tir, les boss leur frappe ; repli procédural testé ; ≤ 40 appels, ≤ 250 k triangles à 400 ennemis en net et ≤ 150 k en pixel, y compris au point le plus dense ; zéro allocation par frame ; bench inchangé ; captures lues (PC et iPhone) ; fps du téléphone de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

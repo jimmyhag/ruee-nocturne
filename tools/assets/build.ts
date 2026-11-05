@@ -333,6 +333,7 @@ async function main(): Promise<void> {
 
   if (total > BUDGET.totalBytes) throw new Error(`total ${total} o > ${BUDGET.totalBytes}`);
   fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n');
+  execFileSync('npx', ['prettier', '--write', MANIFEST], { cwd: ROOT, stdio: 'ignore' }); // même forme que le lint
   console.log(`total ${(total / 1024).toFixed(0)} Ko → ${path.relative(ROOT, OUT)}, ${path.relative(ROOT, MANIFEST)}`);
 }
 

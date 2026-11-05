@@ -2,6 +2,26 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.16.0 — 5 nov. 2026 (phase 21 « Ennemis en vrais modèles »)
+
+La horde se lève : tous les ennemis sont des squelettes animés (pack KayKit Skeletons de Kay Lousberg, CC0).
+
+### Ajouté
+
+- **Ennemis en squelettes qui marchent et courent**, chacun avec son pas, jamais au même rythme que ses voisins :
+  - Spectres : squelettes de base ;
+  - Dards : petits squelettes rapides, lame en main ;
+  - Brutes : grands guerriers casqués à la hache ;
+  - Volants : crânes flottants ;
+  - Cracheurs, Sorciers et Archers : ils prennent la pose quand ils visent (crachat, sort, arbalète).
+- **Boss géants avec contour** : le Gardien au bouclier, l'Essaim-mère qui invoque, le Colosse à la hache, le Faucheur encapuchonné. Ils frappent ou incantent pendant leurs télégraphes.
+- Les élites restent dorées, les ennemis étourdis pâlissent, les ralentis bleuissent, et un coup fait toujours flasher.
+
+### Modifié
+
+- Rendu « pixel » (téléphones faibles, repli automatique) : les squelettes y sont plus simples pour garder la fluidité.
+- Les modèles des ennemis se chargent à la demande (≈ 580 ko) ; sans eux, les silhouettes d'avant restent.
+
 ## 1.15.0 — 5 nov. 2026 (phase 20 « Vraie 3D : héros, armes et décor »)
 
 Les personnages, leurs armes et le décor passent en vrais modèles 3D, animés et dessinés à la main (packs KayKit de Kay Lousberg, domaine public CC0).

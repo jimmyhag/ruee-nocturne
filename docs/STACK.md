@@ -58,3 +58,9 @@
 - `src/render/models.ts` : `GLTFLoader` + `MeshoptDecoder` (three/examples), cache par fichier, nouvel essai après un échec. `loadProps()` déquantifie (`toFloat`) avant de cuire les transformations, sinon `applyMatrix4` écrase les Int16 normalisés.
 - `src/render/heroes.ts` : `SkeletonUtils.clone`, parties skinnées fusionnées en une `SkinnedMesh` (quantification `scene` à l'export, indispensable), coque de contour à normales lissées, `HeroAnimator` (fond + ponctuels, zéro allocation).
 - Les modèles procéduraux restent le repli tant que rien n'est chargé (hors ligne à la première visite, réseau bloqué : test e2e).
+
+## Phase 21 (5 nov. 2026)
+
+- `public/models/enemies.glb` (583 ko) : quatre squelettes KayKit, corps en trois niveaux de détail (hi ≈ 1 800, mid ≈ 330, lo ≈ 110 triangles), clips utiles. Simplification meshopt `simplifyWithAttributes` (mode Permissive) dans `tools/assets/build.ts`, sans dépendance nouvelle.
+- `src/render/enemyModels.ts` cuit les poses en morphs absolues au chargement ; `src/render/pose.ts` écrit les poids par instance ; three 0.187 : `InstancedMesh.morphTexture` (chunk `morphinstance_vertex`).
+- Budget mobile : 250 k triangles en rendu net, 150 k en pixel (PLAN §4.3).
