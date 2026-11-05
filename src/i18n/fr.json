@@ -391,5 +391,6 @@
   "banner.item": "Objet : {name}",
   "banner.synergy": "Synergie : {name} !",
   "banner.merchant": "Le marchand est arrivé",
-  "syn.bonus": "Chaque synergie : +PV max et armure, plus à chaque nouvelle."
+  "syn.bonus": "Chaque synergie : +PV max et armure, plus à chaque nouvelle.",
+  "hud.gold": "Or de la partie"
 }
