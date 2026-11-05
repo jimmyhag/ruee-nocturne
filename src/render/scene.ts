@@ -93,7 +93,10 @@ const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
 const POI_DRAW2 = 50 * 50;
 const PROP_DRAW = 48; // phase 20 : rayon du décor KayKit autour du joueur (le brouillard masque au-delà)
 const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
-const GRAVE_NEAR = 16; // …dont au plus 16 dessinés autour du joueur (≈ 1,3 k triangles chacun)
+const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
+const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
+const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+const CHEST_ELITE = new THREE.Color(0xffd98a); // coffre d'élite : même modèle que celui de carte, teinté d'or
 const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1, 40, 24]; // phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24)
 
 interface Ghost {
@@ -336,13 +339,12 @@ export class GameScene {
     // phase 20 : écrivains du décor KayKit, géométries posées au chargement des objets (applyProps)
     for (let k = 0; k < 4; k++)
       this.propTreeW.push(new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), 64)));
-    this.propLampW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), 32));
+    this.propLampW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), LAMP_NEAR));
     this.propGraveW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), GRAVE_NEAR));
     for (const pw of [...this.propTreeW, this.propLampW, this.propGraveW]) this.scene.add(pw.mesh);
-    loadProps().then(
-      (p) => this.applyProps(p),
-      () => undefined, // hors ligne : le décor procédural reste
-    );
+    loadProps()
+      .then((p) => this.applyProps(p))
+      .catch((e: unknown) => console.warn('modèles du décor indisponibles, repli procédural', e)); // hors ligne aussi
     this.gemW = new InstanceWriter(
       makeInstanced(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 900),
     );
@@ -625,29 +627,31 @@ export class GameScene {
     this.modelKey = key;
     this.modelSkin = skin;
     // repli procédural tout de suite, puis le héros glTF (phase 20) dès qu'il est chargé ; hors ligne, le repli reste
-    this.swapModel(buildCharacter(key, skin), null);
+    this.swapModel(buildCharacter(key, skin), null, true);
     const req = ++this.heroReq;
     this.heroPending = true;
     buildHero(key, skin).then(
       (hero) => {
         if (req !== this.heroReq) return hero.dispose(); // personnage changé entre-temps
         this.heroPending = false;
-        this.swapModel(hero, hero.anim);
+        this.swapModel(hero, hero.anim, false); // fantôme de dash : silhouette procédurale gardée (≈ 4 k tris de moins)
       },
       () => {
         if (req === this.heroReq) this.heroPending = false; // hors ligne : le repli reste, nouvel essai au prochain choix
       },
     );
   }
-  private swapModel(next: CharacterModel, anim: HeroModel['anim'] | null): void {
+  private swapModel(next: CharacterModel, anim: HeroModel['anim'] | null, ghost: boolean): void {
     const old = this.model;
     this.player.remove(old.group);
     if (old.glowDisc) this.scene.remove(old.glowDisc);
     this.player.add(next.group);
     if (next.glowDisc) this.scene.add(next.glowDisc);
-    const ghost = this.dashGhostW.mesh;
-    ghost.geometry.dispose();
-    ghost.geometry = next.silhouette.clone();
+    if (ghost) {
+      const g = this.dashGhostW.mesh;
+      g.geometry.dispose();
+      g.geometry = next.silhouette.clone();
+    }
     old.dispose();
     this.model = next;
     this.heroAnim = anim;
@@ -690,19 +694,18 @@ export class GameScene {
       geo.scale(k, k, k);
       return geo;
     };
-    const swap = (wr: InstanceWriter, geo: THREE.BufferGeometry, m: THREE.Material) => {
-      wr.mesh.geometry.dispose();
-      wr.mesh.geometry = geo;
-      wr.mesh.material = m;
-    };
-    swap(this.chestW, norm(p.chest_gold, 1.0, 'xz'), mat(p.chest_gold));
-    this.chestW.mesh.geometry.translate(0, -0.3, 0); // le coffre flottant était centré, le modèle a l'origine au sol
+    // tout est construit d'abord, puis échangé d'un coup : une exception en route laisse le décor procédural intact
+    const todo: [InstanceWriter, THREE.BufferGeometry, THREE.Material][] = [];
+    const swap = (wr: InstanceWriter, geo: THREE.BufferGeometry, m: THREE.Material) => todo.push([wr, geo, m]);
+    const merge = (list: THREE.BufferGeometry[]) => (list.length > 1 ? mergeGeometries(list) : null) ?? list[0];
+    // coffres d'élite et de carte : le même coffre (728 triangles ; le doré en pèse 1 568, jusqu'à 16 à l'écran),
+    // l'élite teinté d'or par la couleur d'instance ; le coffre flottant était centré, le modèle a l'origine au sol
+    swap(this.chestW, norm(p.chest, 1.0, 'xz').translate(0, -0.3, 0), mat(p.chest));
     swap(this.mapChestW, norm(p.chest, 1.1, 'xz'), mat(p.chest));
     swap(this.shrineW, norm(p.shrine, 1.0, 'xz'), mat(p.shrine));
     // lame : épée couchée le long de x (comme l'ancienne boîte de 1 u) ; boomerang : hache à plat, tournant autour de y
     const sword = norm(p.sword, 1.15, 'y').rotateZ(-Math.PI / 2);
     swap(this.bladeW, sword, mat(p.sword));
-    this.bladeGhostW.mesh.geometry = sword;
     // hache : manche le long de y, fer le long de x → couchée à plat (rotateX) et centrée, elle tourne sur elle-même
     swap(
       this.boomW,
@@ -725,7 +728,7 @@ export class GameScene {
       at(norm(p.pumpkin, 0.62, 'y'), -1.0, 0.7, 0.6),
     ];
     const sameMap = p.grave.map === p.gravestone.map && p.pumpkin.map === p.gravestone.map;
-    swap(this.propGraveW, sameMap ? mergeGeometries(graveParts)! : graveParts[0], mat(p.gravestone));
+    swap(this.propGraveW, sameMap ? merge(graveParts) : graveParts[0], mat(p.gravestone));
     // échoppe : caisses, tonneau et pièces KayKit autour de l'étal procédural (auvent et colporteur gardés)
     const dress: [PropKey, number, number, number, number, number][] = [
       ['crates', 1.25, -1.65, 0, -0.05, 0.25],
@@ -739,11 +742,20 @@ export class GameScene {
       list.push(g);
       byMap.set(p[key].map, list);
     }
+    const stallParts: THREE.Mesh[] = [];
     for (const [map, list] of byMap) {
-      const g = list.length > 1 ? mergeGeometries(list)! : list[0];
-      this.stall.add(new THREE.Mesh(g, mat({ geometry: g, map })));
+      const g = merge(list);
+      stallParts.push(new THREE.Mesh(g, mat({ geometry: g, map })));
     }
-    this.cChest = this.cBladeCol = this.cBoomCol = WHITE;
+    for (const [wr, geo, m] of todo) {
+      wr.mesh.geometry.dispose();
+      wr.mesh.geometry = geo;
+      wr.mesh.material = m;
+    }
+    this.bladeGhostW.mesh.geometry = sword;
+    this.stall.add(...stallParts);
+    this.cChest = CHEST_ELITE;
+    this.cBladeCol = this.cBoomCol = WHITE;
     this.propsReady = true;
     for (const m of this.decorProc) m.visible = false;
     this.propX = this.propZ = 1e9;
@@ -754,7 +766,8 @@ export class GameScene {
     this.propZ = pz;
     for (const wr of this.propTreeW) wr.begin();
     const T = this.treeData,
-      R2 = PROP_DRAW * PROP_DRAW;
+      R2 = PROP_DRAW * PROP_DRAW,
+      r2 = SMALL_DRAW * SMALL_DRAW;
     for (let i = 0; i < T.length; i += 6) {
       const dx = T[i] - px,
         dz = T[i + 2] - pz;
@@ -769,7 +782,7 @@ export class GameScene {
     for (let i = 0; i < L.length; i += 3) {
       const dx = L[i] - px,
         dz = L[i + 2] - pz;
-      if (dx * dx + dz * dz < R2) this.propLampW.put(L[i], L[i + 1], L[i + 2], i * 0.7, 1, WHITE);
+      if (dx * dx + dz * dz < r2) this.propLampW.put(L[i], L[i + 1], L[i + 2], i * 0.7, 1, WHITE);
     }
     this.propLampW.end();
     this.propGraveW.begin();
@@ -777,7 +790,7 @@ export class GameScene {
     for (let i = 0; i < G.length; i += 4) {
       const dx = G[i] - px,
         dz = G[i + 2] - pz;
-      if (dx * dx + dz * dz < R2) this.propGraveW.put(G[i], G[i + 1], G[i + 2], G[i + 3], 1, WHITE);
+      if (dx * dx + dz * dz < r2) this.propGraveW.put(G[i], G[i + 1], G[i + 2], G[i + 3], 1, WHITE);
     }
     this.propGraveW.end();
   }
@@ -815,7 +828,8 @@ export class GameScene {
     this.qualityLevel = level;
     this.applySize();
     setDetail(level > 0 ? 12 : 7);
-    this.setCharacter(this.modelKey, this.modelSkin, true); // formes plus lisses (ou non) : modèle reconstruit
+    // formes procédurales plus lisses (ou non) : modèle reconstruit ; le héros glTF ne dépend pas du détail
+    if (this.heroKind !== 'gltf') this.setCharacter(this.modelKey, this.modelSkin, true);
     this.groundMat.map = this.groundTex(level > 0);
     this.groundMat.needsUpdate = true;
     this.renderer.domElement.classList.toggle('pixel', level === 0);
@@ -833,6 +847,11 @@ export class GameScene {
   /** Compile les shaders à l'avance : hors du fil principal quand KHR_parallel_shader_compile existe (chargement). */
   warmup(): Promise<void> {
     return this.renderer.compileAsync(this.scene, this.camera).then(() => undefined);
+  }
+
+  /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
+  onJump(): void {
+    this.heroAnim?.trigger(HeroAnim.Jump, 1.6);
   }
 
   /** Atterrissage du joueur : lance le ressort d'écrasement (valeurs neutres depuis la PR #6). */

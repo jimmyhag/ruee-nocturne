@@ -1327,6 +1327,7 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.Jump:
         audio.jump();
+        S.onJump();
         break;
       case Ev.Land:
         S.onLand();

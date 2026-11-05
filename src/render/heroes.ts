@@ -155,7 +155,9 @@ export class HeroAnimator {
     this.oneShot = i;
     const a = this.actions[i];
     this.oneShotLeft = i === HeroAnim.Death ? Infinity : a.getClip().duration / speed;
-    this.fadeTo(i, 0.08);
+    if (i === this.current)
+      a.reset().play(); // même clip relancé (deux sorts de suite) : il repart du début
+    else this.fadeTo(i, 0.08);
     a.setEffectiveTimeScale(speed);
   }
   /** Clip de fond voulu (course, idle, chute), vitesse de course ; avance le mixer. */
@@ -375,6 +377,7 @@ export async function buildHero(key: CharacterKey, skin = 0): Promise<HeroModel>
       first.parent!.add(gm);
     }
     for (const s of skinned) s.removeFromParent();
+    disposables.push(first.skeleton); // squelette cloné : sa texture d'os (boneTexture) est propre à ce héros
   }
   // accessoires : les choisis restent (matériau toon de la tenue), les autres sont cachés
   root.traverse((o) => {
@@ -398,12 +401,9 @@ export async function buildHero(key: CharacterKey, skin = 0): Promise<HeroModel>
   torso.add(root);
   const group = new THREE.Group();
   group.add(torso);
-  // silhouette de dash : le corps en pose de repos, à la même échelle
-  const silhouette = (body?.geometry ?? new THREE.BoxGeometry(0.6, 1.6, 0.4)).clone();
-  silhouette.deleteAttribute('skinIndex');
-  silhouette.deleteAttribute('skinWeight');
-  silhouette.scale(s, s, s);
-  silhouette.translate(0, root.position.y, 0);
+  // silhouette de dash : la scène garde celle du modèle procédural (quelques centaines de triangles, contre ≈ 4 k pour
+  // le corps glTF ; 6 fantômes à la fois pendant le Voile)
+  const silhouette = new THREE.BufferGeometry();
   disposables.push(silhouette);
   let glowDisc: THREE.Mesh | null = null;
   if (look.groundGlow) {

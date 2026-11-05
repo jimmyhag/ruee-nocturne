@@ -15,12 +15,19 @@ export type PropKey = keyof typeof MANIFEST.props.nodes;
 let loader: GLTFLoader | null = null;
 const cache = new Map<string, Promise<GLTF>>();
 
+/** Taille annoncée par le manifeste : sert de version dans l'URL (le cache CacheFirst suit un fichier réexporté). */
+function bytesOf(file: string): number {
+  if (MANIFEST.props.file === file) return MANIFEST.props.bytes;
+  for (const h of Object.values(MANIFEST.heroes)) if (h.file === file) return h.bytes;
+  return 0;
+}
+
 /** Charge (une fois) un fichier de public/models. Rejeté si le réseau manque : l'appelant garde son repli procédural. */
 export function loadGLTF(file: string): Promise<GLTF> {
   let p = cache.get(file);
   if (!p) {
     loader ??= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const url = `${import.meta.env.BASE_URL}models/${file}`;
+    const url = `${import.meta.env.BASE_URL}models/${file}?v=${bytesOf(file)}`;
     p = loader.loadAsync(url);
     p.catch(() => cache.delete(file)); // nouvel essai à la prochaine demande
     cache.set(file, p);
@@ -59,7 +66,8 @@ let propsPromise: Promise<Record<PropKey, PropGeometry>> | null = null;
  * avec sa texture palette. Pour les InstancedMesh du décor (un appel de rendu par objet).
  */
 export function loadProps(): Promise<Record<PropKey, PropGeometry>> {
-  return (propsPromise ??= loadGLTF(MANIFEST.props.file).then((gltf) => {
+  if (propsPromise) return propsPromise;
+  propsPromise = loadGLTF(MANIFEST.props.file).then((gltf) => {
     const out = {} as Record<PropKey, PropGeometry>;
     gltf.scene.updateMatrixWorld(true);
     for (const holder of gltf.scene.children) {
@@ -85,5 +93,7 @@ export function loadProps(): Promise<Record<PropKey, PropGeometry>> {
       out[key] = { geometry, map };
     }
     return out;
-  }));
+  });
+  propsPromise.catch(() => (propsPromise = null)); // nouvel essai au prochain appel, comme loadGLTF
+  return propsPromise;
 }
