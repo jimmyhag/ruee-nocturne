@@ -44,7 +44,7 @@ export interface DebugRuntime {
 
 export function installDebugHooks(host: DebugHost): DebugRuntime | null {
   if (!debugEnabled()) return null;
-  const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+  const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
   const w = () => host.world;
   // ?stress=400 : mesure de fps à N ennemis (porte de phase 1), N borné par la capacité du pool
   const stressParam = new URLSearchParams(location.search).get('stress');

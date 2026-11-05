@@ -17,7 +17,7 @@ refreshStats(w);
 // masse + Volants + Cracheurs : types 0,1,2 puis 4 et 5 (le modulo 5 ignore le Gardien, type 3)
 const MIX = [0, 1, 2, 4, 5, 9, 10]; // masse + Volants + Cracheurs + Archers et Sorciers (phase 16 ; le Gardien, type 3, est exclu) ; hissé hors de la fenêtre de mesure du tas
 for (let i = 0; i < 390; i++) spawnEnemy(w, MIX[i % MIX.length], (i / 390) * Math.PI * 2, 6 + (i % 17));
-const inp = { mx: 0.7, mz: 0.3, jump: false, dash: false, pick: 0 };
+const inp = { mx: 0.7, mz: 0.3, jump: false, spell: false, pick: 0 };
 w.player.maxHp = 1e9; // invincible : on mesure le coût du step, pas la survie
 const gc = (globalThis as any).gc as (() => void) | undefined;
 // chauffe
@@ -32,6 +32,7 @@ const times: number[] = [];
 for (let i = 0; i < 600; i++) {
   inp.mx = Math.cos(i / 60);
   inp.mz = Math.sin(i / 60);
+  inp.spell = i % 45 === 0; // phase 19 : le sort de classe est lancé régulièrement (Bond de l'Éclaireuse)
   w.player.hp = 1e9;
   const t0 = performance.now();
   step(w, inp, STEP);

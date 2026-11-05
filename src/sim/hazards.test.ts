@@ -8,8 +8,8 @@ import { Ev, HurtSrc, ShotKind } from './types';
 import type { Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
-const input = (mx: number, mz: number, jump = false, dash = false): Input => ({ mx, mz, jump, dash, pick: 0 });
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
+const input = (mx: number, mz: number, jump = false, spell = false): Input => ({ mx, mz, jump, spell, pick: 0 });
 
 function count(w: World, type: Ev): number {
   let n = 0;

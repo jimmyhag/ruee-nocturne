@@ -5,11 +5,11 @@ import { gainItem } from './items';
 import { rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
-import { Ev, Mode } from './types';
+import { Ev, Mode, Spell } from './types';
 import type { Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 const count = (w: World, type: Ev) => {
   let n = 0;
   for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === type) n++;
@@ -32,7 +32,7 @@ describe('personnages', () => {
     expect(b.player.maxHp).toBe(PLAYER.hp + 30);
     expect(b.bladeRangeMul).toBeCloseTo(1.2, 6);
     expect(b.player.speed).toBeCloseTo(PLAYER.speed * 1.05, 6); // plus lent que l'Éclaireuse
-    expect(b.player.dashTime).toBeGreaterThan(PLAYER.dashTime);
+    expect(b.spell).toBe(Spell.Tourbillon); // phase 19 : un sort par classe
     const s = new World(1, { character: 'sorciere' });
     expect(s.weapons).toEqual({ foudre: 1 });
     expect(s.player.maxHp).toBe(Math.round(PLAYER.hp * 0.7));

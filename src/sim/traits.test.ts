@@ -11,7 +11,7 @@ import type { CharacterKey, Input } from './types';
 import { World } from './world';
 import { refreshStats } from './weapons/defs';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 const make = (character: CharacterKey, seed = 1) => {
   const w = new World(seed, { character });
   startRun(w);
@@ -69,11 +69,11 @@ describe('passifs', () => {
     expect(landed).toBe(1);
     expect(projs(w, ProjKind.Mine)).toBe(before + 1);
   });
-  it('Feu follet : dash 2× plus long qui laisse des plaques de feu, et elles brûlent', () => {
+  it('Feu follet : sa Comète (dash 2× plus long que le Bond) laisse des plaques de feu, et elles brûlent', () => {
     const w = make('feufollet');
-    expect(w.player.dashTime).toBeCloseTo(PLAYER.dashTime * TRAIT.trainee.dashMul);
+    expect(w.player.dashTime).toBeCloseTo(PLAYER.dashTime * 2);
     expect(w.player.maxHp).toBe(1e9);
-    step(w, { ...still, mx: 1, dash: true }, STEP);
+    step(w, { ...still, mx: 1, spell: true }, STEP);
     for (let f = 0; f < 20; f++) step(w, { ...still, mx: 1 }, STEP);
     const fires = projs(w, ProjKind.Fire);
     expect(fires).toBeGreaterThan(2);

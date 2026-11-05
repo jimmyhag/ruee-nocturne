@@ -523,12 +523,28 @@
         touch-action: none;
         box-shadow: 0 4px 0 var(--ink);
       }
-      #btnDash {
-        width: 66px;
-        height: 66px;
-        font-size: 15px;
+      #btnSpell {
+        width: 70px;
+        height: 70px;
+        padding: 0;
         color: var(--ink);
         background: conic-gradient(var(--accent) calc(var(--cd, 1) * 360deg), var(--ink-3) 0);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+      #btnSpell b {
+        font-size: 24px;
+      }
+      #btnSpell small {
+        font-size: 10px;
+        margin-top: 2px;
+        max-width: 64px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       #btnJump {
         width: 84px;
@@ -1174,6 +1190,9 @@
         min-height: 2.6em; /* deux lignes réservées : pas de décalage quand le passif apparaît */
         line-height: 1.3;
       }
+      .charinfo .spell {
+        color: var(--gold);
+      }
       .charinfo em {
         color: var(--gold);
         font-style: normal;
@@ -1610,7 +1629,9 @@
     <div id="perf" hidden></div>
     <div class="keys" id="keys" hidden>
       <span><b data-i18n="keys.space">Espace</b><span data-i18n="keys.jump">Saut</span></span
-      ><span><b data-i18n="keys.shift">Maj</b><span data-i18n="keys.dash">Dash</span><i id="dashbar"></i></span
+      ><span
+        ><b data-i18n="keys.shift">Maj</b><span id="spellKey" data-i18n="keys.spell">Sort</span
+        ><i id="spellbar"></i></span
       ><span><b>F3</b><span data-i18n="keys.perf">Perf</span></span>
     </div>
     <div id="dmg" aria-hidden="true"></div>
@@ -1623,8 +1644,8 @@
     <div id="touch" hidden>
       <div id="stick"><div id="knob"></div></div>
       <div class="tbtns">
-        <button id="btnDash" aria-label="Dash" data-i18n="touch.dash" data-i18n-attr="aria-label:touch.dashAria">
-          DASH</button
+        <button id="btnSpell" aria-label="Sort de classe" data-i18n-attr="aria-label:touch.spellAria">
+          <b id="spellGlyph">✦</b><small id="spellName" data-i18n="touch.spell">SORT</small></button
         ><button id="btnJump" aria-label="Sauter" data-i18n="touch.jump" data-i18n-attr="aria-label:touch.jumpAria">
           SAUT
         </button>
@@ -1797,7 +1818,7 @@
           <dt><span class="cap" data-i18n="keys.space">Espace</span></dt>
           <dd data-i18n="menu.ctrl.jump">Sauter par-dessus la horde</dd>
           <dt><span class="cap" data-i18n="keys.shift">Maj</span></dt>
-          <dd data-i18n="menu.ctrl.dash">Dash, invincible pendant l'élan</dd>
+          <dd data-i18n="menu.ctrl.spell">Sort de ta classe (chaque personnage a le sien)</dd>
           <dt><span class="cap">1 2 3</span></dt>
           <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
         </dl>

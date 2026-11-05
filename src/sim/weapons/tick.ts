@@ -50,7 +50,8 @@ function nearest(w: World, n: number, range: number): number {
   return count;
 }
 
-function fireAngle(w: World, a: number, dmg: number, pierce: number, speed: number): Projectile | null {
+/** Tire un orbe depuis le joueur à l'angle a. Exporté pour la salve du Bond (phase 19). */
+export function fireAngle(w: World, a: number, dmg: number, pierce: number, speed: number): Projectile | null {
   const p = w.allocProj();
   if (!p) return null;
   p.kind = ProjKind.Orbe;
@@ -369,7 +370,8 @@ export function tickProjectiles(w: World, dt: number): void {
       else if (p.hit1 < 0) p.hit1 = id;
       else p.hit2 = id;
       p.pierce--;
-      hitEnemy(w, j, p.dmg, 2.5, p.x - p.vx, p.z - p.vz, HitSrc.Orbe);
+      // phase 19 : `armed` marque un orbe de la salve du Bond (le drapeau ne sert qu'aux mines)
+      if (hitEnemy(w, j, p.dmg, 2.5, p.x - p.vx, p.z - p.vz, p.armed ? HitSrc.Spell : HitSrc.Orbe) && p.armed) w.sstate.kills++;
     }
     if (p.life <= 0 || p.pierce <= 0) w.freeProj(i);
   }

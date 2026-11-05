@@ -1,6 +1,7 @@
-import { ENEMIES, ITEM_KEYS, ITEM_RARITY, MAPCHEST, PLAYER, SHRINE } from '../sim/balance';
+import { ENEMIES, ITEM_KEYS, ITEM_RARITY, MAPCHEST, SHRINE, SPELL_KEYS } from '../sim/balance';
 import { canGainItem } from '../sim/items';
 import { mapChestPrice } from '../sim/poi';
+import { spellCooldown } from '../sim/spells';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
@@ -10,12 +11,14 @@ import {
   BOON_GLYPH,
   ITEM_GLYPH,
   RARITY_COLOR,
+  SPELL_GLYPH,
   cardLines,
   cardText,
   cardTitle,
   enemyName,
   itemName,
   rarityName,
+  spellName,
   synergyName,
   synergyText,
   tomeName,
@@ -53,8 +56,11 @@ export class Hud {
     poiChip: $('poiChip'),
     poiText: $('poiText'),
     poiFill: $('poiFill'),
-    dashbar: $('dashbar'),
-    btnDash: $('btnDash'),
+    spellbar: $('spellbar'),
+    spellKey: $('spellKey'),
+    spellGlyph: $('spellGlyph'),
+    spellName: $('spellName'),
+    btnSpell: $('btnSpell'),
     flash: $('flash'),
     banner: $('banner'),
     perf: $('perf'),
@@ -231,12 +237,12 @@ export class Hud {
       this.width('bossfill', b.hp / b.max);
       this.text('bossname', this.bossNames[b.type]);
     }
-    const cd = P.dashCd > 0 ? 1 - P.dashCd / PLAYER.dashCd : 1;
+    const cd = P.spellCd > 0 ? 1 - P.spellCd / spellCooldown(w) : 1; // phase 19 : sort de classe
     const cdv = cd.toFixed(2);
     if (this.cache.cd !== cdv) {
       this.cache.cd = cdv;
-      this.els.btnDash.style.setProperty('--cd', cdv);
-      this.els.dashbar.style.width = cd * 100 + '%';
+      this.els.btnSpell.style.setProperty('--cd', cdv);
+      this.els.spellbar.style.width = cd * 100 + '%';
     }
     // flash d'écran : rouge tant que le joueur est touché, sinon flash ponctuel (doré) en fondu
     let op = 0;
@@ -274,6 +280,12 @@ export class Hud {
   }
 
   kit(w: World): void {
+    // phase 19 : bouton et touche du sort au nom du sort de la classe
+    const sk = SPELL_KEYS[w.spell];
+    this.els.spellGlyph.textContent = SPELL_GLYPH[sk];
+    this.els.spellName.textContent = spellName(sk).toUpperCase();
+    this.els.spellKey.textContent = spellName(sk);
+    this.els.btnSpell.setAttribute('aria-label', spellName(sk));
     const parts: string[] = [];
     for (const k in w.weapons) parts.push(`<span>${weaponName(k as WeaponKey)} ${w.weapons[k as WeaponKey]}</span>`);
     for (const k in w.tomes)

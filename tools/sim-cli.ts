@@ -105,6 +105,8 @@ interface RunResult {
   synergies: string[]; // synergies actives en fin de run
   mapChests: number; // phase 18 : coffres de carte ouverts
   shrines: number; // sanctuaires pris
+  spellCasts: number; // phase 19 : sorts lancés
+  spellKills: number; // kills faits par le sort
   goldEarned: number; // or gagné (gardé + dépensé)
   // défis (phase 6)
   noHit: number; // plus longue période sans dégât (s)
@@ -120,7 +122,7 @@ function runOnce(seed: number): RunResult {
   let bought = 0;
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
-  const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+  const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
   let frame = 0;
   let killsAt10 = -1,
     levelAt10 = -1,
@@ -149,11 +151,11 @@ function runOnce(seed: number): RunResult {
     if (w.mode === Mode.LevelUp) {
       inp.pick = pickAllowed(bot, w, w.cards, ALLOWED);
       inp.mx = inp.mz = 0;
-      inp.jump = inp.dash = false;
+      inp.jump = inp.spell = false;
     } else if (w.mode === Mode.Merchant) {
       inp.pick = bot.shop(w);
       inp.mx = inp.mz = 0;
-      inp.jump = inp.dash = false;
+      inp.jump = inp.spell = false;
     } else {
       inp.pick = -1;
       bot.decide(w, frame, inp);
@@ -259,6 +261,8 @@ function runOnce(seed: number): RunResult {
     synergies: SYNERGIES.filter((_, i) => w.syn[i]).map((s) => s.key),
     mapChests: w.mapChestsOpened,
     shrines: w.shrinesUsed,
+    spellCasts: w.sstate.casts,
+    spellKills: w.sstate.kills,
     goldEarned: Math.round(w.gold + w.goldSpent),
     noHit: w.noHitBest,
     distance: w.distance,
@@ -355,6 +359,21 @@ const summary = {
   // phase 18 : points d'intérêt et part de l'or dépensé en partie (coffres de carte + marchand)
   mapChestsPerRun: +(results.reduce((a, r) => a + r.mapChests, 0) / RUNS).toFixed(2),
   shrinesPerRun: +(results.reduce((a, r) => a + r.shrines, 0) / RUNS).toFixed(2),
+  // phase 19 : sort de classe, lancers par minute de jeu et part des kills
+  spellPerMin: +(
+    (60 * results.reduce((a, r) => a + r.spellCasts, 0)) /
+    Math.max(
+      1,
+      results.reduce((a, r) => a + r.time, 0),
+    )
+  ).toFixed(2),
+  spellKillPct: Math.round(
+    (100 * results.reduce((a, r) => a + r.spellKills, 0)) /
+      Math.max(
+        1,
+        results.reduce((a, r) => a + r.kills, 0),
+      ),
+  ),
   goldSpentPct: Math.round(
     (100 * results.reduce((a, r) => a + r.goldSpent, 0)) /
       Math.max(
@@ -501,6 +520,7 @@ lines.push(`vivants/min ${summary.aliveCurve.join(' ')}  (plus forte chute ${sum
 lines.push(
   `carte       ${summary.mapChestsPerRun} coffres de carte et ${summary.shrinesPerRun} sanctuaires par run · ${summary.goldSpentPct} % de l'or gagné dépensé en partie`,
 );
+lines.push(`sort        ${summary.spellPerMin} lancers par minute · ${summary.spellKillPct} % des kills`);
 const checks = checkTargets(summary, PROFILES[PROFILE]);
 lines.push(`cibles      ${checks.map((c) => `${c.ok ? '✔' : '✘'} ${c.name} (${c.value})`).join('  ')}`);
 if (!checks.every((c) => c.ok)) lines.push('cibles non atteintes : à régler dans balance.ts (survivor-design §9)');

@@ -10,7 +10,7 @@ import { Ev, Mode } from './types';
 import type { Card, Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 
 describe('combat', () => {
   it('hitEnemy applique dmgMul, flash, recul, et tue à 0 PV', () => {

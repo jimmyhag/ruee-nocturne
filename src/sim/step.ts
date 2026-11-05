@@ -1,13 +1,14 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, VOLANT_TYPE, TRAIT } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, SPELL, VOLANT_TYPE, TRAIT } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
 import { applyCard, nextChoice, tickChests, tickGems } from './progression';
 import { merchantInput, tickMerchant } from './merchant';
 import { tickPOI } from './poi';
+import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { Ev, HitSrc, HurtSrc, Mode, ShotKind, Trait } from './types';
+import { Ev, HitSrc, HurtSrc, Mode, ShotKind, Spell, Trait } from './types';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
 import type { World } from './world';
@@ -47,6 +48,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickEruptions(w);
   tickShots(w, dt);
   tickWeapons(w, dt);
+  tickSpells(w, dt); // phase 19 : coups des sorts (grille à jour)
   tickProjectiles(w, dt);
   compactEnemies(w);
   tickGems(w, dt);
@@ -115,12 +117,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.onGround = false;
     w.emit(Ev.Jump, P.x, P.y, P.z);
   }
-  if (input.dash && P.dashCd <= 0) {
-    P.dashT = P.dashTime;
-    P.dashCd = PLAYER.dashCd * P.dashCdMul; // tome Mouvement
-    P.invul = Math.max(P.invul, PLAYER.dashInvul + P.dashInvulAdd);
-    w.emit(Ev.Dash, P.x, P.y, P.z);
-  }
+  if (input.spell && P.spellCd <= 0) castSpell(w, P.dirX, P.dirZ); // phase 19 : sort de classe (ancien dash)
   // lac : ralentit au sol seulement ; phase 18 : la pente aussi (montée plus lente, descente plus rapide)
   let sp = P.speed * (P.onGround ? w.speedAt(P.x, P.z) * w.slopeMul(P.x, P.z, ix, iz) : 1);
   if (P.dashT > 0) {
@@ -129,11 +126,15 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     ix = P.dirX;
     iz = P.dirZ;
   }
+  if (P.spellT > 0) {
+    if (w.spell === Spell.Tourbillon) sp *= SPELL.tourbillon.speedMul;
+    else if (w.spell === Spell.Voile) sp *= SPELL.voile.speedMul;
+  }
   P.vx = ix * sp;
   P.vz = iz * sp;
   P.x += P.vx * dt;
   P.z += P.vz * dt;
-  P.dashCd -= dt;
+  P.spellCd -= dt;
   P.invul -= dt;
   if (P.recoil > 0) P.recoil = Math.max(0, P.recoil - dt);
   // phase 16 : murets et troncs se franchissent en plein saut (P.y), arbres, rochers et menhirs jamais
@@ -155,7 +156,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   }
   P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   P.walk += l * dt * 12;
-  // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de dash
+  // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de Comète
   const mx = P.x - P.px,
     mz = P.z - P.pz;
   const moved = Math.sqrt(mx * mx + mz * mz);
@@ -203,8 +204,11 @@ function stepEnemies(w: World, dt: number): void {
       respawnNear(w, i);
       continue;
     }
-    // déplacement voulu selon le rôle
-    if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
+    // déplacement voulu selon le rôle ; phase 19 : un ennemi étourdi (Éclat, Collet) ne bouge ni n'agit
+    if (e.stun > 0) {
+      e.stun -= dt;
+      mv[0] = mv[1] = 0;
+    } else if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
     else if (isCharger(e)) tickCharger(w, e, dt, dx, dz, d, mv);
     else if (e.type === VOLANT_TYPE) tickFlyer(w, e, dt, dx, dz, d, mv);
     else if (e.type === CRACHEUR_TYPE) tickSpitter(w, e, dt, dx, dz, d, mv);
@@ -234,14 +238,20 @@ function stepEnemies(w: World, dt: number): void {
       mv[0] *= ITEM.sablier.slow;
       mv[1] *= ITEM.sablier.slow;
     }
+    // phase 19 : ralenti par un sort (Voile ; boss dans un Collet ou un Éclat)
+    if (e.slowT > 0) {
+      e.slowT -= dt;
+      mv[0] *= SPELL.slow;
+      mv[1] *= SPELL.slow;
+    }
     let mx = mv[0],
       mz = mv[1];
     if (!flies) {
       const slow = w.speedAt(e.x, e.z) * w.slopeMul(e.x, e.z, mx, mz); // lac et pente (phase 18)
       mx *= slow;
       mz *= slow;
-      if (!def.boss) {
-        // séparation avec les voisins (9 cellules)
+      if (!def.boss && e.stun <= 0) {
+        // séparation avec les voisins (9 cellules) ; phase 19 : un ennemi étourdi reste planté (Collet)
         const nn = grid.neighbors(i, nb);
         for (let k = 0; k < nn; k++) {
           const o = w.enemies[nb[k]];
@@ -278,11 +288,12 @@ function stepEnemies(w: World, dt: number): void {
     e.face = Math.atan2(dx, dz);
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
-    const canHurt = e.type === VOLANT_TYPE ? e.state === 2 : true;
+    // phase 19 : un ennemi étourdi (Éclat, Collet) ne blesse pas : une Brute figée en pleine charge ne la porte pas
+    const canHurt = e.stun > 0 ? false : e.type === VOLANT_TYPE ? e.state === 2 : true;
     if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
-        const dmg = HAZARDS.charge.dmg * e.dmgMul * (1 - P.armor);
+        const dmg = HAZARDS.charge.dmg * e.dmgMul * (1 - P.armor) * P.dmgTaken;
         P.hp -= dmg;
         hurt += dmg;
         P.invul = Math.max(P.invul, HAZARDS.charge.invul);
@@ -292,7 +303,7 @@ function stepEnemies(w: World, dt: number): void {
       } else {
         // phase 17 : Rempart (Vitalité + Halo), le contact d'un ennemi dans le Halo est réduit
         const inHalo = w.syn[Syn.Rempart] && d < w.wstats.aura.r;
-        const dmg = def.dmg * e.dmgMul * dt * (1 - P.armor) * (inHalo ? SYN.rempart.dmgTaken : 1);
+        const dmg = def.dmg * e.dmgMul * dt * (1 - P.armor) * P.dmgTaken * (inHalo ? SYN.rempart.dmgTaken : 1);
         P.hp -= dmg;
         hurt += dmg;
         w.lastHurt = HurtSrc.Contact;
@@ -329,8 +340,8 @@ function tickShots(w: World, dt: number): void {
       // tirs droits : le crachat (au sol) se saute, la flèche non ; les deux s'arrêtent sur un obstacle (phase 16)
       const arrow = s.kind === ShotKind.Arrow;
       if (inside && (arrow || !airborne) && P.invul <= 0) {
-        P.hp -= s.dmg * (1 - P.armor);
-        hurt += s.dmg * (1 - P.armor);
+        P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
+        hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
         w.lastHurt = arrow ? HurtSrc.Arrow : HurtSrc.Spit;
         w.freeShot(i);
         continue;
@@ -346,8 +357,8 @@ function tickShots(w: World, dt: number): void {
       s.r += HAZARDS.ring.speed * dt;
       const dist = Math.sqrt(dx * dx + dz * dz);
       if (!s.hit && Math.abs(dist - s.r) < HAZARDS.ring.width * 0.5 + PLAYER.radius && !airborne && P.invul <= 0) {
-        P.hp -= s.dmg * (1 - P.armor);
-        hurt += s.dmg * (1 - P.armor);
+        P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
+        hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
         s.hit = true;
         w.lastHurt = HurtSrc.Ring;
       }
@@ -363,8 +374,8 @@ function tickShots(w: World, dt: number): void {
         // pic : blesse et projette le joueur au sol
         w.emit(Ev.Eruption, s.x, 0, s.z, s.r);
         if (inside && !airborne && P.invul <= 0) {
-          P.hp -= s.dmg * (1 - P.armor);
-          hurt += s.dmg * (1 - P.armor);
+          P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
+          hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
           P.vy = HAZARDS.eruption.launch;
           P.onGround = false;
           w.lastHurt = HurtSrc.Eruption;
@@ -375,8 +386,8 @@ function tickShots(w: World, dt: number): void {
       // zone du Colosse ou boule de feu du Sorcier (phase 16) : explose ; un joueur en l'air y échappe
       w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
       if (inside && !airborne && P.invul <= 0) {
-        P.hp -= s.dmg * (1 - P.armor);
-        hurt += s.dmg * (1 - P.armor);
+        P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
+        hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
         w.lastHurt = s.kind === ShotKind.Fireball ? HurtSrc.Fire : HurtSrc.Zone;
       }
       w.freeShot(i);

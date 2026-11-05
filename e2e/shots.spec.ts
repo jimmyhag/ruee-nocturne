@@ -94,7 +94,12 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   await openGame(page);
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
   await startRun(page, 7);
-  await page.evaluate(() => (window as any).__game.debug.god());
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    // l'XP du kill d'élite déclenchait parfois une montée de niveau pendant la fenêtre de capture (« partie interrompue »)
+    g.world.player.need = 1e9;
+  });
   // élite : une Brute à 1 PV posée à 2 u, tuée par la première arme qui la touche
   await page.evaluate(() => (window as any).__game.debug.weak(2, 2));
   await freezeAfterKill(page, 140);
@@ -208,7 +213,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await page.evaluate(() => (window as any).__game.debug.warp(60));
   await pickUntilPlay(page);
   await page.evaluate(() => (window as any).__game.debug.spawn(0, 24, 5));
-  // un dash vers la droite : la traînée se pose derrière le joueur (durée comptée en temps de jeu : sous SwiftShader
+  // une Comète vers la droite : la traînée se pose derrière le joueur (durée comptée en temps de jeu : sous SwiftShader
   // en rendu net, la boucle avance moins vite que l'horloge)
   const t0 = await page.evaluate(() => (window as any).__game.world.t as number);
   await page.keyboard.down('KeyD');
@@ -223,7 +228,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
     for (let i = 0; i < w.projCount; i++) if (w.projs[i].kind === 3) n++;
     return n;
   });
-  expect(fires, 'plaques de feu posées par le dash').toBeGreaterThan(3);
+  expect(fires, 'plaques de feu posées par la Comète').toBeGreaterThan(3);
   await page.screenshot(shot('feufollet', p));
   await page.evaluate(() => (window as any).__game.debug.speed(1));
 });

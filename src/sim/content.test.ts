@@ -27,7 +27,7 @@ import type { Input } from './types';
 import { WEAPON_KEYS } from './weapons/defs';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 const god = (w: World) => {
   w.player.maxHp = w.player.hp = 1e9;
   w.player.need = 1e9;

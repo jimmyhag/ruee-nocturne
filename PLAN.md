@@ -108,15 +108,29 @@ Dégâts (dégâts, élites et boss, recul) · Cadence (recharge, durée des pro
 ### 3.5 Personnages (9, phase 6 ; 3 en V1)
 Un personnage = une arme de départ + un passif signature (une règle de jeu, pas un pourcentage) + une condition de déblocage qui est un objectif en soi. « Différents, pas meilleurs » : chaque personnage à ± 3 min de l'Éclaireuse sur 100 runs du bot. Détail et décisions : `docs/PHASE6-PERSONNAGES.md`.
 
+Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'ancien dash (Maj, bouton à l'écran, B/RB/RT à la manette), constantes dans `SPELL` (`src/sim/balance.ts`), code dans `src/sim/spells.ts`. Le tome Mouvement en réduit la recharge (−6 % par ligne, plancher 40 %) et en augmente la puissance (+8 % de dégâts, +4 % de rayon et de durée par ligne) ; la Cape rend invulnérable 0,4 s après chaque sort.
+
+| Sort | Classe | Effet | Recharge |
+|---|---|---|---|
+| Bond | Éclaireuse | élan invulnérable (0,2 s) puis 6 orbes en étoile | 2,5 s |
+| Tourbillon | Bûcheron | 1,2 s de coups tout autour (r 3), dégâts subis ÷ 2, vitesse ×0,8 | 7 s |
+| Clignement | Sorcière | téléportation de 6 u (s'arrête avant un obstacle), éclairs sur 6 ennemis au point de départ | 5 s |
+| Éclat | Veilleuse | onde de r 6 : recul, étourdit 1,2 s (boss : ralentis) | 8 s |
+| Collet | Braconnier | filet lancé à 7 u (r 3, 3 s) qui immobilise (boss : ralentis) | 7 s |
+| Pétard | Sapeur | explosion sous ses pieds (r 3,5) qui le projette en l'air ; l'atterrissage pose une mine | 6 s |
+| Comète | Feu follet | élan 2× plus long que le Bond, la Traînée y pose du feu | 1,8 s |
+| Voile | Revenante | 1,5 s spectrale : invulnérable, vitesse ×1,3, ralentit ce qu'elle frôle | 8 s |
+| Bourse | Colporteur | bourse lancée à 5 u qui explose (r 3,5), +1 dégât par 10 or gardés (+60 au plus) | 6 s |
+
 | Nom | Stats de départ | Arme de départ | Passif signature | Déblocage |
 |---|---|---|---|---|
-| Éclaireuse | +15 % vitesse, dash plus court | Orbe | aucun (référence d'équilibrage) | Départ |
+| Éclaireuse | +15 % vitesse, sort Bond | Orbe | aucun (référence d'équilibrage) | Départ |
 | Bûcheron | +30 PV, lames à portée +20 % | Lames 2 | Fendeur : les Lames repoussent 50 % plus fort | Survivre 10 min |
 | Vieille sorcière | −30 % PV | Foudre | Paratonnerre : la Foudre vise d'abord le plus proche | 500 kills cumulés |
 | Veilleuse | +20 PV | Halo | Braise : le Halo grandit de 8 % par minute, max +40 % | 800 or |
-| Braconnier | +10 PV | Boomerang (2 lignes de dégâts) | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
+| Braconnier | +10 PV | Boomerang (1 ligne de dégâts, phase 18) | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
 | Sapeur | −20 % PV, vitesse 0,92 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
-| Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : dash 2× plus long qui laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
+| Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : sa Comète (dash 2× plus long) laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
 | Revenante | −55 % PV, vitesse 0,9 | Foudre et Halo | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air | Vaincre le Faucheur |
 | Colporteur | +15 PV, vitesse 1,03, Trèfle 1 et Bourse 1 | Lames 2 | Marchand : les coffres proposent 4 objets au lieu de 3 (phase 17) | 2 000 or |
 
@@ -229,8 +243,8 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 
 ### 4.5 Entrées
 - Clavier (ZQSD/WASD/flèches, Espace, Maj), **manette** (Gamepad API, deadzone 0,2), tactile (joystick flottant sous le pouce gauche, boutons droite, rebinding gauche/droite).
-- Un seul `InputState` normalisé par frame : `{move: vec2, jump, dash, pause}`.
-- **Le saut et le dash servent** (phase 11) : le saut franchit les murets et les troncs (phase 16 ; il montait sur les plateaux en phase 11) et passe au-dessus des éruptions, de l'onde du Gardien et des crachats (en l'air ≥ 0,9 u : hors de portée des marcheurs, des crachats et des zones ; les flèches, elles, touchent aussi en l'air) ; le dash (0,32 s d'invulnérabilité) traverse une charge de Brute élite ou sort d'une éruption. Aucun des deux n'attaque : ce sont des outils de déplacement et d'esquive.
+- Un seul `InputState` normalisé par frame : `{move: vec2, jump, spell, pause}` (phase 19 : le bouton du dash lance le sort de la classe).
+- **Le saut et le dash servent** (phase 11) : le saut franchit les murets et les troncs (phase 16 ; il montait sur les plateaux en phase 11) et passe au-dessus des éruptions, de l'onde du Gardien et des crachats (en l'air ≥ 0,9 u : hors de portée des marcheurs, des crachats et des zones ; les flèches, elles, touchent aussi en l'air) ; le dash (0,32 s d'invulnérabilité) traverse une charge de Brute élite ou sort d'une éruption. **Phase 19 :** le dash n'est plus commun ; le bouton lance le **sort de la classe** (§3.5), dont certains esquivent (Bond, Comète, Clignement, Voile, Pétard) et d'autres frappent ou contrôlent. Tous les dangers restent esquivables au saut ou d'un pas de côté.
 
 ### 4.6 Audio
 - Web Audio API. Pas de bibliothèque. Un `AudioBus` avec 3 canaux (musique, SFX, UI), limiteur simple, **pool de voix** (max 24 SFX simultanés, les tirs les moins récents coupés).
@@ -335,6 +349,13 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 18 — Relief, exploration et rythme (après la 1.12.1)
 - Retour de Jimmy : difficulté lisse, rendre le jeu addictif (coffres posés sur la carte, marchand), la carte est trop vide : du relief, des montées et des descentes. Relief en collines douces (§3.4), coffres de carte payants et sanctuaires (§3.6), annonce et respiration avant les boss, mesure « plus forte chute des vivants en une minute » dans la CLI.
 - **Porte** : pente ≤ 0,35 ; connexité 100 % ; cibles des profils nu et maxé tenues ; plus forte chute des vivants bornée ; coffres de carte ouverts (nu ≥ 1, maxé ≥ 3 par run) ; or dépensé en partie ≥ 25 % de l'or gagné (maxé ; 7 % avant la phase) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; e2e coffre de carte et sanctuaire au clavier et au doigt ; captures lues ; test de Jimmy.
+
+### Phase 19 — Un sort par classe (après la 1.13.1)
+- Retour d'un testeur via Jimmy : « beaucoup trop générique ». Le dash commun est remplacé par un sort propre à chaque classe (§3.5, §4.5), sur le même bouton. Effets, son et retour visuel pour chacun (règle 3), ennemis étourdis ou ralentis lisibles (teinte), bots qui lancent chaque type de sort à son moment, ligne « sort » dans la CLI.
+- **Porte** : 9 sorts distincts, chacun testé (Vitest) ; captures des 9 sorts lues (PC et iPhone) ; e2e du sort au clavier et au doigt ; cibles de l'Éclaireuse tenues dans les deux profils ; 9 personnages à ± 3 min ; morts < 3 min ≤ 20 % (nu) ; sort ≥ 0,75 lancer par minute chez le bot et ≤ 30 % des kills ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; zéro allocation par frame ; test de Jimmy et de son testeur.
+
+### Phase 20 — Vraie 3D (esquissée, à ne pas commencer avant la fin de la phase 19)
+- Demande de Jimmy : une 3D « vraiment propre » pour les personnages, ennemis, armes, projectiles et objets. Décisions (5 nov.) : modèles de **packs CC0** (KayKit, Quaternius, Kenney ; licence vérifiée pack par pack, crédits dans `CREDITS.md`), chargés en glTF par `GLTFLoader` (déjà dans `three/examples`, aucune dépendance npm en plus), **Three.js conservé** (sim, tests et PWA intacts). Points à trancher au plan : animations des 400 ennemis (squelettes instanciés ou poses précalculées), budget de téléchargement (Lighthouse), budget de triangles.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

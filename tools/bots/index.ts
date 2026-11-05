@@ -1,6 +1,6 @@
 import type { BoonKey, Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
-import { ShotKind } from '../../src/sim/types';
+import { ShotKind, Spell } from '../../src/sim/types';
 import { Rng } from '../../src/sim/rng';
 import {
   ELITE_TYPE,
@@ -52,7 +52,7 @@ export const naive: Bot = {
     out.mx = Math.cos(a);
     out.mz = Math.sin(a);
     out.jump = false;
-    out.dash = false;
+    out.spell = false;
   },
   pick: () => 0,
   shop: () => MERCHANT_LEAVE,
@@ -99,8 +99,8 @@ const LINE_VALUE: Record<string, number> = {
   hp: 6,
   regen: 5,
   armor: 6,
-  dashcd: 3,
-  dashinvul: 2,
+  spellcd: 3,
+  spellpow: 2,
   xp: 6,
   magnet: 4,
   luck: 4,
@@ -220,6 +220,9 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         cz = 0,
         n = 0,
         close = 0,
+        near3 = 0, // phase 19 : ennemis dans le rayon des sorts de zone (Tourbillon, Pétard ≈ 3 u ; Éclat 6 u)
+        near6 = 0,
+        near8 = 0, // et à portée de lancer (Collet, Bourse)
         diving = false;
       for (let i = 0; i < w.enemyCount; i++) {
         const e = w.enemies[i];
@@ -234,7 +237,10 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           cx += dx * wgt;
           cz += dz * wgt;
           n++;
+          near8++;
           if (d2 < 4) close++;
+          if (d2 < 9) near3++;
+          if (d2 < 36) near6++;
         }
       }
       // cercles rouges du Colosse : un joueur moyen lit le télégraphe et sort de la zone
@@ -433,8 +439,36 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         out.mx /= ml;
         out.mz /= ml;
       }
-      out.dash = (close >= 6 || charged) && P.dashCd <= 0;
-      out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.dash;
+      // phase 19 : chaque sort a son moment (un joueur moyen n'attend pas la perfection, mais ne lance pas dans le vide)
+      let cast: boolean;
+      switch (w.spell) {
+        case Spell.Tourbillon:
+          cast = near3 >= 2;
+          break;
+        case Spell.Petard:
+          cast = near3 >= 3 || hazard || charged;
+          break;
+        case Spell.Eclat:
+          cast = near6 >= 5 || close >= 3;
+          break;
+        case Spell.Collet:
+        case Spell.Bourse:
+          // lancé vers le gros du danger : on vise la masse pour ce pas (la sim lance dans la direction de l'entrée)
+          cast = near8 >= 4;
+          if (cast && P.spellCd <= 0) {
+            const l = Math.sqrt(cx * cx + cz * cz) || 1;
+            out.mx = cx / l;
+            out.mz = cz / l;
+          }
+          break;
+        case Spell.Voile:
+          cast = close >= 3 || charged || P.hp < P.maxHp * 0.35;
+          break;
+        default: // Bond, Comète, Clignement : l'esquive de l'ancien dash
+          cast = close >= 3 || charged;
+      }
+      out.spell = cast && P.spellCd <= 0;
+      out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.spell;
     },
     pick(w, cards) {
       if (r.next() < randomness) return r.int(cards.length);

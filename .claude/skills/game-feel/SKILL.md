@@ -65,6 +65,7 @@ Durée 0,3–0,6 s, scale ∝ vie restante. Cap global 500 ; au-delà, on **remp
 - Le joueur reste toujours identifiable : halo au sol, couleur unique (orange) qu'aucun ennemi n'utilise.
 - Télégraphes avant dégâts : cercle rouge au sol 1 s (Colosse), ligne de visée (Cracheur), ombre (Volant), fissure rouge qui suit le joueur 0,8 s (éruption), anneau rouge fin qui grandit (onde du Gardien), couloir rouge au sol 0,6 s (charge de Brute élite).
 - Un danger qui se passe en l'air doit laisser une fenêtre de saut lisible : avec un saut de 0,73 s on est à plus de 0,9 u entre 0,11 et 0,62 s après l'impulsion, donc le télégraphe dure ≥ 0,7 s et le coup tombe à sa fin, pas avant. Un danger à traverser en dash dure moins que l'invulnérabilité du dash (0,32 s) au point de croisement.
+- Sorts de classe (phase 19) : chaque sort a son son (`audio.spell`), une gerbe ou un anneau au lancement et à l'impact (`spellFx` dans `main.ts`), et ce qui dure se voit (filet du Collet, bras dorés du Tourbillon, silhouettes du Voile, ennemis étourdis teintés en jaune pâle, ralentis en bleu). Le joueur ne clignote que pendant l'invulnérabilité d'un coup encaissé, jamais pendant celle d'un sort.
 - Réglage « réduction des effets » : shake 0, particules ÷2, hit-stop off, flash CSS atténué. Respecte aussi `prefers-reduced-motion`.
 
 ## 10. Checklist de validation (à coller dans la PR de phase 2)

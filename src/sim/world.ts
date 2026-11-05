@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, slopeMul } from './terrain';
@@ -9,7 +9,7 @@ import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Ev, Mode, ProjKind, ShotKind, Trait, HurtSrc } from './types';
+import { Ev, Mode, ProjKind, ShotKind, Spell, Trait, HurtSrc } from './types';
 import type {
   Card,
   Chest,
@@ -97,6 +97,9 @@ export class World {
   bladeRangeMul = 1; // Bûcheron : lames à portée +20 %
   wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0, boomT: 0.8, mineT: 0, mineDist: 0, fireDist: 0 };
   trait: Trait = Trait.None; // passif signature du personnage (phase 6)
+  spell: Spell = Spell.Bond; // sort de classe (phase 19)
+  // état des sorts qui durent (phase 19) : centre du Collet, impulsions, salve du Bond en attente, lancers et kills (CLI)
+  sstate = { x: 0, z: 0, tick: 0, pending: false, bondPending: false, casts: 0, kills: 0 };
   // compteurs de défis (phase 6) : distance parcourue, plus longue période sans dégât
   distance = 0;
   hurtAt = 0;
@@ -168,6 +171,7 @@ export class World {
     if (ch.weapon2) this.weapons[ch.weapon2] = 1;
     this.bladeRangeMul = ch.bladeRangeMul;
     this.trait = ch.trait;
+    this.spell = ch.spell;
     if (ch.trait === Trait.DejaMorte) this.player.revives += TRAIT.dejamorte.revives;
     // kit de départ : lignes fixes (hors plafond d'emplacements, comme avant)
     if (ch.startLines)
@@ -454,13 +458,13 @@ export function makePlayer(opts?: WorldOptions): Player {
     eliteDmgMul: 1,
     kbMul: 1,
     armor: 0,
-    dashCdMul: 1,
-    dashInvulAdd: 0,
+    spellCdMul: 1,
+    spellPow: 1,
     xpMul: 1,
     chestGoldMul: 1,
     eliteGold: 0,
     revives: 0,
-    dashTime: ch.dashTime,
+    dashTime: ch.spell === Spell.Bond ? PLAYER.dashTime : ch.spell === Spell.Comete ? SPELL.comete.time : 0,
     jumpMul: 1,
     level: 1,
     xp: 0,
@@ -468,7 +472,9 @@ export function makePlayer(opts?: WorldOptions): Player {
     dirX: 0,
     dirZ: 1,
     dashT: 0,
-    dashCd: 0,
+    spellCd: 0,
+    spellT: 0,
+    dmgTaken: 1,
     invul: 0,
     walk: 0,
     recoil: 0,
@@ -498,8 +504,9 @@ const DOUBLE_FIELDS = [
   'kbMul',
   'armor',
   'sizeMul',
-  'dashCdMul',
-  'dashInvulAdd',
+  'spellCdMul',
+  'spellPow',
+  'dmgTaken',
   'xpMul',
   'chestGoldMul',
   'eliteGold',
@@ -539,6 +546,8 @@ function makeEnemy(): Enemy {
     tz: 0,
     phase2: false,
     detour: 0,
+    stun: 0,
+    slowT: 0,
   };
 }
 function makeProj(): Projectile {
@@ -571,4 +580,4 @@ function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };
 }
 
-export const NO_INPUT: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+export const NO_INPUT: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };

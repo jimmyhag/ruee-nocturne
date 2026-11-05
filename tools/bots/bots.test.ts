@@ -17,13 +17,13 @@ function runBot(bot: Bot, seed: number, maxSteps: number, allowed: ReadonlySet<s
   const w = new World(seed);
   if (allowed) w.weapons = { [[...allowed][0] as WeaponKey]: 1 };
   startRun(w);
-  const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+  const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
   let frame = 0;
   while (frame < maxSteps) {
     if (w.mode === Mode.LevelUp) {
       inp.pick = pickAllowed(bot, w, w.cards, allowed);
       inp.mx = inp.mz = 0;
-      inp.jump = inp.dash = false;
+      inp.jump = inp.spell = false;
     } else {
       inp.pick = -1;
       bot.decide(w, frame, inp);
@@ -81,13 +81,13 @@ describe('bots de playtest', () => {
       const bot = makeBot(name, 99);
       const w = new World(42);
       startRun(w);
-      const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+      const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
       for (let f = 0; f < 300; f++) {
         bot.decide(w, f, inp);
         expect(Math.abs(inp.mx), `${name} mx`).toBeLessThanOrEqual(2);
         expect(Math.abs(inp.mz), `${name} mz`).toBeLessThanOrEqual(2);
         expect(typeof inp.jump).toBe('boolean');
-        expect(typeof inp.dash).toBe('boolean');
+        expect(typeof inp.spell).toBe('boolean');
         if (w.mode === Mode.Play) step(w, inp, STEP);
       }
     }
@@ -97,7 +97,7 @@ describe('bots de playtest', () => {
     const w = new World(7);
     dropChest(w, w.player.x + 15, w.player.z, false);
     const greedy = makeBot('greedy', 1);
-    const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+    const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
     greedy.decide(w, 0, inp);
     expect(inp.mx).toBeGreaterThan(0.5); // vers le coffre (+x)
 

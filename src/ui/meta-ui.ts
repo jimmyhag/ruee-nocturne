@@ -1,6 +1,6 @@
 // Écrans de méta en DOM natif : personnages, boutique, succès, réglages, progression de l'écran de mort.
 // Rendus à l'ouverture d'un écran (jamais par frame) : innerHTML est acceptable ici. Textes : src/i18n via cards.ts.
-import { CHARACTERS, OUTFIT, SLOTS } from '../sim/balance';
+import { CHARACTERS, OUTFIT, SLOTS, SPELL_KEYS } from '../sim/balance';
 import { ACHIEVEMENTS, closest, progress, unlockedCharacters } from '../meta/achievements';
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
@@ -8,7 +8,18 @@ import type { CharacterKey } from '../sim/types';
 import { outfitOf, slotState } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
-import { achName, achText, achUnlock, achValue, characterName, characterText, characterTrait } from './cards';
+import {
+  SPELL_GLYPH,
+  achName,
+  achText,
+  achUnlock,
+  achValue,
+  characterName,
+  characterText,
+  characterTrait,
+  spellName,
+  spellText,
+} from './cards';
 
 export const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -31,14 +42,17 @@ export function renderCharacters(container: HTMLElement, m: Meta, info?: HTMLEle
     const sel = m.character === c.key ? ' selected' : '';
     const buyable = !open && c.price > 0; // une carte achetable reste un bouton actif (le faux bouton d'achat est dedans)
     return `<button class="card char${open ? '' : ' locked'}${sel}" data-char="${c.key}" ${open || buyable ? '' : 'aria-disabled="true"'}>
-      <div class="top"><span class="glyph" style="background:${open ? 'var(--accent)' : 'var(--ink-3)'}">${open ? '✦' : '🔒'}</span><h3>${esc(characterName(c.key))}</h3></div>
+      <div class="top"><span class="glyph" style="background:${open ? 'var(--accent)' : 'var(--ink-3)'}">${open ? SPELL_GLYPH[SPELL_KEYS[c.spell]] : '🔒'}</span><h3>${esc(characterName(c.key))}</h3></div>
       ${cond}<p>${esc(characterText(c.key))}</p></button>`;
   }).join('');
   // ligne d'information sous la grille (lisible sur téléphone, où le texte des cartes est masqué) : stats, passif, tenues
   if (info) {
     const k = m.character;
     const trait = characterTrait(k);
-    info.innerHTML = `<b>${esc(characterName(k))}</b> · ${esc(characterText(k))}${trait ? `<br /><em>${esc(trait)}</em>` : ''}<div class="outfits">${renderOutfits(m, k)}</div>`;
+    // phase 19 : le sort de classe, juste sous le nom
+    const sk = SPELL_KEYS[(CHARACTERS.find((c) => c.key === k) ?? CHARACTERS[0]).spell];
+    const spell = `<span class="spell">${SPELL_GLYPH[sk]} <b>${esc(spellName(sk))}</b> : ${esc(spellText(sk))}</span>`;
+    info.innerHTML = `<b>${esc(characterName(k))}</b> · ${esc(characterText(k))}<br />${spell}${trait ? `<br /><em>${esc(trait)}</em>` : ''}<div class="outfits">${renderOutfits(m, k)}</div>`;
   }
   // la carte choisie reste visible dans le défilement horizontal (téléphone)
   const sel = container.querySelector<HTMLElement>('.card.char.selected');
