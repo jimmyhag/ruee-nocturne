@@ -1,9 +1,23 @@
-import { ENEMIES, PLAYER } from '../sim/balance';
-import type { Card, TomeKey, WeaponKey } from '../sim/types';
+import { ENEMIES, ITEM_KEYS, ITEM_RARITY, PLAYER } from '../sim/balance';
+import type { Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
+import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
 import type { World } from '../sim/world';
 import { fmtTime, onLangChange, t } from '../i18n';
-import { cardLines, cardText, cardTitle, enemyName, rarityName, tomeName, weaponName } from './cards';
+import {
+  ITEM_GLYPH,
+  RARITY_COLOR,
+  cardLines,
+  cardText,
+  cardTitle,
+  enemyName,
+  itemName,
+  rarityName,
+  synergyName,
+  synergyText,
+  tomeName,
+  weaponName,
+} from './cards';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -28,6 +42,9 @@ export class Hud {
     bossname: $('bossname'),
     bossfill: $('bossfill'),
     kit: $('kit'),
+    merchantChip: $('merchantChip'),
+    merchantArrow: $('merchantArrow'),
+    merchantDist: $('merchantDist'),
     dashbar: $('dashbar'),
     btnDash: $('btnDash'),
     flash: $('flash'),
@@ -88,6 +105,30 @@ export class Hud {
     }
     if (xpRatio < this.lastXp || now - this.lastSweep > 0.3) this.lastXp = xpRatio;
     this.width('hpfill', P.hp / P.maxHp);
+    // phase 17 : le marchand est là, flèche vers l'échoppe (l'écran regarde vers −z : « haut » = −z) et distance
+    const M = w.merchant;
+    const showM = M.active && !M.inside;
+    if (this.cache.mOn !== showM) {
+      this.cache.mOn = showM;
+      this.els.merchantChip.hidden = !showM;
+    }
+    if (showM) {
+      const dx = M.x - P.x,
+        dz = M.z - P.z,
+        deg = Math.round((Math.atan2(dx, -dz) * 180) / Math.PI / 5) * 5;
+      if (this.cache.mDeg !== deg) {
+        this.cache.mDeg = deg;
+        this.els.merchantArrow.style.transform = `rotate(${deg}deg)`;
+      }
+      // la chaîne n'est construite que si la distance ou les secondes changent (zéro allocation par frame)
+      const md = Math.round(Math.sqrt(dx * dx + dz * dz)),
+        ms = Math.ceil(M.until - w.t);
+      if (this.cache.mDist !== md || this.cache.mSecs !== ms) {
+        this.cache.mDist = md;
+        this.cache.mSecs = ms;
+        this.text('merchantDist', `${md} m · ${ms} s`);
+      }
+    }
     // fantôme de PV : rattrape en 400 ms (transition CSS) → lisibilité de la quantité perdue
     this.width('hpghost', P.hp / P.maxHp);
     this.text('hptxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
@@ -160,6 +201,13 @@ export class Hud {
     for (const k in w.weapons) parts.push(`<span>${weaponName(k as WeaponKey)} ${w.weapons[k as WeaponKey]}</span>`);
     for (const k in w.tomes)
       parts.push(`<span style="color:var(--muted)">${tomeName(k as TomeKey)} ${w.tomes[k as TomeKey]}</span>`);
+    // phase 17 : objets passifs (glyphes à la couleur de leur rareté) et synergies actives
+    for (const i of w.itemOrder)
+      parts.push(
+        `<span class="item" title="${itemName(ITEM_KEYS[i])}" style="color:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_GLYPH[ITEM_KEYS[i]]}</span>`,
+      );
+    for (let i = 0; i < w.syn.length; i++)
+      if (w.syn[i]) parts.push(`<span class="syn" title="${synergyText(i)}">✦ ${synergyName(i)}</span>`);
     this.els.kit.innerHTML = parts.join('');
   }
 
@@ -179,13 +227,36 @@ export class Hud {
   }
 }
 
-export function renderCards(container: HTMLElement, cards: Card[]): void {
+/**
+ * Cartes de choix (montée de niveau, coffre, marchand). `w` : marque « Synergie » sur une carte qui en complète une ;
+ * `shop` : prix et état d'achat (or de la partie, place libre).
+ */
+export function renderCards(
+  container: HTMLElement,
+  cards: Card[],
+  w?: World,
+  shop?: { gold: number; full: boolean },
+): void {
   container.innerHTML = cards
     .map((c, i) => {
       let glyph = '+',
         color = '#7ee0a1',
         badge = `<span class="badge">${t('card.bonus')}</span>`;
-      if (c.kind === 'w') {
+      const syn = w ? cardSynergy(w, c) : -1;
+      const synBadge =
+        syn >= 0 ? `<span class="badge syn">${t('card.synergy', { name: synergyName(syn) })}</span>` : '';
+      let price = '',
+        off = false;
+      if (c.kind === 'i') {
+        glyph = ITEM_GLYPH[c.key as ItemKey];
+        color = RARITY_COLOR[c.lv];
+        badge = `<span class="badge new item">${t('card.item')}</span>`;
+        if (shop) {
+          const sold = c.s1 === 1;
+          off = sold || shop.full || shop.gold < c.s0;
+          price = `<span class="badge price${off ? ' off' : ''}">${sold ? t('merchant.sold') : t('gold', { n: c.s0 })}</span>`;
+        }
+      } else if (c.kind === 'w') {
         const d = WEAPONS[c.key as WeaponKey];
         glyph = d.glyph;
         color = d.color;
@@ -206,12 +277,17 @@ export function renderCards(container: HTMLElement, cards: Card[]): void {
       const rarity = c.kind === 'heal' ? '' : c.n >= 3 ? ' epic' : c.n === 2 ? ' rare' : '';
       const rb = rarity ? `<span class="badge${rarity}">${rarityName(c.n)}</span>` : '';
       const lines = cardLines(c);
-      const intro = c.lv === 1 ? `<p>${c.kind === 'w' ? t(`weapon.${c.key}.text`) : t(`tome.${c.key}.text`)}</p>` : '';
+      const intro =
+        c.lv === 1 && c.kind !== 'i'
+          ? `<p>${c.kind === 'w' ? t(`weapon.${c.key}.text`) : t(`tome.${c.key}.text`)}</p>`
+          : '';
       const body =
-        c.kind === 'heal'
+        c.kind === 'heal' || c.kind === 'i'
           ? `<p>${cardText(c)}</p>`
           : `${intro}<ul class="lines">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
-      return `<button class="card${rarity}" data-i="${i}"><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}</div>${body}</button>`;
+      // phase 17 : la carte qui complète une synergie dit ce qu'elle débloque
+      const synLine = syn >= 0 ? `<p class="synline">✦ ${synergyText(syn)}</p>` : '';
+      return `<button class="card${rarity}${off ? ' off' : ''}" data-i="${i}" ${off ? 'aria-disabled="true"' : ''}><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}${synBadge}${price}</div>${body}${synLine}</button>`;
     })
     .join('');
 }

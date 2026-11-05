@@ -128,6 +128,8 @@ export const enum HitSrc {
   Boomerang,
   Mines,
   Fire,
+  Thorns, // phase 17 : objet Épines
+  Talisman, // phase 17 : objet Talisman orageux
 }
 
 export const enum Ev {
@@ -162,6 +164,11 @@ export const enum Ev {
   Arrow, // phase 16 : flèche tirée en (x,y,z), direction (x2,z2)
   Cast, // phase 16 : boule de feu lancée de (x,y,z) vers (x2,z2), v = rayon, y2 = durée du vol
   ShotBlocked, // phase 16 : tir arrêté par un obstacle en (x,y,z), v = ShotKind
+  Item, // phase 17 : objet passif obtenu, v = index dans ITEM_KEYS, x2 = 1 s'il a été acheté
+  Synergy, // phase 17 : synergie activée, v = index dans SYNERGIES
+  MerchantArrive, // phase 17 : l'échoppe apparaît en (x,z)
+  MerchantLeave, // phase 17 : l'échoppe repart
+  Shockwave, // phase 17 : onde d'atterrissage des Bottes de saut en (x,z), v = rayon
 }
 
 export interface GameEvent {
@@ -188,6 +195,7 @@ export const enum Mode {
   LevelUp = 1,
   Dead = 2,
   Won = 3, // Faucheur vaincu
+  Merchant = 4, // phase 17 : échoppe ouverte, la partie est en pause
 }
 
 export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines';
@@ -219,17 +227,35 @@ export type EnemyKey = 'spectre' | 'dard' | 'brute' | 'gardien' | 'volant' | 'cr
 /** Ce que la méta injecte dans la sim à la création du monde (jamais lu depuis le stockage par la sim). */
 export interface WorldOptions {
   character?: CharacterKey; // défaut : Éclaireuse
-  upgrades?: number[]; // palier acheté par ligne de boutique (ordre de SHOP.lines), défaut 0
   unlocked?: WeaponKey[]; // armes proposables ; undefined = toutes
   slots?: { weapons: number; passives: number }; // emplacements débloqués (phase 10) ; undefined = plafonds max
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouvement' | 'savoir' | 'chance' | 'or';
 
-/** Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin. */
+/** Objets passifs (phase 17) : une règle de jeu chacun, obtenus dans les coffres et chez le marchand. */
+export type ItemKey =
+  | 'phenix'
+  | 'cape'
+  | 'lanterne'
+  | 'coeur'
+  | 'talisman'
+  | 'sablier'
+  | 'epines'
+  | 'bottes'
+  | 'oeil'
+  | 'aimant'
+  | 'fer'
+  | 'bourse';
+
+/**
+ * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.
+ * Phase 17, kind 'i' : objet passif (coffre ou marchand) ; lv = rareté (0 commun, 1 rare, 2 épique), n = lv + 1 (cadre),
+ * s0 = prix chez le marchand (0 dans un coffre), s1 = 1 si déjà vendu.
+ */
 export interface Card {
-  kind: 'w' | 't' | 'heal';
-  key: WeaponKey | TomeKey | '';
+  kind: 'w' | 't' | 'heal' | 'i';
+  key: WeaponKey | TomeKey | ItemKey | '';
   lv: number; // niveau atteint si prise (1 = nouvelle)
   n: number; // nombre de lignes (rareté)
   s0: number;
@@ -272,6 +298,7 @@ export interface Player {
   eliteGold: number; // or en plus par élite tuée
   revives: number; // réanimations restantes (boutique)
   dashTime: number; // durée du dash (personnage)
+  jumpMul: number; // phase 17 : Bottes de saut
   level: number;
   xp: number;
   need: number;

@@ -1,4 +1,4 @@
-import { ELITE_TYPE, ENEMIES, MAP, REAPER_TYPE, STEP } from './sim/balance';
+import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, REAPER_TYPE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode } from './sim/types';
 import type { Input } from './sim/types';
@@ -10,7 +10,9 @@ import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, renderCards } from './ui/hud';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, characterName } from './ui/cards';
+import { achName, achUnlock, itemName, synergyName } from './ui/cards';
+import { canGainItem } from './sim/items';
+import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -44,7 +46,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buy, buyCharacter, buyOutfit, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
+import { buyCharacter, buyOutfit, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily } from './meta/daily';
 import {
   bestLine,
@@ -52,8 +54,6 @@ import {
   renderAchievements,
   renderCharacters,
   renderProgress,
-  renderShop,
-  renderShopChars,
   renderSlots,
   slotCondition,
   slotName,
@@ -118,10 +118,12 @@ type AppMode =
   | 'settings'
   | 'account'
   | 'characters'
-  | 'help';
+  | 'help'
+  | 'merchant';
 const SCREENS = [
   'menu',
   'levelup',
+  'merchant',
   'pause',
   'over',
   'shop',
@@ -253,12 +255,9 @@ function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account' | 'char
   showOnly(id);
 }
 function renderShopScreen(): void {
+  // phase 17 : plus de boutique par personnage ; la feuille ne garde que les emplacements (communs à tous)
   $('shopGold').textContent = t('gold', { n: Math.round(meta.gold) });
-  // phase 8 : la boutique est celle du personnage choisi
-  $('shopTitle').textContent = t('shop.titleFor', { name: characterName(meta.character) });
-  renderSlots($('slotList'), meta); // phase 10 : emplacements communs
-  renderShopChars($('shopChars'), meta);
-  renderShop($('shopLines'), meta, meta.character);
+  renderSlots($('slotList'), meta);
 }
 
 // ---------- langue : passe statique (index.html) et re-rendu de l'écran courant ----------
@@ -390,27 +389,90 @@ function openLevelUp(): void {
   if (!world) return;
   const again = app === 'levelup'; // re-rendu (changement de langue) : ni son ni balayage
   app = 'levelup';
-  $('luTitle').textContent = t('levelup.title', { n: world.player.level - world.pending + 1 });
+  // phase 17 : un coffre propose des objets passifs (même écran, autre titre)
+  const chest = world.cards[0]?.kind === 'i';
+  $('luTitle').textContent = chest
+    ? t('chest.title')
+    : t('levelup.title', { n: world.player.level - world.pending + 1 });
+  $('luHint').textContent = chest ? t('chest.hint') : t('levelup.hint');
+  $('luSlots').hidden = chest; // les emplacements d'armes et de tomes ne disent rien d'un choix d'objet
   $('luSlots').textContent = t('levelup.slots', {
     w: Object.keys(world.weapons).length,
     wMax: world.maxWeapons,
     p: Object.keys(world.tomes).length,
     pMax: world.maxTomes,
   });
-  renderCards($('cards'), world.cards);
+  renderCards($('cards'), world.cards, world);
   if (again) return;
   showOnly('levelup');
   audio.levelUp();
   hud.xpSweep();
   if (!input.isTouch) ($('cards').firstElementChild as HTMLElement | null)?.focus({ preventScroll: true });
 }
+// ---------- marchand (phase 17) : échoppe en pause, achats avec l'or de la partie ----------
+function openMerchant(): void {
+  if (!world) return;
+  const first = app !== 'merchant';
+  app = 'merchant';
+  renderMerchant();
+  if (!first) return;
+  showOnly('merchant');
+  audio.chest();
+  if (!input.isTouch) ($('mcards').firstElementChild as HTMLElement | null)?.focus({ preventScroll: true });
+}
+function renderMerchant(): void {
+  if (!world) return;
+  $('mGold').textContent = t('gold', { n: Math.floor(world.gold) });
+  $('mNote').textContent = canGainItem(world) ? t('merchant.hint') : t('merchant.full');
+  renderCards($('mcards'), world.offers, world, { gold: world.gold, full: !canGainItem(world) });
+  const cost = rerollCost(world);
+  const rr = $('mReroll') as HTMLButtonElement;
+  rr.textContent = t('merchant.reroll', { gold: t('gold', { n: cost }) });
+  rr.disabled = world.gold < cost;
+}
+/** Achat (0–3), relance ou départ : un pas de sim dans l'échoppe, puis retour au jeu si l'on est parti. */
+function merchantAct(code: number): void {
+  if (!world || app !== 'merchant') return;
+  const before = world.itemOrder.length;
+  inp.pick = code;
+  step(world, inp, STEP);
+  inp.pick = -1;
+  handleEvents(world, performance.now() / 1000); // objet acheté, synergie : bannière, son, particules
+  hud.kit(world);
+  if (world.mode === Mode.Merchant) {
+    if (world.itemOrder.length > before) audio.select('wnew');
+    renderMerchant();
+    return;
+  }
+  app = 'play';
+  showOnly(null);
+  audio.whoosh();
+  last = performance.now();
+}
+$('mcards').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-i]') as HTMLElement | null;
+  if (b) merchantAct(+b.dataset.i!);
+});
+$('mReroll').onclick = () => merchantAct(MERCHANT_REROLL);
+$('mLeave').onclick = () => merchantAct(MERCHANT_LEAVE);
+addEventListener('keydown', (e) => {
+  if (app !== 'merchant') return;
+  if (e.code === 'KeyR') merchantAct(MERCHANT_REROLL);
+  else if (e.code === 'Escape' || e.code === 'KeyQ') {
+    e.preventDefault();
+    merchantAct(MERCHANT_LEAVE);
+  }
+});
+
 let choosing = false;
 function choose(i: number): void {
   if (!world || app !== 'levelup' || choosing || i < 0 || i >= world.cards.length) return;
   // flash de la carte + son selon le type, puis fermeture (160 ms, ou tout de suite en mode réduit)
   const c = world.cards[i];
   // son selon le type ; une carte à 3 lignes (épique) sonne comme une nouvelle arme
-  audio.select(c.n >= 3 ? 'wnew' : c.kind === 'w' ? (c.lv === 1 ? 'wnew' : 'w') : c.kind === 't' ? 's' : 'heal');
+  audio.select(
+    c.n >= 3 || c.kind === 'i' ? 'wnew' : c.kind === 'w' ? (c.lv === 1 ? 'wnew' : 'w') : c.kind === 't' ? 's' : 'heal',
+  );
   flashCard($('cards'), i);
   choosing = true;
   const apply = () => {
@@ -419,6 +481,7 @@ function choose(i: number): void {
     inp.pick = i;
     step(world, inp, STEP); // applique la carte ; peut re-rouler si plusieurs niveaux en attente
     inp.pick = -1;
+    handleEvents(world, performance.now() / 1000); // objet de coffre, synergie : bannière, son, particules
     hud.kit(world);
     if (world.mode === Mode.LevelUp) openLevelUp();
     else {
@@ -584,16 +647,6 @@ $('charInfo').addEventListener('click', (e) => {
   renderCharacters($('chars'), meta, $('charInfo'));
   scene?.setCharacter(key, outfitOf(meta, key));
 });
-$('shopLines').addEventListener('click', (e) => {
-  const b = (e.target as HTMLElement).closest('.buy') as HTMLButtonElement | null;
-  if (!b || b.disabled) return;
-  if (buy(meta, meta.character, +b.dataset.line!)) {
-    saveMeta(meta);
-    audio.init();
-    audio.chest();
-    renderShopScreen();
-  }
-});
 // emplacements (phase 10) : achat quand le succès est obtenu et l'or suffisant
 $('slotList').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-slot]') as HTMLButtonElement | null;
@@ -605,20 +658,6 @@ $('slotList').addEventListener('click', (e) => {
     renderShopScreen();
     updateBestLine();
   }
-});
-// changer de personnage depuis la boutique : même effet que la grille du menu (choix pour la prochaine partie)
-$('shopChars').addEventListener('click', (e) => {
-  const b = (e.target as HTMLElement).closest('[data-char]') as HTMLButtonElement | null;
-  if (!b || b.disabled) return;
-  const key = b.dataset.char as CharacterKey;
-  if (key === meta.character || !unlockedCharacters(meta).includes(key)) return;
-  meta.character = key;
-  saveMeta(meta);
-  renderShopScreen();
-  renderCharacters($('chars'), meta, $('charInfo'));
-  scene?.setCharacter(key, outfitOf(meta, key));
-  audio.init();
-  audio.select('s');
 });
 // réglages
 $('setSoundBtn').onclick = () => {
@@ -1219,8 +1258,27 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.Chest:
         S.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
-        hud.banner(t('banner.chest', { n: e.v }));
         audio.chest();
+        break;
+      // phase 17 : objets, synergies, marchand
+      case Ev.Item:
+        S.particles.ring(e.x, e.y, e.z, PAL.gold, (18 * fx) | 0, 3, 4);
+        hud.banner(t('banner.item', { name: itemName(ITEM_KEYS[e.v]) }));
+        break;
+      case Ev.Synergy:
+        S.particles.ring(e.x, e.y, e.z, PAL.accent, (30 * fx) | 0, 5, 6);
+        hud.banner(t('banner.synergy', { name: synergyName(e.v) }));
+        audio.levelUp();
+        break;
+      case Ev.MerchantArrive:
+        hud.banner(t('banner.merchant'));
+        audio.chest();
+        break;
+      case Ev.MerchantLeave:
+        break;
+      case Ev.Shockwave:
+        S.particles.ring(e.x, 0.2, e.z, PAL.dust, (16 * fx) | 0, e.v * 2.5, 1.2);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         break;
       case Ev.PlayerHurt:
         hurtT = 0.15;
@@ -1368,12 +1426,16 @@ function frame(nowMs: number): void {
     if (world.mode === Mode.Dead) gameOver();
     else if (world.mode === Mode.Won) gameOver(true);
     else if (world.mode === Mode.LevelUp) openLevelUp();
+    else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);
   } else if (app === 'levelup') {
     // clavier / manette : touches 1-3 (parité avec le tap sur la carte)
     const pick = input.takePick();
     if (pick >= 0) choose(pick);
+  } else if (app === 'merchant') {
+    const pick = input.takePick(); // 1–4 : acheter
+    if (pick >= 0) merchantAct(pick);
   }
 
   if (world && app !== 'menu' && scene) {

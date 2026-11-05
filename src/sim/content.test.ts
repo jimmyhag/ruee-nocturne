@@ -9,6 +9,7 @@ import {
   CRACHEUR_TYPE,
   ELITE,
   ENEMIES,
+  ITEM,
   PLAYER,
   REAPER_TYPE,
   SPAWN,
@@ -18,7 +19,7 @@ import {
   ZONES,
 } from './balance';
 import { dropChest, hitEnemy } from './combat';
-import { chestCards, rollChoices } from './progression';
+import { rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
 import { Ev, Mode, ProjKind } from './types';
@@ -167,24 +168,7 @@ describe('élites, coffres, or', () => {
     }
     expect(elites).toBeGreaterThanOrEqual(1);
   });
-  it('un coffre ramassé donne 1, 3 ou 5 cartes (≈ 70 / 25 / 5 %), plus avec le Trèfle', () => {
-    const w = new World(40);
-    const tally = [0, 0, 0, 0, 0, 0];
-    for (let i = 0; i < 2000; i++) tally[chestCards(w, false)]++;
-    expect(tally[1] / 2000).toBeGreaterThan(0.6);
-    expect(tally[3] / 2000).toBeGreaterThan(0.18);
-    expect(tally[5] / 2000).toBeGreaterThan(0.02);
-    w.player.luck = 4;
-    const lucky = [0, 0, 0, 0, 0, 0];
-    for (let i = 0; i < 2000; i++) lucky[chestCards(w, false)]++;
-    expect(lucky[1]).toBeLessThan(tally[1]);
-    for (let i = 0; i < 100; i++) {
-      const n = chestCards(w, true);
-      expect(n).toBeGreaterThanOrEqual(CHEST.bossMin);
-      expect(n).toBeLessThanOrEqual(CHEST.bossMax);
-    }
-  });
-  it('marcher sur un coffre ouvre autant de choix de cartes, avec la bannière Coffre', () => {
+  it('marcher sur un coffre ouvre un choix d\'objets passifs (1 à prendre), un coffre de boss 2', () => {
     const w = new World(41);
     god(w);
     w.player.need = 1e9;
@@ -192,11 +176,19 @@ describe('élites, coffres, or', () => {
     step(w, still, STEP);
     expect(count(w, Ev.Chest)).toBe(1);
     expect(w.mode).toBe(Mode.LevelUp);
-    expect(w.chestCards).toBeGreaterThanOrEqual(1);
-    const n = w.pending;
-    for (let k = 0; k < n; k++) step(w, { ...still, pick: 0 }, STEP);
+    expect(w.cards.length).toBe(ITEM.offers);
+    expect(w.cards.every((c) => c.kind === 'i')).toBe(true);
+    step(w, { ...still, pick: 0 }, STEP);
+    expect(w.itemOrder.length).toBe(1);
     expect(w.mode).toBe(Mode.Play);
-    expect(w.chestCards).toBe(0);
+    dropChest(w, w.player.x, w.player.z + 0.5, true);
+    step(w, still, STEP);
+    for (let k = 0; k < CHEST.bossPicks; k++) {
+      expect(w.mode).toBe(Mode.LevelUp);
+      step(w, { ...still, pick: 0 }, STEP);
+    }
+    expect(w.itemOrder.length).toBe(1 + CHEST.bossPicks);
+    expect(w.mode).toBe(Mode.Play);
   });
 });
 

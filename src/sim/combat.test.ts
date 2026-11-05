@@ -56,6 +56,7 @@ describe('combat', () => {
   });
   it('les gemmes dans le rayon d’aimant volent vers le joueur et donnent de l’XP', () => {
     const w = new World(4);
+    w.player.need = 1e9; // pas de montée de niveau (elle remettrait l'XP à zéro)
     dropGem(w, w.player.x + 2, w.player.z, 3);
     let picked = 0;
     for (let f = 0; f < 60 && picked === 0; f++) {

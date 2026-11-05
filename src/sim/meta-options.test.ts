@@ -1,6 +1,7 @@
-// Phase 4 : ce que la méta injecte dans la sim (personnages, boutique, armes débloquées, réanimation).
+// Phase 4 : ce que la méta injecte dans la sim (personnages, armes débloquées, emplacements) ; réanimation (phase 17 : objet).
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, MAX_WEAPONS, PLAYER, REVIVE, SHOP, STEP } from './balance';
+import { CHARACTERS, It, MAX_WEAPONS, PLAYER, REVIVE, STEP } from './balance';
+import { gainItem } from './items';
 import { rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
@@ -14,7 +15,6 @@ const count = (w: World, type: Ev) => {
   for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === type) n++;
   return n;
 };
-const lineIndex = (key: string) => SHOP.lines.findIndex((l) => l.key === key);
 
 describe('personnages', () => {
   it('sans option, le monde est celui de la phase 3 : Éclaireuse, Orbe, toutes les armes', () => {
@@ -43,40 +43,11 @@ describe('personnages', () => {
   });
 });
 
-describe('boutique', () => {
-  it('chaque ligne modifie la bonne stat, bornée à son nombre de paliers', () => {
-    const up = SHOP.lines.map(() => 0);
-    up[lineIndex('hp')] = 3;
-    up[lineIndex('dmg')] = 2;
-    up[lineIndex('speed')] = 5;
-    up[lineIndex('luck')] = 1;
-    up[lineIndex('gold')] = 4;
-    up[lineIndex('magnet')] = 2;
-    up[lineIndex('cd')] = 5;
-    up[lineIndex('revive')] = 9; // au-delà du max : borné à 2
-    const w = new World(2, { upgrades: up });
-    const base = new World(2);
-    const per = (key: string) => SHOP.lines[lineIndex(key)].per;
-    expect(base.player.dmgMul).toBe(PLAYER.dmgMul); // phase 8 : dégâts de base sous 1, la boutique comble
-    expect(w.player.maxHp).toBe(base.player.maxHp + Math.round(3 * per('hp')));
-    expect(w.player.dmgMul).toBeCloseTo(PLAYER.dmgMul + 2 * per('dmg'), 6);
-    expect(w.player.speed).toBeCloseTo(base.player.speed * (1 + 5 * per('speed')), 6);
-    expect(w.player.luck).toBeCloseTo(per('luck'), 6);
-    expect(w.player.goldMul).toBeCloseTo(1 + 4 * per('gold'), 6);
-    expect(w.player.magnet).toBeCloseTo(base.player.magnet * (1 + 2 * per('magnet')), 6);
-    expect(w.player.cdMul).toBeCloseTo(1 - 5 * per('cd'), 6);
-    expect(w.player.revives).toBe(SHOP.lines[lineIndex('revive')].tiers);
-  });
-  it('les coûts suivent base · growth^palier', () => {
-    const cost = (tier: number) => Math.round(SHOP.base * Math.pow(SHOP.growth, tier));
-    expect(cost(0)).toBe(200);
-    expect(cost(1)).toBe(260);
-    expect(cost(7)).toBe(1255);
-  });
-  it('la réanimation rend REVIVE.hpFrac des PV avec REVIVE.invul s d’invulnérabilité, une fois par palier', () => {
-    const up = SHOP.lines.map(() => 0);
-    up[lineIndex('revive')] = 1;
-    const w = new World(3, { upgrades: up });
+describe('réanimation (Plume de phénix, phase 17)', () => {
+  it('la réanimation rend REVIVE.hpFrac des PV avec REVIVE.invul s d’invulnérabilité, une fois par plume', () => {
+    const w = new World(3);
+    gainItem(w, It.Phenix);
+    expect(w.player.revives).toBe(1);
     w.weapons = {};
     spawnEnemy(w, 2, 0, 0.5); // Brute sur le joueur
     w.player.hp = 1;
@@ -109,7 +80,7 @@ describe('armes débloquées', () => {
     expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 10)).toBe(true); // Lames niv 9 de départ → niv 10 proposé
   });
   it('un run complet avec options reste déterministe', () => {
-    const opts = { character: 'bucheron' as const, upgrades: [1, 1, 0, 0, 0, 0, 0, 1], unlocked: ['orbe', 'lames', 'foudre'] as const };
+    const opts = { character: 'bucheron' as const, unlocked: ['orbe', 'lames', 'foudre'] as const };
     const a = new World(77, { ...opts, unlocked: [...opts.unlocked] });
     const b = new World(77, { ...opts, unlocked: [...opts.unlocked] });
     startRun(a);

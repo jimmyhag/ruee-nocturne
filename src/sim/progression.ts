@@ -1,7 +1,9 @@
-import { CHEST, CHOICE, GOLD, LUCK, RARITY, TOMES, TOME_KEYS, TOME_MAX, TRAIT, WEAPON_LINES, WEAPON_MAX, XP } from './balance';
+import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, TOME_MAX, WEAPON_LINES, WEAPON_MAX, XP, It } from './balance';
+import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
+import { updateSynergies } from './synergies';
 import type { StatLine } from './balance';
-import { Ev, Mode, Trait } from './types';
-import type { Card, TomeKey, WeaponKey } from './types';
+import { Ev, Mode } from './types';
+import type { Card, ItemKey, TomeKey, WeaponKey } from './types';
 import { WEAPON_KEYS, applyTomeLine, refreshStats } from './weapons/defs';
 import type { World } from './world';
 
@@ -144,6 +146,13 @@ function applyLine(w: World, c: Card, s: number): void {
 export function applyCard(w: World, idx: number): void {
   const c = w.cards[idx];
   if (!c) return;
+  if (c.kind === 'i') {
+    // phase 17 : objet d'un coffre
+    gainItem(w, itemIndex(c.key as ItemKey));
+    w.itemPicks--;
+    nextChoice(w);
+    return;
+  }
   if (c.kind === 'w') {
     w.weapons[c.key as WeaponKey] = c.lv;
     if (c.lv > w.weaponLvBest) w.weaponLvBest = c.lv;
@@ -157,15 +166,30 @@ export function applyCard(w: World, idx: number): void {
     applyLine(w, c, c.s1);
     applyLine(w, c, c.s2);
     if (c.n >= 3) w.triples++;
+    updateSynergies(w); // phase 17 : une synergie qui s'active modifie les stats des armes (refreshStats)
     refreshStats(w);
   }
   w.pending--;
-  if (w.chestCards > 0) w.chestCards--;
-  if (w.pending > 0) rollChoices(w);
-  else {
-    w.chestCards = 0;
-    w.mode = Mode.Play;
+  nextChoice(w);
+}
+
+/**
+ * Choix suivant : d'abord les objets des coffres (w.itemPicks), puis les montées de niveau (w.pending), sinon la partie
+ * reprend. Appelé par step à la sortie d'un pas de jeu et après chaque carte.
+ */
+export function nextChoice(w: World): void {
+  if (w.itemPicks > 0 && canGainItem(w)) {
+    rollItemChoices(w, chestOffers(w), false, w.cards);
+    if (w.cards.length > 0) {
+      w.mode = Mode.LevelUp;
+      return;
+    }
   }
+  w.itemPicks = 0;
+  if (w.pending > 0) {
+    w.mode = Mode.LevelUp;
+    rollChoices(w);
+  } else w.mode = Mode.Play;
 }
 
 export function tickGems(w: World, dt: number): void {
@@ -188,6 +212,7 @@ export function tickGems(w: World, dt: number): void {
     }
     if (d < XP.pickupRadius) {
       P.xp += g.v * P.xpMul; // tome Savoir
+      if (w.items[It.Aimant]) P.hp = Math.min(P.maxHp, P.hp + ITEM.aimant.heal); // phase 17 : Aimant d'âme
       w.emit(Ev.Pickup, g.x, 0.4, g.z, g.v);
       w.freeGem(i);
     }
@@ -201,16 +226,6 @@ export function tickGems(w: World, dt: number): void {
   }
 }
 
-/** Nombre de cartes d'un coffre : 1 / 3 / 5 (70 / 25 / 5 %, décalés par la chance), boss : 3 à 5. */
-export function chestCards(w: World, boss: boolean): number {
-  const r = w.rng.next();
-  if (boss) return CHEST.bossMin + w.rng.int(CHEST.bossMax - CHEST.bossMin + 1);
-  const shift = w.player.luck * CHEST.luckShift;
-  if (r < CHEST.p5 + shift) return 5;
-  if (r < CHEST.p5 + CHEST.p3 + shift * 2) return 3;
-  return w.trait === Trait.Marchand ? TRAIT.marchand.minCards : 1; // Colporteur : jamais de coffre à 1 carte
-}
-
 export function tickChests(w: World, dt: number): void {
   const P = w.player;
   for (let i = w.chestCount - 1; i >= 0; i--) {
@@ -219,10 +234,13 @@ export function tickChests(w: World, dt: number): void {
     const dx = P.x - c.x,
       dz = P.z - c.z;
     if (dx * dx + dz * dz < CHEST.pickupR * CHEST.pickupR) {
-      const n = chestCards(w, c.boss);
-      w.pending += n;
-      w.chestCards += n;
-      w.gold += CHEST.gold * w.player.goldMul * w.player.chestGoldMul * (c.boss ? GOLD.eliteMul : 1);
+      // phase 17 : un coffre ouvre un choix d'objet passif (un coffre de boss : deux) ; plus de place ou plus d'objet à
+      // trouver : un sac d'or à la place
+      const goldMul = w.player.goldMul * w.player.chestGoldMul * (c.boss ? GOLD.eliteMul : 1);
+      const n = c.boss ? CHEST.bossPicks : 1;
+      if (canGainItem(w)) w.itemPicks += n;
+      else w.gold += ITEM.chestGoldIfFull * n * goldMul;
+      w.gold += CHEST.gold * goldMul;
       w.emit(Ev.Chest, c.x, 0.5, c.z, n);
       w.freeChest(i);
     }

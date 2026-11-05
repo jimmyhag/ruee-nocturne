@@ -44,11 +44,11 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 ### 2.3 Boucle run (15–20 min) — « ma build prend forme »
 - Arc fixe : boss à 5:00, 10:00, 15:00 ; **Faucheur** à 20:00 (fin de run forcée, mort héroïque ou victoire si tué).
 - Les armes **évoluent** (arme niveau max + passif associé → arme évoluée, visuellement spectaculaire). C'est le moment « wow » qui fait rester.
-- Coffres lâchés par les élites : 1, 3 ou 5 améliorations d'un coup (récompense variable, jackpot rare).
+- Coffres lâchés par les élites : un **objet passif** au choix parmi 3 (deux pour un coffre de boss), §3.6. Un marchand passe quatre fois par run et vend d'autres objets contre l'or de la partie ; les synergies tome + arme donnent un objectif de build (phase 17).
 
 ### 2.4 Boucle méta (heures) — « encore une »
 - Écran de mort = **progression visible** : or gagné, déblocages en cours avec barres, « il te manquait 42 s pour… ».
-- Boutique permanente (or), **par personnage** depuis la phase 8 : +PV, +dégâts, +vitesse, +chance, +or, aimant, cadence, réanimation. 8 paliers par ligne, coûts croissants (200 → 1 255 or) ; un run sans palier tient ≈ 6 min, un personnage complet ≈ 15 min.
+- Pas de stats permanentes achetées (phase 17 : la boutique par personnage de la phase 8 est retirée, l'or dépensé rendu). L'or sert aux **emplacements** d'armes et de tomes (communs à tous les personnages), aux personnages et aux tenues ; la puissance d'un run se construit **pendant** le run (cartes, objets, marchand, synergies). Dépenser au marchand ou garder pour la méta : un choix à chaque visite.
 - Déblocages par **succès** : « survis 10 min » → nouveau personnage ; « tue 100 Dards » → nouvelle arme dans le pool. Chaque succès montre son avancement en temps réel.
 - 3 personnages V1 aux stats et arme de départ différentes.
 - Défi quotidien : seed fixe partagée, classement local (pas de serveur en V1).
@@ -117,12 +117,51 @@ Un personnage = une arme de départ + un passif signature (une règle de jeu, pa
 | Sapeur | −20 % PV, vitesse 0,92 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
 | Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : dash 2× plus long qui laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
 | Revenante | −55 % PV, vitesse 0,9 | Foudre et Halo | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air | Vaincre le Faucheur |
-| Colporteur | +15 PV, vitesse 1,03, Trèfle 1 et Bourse 1 | Lames 2 | Marchand : les coffres donnent toujours au moins 3 cartes | 2 000 or |
+| Colporteur | +15 PV, vitesse 1,03, Trèfle 1 et Bourse 1 | Lames 2 | Marchand : les coffres proposent 4 objets au lieu de 3 (phase 17) | 2 000 or |
 
 ---|---|---|---|
 | Éclaireuse | +15 % vitesse, dash plus court | Orbe | Départ |
 | Bûcheron | +30 PV, lames à portée +20 % | Lames | Survivre 10 min |
 | Vieille sorcière | Foudre dès le départ, −20 % PV | Foudre | 500 kills cumulés |
+
+### 3.6 Objets passifs, marchand et synergies (phase 17)
+Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plus complexe et plus stratégique ». Constantes : `ITEM`, `MERCHANT`, `SYN`, `SYNERGIES` dans `balance.ts` ; code : `src/sim/items.ts`, `merchant.ts`, `synergies.ts`.
+
+**Objets passifs** : une règle de jeu chacun, uniques (un exemplaire par run), 6 au plus, icônes sous les armes dans le HUD. Rareté (commun, rare, épique) : poids de tirage 1 / 0,55 / 0,2, décalés par la Chance.
+
+| Objet | Effet | Rareté |
+|---|---|---|
+| Plume de phénix | une réanimation à 25 % PV | épique |
+| Cape de brume | dash 50 % plus long, invulnérabilité du dash +0,2 s | rare |
+| Lanterne du veilleur | rayon de collecte ×1,6 | commun |
+| Cœur de pierre | +30 PV max, −3 % vitesse | commun |
+| Talisman orageux | tous les 25 kills, la foudre frappe les 5 ennemis les plus proches (50 % de leurs PV, 5 % pour un boss) | rare |
+| Sablier fêlé | élites et boss ralentis de 20 % | rare |
+| Épines | un ennemi au contact reçoit 3× les dégâts qu'il inflige | commun |
+| Bottes de saut | saut 15 % plus haut ; l'atterrissage repousse les ennemis proches | commun |
+| Œil du chasseur | +25 % de dégâts contre élites et boss | rare |
+| Aimant d'âme | chaque gemme ramassée soigne 0,15 PV | commun |
+| Fer à cheval | +1 Chance ; le marchand propose un objet de plus | rare |
+| Bourse du colporteur | +40 % d'or ramassé, prix du marchand −15 % | commun |
+
+**Coffres** : choix d'un objet parmi 3 (4 avec le Colporteur), deux choix pour un coffre de boss ; 6 objets portés ou plus rien à obtenir → un sac d'or.
+
+**Marchand** : une échoppe s'installe à 10–14 u du joueur à 2:30, 6:30, 10:30 et 14:30, hors obstacle, et reste 45 s (flèche au bord de l'écran, distance, secondes restantes). Y entrer met la partie en pause : 3 objets (4 avec le Fer à cheval) à 70 / 140 / 240 or selon la rareté, +25 % par visite ; relancer coûte 40 or, puis 80, 120… ; on paie avec l'or de la partie, ce qui reste est gardé à la fin. Clavier : 1–4 acheter, R relancer, Échap partir ; boutons tactiles équivalents. On n'y rentre de nouveau qu'après en être sorti.
+
+**Synergies tome + arme** : actives dès que l'arme est équipée et que le tome a reçu 3 cartes ; bannière et son, icône dans le HUD ; une carte qui en complète une porte le badge « Synergie » et dit ce qu'elle débloque. Chaque synergie ajoute aussi des PV max et de l'armure, d'autant plus qu'elle est la 2e, la 3e… (k-ième : +20·k PV, +3·k % d'armure) : c'est ce qui rend un kit complet (4 armes, 4 tomes, plusieurs paires possibles) plus fort qu'un kit de départ.
+
+| Synergie | Paire | Effet |
+|---|---|---|
+| Orage | Cadence + Foudre | +4 cibles en chaîne |
+| Essaim | Projectiles + Orbe | +1 orbe, +1 perforation (seule paire du kit de départ de l'Éclaireuse : modérée) |
+| Brasier | Dégâts + Halo | dégâts du Halo +80 % |
+| Tourbillon | Mouvement + Lames | lames 60 % plus rapides, rayon +25 % |
+| Charge creuse | Dégâts + Mines | rayon des mines +60 % |
+| Ricochet | Chance + Boomerang | +2 boomerangs, portée +30 % |
+| Moisson | Savoir + Lames | rayon de collecte +50 % |
+| Rempart | Vitalité + Halo | −40 % de dégâts des ennemis dans le Halo |
+
+Décision prise : les synergies sont des bonus de stats ou des règles simples plutôt que de nouveaux comportements d'arme (brûlure, rebond, rotation au dash) : même lisibilité, aucun nouvel objet de pool dans la boucle chaude, réglables par la CLI.
 
 ---
 
@@ -151,7 +190,7 @@ src/
     balance.ts      # TOUTES les constantes numériques, en un seul fichier
   render/     # Three.js. Lit le world, n'écrit jamais dedans.
     scene.ts, camera.ts, instancing.ts, fx/ (particules, traînées, chiffres), postfx.ts
-  ui/         # DOM : HUD, écrans, cartes d'amélioration, boutique
+  ui/         # DOM : HUD, écrans, cartes d'amélioration, marchand, emplacements
   platform/   # input (clavier, tactile, manette), audio, stockage, pwa, perf
   meta/       # sauvegarde méta (or, déblocages, succès, réglages) — IndexedDB via idb-keyval, fallback localStorage
   main.ts     # boucle : accumulateur à pas fixe pour sim, rendu à chaque frame avec interpolation
@@ -281,6 +320,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 ### Phase 16 — Carte construite et tireurs (après la 1.10.0)
 - Demande de Jimmy : une carte propre, des obstacles utiles, jamais d'endroit où les ennemis ne peuvent pas venir, des ennemis qui tirent. Carte en lieux (§3.4), champ de flux, murets franchissables d'un saut, tirs arrêtés par les obstacles, plateaux retirés ; Archer et Sorcier (§3.3), Cracheur dès 3:00, 24 tireurs à l'écran au plus.
 - **Porte** : connexité 100 % (carte du jeu et 24 seeds) ; dans 200 runs simulés, aucun ennemi au sol immobile plus de 3 s à moins de 30 u du joueur (hors foule) ; cibles des profils nu et maxé tenues ; aucune source de tir à plus de 30 % des morts ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; bench dans les 10 % ; captures lues ; parité clavier et tactile ; test de Jimmy.
+
+### Phase 17 — Marchand, objets passifs et synergies (après la 1.11.0)
+- Retour de Jimmy : plus d'amélioration permanente par personnage, un système de tomes plus stratégique, un marchand qui vend des passifs, des coffres qui donnent des objets. Boutique par personnage retirée (sauvegarde version 4 : l'or des paliers est rendu, `shops` n'est plus écrit) ; 12 objets passifs, coffres → choix d'objets, marchand en partie, 8 synergies tome + arme (§3.6). La feuille « Boutique » devient « Emplacements » (décision prise : garder la feuille et son bouton plutôt que déplacer les emplacements dans la feuille Personnage, moins de changements d'interface pour le même résultat). CLI : profils nu (emplacements de départ) et maxé (tous les emplacements), `--upgrades` retiré, `--no-item` pour l'ablation, mesures d'objets, d'or dépensé et de synergies.
+- Équilibrage (décisions prises) : courbe d'XP ×0,45 (les cartes des coffres passent dans les niveaux) ; cibles maxées ramenées de 13–16 à **10–13 min** (fin 1–12 %) et fin du profil nu ≤ 8 % : sans boutique, un kit complet ne gagne plus que par ses synergies, et un kit de départ qui concentre ses lignes sur une arme peut aller loin s'il passe le Gardien. Niveau à 10 min 32–42, arme principale 8–30.
+- **Porte** : cibles des profils nu et maxé tenues (maxé ≥ nu + 3 min en médiane) ; ≥ 50 % des runs maxés activent au moins une synergie ; chaque objet obtenu au moins une fois sur 200 runs ; aucun objet à plus de 2× l'effet moyen en survie (ablation) ; migration testée (l'or des paliers rendu exactement, une fois) ; ≤ 40 appels et ≤ 150 k triangles à 400 ennemis ; zéro allocation par frame ; e2e coffre et marchand au clavier et au tactile ; captures lues (coffre, échoppe, marchand, HUD) ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

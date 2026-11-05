@@ -196,16 +196,11 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await page.waitForTimeout(300);
   await page.screenshot(shot('personnages', p));
   await page.locator('#charactersBackBtn').click(); // retour à l'accueil : la barre d'icônes est derrière la feuille
-  // phase 8 : la boutique du personnage choisi, avec la rangée de personnages et quelques paliers
-  await page.evaluate(() => {
-    const g = (window as any).__game;
-    g.setMeta({ ...g.meta, shops: { feufollet: [3, 2, 1, 0, 0, 1, 2, 0], eclaireuse: [1, 1, 0, 0, 0, 0, 0, 0] } });
-  });
+  // phase 17 : la feuille Emplacements (la boutique par personnage n'existe plus)
   await page.locator('#shopBtn').click();
-  await expect(page.locator('#shopTitle')).toContainText('Feu follet');
-  await expect(page.locator('#shopLines .pips').first().locator('i.on')).toHaveCount(3);
+  await expect(page.locator('#slotList .slotrow').first()).toBeVisible();
   await page.waitForTimeout(200);
-  await page.screenshot(shot('boutique', p));
+  await page.screenshot(shot('emplacements', p));
   await page.locator('#shopBackBtn').click();
 
   await startRun(page, 42);
@@ -231,4 +226,51 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   expect(fires, 'plaques de feu posées par le dash').toBeGreaterThan(3);
   await page.screenshot(shot('feufollet', p));
   await page.evaluate(() => (window as any).__game.debug.speed(1));
+});
+
+test('phase 17 : coffre d’objets, échoppe du marchand, HUD avec objets et synergie', async ({ page }, info) => {
+  const p = info.project.name;
+  await openGame(page);
+  await startRun(page, 17);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.debug.warp(30);
+    g.world.player.need = 1e9;
+    g.world.gold = 420;
+    g.debug.give('foudre', 3);
+    g.debug.item('talisman');
+    g.debug.item('cape');
+    g.debug.synergy(0); // Orage
+  });
+  await pickUntilPlay(page);
+  await page.evaluate(() => (window as any).__game.debug.chest(true));
+  await page.waitForSelector('#levelup:not([hidden])');
+  await page.waitForTimeout(250);
+  await page.screenshot(shot('coffre-objets', p));
+  await pickUntilPlay(page);
+  // l'échoppe à 5 u devant le joueur : on la regarde avant d'y entrer
+  await page.evaluate(() => (window as any).__game.debug.merchant(5));
+  await page.waitForTimeout(700);
+  await page.screenshot(shot('echoppe', p));
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.teleport(g.world.merchant.x, g.world.merchant.z + 1);
+  });
+  await page.waitForSelector('#merchant:not([hidden])');
+  await page.waitForTimeout(250);
+  await page.screenshot(shot('marchand', p));
+  await page.locator('#mLeave').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.teleport(g.world.merchant.x + 3, g.world.merchant.z + 5);
+  });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => (window as any).__game.debug.speed(0));
+  await page.waitForTimeout(100);
+  await page.screenshot(shot('hud-objets', p));
+  await page.evaluate(() => (window as any).__game.debug.speed(1));
+  await expect(page.locator('#kit .item')).toHaveCount(4);
+  await expect(page.locator('#kit .syn')).toHaveCount(1);
 });

@@ -49,7 +49,7 @@ export function withProgress(local: Meta, raw: unknown): Meta {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return normalizeMeta({
     ...r,
-    version: 3,
+    version: 4,
     muted: local.muted,
     reducedFx: local.reducedFx,
     fxChosen: local.fxChosen,

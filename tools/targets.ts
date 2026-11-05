@@ -1,14 +1,10 @@
-// Cibles d'équilibrage (survivor-design §9) pour le bot « average », en deux profils (phase 8) :
-// « naked » = aucun palier de boutique (le joueur doit sentir qu'il lui manque la boutique), « maxed » = tous les paliers.
-import { SHOP } from '../src/sim/balance';
+// Cibles d'équilibrage (survivor-design §9) pour le bot « average », en deux profils (phase 17) :
+// « naked » = emplacements de départ (1 arme, 2 tomes), « maxed » = tous les emplacements débloqués.
+// La boutique par personnage n'existe plus : la puissance d'un run vient des objets (coffres, marchand) et des synergies.
+import { SLOTS } from '../src/sim/balance';
 
-/** Or nécessaire pour tous les paliers de toutes les lignes (un personnage). */
-export function shopTotalCost(): number {
-  let total = 0;
-  for (const l of SHOP.lines)
-    for (let t = 0; t < l.tiers; t++) total += Math.round(SHOP.base * Math.pow(SHOP.growth, t));
-  return total;
-}
+/** Prix de référence de l'économie : le 2e emplacement d'arme, premier achat d'un nouveau joueur. */
+export const REF_PRICE = SLOTS.find((s) => s.kind === 'weapon' && s.n === 2)?.price ?? 300;
 export interface Target {
   name: string;
   min: number;
@@ -18,26 +14,31 @@ export interface Target {
 }
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const economy: Target = {
-  name: 'or p50 ≥ 0,75 premier palier', // un run nu de 4 min ≈ 170 or : un palier (200) tous les 1–2 runs, l'arme n°2 (300) en 2 runs
-  min: 0.75,
+  name: 'or gardé p50 ≥ 0,5 emplacement n°2', // après les achats au marchand : l'emplacement n°2 (300) en ≤ 2 runs
+  min: 0.5,
   max: 1e9,
-  get: (s) => s.goldP50 / s.firstTierCost,
+  get: (s) => s.goldP50 / REF_PRICE,
   fmt: (v) => '×' + v.toFixed(1),
 };
 export const NAKED: Target[] = [
-  { name: 'survie p50 4–6 min', min: 240, max: 360, get: (s) => s.survival.p50, fmt: mmss }, // phase 10 : 1 arme, 2 améliorations, 0 palier
-  { name: 'fin atteinte ≤ 3 %', min: 0, max: 3, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'survie p50 4–6 min', min: 240, max: 360, get: (s) => s.survival.p50, fmt: mmss }, // 1 arme, 2 tomes
+  // phase 17 : ≤ 3 → ≤ 8 % ; un kit de départ concentre toutes ses lignes sur une arme et, s'il passe le Gardien, peut aller loin
+  { name: 'fin atteinte ≤ 8 %', min: 0, max: 8, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'passent 3 min ≥ 40 %', min: 40, max: 100, get: (s) => s.aliveCurve[2], fmt: (v) => v + ' %' }, // l'arme n°2 (succès « Première nuit ») reste atteignable
   economy,
 ];
 export const MAXED: Target[] = [
-  { name: 'survie p50 13–16 min', min: 780, max: 960, get: (s) => s.survival.p50, fmt: mmss },
-  { name: 'fin atteinte 3–12 %', min: 3, max: 12, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 17 : 13–16 → 10–13 min et fin 3–12 → 1–12 % : la boutique (≈ +24 PV, dégâts ×1,17, recharge ×0,92, réanimation)
+  // n'existe plus ; un kit complet ne gagne plus que par ses synergies. Mesuré sans rien changer d'autre : 5:45.
+  { name: 'survie p50 10–13 min', min: 600, max: 780, get: (s) => s.survival.p50, fmt: mmss },
+  { name: 'fin atteinte 1–12 %', min: 1, max: 12, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min < 10 %', min: 0, max: 10, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'kills@10 900–1600', min: 900, max: 1600, get: (s) => s.killsAt10p50 }, // phase 8 : spawn plus dense après 7:00
-  { name: 'niveau@10 24–32', min: 24, max: 32, get: (s) => s.levelAt10p50 }, // phase 12 : courbe d'XP aplatie (16–20 avant)
-  { name: 'arme principale@10 niv 15–30', min: 15, max: 30, get: (s) => s.weaponLvAt10p50 }, // phase 12 : la montée est longue, 100 jamais atteint
+  // phase 17 : 24–32 → 32–42, les coffres ne donnent plus de cartes, les niveaux les portent toutes (XP ×0,45)
+  { name: 'niveau@10 32–42', min: 32, max: 42, get: (s) => s.levelAt10p50 },
+  // phase 17 : 15–30 → 8–30, quatre armes se partagent les cartes (le kit de départ, lui, en met ≈ 22 sur la sienne)
+  { name: 'arme principale@10 niv 8–30', min: 8, max: 30, get: (s) => s.weaponLvAt10p50 },
   {
     name: 'pick min ≥ 8 %',
     min: 8,
@@ -51,6 +52,13 @@ export const MAXED: Target[] = [
     max: 35,
     get: (s) => (Object.keys(s.pickPct).length ? Math.max(...Object.values<number>(s.pickPct)) : 0),
     fmt: (v) => v + ' %',
+  },
+  {
+    name: 'synergie ≥ 50 % des runs', // phase 17 : la synergie est un objectif de build atteignable
+    min: 50,
+    max: 100,
+    get: (s) => s.synergyRunPct,
+    fmt: (v) => v.toFixed(0) + ' %',
   },
   {
     name: 'variance kills inter-builds < 3×',

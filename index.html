@@ -928,6 +928,77 @@
         background: var(--gold);
         color: var(--ink);
       }
+      /* phase 17 : synergie complétée par la carte, prix chez le marchand, carte hors de portée */
+      .badge.syn {
+        background: var(--accent);
+        color: var(--ink);
+      }
+      .card .synline {
+        margin-top: 6px;
+        color: var(--accent);
+        font-size: 0.86em;
+      }
+      .badge.price {
+        background: var(--gold);
+        color: var(--ink);
+      }
+      .badge.price.off {
+        background: var(--ink-3);
+        color: var(--muted);
+      }
+      .card.off {
+        opacity: 0.55;
+      }
+      .kit .item {
+        font-weight: 900;
+      }
+      .kit .syn {
+        color: var(--accent);
+      }
+      /* repère du marchand : flèche vers l'échoppe et compte à rebours, sous le HUD du haut */
+      #merchantChip {
+        position: absolute;
+        left: 50%;
+        top: calc(env(safe-area-inset-top, 0px) + 74px);
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--glass);
+        border: 1px solid var(--accent);
+        color: var(--paper);
+        font-weight: 800;
+        font-size: 13px;
+        pointer-events: none;
+      }
+      #merchantChip[hidden] {
+        display: none;
+      }
+      /* téléphone : le kit (armes, tomes) occupe la colonne de gauche ; la pastille passe à droite, sous les kills */
+      @media (max-width: 480px) {
+        #merchantChip {
+          left: auto;
+          right: 12px;
+          transform: none;
+          top: calc(env(safe-area-inset-top, 0px) + 70px);
+          font-size: 12px;
+        }
+      }
+      #merchantArrow {
+        display: inline-block;
+        color: var(--accent);
+        font-size: 16px;
+        transition: transform 0.15s;
+      }
+      #merchant .mrow {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
       .card .lines {
         list-style: none;
         margin: 0;
@@ -1450,6 +1521,9 @@
           <button id="pauseBtn" aria-label="Pause" data-i18n-attr="aria-label:hud.pause">II</button>
         </div>
       </div>
+      <div id="merchantChip" hidden>
+        <span id="merchantArrow">▲</span><span data-i18n="merchant.chip">Marchand</span><span id="merchantDist"></span>
+      </div>
       <div id="bossbar" hidden>
         <span id="bossname">LE GARDIEN</span>
         <div><i id="bossfill"></i></div>
@@ -1657,10 +1731,28 @@
       <div class="panel">
         <div>
           <h2 class="h2 lv" id="luTitle">Niveau 2</h2>
-          <p class="note" data-i18n="levelup.hint">Choisis une amélioration</p>
+          <p class="note" id="luHint" data-i18n="levelup.hint">Choisis une amélioration</p>
           <p class="note slotline" id="luSlots"></p>
         </div>
         <div class="cards" id="cards"></div>
+      </div>
+    </section>
+
+    <!-- phase 17 : échoppe du marchand, la partie est en pause ; 1–4 achète, R relance, Échap part -->
+    <section id="merchant" class="screen" hidden>
+      <div class="panel">
+        <div>
+          <h2 class="h2" data-i18n="merchant.title">Le marchand</h2>
+          <p class="gold sub" id="mGold">0 or</p>
+          <p class="note" id="mNote" data-i18n="merchant.hint">
+            L'or que tu dépenses ici ne sera pas gardé à la fin de la partie.
+          </p>
+        </div>
+        <div class="cards" id="mcards"></div>
+        <div class="mrow">
+          <button class="ghost" id="mReroll">Relancer</button>
+          <button class="big" id="mLeave" data-i18n="merchant.leave">Partir</button>
+        </div>
       </div>
     </section>
 
@@ -1705,18 +1797,18 @@
     <section id="shop" class="screen" hidden>
       <div class="panel">
         <header class="sheet-head">
-          <h2 class="h2" id="shopTitle">Boutique · Éclaireuse</h2>
+          <h2 class="h2" id="shopTitle" data-i18n="shop.title">Emplacements</h2>
           <button class="btn-icon close" id="shopBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
             ×
           </button>
           <p class="gold sub" id="shopGold">0 or</p>
         </header>
-        <!-- emplacements (phase 10) : communs à tous les personnages, débloqués par succès + or -->
-        <h3 class="h3" data-i18n="slots.title">Emplacements</h3>
+        <!-- emplacements (phase 10) : communs à tous les personnages, débloqués par succès + or ; phase 17 : plus de
+             paliers par personnage, la puissance se trouve en partie (coffres, marchand, synergies) -->
+        <p class="note" data-i18n="shop.note">
+          Débloque des emplacements d'armes et de tomes pour tous tes personnages.
+        </p>
         <div class="shop slots" id="slotList"></div>
-        <h3 class="h3" id="shopCharTitle" data-i18n="shop.perChar">Paliers du personnage</h3>
-        <div class="shopchars" id="shopChars"></div>
-        <div class="shop" id="shopLines"></div>
       </div>
     </section>
 

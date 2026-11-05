@@ -1,24 +1,14 @@
 // Écrans de méta en DOM natif : personnages, boutique, succès, réglages, progression de l'écran de mort.
 // Rendus à l'ouverture d'un écran (jamais par frame) : innerHTML est acceptable ici. Textes : src/i18n via cards.ts.
-import { CHARACTERS, OUTFIT, SHOP, SLOTS } from '../sim/balance';
+import { CHARACTERS, OUTFIT, SLOTS } from '../sim/balance';
 import { ACHIEVEMENTS, closest, progress, unlockedCharacters } from '../meta/achievements';
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
 import type { CharacterKey } from '../sim/types';
-import { outfitOf, shopCost, shopTiers, slotState } from '../meta/shop';
+import { outfitOf, slotState } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
-import {
-  achName,
-  achText,
-  achUnlock,
-  achValue,
-  characterName,
-  characterText,
-  characterTrait,
-  shopName,
-  shopText,
-} from './cards';
+import { achName, achText, achUnlock, achValue, characterName, characterText, characterTrait } from './cards';
 
 export const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -74,23 +64,6 @@ export function renderOutfits(m: Meta, k: CharacterKey): string {
   );
 }
 
-/** Rangée des personnages de la boutique (phase 8 : paliers par personnage) : pastille de tenue + nom, le choisi marqué. */
-export function renderShopChars(container: HTMLElement, m: Meta): string[] {
-  const unlocked = unlockedCharacters(m);
-  container.innerHTML = CHARACTERS.map((c) => {
-    const open = unlocked.includes(c.key);
-    const p = OUTFITS[c.key][outfitOf(m, c.key)];
-    const sel = m.character === c.key;
-    const bought = shopTiers(m, c.key).reduce((a, b) => a + b, 0);
-    return `<button class="shopchar${sel ? ' sel' : ''}${open ? '' : ' locked'}" data-char="${c.key}" ${open ? '' : 'disabled'} aria-pressed="${sel}">
-      <i style="background:linear-gradient(135deg,${hex(p.p1)} 50%,${hex(p.p2)} 50%)"></i>${esc(characterName(c.key))}${bought ? `<b>${bought}</b>` : ''}</button>`;
-  }).join('');
-  const sel = container.querySelector<HTMLElement>('.shopchar.sel');
-  if (sel && container.scrollWidth > container.clientWidth + 4)
-    container.scrollLeft = Math.max(0, sel.offsetLeft - (container.clientWidth - sel.offsetWidth) / 2);
-  return unlocked;
-}
-
 /** Nom d'un emplacement (« Arme n°2 », « Amélioration n°3 »). */
 export const slotName = (i: number): string => t(`slot.${SLOTS[i].kind}`, { n: SLOTS[i].n });
 /** Condition d'un emplacement en une phrase : succès puis prix. */
@@ -125,23 +98,6 @@ export function renderSlots(container: HTMLElement, m: Meta): void {
           : `<button class="ghost buy" data-slot="${i}" ${st === 'buyable' ? '' : 'disabled'}>${esc(t('gold', { n: u.price }))}</button>`;
     return `<div class="shoprow slotrow ${st}"><div><h3>${u.kind === 'weapon' ? '⚔' : '✦'} ${esc(slotName(i))}</h3>${cond}</div>${right}</div>`;
   }).join('');
-}
-
-/** Lignes de la boutique d'un personnage : palier courant, coût du suivant, bouton d'achat (désactivé si l'or manque). */
-export function renderShop(container: HTMLElement, m: Meta, key: CharacterKey = m.character): void {
-  const tiers = shopTiers(m, key);
-  container.innerHTML = SHOP.lines
-    .map((l, i) => {
-      const tier = tiers[i];
-      const cost = shopCost(i, tier);
-      const max = !Number.isFinite(cost);
-      const pips = Array.from({ length: l.tiers }, (_, k) => `<i class="${k < tier ? 'on' : ''}"></i>`).join('');
-      const btn = max
-        ? `<span class="badge">${esc(t('shop.max'))}</span>`
-        : `<button class="ghost buy" data-line="${i}" ${m.gold < cost ? 'disabled' : ''}>${esc(t('gold', { n: cost }))}</button>`;
-      return `<div class="shoprow"><div><h3>${esc(shopName(i))}</h3><p>${esc(shopText(i))}</p><div class="pips">${pips}</div></div>${btn}</div>`;
-    })
-    .join('');
 }
 
 function bar(a: Achievement, m: Meta): string {

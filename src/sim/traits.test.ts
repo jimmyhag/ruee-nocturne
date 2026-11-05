@@ -1,9 +1,9 @@
 // Passifs signature des personnages (phase 6) : chaque règle est observable sur un monde minimal, et l'Éclaireuse
 // (référence d'équilibrage) ne change pas.
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, PLAYER, STEP, TRAIT } from './balance';
+import { CHARACTERS, ITEM, PLAYER, STEP, TRAIT } from './balance';
 import { hitEnemy } from './combat';
-import { chestCards } from './progression';
+import { chestOffers } from './items';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
 import { Ev, ProjKind, Trait } from './types';
@@ -165,16 +165,13 @@ describe('passifs', () => {
     expect(gemValue(false)).toBe(1);
     expect(gemValue(true)).toBe(TRAIT.dejamorte.airXpMul);
   });
-  it('Colporteur : tomes Chance et Or au départ, jamais de coffre à 1 carte', () => {
+  it('Colporteur : tomes Chance et Or au départ, ses coffres proposent un objet de plus', () => {
     const w = make('colporteur');
     expect(w.tomes).toEqual({ chance: 2, or: 3 });
     expect(w.player.luck).toBe(1);
     expect(w.player.goldMul).toBeCloseTo(1.24);
-    for (let k = 0; k < 50; k++) expect(chestCards(w, false)).toBeGreaterThanOrEqual(TRAIT.marchand.minCards);
-    const e = make('eclaireuse');
-    let ones = 0;
-    for (let k = 0; k < 50; k++) if (chestCards(e, false) === 1) ones++;
-    expect(ones).toBeGreaterThan(20);
+    expect(chestOffers(w)).toBe(TRAIT.marchand.offers);
+    expect(chestOffers(make('eclaireuse'))).toBe(ITEM.offers);
   });
 });
 

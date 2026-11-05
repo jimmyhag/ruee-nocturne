@@ -1,4 +1,4 @@
-import { TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
+import { SYN, Syn, TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
 import type { TomeKey, WeaponKey } from '../types';
 import type { World } from '../world';
 
@@ -68,6 +68,23 @@ export function refreshStats(w: World): void {
     else if ('n' in base) out.n += P.projAdd;
     if ('r' in base && k !== 'lames') out.r *= P.sizeMul; // Lames : la taille agrandit la lame (rayon de frappe, tick.ts), pas l'orbite ; appliquée aux deux, les Lames explosaient en fin de run (22 % de fins au lieu de 15)
     if ('speed' in base) out.speed *= P.projSpeedMul;
+  }
+  // synergies (phase 17)
+  const s = w.wstats;
+  if (w.syn[Syn.Orage]) s.foudre.chain += SYN.orage.chain;
+  if (w.syn[Syn.Essaim]) {
+    s.orbe.pierce += SYN.essaim.pierce;
+    s.orbe.n += SYN.essaim.n;
+  }
+  if (w.syn[Syn.Brasier]) s.aura.dmg *= 1 + SYN.brasier.dmg;
+  if (w.syn[Syn.Tourbillon]) {
+    s.lames.spd *= 1 + SYN.tourbillon.spd;
+    s.lames.r *= 1 + SYN.tourbillon.r;
+  }
+  if (w.syn[Syn.Charge]) s.mines.r *= 1 + SYN.charge.r;
+  if (w.syn[Syn.Ricochet]) {
+    s.boomerang.n += SYN.ricochet.n;
+    s.boomerang.range *= 1 + SYN.ricochet.range;
   }
 }
 
