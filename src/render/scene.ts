@@ -59,6 +59,7 @@ import { PAL } from './palette';
 
 const TAU = Math.PI * 2;
 const WHITE = new THREE.Color(0xffffff);
+const MINE_IDLE = new THREE.Color(0xc4c8d6); // bombe KayKit non armée : texture assombrie
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lam = (c: number) => toonMaterial({ color: c }); // phase 15 : toon partout (sauf lumineux et sol)
 const additive = (color: number, opacity: number) =>
@@ -139,7 +140,8 @@ export class GameScene {
   private projW: InstanceWriter;
   private trailW: InstanceWriter;
   private boomW: InstanceWriter;
-  private mineW: InstanceWriter;
+  private mineW: InstanceWriter; // plaques de feu du Feu follet
+  private bombW: InstanceWriter; // mines (bombe KayKit une fois chargée)
   private spitW: InstanceWriter;
   private arrowW: InstanceWriter; // phase 16 : flèches des Archers
   private fireW: InstanceWriter; // phase 16 : boules de feu en vol
@@ -162,7 +164,7 @@ export class GameScene {
   private shrineGlowW: InstanceWriter; // runes du sanctuaire : s'allument avec la jauge
   private beamW: InstanceWriter;
   // phase 20 : objets KayKit (CC0) ; arbres et lanternes dessinés autour du joueur seulement (≈ 300 triangles chacun)
-  private propsReady = false;
+  propsReady = false; // lu par les tests e2e
   private propTreeW: InstanceWriter[] = []; // sapin orange, sapin jaune, arbre mort, arbre mort moyen
   private propLampW: InstanceWriter;
   private decorProc: THREE.Object3D[] = []; // décor procédural remplacé quand les objets sont chargés
@@ -303,6 +305,9 @@ export class GameScene {
     this.mineW = new InstanceWriter(
       makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
     );
+    this.bombW = new InstanceWriter(
+      makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
+    );
     this.spitW = new InstanceWriter(
       makeInstanced(new THREE.SphereGeometry(0.32, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
     );
@@ -342,6 +347,7 @@ export class GameScene {
       this.trailW.mesh,
       this.boomW.mesh,
       this.mineW.mesh,
+      this.bombW.mesh,
       this.spitW.mesh,
       this.arrowW.mesh,
       this.fireW.mesh,
@@ -376,6 +382,7 @@ export class GameScene {
       this.trailW,
       this.boomW,
       this.mineW,
+      this.bombW,
       this.spitW,
       this.arrowW,
       this.fireW,
@@ -677,7 +684,17 @@ export class GameScene {
     const sword = norm(p.sword, 1.15, 'y').rotateZ(-Math.PI / 2);
     swap(this.bladeW, sword, mat(p.sword));
     this.bladeGhostW.mesh.geometry = sword;
-    swap(this.boomW, norm(p.axe, 1.0, 'y').rotateZ(Math.PI / 2), mat(p.axe));
+    // hache : manche le long de y, fer le long de x → couchée à plat (rotateX) et centrée, elle tourne sur elle-même
+    swap(
+      this.boomW,
+      norm(p.axe, 1.3, 'y')
+        .translate(0, -0.65, 0)
+        .rotateX(-Math.PI / 2),
+      mat(p.axe),
+    );
+    // mine : bombe posée au sol ; non armée, teinte sombre ; armée, texture pleine qui pulse
+    swap(this.bombW, norm(p.bomb, 0.8, 'y'), mat(p.bomb));
+    this.cMine = MINE_IDLE;
     const trees: PropKey[] = ['tree_pine', 'tree_pine_y', 'tree_dead', 'tree_dead_m'];
     for (let k = 0; k < 4; k++) swap(this.propTreeW[k], norm(p[trees[k]], k < 2 ? 4.6 : 4.0, 'y'), mat(p[trees[k]]));
     swap(this.propLampW, norm(p.lantern, 2.4, 'y'), mat(p.lantern));
@@ -1174,6 +1191,7 @@ export class GameScene {
     this.trailW.begin();
     this.boomW.begin();
     this.mineW.begin();
+    this.bombW.begin();
     for (let i = 0; i < w.projCount; i++) {
       const p = w.projs[i];
       const x = lerp(p.px, p.x, alpha),
@@ -1185,7 +1203,7 @@ export class GameScene {
       }
       if (p.kind === ProjKind.Mine) {
         const blink = p.age < 0.3 ? 0.5 + p.age : 1 + Math.sin(now * 6 + p.x) * 0.1;
-        this.mineW.put(x, y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
+        this.bombW.put(x, y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
         continue;
       }
       if (p.kind === ProjKind.Fire) {
@@ -1207,6 +1225,7 @@ export class GameScene {
     this.trailW.end();
     this.boomW.end();
     this.mineW.end();
+    this.bombW.end();
 
     // halo (rayon = stats courantes : lignes « rayon » et tome Projectiles)
     const lvA = w.weapons.aura ?? 0;

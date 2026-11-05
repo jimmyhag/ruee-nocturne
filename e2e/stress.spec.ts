@@ -18,6 +18,15 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
+  // phase 20 : mesure avec les modèles KayKit chargés (héros glTF, décor), pas avec le repli procédural
+  await page.waitForFunction(
+    () => {
+      const s = (window as any).__game.scene;
+      return s.heroKind === 'gltf' && s.propsReady === true;
+    },
+    null,
+    { timeout: 20_000 },
+  );
   await page.waitForTimeout(2500); // quelques fenêtres de mesure
 
   const state = await page.evaluate(() => {
