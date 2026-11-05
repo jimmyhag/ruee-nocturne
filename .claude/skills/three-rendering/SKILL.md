@@ -58,6 +58,13 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Les InstanceWriter du décor reçoivent la géométrie et le matériau du modèle une fois chargé (couleur d'instance blanche) : même nombre d'appels qu'avant. Décor dense (arbres, lanternes, cimetières) : seules les instances à moins de `PROP_DRAW` u sont écrites, re-triées tous les 4 u de déplacement.
 - Toujours un **repli procédural** : rien ne doit attendre un fichier pour être jouable.
 
+### Foule animée (phase 21 : morphs instanciés)
+- Pas de squelette par instance : poses cuites au chargement (`mixer.setTime` → `SkinnedMesh.getVertexPosition` / `applyBoneTransform` avec un Vector4 de w = 0 pour les normales) en `morphAttributes.position` et `normal` **absolues** (`morphTargetsRelative = false`).
+- `InstancedMesh.morphTexture` : une ligne par instance = [poids de base, poids des poses]. Pour des poses absolues, le poids de base est **0** et les poids somment à 1. Allouer la DataTexture à **pleine capacité** soi-même (`setMorphAt` l'alloue sur `count`, même piège que les couleurs) et écrire dans `image.data` (`src/render/pose.ts`), `needsUpdate` une fois par frame et par type.
+- Simplification : meshopt `simplifyWithAttributes` en mode **Permissive**. Le mode normal bloque à ≈ 1 500 triangles sur les modèles KayKit, qui ont presque un sommet par triangle à cause des coutures d'UV et de normales.
+- Contour d'une géométrie morphée : pousser APRÈS `#include <morphtarget_vertex>` (le chunk multiplie `transformed` par le poids de base, 0) et recalculer la normale morphée. `objectNormal` n'existe pas dans un MeshBasicMaterial non skinné.
+- Un jumeau peut partager `instanceMatrix` et `morphTexture` avec le maillage principal : il suffit de recopier `count`.
+
 ## Terrain
 - Sol : `PlaneGeometry` avec `CanvasTexture` en damier bruité, `NearestFilter`, `RepeatWrapping`. Décor (arbres, rochers, lanternes) en `InstancedMesh` statique généré par seed, grille spatiale pour les collisions.
 - Lac : plan légèrement surélevé, matériau additif animé par `uv.offset`.

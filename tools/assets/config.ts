@@ -83,8 +83,48 @@ export const PROPS: Record<string, { pack: PackKey; file: string; tris: number }
   sword: { pack: 'adventurers', file: 'Assets/gltf/sword_1handed.gltf', tris: 400 },
   axe: { pack: 'adventurers', file: 'Assets/gltf/axe_1handed.gltf', tris: 400 },
   bomb: { pack: 'adventurers', file: 'Assets/gltf/smokebomb.gltf', tris: 500 },
+  skull: { pack: 'halloween', file: 'Assets/gltf/skull.gltf', tris: 500 }, // phase 21 : le Volant (120 à l'écran au plus)
 };
+
+/**
+ * Phase 21 : squelettes ennemis (pack Skeletons), réunis dans public/models/enemies.glb. Le corps (parties skinnées)
+ * est fusionné puis simplifié à chaque niveau de détail ; accessoires (`keep`, enfants des os) et armes (`weapons`,
+ * fichiers du pack attachés à un os) suivent la même réduction. Les poses sont cuites à l'exécution (src/render/enemyModels.ts).
+ */
+export const ENEMY_MODELS: Record<
+  string,
+  { file: string; anims: string[]; keep: string[]; weapons: [file: string, bone: string][] }
+> = {
+  minion: { file: 'Characters/gltf/Skeleton_Minion.glb', anims: ['Walking_D_Skeletons'], keep: [], weapons: [] },
+  warrior: {
+    file: 'Characters/gltf/Skeleton_Warrior.glb',
+    anims: ['Walking_A', '1H_Melee_Attack_Chop', '2H_Melee_Attack_Chop'],
+    keep: ['Skeleton_Warrior_Helmet'],
+    weapons: [
+      ['Skeleton_Axe', 'handslot.r'],
+      ['Skeleton_Blade', 'handslot.r'],
+      ['Skeleton_Shield_Large_A', 'handslot.l'],
+    ],
+  },
+  mage: {
+    file: 'Characters/gltf/Skeleton_Mage.glb',
+    anims: ['Walking_A', 'Spellcast_Shoot', 'Spellcast_Summon'],
+    keep: ['Skeleton_Mage_Hat'],
+    weapons: [['Skeleton_Staff', 'handslot.r']],
+  },
+  rogue: {
+    file: 'Characters/gltf/Skeleton_Rogue.glb',
+    anims: ['Running_A', 'Walking_A', '1H_Ranged_Shoot'],
+    keep: ['Skeleton_Rogue_Hood', 'Skeleton_Rogue_Cape'],
+    weapons: [
+      ['Skeleton_Blade', 'handslot.r'],
+      ['Skeleton_Crossbow', 'handslot.r'],
+    ],
+  },
+};
+/** Triangles visés pour le corps à chaque niveau : boss (hi), masse en rendu net (mid), masse en pixel (lo). */
+export const ENEMY_LODS = { hi: 1800, mid: 330, lo: 110 } as const;
 
 /** Budgets de téléchargement (porte de phase 20). */
 // un joueur ne télécharge que son héros et props.glb (vite.config.ts : cache à l'usage, pas de précache)
-export const BUDGET = { heroBytes: 450_000, totalBytes: 3_200_000 };
+export const BUDGET = { heroBytes: 450_000, enemyBytes: 700_000, totalBytes: 3_900_000 }; // phase 21 : + enemies.glb

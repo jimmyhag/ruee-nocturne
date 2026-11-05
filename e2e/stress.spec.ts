@@ -22,7 +22,7 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   await page.waitForFunction(
     () => {
       const s = (window as any).__game.scene;
-      return s.heroKind === 'gltf' && s.propsReady === true;
+      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
     },
     null,
     { timeout: 20_000 },
@@ -70,7 +70,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   await page.waitForFunction(
     () => {
       const s = (window as any).__game.scene;
-      return s.heroKind === 'gltf' && s.propsReady === true;
+      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
     },
     null,
     { timeout: 20_000 },
@@ -117,5 +117,30 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
     `[${info.project.name}] pire point (${at.x.toFixed(0)}, ${at.z.toFixed(0)}) : ${worst.calls} appels, ${(worst.triangles / 1000).toFixed(1)} k tris`,
   );
   expect(worst.calls, 'draw calls ≤ 40').toBeLessThanOrEqual(40);
-  expect(worst.triangles, 'triangles ≤ 150 k').toBeLessThan(150_000);
+  expect(worst.triangles, 'triangles ≤ 150 k (pixel)').toBeLessThan(150_000);
+
+  // phase 21 : en rendu net, squelettes détaillés (≈ 330 triangles) ; budget mobile relevé à 250 k (décision de Jimmy)
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
+  });
+  await page.waitForTimeout(800);
+  let net = { calls: 0, triangles: 0 };
+  for (let k = 0; k < 3; k++) {
+    await page.keyboard.press('ShiftLeft');
+    for (let f = 0; f < 4; f++) {
+      await page.waitForTimeout(120);
+      const r = await page.evaluate(() => {
+        const g = (window as any).__game;
+        return { calls: g.renderer.info.render.calls as number, triangles: g.renderer.info.render.triangles as number };
+      });
+      if (r.triangles > net.triangles) net = r;
+    }
+    await page.waitForTimeout(400);
+  }
+  console.log(
+    `[${info.project.name}] pire point, rendu net : ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris`,
+  );
+  expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
+  expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
 });
