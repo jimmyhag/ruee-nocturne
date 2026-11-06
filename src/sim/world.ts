@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, slopeMul } from './terrain';
@@ -464,6 +464,11 @@ export function makePlayer(opts?: WorldOptions): Player {
     xpMul: 1,
     chestGoldMul: 1,
     eliteGold: 0,
+    crit: 0,
+    critMul: CRIT.mul,
+    killHeal: 0,
+    lvlHeal: 0,
+    shopMul: 1,
     revives: 0,
     dashTime: ch.spell === Spell.Bond ? PLAYER.dashTime : ch.spell === Spell.Comete ? SPELL.comete.time : 0,
     jumpMul: 1,
@@ -512,6 +517,11 @@ const DOUBLE_FIELDS = [
   'xpMul',
   'chestGoldMul',
   'eliteGold',
+  'crit',
+  'critMul',
+  'killHeal',
+  'lvlHeal',
+  'shopMul',
   'hp',
   'maxHp',
   'dashTime',

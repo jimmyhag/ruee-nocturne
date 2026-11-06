@@ -431,28 +431,35 @@ export interface StatLine {
 }
 export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
   // le niveau 5 d'avant (≈ ×3 de DPS) se retrouve vers 10–12 améliorations ; au-delà c'est la marge jusqu'à 100
+  // phase 23 : chaque arme a aussi une ligne de coup critique (×CRIT.mul) ; une carte ne tire jamais deux fois la même ligne
   orbe: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'n', step: 1, kind: 'add', max: 5, weight: 1.5 },
     { stat: 'speed', step: 0.08, kind: 'pct', max: 12, weight: 2 },
     { stat: 'pierce', step: 1, kind: 'add', max: 3, weight: 1 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
   aura: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'r', step: 0.06, kind: 'pct', max: 20, weight: 3 },
     { stat: 'period', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+    { stat: 'slow', step: 0.06, kind: 'add', max: 5, weight: 2 }, // chance par impulsion de ralentir (CRIT.slowT)
   ],
   lames: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'n', step: 1, kind: 'add', max: 8, weight: 1.5 },
     { stat: 'r', step: 0.04, kind: 'pct', max: 15, weight: 2 },
     { stat: 'spd', step: 0.06, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
   foudre: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'chain', step: 1, kind: 'add', max: 10, weight: 1.5 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+    { stat: 'stun', step: 0.05, kind: 'add', max: 5, weight: 2 }, // chance d'étourdir (CRIT.stunT), pas les boss
   ],
   boomerang: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
@@ -460,6 +467,7 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'range', step: 0.06, kind: 'pct', max: 12, weight: 2 },
     { stat: 'n', step: 1, kind: 'add', max: 3, weight: 1.5 },
     { stat: 'speed', step: 0.06, kind: 'pct', max: 12, weight: 2 },
+    { stat: 'crit', step: 0.03, kind: 'add', max: 8, weight: 2 }, // +3 % : le Braconnier nu passait à +4 min avec +5 %
   ],
   mines: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
@@ -467,6 +475,7 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
     { stat: 'n', step: 1, kind: 'add', max: 12, weight: 2 },
     { stat: 'chain', step: 1, kind: 'add', max: 1, weight: 1 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
 };
 // tomes (remplacent les passifs) : chaque carte tire 1 à 3 lignes dans son tome, l'effet s'applique au joueur (applyTomeLine)
@@ -475,10 +484,12 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'dmg', step: 0.08, kind: 'add', weight: 3 },
     { stat: 'elite', step: 0.08, kind: 'add', weight: 2 },
     { stat: 'kb', step: 0.1, kind: 'add', weight: 2 },
+    { stat: 'critdmg', step: 0.15, kind: 'add', max: 10, weight: 2 }, // phase 23 : dégâts des coups critiques
   ],
   cadence: [
     { stat: 'cd', step: 0.04, kind: 'add', max: 18, weight: 3 },
     { stat: 'life', step: 0.06, kind: 'add', max: 10, weight: 2 }, // ×1,6 au plus : le pool de projectiles (250) ne sature pas
+    { stat: 'spellcd', step: 0.04, kind: 'add', max: 10, weight: 2 }, // phase 23 : recharge du sort, plancher commun
   ],
   projectiles: [
     { stat: 'proj', step: 1, kind: 'add', max: 3, weight: 1 },
@@ -489,25 +500,32 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'hp', step: 12, kind: 'add', weight: 3 },
     { stat: 'regen', step: 0.4, kind: 'add', weight: 2 },
     { stat: 'armor', step: 0.03, kind: 'add', max: 12, weight: 2 }, // 12 × 3 % = TOME_CAPS.armorMax
+    { stat: 'killheal', step: 0.1, kind: 'add', max: 5, weight: 2 }, // phase 23 : PV rendus par ennemi tué
   ],
   mouvement: [
     { stat: 'speed', step: 0.05, kind: 'add', weight: 3 },
     { stat: 'spellcd', step: 0.08, kind: 'add', max: 10, weight: 2 }, // phase 19 : recharge du sort de classe ; phase 22 : −6 → −8 %
     { stat: 'spellpow', step: 0.08, kind: 'add', max: 10, weight: 1 }, // phase 19 : puissance du sort (dégâts ; rayon et durée à moitié)
+    { stat: 'jump', step: 0.08, kind: 'add', max: 5, weight: 1 }, // phase 23 : hauteur du saut
   ],
   savoir: [
     { stat: 'xp', step: 0.06, kind: 'add', weight: 3 }, // pas de plafond : les runs maxés qui vont au bout cumulent 8 lignes contre 3,4 pour les morts après 15:00, mais plafonner à 8 ne changeait rien (15 % de fins dans les deux cas)
     { stat: 'magnet', step: 0.08, kind: 'add', weight: 2 },
+    { stat: 'lvlheal', step: 8, kind: 'add', max: 6, weight: 2 }, // phase 23 : PV soignés à chaque niveau
   ],
   chance: [
     { stat: 'luck', step: 0.5, kind: 'add', weight: 3 },
     { stat: 'chestgold', step: 0.2, kind: 'add', weight: 2 },
+    { stat: 'crit', step: 0.03, kind: 'add', max: 10, weight: 2 }, // phase 23 : critique pour toutes les armes
   ],
   or: [
     { stat: 'gold', step: 0.08, kind: 'add', weight: 3 },
     { stat: 'elitegold', step: 1, kind: 'add', weight: 2 },
+    { stat: 'shop', step: 0.06, kind: 'add', max: 5, weight: 2 }, // phase 23 : prix du marchand
   ],
 };
+// phase 23 : coups critiques (armes seulement), ralentissement du Halo, étourdissement de la Foudre
+export const CRIT = { mul: 2, slowT: 0.6, stunT: 0.5, shopMin: 0.6 };
 export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
 // planchers et plafonds des effets cumulés des tomes (applyTomeLine) : la recharge ne descend pas sous 25 % de la base,
 // l'armure n'annule pas plus de 36 % des dégâts (à 45 % les runs complets ne mouraient plus après 15:00), le sort garde 40 % de recharge

@@ -28,7 +28,8 @@ function rollLine(w: World, lines: StatLine[], taken: ArrayLike<number>, extra0:
   let total = 0;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
-    const n = taken[i] + (extra0 === i ? 1 : 0) + (extra1 === i ? 1 : 0);
+    if (i === extra0 || i === extra1) continue; // phase 23 : jamais deux fois la même ligne sur une carte
+    const n = taken[i];
     if (l.max !== undefined && n >= l.max) continue;
     total += l.weight;
   }
@@ -36,7 +37,8 @@ function rollLine(w: World, lines: StatLine[], taken: ArrayLike<number>, extra0:
   let r = w.rng.next() * total;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
-    const n = taken[i] + (extra0 === i ? 1 : 0) + (extra1 === i ? 1 : 0);
+    if (i === extra0 || i === extra1) continue;
+    const n = taken[i];
     if (l.max !== undefined && n >= l.max) continue;
     r -= l.weight;
     if (r <= 0) return i;
@@ -234,6 +236,7 @@ export function tickGems(w: World, dt: number): void {
     P.xp -= P.need;
     P.level++;
     P.need = XP.needFor(P.level);
+    if (P.lvlHeal > 0) P.hp = Math.min(P.maxHp, P.hp + P.lvlHeal); // phase 23 : tome Savoir
     w.pending++;
     w.emit(Ev.LevelUp, P.x, P.y + 1, P.z, P.level);
   }

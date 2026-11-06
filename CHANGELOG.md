@@ -2,6 +2,30 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.18.0 — 6 nov. 2026 (phase 23 « Cartes de niveau variées »)
+
+Les cartes de montée de niveau ne répètent plus la même ligne, et il y a beaucoup plus de façons de s'améliorer.
+
+### Modifié
+
+- **Une carte n'a jamais deux fois la même ligne** : fini « +10 % dégâts » trois fois ; on peut toujours monter une stat de carte en carte.
+
+### Ajouté
+
+- **Coup critique** sur toutes les armes : nouvelle ligne +5 % de chance (+3 % pour le Boomerang) ; un critique fait double dégâts et s'affiche en grand chiffre doré (« 37! »).
+- **Halo** : chance de ralentir. **Foudre** : chance d'étourdir (pas les boss).
+- **Nouvelles lignes de tomes** :
+
+  | Tome      | Ligne                          |
+  | --------- | ------------------------------ |
+  | Dégâts    | dégâts critiques               |
+  | Cadence   | recharge du sort               |
+  | Vitalité  | PV rendus à chaque ennemi tué  |
+  | Mouvement | saut plus haut                 |
+  | Savoir    | soin à chaque niveau           |
+  | Chance    | critique pour toutes les armes |
+  | Or        | prix du marchand plus bas      |
+
 ## 1.17.0 — 6 nov. 2026 (phase 22 « Sorts rares, recharge à gagner »)
 
 Le sort de chaque personnage devient un temps fort : il se recharge bien plus lentement, frappe plus fort, et la recharge se gagne.

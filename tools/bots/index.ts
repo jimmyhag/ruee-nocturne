@@ -91,6 +91,9 @@ const LINE_VALUE: Record<string, number> = {
   spd: 4,
   chain: 9,
   range: 4,
+  crit: 5, // phase 23 (armes et tome Chance)
+  slow: 3,
+  stun: 4,
   // tomes
   elite: 4,
   kb: 2,
@@ -109,6 +112,11 @@ const LINE_VALUE: Record<string, number> = {
   chestgold: 1,
   gold: 2,
   elitegold: 1,
+  critdmg: 3, // phase 23
+  killheal: 5,
+  jump: 1,
+  lvlheal: 3,
+  shop: 2,
 };
 function lineValue(c: Card, s: number): number {
   if (s < 0) return 0;
