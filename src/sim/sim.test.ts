@@ -74,13 +74,16 @@ describe('progression', () => {
     expect(XP.needFor(20)).toBe(47);
   });
   it('tirage : jamais 3 passifs quand on a < 2 armes, 3 cartes distinctes', () => {
-    for (let s = 0; s < 300; s++) {
+    // 300 tirages sur 30 mondes : construire un monde (carte, relief) coûte cher sous couverture, pas le tirage
+    for (let s = 0; s < 30; s++) {
       const w = new World(s);
-      rollChoices(w);
-      expect(w.cards.length).toBe(3);
-      expect(w.cards.some((c) => c.kind === 'w')).toBe(true);
-      const keys = new Set(w.cards.map((c) => c.key));
-      expect(keys.size).toBe(3);
+      for (let k = 0; k < 10; k++) {
+        rollChoices(w);
+        expect(w.cards.length).toBe(3);
+        expect(w.cards.some((c) => c.kind === 'w')).toBe(true);
+        const keys = new Set(w.cards.map((c) => c.key));
+        expect(keys.size).toBe(3);
+      }
     }
   });
   it('le joueur monte de niveau et le mode passe en LevelUp puis revient en Play', () => {

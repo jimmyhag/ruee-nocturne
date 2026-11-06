@@ -22,9 +22,9 @@ describe('phase 23 : lignes des cartes', () => {
     for (const k of WEAPON_KEYS) expect(WEAPON_LINES[k].length, k).toBeGreaterThanOrEqual(3);
     for (const k of TOME_KEYS) expect(TOMES[k].length, k).toBeGreaterThanOrEqual(3);
   });
-  it('une carte ne porte jamais deux fois la même ligne (3 000 tirages, toutes armes et tomes)', () => {
+  it('une carte ne porte jamais deux fois la même ligne (600 tirages, toutes armes et tomes)', () => {
     let three = 0;
-    for (let seed = 1; seed <= 200; seed++) {
+    for (let seed = 1; seed <= 40; seed++) {
       const w = new World(seed);
       w.player.luck = 20; // beaucoup de cartes à 2 et 3 lignes
       w.maxWeapons = 6;

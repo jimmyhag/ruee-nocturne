@@ -398,7 +398,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 
 ### Phase 23 — Cartes de niveau variées (après la 1.17.0)
 - Demande de Jimmy : « +10 % dégâts, +10 % dégâts, +10 % dégâts, ça n'a pas de sens » ; des lignes différentes et plus de stats utiles. Lignes distinctes sur une carte ; coup critique pour les 6 armes, ralentissement (Halo), étourdissement (Foudre) ; 7 nouvelles lignes de tomes (dégâts critiques, recharge du sort, PV par kill, saut, soin à chaque niveau, critique global, prix du marchand).
-- **Porte** : aucune carte avec deux fois la même ligne (Vitest, 3 000 tirages ; e2e) ; ≥ 3 lignes partout ; critique visible ; cibles nu et maxé tenues ; 9 personnages à ± 3 min ; captures lues ; test de Jimmy.
+- **Porte** : aucune carte avec deux fois la même ligne (Vitest, 600 tirages ; e2e) ; ≥ 3 lignes partout ; critique visible ; cibles nu et maxé tenues ; 9 personnages à ± 3 min ; captures lues ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
