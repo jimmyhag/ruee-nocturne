@@ -59,7 +59,7 @@ export const naive: Bot = {
 };
 
 /** Valeur d'un bonus de sanctuaire pour le bot (phase 18). */
-const BOON_VALUE: Record<BoonKey, number> = { dmg: 16, hp: 15, cd: 14, speed: 10, magnet: 8, gold: 6 };
+const BOON_VALUE: Record<BoonKey, number> = { dmg: 16, hp: 15, cd: 14, spell: 12, speed: 10, magnet: 8, gold: 6 };
 /** Valeur d'un objet passif pour le bot (phase 17) : ordre de préférence d'un joueur moyen. */
 const ITEM_VALUE: Record<ItemKey, number> = {
   phenix: 40,
@@ -74,6 +74,8 @@ const ITEM_VALUE: Record<ItemKey, number> = {
   aimant: 12,
   bottes: 10,
   bourse: 9,
+  rune: 17, // phase 22
+  collier: 15,
 };
 
 /** Valeur d'une ligne de stat pour le bot (phase 12) : gain relatif approximatif, +1 projectile pèse lourd. */

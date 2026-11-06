@@ -1,6 +1,8 @@
 // Sorts de classe (phase 19) : un par personnage, chacun observable sur un monde calme (armes retirées, aucun spawn).
 import { describe, expect, it } from 'vitest';
-import { BOSS_TYPE, CHARACTERS, ITEM, It, PLAYER, SPELL, SPELL_KEYS, STEP, TOMES, TOME_CAPS } from './balance';
+import { BOON, BOSS_TYPE, CHARACTERS, ITEM, It, PLAYER, SPELL, SPELL_KEYS, STEP, TOMES, TOME_CAPS } from './balance';
+import { killEnemy } from './combat';
+import { applyBoon } from './poi';
 import { gainItem } from './items';
 import { spellCooldown } from './spells';
 import { spawnEnemy } from './spawner';
@@ -202,11 +204,11 @@ describe('les neuf sorts', () => {
 });
 
 describe('ce qui renforce le sort', () => {
-  it('tome Mouvement : recharge −6 % par ligne (plancher 40 %), puissance +8 % par ligne', () => {
+  it('tome Mouvement : recharge −8 % par ligne (plancher 35 %), puissance +8 % par ligne', () => {
     const w = make('veilleuse');
     const cd0 = spellCooldown(w);
     applyTomeLine(w, 'mouvement', lineIndex(TOMES.mouvement, 'spellcd'));
-    expect(spellCooldown(w)).toBeCloseTo(cd0 * 0.94, 6);
+    expect(spellCooldown(w)).toBeCloseTo(cd0 * 0.92, 6);
     for (let k = 0; k < 30; k++) applyTomeLine(w, 'mouvement', lineIndex(TOMES.mouvement, 'spellcd'));
     expect(w.player.spellCdMul).toBe(TOME_CAPS.spellCdMin);
     const hit = (pow: number) => {
@@ -218,12 +220,53 @@ describe('ce qui renforce le sort', () => {
     };
     expect(hit(1.8) / hit(1)).toBeCloseTo(1.8, 1);
   });
-  it('Cape : invulnérable après chaque sort, recharge −15 %', () => {
+  it('Cape : invulnérable après chaque sort, recharge −25 %', () => {
     const w = make('braconnier');
     const cd0 = spellCooldown(w);
     gainItem(w, It.Cape);
     expect(spellCooldown(w)).toBeCloseTo(cd0 * ITEM.cape.cdMul, 6);
     run(w, 1, cast);
     expect(w.player.invul).toBeGreaterThan(ITEM.cape.invul - 0.05);
+  });
+});
+
+describe('phase 22 : sorts rares, recharge à gagner', () => {
+  it('recharges de base entre 6 et 18 s (×2,5 de la phase 19)', () => {
+    for (const k of SPELL_KEYS) {
+      expect(SPELL[k].cd, k).toBeGreaterThanOrEqual(6);
+      expect(SPELL[k].cd, k).toBeLessThanOrEqual(18);
+    }
+    expect(SPELL.bond.cd).toBe(8);
+    expect(SPELL.comete.cd).toBe(6);
+  });
+  it('Rune de rappel −30 %, sanctuaire de l\'arcane −12 %, cumulés avec la Cape et le tome sous le plancher de 35 %', () => {
+    const w = make('veilleuse');
+    const cd0 = spellCooldown(w);
+    gainItem(w, It.Rune);
+    expect(spellCooldown(w)).toBeCloseTo(cd0 * ITEM.rune.cdMul, 6);
+    applyBoon(w, 'spell');
+    expect(spellCooldown(w)).toBeCloseTo(cd0 * ITEM.rune.cdMul * (1 - BOON.spell), 6);
+    gainItem(w, It.Cape);
+    for (let k = 0; k < 10; k++) applyTomeLine(w, 'mouvement', lineIndex(TOMES.mouvement, 'spellcd'));
+    expect(w.player.spellCdMul).toBe(TOME_CAPS.spellCdMin);
+    expect(spellCooldown(w)).toBeCloseTo(cd0 * 0.35, 6);
+  });
+  it('Collier d\'os : un kill rend 0,1 s, un boss 4 s, la réserve plafonne les vagues', () => {
+    const w = make('eclaireuse');
+    gainItem(w, It.Collier);
+    run(w, 1, cast); // lance le Bond : recharge pleine
+    const P = w.player;
+    const cd = P.spellCd;
+    const kill = (type: number, x: number, z: number) => killEnemy(w, w.enemies.indexOf(put(w, type, x, z)));
+    kill(0, 6, 0);
+    expect(P.spellCd).toBeCloseTo(cd - ITEM.collier.perKill, 6);
+    // 50 kills d'un coup : au plus la réserve (1 s) est rendue
+    for (let k = 0; k < 50; k++) {
+      kill(0, 6 + k * 0.1, 3);
+    }
+    expect(cd - P.spellCd).toBeLessThanOrEqual(ITEM.collier.bank + 1e-6);
+    const before = P.spellCd;
+    kill(BOSS_TYPE, 0, 9);
+    expect(P.spellCd).toBeCloseTo(Math.max(0, before - ITEM.collier.perBoss), 6);
   });
 });

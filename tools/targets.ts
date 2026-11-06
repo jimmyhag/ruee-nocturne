@@ -32,7 +32,7 @@ export const NAKED: Target[] = [
   { name: 'coffres de carte ≥ 1 / run', min: 1, max: 1e9, get: (s) => s.mapChestsPerRun, fmt: (v) => v.toFixed(1) },
   // phase 19 : le sort de classe sert sans remplacer l'arme (au plus 30 % des kills). 0,75 lancer par minute et non 1 :
   // le bot garde le Bond (esquive) pour le contact (≥ 3 ennemis à 2 u), un joueur le lance plus souvent ; mesuré 0,95
-  { name: 'sort ≥ 0,75 / min', min: 0.75, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
+  { name: 'sort ≥ 0,3 / min', min: 0.3, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
   { name: 'sort ≤ 30 % des kills', min: 0, max: 30, get: (s) => s.spellKillPct, fmt: (v) => v + ' %' },
 ];
 export const MAXED: Target[] = [
@@ -64,7 +64,7 @@ export const MAXED: Target[] = [
   { name: 'coffres de carte ≥ 3 / run', min: 3, max: 1e9, get: (s) => s.mapChestsPerRun, fmt: (v) => v.toFixed(1) },
   // phase 19 : le sort de classe sert sans remplacer l'arme (au plus 30 % des kills). 0,75 lancer par minute et non 1 :
   // le bot garde le Bond (esquive) pour le contact (≥ 3 ennemis à 2 u), un joueur le lance plus souvent ; mesuré 0,95
-  { name: 'sort ≥ 0,75 / min', min: 0.75, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
+  { name: 'sort ≥ 0,45 / min', min: 0.45, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
   { name: 'sort ≤ 30 % des kills', min: 0, max: 30, get: (s) => s.spellKillPct, fmt: (v) => v + ' %' },
   // phase 18 : l'or sert en partie (7 % avant la phase) ; 25 % et non 35 : le bot ne fait que de courts détours (28 u),
   // un joueur qui suit les colonnes de lumière ouvre davantage de coffres

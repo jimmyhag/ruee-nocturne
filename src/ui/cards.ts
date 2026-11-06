@@ -24,7 +24,15 @@ export const boonText = (k: BoonKey): string => {
   const v = BOON[k];
   return t(`boon.${k}.text`, { v: k === 'hp' ? String(v) : fmtNum(Math.round(v * 100)) });
 };
-export const BOON_GLYPH: Record<BoonKey, string> = { hp: '♥', dmg: '⚔', speed: '»', cd: '↻', magnet: '◎', gold: '◉' };
+export const BOON_GLYPH: Record<BoonKey, string> = {
+  hp: '♥',
+  dmg: '⚔',
+  speed: '»',
+  cd: '↻',
+  magnet: '◎',
+  gold: '◉',
+  spell: '✧',
+};
 // phase 19 : sorts de classe
 export const spellName = (k: SpellKey): string => t(`spell.${k}.name`);
 export const spellText = (k: SpellKey): string => t(`spell.${k}.text`);
@@ -54,6 +62,8 @@ export const ITEM_GLYPH: Record<ItemKey, string> = {
   aimant: '❂',
   fer: '∩',
   bourse: '¤',
+  rune: 'ᚱ', // phase 22
+  collier: '☠',
 };
 export const RARITY_COLOR = ['#9aa4c2', '#5fd3ff', '#ffd166'];
 export const synergyName = (i: number): string => t(`syn.${SYNERGIES[i].key}.name`);

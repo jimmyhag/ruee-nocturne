@@ -169,6 +169,9 @@ export function applyBoon(w: World, key: BoonKey): void {
     case 'cd':
       P.cdMul = Math.max(TOME_CAPS.cdMin, P.cdMul - BOON.cd);
       break;
+    case 'spell': // phase 22 : sanctuaire de l'arcane
+      P.spellCdMul = Math.max(TOME_CAPS.spellCdMin, P.spellCdMul * (1 - BOON.spell));
+      break;
     case 'magnet':
       P.magnet *= 1 + BOON.magnet;
       break;
