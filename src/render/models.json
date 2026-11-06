@@ -218,43 +218,67 @@
   },
   "enemies": {
     "file": "enemies.glb",
-    "bytes": 596720,
+    "bytes": 636368,
     "lods": {
       "hi": 1800,
       "mid": 330,
       "lo": 110
     },
     "models": {
-      "minion": {
-        "anims": ["Walking_D_Skeletons"],
+      "zombie": {
+        "anims": ["Zombie_Walk_Fwd_Loop", "Zombie_Scratch"],
         "tris": {
-          "hi": 1800,
           "mid": 325,
           "lo": 110
         }
       },
-      "warrior": {
-        "anims": ["Walking_A", "1H_Melee_Attack_Chop", "2H_Melee_Attack_Chop"],
+      "zombief": {
+        "anims": ["Zombie_Walk_Fwd_Loop", "Spell_Simple_Shoot"],
         "tris": {
-          "hi": 2683,
-          "mid": 489,
-          "lo": 164
+          "mid": 330,
+          "lo": 110
         }
       },
-      "mage": {
-        "anims": ["Walking_A", "Spellcast_Shoot", "Spellcast_Summon"],
+      "runner": {
+        "anims": ["Sprint_Loop"],
         "tris": {
-          "hi": 2591,
-          "mid": 471,
-          "lo": 160
+          "mid": 326,
+          "lo": 110
         }
       },
-      "rogue": {
-        "anims": ["Running_A", "Walking_A", "1H_Ranged_Shoot"],
+      "brute": {
+        "anims": ["Walk_Loop", "Sword_Attack"],
         "tris": {
-          "hi": 2431,
-          "mid": 449,
-          "lo": 157
+          "hi": 1797,
+          "mid": 326,
+          "lo": 109
+        }
+      },
+      "knight": {
+        "anims": ["Walk_Loop", "Sword_Attack"],
+        "tris": {
+          "hi": 1797
+        }
+      },
+      "archer": {
+        "anims": ["Walk_Loop", "Pistol_Shoot"],
+        "tris": {
+          "mid": 325,
+          "lo": 109
+        }
+      },
+      "caster": {
+        "anims": ["Walk_Loop", "Spell_Simple_Shoot"],
+        "tris": {
+          "hi": 1789,
+          "mid": 329,
+          "lo": 110
+        }
+      },
+      "reaper": {
+        "anims": ["Sprint_Loop"],
+        "tris": {
+          "hi": 1797
         }
       }
     }

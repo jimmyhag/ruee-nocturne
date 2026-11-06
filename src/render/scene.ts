@@ -782,7 +782,7 @@ export class GameScene {
     this.propX = this.propZ = 1e9;
   }
   /**
-   * Phase 21 : géométries cuites (poses en cibles de morph) et texture squelette à la place des silhouettes ; une
+   * Phase 21 : géométries cuites (poses en cibles de morph) et texture des morts-vivants (phase 26) à la place des silhouettes ; une
    * morphTexture par type, allouée à pleine capacité (même piège que les couleurs d'instance) ; contour des boss par
    * un InstancedMesh jumeau qui partage matrices et poses. Tout est construit avant d'échanger.
    */
@@ -849,6 +849,8 @@ export class GameScene {
       });
     }
     await this.renderer.compileAsync(probes, this.camera, this.scene).catch(() => undefined);
+    // phase 26 : une texture par modèle, envoyée à la carte graphique au chargement (pas à la première apparition)
+    for (const b of en) if (b?.map) this.renderer.initTexture(b.map);
     this.enemyBaked = en; // avant l'échange : poseEnemy lit enemyBaked dès que enemyMorph[t] existe
     for (const f of todo) f();
     // la couleur d'instance multiplie la texture : teinte du type adoucie (les os restent clairs), élites dorées

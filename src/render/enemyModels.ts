@@ -1,4 +1,5 @@
-// Phase 21 : ennemis en squelettes KayKit (CC0, Kay Lousberg), animés sans squelette par instance.
+// Phase 21 : ennemis animés sans squelette par instance ; phase 26 : morts-vivants Quaternius HD (même kit que les
+// héros, tools/assets/config.ts : ENEMY_MODELS).
 // Au chargement, chaque type est « cuit » une fois : le squelette est posé image par image (AnimationMixer), les
 // sommets sont skinnés sur le CPU, et chaque pose devient une cible de morph absolue. Le rendu (scene.ts) mélange
 // deux poses voisines par instance (InstancedMesh.morphTexture, src/render/pose.ts) : un appel par type, zéro mixer.
@@ -7,12 +8,10 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MANIFEST, loadGLTF } from './models';
 
 export type EnemyLod = 'hi' | 'mid' | 'lo';
-type Model = 'minion' | 'warrior' | 'mage' | 'rogue';
+type Model = 'zombie' | 'zombief' | 'runner' | 'brute' | 'knight' | 'archer' | 'caster' | 'reaper';
 
 interface EnemyLook {
   model: Model;
-  /** accessoires et armes visibles (noms des nœuds du pack, sans clé ni niveau) */
-  show: string[];
   /** marche ou course en boucle, puis geste éventuel (tir, frappe) : [clip, nombre de poses] */
   clips: [string, number][];
   /** hauteur du modèle (u), pieds au sol */
@@ -22,73 +21,61 @@ interface EnemyLook {
 
 /** Index = type d'ennemi (ENEMIES de src/sim/balance.ts). Le Volant (4) est le crâne de props.glb. */
 export const ENEMY_LOOKS: (EnemyLook | null)[] = [
-  { model: 'minion', show: [], clips: [['Walking_D_Skeletons', 8]], height: 1.45 }, // 0 Spectre
-  { model: 'rogue', show: ['Skeleton_Blade'], clips: [['Running_A', 8]], height: 1.2 }, // 1 Dard
-  { model: 'warrior', show: ['Skeleton_Warrior_Helmet', 'Skeleton_Axe'], clips: [['Walking_A', 8]], height: 2.3 }, // 2 Brute
+  { model: 'zombie', clips: [['Zombie_Walk_Fwd_Loop', 8]], height: 1.75 }, // 0 Spectre
+  { model: 'runner', clips: [['Sprint_Loop', 8]], height: 1.55 }, // 1 Dard
+  { model: 'brute', clips: [['Walk_Loop', 8]], height: 2.4 }, // 2 Brute
   {
-    model: 'warrior',
-    show: ['Skeleton_Warrior_Helmet', 'Skeleton_Shield_Large_A', 'Skeleton_Blade'],
+    model: 'knight',
     clips: [
-      ['Walking_A', 8],
-      ['1H_Melee_Attack_Chop', 6],
+      ['Walk_Loop', 8],
+      ['Sword_Attack', 6],
     ],
     height: 3.6,
     boss: true,
   }, // 3 Gardien
   null, // 4 Volant
   {
-    model: 'mage',
-    show: [],
+    model: 'zombief',
     clips: [
-      ['Walking_A', 6],
-      ['Spellcast_Shoot', 4],
+      ['Zombie_Walk_Fwd_Loop', 6],
+      ['Spell_Simple_Shoot', 4],
     ],
     height: 1.7,
   }, // 5 Cracheur
   {
-    model: 'mage',
-    show: ['Skeleton_Mage_Hat', 'Skeleton_Staff'],
+    model: 'caster',
     clips: [
-      ['Walking_A', 8],
-      ['Spellcast_Summon', 6],
+      ['Walk_Loop', 8],
+      ['Spell_Simple_Shoot', 6],
     ],
     height: 3.9,
     boss: true,
   }, // 6 Essaim-mère
   {
-    model: 'warrior',
-    show: ['Skeleton_Warrior_Helmet', 'Skeleton_Axe'],
+    model: 'brute',
     clips: [
-      ['Walking_A', 8],
-      ['2H_Melee_Attack_Chop', 6],
+      ['Walk_Loop', 8],
+      ['Sword_Attack', 6],
     ],
     height: 4.3,
     boss: true,
   }, // 7 Colosse
+  { model: 'reaper', clips: [['Sprint_Loop', 8]], height: 3.4, boss: true }, // 8 Faucheur
   {
-    model: 'rogue',
-    show: ['Skeleton_Rogue_Hood', 'Skeleton_Rogue_Cape', 'Skeleton_Blade'],
-    clips: [['Running_A', 8]],
-    height: 3.4,
-    boss: true,
-  }, // 8 Faucheur
-  {
-    model: 'rogue',
-    show: ['Skeleton_Rogue_Hood', 'Skeleton_Rogue_Cape', 'Skeleton_Crossbow'],
+    model: 'archer',
     clips: [
-      ['Walking_A', 6],
-      ['1H_Ranged_Shoot', 4],
+      ['Walk_Loop', 6],
+      ['Pistol_Shoot', 4],
     ],
-    height: 1.75,
+    height: 1.8,
   }, // 9 Archer
   {
-    model: 'mage',
-    show: ['Skeleton_Mage_Hat', 'Skeleton_Staff'],
+    model: 'caster',
     clips: [
-      ['Walking_A', 6],
-      ['Spellcast_Shoot', 4],
+      ['Walk_Loop', 6],
+      ['Spell_Simple_Shoot', 4],
     ],
-    height: 1.85,
+    height: 1.8,
   }, // 10 Sorcier
 ];
 
@@ -104,6 +91,8 @@ export interface BakedEnemy {
 }
 
 const EYE_GLOW = 2.6; // couleur de sommet des yeux (multiplie la texture et la couleur d'instance : ils luisent)
+/** Zone « yeux » de l'atlas (tools/assets/heroes.ts : SLOT.eyes, mise en page 1024) : ces sommets luisent. */
+const EYES_UV = { u0: 768 / 1024, u1: 896 / 1024, v0: 512 / 1024, v1: 640 / 1024 };
 
 /** Maillages (directs ou enfants d'un groupe multi-primitives) du nœud nommé `name` sous `root`. */
 function meshesOf(root: THREE.Object3D, name: string): THREE.Mesh[] {
@@ -119,9 +108,7 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
   if (!holder) throw new Error(`enemies.glb : ${look.model} absent`);
   const parts: { mesh: THREE.Mesh; eye: boolean }[] = [];
   for (const m of meshesOf(holder, `${look.model}__body__${lod}`)) parts.push({ mesh: m, eye: false });
-  for (const m of meshesOf(holder, `${look.model}__eyes__${lod}`)) parts.push({ mesh: m, eye: true });
-  for (const s of look.show)
-    for (const m of meshesOf(holder, `${look.model}__${s}__${lod}`)) parts.push({ mesh: m, eye: false });
+
   if (!parts.length) throw new Error(`enemies.glb : ${look.model} ${lod} sans maillage`);
   const map = ((parts[0].mesh.material as THREE.MeshStandardMaterial).map ?? null) as THREE.Texture | null;
 
@@ -142,11 +129,15 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
       const n = g.attributes.position.count;
       const uvA = g.attributes.uv as THREE.BufferAttribute | undefined;
       for (let i = 0; i < n; i++) {
+        let eye = p.eye;
         if (uvA) {
-          uv[(v0 + i) * 2] = uvA.getX(i);
-          uv[(v0 + i) * 2 + 1] = uvA.getY(i);
+          const u = uvA.getX(i),
+            t = uvA.getY(i);
+          uv[(v0 + i) * 2] = u;
+          uv[(v0 + i) * 2 + 1] = t;
+          eye ||= u >= EYES_UV.u0 && u < EYES_UV.u1 && t >= EYES_UV.v0 && t < EYES_UV.v1;
         }
-        col.fill(p.eye ? EYE_GLOW : 1, (v0 + i) * 3, (v0 + i) * 3 + 3);
+        col.fill(eye ? EYE_GLOW : 1, (v0 + i) * 3, (v0 + i) * 3 + 3);
       }
       if (g.index) for (let k = 0; k < g.index.count; k++) index[i0 + k] = v0 + g.index.getX(k);
       else for (let k = 0; k < n; k++) index[i0 + k] = v0 + k;

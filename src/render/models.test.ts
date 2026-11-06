@@ -12,7 +12,7 @@ import MANIFEST from './models.json';
 
 const DIR = path.resolve(import.meta.dirname, '../../public/models');
 
-describe('modèles (phases 20, 21, 24)', () => {
+describe('modèles (phases 20, 21, 25, 26)', () => {
   it('chaque personnage a son propre modèle de héros, construit au budget de triangles', () => {
     const files = new Set<string>();
     for (const c of CHARACTERS) {
@@ -68,19 +68,20 @@ describe('modèles (phases 20, 21, 24)', () => {
       const m = (MANIFEST.enemies.models as Record<string, { anims: string[] }>)[look.model];
       expect(m, `${ENEMIES[t].key} → ${look.model}`).toBeDefined();
       for (const [clip] of look.clips) expect(m.anims, `${ENEMIES[t].key} : ${clip}`).toContain(clip);
-      const parts = [...ENEMY_MODELS[look.model].keep, ...ENEMY_MODELS[look.model].weapons.map(([f]) => f)];
-      for (const s of look.show) expect(parts, `${ENEMIES[t].key} : ${s}`).toContain(s);
+      expect(ENEMY_MODELS[look.model], look.model).toBeDefined();
       expect(!!look.boss, ENEMIES[t].key).toBe(ENEMIES[t].boss);
     });
   });
-  it('phase 21 : niveaux de détail des squelettes tenus, enemies.glb dans son budget', () => {
+  it('phases 21 et 26 : niveaux de détail des ennemis tenus, enemies.glb dans son budget', () => {
     for (const [key, m] of Object.entries(
       MANIFEST.enemies.models as Record<string, { tris: Record<string, number> }>,
     )) {
-      expect(m.tris.mid, key).toBeLessThan(m.tris.hi);
-      expect(m.tris.lo, key).toBeLessThan(m.tris.mid);
-      expect(m.tris.mid, key).toBeLessThanOrEqual(ENEMY_LODS.mid * 1.6); // accessoires et armes compris
-      expect(m.tris.lo, key).toBeLessThanOrEqual(ENEMY_LODS.lo * 1.6);
+      // phase 26 : seuls les niveaux cuits sont construits (hi pour les boss, mid et lo pour la masse)
+      if (m.tris.hi && m.tris.mid) expect(m.tris.mid, key).toBeLessThan(m.tris.hi);
+      if (m.tris.mid) expect(m.tris.lo, key).toBeLessThan(m.tris.mid);
+      if (m.tris.mid) expect(m.tris.mid, key).toBeLessThanOrEqual(ENEMY_LODS.mid * 1.6); // armes comprises
+      if (m.tris.lo) expect(m.tris.lo, key).toBeLessThanOrEqual(ENEMY_LODS.lo * 1.6);
+      if (m.tris.hi) expect(m.tris.hi, key).toBeLessThanOrEqual(ENEMY_LODS.hi * 1.6);
     }
     const bytes = fs.statSync(path.join(DIR, MANIFEST.enemies.file)).size;
     expect(bytes).toBe(MANIFEST.enemies.bytes);

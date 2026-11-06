@@ -4,7 +4,7 @@
 // - textures réduites et teintées dans UN atlas JPEG 1024² (tenue, peau, tête, cheveux, yeux, pastilles des objets) ;
 // - une seule primitive skinnée simplifiée au budget : un appel de rendu (plus la coque de contour) ;
 // - clips des Universal Animation Library copiés par nom d'os (même squelette : aucun reciblage), bassin à l'échelle.
-import type { Document, Primitive, Skin } from '@gltf-transform/core';
+import type { Document, Node, Primitive, Skin, Texture } from '@gltf-transform/core';
 import { getBounds } from '@gltf-transform/core';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
@@ -75,13 +75,15 @@ function colorize(px: Buffer, hex: string | undefined): void {
   }
 }
 
-/** Atlas : chaque zone reçoit la texture (redimensionnée, teintée) de son matériau ; pastilles pour les couleurs unies. */
+/** Atlas : zones en unités de la mise en page 1024 (les UV n'en dépendent pas), image à `size` pixels de côté. */
 class Atlas {
   private layers: { input: Buffer; left: number; top: number; raw: { width: number; height: number; channels: 4 } }[] =
     [];
   private swatches = new Map<string, Rect>();
+  constructor(readonly size = ATLAS) {}
+  private px = (v: number) => Math.round((v * this.size) / ATLAS);
   async put(slot: keyof typeof SLOT, image: Uint8Array, recolor: (px: Buffer) => void): Promise<void> {
-    const [x, y, w, h] = SLOT[slot];
+    const [x, y, w, h] = SLOT[slot].map(this.px);
     const { data } = await sharp(image)
       .resize(w, h, { fit: 'fill' })
       .ensureAlpha()
@@ -98,28 +100,27 @@ class Atlas {
     const key = srgb.join(',');
     const hit = this.swatches.get(key);
     if (hit) return hit;
+    // pastilles de 16 px réels quelle que soit la taille de l'atlas (les mipmaps ne mélangent pas les voisines)
+    const unit = (SWATCH.size * ATLAS) / this.size,
+      cols = Math.floor((ATLAS - SWATCH.x) / unit);
     const i = this.swatches.size;
-    const r: Rect = [
-      SWATCH.x + (i % SWATCH.cols) * SWATCH.size,
-      SWATCH.y + Math.floor(i / SWATCH.cols) * SWATCH.size,
-      SWATCH.size,
-      SWATCH.size,
-    ];
+    const r: Rect = [SWATCH.x + (i % cols) * unit, SWATCH.y + Math.floor(i / cols) * unit, unit, unit];
     if (r[1] + r[3] > ATLAS) throw new Error('atlas : trop de pastilles');
-    const buf = Buffer.alloc(SWATCH.size * SWATCH.size * 4);
+    const sz = this.px(SWATCH.size);
+    const buf = Buffer.alloc(sz * sz * 4);
     for (let p = 0; p < buf.length; p += 4) [buf[p], buf[p + 1], buf[p + 2], buf[p + 3]] = [...srgb, 255];
     this.layers.push({
       input: buf,
-      left: r[0],
-      top: r[1],
-      raw: { width: SWATCH.size, height: SWATCH.size, channels: 4 },
+      left: this.px(r[0]),
+      top: this.px(r[1]),
+      raw: { width: sz, height: sz, channels: 4 },
     });
     this.swatches.set(key, r);
     return r;
   }
   async jpeg(): Promise<Uint8Array> {
     const img = sharp({
-      create: { width: ATLAS, height: ATLAS, channels: 4, background: { r: 128, g: 128, b: 128, alpha: 1 } },
+      create: { width: this.size, height: this.size, channels: 4, background: { r: 128, g: 128, b: 128, alpha: 1 } },
     })
       .composite(this.layers.map((l) => ({ input: l.input, left: l.left, top: l.top, raw: l.raw })))
       .flatten({ background: '#808080' })
@@ -344,12 +345,22 @@ function merge(doc: Document, parts: Part[], target: number): { prim: Primitive;
 
 // ---------- animations ----------
 
+const FINGER = /^(index|middle|ring|pinky|thumb)_/;
+
 /**
  * Copie un clip d'une bibliothèque UAL sur le squelette maître, par nom d'os : rotations de tous les os, translation du
  * bassin seulement (mise à l'échelle des hanches du maître ; les longueurs d'os du maître sont gardées). `inPlace` :
  * bassin figé à l'horizontale et jamais plus haut qu'au repos (le jeu déplace le héros).
  */
-function copyClip(doc: Document, lib: Document, from: string, to: string, inPlace: boolean, speed: number): void {
+export function copyClip(
+  doc: Document,
+  lib: Document,
+  from: string,
+  to: string,
+  inPlace: boolean,
+  speed: number,
+  fingers = true,
+): void {
   const anim = lib
     .getRoot()
     .listAnimations()
@@ -377,6 +388,7 @@ function copyClip(doc: Document, lib: Document, from: string, to: string, inPlac
     const path = ch.getTargetPath();
     const target = nodes.get(name);
     if (!target || name === 'root') continue;
+    if (!fingers && FINGER.test(name)) continue; // ennemis : doigts au repos (invisibles à cette distance)
     if (path === 'scale' || (path === 'translation' && name !== 'pelvis')) continue;
     const s = ch.getSampler()!;
     const times = Float32Array.from(s.getInput()!.getArray()!, (t) => t / speed);
@@ -429,42 +441,54 @@ function headFilter(prim: Primitive, skin: Skin): (a: number, b: number, c: numb
 
 const imageOf = (prim: Primitive) => prim.getMaterial()?.getBaseColorTexture()?.getImage() ?? null;
 
+/** Apparence d'un personnage (héros ou ennemi) : tout ce que l'assemblage lit dans la spécification. */
+export type Look = Pick<HeroSpec, 'hood' | 'hide' | 'hairColor' | 'outfitTint' | 'skinTint' | 'props'>;
+
+/** Personnage assemblé : squelette maître, parties prêtes à fusionner, texture atlas, nœuds d'origine de la tenue. */
+export interface Assembled {
+  master: Skin;
+  parts: Part[];
+  texture: Texture;
+  outfitNodes: Node[];
+}
+
 /**
- * Construit le héros dans `doc` (le document de sa tenue, lu). `base` : personnage de base du même sexe ; `hairs` :
- * coiffures ; `libs` : bibliothèques d'animation ; `props` : documents des objets tenus. Retourne les triangles finaux.
+ * Assemble un personnage dans `doc` (le document de sa tenue, lu) : tenue, tête du personnage de base `base`, coiffures
+ * `hairs`, objets tenus `props`, atlas de `atlasSize` pixels. Le document garde ses nœuds d'origine (`finish` les retire).
  */
-export async function buildHero(
+export async function assemble(
   doc: Document,
-  spec: HeroSpec,
+  look: Look,
   base: Document,
   hairs: Document[],
-  libs: Record<string, Document>,
   props: Document[],
-): Promise<number> {
+  atlasSize = ATLAS,
+  name = 'hero',
+): Promise<Assembled> {
   const root = doc.getRoot();
   for (const a of root.listAnimations()) a.dispose();
   const outfitNodes = root.listNodes().filter((n) => n.getMesh() && n.getSkin());
   const master = outfitNodes[0].getSkin()!;
-  const atlas = new Atlas();
+  const atlas = new Atlas(atlasSize);
   const filled = new Set<string>();
   const fill = async (slot: keyof typeof SLOT, prim: Primitive, recolor: (px: Buffer) => void) => {
     if (filled.has(slot)) return;
     const img = imageOf(prim);
-    if (!img) throw new Error(`héros : matériau ${prim.getMaterial()?.getName()} sans texture`);
+    if (!img) throw new Error(`personnage : matériau ${prim.getMaterial()?.getName()} sans texture`);
     await atlas.put(slot, img, recolor);
     filled.add(slot);
   };
-  const skinTint = (px: Buffer) => tint(px, spec.skinTint);
+  const skinTint = (px: Buffer) => tint(px, look.skinTint);
   const parts: Part[] = [];
   // tenue (capuche et parties retirées selon le personnage)
   for (const node of outfitNodes) {
     const name = node.getName();
-    if (spec.hood === false && /Hood/.test(name)) continue;
-    if (spec.hide?.some((h) => name.includes(h))) continue;
+    if (look.hood === false && /Hood/.test(name)) continue;
+    if (look.hide?.some((h) => name.includes(h))) continue;
     for (const p of node.getMesh()!.listPrimitives()) {
       const mat = p.getMaterial()?.getName() ?? '';
       const slot = /Regular/.test(mat) ? 'skin' : 'outfit';
-      await fill(slot, p, slot === 'skin' ? skinTint : (px) => tint(px, spec.outfitTint));
+      await fill(slot, p, slot === 'skin' ? skinTint : (px) => tint(px, look.outfitTint));
       parts.push(toPart(p, node.getSkin()!, master, SLOT[slot], null));
     }
   }
@@ -481,7 +505,7 @@ export async function buildHero(
       } else if (/Hair_/.test(mat)) {
         // sourcils : matériau de cheveux 1 ou 2 selon le personnage
         const slot = /Hair_2/.test(mat) ? 'hair2' : 'hair1';
-        await fill(slot, p, (px) => colorize(px, spec.hairColor));
+        await fill(slot, p, (px) => colorize(px, look.hairColor));
         parts.push(toPart(p, skin, master, SLOT[slot], null));
       } else {
         await fill('head', p, skinTint);
@@ -497,12 +521,12 @@ export async function buildHero(
       if (!mesh || !skin) continue;
       for (const p of mesh.listPrimitives()) {
         const slot = /Hair_2/.test(p.getMaterial()?.getName() ?? '') ? 'hair2' : 'hair1';
-        await fill(slot, p, (px) => colorize(px, spec.hairColor));
+        await fill(slot, p, (px) => colorize(px, look.hairColor));
         parts.push(toPart(p, skin, master, SLOT[slot], null));
       }
     }
   // objets tenus
-  spec.props.forEach((pr, i) => {
+  look.props.forEach((pr, i) => {
     const off = new THREE.Matrix4().compose(
       new THREE.Vector3(...(pr.pos ?? [0, 0, 0])),
       new THREE.Quaternion().setFromEuler(
@@ -512,28 +536,62 @@ export async function buildHero(
     );
     parts.push(...propPart(props[i], master, pr.bone, off, pr.size, pr.grip, atlas));
   });
-  const { prim, tris } = merge(doc, parts, spec.tris);
-  const tex = doc
-    .createTexture('hero')
+  const texture = doc
+    .createTexture(name)
     .setImage(await atlas.jpeg())
     .setMimeType('image/jpeg');
-  const mat = doc.createMaterial('Hero').setBaseColorTexture(tex).setRoughnessFactor(1).setMetallicFactor(0);
+  return { master, parts, texture, outfitNodes };
+}
+
+/**
+ * Ajoute à `doc` une version fusionnée et simplifiée (≈ `target` triangles) du personnage, nœud skinné `name` placé
+ * comme la tenue d'origine. Retourne les triangles.
+ */
+export function addBody(doc: Document, a: Assembled, name: string, target: number, material = 'Hero'): number {
+  const { prim, tris } = merge(doc, a.parts, target);
+  const mat =
+    doc
+      .getRoot()
+      .listMaterials()
+      .find((m) => m.getName() === material) ??
+    doc.createMaterial(material).setBaseColorTexture(a.texture).setRoughnessFactor(1).setMetallicFactor(0);
   prim.setMaterial(mat);
-  const holder = outfitNodes[0];
-  const node = doc.createNode('Body').setMesh(doc.createMesh('Body').addPrimitive(prim)).setSkin(master);
+  const holder = a.outfitNodes[0];
+  const node = doc.createNode(name).setMesh(doc.createMesh(name).addPrimitive(prim)).setSkin(a.master);
   node.setTranslation(holder.getTranslation()).setRotation(holder.getRotation()).setScale(holder.getScale());
   const parent = holder.getParentNode();
   if (parent) parent.addChild(node);
-  else for (const s of root.listScenes()) if (s.listChildren().includes(holder)) s.addChild(node);
-  for (const n of outfitNodes) {
+  else for (const s of doc.getRoot().listScenes()) if (s.listChildren().includes(holder)) s.addChild(node);
+  return Math.round(tris);
+}
+
+/** Retire les maillages d'origine de la tenue (une fois les corps fusionnés ajoutés). */
+export function finish(a: Assembled): void {
+  for (const n of a.outfitNodes) {
     const m = n.getMesh()!;
     n.dispose();
     m.dispose();
   }
-  // clips
+}
+
+/**
+ * Construit le héros dans `doc` (le document de sa tenue, lu) : un corps fusionné au budget, les clips des
+ * bibliothèques `libs`. Retourne les triangles finaux.
+ */
+export async function buildHero(
+  doc: Document,
+  spec: HeroSpec,
+  base: Document,
+  hairs: Document[],
+  libs: Record<string, Document>,
+  props: Document[],
+): Promise<number> {
+  const a = await assemble(doc, spec, base, hairs, props);
+  const tris = addBody(doc, a, 'Body', spec.tris);
+  finish(a);
   for (const c of HERO_CLIPS) {
     const src = c.to === 'Idle' && spec.idle ? spec.idle : c;
     copyClip(doc, libs[src.src], src.from, c.to, !!c.inPlace, c.speed ?? 1);
   }
-  return Math.round(tris);
+  return tris;
 }

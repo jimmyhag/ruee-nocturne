@@ -2,6 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.21.0 — 6 nov. 2026 (phase 26 « Ennemis assortis »)
+
+La horde change de visage : fini les squelettes de dessin animé, place à des morts-vivants dans le même style que les héros.
+
+### Modifié
+
+- **Morts-vivants** : zombies à la démarche traînante, coureuses à la dague, brutes à la hache, archers et lanceuses encapuchonnés ; peau gris-vert, vêtements ternis.
+- **Boss** : le Gardien porte épée et bouclier, le Colosse une grande hache, l'Essaim-mère un cristal, le Faucheur une faux.
+- Le Volant reste un crâne flottant.
+
 ## 1.20.0 — 6 nov. 2026 (phase 25 « Avatars HD »)
 
 Les personnages passent en haute définition : visages détaillés, vêtements texturés, coiffures, et de nouvelles animations plus fluides.

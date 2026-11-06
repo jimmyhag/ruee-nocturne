@@ -3,7 +3,6 @@
 
 export const PACKS = {
   adventurers: 'KayKit-Character-Pack-Adventures-1.0',
-  skeletons: 'KayKit-Character-Pack-Skeletons-1.0',
   halloween: 'KayKit-Halloween-Bits-1.0',
   dungeon: 'KayKit-Dungeon-Remastered-1.0',
 } as const;
@@ -235,39 +234,122 @@ export const PROPS: Record<string, { pack: PackKey; file: string; tris: number }
 };
 
 /**
- * Phase 21 : squelettes ennemis (pack Skeletons), réunis dans public/models/enemies.glb. Le corps (parties skinnées)
- * est fusionné puis simplifié à chaque niveau de détail ; accessoires (`keep`, enfants des os) et armes (`weapons`,
- * fichiers du pack attachés à un os) suivent la même réduction. Les poses sont cuites à l'exécution (src/render/enemyModels.ts).
+ * Phase 26 : ennemis morts-vivants assortis aux héros HD, assemblés avec le même kit Quaternius (tenue, tête, coiffure,
+ * objets tenus ; peau verdâtre, vêtements ternis) et animés par les mêmes bibliothèques (marche de zombie, griffure,
+ * coups d'épée, sorts). Réunis dans public/models/enemies.glb : un nœud par modèle, corps simplifié à chaque niveau
+ * (`<clé>__body__<niveau>`), clips `<clé>__<clip>`, atlas 512². Les poses sont cuites à l'exécution
+ * (src/render/enemyModels.ts). `clips` : boucle de marche puis geste éventuel.
  */
-export const ENEMY_MODELS: Record<
-  string,
-  { file: string; anims: string[]; keep: string[]; weapons: [file: string, bone: string][] }
-> = {
-  minion: { file: 'Characters/gltf/Skeleton_Minion.glb', anims: ['Walking_D_Skeletons'], keep: [], weapons: [] },
-  warrior: {
-    file: 'Characters/gltf/Skeleton_Warrior.glb',
-    anims: ['Walking_A', '1H_Melee_Attack_Chop', '2H_Melee_Attack_Chop'],
-    keep: ['Skeleton_Warrior_Helmet'],
-    weapons: [
-      ['Skeleton_Axe', 'handslot.r'],
-      ['Skeleton_Blade', 'handslot.r'],
-      ['Skeleton_Shield_Large_A', 'handslot.l'],
-    ],
+export type EnemySpec = Omit<HeroSpec, 'idle' | 'tris'> & {
+  clips: { src: 'ual1' | 'ual2'; from: string }[];
+  /** niveaux construits (hi : boss ; mid, lo : masse) et taille de l'atlas (256 suffit à la masse, vue de loin) */
+  lods: ('hi' | 'mid' | 'lo')[];
+  atlas: 256 | 512;
+};
+const MASS = { lods: ['mid', 'lo'] as EnemySpec['lods'], atlas: 256 as const };
+const BOSS = { lods: ['hi'] as EnemySpec['lods'], atlas: 512 as const };
+const BOTH = { lods: ['hi', 'mid', 'lo'] as EnemySpec['lods'], atlas: 512 as const };
+
+const ZOMBIE: Tint = { hue: 60, sat: 0.6, light: 1.0 }; // peau gris-vert
+const DIRTY: Tint = { sat: 0.6, light: 0.9 }; // vêtements ternis
+const Z_WALK = { src: 'ual2', from: 'Zombie_Walk_Fwd_Loop' } as const;
+const WALK = { src: 'ual1', from: 'Walk_Loop' } as const;
+const SPRINT = { src: 'ual1', from: 'Sprint_Loop' } as const;
+
+export const ENEMY_MODELS: Record<string, EnemySpec> = {
+  // Spectre : le gros de la horde
+  zombie: {
+    sex: 'M',
+    outfit: 'Peasant',
+    hair: ['Hair_Buzzed'],
+    hairColor: '#4a4a44',
+    skinTint: ZOMBIE,
+    outfitTint: DIRTY,
+    props: [],
+    clips: [Z_WALK, { src: 'ual2', from: 'Zombie_Scratch' }],
+    ...MASS,
   },
-  mage: {
-    file: 'Characters/gltf/Skeleton_Mage.glb',
-    anims: ['Walking_A', 'Spellcast_Shoot', 'Spellcast_Summon'],
-    keep: ['Skeleton_Mage_Hat'],
-    weapons: [['Skeleton_Staff', 'handslot.r']],
+  // Cracheur : crache à distance
+  zombief: {
+    sex: 'F',
+    outfit: 'Peasant',
+    hair: ['Hair_Long'],
+    hairColor: '#3a3833',
+    skinTint: ZOMBIE,
+    outfitTint: { hue: 200, sat: 0.6, light: 0.9 },
+    props: [],
+    clips: [Z_WALK, { src: 'ual1', from: 'Spell_Simple_Shoot' }],
+    ...MASS,
   },
-  rogue: {
-    file: 'Characters/gltf/Skeleton_Rogue.glb',
-    anims: ['Running_A', 'Walking_A', '1H_Ranged_Shoot'],
-    keep: ['Skeleton_Rogue_Hood', 'Skeleton_Rogue_Cape'],
-    weapons: [
-      ['Skeleton_Blade', 'handslot.r'],
-      ['Skeleton_Crossbow', 'handslot.r'],
-    ],
+  // Dard : rapide, petit, une dague
+  runner: {
+    sex: 'F',
+    outfit: 'Ranger',
+    hood: false,
+    hide: ['Pauldron'],
+    hair: ['Hair_BuzzedFemale'],
+    hairColor: '#2a2622',
+    skinTint: ZOMBIE,
+    outfitTint: { hue: 140, sat: 0.7, light: 0.9 },
+    props: [R('medieval_weapons_pack/Dagger.glb', 0.45, 0.2)],
+    clips: [SPRINT],
+    ...MASS,
+  },
+  // Brute et Colosse : la hache
+  brute: {
+    sex: 'M',
+    outfit: 'Peasant',
+    hair: ['Hair_Beard'],
+    hairColor: '#2e2a26',
+    skinTint: ZOMBIE,
+    outfitTint: { hue: -20, sat: 0.8, light: 0.85 },
+    props: [R('medieval_weapons_pack/Axe.glb', 1.1, 0.15)],
+    clips: [WALK, { src: 'ual1', from: 'Sword_Attack' }],
+    ...BOTH,
+  },
+  // Gardien : épée et bouclier
+  knight: {
+    sex: 'M',
+    outfit: 'Ranger',
+    hair: [],
+    skinTint: ZOMBIE,
+    outfitTint: { hue: 180, sat: 0.4, light: 1.0 },
+    props: [R('medieval_weapons_pack/Sword.glb', 1.1, 0.15), L('medieval_weapons_pack/Shield_Heater.glb', 0.75, 0.5)],
+    clips: [WALK, { src: 'ual1', from: 'Sword_Attack' }],
+    ...BOSS,
+  },
+  // Archer : l'arc
+  archer: {
+    sex: 'M',
+    outfit: 'Ranger',
+    hair: [],
+    skinTint: ZOMBIE,
+    outfitTint: { hue: -60, sat: 0.6, light: 0.9 },
+    props: [L('medieval_weapons_pack/Bow_Wooden.glb', 1.2, 0.5)],
+    clips: [WALK, { src: 'ual1', from: 'Pistol_Shoot' }],
+    ...MASS,
+  },
+  // Sorcier et Essaim-mère : cristal
+  caster: {
+    sex: 'F',
+    outfit: 'Ranger',
+    hair: [],
+    skinTint: ZOMBIE,
+    outfitTint: { hue: 250, sat: 0.9, light: 0.9 },
+    props: [L('rpg_items_pack/Crystal1.glb', 0.25, 0.5)],
+    clips: [WALK, { src: 'ual1', from: 'Spell_Simple_Shoot' }],
+    ...BOTH,
+  },
+  // Faucheur : la faux
+  reaper: {
+    sex: 'M',
+    outfit: 'Ranger',
+    hair: [],
+    skinTint: { hue: 180, sat: 0.15, light: 0.8 },
+    outfitTint: { sat: 0.15, light: 0.55 },
+    props: [{ ...R('medieval_weapons_pack/Scythe.glb', 1.8, 0.4), rot: [180, 0, 0] }],
+    clips: [SPRINT],
+    ...BOSS,
   },
 };
 /** Triangles visés pour le corps à chaque niveau : boss (hi), masse en rendu net (mid), masse en pixel (lo). */
@@ -276,4 +358,4 @@ export const ENEMY_LODS = { hi: 1800, mid: 330, lo: 110 } as const;
 /** Budgets de téléchargement (porte de phase 20). */
 // un joueur ne télécharge que son héros et props.glb (vite.config.ts : cache à l'usage, pas de précache)
 // phase 25 : héros texturés (atlas JPEG) : 700 ko par héros, 7 Mo au total (un joueur ne charge que son héros)
-export const BUDGET = { heroBytes: 700_000, enemyBytes: 700_000, totalBytes: 7_000_000 };
+export const BUDGET = { heroBytes: 700_000, enemyBytes: 750_000, totalBytes: 7_500_000 }; // phase 26 : ennemis texturés

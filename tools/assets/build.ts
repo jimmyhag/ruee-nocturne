@@ -10,23 +10,12 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Document, NodeIO } from '@gltf-transform/core';
-import type { Node, Primitive } from '@gltf-transform/core';
+import type { Node } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import {
-  compactPrimitive,
-  dedup,
-  flatten,
-  joinPrimitives,
-  mergeDocuments,
-  meshopt,
-  prune,
-  resample,
-  unpartition,
-  weld,
-} from '@gltf-transform/functions';
+import { dedup, flatten, mergeDocuments, meshopt, prune, resample, unpartition, weld } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_CLIPS, HEROES, PACKS, PROPS, QUATERNIUS } from './config';
-import { buildHero } from './heroes';
+import { addBody, assemble, buildHero, copyClip, finish } from './heroes';
 import type { PackKey } from './config';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
@@ -150,133 +139,45 @@ function stripStaticTracks(doc: Document, eps = 1e-4): number {
   return removed;
 }
 
-/** Garde les clips nommés : samplers et canaux jetés d'abord, sinon prune garde leurs accessors. */
-function keepAnimations(doc: Document, names: readonly string[], who: string): void {
-  const root = doc.getRoot();
-  const keep = new Set(names);
-  for (const a of root.listAnimations())
-    if (!keep.has(a.getName())) {
-      for (const c of a.listChannels()) c.dispose();
-      for (const sm of a.listSamplers()) sm.dispose(); // les accessors (parfois partagés) partent au prune
-      a.dispose();
-    }
-  const missing = names.filter((n) => !root.listAnimations().some((a) => a.getName() === n));
-  if (missing.length) throw new Error(`${who} : animations absentes ${missing.join(', ')}`);
-}
-
-const primTris = (p: Primitive) => (p.getIndices()?.getCount() ?? p.getAttribute('POSITION')!.getCount()) / 3;
-
 /**
- * Copie de `prim` (accessors propres) réduite à ≈ `target` triangles : simplificateur meshopt en mode permissif (il
- * traverse les coutures d'UV et de normales : les modèles KayKit ont presque un sommet par triangle), UV pondérés.
- */
-function simplified(doc: Document, prim: Primitive, target: number): Primitive {
-  const p = prim.clone();
-  for (const sem of p.listSemantics()) {
-    const a = p.getAttribute(sem)!;
-    p.setAttribute(sem, a.clone().setArray(a.getArray()!.slice()));
-  }
-  const src = prim.getIndices()!;
-  const idx = new Uint32Array(src.getArray()!);
-  let out: Uint32Array = idx;
-  if (target < idx.length / 3) {
-    const pos = p.getAttribute('POSITION')!.getArray();
-    if (!(pos instanceof Float32Array)) throw new Error('simplification : positions non flottantes');
-    const uvA = p.getAttribute('TEXCOORD_0');
-    const uv = uvA ? new Float32Array(uvA.getArray()!) : new Float32Array((pos.length / 3) * 2);
-    const count = Math.max(1, Math.round(target)) * 3;
-    out = MeshoptSimplifier.simplifyWithAttributes(idx, pos, 3, uv, 2, [0.5, 0.5], null, count, 1, ['Permissive'])[0];
-  }
-  p.setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(out)).setBuffer(src.getBuffer()));
-  compactPrimitive(p);
-  return p;
-}
-
-/**
- * Phase 21 : les quatre squelettes ennemis dans un seul fichier. Par squelette : clips utiles, corps skinné fusionné
- * puis simplifié à chaque niveau (`<clé>__body__<niveau>`), yeux à part (`__eyes__`, matériau Glow), accessoires et
- * armes attachés aux os (`<clé>__<nom>__<niveau>`), clips renommés `<clé>__<clip>`. Séparateur `__` : GLTFLoader
- * retire `.` et `:` des noms de nœuds.
+ * Phase 26 : les morts-vivants dans un seul fichier. Par modèle : assemblage avec le kit des héros (atlas 512²), corps
+ * fusionné puis simplifié à chaque niveau (`<clé>__body__<niveau>`), clips `<clé>__<clip>` (marche, geste), puis fusion
+ * dans enemies.glb sous un nœud nommé par la clé. Séparateur `__` : GLTFLoader retire `.` et `:` des noms de nœuds.
  */
 async function buildEnemies(
   io: NodeIO,
+  bases: Record<'M' | 'F', Document>,
+  libs: Record<string, Document>,
 ): Promise<{ bin: Uint8Array; models: Record<string, { anims: string[]; tris: Record<string, number> }> }> {
   const out = new Document();
   const scene = out.createScene('enemies');
   const models: Record<string, { anims: string[]; tris: Record<string, number> }> = {};
-  const base = packDir('skeletons');
   for (const [key, m] of Object.entries(ENEMY_MODELS)) {
-    const doc = await io.read(path.join(base, m.file));
+    const doc = await readKit(io, QUATERNIUS.outfit(m.sex, m.outfit));
     const root = doc.getRoot();
-    keepAnimations(doc, m.anims, key);
-    for (const n of root.listNodes()) if (n.getMesh() && !n.getSkin() && !m.keep.includes(n.getName())) n.dispose();
-    const mainScene = root.getDefaultScene() ?? root.listScenes()[0];
-    for (const [file, bone] of m.weapons) {
-      const w = await io.read(path.join(base, `Assets/gltf/${file}.gltf`));
-      await w.transform(flatten());
-      const map = mergeDocuments(doc, w);
-      const slot = root.listNodes().find((n) => n.getName() === bone);
-      if (!slot) throw new Error(`${key} : os ${bone} absent`);
-      for (const s of w.getRoot().listScenes())
-        for (const c of s.listChildren()) {
-          const node = map.get(c) as Node;
-          node.setName(file);
-          slot.addChild(node);
-        }
+    const hairs = await Promise.all(m.hair.map((n) => readKit(io, QUATERNIUS.hair(n))));
+    const props = await Promise.all(m.props.map((p) => io.read(fetchFiles('showcase', [p.file])[0])));
+    const a = await assemble(doc, m, bases[m.sex], hairs, props, m.atlas, 'atlas');
+    const lodTris: Record<string, number> = {};
+    // seuls les niveaux cuits à l'exécution : hi pour les boss, mid et lo pour la masse
+    for (const lod of m.lods) lodTris[lod] = addBody(doc, a, `${key}__body__${lod}`, ENEMY_LODS[lod], 'Atlas');
+    finish(a);
+    const anims: string[] = [];
+    for (const c of m.clips) {
+      copyClip(doc, libs[c.src], c.from, `${key}__${c.from}`, true, 1, false);
+      anims.push(c.from);
     }
-    for (const s of root.listScenes()) if (s !== mainScene) s.dispose();
     await doc.transform(resample({ tolerance: 1e-3 }));
     stripStaticTracks(doc);
-    const skinned = root.listNodes().filter((n) => n.getSkin() && n.getMesh());
-    const isEye = (n: Node) => n.getMesh()!.listPrimitives()[0].getMaterial()?.getName() === 'Glow';
-    const bodyNodes = skinned.filter((n) => !isEye(n)),
-      eyeNodes = skinned.filter(isEye);
-    const skin = bodyNodes[0].getSkin()!;
-    const parent = bodyNodes[0].getParentNode();
-    const bodyMat = bodyNodes[0].getMesh()!.listPrimitives()[0].getMaterial();
-    const body = joinPrimitives(bodyNodes.map((n) => n.getMesh()!.listPrimitives()[0])).setMaterial(bodyMat);
-    const bodyTris = primTris(body);
-    const statics = root.listNodes().filter((n) => n.getMesh() && !n.getSkin());
-    const lodTris: Record<string, number> = {};
-    const attach = (n: Node, to: Node | null) => (to ? to.addChild(n) : mainScene.addChild(n));
-    for (const [lod, target] of Object.entries(ENEMY_LODS)) {
-      const ratio = target / bodyTris;
-      const meshOf = (prims: Primitive[], name: string, min: number) => {
-        const mesh = doc.createMesh(name);
-        for (const pr of prims) mesh.addPrimitive(simplified(doc, pr, Math.max(min, primTris(pr) * ratio)));
-        return mesh;
-      };
-      const bm = meshOf([body], `${key}__body__${lod}`, target);
-      attach(doc.createNode(`${key}__body__${lod}`).setMesh(bm).setSkin(skin), parent);
-      let t = primTris(bm.listPrimitives()[0]);
-      if (lod !== 'lo')
-        for (const e of eyeNodes) {
-          const em = meshOf(e.getMesh()!.listPrimitives(), `${key}__eyes__${lod}`, 8);
-          attach(doc.createNode(`${key}__eyes__${lod}`).setMesh(em).setSkin(skin), parent);
-        }
-      for (const sn of statics) {
-        const sm = meshOf(sn.getMesh()!.listPrimitives(), `${key}__${sn.getName()}__${lod}`, 12);
-        const c = doc
-          .createNode(`${key}__${sn.getName()}__${lod}`)
-          .setMesh(sm)
-          .setTranslation(sn.getTranslation())
-          .setRotation(sn.getRotation())
-          .setScale(sn.getScale());
-        attach(c, sn.getParentNode());
-        t += sm.listPrimitives().reduce((a, pr) => a + primTris(pr), 0);
-      }
-      lodTris[lod] = Math.round(t);
-    }
-    for (const n of [...bodyNodes, ...eyeNodes, ...statics]) n.dispose();
-    for (const a of root.listAnimations()) a.setName(`${key}__${a.getName()}`);
     await doc.transform(prune());
-    // fusion dans enemies.glb : un nœud racine par squelette, nommé par sa clé
+    const mainScene = root.getDefaultScene() ?? root.listScenes()[0];
+    for (const s of root.listScenes()) if (s !== mainScene) s.dispose();
     const map = mergeDocuments(out, doc);
     const holder = out.createNode(key);
     for (const s of root.listScenes()) for (const child of s.listChildren()) holder.addChild(map.get(child) as Node);
     scene.addChild(holder);
-    models[key] = { anims: m.anims, tris: lodTris };
-    console.log(`ennemi ${key.padEnd(8)} corps ${bodyTris} tris → ${JSON.stringify(lodTris)}`);
+    models[key] = { anims, tris: lodTris };
+    console.log(`ennemi ${key.padEnd(8)} → ${JSON.stringify(lodTris)}`);
   }
   for (const s of out.getRoot().listScenes()) if (s !== scene) s.dispose();
   out.getRoot().setDefaultScene(scene);
@@ -392,7 +293,7 @@ async function main(): Promise<void> {
   );
 
   // --- ennemis (phase 21) ---
-  const en = await buildEnemies(io);
+  const en = await buildEnemies(io, bases, libs);
   fs.writeFileSync(path.join(OUT, 'enemies.glb'), en.bin);
   if (en.bin.byteLength > BUDGET.enemyBytes)
     throw new Error(`enemies.glb : ${en.bin.byteLength} o > ${BUDGET.enemyBytes}`);
