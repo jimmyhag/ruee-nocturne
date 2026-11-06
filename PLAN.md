@@ -119,7 +119,7 @@ Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'an
 | Clignement | Sorcière | téléportation de 6 u (s'arrête avant un obstacle), éclairs sur 7 ennemis au point de départ | 12 s |
 | Éclat | Veilleuse | onde de r 6 : recul, étourdit 1,4 s (boss : ralentis) | 18 s |
 | Collet | Braconnier | filet lancé à 7 u (r 3, 3,5 s) qui immobilise (boss : ralentis) | 16 s |
-| Pétard | Sapeur | explosion sous ses pieds (r 3,5) qui le projette en l'air ; l'atterrissage pose une mine | 14 s |
+| Pétard | Sapeur | explosion sous ses pieds (r 4,2) qui le projette en l'air ; l'atterrissage pose une mine | 14 s |
 | Comète | Feu follet | élan 2× plus long que le Bond, la Traînée y pose du feu | 6 s |
 | Voile | Revenante | 1,75 s spectrale : invulnérable, vitesse ×1,3, ralentit ce qu'elle frôle | 18 s |
 | Bourse | Colporteur | bourse lancée à 5 u qui explose (r 3,5), +1,3 dégât par 10 or gardés (+78 au plus) | 18 s |

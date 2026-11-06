@@ -537,7 +537,7 @@ export const SPELL = {
   clignement: { cd: 12, dist: 6, invul: 0.4, targets: 7, dmg: 46, chainR: 7 }, // Sorcière : éclairs depuis le point de départ
   eclat: { cd: 18, r: 6, dmg: 16, kb: 14, stun: 1.4, bossSlow: 2.3 }, // Veilleuse
   collet: { cd: 16, range: 7, r: 3, dur: 3.5, dps: 8, period: 0.25 }, // Braconnier : immobilise (boss : ralentis)
-  petard: { cd: 14, r: 3.5, dmg: 72, kb: 12, jumpMul: 1.6 }, // Sapeur : l'atterrissage pose une mine (Démolisseur)
+  petard: { cd: 14, r: 4.2, dmg: 72, kb: 12, jumpMul: 1.6 }, // Sapeur : l'atterrissage pose une mine (Démolisseur) ; phase 22 : r 3,5 → 4,2 (nu : 14 → 8 % de morts < 3 min)
   comete: { cd: 6, time: 0.4 }, // Feu follet : dash 2× plus long que le Bond, la Traînée y pose du feu
   voile: { cd: 18, dur: 1.75, speedMul: 1.3, r: 1.4, slow: 2.3 }, // Revenante : invulnérable, ralentit ce qu'elle frôle
   bourse: { cd: 18, range: 5, r: 3.5, dmg: 21, perGold: 0.13, maxBonus: 78 }, // Colporteur : +1 dégât par 10 or gardés (+60 max) ; 30 dégâts / 6 s : 36 % des kills (nu), 24 / 7 s : 34 %
