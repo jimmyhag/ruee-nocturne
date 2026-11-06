@@ -782,12 +782,22 @@ export class GameScene {
   }
   /** État des modèles d'ennemis, affiché dans l'onglet perf : chargement, prêt (durée), ou erreur. */
   enemyStatus = 'chargement';
-  private enemiesSettled!: () => void;
+  /** Vrai tant que le premier essai de chargement des modèles d'ennemis n'est pas terminé. */
+  enemiesPending = true;
+  // déclaré AVANT la promesse : un champ déclaré après (initialisé à undefined) écraserait la fonction posée ici
+  private enemiesSettled: () => void = () => undefined;
   /** Résolue à la fin du premier essai de chargement des modèles d'ennemis (réussi ou non). */
-  readonly enemiesReady = new Promise<void>((r) => (this.enemiesSettled = r));
+  readonly enemiesReady = new Promise<void>(
+    (r) =>
+      (this.enemiesSettled = () => {
+        this.enemiesPending = false;
+        r();
+      }),
+  );
   private loadEnemies(attempt: number): void {
     const t0 = performance.now();
-    Promise.all([loadEnemyModels(), loadProps()])
+    const stage = (st: string) => (this.enemyStatus = `${st} (essai ${attempt + 1})`);
+    Promise.all([loadEnemyModels(stage), loadProps()])
       .then(([en, p]) => this.applyEnemyModels(en, p))
       .then(() => {
         this.enemyStatus = `3D prêts en ${((performance.now() - t0) / 1000).toFixed(1)} s`;
@@ -868,7 +878,12 @@ export class GameScene {
         this.bossOutline[t] = outline;
       });
     }
-    await this.renderer.compileAsync(probes, this.camera, this.scene).catch(() => undefined);
+    this.enemyStatus = 'compilation des shaders';
+    // compilation en tâche de fond, plafonnée à 4 s : un pilote qui ne répond pas ne doit pas bloquer l'échange
+    await Promise.race([
+      this.renderer.compileAsync(probes, this.camera, this.scene).catch(() => undefined),
+      new Promise<void>((r) => setTimeout(r, 4000)),
+    ]);
     // phase 26 : une texture par modèle, envoyée à la carte graphique au chargement (pas à la première apparition)
     for (const b of en) if (b?.map) this.renderer.initTexture(b.map);
     this.enemyBaked = en; // avant l'échange : poseEnemy lit enemyBaked dès que enemyMorph[t] existe

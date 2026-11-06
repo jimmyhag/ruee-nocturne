@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.21.2 — 6 nov. 2026 (correctif)
+
+### Corrigé
+
+- **Diagnostic des modèles d'ennemis** : l'onglet perf (Pause → Perf) indique l'étape en cours (téléchargement, cuisson des poses, compilation des shaders), le temps de chargement ou l'erreur.
+- La compilation des shaders des ennemis est plafonnée à 4 s : un pilote graphique lent ne peut plus bloquer le passage aux modèles 3D.
+
 ## 1.21.1 — 6 nov. 2026 (correctif)
 
 ### Corrigé

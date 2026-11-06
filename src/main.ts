@@ -336,7 +336,7 @@ function startGame(variant?: number, daily = false): void {
     );
     return;
   }
-  if (scene.enemyStatus === 'chargement' && !modelsWaited) {
+  if (scene.enemiesPending && !modelsWaited) {
     // modèles 3D des ennemis encore en route (premier lancement, ou après une mise à jour) : on les attend un peu
     // plutôt que de lancer la partie avec les silhouettes de repli (8 s au plus, puis on joue quand même)
     modelsWaited = true;

@@ -242,10 +242,12 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
 let enemiesPromise: Promise<(BakedEnemy | null)[]> | null = null;
 
 /** Charge enemies.glb et cuit tous les types (une fois ; nouvel essai après un échec, comme loadGLTF). */
-export function loadEnemyModels(): Promise<(BakedEnemy | null)[]> {
+export function loadEnemyModels(onStage?: (stage: string) => void): Promise<(BakedEnemy | null)[]> {
   if (enemiesPromise) return enemiesPromise;
-  enemiesPromise = loadGLTF(MANIFEST.enemies.file).then((gltf) =>
-    ENEMY_LOOKS.map((look) => {
+  onStage?.('téléchargement');
+  enemiesPromise = loadGLTF(MANIFEST.enemies.file).then((gltf) => {
+    onStage?.('cuisson des poses');
+    return ENEMY_LOOKS.map((look) => {
       if (!look) return null;
       const loop = look.clips[0][1],
         action = look.clips[1]?.[1] ?? 0;
@@ -256,8 +258,8 @@ export function loadEnemyModels(): Promise<(BakedEnemy | null)[]> {
       const mid = bake(gltf, look, 'mid'),
         lo = bake(gltf, look, 'lo');
       return { geo: { net: mid.geo, pixel: lo.geo }, map: mid.map, loop, action, boss: false };
-    }),
-  );
+    });
+  });
   enemiesPromise.catch(() => (enemiesPromise = null));
   return enemiesPromise;
 }
