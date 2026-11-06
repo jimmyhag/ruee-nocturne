@@ -320,6 +320,11 @@ export interface Player {
   xpMul: number;
   chestGoldMul: number;
   eliteGold: number; // or en plus par élite tuée
+  crit: number; // phase 23 : chance de critique globale (tome Chance), s'ajoute à celle de l'arme
+  critMul: number; // multiplicateur d'un critique (tome Dégâts)
+  killHeal: number; // PV par ennemi tué (tome Vitalité)
+  lvlHeal: number; // PV soignés à chaque niveau (tome Savoir)
+  shopMul: number; // prix du marchand (tome Or)
   revives: number; // réanimations restantes (boutique)
   dashTime: number; // durée du déplacement éclair (Bond, Comète ; 0 pour les autres sorts)
   jumpMul: number; // phase 17 : Bottes de saut

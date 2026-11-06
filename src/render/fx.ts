@@ -264,12 +264,13 @@ export class DamageNumbers {
       this.items.push({ el, life: 0, x: 0, y: 0, z: 0, v: 0, op: 1 });
     }
   }
-  add(x: number, y: number, z: number, v: number): void {
+  add(x: number, y: number, z: number, v: number, crit = false): void {
     const D = FEEL.damageNumbers;
     y += this.ground(x, z);
     const r2 = D.mergeRadius * D.mergeRadius;
-    for (let k = 0; k < this.frameN; k++) {
+    for (let k = 0; k < this.frameN && !crit; k++) {
       const d = this.items[this.frame[k]];
+      if (d.el.className === 'crit') continue; // un critique garde son propre chiffre
       const dx = d.x - x,
         dz = d.z - z;
       if (dx * dx + dz * dz < r2) {
@@ -287,8 +288,8 @@ export class DamageNumbers {
     d.z = z + rnd(-0.3, 0.3);
     d.life = D.life;
     d.v = v;
-    d.el.textContent = String(Math.round(v));
-    d.el.className = v >= D.bigAbove ? 'big' : '';
+    d.el.textContent = crit ? Math.round(v) + '!' : String(Math.round(v));
+    d.el.className = crit ? 'crit' : v >= D.bigAbove ? 'big' : '';
     if (d.op !== 1) {
       d.op = 1;
       d.el.style.opacity = '1';

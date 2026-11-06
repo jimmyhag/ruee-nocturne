@@ -105,7 +105,7 @@ function taken(out: Card[], i: number): boolean {
 /** Prix d'un objet chez le marchand à la visite courante. */
 export function itemPrice(w: World, i: number): number {
   const base = MERCHANT.price[ITEM_RARITY[i]] * (1 + MERCHANT.growth * w.merchant.visit);
-  return Math.round(base * (w.items[It.Bourse] ? 1 - ITEM.bourse.discount : 1));
+  return Math.round(base * (w.items[It.Bourse] ? 1 - ITEM.bourse.discount : 1) * w.player.shopMul); // phase 23 : tome Or
 }
 
 /** Nombre d'objets proposés par un coffre. */

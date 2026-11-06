@@ -1266,14 +1266,17 @@ function handleEvents(w: World, now: number): void {
   for (let i = 0; i < w.eventCount; i++) {
     const e = w.events[i];
     switch (e.type) {
-      case Ev.Hit:
-        S.dmg.add(e.x, e.y, e.z, e.v);
+      case Ev.Hit: {
+        // phase 23 : x2 = source de l'arme, +16 si coup critique
+        const crit = e.x2 >= 16;
+        S.dmg.add(e.x, e.y, e.z, e.v, crit);
+        if (crit) S.particles.burst(e.x, e.y, e.z, PAL.gold, PT.crit.n, PT.crit.speed, PT.crit.up);
         // gerbe de la couleur de l'arme, orientée comme le recul (opposée à la source)
         S.particles.burst(
           e.x,
           e.y,
           e.z,
-          HIT_COLORS[e.x2 | 0],
+          HIT_COLORS[(e.x2 | 0) & 15],
           (PT.hit.n * fx) | 0,
           PT.hit.speed,
           PT.hit.up,
@@ -1284,6 +1287,7 @@ function handleEvents(w: World, now: number): void {
         );
         audio.hit(e.v, now);
         break;
+      }
       case Ev.Kill:
         if (e.v === 1) runStats.dards++;
         if (e.x2 === 1) runStats.elites++;

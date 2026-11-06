@@ -74,9 +74,9 @@ export const achText = (a: Achievement): string => t(`ach.${a.id}.text`, { n: a.
 export const achUnlock = (a: Achievement): string => t(`ach.${a.id}.unlock`);
 
 /** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
-const REDUCES = new Set(['cd', 'spellcd', 'armor']);
+const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop']);
 /** Lignes en valeur absolue bien que < 1 (PV/s, points de chance). */
-const ABSOLUTE = new Set(['regen', 'luck']);
+const ABSOLUTE = new Set(['regen', 'luck', 'killheal']);
 /** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */
 function lineValue(l: StatLine, kind: 'w' | 't'): string {
   const sign = l.step > 0 !== (kind === 't' && REDUCES.has(l.stat)) ? '+' : '−';

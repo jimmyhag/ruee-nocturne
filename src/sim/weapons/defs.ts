@@ -1,4 +1,4 @@
-import { SYN, Syn, TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
+import { CRIT, SYN, Syn, TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
 import type { TomeKey, WeaponKey } from '../types';
 import type { World } from '../world';
 
@@ -12,17 +12,17 @@ export interface WeaponDef {
 // Grammaire survivor-design §4 : portée / ciblage / rythme jamais partagés par deux armes.
 export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // longue · auto plus proche · salve
-  orbe: { glyph: '●', color: '#ffcc4d', base: { cd: 0.95, n: 1, dmg: 10, pierce: 1, speed: 17 } },
+  orbe: { glyph: '●', color: '#ffcc4d', base: { cd: 0.95, n: 1, dmg: 10, pierce: 1, speed: 17, crit: 0 } },
   // contact · zone autour · continu
-  aura: { glyph: '◎', color: '#59d8ff', base: { r: 2.2, dmg: 5, period: 0.45 } },
+  aura: { glyph: '◎', color: '#59d8ff', base: { r: 2.2, dmg: 5, period: 0.45, crit: 0, slow: 0 } },
   // courte · orbite · continu. r 1,95 : avec 2,45 u un Dard collé au joueur passait sous l'anneau
-  lames: { glyph: '✦', color: '#fff1db', base: { n: 2, dmg: 12, r: 1.95, spd: 3.35 } },
+  lames: { glyph: '✦', color: '#fff1db', base: { n: 2, dmg: 12, r: 1.95, spd: 3.35, crit: 0 } },
   // longue · aléatoire + chaîne · lent et fort
-  foudre: { glyph: 'ϟ', color: '#d8f4ff', base: { cd: 2.3, dmg: 28, chain: 3 } },
+  foudre: { glyph: 'ϟ', color: '#d8f4ff', base: { cd: 2.3, dmg: 28, chain: 3, crit: 0, stun: 0 } },
   // longue · direction du regard · salve
-  boomerang: { glyph: '⟲', color: '#7ee0a1', base: { cd: 1.7, dmg: 14, range: 9, speed: 14, n: 1 } },
+  boomerang: { glyph: '⟲', color: '#7ee0a1', base: { cd: 1.7, dmg: 14, range: 9, speed: 14, n: 1, crit: 0 } },
   // contact · là où je passe · pose
-  mines: { glyph: '✸', color: '#ff7a3d', base: { cd: 0.9, dmg: 30, r: 2.2, n: 5, chain: 0 } },
+  mines: { glyph: '✸', color: '#ff7a3d', base: { cd: 0.9, dmg: 30, r: 2.2, n: 5, chain: 0, crit: 0 } },
 };
 export const WEAPON_KEYS = Object.keys(WEAPONS) as WeaponKey[];
 
@@ -153,6 +153,25 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
       break;
     case 'elitegold':
       P.eliteGold += l.step;
+      break;
+    // phase 23
+    case 'critdmg':
+      P.critMul += l.step;
+      break;
+    case 'killheal':
+      P.killHeal += l.step;
+      break;
+    case 'jump':
+      P.jumpMul *= 1 + l.step;
+      break;
+    case 'lvlheal':
+      P.lvlHeal += l.step;
+      break;
+    case 'crit':
+      P.crit += l.step;
+      break;
+    case 'shop':
+      P.shopMul = Math.max(CRIT.shopMin, P.shopMul - l.step);
       break;
   }
 }

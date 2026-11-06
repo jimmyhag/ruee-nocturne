@@ -35,6 +35,7 @@ export const FEEL = {
   particles: {
     cap: 500,
     hit: { n: 5, speed: 3.5, up: 3 },
+    crit: { n: 6, speed: 5, up: 4 }, // phase 23 : gerbe dorée d'un coup critique
     kill: { n: 7, speed: 5, up: 7 },
     elite: { n: 50, speed: 8, up: 9 },
     land: { n: 6, speed: 1.5, up: 3 },
