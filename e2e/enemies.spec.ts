@@ -75,3 +75,27 @@ test('sans réseau pour /models, les ennemis gardent leurs silhouettes et la par
   expect(await page.evaluate(() => (window as any).__game.world.enemyCount)).toBeGreaterThan(0);
   expect(await page.evaluate(() => (window as any).__game.app)).toBe('play');
 });
+
+test('réseau lent : « Jouer » attend les modèles 3D des ennemis (8 s au plus) au lieu de lancer les silhouettes', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.enable');
+  // ≈ 4G moyenne : 3 Mbit/s, 150 ms
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 150,
+    downloadThroughput: (3 * 1024 * 1024) / 8,
+    uploadThroughput: (1024 * 1024) / 8,
+  });
+  await openGame(page);
+  await page.click('#playBtn');
+  await page.waitForFunction(() => (window as any).__game.app === 'play', null, { timeout: 30_000 });
+  const s = await page.evaluate(() => {
+    const sc = (window as any).__game.scene;
+    return { kind: sc.enemyKind as string, status: sc.enemyStatus as string };
+  });
+  expect(s.kind, s.status).toBe('gltf');
+  expect(s.status).toMatch(/3D prêts/);
+});

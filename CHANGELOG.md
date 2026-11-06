@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.21.1 — 6 nov. 2026 (correctif)
+
+### Corrigé
+
+- **Ennemis en silhouettes roses au début d'une partie** : sur réseau mobile, et après chaque mise à jour (les modèles se retéléchargent), la partie démarrait avant l'arrivée des modèles 3D des ennemis. Le bouton « Jouer » attend maintenant les modèles (8 s au plus, puis la partie démarre quand même), et le chargement réessaie seul en cas d'échec.
+- **Onglet perf** (Pause → Perf) : nouvelle ligne « modèles » qui indique si les ennemis 3D sont prêts, en combien de temps, ou l'erreur rencontrée.
+
 ## 1.21.0 — 6 nov. 2026 (phase 26 « Ennemis assortis »)
 
 La horde change de visage : fini les squelettes de dessin animé, place à des morts-vivants dans le même style que les héros.

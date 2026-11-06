@@ -312,10 +312,9 @@ export class GameScene {
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
       this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.55));
     }
-    // phase 21 : squelettes KayKit (et crâne des Volants) dès qu'enemies.glb et props.glb sont là
-    Promise.all([loadEnemyModels(), loadProps()])
-      .then(([en, p]) => this.applyEnemyModels(en, p))
-      .catch((e: unknown) => console.warn('modèles des ennemis indisponibles, repli procédural', e));
+    // phase 21 : modèles des ennemis (et crâne des Volants) dès qu'enemies.glb et props.glb sont là ; nouvel essai
+    // après un échec (réseau mobile), état lisible dans l'onglet perf
+    this.loadEnemies(0);
     // phase 9 : une ombre douce sous chaque ennemi (un seul appel pour tous) ; celle des Volants grossit au télégraphe
     this.shadowW = new InstanceWriter(makeInstanced(shadowGeometry(1), shadowMaterial(0.4), CAPS.enemies));
     this.eliteW = new InstanceWriter(
@@ -781,9 +780,30 @@ export class GameScene {
     for (const m of this.decorProc) m.visible = false;
     this.propX = this.propZ = 1e9;
   }
+  /** État des modèles d'ennemis, affiché dans l'onglet perf : chargement, prêt (durée), ou erreur. */
+  enemyStatus = 'chargement';
+  private enemiesSettled!: () => void;
+  /** Résolue à la fin du premier essai de chargement des modèles d'ennemis (réussi ou non). */
+  readonly enemiesReady = new Promise<void>((r) => (this.enemiesSettled = r));
+  private loadEnemies(attempt: number): void {
+    const t0 = performance.now();
+    Promise.all([loadEnemyModels(), loadProps()])
+      .then(([en, p]) => this.applyEnemyModels(en, p))
+      .then(() => {
+        this.enemyStatus = `3D prêts en ${((performance.now() - t0) / 1000).toFixed(1)} s`;
+        this.enemiesSettled();
+      })
+      .catch((e: unknown) => {
+        console.warn('modèles des ennemis indisponibles, repli procédural', e);
+        const msg = e instanceof Error ? e.message : String(e);
+        this.enemyStatus = `silhouettes (essai ${attempt + 1} : ${msg.slice(0, 80)})`;
+        this.enemiesSettled();
+        if (attempt < 3) setTimeout(() => this.loadEnemies(attempt + 1), 4000 * (attempt + 1));
+      });
+  }
   /**
-   * Phase 21 : géométries cuites (poses en cibles de morph) et texture des morts-vivants (phase 26) à la place des silhouettes ; une
-   * morphTexture par type, allouée à pleine capacité (même piège que les couleurs d'instance) ; contour des boss par
+   * Phase 21 : géométries cuites (poses en cibles de morph) et texture des morts-vivants (phase 26) à la place des
+   * silhouettes ; une morphTexture par type, allouée à pleine capacité (même piège que les couleurs d'instance) ; contour des boss par
    * un InstancedMesh jumeau qui partage matrices et poses. Tout est construit avant d'échanger.
    */
   private async applyEnemyModels(en: (BakedEnemy | null)[], p: Record<PropKey, PropGeometry>): Promise<void> {

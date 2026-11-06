@@ -306,6 +306,8 @@ function closeScreen(): void {
 const DECOR_SEED = MAP.seed; // phase 16 : la carte construite vit dans balance.ts (vérifiée par map.test.ts)
 
 let startWanted: { variant?: number; daily: boolean } | null = null;
+/** Attente des modèles des ennemis au premier départ de la session (une seule fois). */
+let modelsWaited = false;
 function startGame(variant?: number, daily = false): void {
   if (!meta.seenReset) {
     meta.seenReset = true; // la bannière « nouvelle progression » a été vue
@@ -332,6 +334,20 @@ function startGame(variant?: number, daily = false): void {
         $('playBtn').textContent = t('menu.retry');
       },
     );
+    return;
+  }
+  if (scene.enemyStatus === 'chargement' && !modelsWaited) {
+    // modèles 3D des ennemis encore en route (premier lancement, ou après une mise à jour) : on les attend un peu
+    // plutôt que de lancer la partie avec les silhouettes de repli (8 s au plus, puis on joue quand même)
+    modelsWaited = true;
+    const btn = $<HTMLButtonElement>('playBtn');
+    btn.disabled = true;
+    btn.textContent = t('menu.loading');
+    Promise.race([scene.enemiesReady, new Promise<void>((r) => setTimeout(r, 8000))]).then(() => {
+      btn.disabled = false;
+      btn.textContent = t('menu.play');
+      startGame(variant, daily);
+    });
     return;
   }
   const S = scene;
@@ -1584,6 +1600,7 @@ function frame(nowMs: number): void {
             ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}  part. ${scene.particles.alive}\n`
             : '') +
           `voix audio ${audio.voiceCount}/${audio.maxVoices}\n` +
+          `modèles : héros ${scene.heroKind}, ennemis ${scene.enemyStatus}\n` +
           `rendu niv ${info.level} (${meta.settings.quality})  res ${info.width}×${info.height}  frame p95 ${gapP95.toFixed(1)} ms`,
       );
     }
