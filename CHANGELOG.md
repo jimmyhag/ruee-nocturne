@@ -12,7 +12,7 @@ Les cartes de montée de niveau ne répètent plus la même ligne, et il y a bea
 
 ### Ajouté
 
-- **Coup critique** sur toutes les armes : nouvelle ligne +5 % de chance ; un critique fait double dégâts et s'affiche en grand chiffre doré (« 37! »).
+- **Coup critique** sur toutes les armes : nouvelle ligne +5 % de chance (+3 % pour le Boomerang) ; un critique fait double dégâts et s'affiche en grand chiffre doré (« 37! »).
 - **Halo** : chance de ralentir. **Foudre** : chance d'étourdir (pas les boss).
 - **Nouvelles lignes de tomes** :
 

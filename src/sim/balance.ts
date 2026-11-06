@@ -467,7 +467,7 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'range', step: 0.06, kind: 'pct', max: 12, weight: 2 },
     { stat: 'n', step: 1, kind: 'add', max: 3, weight: 1.5 },
     { stat: 'speed', step: 0.06, kind: 'pct', max: 12, weight: 2 },
-    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+    { stat: 'crit', step: 0.03, kind: 'add', max: 8, weight: 2 }, // +3 % : le Braconnier nu passait à +4 min avec +5 %
   ],
   mines: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },

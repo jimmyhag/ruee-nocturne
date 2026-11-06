@@ -111,7 +111,10 @@ describe('phase 23 : nouvelles stats', () => {
       w.wmods[k][j] = 3;
     }
     refreshStats(w);
-    for (const k of WEAPON_KEYS) expect(w.wstats[k].crit, k).toBeCloseTo(0.15, 6);
+    for (const k of WEAPON_KEYS) {
+      const step = WEAPON_LINES[k].find((l) => l.stat === 'crit')!.step; // +5 %, +3 % pour le Boomerang
+      expect(w.wstats[k].crit, k).toBeCloseTo(3 * step, 6);
+    }
   });
   it('chaque nouvelle ligne de tome est connue de applyTomeLine', () => {
     const w = new World(7);
