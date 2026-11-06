@@ -79,7 +79,9 @@ Chaque arme s'améliore jusqu'à **100 fois** ; chaque carte apporte **1 à 3 li
 Maximum 4 armes + 4 tomes par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 tomes** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 2 000, 4 000, 8 000, 12 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
 
 ### 3.2 Tomes (8, phase 12 ; remplacent les passifs)
-Dégâts (dégâts, élites et boss, recul) · Cadence (recharge, durée des projectiles) · Projectiles (+1 projectile pour toutes les armes, taille, vitesse) · Vitalité (PV max, régénération, dégâts subis) · Mouvement (course, recharge et invulnérabilité du dash) · Savoir (XP, collecte) · Chance (lignes rares, coffres, 4e carte) · Or (or, or par élite). Une carte de tome tire elle aussi 1 à 3 lignes dans sa famille (`TOMES` dans `balance.ts`), jusqu'à 100 par tome.
+Dégâts (dégâts, élites et boss, recul, dégâts critiques) · Cadence (recharge, durée des projectiles, recharge du sort) · Projectiles (+1 projectile pour toutes les armes, taille, vitesse) · Vitalité (PV max, régénération, dégâts subis, PV par kill) · Mouvement (course, recharge et puissance du sort, saut) · Savoir (XP, collecte, soin à chaque niveau) · Chance (lignes rares, coffres, 4e carte, critique global) · Or (or, or par élite, prix du marchand). Une carte de tome tire elle aussi 1 à 3 lignes dans sa famille (`TOMES` dans `balance.ts`), jusqu'à 100 par tome.
+
+**Phase 23 (demande de Jimmy)** : une carte ne tire **jamais deux fois la même ligne** ; chaque arme et chaque tome a au moins 3 lignes (armes 5 ou 6). Toutes les armes ont une ligne de **coup critique** (+5 %, ×2 dégâts, chiffre doré « 37! »), le Halo une ligne de ralentissement, la Foudre une ligne d'étourdissement (pas les boss). Constantes : `CRIT` dans `balance.ts`.
 
 ### 3.3 Ennemis (8) et boss (3)
 | Type | Rôle | Télégraphe |
@@ -393,6 +395,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : une recharge du sort beaucoup plus longue, et des objets ou d'autres moyens pour la raccourcir. Recharges ×2,5 (6 à 18 s) et puissance ≈ +30 % (choix de Jimmy) ; Rune de rappel, Collier d'os, sanctuaire de l'arcane, tome Mouvement et Cape renforcés ; plancher à 35 % ; secondes restantes sur le bouton.
 - Décision prise : cible de lancers du bot ramenée de 0,75 à 0,3 par minute (nu) et 0,45 (maxé), conséquence directe des recharges ×2,5.
 - **Porte** : cibles des profils nu et maxé tenues ; 9 personnages à ± 3 min de l'Éclaireuse ; chaque sort ≤ 30 % des kills ; Rune et Collier ≤ 2× l'effet moyen d'un objet ; réductions et plancher testés (Vitest) ; secondes affichées au clavier et au doigt (e2e, captures lues) ; bench inchangé ; test de Jimmy.
+
+### Phase 23 — Cartes de niveau variées (après la 1.17.0)
+- Demande de Jimmy : « +10 % dégâts, +10 % dégâts, +10 % dégâts, ça n'a pas de sens » ; des lignes différentes et plus de stats utiles. Lignes distinctes sur une carte ; coup critique pour les 6 armes, ralentissement (Halo), étourdissement (Foudre) ; 7 nouvelles lignes de tomes (dégâts critiques, recharge du sort, PV par kill, saut, soin à chaque niveau, critique global, prix du marchand).
+- **Porte** : aucune carte avec deux fois la même ligne (Vitest, 3 000 tirages ; e2e) ; ≥ 3 lignes partout ; critique visible ; cibles nu et maxé tenues ; 9 personnages à ± 3 min ; captures lues ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
