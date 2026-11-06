@@ -135,6 +135,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.x += P.vx * dt;
   P.z += P.vz * dt;
   P.spellCd -= dt;
+  if (P.spellRefund < ITEM.collier.bank) P.spellRefund = Math.min(ITEM.collier.bank, P.spellRefund + ITEM.collier.perSec * dt); // phase 22 : Collier
   P.invul -= dt;
   if (P.recoil > 0) P.recoil = Math.max(0, P.recoil - dt);
   // phase 16 : murets et troncs se franchissent en plein saut (P.y), arbres, rochers et menhirs jamais

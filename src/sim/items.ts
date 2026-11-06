@@ -34,6 +34,9 @@ export function gainItem(w: World, i: number, bought = false): void {
     case It.Cape:
       P.spellCdMul = Math.max(TOME_CAPS.spellCdMin, P.spellCdMul * ITEM.cape.cdMul); // phase 19 : l'invulnérabilité est dans castSpell
       break;
+    case It.Rune:
+      P.spellCdMul = Math.max(TOME_CAPS.spellCdMin, P.spellCdMul * ITEM.rune.cdMul); // phase 22
+      break;
     case It.Lanterne:
       P.magnet *= ITEM.lanterne.magnetMul;
       break;

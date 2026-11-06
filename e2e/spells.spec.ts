@@ -56,6 +56,12 @@ test('sort de classe : Maj au clavier, bouton au doigt, nom du sort et recharge 
     return { cone: parseFloat(b.style.getPropertyValue('--cd')), bar: parseFloat(bar.style.width) };
   });
   expect(Math.min(cd.cone, cd.bar / 100)).toBeLessThan(0.9);
+  // phase 22 : recharge de 18 s pour l'Éclat, les secondes restantes s'affichent (bouton au doigt, « 17 s » sous Maj)
+  if (hasTouch) {
+    await expect(page.locator('#btnSpell')).toHaveClass(/cooling/);
+    await expect(page.locator('#spellGlyph')).toHaveText(/^1[5-8]$/);
+  } else await expect(page.locator('#spellSec')).toHaveText(/^1[5-8] s$/);
+  await page.screenshot({ path: `shots/${hasTouch ? 'mobile' : 'desktop'}-sort-recharge.png`, animations: 'disabled' });
   // relancé tout de suite : rien (recharge)
   await castSpell(page, hasTouch);
   await page.waitForTimeout(200);

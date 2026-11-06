@@ -43,7 +43,11 @@ test('repli automatique : des frames à 40 ms font descendre le niveau 2 → 1 �
   await openGame(page);
   await setQuality(page, 'auto');
   await startRun(page, 3);
-  await page.evaluate(() => (window as any).__game.debug.god());
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.world.player.need = 1e9; // un écran de niveau met la partie en pause et remet le compteur du repli à zéro
+  });
   await page.waitForFunction(() => (window as any).__game.world.t > 3);
   await page.evaluate(() => (window as any).__game.debug.slowFrames(40));
   await page.waitForFunction(() => (window as any).__game.scene.qualityLevel === 1, null, { timeout: 15000 });

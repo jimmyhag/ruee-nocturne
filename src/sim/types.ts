@@ -254,7 +254,7 @@ export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouve
 
 /** Objets passifs (phase 17) : une règle de jeu chacun, obtenus dans les coffres et chez le marchand. */
 /** Bonus de sanctuaire (phase 18) : permanents pour la partie. */
-export type BoonKey = 'hp' | 'dmg' | 'speed' | 'cd' | 'magnet' | 'gold';
+export type BoonKey = 'hp' | 'dmg' | 'speed' | 'cd' | 'magnet' | 'gold' | 'spell';
 export type ItemKey =
   | 'phenix'
   | 'cape'
@@ -267,7 +267,9 @@ export type ItemKey =
   | 'oeil'
   | 'aimant'
   | 'fer'
-  | 'bourse';
+  | 'bourse'
+  | 'rune'
+  | 'collier';
 
 /**
  * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.
@@ -312,7 +314,8 @@ export interface Player {
   eliteDmgMul: number; // dégâts aux élites et boss
   kbMul: number; // recul
   armor: number; // part des dégâts subis annulée (≤ 0,36)
-  spellCdMul: number; // phase 19 : tome Mouvement (recharge du sort) et Cape
+  spellCdMul: number; // phase 19 : tome Mouvement (recharge du sort) et Cape ; phase 22 : Rune, sanctuaire de l'arcane
+  spellRefund: number; // phase 22 : Collier d'os, réserve de recharge rendue par les kills (s)
   spellPow: number; // phase 19 : tome Mouvement (puissance du sort : dégâts, rayon, durée)
   xpMul: number;
   chestGoldMul: number;

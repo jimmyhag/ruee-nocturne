@@ -24,10 +24,10 @@ const god = (w: World) => {
 };
 
 describe('objets passifs', () => {
-  it('douze objets, chacun avec une rareté', () => {
-    expect(ITEM_KEYS.length).toBe(12);
-    expect(new Set(ITEM_KEYS).size).toBe(12);
-    expect(ITEM_RARITY.length).toBe(12);
+  it('quatorze objets (phase 22 : Rune, Collier), chacun avec une rareté', () => {
+    expect(ITEM_KEYS.length).toBe(14);
+    expect(new Set(ITEM_KEYS).size).toBe(14);
+    expect(ITEM_RARITY.length).toBe(14);
   });
   it('les effets immédiats modifient le joueur une seule fois (un objet est unique)', () => {
     const w = new World(1);

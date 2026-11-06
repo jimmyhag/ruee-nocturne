@@ -1,4 +1,4 @@
-import { ELITE, ENEMIES, GOLD, REAPER_TYPE, TRAIT, XP } from './balance';
+import { ELITE, ENEMIES, GOLD, ITEM, It, REAPER_TYPE, TRAIT, XP } from './balance';
 import { Ev, HitSrc, Mode, Trait } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
@@ -39,6 +39,14 @@ export function killEnemy(w: World, i: number): void {
   const e = w.enemies[i];
   const def = ENEMIES[e.type];
   w.kills++;
+  if (w.items[It.Collier]) {
+    // phase 22 : Collier d'os, le kill rend de la recharge (réserve plafonnée, rechargée dans step) ; un boss beaucoup
+    const P = w.player;
+    const C = ITEM.collier;
+    const give = def.boss ? C.perBoss : Math.min(P.spellRefund, C.perKill);
+    if (!def.boss) P.spellRefund -= give;
+    P.spellCd = Math.max(0, P.spellCd - give);
+  }
   const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
   w.gold += (GOLD.perKill * goldMul + (e.elite ? w.player.eliteGold : 0)) * w.player.goldMul;
   // Revenante : les ennemis tués pendant un saut valent ×2 XP

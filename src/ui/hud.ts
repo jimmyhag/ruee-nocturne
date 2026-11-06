@@ -57,6 +57,7 @@ export class Hud {
     poiText: $('poiText'),
     poiFill: $('poiFill'),
     spellbar: $('spellbar'),
+    spellSec: $('spellSec'),
     spellKey: $('spellKey'),
     spellGlyph: $('spellGlyph'),
     spellName: $('spellName'),
@@ -65,6 +66,7 @@ export class Hud {
     banner: $('banner'),
     perf: $('perf'),
   };
+  private spellGlyphChar = '✦'; // symbole du sort de la classe (remplacé par les secondes pendant la recharge)
   private bannerT = 0;
   private lastKillTens = 0;
   private killPopT = 0;
@@ -244,6 +246,14 @@ export class Hud {
       this.els.btnSpell.style.setProperty('--cd', cdv);
       this.els.spellbar.style.width = cd * 100 + '%';
     }
+    // phase 22 : secondes restantes (texte changé au plus une fois par seconde)
+    const sec = P.spellCd > 0 ? Math.ceil(P.spellCd) : 0;
+    if (this.cache.sec !== sec) {
+      this.cache.sec = sec;
+      this.els.spellGlyph.textContent = sec > 0 ? String(sec) : this.spellGlyphChar;
+      this.els.spellSec.textContent = sec > 0 ? `${sec} s` : '';
+      this.els.btnSpell.classList.toggle('cooling', sec > 0);
+    }
     // flash d'écran : rouge tant que le joueur est touché, sinon flash ponctuel (doré) en fondu
     let op = 0;
     if (hurtT > 0) {
@@ -282,7 +292,9 @@ export class Hud {
   kit(w: World): void {
     // phase 19 : bouton et touche du sort au nom du sort de la classe
     const sk = SPELL_KEYS[w.spell];
+    this.spellGlyphChar = SPELL_GLYPH[sk];
     this.els.spellGlyph.textContent = SPELL_GLYPH[sk];
+    this.cache.sec = -1; // affichage des secondes à refaire avec le nouveau symbole
     this.els.spellName.textContent = spellName(sk).toUpperCase();
     this.els.spellKey.textContent = spellName(sk);
     this.els.btnSpell.setAttribute('aria-label', spellName(sk));

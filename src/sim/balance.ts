@@ -91,8 +91,8 @@ export const SHRINE = {
   decay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
   offers: 3,
 };
-export const BOON_KEYS: BoonKey[] = ['hp', 'dmg', 'speed', 'cd', 'magnet', 'gold'];
-export const BOON = { hp: 12, dmg: 0.08, speed: 0.06, cd: 0.06, magnet: 0.25, gold: 0.2 };
+export const BOON_KEYS: BoonKey[] = ['hp', 'dmg', 'speed', 'cd', 'magnet', 'gold', 'spell'];
+export const BOON = { hp: 12, dmg: 0.08, speed: 0.06, cd: 0.06, magnet: 0.25, gold: 0.2, spell: 0.12 }; // spell : phase 22, recharge du sort
 // respiration avant un boss (phase 18) : bannière d'annonce, puis le spawn redescend le temps de se placer
 export const BOSS_WARN = { lead: 15, lull: 10, lullMul: 0.6 };
 
@@ -492,7 +492,7 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
   mouvement: [
     { stat: 'speed', step: 0.05, kind: 'add', weight: 3 },
-    { stat: 'spellcd', step: 0.06, kind: 'add', max: 10, weight: 2 }, // phase 19 : recharge du sort de classe
+    { stat: 'spellcd', step: 0.08, kind: 'add', max: 10, weight: 2 }, // phase 19 : recharge du sort de classe ; phase 22 : −6 → −8 %
     { stat: 'spellpow', step: 0.08, kind: 'add', max: 10, weight: 1 }, // phase 19 : puissance du sort (dégâts ; rayon et durée à moitié)
   ],
   savoir: [
@@ -511,7 +511,7 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
 export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
 // planchers et plafonds des effets cumulés des tomes (applyTomeLine) : la recharge ne descend pas sous 25 % de la base,
 // l'armure n'annule pas plus de 36 % des dégâts (à 45 % les runs complets ne mouraient plus après 15:00), le sort garde 40 % de recharge
-export const TOME_CAPS = { cdMin: 0.25, armorMax: 0.36, spellCdMin: 0.4 };
+export const TOME_CAPS = { cdMin: 0.25, armorMax: 0.36, spellCdMin: 0.35 }; // phase 22 : recharge du sort −65 % au plus, toutes sources
 // rareté d'une carte = nombre de lignes : 1 (67 %), 2 (25 %), 3 (8 %) ; chaque point de chance décale vers 2 et 3
 export const RARITY = {
   two: 0.25,
@@ -531,15 +531,16 @@ export const SPELL = {
   holdPad: 0.05, // s : un ennemi reste figé un peu plus d'une impulsion du Collet (pas de trou entre deux)
   kbBlink: 2, // recul des éclairs du Clignement
   kbBourse: 6, // recul de l'explosion de la Bourse
-  bond: { cd: 3, orbs: 6, dmg: 14, speed: 15, pierce: 2 }, // Éclaireuse : dash PLAYER.dashTime, puis orbes en étoile à l'arrivée
-  tourbillon: { cd: 7, dur: 1.2, r: 3, period: 0.2, dmg: 12, kb: 7, dmgTaken: 0.5, speedMul: 0.8 }, // Bûcheron
-  clignement: { cd: 5, dist: 6, invul: 0.4, targets: 6, dmg: 35, chainR: 7 }, // Sorcière : éclairs depuis le point de départ
-  eclat: { cd: 8, r: 6, dmg: 12, kb: 14, stun: 1.2, bossSlow: 2 }, // Veilleuse
-  collet: { cd: 7, range: 7, r: 3, dur: 3, dps: 6, period: 0.25 }, // Braconnier : immobilise (boss : ralentis)
-  petard: { cd: 6, r: 3.5, dmg: 55, kb: 12, jumpMul: 1.6 }, // Sapeur : l'atterrissage pose une mine (Démolisseur)
-  comete: { cd: 2.2, time: 0.4 }, // Feu follet : dash 2× plus long que le Bond, la Traînée y pose du feu
-  voile: { cd: 8, dur: 1.5, speedMul: 1.3, r: 1.4, slow: 2 }, // Revenante : invulnérable, ralentit ce qu'elle frôle
-  bourse: { cd: 8, range: 5, r: 3.5, dmg: 16, perGold: 0.1, maxBonus: 60 }, // Colporteur : +1 dégât par 10 or gardés (+60 max) ; 30 dégâts / 6 s : 36 % des kills (nu), 24 / 7 s : 34 %
+  // phase 22 : recharges ×2,5 (le sort devient un temps fort, réductions à gagner) et puissance ≈ +30 %
+  bond: { cd: 8, orbs: 7, dmg: 18, speed: 15, pierce: 2 }, // Éclaireuse : dash PLAYER.dashTime, puis orbes en étoile à l'arrivée
+  tourbillon: { cd: 16, dur: 1.4, r: 3, period: 0.2, dmg: 16, kb: 7, dmgTaken: 0.5, speedMul: 0.8 }, // Bûcheron
+  clignement: { cd: 12, dist: 6, invul: 0.4, targets: 7, dmg: 46, chainR: 7 }, // Sorcière : éclairs depuis le point de départ
+  eclat: { cd: 18, r: 6, dmg: 16, kb: 14, stun: 1.4, bossSlow: 2.3 }, // Veilleuse
+  collet: { cd: 16, range: 7, r: 3, dur: 3.5, dps: 8, period: 0.25 }, // Braconnier : immobilise (boss : ralentis)
+  petard: { cd: 14, r: 4.2, dmg: 72, kb: 12, jumpMul: 1.6 }, // Sapeur : l'atterrissage pose une mine (Démolisseur) ; phase 22 : r 3,5 → 4,2 (nu : 14 → 8 % de morts < 3 min)
+  comete: { cd: 6, time: 0.4 }, // Feu follet : dash 2× plus long que le Bond, la Traînée y pose du feu
+  voile: { cd: 18, dur: 1.75, speedMul: 1.3, r: 1.4, slow: 2.3 }, // Revenante : invulnérable, ralentit ce qu'elle frôle
+  bourse: { cd: 18, range: 5, r: 3.5, dmg: 21, perGold: 0.13, maxBonus: 78 }, // Colporteur : +1 dégât par 10 or gardés (+60 max) ; 30 dégâts / 6 s : 36 % des kills (nu), 24 / 7 s : 34 %
 };
 
 // personnages (PLAN §3.5) : stats de départ différentes mais pas meilleures (survivor-design §8).
@@ -610,7 +611,7 @@ export const CHARACTERS: CharacterDef[] = [
 // tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
 
 // objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun, uniques, au plus ITEM.max par run
-export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse'];
+export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier'];
 /** Index fixes (drapeaux de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
   Phenix = 0,
@@ -625,16 +626,18 @@ export const enum It {
   Aimant,
   Fer,
   Bourse,
+  Rune, // phase 22
+  Collier,
 }
 /** Rareté par objet : 0 commun, 1 rare, 2 épique (couleur de carte, prix, poids de tirage). */
-export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0];
+export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1];
 export const ITEM = {
   max: 6, // objets par run
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…
   luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance
   chestGoldIfFull: 60, // coffre sans objet possible : sac d'or (× multiplicateurs d'or)
-  cape: { invul: 0.4, cdMul: 0.85 }, // phase 19 : après chaque sort, 0,4 s d'invulnérabilité ; recharge du sort −15 %
+  cape: { invul: 0.4, cdMul: 0.75 }, // phase 19 : après chaque sort, 0,4 s d'invulnérabilité ; recharge du sort −15 % (phase 22 : −25 %)
   lanterne: { magnetMul: 1.6 },
   coeur: { hp: 30, speedMul: 0.97 },
   talisman: { every: 25, targets: 5, frac: 0.5, bossFrac: 0.05, range: 14 }, // part des PV max retirée à chaque cible
@@ -645,6 +648,9 @@ export const ITEM = {
   aimant: { heal: 0.15 }, // PV par gemme ramassée
   fer: { luck: 1 },
   bourse: { goldMul: 0.4, discount: 0.15 },
+  rune: { cdMul: 0.7 }, // phase 22 : Rune de rappel, recharge du sort −30 %
+  // phase 22 : Collier d'os, chaque kill rend 0,1 s de recharge (au plus 1 s par seconde, réserve de 1 s), un boss 4 s
+  collier: { perKill: 0.1, perBoss: 4, perSec: 1, bank: 1 },
 };
 
 // marchand (phase 17, PLAN §3.6) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
