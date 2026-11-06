@@ -108,19 +108,21 @@ Dégâts (dégâts, élites et boss, recul) · Cadence (recharge, durée des pro
 ### 3.5 Personnages (9, phase 6 ; 3 en V1)
 Un personnage = une arme de départ + un passif signature (une règle de jeu, pas un pourcentage) + une condition de déblocage qui est un objectif en soi. « Différents, pas meilleurs » : chaque personnage à ± 3 min de l'Éclaireuse sur 100 runs du bot. Détail et décisions : `docs/PHASE6-PERSONNAGES.md`.
 
-Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'ancien dash (Maj, bouton à l'écran, B/RB/RT à la manette), constantes dans `SPELL` (`src/sim/balance.ts`), code dans `src/sim/spells.ts`. Le tome Mouvement en réduit la recharge (−6 % par ligne, plancher 40 %) et en augmente la puissance (+8 % de dégâts, +4 % de rayon et de durée par ligne) ; la Cape rend invulnérable 0,4 s après chaque sort.
+Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'ancien dash (Maj, bouton à l'écran, B/RB/RT à la manette), constantes dans `SPELL` (`src/sim/balance.ts`), code dans `src/sim/spells.ts`. Le tome Mouvement en réduit la recharge (−8 % par ligne depuis la phase 22) et en augmente la puissance (+8 % de dégâts, +4 % de rayon et de durée par ligne) ; la Cape rend invulnérable 0,4 s après chaque sort.
+
+**Phase 22 (demande de Jimmy) : le sort est un temps fort.** Recharges ×2,5 et sorts ≈ 30 % plus forts ; la recharge se gagne. Sources : Rune de rappel −30 %, Collier d'os (0,1 s rendue par kill, réserve d'1 s, 4 s par boss), sanctuaire de l'arcane −12 %, tome Mouvement −8 % par ligne, Cape −25 %. Plancher : 35 % de la recharge de base, toutes sources cumulées. Le bouton affiche les secondes restantes.
 
 | Sort | Classe | Effet | Recharge |
 |---|---|---|---|
-| Bond | Éclaireuse | élan invulnérable (0,2 s) puis 6 orbes en étoile | 2,5 s |
-| Tourbillon | Bûcheron | 1,2 s de coups tout autour (r 3), dégâts subis ÷ 2, vitesse ×0,8 | 7 s |
-| Clignement | Sorcière | téléportation de 6 u (s'arrête avant un obstacle), éclairs sur 6 ennemis au point de départ | 5 s |
-| Éclat | Veilleuse | onde de r 6 : recul, étourdit 1,2 s (boss : ralentis) | 8 s |
-| Collet | Braconnier | filet lancé à 7 u (r 3, 3 s) qui immobilise (boss : ralentis) | 7 s |
-| Pétard | Sapeur | explosion sous ses pieds (r 3,5) qui le projette en l'air ; l'atterrissage pose une mine | 6 s |
-| Comète | Feu follet | élan 2× plus long que le Bond, la Traînée y pose du feu | 1,8 s |
-| Voile | Revenante | 1,5 s spectrale : invulnérable, vitesse ×1,3, ralentit ce qu'elle frôle | 8 s |
-| Bourse | Colporteur | bourse lancée à 5 u qui explose (r 3,5), +1 dégât par 10 or gardés (+60 au plus) | 6 s |
+| Bond | Éclaireuse | élan invulnérable (0,2 s) puis 7 orbes en étoile | 8 s |
+| Tourbillon | Bûcheron | 1,4 s de coups tout autour (r 3), dégâts subis ÷ 2, vitesse ×0,8 | 16 s |
+| Clignement | Sorcière | téléportation de 6 u (s'arrête avant un obstacle), éclairs sur 7 ennemis au point de départ | 12 s |
+| Éclat | Veilleuse | onde de r 6 : recul, étourdit 1,4 s (boss : ralentis) | 18 s |
+| Collet | Braconnier | filet lancé à 7 u (r 3, 3,5 s) qui immobilise (boss : ralentis) | 16 s |
+| Pétard | Sapeur | explosion sous ses pieds (r 3,5) qui le projette en l'air ; l'atterrissage pose une mine | 14 s |
+| Comète | Feu follet | élan 2× plus long que le Bond, la Traînée y pose du feu | 6 s |
+| Voile | Revenante | 1,75 s spectrale : invulnérable, vitesse ×1,3, ralentit ce qu'elle frôle | 18 s |
+| Bourse | Colporteur | bourse lancée à 5 u qui explose (r 3,5), +1,3 dégât par 10 or gardés (+78 au plus) | 18 s |
 
 | Nom | Stats de départ | Arme de départ | Passif signature | Déblocage |
 |---|---|---|---|---|
@@ -158,6 +160,8 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Aimant d'âme | chaque gemme ramassée soigne 0,15 PV | commun |
 | Fer à cheval | +1 Chance ; le marchand propose un objet de plus | rare |
 | Bourse du colporteur | +40 % d'or ramassé, prix du marchand −15 % | commun |
+| Rune de rappel (phase 22) | recharge du sort −30 % | rare |
+| Collier d'os (phase 22) | chaque kill rend 0,1 s de recharge du sort (réserve d'1 s), un boss 4 s | rare |
 
 **Coffres** : choix d'un objet parmi 3 (4 avec le Colporteur), deux choix pour un coffre de boss ; 6 objets portés ou plus rien à obtenir → un sac d'or.
 
@@ -180,7 +184,7 @@ Décision prise : les synergies sont des bonus de stats ou des règles simples p
 
 **Points d'intérêt (phase 18)** : posés avec la carte sur les sommets et dans les lieux construits, signalés de loin par une **colonne de lumière** (pas de minicarte, choix de Jimmy).
 - **Coffres de carte (20)** : on reste 0,6 s dessus pour l'ouvrir (même règle au clavier et au doigt). Prix en or de la partie : 40, puis +35 % à chaque coffre ouvert ; la puce « Coffre · prix » dit si l'or manque ou si les 6 objets sont portés. Le coffre donne un choix d'objet parmi 3. Les coffres d'élite et de boss restent gratuits.
-- **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie parmi 3 : +12 PV max, +8 % de dégâts, +6 % de vitesse, −6 % de recharge, +25 % de collecte, +20 % d'or. Un usage chacun.
+- **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie parmi 3 : +12 PV max, +8 % de dégâts, +6 % de vitesse, −6 % de recharge, +25 % de collecte, +20 % d'or, −12 % de recharge du sort (sanctuaire de l'arcane, phase 22). Un usage chacun.
 - **Respiration avant un boss** : bannière « … approche » 15 s avant, spawn à 60 % les 10 dernières secondes.
 
 ---
@@ -384,6 +388,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - animation de masse par **morphs instanciés** plutôt que par textures d'animation maison : three 0.187 les gère nativement (`InstancedMesh.setMorphAt`), donc aucun shader à maintenir ;
   - pas de contour sur les ennemis de masse (budget de triangles ; les os clairs ressortent sur le sol nuit).
 - **Porte** : les 11 types d'ennemis sont en modèles CC0 ; la masse marche ou court avec des poses décalées ; Archer, Sorcier et Cracheur ont leur pose de tir, les boss leur frappe ; repli procédural testé ; ≤ 40 appels, ≤ 250 k triangles à 400 ennemis en net et ≤ 150 k en pixel, y compris au point le plus dense ; zéro allocation par frame ; bench inchangé ; captures lues (PC et iPhone) ; fps du téléphone de Jimmy.
+
+### Phase 22 — Sorts rares, recharge à gagner (après la 1.16.0)
+- Demande de Jimmy : une recharge du sort beaucoup plus longue, et des objets ou d'autres moyens pour la raccourcir. Recharges ×2,5 (6 à 18 s) et puissance ≈ +30 % (choix de Jimmy) ; Rune de rappel, Collier d'os, sanctuaire de l'arcane, tome Mouvement et Cape renforcés ; plancher à 35 % ; secondes restantes sur le bouton.
+- Décision prise : cible de lancers du bot ramenée de 0,75 à 0,3 par minute (nu) et 0,45 (maxé), conséquence directe des recharges ×2,5.
+- **Porte** : cibles des profils nu et maxé tenues ; 9 personnages à ± 3 min de l'Éclaireuse ; chaque sort ≤ 30 % des kills ; Rune et Collier ≤ 2× l'effet moyen d'un objet ; réductions et plancher testés (Vitest) ; secondes affichées au clavier et au doigt (e2e, captures lues) ; bench inchangé ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

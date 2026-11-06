@@ -2,6 +2,28 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.17.0 — 6 nov. 2026 (phase 22 « Sorts rares, recharge à gagner »)
+
+Le sort de chaque personnage devient un temps fort : il se recharge bien plus lentement, frappe plus fort, et la recharge se gagne.
+
+### Modifié
+
+- **Recharges ×2,5** :
+  - Comète 6 s, Bond 8 s ;
+  - Clignement 12 s, Pétard 14 s ;
+  - Tourbillon et Collet 16 s ;
+  - Éclat, Voile et Bourse 18 s.
+- **Sorts plus forts** : dégâts ≈ +30 %, étourdissements, filets, voile et tourbillon plus longs ; le Bond lâche 7 orbes, le Clignement frappe 7 ennemis.
+- **Tome du mouvement** : −8 % de recharge du sort par ligne (au lieu de −6 %). **Cape de brume** : −25 % (au lieu de −15 %).
+- La recharge descend au plus à 35 % de sa durée de base, toutes sources cumulées.
+
+### Ajouté
+
+- **Rune de rappel** (objet rare) : recharge du sort −30 %.
+- **Collier d'os** (objet rare) : chaque ennemi tué rend 0,1 s de recharge (1 s par seconde au plus) ; un boss, 4 s.
+- **Sanctuaire de l'arcane** : −12 % de recharge du sort pour la partie.
+- Le bouton du sort affiche les **secondes restantes** (« 18 » au doigt, « Maj Éclat 18 s » au clavier).
+
 ## 1.16.0 — 5 nov. 2026 (phase 21 « Ennemis en vrais modèles »)
 
 La horde se lève : tous les ennemis sont des squelettes animés (pack KayKit Skeletons de Kay Lousberg, CC0).
