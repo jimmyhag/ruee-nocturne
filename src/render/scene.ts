@@ -655,7 +655,7 @@ export class GameScene {
       (hero) => {
         if (req !== this.heroReq) return hero.dispose(); // personnage changé entre-temps
         this.heroPending = false;
-        this.swapModel(hero, hero.anim, false); // fantôme de dash : silhouette procédurale gardée (≈ 6 k tris de moins)
+        this.swapModel(hero, hero.anim, false); // fantôme de dash : silhouette procédurale gardée (≈ 9 k tris de moins)
       },
       () => {
         if (req === this.heroReq) this.heroPending = false; // hors ligne : le repli reste, nouvel essai au prochain choix

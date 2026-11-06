@@ -3,8 +3,8 @@
   "heroes": {
     "eclaireuse": {
       "file": "hero-eclaireuse.glb",
-      "bytes": 284748,
-      "tris": 6000,
+      "bytes": 638808,
+      "tris": 9000,
       "anims": [
         "Idle",
         "Run",
@@ -24,8 +24,8 @@
     },
     "bucheron": {
       "file": "hero-bucheron.glb",
-      "bytes": 290968,
-      "tris": 6544,
+      "bytes": 587296,
+      "tris": 8999,
       "anims": [
         "Idle",
         "Run",
@@ -45,8 +45,8 @@
     },
     "sorciere": {
       "file": "hero-sorciere.glb",
-      "bytes": 283340,
-      "tris": 6000,
+      "bytes": 560716,
+      "tris": 8999,
       "anims": [
         "Idle",
         "Run",
@@ -66,8 +66,8 @@
     },
     "veilleuse": {
       "file": "hero-veilleuse.glb",
-      "bytes": 281996,
-      "tris": 5999,
+      "bytes": 635416,
+      "tris": 8999,
       "anims": [
         "Idle",
         "Run",
@@ -87,8 +87,8 @@
     },
     "braconnier": {
       "file": "hero-braconnier.glb",
-      "bytes": 272760,
-      "tris": 6000,
+      "bytes": 644992,
+      "tris": 8999,
       "anims": [
         "Idle",
         "Run",
@@ -108,8 +108,8 @@
     },
     "sapeur": {
       "file": "hero-sapeur.glb",
-      "bytes": 271648,
-      "tris": 5562,
+      "bytes": 574220,
+      "tris": 8999,
       "anims": [
         "Idle",
         "Run",
@@ -129,8 +129,8 @@
     },
     "feufollet": {
       "file": "hero-feufollet.glb",
-      "bytes": 289124,
-      "tris": 5956,
+      "bytes": 575756,
+      "tris": 8999,
       "anims": [
         "Idle",
         "Run",
@@ -150,8 +150,8 @@
     },
     "revenante": {
       "file": "hero-revenante.glb",
-      "bytes": 277140,
-      "tris": 6000,
+      "bytes": 639508,
+      "tris": 9000,
       "anims": [
         "Idle",
         "Run",
@@ -171,8 +171,8 @@
     },
     "colporteur": {
       "file": "hero-colporteur.glb",
-      "bytes": 272884,
-      "tris": 6000,
+      "bytes": 654460,
+      "tris": 8999,
       "anims": [
         "Idle",
         "Run",

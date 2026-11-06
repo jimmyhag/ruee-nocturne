@@ -1,5 +1,5 @@
 // Phase 20 : le manifeste des modèles (src/render/models.json, produit par npm run assets) couvre le jeu ; phase 24 :
-// héros Quaternius, un fichier par personnage.
+// héros Quaternius, un fichier par personnage (phase 25 : versions HD texturées).
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -24,7 +24,11 @@ describe('modèles (phases 20, 21, 24)', () => {
       files.add(hero.file);
     }
     expect(files.size).toBe(CHARACTERS.length); // neuf silhouettes distinctes
-    expect(new Set(Object.values(HEROES).map((h) => h.model)).size).toBe(CHARACTERS.length);
+    // aucun personnage identique à un autre (tenue, coiffure, teinte, objets)
+    const looks = Object.values(HEROES).map((h) =>
+      JSON.stringify([h.sex, h.outfit, h.hood, h.hair, h.hairColor, h.outfitTint, h.props.map((p) => p.file)]),
+    );
+    expect(new Set(looks).size).toBe(CHARACTERS.length);
   });
   it('chaque héros porte toutes les animations jouées par le rendu, dans l’ordre de HeroAnim', () => {
     expect(CLIP_NAMES).toEqual(HERO_CLIPS.map((c) => c.to));

@@ -1,11 +1,11 @@
-// Phase 20 : construit public/models/*.glb et src/render/models.json à partir des packs KayKit (CC0) ; phase 24 : héros
-// Quaternius (CC0), animations reciblées.
-//   npm run assets            (clone les packs dans .cache/kaykit et le miroir Quaternius dans .cache/quaternius,
-//                              hors dépôt, si absents)
+// Phase 20 : construit public/models/*.glb et src/render/models.json à partir des packs KayKit (CC0) ; phase 25 : héros
+// Quaternius « HD » (Universal Base Characters, Modular Character Outfits – Fantasy, Universal Animation Library, CC0).
+//   npm run assets            (clone les packs KayKit dans .cache/kaykit et les miroirs Quaternius dans .cache/quaternius,
+//                              hors dépôt, si absents ; clones partiels : seuls les fichiers utilisés sont téléchargés)
 //   KAYKIT_DIR=… QUATERNIUS_DIR=… npm run assets   (sources déjà clonées ailleurs)
 //   npm run assets -- --heroes [--only clé,clé] [--out dossier]   (héros seulement, manifeste intact : essais)
-// Héros : clips reciblés, objets tenus fusionnés, simplification, compression meshopt (décodeur fourni par
-// three/examples). Objets : un seul fichier, un nœud par objet, transformations cuites, plafond de triangles vérifié.
+// Héros : tête, tenue, coiffures et objets tenus fusionnés, atlas JPEG, clips UAL, simplification, compression meshopt
+// (décodeur fourni par three/examples). Objets : un seul fichier, un nœud par objet, transformations cuites.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +25,7 @@ import {
   weld,
 } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
-import { ANIM_SOURCES, BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_CLIPS, HEROES, PACKS, PROPS, QUATERNIUS } from './config';
+import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_CLIPS, HEROES, PACKS, PROPS, QUATERNIUS } from './config';
 import { buildHero } from './heroes';
 import type { PackKey } from './config';
 
@@ -52,32 +52,67 @@ function packDir(p: PackKey): string {
   return path.join(addons, sub);
 }
 
-/** Fichiers du miroir Quaternius utilisés (modèles, sources d'animation, objets tenus). */
-function quaterniusFiles(): string[] {
-  const files = new Set<string>(Object.values(ANIM_SOURCES));
-  for (const h of Object.values(HEROES)) {
-    files.add(h.model);
-    for (const p of h.props) files.add(p.file);
+type MirrorKey = keyof typeof QUATERNIUS.mirrors;
+/** Pixel PNG transparent : remplace les images que le build n'utilise pas (cartes de normales, ORM : ≈ 10 Mo chacune). */
+const PIXEL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+/** Clone partiel d'un miroir (arbre seul, sans fichiers : les fichiers sont tirés à la demande). */
+function mirror(key: MirrorKey): string {
+  const repo = path.join(QCACHE, key);
+  if (!fs.existsSync(path.join(repo, '.git'))) {
+    fs.mkdirSync(QCACHE, { recursive: true });
+    console.log(`clone ${QUATERNIUS.mirrors[key].repo} (partiel)…`);
+    execFileSync(
+      'git',
+      ['clone', '--depth', '1', '--filter=blob:none', '--no-checkout', QUATERNIUS.mirrors[key].repo, repo],
+      {
+        stdio: 'inherit',
+      },
+    );
+    execFileSync('git', ['-C', repo, 'config', 'gc.auto', '0']);
   }
-  return [...files];
+  return repo;
+}
+/** Tire les fichiers manquants d'un miroir ; retourne leurs chemins locaux. */
+function fetchFiles(key: MirrorKey, files: string[]): string[] {
+  const repo = mirror(key);
+  const rel = files.map((f) => path.join(QUATERNIUS.mirrors[key].dir, f));
+  const missing = rel.filter((f) => !fs.existsSync(path.join(repo, f)));
+  if (missing.length) execFileSync('git', ['-C', repo, 'checkout', 'HEAD', '--', ...missing], { stdio: 'inherit' });
+  return rel.map((f) => path.join(repo, f));
 }
 
-/** Chemin d'un fichier du miroir ; clone partiel (sans les autres fichiers, ≈ 1 Go) au premier besoin. */
-function quaterniusPath(file: string): string {
-  const repo = QCACHE;
-  const rel = path.join(QUATERNIUS.dir, file);
-  if (!fs.existsSync(path.join(repo, '.git'))) {
-    fs.mkdirSync(path.dirname(repo), { recursive: true });
-    console.log('clone quaternius-showcase (partiel)…');
-    execFileSync('git', ['clone', '--depth', '1', '--filter=blob:none', '--no-checkout', QUATERNIUS.repo, repo], {
-      stdio: 'inherit',
-    });
+/**
+ * Lit un fichier du kit. Pour un .gltf : tampons et textures de couleur seulement (les autres images deviennent un
+ * pixel), via une copie « .lite.gltf » à côté de l'original.
+ */
+async function readKit(io: NodeIO, file: string): Promise<Document> {
+  const [local] = fetchFiles('kit', [file]);
+  if (!file.endsWith('.gltf')) return io.read(local);
+  const json = JSON.parse(fs.readFileSync(local, 'utf8'));
+  const color = new Set<number>();
+  for (const m of json.materials ?? []) {
+    const t = m.pbrMetallicRoughness?.baseColorTexture;
+    if (t) color.add(json.textures[t.index].source);
+    delete m.normalTexture;
+    delete m.occlusionTexture;
+    delete m.emissiveTexture;
+    if (m.pbrMetallicRoughness) delete m.pbrMetallicRoughness.metallicRoughnessTexture;
   }
-  const missing = quaterniusFiles()
-    .map((f) => path.join(QUATERNIUS.dir, f))
-    .filter((f) => !fs.existsSync(path.join(repo, f)));
-  if (missing.length) execFileSync('git', ['-C', repo, 'checkout', 'HEAD', '--', ...missing], { stdio: 'inherit' });
-  return path.join(repo, rel);
+  const dir = path.dirname(file);
+  const need = [...(json.buffers ?? []).map((b: { uri: string }) => b.uri)];
+  (json.images ?? []).forEach((im: { uri: string }, i: number) => {
+    if (color.has(i)) need.push(im.uri);
+    else im.uri = PIXEL;
+  });
+  fetchFiles(
+    'kit',
+    need.map((u: string) => path.join(dir, decodeURIComponent(u))),
+  );
+  const lite = local.replace(/\.gltf$/, '.lite.gltf');
+  fs.writeFileSync(lite, JSON.stringify(json));
+  return io.read(lite);
 }
 
 /**
@@ -287,20 +322,23 @@ async function main(): Promise<void> {
   };
   let total = 0;
 
-  // --- héros (phase 24 : Quaternius) ---
-  const sources: Record<string, Document> = {};
-  for (const [k, f] of Object.entries(ANIM_SOURCES)) sources[k] = await io.read(quaterniusPath(f));
-  const read = (f: string) => io.read(quaterniusPath(f));
+  // --- héros (phase 25 : Quaternius HD) ---
+  fetchFiles('kit', [...QUATERNIUS.licenses]);
+  const libs: Record<string, Document> = {};
+  for (const [k, f] of Object.entries(QUATERNIUS.anims)) libs[k] = await readKit(io, f);
+  const bases = { M: await readKit(io, QUATERNIUS.base.M), F: await readKit(io, QUATERNIUS.base.F) };
   const only = ARGS.includes('--only') ? ARGS[ARGS.indexOf('--only') + 1].split(',') : null;
   for (const [key, h] of Object.entries(HEROES)) {
     if (only && !only.includes(key)) continue;
-    const doc = await io.read(quaterniusPath(h.model));
+    const doc = await readKit(io, QUATERNIUS.outfit(h.sex, h.outfit));
     const root = doc.getRoot();
-    const heroTris = await buildHero(doc, h, sources, read);
+    const hairs = await Promise.all(h.hair.map((n) => readKit(io, QUATERNIUS.hair(n))));
+    const props = await Promise.all(h.props.map((p) => io.read(fetchFiles('showcase', [p.file])[0])));
+    const heroTris = await buildHero(doc, h, bases[h.sex], hairs, libs, props);
     await doc.transform(resample({ tolerance: 1e-3 }));
     const stripped = stripStaticTracks(doc);
     await doc.transform(
-      prune({ keepAttributes: true }), // COLOR_1 (seconde tenue) n'est lu par aucun matériau : on le garde
+      prune(),
       dedup(),
       meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizationVolume: 'scene' }),
     );

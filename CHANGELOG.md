@@ -2,6 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.20.0 — 6 nov. 2026 (phase 25 « Avatars HD »)
+
+Les personnages passent en haute définition : visages détaillés, vêtements texturés, coiffures, et de nouvelles animations plus fluides.
+
+### Modifié
+
+- **Neuf personnages texturés** (Quaternius, CC0) : vraie tête avec yeux et sourcils, coiffures (chignon, cheveux longs, barbe, crâne rasé…), tenues de rôdeur ou de paysan teintées pour chacun, capuche pour la Veilleuse, le Braconnier et la Revenante.
+- **Nouvelles animations** : course, saut, roulade, coup d'épée, lancer, sort, danse de victoire ; repos propre à certains (la Veilleuse lève sa torche, le Colporteur croise les bras, la Revenante titube).
+- **Seconde tenue** : la couleur des vêtements change, le visage et les cheveux restent.
+
 ## 1.19.0 — 6 nov. 2026 (phase 24 « Nouveaux avatars »)
 
 Les neuf personnages changent complètement de look : fini le style chibi, place à des héros adultes, plus fantasy, chacun avec sa silhouette.

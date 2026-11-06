@@ -1,107 +1,247 @@
-// Phase 24 : construit un héros Quaternius. Le modèle modulaire (quatre parties skinnées, une couleur plate par
-// matériau, aucune texture) reçoit les clips reciblés, des doigts repliés (les sources n'animent pas les doigts), des
-// couleurs par sommet (COLOR_0 : tenue de base, COLOR_1 : seconde tenue) et ses objets tenus, liés rigidement à un os.
-// Tout finit dans UNE primitive skinnée, simplifiée au budget : un appel de rendu (plus la coque de contour).
+// Phase 25 : construit un héros Quaternius « HD » dans le document de sa tenue (squelette maître, 65 os) :
+// - tête, yeux et sourcils pris au personnage de base (triangles liés à Head / neck_01), coiffures, objets tenus ;
+// - toutes les parties ramenées sur le squelette de la tenue (liaison recalculée sommet par sommet, par nom d'os) ;
+// - textures réduites et teintées dans UN atlas JPEG 1024² (tenue, peau, tête, cheveux, yeux, pastilles des objets) ;
+// - une seule primitive skinnée simplifiée au budget : un appel de rendu (plus la coque de contour) ;
+// - clips des Universal Animation Library copiés par nom d'os (même squelette : aucun reciblage), bassin à l'échelle.
+import type { Document, Primitive, Skin } from '@gltf-transform/core';
 import { getBounds } from '@gltf-transform/core';
-import type { Accessor, Document, Node, Primitive, Skin } from '@gltf-transform/core';
 import { MeshoptSimplifier } from 'meshoptimizer';
+import sharp from 'sharp';
 import * as THREE from 'three';
 import { HERO_CLIPS } from './config';
-import type { HEROES } from './config';
-import { retargetClips } from './retarget';
+import type { HeroSpec, Tint } from './config';
 
-type HeroSpec = (typeof HEROES)[string];
+const ATLAS = 1024;
+type Rect = [x: number, y: number, w: number, h: number];
+/** Zones de l'atlas (pixels, origine en haut à gauche comme les UV glTF). */
+const SLOT: Record<'outfit' | 'skin' | 'head' | 'hair1' | 'hair2' | 'eyes', Rect> = {
+  outfit: [0, 0, 512, 512],
+  skin: [512, 0, 512, 512],
+  head: [0, 512, 512, 512],
+  hair1: [512, 512, 256, 256],
+  hair2: [512, 768, 256, 256],
+  eyes: [768, 512, 128, 128],
+};
+/** Pastilles de couleur unie (matériaux sans texture des objets tenus) : 16 px, dans [768, 1024) × [656, 1024). */
+const SWATCH = { x: 768, y: 656, size: 16, cols: 16 };
 
-/** Matériaux jamais décalés en teinte pour la seconde tenue. */
-const KEEP_HUE = /skin|eye|hair|brow|moustache|beard|metal|steel|gold|black|white|grey|teeth/i;
+// ---------- couleurs ----------
 
-const srgbToLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-function hexLinear(hex: string): [number, number, number] {
-  const v = parseInt(hex.replace('#', ''), 16);
-  return [srgbToLinear(((v >> 16) & 255) / 255), srgbToLinear(((v >> 8) & 255) / 255), srgbToLinear((v & 255) / 255)];
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    l = (max + min) / 2,
+    d = max - min;
+  if (d < 1e-6) return [0, 0, l];
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h / 6, s, l];
 }
-/** Décalage de teinte d'une couleur linéaire (calcul en sRGB, comme un œil le voit). */
-function hueShift(rgb: [number, number, number], deg: number): [number, number, number] {
-  const c = new THREE.Color().setRGB(rgb[0], rgb[1], rgb[2], THREE.LinearSRGBColorSpace);
-  const hsl = { h: 0, s: 0, l: 0 };
-  c.getHSL(hsl, THREE.SRGBColorSpace);
-  c.setHSL((hsl.h + deg / 360) % 1, hsl.s, hsl.l, THREE.SRGBColorSpace);
-  return [c.r, c.g, c.b];
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s,
+    p = 2 * l - q;
+  const f = (t: number) => {
+    t = ((t % 1) + 1) % 1;
+    return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p;
+  };
+  return [f(h + 1 / 3), f(h), f(h - 1 / 3)];
 }
-
-function colorAccessor(doc: Document, n: number, rgb: [number, number, number]): Accessor {
-  const a = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) a.set(rgb, i * 3);
-  return doc.createAccessor().setType('VEC3').setArray(a).setBuffer(doc.getRoot().listBuffers()[0]);
+/** Teinte d'une image RGBA (sRGB, en place) : décalage de teinte, saturation et luminosité multipliées. */
+function tint(px: Buffer, t: Tint | undefined): void {
+  if (!t) return;
+  const dh = (t.hue ?? 0) / 360,
+    ks = t.sat ?? 1,
+    kl = t.light ?? 1;
+  for (let i = 0; i < px.length; i += 4) {
+    const [h, s, l] = rgbToHsl(px[i] / 255, px[i + 1] / 255, px[i + 2] / 255);
+    const [r, g, b] = hslToRgb(h + dh, Math.min(1, s * ks), Math.min(1, l * kl));
+    px[i] = r * 255;
+    px[i + 1] = g * 255;
+    px[i + 2] = b * 255;
+  }
 }
-
-/** Couleurs des deux tenues pour une primitive, depuis son matériau. */
-function paint(doc: Document, prim: Primitive, spec: HeroSpec, prop: boolean): void {
-  const mat = prim.getMaterial();
-  const name = mat?.getName() ?? '';
-  const base = (mat?.getBaseColorFactor() ?? [1, 1, 1, 1]).slice(0, 3) as [number, number, number];
-  const c0 = !prop && spec.colors?.[name] ? hexLinear(spec.colors[name]) : base;
-  const c1 =
-    !prop && spec.colors2?.[name]
-      ? hexLinear(spec.colors2[name])
-      : prop || KEEP_HUE.test(name)
-        ? c0
-        : hueShift(c0, spec.hue);
-  const n = prim.getAttribute('POSITION')!.getCount();
-  prim.setAttribute('COLOR_0', colorAccessor(doc, n, c0));
-  prim.setAttribute('COLOR_1', colorAccessor(doc, n, c1));
-}
-
-/**
- * Doigts repliés : rotation de repos de chaque phalange tournée vers la paume (les modèles sont en T, paumes vers le
- * bas). Les clips ne touchent pas les doigts : la main reste fermée, autour de l'objet tenu.
- */
-function curlFingers(doc: Document): void {
-  const nodes = doc.getRoot().listNodes();
-  const world = (n: Node) => new THREE.Matrix4().fromArray(n.getWorldMatrix());
-  for (const n of nodes) {
-    const m = /^(Index|Middle|Ring|Pinky|Thumb)\d\.[LR]$/.exec(n.getName());
-    if (!m) continue;
-    const child = n.listChildren()[0];
-    const w = world(n);
-    const p = new THREE.Vector3().setFromMatrixPosition(w);
-    const dir = child
-      ? new THREE.Vector3().setFromMatrixPosition(world(child)).sub(p).normalize()
-      : new THREE.Vector3(n.getName().endsWith('.L') ? 1 : -1, 0, 0);
-    const axis = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, -1, 0));
-    if (axis.lengthSq() < 1e-6) continue;
-    axis.normalize();
-    const angle = m[1] === 'Thumb' ? 0.5 : 1.25;
-    // rotation monde → locale : q_local = W⁻¹ · R · W (rotation pure de l'os)
-    const wq = new THREE.Quaternion();
-    w.decompose(new THREE.Vector3(), wq, new THREE.Vector3());
-    const r = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-    const ql = wq.clone().invert().multiply(r).multiply(wq);
-    const local = new THREE.Quaternion().fromArray(n.getRotation()).multiply(ql);
-    n.setRotation(local.toArray() as [number, number, number, number]);
+/** Recoloration d'une texture de cheveux : luminance gardée, couleur imposée (blanc et roux compris). */
+function colorize(px: Buffer, hex: string | undefined): void {
+  if (!hex) return;
+  const v = parseInt(hex.slice(1), 16);
+  const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  let mean = 0;
+  for (let i = 0; i < px.length; i += 4) mean += (px[i] + px[i + 1] + px[i + 2]) / 3;
+  mean = Math.max(1, mean / (px.length / 4));
+  for (let i = 0; i < px.length; i += 4) {
+    const k = (px[i] + px[i + 1] + px[i + 2]) / 3 / mean;
+    for (let j = 0; j < 3; j++) px[i + j] = Math.min(255, c[j] * k);
   }
 }
 
-/** Primitive d'objet tenu, en espace de liaison du maillage, liée à 100 % à l'os `joint` de la peau. */
-function propPrimitives(
-  doc: Document,
-  src: Document,
+/** Atlas : chaque zone reçoit la texture (redimensionnée, teintée) de son matériau ; pastilles pour les couleurs unies. */
+class Atlas {
+  private layers: { input: Buffer; left: number; top: number; raw: { width: number; height: number; channels: 4 } }[] =
+    [];
+  private swatches = new Map<string, Rect>();
+  async put(slot: keyof typeof SLOT, image: Uint8Array, recolor: (px: Buffer) => void): Promise<void> {
+    const [x, y, w, h] = SLOT[slot];
+    const { data } = await sharp(image)
+      .resize(w, h, { fit: 'fill' })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    recolor(data);
+    this.layers.push({ input: data, left: x, top: y, raw: { width: w, height: h, channels: 4 } });
+  }
+  /** Pastille d'une couleur unie (linéaire) ; même couleur, même pastille. */
+  swatch(rgb: number[]): Rect {
+    const srgb = rgb
+      .slice(0, 3)
+      .map((c) => Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055)));
+    const key = srgb.join(',');
+    const hit = this.swatches.get(key);
+    if (hit) return hit;
+    const i = this.swatches.size;
+    const r: Rect = [
+      SWATCH.x + (i % SWATCH.cols) * SWATCH.size,
+      SWATCH.y + Math.floor(i / SWATCH.cols) * SWATCH.size,
+      SWATCH.size,
+      SWATCH.size,
+    ];
+    if (r[1] + r[3] > ATLAS) throw new Error('atlas : trop de pastilles');
+    const buf = Buffer.alloc(SWATCH.size * SWATCH.size * 4);
+    for (let p = 0; p < buf.length; p += 4) [buf[p], buf[p + 1], buf[p + 2], buf[p + 3]] = [...srgb, 255];
+    this.layers.push({
+      input: buf,
+      left: r[0],
+      top: r[1],
+      raw: { width: SWATCH.size, height: SWATCH.size, channels: 4 },
+    });
+    this.swatches.set(key, r);
+    return r;
+  }
+  async jpeg(): Promise<Uint8Array> {
+    const img = sharp({
+      create: { width: ATLAS, height: ATLAS, channels: 4, background: { r: 128, g: 128, b: 128, alpha: 1 } },
+    })
+      .composite(this.layers.map((l) => ({ input: l.input, left: l.left, top: l.top, raw: l.raw })))
+      .flatten({ background: '#808080' })
+      .jpeg({ quality: 85, mozjpeg: true });
+    return new Uint8Array(await img.toBuffer());
+  }
+}
+
+// ---------- géométrie ----------
+
+const IBM = (skin: Skin, j: number) =>
+  new THREE.Matrix4().fromArray(
+    Array.from(
+      skin
+        .getInverseBindMatrices()!
+        .getArray()!
+        .slice(j * 16, j * 16 + 16),
+    ),
+  );
+
+/** Partie prête à fusionner : attributs flottants, os dans l'ordre du squelette maître, UV dans l'atlas. */
+interface Part {
+  P: Float32Array;
+  N: Float32Array;
+  UV: Float32Array;
+  J: Uint16Array;
+  W: Float32Array;
+  I: Uint32Array;
+}
+
+/**
+ * Convertit une primitive skinnée vers le squelette maître : os remappés par nom, sommets re-liés
+ * (v' = Σ wⱼ · IBMₘ[j]⁻¹ · IBMₚ[j] · v : chaque partie suit les os du maître, même si ses longueurs d'os diffèrent),
+ * UV ramenées dans la zone `rect` de l'atlas. `keepTri` filtre les triangles (tête seule).
+ */
+function toPart(
+  prim: Primitive,
   skin: Skin,
+  master: Skin,
+  rect: Rect | null,
+  swatch: Rect | null,
+  keepTri?: (a: number, b: number, c: number) => boolean,
+): Part {
+  const mj = master.listJoints().map((n) => n.getName());
+  const pj = skin.listJoints().map((n) => n.getName());
+  const remap = pj.map((n) => {
+    const i = mj.indexOf(n);
+    if (i < 0) throw new Error(`héros : os ${n} absent du squelette maître`);
+    return i;
+  });
+  const fix = pj.map((_, j) => IBM(master, remap[j]).invert().multiply(IBM(skin, j)));
+  const pos = prim.getAttribute('POSITION')!,
+    nor = prim.getAttribute('NORMAL')!,
+    uv = prim.getAttribute('TEXCOORD_0'),
+    jo = prim.getAttribute('JOINTS_0')!,
+    we = prim.getAttribute('WEIGHTS_0')!;
+  const n = pos.getCount();
+  const P = new Float32Array(n * 3),
+    N = new Float32Array(n * 3),
+    UV = new Float32Array(n * 2),
+    J = new Uint16Array(n * 4),
+    W = new Float32Array(n * 4);
+  const e: number[] = [],
+    jw: number[] = [],
+    ww: number[] = [];
+  const v = new THREE.Vector3(),
+    nv = new THREE.Vector3(),
+    acc = new THREE.Vector3(),
+    accN = new THREE.Vector3(),
+    tmp = new THREE.Vector3(),
+    m3 = new THREE.Matrix3();
+  for (let i = 0; i < n; i++) {
+    v.fromArray(pos.getElement(i, e));
+    nv.fromArray(nor.getElement(i, e));
+    jo.getElement(i, jw);
+    we.getElement(i, ww);
+    acc.set(0, 0, 0);
+    accN.set(0, 0, 0);
+    let sw = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = ww[k];
+      J[i * 4 + k] = remap[jw[k]];
+      W[i * 4 + k] = w;
+      if (w <= 0) continue;
+      sw += w;
+      acc.addScaledVector(tmp.copy(v).applyMatrix4(fix[jw[k]]), w);
+      accN.addScaledVector(tmp.copy(nv).applyMatrix3(m3.setFromMatrix4(fix[jw[k]])), w);
+    }
+    (sw > 0 ? acc.divideScalar(sw) : acc.copy(v)).toArray(P, i * 3);
+    (accN.lengthSq() > 0 ? accN.normalize() : accN.copy(nv)).toArray(N, i * 3);
+    if (swatch) {
+      UV[i * 2] = (swatch[0] + swatch[2] / 2) / ATLAS;
+      UV[i * 2 + 1] = (swatch[1] + swatch[3] / 2) / ATLAS;
+    } else if (rect && uv) {
+      uv.getElement(i, e);
+      const u = e[0] - Math.floor(e[0]),
+        t = e[1] - Math.floor(e[1]);
+      UV[i * 2] = (rect[0] + u * rect[2]) / ATLAS;
+      UV[i * 2 + 1] = (rect[1] + t * rect[3]) / ATLAS;
+    }
+  }
+  const src = prim.getIndices() ? Array.from(prim.getIndices()!.getArray()!) : Array.from({ length: n }, (_, i) => i);
+  const I: number[] = [];
+  for (let t = 0; t < src.length; t += 3)
+    if (!keepTri || keepTri(src[t], src[t + 1], src[t + 2])) I.push(src[t], src[t + 1], src[t + 2]);
+  return { P, N, UV, J, W, I: Uint32Array.from(I) };
+}
+
+/** Objet tenu (non skinné) lié à 100 % à l'os `bone` du maître ; ses matériaux deviennent des pastilles de l'atlas. */
+function propPart(
+  src: Document,
+  master: Skin,
   bone: string,
   offset: THREE.Matrix4,
-  unit: number,
   size: number,
   grip: number,
-): Primitive[] {
-  const joints = skin.listJoints();
+  atlas: Atlas,
+): Part[] {
+  const joints = master.listJoints();
   const j = joints.findIndex((n) => n.getName() === bone);
   if (j < 0) throw new Error(`objet tenu : os ${bone} absent`);
-  const ibmArr = skin.getInverseBindMatrices()!.getArray()!;
-  const bind = new THREE.Matrix4().fromArray(Array.from(ibmArr.slice(j * 16, j * 16 + 16))).invert();
-  // espace de liaison du maillage : unités du nœud skinné (Quaternius : échelle 100, donc des centimètres) ; l'objet
-  // et son décalage sont en mètres
-  bind.multiply(new THREE.Matrix4().makeScale(unit, unit, unit)).multiply(offset);
-  // objet ramené à sa taille, son point de prise à l'origine de l'os
+  const bind = IBM(master, j).invert().multiply(offset);
   const b = getBounds(src.getRoot().listScenes()[0]);
   const k = size / Math.max(1e-6, b.max[1] - b.min[1]);
   bind
@@ -113,8 +253,7 @@ function propPrimitives(
         -(b.min[2] + b.max[2]) / 2,
       ),
     );
-  const out: Primitive[] = [];
-  const buffer = doc.getRoot().listBuffers()[0];
+  const out: Part[] = [];
   for (const node of src.getRoot().listNodes()) {
     const mesh = node.getMesh();
     if (!mesh) continue;
@@ -125,7 +264,11 @@ function propPrimitives(
         nor = p.getAttribute('NORMAL');
       const n = pos.getCount();
       const P = new Float32Array(n * 3),
-        N = new Float32Array(n * 3);
+        N = new Float32Array(n * 3),
+        UV = new Float32Array(n * 2),
+        J = new Uint16Array(n * 4),
+        W = new Float32Array(n * 4);
+      const sw = atlas.swatch(p.getMaterial()?.getBaseColorFactor() ?? [1, 1, 1, 1]);
       const v = new THREE.Vector3();
       const e: number[] = [];
       for (let i = 0; i < n; i++) {
@@ -137,191 +280,229 @@ function propPrimitives(
             .applyMatrix3(nm)
             .normalize()
             .toArray(N, i * 3);
-      }
-      const J = new Uint16Array(n * 4),
-        W = new Float32Array(n * 4);
-      for (let i = 0; i < n; i++) {
+        UV[i * 2] = (sw[0] + sw[2] / 2) / ATLAS;
+        UV[i * 2 + 1] = (sw[1] + sw[3] / 2) / ATLAS;
         J[i * 4] = j;
         W[i * 4] = 1;
       }
       const idx = p.getIndices();
       const I = idx ? new Uint32Array(idx.getArray()!) : Uint32Array.from({ length: n }, (_, i) => i);
-      const q = doc
-        .createPrimitive()
-        .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(P).setBuffer(buffer))
-        .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(N).setBuffer(buffer))
-        .setAttribute('JOINTS_0', doc.createAccessor().setType('VEC4').setArray(J).setBuffer(buffer))
-        .setAttribute('WEIGHTS_0', doc.createAccessor().setType('VEC4').setArray(W).setBuffer(buffer))
-        .setIndices(doc.createAccessor().setType('SCALAR').setArray(I).setBuffer(buffer));
-      const col = (p.getMaterial()?.getBaseColorFactor() ?? [1, 1, 1, 1]).slice(0, 3) as [number, number, number];
-      q.setAttribute('COLOR_0', colorAccessor(doc, n, col));
-      q.setAttribute('COLOR_1', colorAccessor(doc, n, col));
-      out.push(q);
+      out.push({ P, N, UV, J, W, I });
     }
   }
   return out;
 }
 
-/** Copie d'une primitive du corps aux attributs communs (positions, normales, os en Uint16, poids et couleurs flottants). */
-function normalized(doc: Document, p: Primitive, remap: Int32Array | null, bindFix: THREE.Matrix4 | null): Primitive {
+/** Concatène les parties en une primitive, simplifiée à ≈ `target` triangles (UV pondérées : coutures nettes). */
+function merge(doc: Document, parts: Part[], target: number): { prim: Primitive; tris: number } {
   const buffer = doc.getRoot().listBuffers()[0];
-  const n = p.getAttribute('POSITION')!.getCount();
-  const f = (sem: string, k: number) => {
-    const a = p.getAttribute(sem)!;
-    const out = new Float32Array(n * k);
-    const e: number[] = [];
-    for (let i = 0; i < n; i++) out.set(a.getElement(i, e).slice(0, k), i * k);
-    return out;
-  };
-  const P = f('POSITION', 3),
-    Nn = f('NORMAL', 3);
-  if (bindFix) {
-    const nm = new THREE.Matrix3().getNormalMatrix(bindFix);
-    const v = new THREE.Vector3();
-    for (let i = 0; i < n; i++) {
-      v.fromArray(P, i * 3)
-        .applyMatrix4(bindFix)
-        .toArray(P, i * 3);
-      v.fromArray(Nn, i * 3)
-        .applyMatrix3(nm)
-        .normalize()
-        .toArray(Nn, i * 3);
-    }
+  let nv = 0,
+    ni = 0;
+  for (const p of parts) {
+    nv += p.P.length / 3;
+    ni += p.I.length;
   }
-  const ja = p.getAttribute('JOINTS_0')!;
-  const J = new Uint16Array(n * 4);
-  const e: number[] = [];
-  for (let i = 0; i < n; i++) {
-    ja.getElement(i, e);
-    for (let k = 0; k < 4; k++) J[i * 4 + k] = remap ? remap[e[k]] : e[k];
+  const P = new Float32Array(nv * 3),
+    N = new Float32Array(nv * 3),
+    UV = new Float32Array(nv * 2),
+    J = new Uint16Array(nv * 4),
+    W = new Float32Array(nv * 4);
+  let I: Uint32Array<ArrayBuffer> = new Uint32Array(ni);
+  let ov = 0,
+    oi = 0;
+  for (const p of parts) {
+    P.set(p.P, ov * 3);
+    N.set(p.N, ov * 3);
+    UV.set(p.UV, ov * 2);
+    J.set(p.J, ov * 4);
+    W.set(p.W, ov * 4);
+    for (let i = 0; i < p.I.length; i++) I[oi + i] = p.I[i] + ov;
+    ov += p.P.length / 3;
+    oi += p.I.length;
   }
-  const idx = p.getIndices();
-  const I = idx ? new Uint32Array(idx.getArray()!) : Uint32Array.from({ length: n }, (_, i) => i);
-  const acc = (type: 'VEC3' | 'VEC4', arr: Float32Array<ArrayBuffer> | Uint16Array<ArrayBuffer>) =>
-    doc.createAccessor().setType(type).setArray(arr).setBuffer(buffer);
-  return doc
+  if (I.length / 3 > target) {
+    const count = Math.round(target) * 3;
+    let out = MeshoptSimplifier.simplifyWithAttributes(I, P, 3, UV, 2, [1, 1], null, count, 0.05, [])[0];
+    if (out.length > count * 1.15)
+      out = MeshoptSimplifier.simplifyWithAttributes(I, P, 3, UV, 2, [1, 1], null, count, 0.05, ['Permissive'])[0];
+    I = new Uint32Array(out);
+  }
+  const acc = (
+    type: 'VEC2' | 'VEC3' | 'VEC4' | 'SCALAR',
+    arr: Float32Array<ArrayBuffer> | Uint16Array<ArrayBuffer> | Uint32Array<ArrayBuffer>,
+  ) => doc.createAccessor().setType(type).setArray(arr).setBuffer(buffer);
+  const prim = doc
     .createPrimitive()
     .setAttribute('POSITION', acc('VEC3', P))
-    .setAttribute('NORMAL', acc('VEC3', Nn))
+    .setAttribute('NORMAL', acc('VEC3', N))
+    .setAttribute('TEXCOORD_0', acc('VEC2', UV))
     .setAttribute('JOINTS_0', acc('VEC4', J))
-    .setAttribute('WEIGHTS_0', acc('VEC4', f('WEIGHTS_0', 4)))
-    .setAttribute('COLOR_0', acc('VEC3', f('COLOR_0', 3)))
-    .setAttribute('COLOR_1', acc('VEC3', f('COLOR_1', 3)))
-    .setIndices(doc.createAccessor().setType('SCALAR').setArray(I).setBuffer(buffer));
+    .setAttribute('WEIGHTS_0', acc('VEC4', W))
+    .setIndices(acc('SCALAR', I));
+  return { prim, tris: I.length / 3 };
 }
+
+// ---------- animations ----------
 
 /**
- * Une partie liée avec d'autres matrices de liaison (le sac à dos de l'aventurier : autre échelle, autre repère) :
- * v' = IBM₀⁻¹ · IBM · v la ramène dans l'espace de la peau principale. Null si les liaisons coïncident.
+ * Copie un clip d'une bibliothèque UAL sur le squelette maître, par nom d'os : rotations de tous les os, translation du
+ * bassin seulement (mise à l'échelle des hanches du maître ; les longueurs d'os du maître sont gardées). `inPlace` :
+ * bassin figé à l'horizontale et jamais plus haut qu'au repos (le jeu déplace le héros).
  */
-function bindFix(main: Skin, part: Skin): THREE.Matrix4 | null {
-  if (main === part) return null;
-  const j = part.listJoints()[0];
-  const i0 = main.listJoints().indexOf(j);
-  const a0 = main.getInverseBindMatrices()!.getArray()!,
-    a1 = part.getInverseBindMatrices()!.getArray()!;
-  const m0 = new THREE.Matrix4().fromArray(Array.from(a0.slice(i0 * 16, i0 * 16 + 16)));
-  const m1 = new THREE.Matrix4().fromArray(Array.from(a1.slice(0, 16)));
-  const fix = m0.invert().multiply(m1);
-  return fix.equals(new THREE.Matrix4()) ? null : fix;
-}
-
-/** Concatène des primitives aux mêmes attributs (sommets et indices mis bout à bout). */
-function concat(doc: Document, prims: Primitive[]): Primitive {
+function copyClip(doc: Document, lib: Document, from: string, to: string, inPlace: boolean, speed: number): void {
+  const anim = lib
+    .getRoot()
+    .listAnimations()
+    .find((a) => a.getName() === from);
+  if (!anim) throw new Error(`clip ${from} absent de la bibliothèque`);
+  const nodes = new Map(
+    doc
+      .getRoot()
+      .listNodes()
+      .map((n) => [n.getName(), n]),
+  );
   const buffer = doc.getRoot().listBuffers()[0];
-  const sems = ['POSITION', 'NORMAL', 'JOINTS_0', 'WEIGHTS_0', 'COLOR_0', 'COLOR_1'];
-  const out = doc.createPrimitive();
-  let verts = 0,
-    tris = 0;
-  for (const p of prims) {
-    verts += p.getAttribute('POSITION')!.getCount();
-    tris += p.getIndices()!.getCount();
-  }
-  for (const sem of sems) {
-    const first = prims[0].getAttribute(sem)!;
-    const k = first.getElementSize();
-    const arr = sem === 'JOINTS_0' ? new Uint16Array(verts * k) : new Float32Array(verts * k);
-    let o = 0;
-    for (const p of prims) {
-      const a = p.getAttribute(sem)!.getArray()!;
-      arr.set(a as ArrayLike<number>, o);
-      o += a.length;
+  const out = doc.createAnimation(to);
+  const pelvisLib = lib
+    .getRoot()
+    .listNodes()
+    .find((n) => n.getName() === 'pelvis')!;
+  const pelvis = nodes.get('pelvis')!;
+  const restL = pelvisLib.getTranslation(),
+    rest = pelvis.getTranslation();
+  const up = [0, 1, 2].reduce((a, i) => (Math.abs(restL[i]) > Math.abs(restL[a]) ? i : a), 0);
+  const k = rest[up] / restL[up];
+  for (const ch of anim.listChannels()) {
+    const name = ch.getTargetNode()?.getName() ?? '';
+    const path = ch.getTargetPath();
+    const target = nodes.get(name);
+    if (!target || name === 'root') continue;
+    if (path === 'scale' || (path === 'translation' && name !== 'pelvis')) continue;
+    const s = ch.getSampler()!;
+    const times = Float32Array.from(s.getInput()!.getArray()!, (t) => t / speed);
+    const vals = new Float32Array(s.getOutput()!.getArray()!);
+    if (path === 'translation') {
+      for (let i = 0; i < vals.length; i += 3) {
+        for (let c = 0; c < 3; c++) vals[i + c] *= k;
+        if (inPlace) {
+          for (let c = 0; c < 3; c++) if (c !== up) vals[i + c] = rest[c];
+          vals[i + up] = Math.min(vals[i + up], rest[up]);
+        }
+      }
     }
-    out.setAttribute(sem, doc.createAccessor().setType(first.getType()).setArray(arr).setBuffer(buffer));
+    const smp = doc
+      .createAnimationSampler()
+      .setInput(doc.createAccessor().setType('SCALAR').setArray(times).setBuffer(buffer))
+      .setOutput(
+        doc
+          .createAccessor()
+          .setType(path === 'rotation' ? 'VEC4' : 'VEC3')
+          .setArray(vals)
+          .setBuffer(buffer),
+      )
+      .setInterpolation(s.getInterpolation());
+    out
+      .addSampler(smp)
+      .addChannel(doc.createAnimationChannel().setTargetNode(target).setTargetPath(path!).setSampler(smp));
   }
-  const I = new Uint32Array(tris);
-  let o = 0,
-    base = 0;
-  for (const p of prims) {
-    const a = p.getIndices()!.getArray()!;
-    for (let i = 0; i < a.length; i++) I[o + i] = a[i] + base;
-    o += a.length;
-    base += p.getAttribute('POSITION')!.getCount();
-  }
-  out.setIndices(doc.createAccessor().setType('SCALAR').setArray(I).setBuffer(buffer));
-  return out;
 }
 
-/**
- * Simplification à ≈ `target` triangles : soudure des sommets identiques (positions, normales, couleurs), puis
- * simplificateur meshopt pondéré par la couleur (les frontières de matériaux restent nettes).
- */
-function simplify(doc: Document, p: Primitive, target: number): number {
-  const idx = p.getIndices()!;
-  const I = new Uint32Array(idx.getArray()!);
-  if (I.length / 3 <= target) return I.length / 3;
-  const pos = p.getAttribute('POSITION')!.getArray() as Float32Array;
-  const col = p.getAttribute('COLOR_0')!.getArray() as Float32Array;
-  const count = Math.round(target) * 3;
-  let out = MeshoptSimplifier.simplifyWithAttributes(I, pos, 3, col, 3, [1, 1, 1], null, count, 0.05, [])[0];
-  if (out.length > count * 1.15)
-    out = MeshoptSimplifier.simplifyWithAttributes(I, pos, 3, col, 3, [1, 1, 1], null, count, 0.05, ['Permissive'])[0];
-  p.setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(out)).setBuffer(idx.getBuffer()));
-  return out.length / 3;
+// ---------- assemblage ----------
+
+const headBones = new Set(['Head', 'neck_01']);
+/** Triangles de la tête : les trois sommets surtout liés à Head / neck_01. */
+function headFilter(prim: Primitive, skin: Skin): (a: number, b: number, c: number) => boolean {
+  const names = skin.listJoints().map((n) => n.getName());
+  const jo = prim.getAttribute('JOINTS_0')!,
+    we = prim.getAttribute('WEIGHTS_0')!;
+  const jw: number[] = [],
+    ww: number[] = [];
+  const isHead = (i: number) => {
+    jo.getElement(i, jw);
+    we.getElement(i, ww);
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (headBones.has(names[jw[k]])) w += ww[k];
+    return w > 0.5;
+  };
+  return (a, b, c) => isHead(a) && isHead(b) && isHead(c);
 }
 
+const imageOf = (prim: Primitive) => prim.getMaterial()?.getBaseColorTexture()?.getImage() ?? null;
+
 /**
- * Construit le héros dans `doc` (le modèle modulaire lu). `sources` : documents d'animation par clé d'ANIM_SOURCES,
- * `read` : lecture d'un fichier du miroir (objets tenus). Retourne les triangles finaux.
+ * Construit le héros dans `doc` (le document de sa tenue, lu). `base` : personnage de base du même sexe ; `hairs` :
+ * coiffures ; `libs` : bibliothèques d'animation ; `props` : documents des objets tenus. Retourne les triangles finaux.
  */
 export async function buildHero(
   doc: Document,
   spec: HeroSpec,
-  sources: Record<string, Document>,
-  read: (file: string) => Promise<Document>,
+  base: Document,
+  hairs: Document[],
+  libs: Record<string, Document>,
+  props: Document[],
 ): Promise<number> {
   const root = doc.getRoot();
   for (const a of root.listAnimations()) a.dispose();
-  retargetClips(
-    doc,
-    HERO_CLIPS.map((c) => ({
-      doc: sources[c.src],
-      from: c.from,
-      to: c.to,
-      names: c.names,
-      speed: c.speed,
-      lockHips: c.inPlace,
-    })),
-  );
-  curlFingers(doc);
-  const bodies = root.listNodes().filter((n) => n.getMesh() && n.getSkin());
-  if (!bodies.length) throw new Error('héros : aucune partie skinnée');
-  const skin = bodies[0].getSkin()!;
-  const joints = skin.listJoints();
-  const parts: Primitive[] = [];
-  for (const b of bodies) {
-    const sj = b.getSkin()!.listJoints();
-    const same = sj.length === joints.length && sj.every((n, i) => n === joints[i]);
-    const remap = same ? null : Int32Array.from(sj.map((n) => joints.indexOf(n)));
-    if (remap && remap.some((i) => i < 0)) throw new Error(`héros : os de ${b.getName()} hors de la peau principale`);
-    const fix = bindFix(skin, b.getSkin()!);
-    for (const p of b.getMesh()!.listPrimitives()) {
-      paint(doc, p, spec, false);
-      parts.push(normalized(doc, p, remap, fix));
+  const outfitNodes = root.listNodes().filter((n) => n.getMesh() && n.getSkin());
+  const master = outfitNodes[0].getSkin()!;
+  const atlas = new Atlas();
+  const filled = new Set<string>();
+  const fill = async (slot: keyof typeof SLOT, prim: Primitive, recolor: (px: Buffer) => void) => {
+    if (filled.has(slot)) return;
+    const img = imageOf(prim);
+    if (!img) throw new Error(`héros : matériau ${prim.getMaterial()?.getName()} sans texture`);
+    await atlas.put(slot, img, recolor);
+    filled.add(slot);
+  };
+  const skinTint = (px: Buffer) => tint(px, spec.skinTint);
+  const parts: Part[] = [];
+  // tenue (capuche et parties retirées selon le personnage)
+  for (const node of outfitNodes) {
+    const name = node.getName();
+    if (spec.hood === false && /Hood/.test(name)) continue;
+    if (spec.hide?.some((h) => name.includes(h))) continue;
+    for (const p of node.getMesh()!.listPrimitives()) {
+      const mat = p.getMaterial()?.getName() ?? '';
+      const slot = /Regular/.test(mat) ? 'skin' : 'outfit';
+      await fill(slot, p, slot === 'skin' ? skinTint : (px) => tint(px, spec.outfitTint));
+      parts.push(toPart(p, node.getSkin()!, master, SLOT[slot], null));
     }
   }
-  for (const pr of spec.props) {
-    const src = await read(pr.file);
+  // tête du personnage de base, yeux, sourcils
+  for (const node of base.getRoot().listNodes()) {
+    const mesh = node.getMesh(),
+      skin = node.getSkin();
+    if (!mesh || !skin) continue;
+    for (const p of mesh.listPrimitives()) {
+      const mat = p.getMaterial()?.getName() ?? '';
+      if (/Eyes/.test(mat)) {
+        await fill('eyes', p, () => undefined);
+        parts.push(toPart(p, skin, master, SLOT.eyes, null));
+      } else if (/Hair_/.test(mat)) {
+        // sourcils : matériau de cheveux 1 ou 2 selon le personnage
+        const slot = /Hair_2/.test(mat) ? 'hair2' : 'hair1';
+        await fill(slot, p, (px) => colorize(px, spec.hairColor));
+        parts.push(toPart(p, skin, master, SLOT[slot], null));
+      } else {
+        await fill('head', p, skinTint);
+        parts.push(toPart(p, skin, master, SLOT.head, null, headFilter(p, skin)));
+      }
+    }
+  }
+  // coiffures
+  for (const h of hairs)
+    for (const node of h.getRoot().listNodes()) {
+      const mesh = node.getMesh(),
+        skin = node.getSkin();
+      if (!mesh || !skin) continue;
+      for (const p of mesh.listPrimitives()) {
+        const slot = /Hair_2/.test(p.getMaterial()?.getName() ?? '') ? 'hair2' : 'hair1';
+        await fill(slot, p, (px) => colorize(px, spec.hairColor));
+        parts.push(toPart(p, skin, master, SLOT[slot], null));
+      }
+    }
+  // objets tenus
+  spec.props.forEach((pr, i) => {
     const off = new THREE.Matrix4().compose(
       new THREE.Vector3(...(pr.pos ?? [0, 0, 0])),
       new THREE.Quaternion().setFromEuler(
@@ -329,27 +510,30 @@ export async function buildHero(
       ),
       new THREE.Vector3(1, 1, 1),
     );
-    const ws = new THREE.Vector3();
-    new THREE.Matrix4()
-      .fromArray(bodies[0].getWorldMatrix())
-      .decompose(new THREE.Vector3(), new THREE.Quaternion(), ws);
-    parts.push(...propPrimitives(doc, src, skin, pr.bone, off, 1 / ws.x, pr.size, pr.grip));
-  }
-  const merged = concat(doc, parts);
-  const tris = simplify(doc, merged, spec.tris);
-  const mat = doc.createMaterial('Hero').setBaseColorFactor([1, 1, 1, 1]).setRoughnessFactor(1).setMetallicFactor(0);
-  merged.setMaterial(mat);
-  const mesh = doc.createMesh('Body').addPrimitive(merged);
-  const holder = bodies[0];
-  const node = doc.createNode('Body').setMesh(mesh).setSkin(skin);
+    parts.push(...propPart(props[i], master, pr.bone, off, pr.size, pr.grip, atlas));
+  });
+  const { prim, tris } = merge(doc, parts, spec.tris);
+  const tex = doc
+    .createTexture('hero')
+    .setImage(await atlas.jpeg())
+    .setMimeType('image/jpeg');
+  const mat = doc.createMaterial('Hero').setBaseColorTexture(tex).setRoughnessFactor(1).setMetallicFactor(0);
+  prim.setMaterial(mat);
+  const holder = outfitNodes[0];
+  const node = doc.createNode('Body').setMesh(doc.createMesh('Body').addPrimitive(prim)).setSkin(master);
   node.setTranslation(holder.getTranslation()).setRotation(holder.getRotation()).setScale(holder.getScale());
   const parent = holder.getParentNode();
   if (parent) parent.addChild(node);
   else for (const s of root.listScenes()) if (s.listChildren().includes(holder)) s.addChild(node);
-  for (const b of bodies) {
-    const m = b.getMesh()!;
-    b.dispose();
+  for (const n of outfitNodes) {
+    const m = n.getMesh()!;
+    n.dispose();
     m.dispose();
+  }
+  // clips
+  for (const c of HERO_CLIPS) {
+    const src = c.to === 'Idle' && spec.idle ? spec.idle : c;
+    copyClip(doc, libs[src.src], src.from, c.to, !!c.inPlace, c.speed ?? 1);
   }
   return Math.round(tris);
 }
