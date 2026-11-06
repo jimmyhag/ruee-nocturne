@@ -1,7 +1,10 @@
-// Phase 20 : construit public/models/*.glb et src/render/models.json à partir des packs KayKit (CC0).
-//   npm run assets            (clone les packs dans .cache/kaykit si absents, ~300 Mo, hors dépôt)
-//   KAYKIT_DIR=/chemin npm run assets   (packs déjà clonés ailleurs)
-// Héros : animations utiles seulement, accessoires choisis, rééchantillonnage, compression meshopt (décodeur fourni par
+// Phase 20 : construit public/models/*.glb et src/render/models.json à partir des packs KayKit (CC0) ; phase 24 : héros
+// Quaternius (CC0), animations reciblées.
+//   npm run assets            (clone les packs dans .cache/kaykit et le miroir Quaternius dans .cache/quaternius,
+//                              hors dépôt, si absents)
+//   KAYKIT_DIR=… QUATERNIUS_DIR=… npm run assets   (sources déjà clonées ailleurs)
+//   npm run assets -- --heroes [--only clé,clé] [--out dossier]   (héros seulement, manifeste intact : essais)
+// Héros : clips reciblés, objets tenus fusionnés, simplification, compression meshopt (décodeur fourni par
 // three/examples). Objets : un seul fichier, un nœud par objet, transformations cuites, plafond de triangles vérifié.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -22,12 +25,16 @@ import {
   weld,
 } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
-import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_ANIMS, HEROES, PACKS, PROPS } from './config';
+import { ANIM_SOURCES, BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_CLIPS, HEROES, PACKS, PROPS, QUATERNIUS } from './config';
+import { buildHero } from './heroes';
 import type { PackKey } from './config';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const CACHE = process.env.KAYKIT_DIR ?? path.join(ROOT, '.cache/kaykit');
-const OUT = path.join(ROOT, 'public/models');
+const QCACHE = process.env.QUATERNIUS_DIR ?? path.join(ROOT, '.cache/quaternius');
+const ARGS = process.argv.slice(2);
+const HEROES_ONLY = ARGS.includes('--heroes');
+const OUT = ARGS.includes('--out') ? path.resolve(ARGS[ARGS.indexOf('--out') + 1]) : path.join(ROOT, 'public/models');
 const MANIFEST = path.join(ROOT, 'src/render/models.json');
 
 function packDir(p: PackKey): string {
@@ -43,6 +50,34 @@ function packDir(p: PackKey): string {
   const sub = fs.readdirSync(addons).find((d) => d.startsWith('kaykit_'));
   if (!sub) throw new Error(`pack ${p} : dossier addons/kaykit_* introuvable`);
   return path.join(addons, sub);
+}
+
+/** Fichiers du miroir Quaternius utilisés (modèles, sources d'animation, objets tenus). */
+function quaterniusFiles(): string[] {
+  const files = new Set<string>(Object.values(ANIM_SOURCES));
+  for (const h of Object.values(HEROES)) {
+    files.add(h.model);
+    for (const p of h.props) files.add(p.file);
+  }
+  return [...files];
+}
+
+/** Chemin d'un fichier du miroir ; clone partiel (sans les autres fichiers, ≈ 1 Go) au premier besoin. */
+function quaterniusPath(file: string): string {
+  const repo = QCACHE;
+  const rel = path.join(QUATERNIUS.dir, file);
+  if (!fs.existsSync(path.join(repo, '.git'))) {
+    fs.mkdirSync(path.dirname(repo), { recursive: true });
+    console.log('clone quaternius-showcase (partiel)…');
+    execFileSync('git', ['clone', '--depth', '1', '--filter=blob:none', '--no-checkout', QUATERNIUS.repo, repo], {
+      stdio: 'inherit',
+    });
+  }
+  const missing = quaterniusFiles()
+    .map((f) => path.join(QUATERNIUS.dir, f))
+    .filter((f) => !fs.existsSync(path.join(repo, f)));
+  if (missing.length) execFileSync('git', ['-C', repo, 'checkout', 'HEAD', '--', ...missing], { stdio: 'inherit' });
+  return path.join(repo, rel);
 }
 
 /**
@@ -236,7 +271,7 @@ async function main(): Promise<void> {
   fs.mkdirSync(OUT, { recursive: true });
   const manifest: {
     source: string;
-    heroes: Record<string, { file: string; bytes: number; tris: number; anims: string[]; meshes: string[] }>;
+    heroes: Record<string, { file: string; bytes: number; tris: number; anims: string[] }>;
     props: { file: string; bytes: number; nodes: Record<string, number> };
     enemies: {
       file: string;
@@ -245,50 +280,46 @@ async function main(): Promise<void> {
       models: Record<string, { anims: string[]; tris: Record<string, number> }>;
     };
   } = {
-    source: 'KayKit by Kay Lousberg (www.kaylousberg.com), CC0',
+    source: `KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : ${QUATERNIUS.source}`,
     heroes: {},
     props: { file: '', bytes: 0, nodes: {} },
     enemies: { file: '', bytes: 0, lods: ENEMY_LODS, models: {} },
   };
   let total = 0;
 
-  // --- héros ---
+  // --- héros (phase 24 : Quaternius) ---
+  const sources: Record<string, Document> = {};
+  for (const [k, f] of Object.entries(ANIM_SOURCES)) sources[k] = await io.read(quaterniusPath(f));
+  const read = (f: string) => io.read(quaterniusPath(f));
+  const only = ARGS.includes('--only') ? ARGS[ARGS.indexOf('--only') + 1].split(',') : null;
   for (const [key, h] of Object.entries(HEROES)) {
-    const doc = await io.read(path.join(packDir(h.pack), h.file));
+    if (only && !only.includes(key)) continue;
+    const doc = await io.read(quaterniusPath(h.model));
     const root = doc.getRoot();
-    keepAnimations(doc, HERO_ANIMS, key);
-    // accessoires : maillages non skinnés absents de `keep` retirés (les parties du corps sont skinnées)
-    const keep = new Set(h.keep);
-    for (const n of root.listNodes()) if (n.getMesh() && !n.getSkin() && !keep.has(n.getName())) n.dispose();
+    const heroTris = await buildHero(doc, h, sources, read);
     await doc.transform(resample({ tolerance: 1e-3 }));
     const stripped = stripStaticTracks(doc);
-    // un seul volume de quantification pour tout le personnage : les parties du corps partagent le même repère et
-    // se fusionnent en une SkinnedMesh au chargement (src/render/heroes.ts)
     await doc.transform(
-      prune(),
+      prune({ keepAttributes: true }), // COLOR_1 (seconde tenue) n'est lu par aucun matériau : on le garde
       dedup(),
-      weld(),
       meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizationVolume: 'scene' }),
     );
-    console.log(`${key} : ${stripped} pistes immobiles retirées`);
     const file = `hero-${key}.glb`;
     const bin = await io.writeBinary(doc);
     fs.writeFileSync(path.join(OUT, file), bin);
     if (bin.byteLength > BUDGET.heroBytes) throw new Error(`${file} : ${bin.byteLength} o > ${BUDGET.heroBytes}`);
     total += bin.byteLength;
-    manifest.heroes[key] = {
-      file,
-      bytes: bin.byteLength,
-      tris: tris(doc),
-      anims: root.listAnimations().map((a) => a.getName()),
-      meshes: root
-        .listNodes()
-        .filter((n) => n.getMesh())
-        .map((n) => n.getName()),
-    };
+    const anims = root.listAnimations().map((a) => a.getName());
+    const missing = HERO_CLIPS.filter((c) => !anims.includes(c.to));
+    if (missing.length) throw new Error(`${key} : clips absents ${missing.map((c) => c.to).join(', ')}`);
+    manifest.heroes[key] = { file, bytes: bin.byteLength, tris: heroTris, anims };
     console.log(
-      `${file.padEnd(26)} ${(bin.byteLength / 1024).toFixed(0).padStart(5)} Ko  ${manifest.heroes[key].tris} tris`,
+      `${file.padEnd(26)} ${(bin.byteLength / 1024).toFixed(0).padStart(5)} Ko  ${heroTris} tris, ${stripped} pistes immobiles retirées`,
     );
+  }
+  if (HEROES_ONLY) {
+    console.log(`héros seulement → ${OUT} (manifeste inchangé)`);
+    return;
   }
 
   // --- objets : un document par objet, transformations cuites, puis fusion dans props.glb ---

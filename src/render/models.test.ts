@@ -1,9 +1,10 @@
-// Phase 20 : le manifeste des modèles KayKit (src/render/models.json, produit par npm run assets) couvre le jeu.
+// Phase 20 : le manifeste des modèles (src/render/models.json, produit par npm run assets) couvre le jeu ; phase 24 :
+// héros Quaternius, un fichier par personnage.
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS } from '../sim/balance';
-import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_ANIMS, PROPS } from '../../tools/assets/config';
+import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_CLIPS, HEROES, PROPS } from '../../tools/assets/config';
 import { ENEMIES } from '../sim/balance';
 import { ENEMY_LOOKS } from './enemyModels';
 import { CLIP_NAMES, HERO_LOOKS } from './heroes';
@@ -11,20 +12,25 @@ import MANIFEST from './models.json';
 
 const DIR = path.resolve(import.meta.dirname, '../../public/models');
 
-describe('modèles KayKit (phase 20)', () => {
-  it('chaque personnage a un modèle, et ses accessoires existent dans le fichier', () => {
+describe('modèles (phases 20, 21, 24)', () => {
+  it('chaque personnage a son propre modèle de héros, construit au budget de triangles', () => {
+    const files = new Set<string>();
     for (const c of CHARACTERS) {
       const look = HERO_LOOKS[c.key];
       expect(look, c.key).toBeDefined();
       const hero = MANIFEST.heroes[look.model];
       expect(hero, `${c.key} → ${look.model}`).toBeDefined();
-      for (const m of look.show) expect(hero.meshes, `${c.key} : ${m}`).toContain(m);
+      expect(hero.tris, c.key).toBeLessThanOrEqual(HEROES[c.key].tris * 1.15);
+      files.add(hero.file);
     }
+    expect(files.size).toBe(CHARACTERS.length); // neuf silhouettes distinctes
+    expect(new Set(Object.values(HEROES).map((h) => h.model)).size).toBe(CHARACTERS.length);
   });
-  it('chaque héros porte toutes les animations jouées par le rendu', () => {
+  it('chaque héros porte toutes les animations jouées par le rendu, dans l’ordre de HeroAnim', () => {
+    expect(CLIP_NAMES).toEqual(HERO_CLIPS.map((c) => c.to));
     for (const [key, h] of Object.entries(MANIFEST.heroes)) {
       for (const a of CLIP_NAMES) expect(h.anims, `${key} : ${a}`).toContain(a);
-      expect(h.anims.length, key).toBe(HERO_ANIMS.length); // rien de plus : le poids est dans les animations
+      expect(h.anims.length, key).toBe(HERO_CLIPS.length); // rien de plus : le poids est dans les animations
     }
   });
   it('les fichiers référencés existent, à la taille annoncée, dans le budget', () => {
@@ -76,10 +82,12 @@ describe('modèles KayKit (phase 20)', () => {
     expect(bytes).toBe(MANIFEST.enemies.bytes);
     expect(bytes).toBeLessThanOrEqual(BUDGET.enemyBytes);
   });
-  it('le crédit CC0 est porté par le manifeste et CREDITS.md', () => {
+  it('les crédits CC0 sont portés par le manifeste et CREDITS.md', () => {
     expect(MANIFEST.source).toMatch(/KayKit.*Kay Lousberg.*CC0/);
+    expect(MANIFEST.source).toMatch(/Quaternius.*CC0/);
     const credits = fs.readFileSync(path.resolve(import.meta.dirname, '../../CREDITS.md'), 'utf8');
     expect(credits).toMatch(/KayKit/);
     expect(credits).toMatch(/Kay Lousberg/);
+    expect(credits).toMatch(/Quaternius/);
   });
 });

@@ -9,54 +9,143 @@ export const PACKS = {
 } as const;
 export type PackKey = keyof typeof PACKS;
 
-/** Animations gardées sur chaque héros (les 76 d'origine pèsent 3,5 Mo par fichier). */
-export const HERO_ANIMS = [
-  'Idle',
-  'Running_A',
-  'Jump_Start',
-  'Jump_Idle',
-  'Jump_Land',
-  'Hit_A',
-  'Death_A',
-  'Cheer',
-  'Dodge_Forward', // Bond, Comète
-  '2H_Melee_Attack_Spin', // Tourbillon
-  'Spellcast_Shoot', // Clignement, Éclat
-  'Throw', // Collet, Bourse
-  'Spellcast_Long', // Voile
-  'Spellcast_Raise', // Pétard (bras levés pendant l'envol)
-] as const;
+/**
+ * Phase 24 : héros Quaternius (CC0, quaternius.com), personnages modulaires adultes. Ils n'ont aucune animation : on leur
+ * cuit celles du personnage du Cyberpunk Game Kit et du Platformer Game Kit (même auteur, mêmes noms d'os) par
+ * reciblage (tools/assets/retarget.ts). Les fichiers viennent du miroir public quaternius-showcase (LICENSES.md : CC0).
+ */
+export const QUATERNIUS = {
+  repo: 'https://github.com/trebeljahr/quaternius-showcase',
+  dir: 'public/glb',
+  source: 'Quaternius (quaternius.com), CC0',
+} as const;
+export const ANIM_SOURCES = {
+  cyber: 'cyberpunk_pack/Character.glb',
+  plat: 'platformer_game_pack/Character.glb',
+} as const;
+type AnimSource = keyof typeof ANIM_SOURCES;
+const FIST = { 'Fist.L': 'Hand.L', 'Fist.R': 'Hand.R' }; // le personnage plateforme a des poings, pas de mains
 
 /**
- * Un fichier par modèle de héros. `keep` : maillages d'accessoires conservés (les autres sont retirés) ; chaque personnage
- * choisit ensuite les siens à l'exécution (src/render/heroes.ts).
+ * Clips produits sur chaque héros, dans l'ordre de HeroAnim (src/render/heroes.ts). `inPlace` : le jeu déplace le
+ * héros, le clip ne doit pas le faire (roulade, sauts). `speed` : clip raccourci pour coller à la durée du sort.
  */
-export const HEROES: Record<string, { pack: PackKey; file: string; keep: string[] }> = {
-  rogue: { pack: 'adventurers', file: 'Characters/gltf/Rogue.glb', keep: ['Knife', 'Rogue_Cape'] },
-  rogue_hooded: {
-    pack: 'adventurers',
-    file: 'Characters/gltf/Rogue_Hooded.glb',
-    keep: ['Knife', 'Rogue_Cape', '1H_Crossbow'],
+export const HERO_CLIPS: {
+  to: string;
+  src: AnimSource;
+  from: string;
+  speed?: number;
+  inPlace?: boolean;
+  names?: Record<string, string>;
+}[] = [
+  { to: 'Idle', src: 'cyber', from: 'Idle_Neutral' },
+  { to: 'Run', src: 'cyber', from: 'Run' },
+  { to: 'Jump_Start', src: 'plat', from: 'Jump', inPlace: true, names: FIST },
+  { to: 'Jump_Idle', src: 'plat', from: 'Jump_Idle', inPlace: true, names: FIST },
+  { to: 'Jump_Land', src: 'plat', from: 'Jump_Land', inPlace: true, names: FIST },
+  { to: 'Hit', src: 'cyber', from: 'HitRecieve' },
+  { to: 'Death', src: 'cyber', from: 'Death' },
+  { to: 'Cheer', src: 'cyber', from: 'Wave' },
+  { to: 'Dash', src: 'cyber', from: 'Roll', inPlace: true, speed: 1.6 }, // Bond, Comète
+  { to: 'Spin', src: 'cyber', from: 'Sword_Slash' }, // Tourbillon
+  { to: 'Cast', src: 'cyber', from: 'Gun_Shoot' }, // Clignement, Éclat
+  { to: 'Throw', src: 'cyber', from: 'Punch_Right' }, // Collet, Bourse
+  { to: 'Long', src: 'cyber', from: 'Interact' }, // Voile
+  { to: 'Raise', src: 'plat', from: 'Wave', names: FIST, speed: 1.5 }, // Pétard (bras levé pendant l'envol)
+];
+
+/**
+ * Objet tenu : fichier du miroir, os porteur, longueur voulue (m, le long de son axe vertical : les objets Quaternius
+ * sont exportés à ≈ 5 m), point de prise (0 = bas, 1 = haut), rotation (degrés, XYZ) et décalage (m) dans le repère
+ * de l'os.
+ */
+export interface HeroProp {
+  file: string;
+  bone: 'Hand.R' | 'Hand.L';
+  size: number;
+  grip: number;
+  rot: [number, number, number];
+  pos?: [number, number, number];
+}
+
+/**
+ * Un fichier par personnage. `colors` : couleurs de matériaux remplacées (sRGB) pour la tenue de base ; tenue 2 :
+ * teinte décalée de `hue` degrés (peau, yeux, cheveux, métaux épargnés), puis `colors2`. `tris` : triangles visés pour
+ * le corps et ses objets fusionnés (un seul appel de rendu, plus la coque de contour).
+ */
+export const HEROES: Record<
+  string,
+  {
+    model: string;
+    props: HeroProp[];
+    hue: number;
+    colors?: Record<string, string>;
+    colors2?: Record<string, string>;
+    tris: number;
+  }
+> = {
+  eclaireuse: {
+    model: 'modular_women/Adventurer.glb',
+    props: [{ file: 'medieval_weapons_pack/Dagger.glb', bone: 'Hand.R', size: 0.45, grip: 0.2, rot: [0, 0, -90] }],
+    hue: 150,
+    tris: 6000,
   },
-  barbarian: {
-    pack: 'adventurers',
-    file: 'Characters/gltf/Barbarian.glb',
-    keep: ['2H_Axe', 'Mug', 'Barbarian_Hat', 'Barbarian_Cape'],
+  bucheron: {
+    model: 'modular_men/Farmer.glb',
+    props: [{ file: 'medieval_weapons_pack/Axe.glb', bone: 'Hand.R', size: 0.95, grip: 0.15, rot: [0, 0, -90] }],
+    hue: 200,
+    colors: { Beige: '#8f2a24', LightBlue: '#3b4a63' }, // chemise rouge, salopette en toile
+    tris: 6000,
   },
-  mage: {
-    pack: 'adventurers',
-    file: 'Characters/gltf/Mage.glb',
-    keep: ['2H_Staff', '1H_Wand', 'Mage_Hat', 'Mage_Cape'],
+  sorciere: {
+    model: 'modular_women/Witch.glb',
+    props: [{ file: 'rpg_items_pack/Crystal1.glb', bone: 'Hand.L', size: 0.3, grip: 0.5, rot: [0, 0, 90] }],
+    hue: 120,
+    tris: 6000,
   },
-  knight: {
-    pack: 'adventurers',
-    file: 'Characters/gltf/Knight.glb',
-    keep: ['1H_Sword', 'Round_Shield', 'Knight_Helmet', 'Knight_Cape'],
+  veilleuse: {
+    model: 'modular_women/Medieval.glb',
+    colors2: { LightBrown: '#2f4b6e', DarkBrown: '#1e2f47' }, // cuir bleu nuit
+    props: [
+      { file: 'survival_pack/WoodenTorch_Fire.glb', bone: 'Hand.L', size: 0.6, grip: 0.2, rot: [0, 0, 90] },
+      { file: 'medieval_weapons_pack/Sword.glb', bone: 'Hand.R', size: 1.0, grip: 0.15, rot: [0, 0, -90] },
+    ],
+    hue: 200,
+    tris: 6000,
   },
-  skeleton_rogue: {
-    pack: 'skeletons',
-    file: 'Characters/gltf/Skeleton_Rogue.glb',
-    keep: ['Skeleton_Rogue_Hood', 'Skeleton_Rogue_Cape'],
+  braconnier: {
+    model: 'modular_men/Adventurer.glb',
+    props: [{ file: 'medieval_weapons_pack/Bow_Wooden.glb', bone: 'Hand.L', size: 1.2, grip: 0.5, rot: [0, 0, 0] }],
+    hue: 90,
+    tris: 6000,
+  },
+  sapeur: {
+    model: 'modular_men/Worker.glb',
+    props: [{ file: 'survival_pack/Shovel.glb', bone: 'Hand.R', size: 1.15, grip: 0.75, rot: [0, 0, -90] }],
+    hue: 260,
+    tris: 6000,
+  },
+  feufollet: {
+    model: 'modular_women/Punk.glb',
+    props: [],
+    hue: 320,
+    colors: { Pink: '#d9561c', Hair_Brown: '#ff8a1f' }, // flamme orange
+    colors2: { Pink: '#2f7fd6', Hair_Brown: '#7fd4ff' }, // flamme bleue
+    tris: 6000,
+  },
+  revenante: {
+    model: 'modular_women/Formal.glb',
+    colors: { LimeGreen: '#8fa3b8', Skin: '#b3bcc4', Red: '#e3e6ec' }, // robe spectrale, peau blême, cheveux blancs
+    colors2: { LimeGreen: '#4e3f6e', Skin: '#b3bcc4', Red: '#2b2a33' },
+    props: [{ file: 'medieval_weapons_pack/Scythe.glb', bone: 'Hand.R', size: 1.7, grip: 0.4, rot: [0, 0, -90] }],
+    hue: 200,
+    tris: 6000,
+  },
+  colporteur: {
+    model: 'modular_men/King.glb',
+    props: [{ file: 'rpg_items_pack/Pouch.glb', bone: 'Hand.L', size: 0.28, grip: 0.95, rot: [0, 0, 90] }],
+    hue: 100,
+    tris: 6000,
   },
 };
 

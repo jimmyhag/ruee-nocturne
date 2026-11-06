@@ -1,9 +1,8 @@
-// Phase 20 : héros en vrais modèles animés (KayKit, CC0, Kay Lousberg). Neuf personnages sur six modèles,
-// distingués par leurs accessoires, leur teinte et leur échelle ; les tenues décalent la teinte de la texture palette.
-// Le corps (plusieurs SkinnedMesh sur un même squelette) est fusionné en UNE SkinnedMesh + une coque de contour :
-// 2 appels de rendu, plus un par accessoire. Le modèle procédural (characters.ts) reste le repli tant que rien n'est chargé.
+// Phase 20 : héros en vrais modèles animés ; phase 24 : personnages Quaternius (CC0), adultes, un modèle par personnage.
+// Chaque fichier contient UNE SkinnedMesh (corps et objets tenus fusionnés au build, couleurs par sommet : COLOR_0 pour la
+// tenue de base, COLOR_1 pour la seconde) + les clips reciblés (tools/assets/heroes.ts). Au chargement : un appel de
+// rendu pour le corps, un pour la coque de contour. Le modèle procédural (characters.ts) reste le repli.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { CharacterKey, Spell } from '../sim/types';
 import { PAL } from './palette';
@@ -13,42 +12,32 @@ import type { HeroModelKey } from './models';
 import { OUTLINE, toonGradient } from './toon';
 
 interface HeroLook {
+  /** clé du fichier dans le manifeste (= clé du personnage) */
   model: HeroModelKey;
-  /** accessoires visibles (noms de maillages du glTF) */
-  show: string[];
-  /** décalage de teinte (degrés) par tenue ; la peau est épargnée */
-  hues: [number, number];
   scale?: number;
   float?: boolean;
-  /** lueur propre (Feu follet) */
+  /** lueur propre (Feu follet, Revenante) */
   emissive?: number;
   /** halo au sol (Veilleuse, Feu follet) : rayon, opacité, couleur */
   groundGlow?: { r: number; opacity: number; color: number };
 }
 
 export const HERO_LOOKS: Record<CharacterKey, HeroLook> = {
-  eclaireuse: { model: 'rogue', show: ['Knife', 'Rogue_Cape'], hues: [0, 150] },
-  bucheron: { model: 'barbarian', show: ['2H_Axe', 'Barbarian_Cape'], hues: [0, 200], scale: 1.06 },
-  sorciere: { model: 'mage', show: ['2H_Staff', 'Mage_Hat', 'Mage_Cape'], hues: [0, 120] },
-  veilleuse: {
-    model: 'knight',
-    show: ['1H_Sword', 'Knight_Cape'],
-    hues: [200, 300],
-    groundGlow: { r: 1.1, opacity: 0.28, color: PAL.lantern },
-  },
-  braconnier: { model: 'rogue_hooded', show: ['1H_Crossbow', 'Rogue_Cape'], hues: [0, 90] },
-  sapeur: { model: 'knight', show: ['Knight_Helmet', 'Round_Shield'], hues: [40, 260], scale: 0.96 },
+  eclaireuse: { model: 'eclaireuse' },
+  bucheron: { model: 'bucheron', scale: 1.04 },
+  sorciere: { model: 'sorciere' },
+  veilleuse: { model: 'veilleuse', groundGlow: { r: 1.1, opacity: 0.28, color: PAL.lantern } },
+  braconnier: { model: 'braconnier' },
+  sapeur: { model: 'sapeur', scale: 0.97 },
   feufollet: {
-    model: 'mage',
-    show: ['1H_Wand'],
-    hues: [25, 320],
-    scale: 0.9,
+    model: 'feufollet',
+    scale: 0.92,
     float: true,
     emissive: 0x4a1d00,
     groundGlow: { r: 0.9, opacity: 0.35, color: PAL.accent },
   },
-  revenante: { model: 'skeleton_rogue', show: ['Skeleton_Rogue_Hood', 'Skeleton_Rogue_Cape'], hues: [0, 200] },
-  colporteur: { model: 'barbarian', show: ['Mug', 'Barbarian_Hat', 'Barbarian_Cape'], hues: [100, 280] },
+  revenante: { model: 'revenante', emissive: 0x16202e },
+  colporteur: { model: 'colporteur' },
 };
 
 /** Taille visée (u) : celle des modèles procéduraux, pour que la caméra et les effets restent calés. */
@@ -71,21 +60,22 @@ export const enum HeroAnim {
   SpellLong,
   SpellRaise,
 }
+/** Clips produits par tools/assets/config.ts (HERO_CLIPS), dans l'ordre de HeroAnim. */
 export const CLIP_NAMES = [
   'Idle',
-  'Running_A',
+  'Run',
   'Jump_Start',
   'Jump_Idle',
   'Jump_Land',
-  'Hit_A',
-  'Death_A',
+  'Hit',
+  'Death',
   'Cheer',
-  'Dodge_Forward',
-  '2H_Melee_Attack_Spin',
-  'Spellcast_Shoot',
+  'Dash',
+  'Spin',
+  'Cast',
   'Throw',
-  'Spellcast_Long',
-  'Spellcast_Raise',
+  'Long',
+  'Raise',
 ];
 /** Clips joués une fois (puis retour à l'état de fond) ; la mort reste figée sur sa dernière image. */
 const ONCE = new Set<HeroAnim>([
@@ -187,59 +177,11 @@ export interface HeroModel extends CharacterModel {
   anim: HeroAnimator;
 }
 
-// peau (et cuir) épargnés par le décalage de teinte : orangés pas trop saturés, assez clairs
-const SKIN_HUE_MIN = 0,
-  SKIN_HUE_MAX = 50;
-const texCache = new Map<string, THREE.Texture>();
-/** Texture palette décalée de `hue` degrés (peau épargnée) ; mise en cache par (modèle, teinte). */
-function tintedTexture(src: THREE.Texture, key: string, hue: number): THREE.Texture {
-  if (hue === 0) return src;
-  const id = `${key}:${hue}`;
-  const hit = texCache.get(id);
-  if (hit) return hit;
-  const img = src.image as CanvasImageSource & { width: number; height: number };
-  const c = document.createElement('canvas');
-  c.width = img.width;
-  c.height = img.height;
-  const ctx = c.getContext('2d', { willReadFrequently: true })!;
-  ctx.drawImage(img, 0, 0);
-  const d = ctx.getImageData(0, 0, c.width, c.height);
-  const px = d.data;
-  for (let i = 0; i < px.length; i += 4) {
-    const r = px[i] / 255,
-      g = px[i + 1] / 255,
-      b = px[i + 2] / 255;
-    const max = Math.max(r, g, b),
-      min = Math.min(r, g, b),
-      l = (max + min) / 2,
-      dd = max - min;
-    if (dd < 0.08) continue; // gris, noirs, blancs : métal, os, yeux inchangés
-    const s = l > 0.5 ? dd / (2 - max - min) : dd / (max + min);
-    let h = max === r ? (g - b) / dd + (g < b ? 6 : 0) : max === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
-    h *= 60;
-    if (h >= SKIN_HUE_MIN && h <= SKIN_HUE_MAX && s < 0.9 && l > 0.3) continue; // peau, cuir
-    h = (h + hue) % 360;
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s,
-      p = 2 * l - q;
-    const f = (t: number) => {
-      t = (t + 1) % 1;
-      return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p;
-    };
-    px[i] = f(h / 360 + 1 / 3) * 255;
-    px[i + 1] = f(h / 360) * 255;
-    px[i + 2] = f(h / 360 - 1 / 3) * 255;
-  }
-  ctx.putImageData(d, 0, 0);
-  const t = new THREE.CanvasTexture(c);
-  t.flipY = src.flipY;
-  t.colorSpace = src.colorSpace;
-  t.magFilter = src.magFilter;
-  t.minFilter = src.minFilter;
-  texCache.set(id, t);
-  return t;
-}
-
-/** Coque de contour : même peau, faces arrière, poussée le long de la normale dans le vertex shader. */
+/**
+ * Coque de contour : même peau, faces arrière, poussée le long de la normale dans le vertex shader. La poussée suit
+ * l'attribut `normal` (espace des sommets) : `objectNormal` est déjà skinnée à ce stade, et la position le sera
+ * ensuite. Épaisseur en uniform : un seul programme pour les neuf héros (pas de compilation à chaque changement).
+ */
 function outlineMaterial(thickness: number): THREE.MeshBasicMaterial {
   // décalage de profondeur : là où la coque frôle le visage (orbites, mèches), les faces avant gagnent toujours
   const m = new THREE.MeshBasicMaterial({
@@ -250,45 +192,26 @@ function outlineMaterial(thickness: number): THREE.MeshBasicMaterial {
     polygonOffsetUnits: 16,
   });
   m.onBeforeCompile = (s) => {
-    s.vertexShader = s.vertexShader.replace(
-      '#include <begin_vertex>',
-      `#include <begin_vertex>\n transformed += normalize(objectNormal) * ${thickness.toFixed(4)};`,
-    );
+    s.uniforms.outlineT = { value: thickness };
+    s.vertexShader = s.vertexShader
+      .replace('void main() {', 'uniform float outlineT;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += normalize(normal) * outlineT;');
   };
-  m.customProgramCacheKey = () => `hero-outline-${thickness}`;
+  m.customProgramCacheKey = () => 'hero-outline-2';
   return m;
 }
 
-/** Fusionne des SkinnedMesh d'un même squelette : attributs communs (UV nulles si absentes), sans index. */
-function mergeSkinned(parts: THREE.SkinnedMesh[]): THREE.BufferGeometry {
-  const geos = parts.map((s) => {
-    let g = s.geometry.clone();
-    if (g.index) g = g.toNonIndexed();
-    for (const n of Object.keys(g.attributes))
-      if (!['position', 'normal', 'uv', 'skinIndex', 'skinWeight'].includes(n)) g.deleteAttribute(n);
-    const count = g.attributes.position.count;
-    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(count * 2), 2));
-    // types homogènes (la quantification peut différer d'une partie à l'autre) : tout en flottants
-    for (const n of ['position', 'normal', 'uv', 'skinWeight']) {
-      const a = g.attributes[n] as THREE.BufferAttribute | undefined;
-      if (!a || a.array instanceof Float32Array) continue;
-      const f = new Float32Array(a.count * a.itemSize);
-      for (let i = 0; i < a.count; i++)
-        for (let k = 0; k < a.itemSize; k++) f[i * a.itemSize + k] = a.getComponent(i, k);
-      g.setAttribute(n, new THREE.BufferAttribute(f, a.itemSize));
-    }
-    const si = g.attributes.skinIndex as THREE.BufferAttribute;
-    if (!(si.array instanceof Uint16Array)) {
-      const u = new Uint16Array(si.count * 4);
-      for (let i = 0; i < si.count; i++) for (let k = 0; k < 4; k++) u[i * 4 + k] = si.getComponent(i, k);
-      g.setAttribute('skinIndex', new THREE.BufferAttribute(u, 4));
-    }
-    return g;
-  });
-  const merged = geos.length > 1 ? mergeGeometries(geos) : geos[0];
-  if (!merged) throw new Error('fusion du corps impossible');
-  for (const g of geos) if (g !== merged) g.dispose();
-  return merged;
+/**
+ * Géométrie du corps pour la tenue `skin` : copie propre au héros (la seconde tenue remplace les couleurs par COLOR_1),
+ * réduite aux attributs lus par le rendu.
+ */
+function heroGeometry(src: THREE.BufferGeometry, skin: number): THREE.BufferGeometry {
+  const g = src.clone();
+  const alt = g.attributes.color_1;
+  if (skin > 0 && alt) g.setAttribute('color', alt);
+  for (const n of Object.keys(g.attributes))
+    if (!['position', 'normal', 'color', 'skinIndex', 'skinWeight'].includes(n)) g.deleteAttribute(n);
+  return g;
 }
 
 /** Normales moyennées par position (coque de contour sans fentes sur un modèle à faces plates). */
@@ -296,8 +219,11 @@ function smoothNormals(g: THREE.BufferGeometry): THREE.BufferGeometry {
   const pos = g.attributes.position,
     nor = g.attributes.normal;
   const acc = new Map<string, [number, number, number]>();
+  g.computeBoundingBox();
+  const size = g.boundingBox!.getSize(new THREE.Vector3());
+  const q = 1e4 / Math.max(1e-9, size.x, size.y, size.z); // pas de soudure : 1/10 000 de la taille du modèle
   const key = (i: number) =>
-    `${Math.round(pos.getX(i) * 1e3)},${Math.round(pos.getY(i) * 1e3)},${Math.round(pos.getZ(i) * 1e3)}`;
+    `${Math.round(pos.getX(i) * q)},${Math.round(pos.getY(i) * q)},${Math.round(pos.getZ(i) * q)}`;
   for (let i = 0; i < pos.count; i++) {
     const k = key(i);
     const a = acc.get(k) ?? [0, 0, 0];
@@ -309,7 +235,14 @@ function smoothNormals(g: THREE.BufferGeometry): THREE.BufferGeometry {
   const out = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
     const a = acc.get(key(i))!;
-    const l = Math.hypot(a[0], a[1], a[2]) || 1;
+    const l = Math.hypot(a[0], a[1], a[2]);
+    if (l < 1e-6) {
+      // normales opposées qui s'annulent : on garde celle du sommet (jamais de normale nulle, NaN sur certains GPU)
+      out[i * 3] = nor.getX(i);
+      out[i * 3 + 1] = nor.getY(i);
+      out[i * 3 + 2] = nor.getZ(i);
+      continue;
+    }
     out[i * 3] = a[0] / l;
     out[i * 3 + 1] = a[1] / l;
     out[i * 3 + 2] = a[2] / l;
@@ -319,8 +252,8 @@ function smoothNormals(g: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 /**
- * Construit un héros glTF (asynchrone : le fichier est chargé au besoin). `onReady` n'est appelé que si le chargement
- * réussit ; sinon la scène garde le modèle procédural.
+ * Construit un héros glTF (asynchrone : le fichier est chargé au besoin). Rejeté si le chargement échoue : la scène
+ * garde alors le modèle procédural.
  */
 export async function buildHero(key: CharacterKey, skin = 0): Promise<HeroModel> {
   const look = HERO_LOOKS[key];
@@ -328,80 +261,49 @@ export async function buildHero(key: CharacterKey, skin = 0): Promise<HeroModel>
   const gltf = await loadGLTF(entry.file);
   const root = cloneSkinned(gltf.scene) as THREE.Group;
   const disposables: { dispose(): void }[] = [];
-  const show = new Set(look.show);
-  // corps : toutes les SkinnedMesh fusionnées en une (même squelette, même texture)
-  const skinned: THREE.SkinnedMesh[] = [];
-  let srcMap: THREE.Texture | null = null;
+  let src: THREE.SkinnedMesh | null = null;
   root.traverse((o) => {
-    const sm = o as THREE.SkinnedMesh;
-    if (sm.isSkinnedMesh) skinned.push(sm);
-    const m = o as THREE.Mesh;
-    if (m.isMesh) {
-      const mat = m.material as THREE.MeshStandardMaterial;
-      if (mat.map && mat.name !== 'Glow') srcMap ??= mat.map;
-    }
+    if ((o as THREE.SkinnedMesh).isSkinnedMesh) src ??= o as THREE.SkinnedMesh;
   });
-  const map = srcMap ? tintedTexture(srcMap, look.model, look.hues[Math.min(skin, 1)]) : null;
-  const toon = new THREE.MeshToonMaterial({ map, gradientMap: toonGradient() });
+  if (!src) throw new Error(`héros ${key} : pas de corps skinné`);
+  const first: THREE.SkinnedMesh = src;
+  const toon = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
   if (look.emissive) toon.emissive.setHex(look.emissive);
   disposables.push(toon);
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0xbfe8ff });
-  disposables.push(glowMat);
-  let body: THREE.SkinnedMesh | null = null;
-  if (skinned.length) {
-    const first = skinned[0];
-    // parties lumineuses (yeux du squelette, matériau « Glow ») à part ; le reste en une seule SkinnedMesh
-    const isGlow = (m: THREE.SkinnedMesh) => (m.material as THREE.Material).name === 'Glow';
-    const lit = skinned.filter((m) => !isGlow(m)),
-      glow = skinned.filter(isGlow);
-    const merged = mergeSkinned(lit);
-    disposables.push(merged);
-    body = new THREE.SkinnedMesh(merged, toon);
-    body.name = 'hero-body';
-    body.bind(first.skeleton, first.bindMatrix);
-    body.frustumCulled = false;
-    first.parent!.add(body);
-    // contour : normales lissées par position (les faces plates fendraient la coque et laisseraient des traits)
-    const hull = smoothNormals(merged.clone());
-    disposables.push(hull);
-    const outline = new THREE.SkinnedMesh(hull, outlineMaterial(OUTLINE.player));
-    outline.bind(first.skeleton, first.bindMatrix);
-    outline.frustumCulled = false;
-    disposables.push(outline.material as THREE.Material);
-    first.parent!.add(outline);
-    if (glow.length) {
-      const gm = new THREE.SkinnedMesh(mergeSkinned(glow), glowMat);
-      gm.bind(first.skeleton, first.bindMatrix);
-      gm.frustumCulled = false;
-      disposables.push(gm.geometry);
-      first.parent!.add(gm);
-    }
-    for (const s of skinned) s.removeFromParent();
-    disposables.push(first.skeleton); // squelette cloné : sa texture d'os (boneTexture) est propre à ce héros
-  }
-  // accessoires : les choisis restent (matériau toon de la tenue), les autres sont cachés
-  root.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || m === body) return;
-    if (!show.has(m.name)) {
-      m.visible = false;
-      return;
-    }
-    const mat = m.material as THREE.MeshStandardMaterial;
-    m.material = mat.name === 'Glow' ? glowMat : toon;
-    m.frustumCulled = false;
-  });
+  const geo = heroGeometry(first.geometry, skin);
+  disposables.push(geo);
+  const body = new THREE.SkinnedMesh(geo, toon);
+  body.name = 'hero-body';
+  body.bind(first.skeleton, first.bindMatrix);
+  body.frustumCulled = false;
+  first.parent!.add(body);
+  first.removeFromParent();
+  disposables.push(first.skeleton); // squelette cloné : sa texture d'os (boneTexture) est propre à ce héros
   // taille et pose : pieds au sol, hauteur HEIGHT, regard vers +z (comme les modèles procéduraux)
   const box = new THREE.Box3().setFromObject(root, true);
   const h = Math.max(0.01, box.max.y - box.min.y);
   const s = (HEIGHT / h) * (look.scale ?? 1);
   root.scale.setScalar(s);
   root.position.y = -box.min.y * s + (look.float ? 0.25 : 0);
+  // contour : normales lissées par position (les faces plates fendraient la coque). La poussée se fait dans l'espace
+  // des sommets (avant le skinning) : épaisseur voulue ramenée à cette échelle (diagonales de repos monde / sommets).
+  geo.computeBoundingBox();
+  const k =
+    (box.getSize(new THREE.Vector3()).length() * s) /
+    Math.max(1e-9, geo.boundingBox!.getSize(new THREE.Vector3()).length());
+  const hull = smoothNormals(geo.clone());
+  hull.deleteAttribute('color'); // la coque est unie
+  disposables.push(hull);
+  const outline = new THREE.SkinnedMesh(hull, outlineMaterial(OUTLINE.player / k));
+  outline.bind(first.skeleton, first.bindMatrix);
+  outline.frustumCulled = false;
+  disposables.push(outline.material as THREE.Material);
+  body.parent!.add(outline);
   const torso = new THREE.Group();
   torso.add(root);
   const group = new THREE.Group();
   group.add(torso);
-  // silhouette de dash : la scène garde celle du modèle procédural (quelques centaines de triangles, contre ≈ 4 k pour
+  // silhouette de dash : la scène garde celle du modèle procédural (quelques centaines de triangles, contre ≈ 6 k pour
   // le corps glTF ; 6 fantômes à la fois pendant le Voile)
   const silhouette = new THREE.BufferGeometry();
   disposables.push(silhouette);

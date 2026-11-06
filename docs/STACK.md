@@ -54,7 +54,7 @@
 
 ## Phase 20 (5 nov. 2026)
 
-- Modèles KayKit (CC0) : 6 fichiers de héros (370 à 410 ko, 185 à 210 ko gzip) et `props.glb` (316 ko, 206 ko gzip), 2,6 Mo en tout. Un joueur ne télécharge que son héros et les objets (≈ 390 ko gzip) : pas de précache, `runtimeCaching` CacheFirst sur `/models/`.
+- Modèles KayKit (CC0) : `props.glb` (316 ko, 206 ko gzip). Phase 24 : 9 fichiers de héros Quaternius (CC0, 265 à 285 ko ; ≈ 6 000 triangles, couleurs par sommet, clips reciblés au build), 3,4 Mo en tout avec les ennemis. Un joueur ne télécharge que son héros et les objets (≈ 390 ko gzip) : pas de précache, `runtimeCaching` CacheFirst sur `/models/`.
 - `src/render/models.ts` : `GLTFLoader` + `MeshoptDecoder` (three/examples), cache par fichier, nouvel essai après un échec. `loadProps()` déquantifie (`toFloat`) avant de cuire les transformations, sinon `applyMatrix4` écrase les Int16 normalisés.
 - `src/render/heroes.ts` : `SkeletonUtils.clone`, parties skinnées fusionnées en une `SkinnedMesh` (quantification `scene` à l'export, indispensable), coque de contour à normales lissées, `HeroAnimator` (fond + ponctuels, zéro allocation).
 - Les modèles procéduraux restent le repli tant que rien n'est chargé (hors ligne à la première visite, réseau bloqué : test e2e).

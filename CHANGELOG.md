@@ -2,6 +2,29 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.19.0 — 6 nov. 2026 (phase 24 « Nouveaux avatars »)
+
+Les neuf personnages changent complètement de look : fini le style chibi, place à des héros adultes, plus fantasy, chacun avec sa silhouette.
+
+### Modifié
+
+- **Neuf nouveaux modèles** (Quaternius, CC0), un par personnage :
+
+  | Personnage | Nouveau look                             |
+  | ---------- | ---------------------------------------- |
+  | Éclaireuse | aventurière, dague                       |
+  | Bûcheron   | chemise rouge, salopette, chapeau, hache |
+  | Sorcière   | chapeau pointu, robe violette, cristal   |
+  | Veilleuse  | armure de cuir, épée et torche           |
+  | Braconnier | barbe, sac à dos, arc                    |
+  | Sapeur     | casque de chantier, gilet, pelle         |
+  | Feu follet | crête et cheveux de flamme, flotte       |
+  | Revenante  | robe spectrale, peau blême, faux         |
+  | Colporteur | vieux roi couronné, bourse               |
+
+- **Animations** : course, repos, saut, coup reçu, mort et une animation par sort, reprises des personnages animés du même auteur.
+- **Tenues** : la seconde tenue de chaque personnage change les couleurs de ses vêtements (peau, cheveux et métal gardés).
+
 ## 1.18.0 — 6 nov. 2026 (phase 23 « Cartes de niveau variées »)
 
 Les cartes de montée de niveau ne répètent plus la même ligne, et il y a beaucoup plus de façons de s'améliorer.
