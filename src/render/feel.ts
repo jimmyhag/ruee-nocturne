@@ -52,6 +52,22 @@ export const FEEL = {
     dashGhostLife: 0.3,
     bladeGhosts: 3,
   },
+  // phase 30 : effets d'armes stylisés (rendu seulement)
+  bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
+  glow: {
+    orbCore: 0.8, // u : cœur de l'Orbe…
+    orbHalo: 2.1, // …et son halo
+    orbTrail: 1.4, // premier fantôme de traînée (décroît)
+    fireCore: 0.95, // boule de feu du Sorcier
+    fireHalo: 2.4,
+    meteorCore: 1.1, // météore qui tombe
+    meteorHalo: 2.6,
+    meteorFall: 14, // u : hauteur de départ de la chute (pendant l'annonce)
+    lanceTip: 1.5, // pointe lumineuse de la Lance
+    mineHalo: 1.5, // pouls des mines armées
+    boomTrail: 1.2, // traînée du boomerang
+  },
+  slash: { life: 0.2, sweep: 0.5, max: 8 }, // Faux : durée de l'arc (s), balayage (rad) pendant sa vie, arcs en même temps
   damageNumbers: {
     rise: 1.8, // u/s
     life: 0.6,

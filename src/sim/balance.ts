@@ -537,7 +537,7 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
   foudre: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
-    { stat: 'chain', step: 1, kind: 'add', max: 10, weight: 1.5 },
+    { stat: 'chain', step: 1, kind: 'add', max: 10, weight: 3 }, // phase 30 : les ricochets arrivent avec les cartes
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
     { stat: 'stun', step: 0.05, kind: 'add', max: 5, weight: 2 }, // chance d'étourdir (CRIT.stunT), pas les boss
   ],
@@ -809,7 +809,7 @@ export const SYN = {
   tome: 3,
   hp: 20, // PV max par synergie, × son rang
   armor: 0.03, // armure par synergie, × son rang (plafond TOME_CAPS.armorMax)
-  orage: { chain: 4 }, // Cadence + Foudre
+  orage: { chain: 3 }, // Cadence + Foudre (phase 30 : +4 → +3)
   essaim: { pierce: 1, n: 1 }, // Projectiles + Orbe (la seule paire du kit de départ de l'Éclaireuse : modérée)
   brasier: { dmg: 0.8 }, // Dégâts + Halo
   tourbillon: { spd: 0.6, r: 0.25 }, // Mouvement + Lames

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { FEEL } from './feel';
 import { InstanceWriter, makeInstanced } from './instancing';
-import { hardDiscTexture } from './textures';
+import { beamTexture, hardDiscTexture } from './textures';
 import { PAL } from './palette';
 
 const TAU = Math.PI * 2;
@@ -141,37 +141,60 @@ export class Particles {
   }
 }
 
-const BOLT_CAP = 800;
+const BOLT_MAX = 40; // éclairs vivants en même temps
+const BOLT_SEG = 6; // segments en zigzag par éclair
+/**
+ * Éclairs (phase 30) : chaque segment du zigzag est un rayon (quad orienté vers la caméra) en deux couches additives,
+ * une lueur cyan large et un cœur blanc fin ; un seul appel. Les lignes de 1 px d'avant étaient invisibles sur
+ * téléphone (WebGL ignore la largeur des lignes).
+ */
 export class Bolts {
   ground: GroundFn = FLAT;
-  private pos = new Float32Array(BOLT_CAP * 3);
-  private geo = new THREE.BufferGeometry();
-  private lines: THREE.LineSegments;
+  /** Inclinaison qui fait face à la caméra (comme les particules), posée par la scène à chaque frame. */
+  billboardRx = -0.87;
+  private w: InstanceWriter;
   private items: { pts: Float32Array; life: number }[] = [];
   private count = 0;
+  private cGlow = new THREE.Color();
+  private cCore = new THREE.Color();
+  private glowHex = new THREE.Color(PAL.boltGlow);
+  private coreHex = new THREE.Color(PAL.bolt);
   constructor(scene: THREE.Scene) {
-    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
-    this.geo.setDrawRange(0, 0);
-    this.lines = new THREE.LineSegments(this.geo, new THREE.LineBasicMaterial({ color: PAL.bolt }));
-    this.lines.frustumCulled = false;
-    scene.add(this.lines);
-    for (let i = 0; i < 40; i++) this.items.push({ pts: new Float32Array(7 * 3), life: 0 });
+    const mesh = makeInstanced(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        map: beamTexture(),
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      BOLT_MAX * BOLT_SEG * 2,
+    );
+    scene.add(mesh);
+    this.w = new InstanceWriter(mesh);
+    for (let i = 0; i < BOLT_MAX; i++) this.items.push({ pts: new Float32Array((BOLT_SEG + 1) * 3), life: 0 });
   }
   add(ax: number, ay: number, az: number, bx: number, by: number, bz: number): void {
-    const b = this.items[this.count < 40 ? this.count++ : 0];
+    const b = this.items[this.count < BOLT_MAX ? this.count++ : 0];
     ay += this.ground(ax, az);
     by += this.ground(bx, bz);
-    for (let i = 0; i <= 6; i++) {
-      const f = i / 6,
-        j = i === 0 || i === 6 ? 0 : 0.5;
+    for (let i = 0; i <= BOLT_SEG; i++) {
+      const f = i / BOLT_SEG,
+        j = i === 0 || i === BOLT_SEG ? 0 : FEEL.bolt.jitter;
       b.pts[i * 3] = ax + (bx - ax) * f + rnd(-j, j);
-      b.pts[i * 3 + 1] = ay + (by - ay) * f + rnd(-j, j);
+      b.pts[i * 3 + 1] = ay + (by - ay) * f + rnd(-j, j) * 0.5;
       b.pts[i * 3 + 2] = az + (bz - az) * f + rnd(-j, j);
     }
-    b.life = 0.16;
+    b.life = FEEL.bolt.life;
   }
   update(dt: number): void {
-    let v = 0;
+    const w = this.w,
+      rx = this.billboardRx,
+      cr = Math.cos(rx),
+      sr = Math.sin(rx);
+    w.begin();
     for (let i = this.count - 1; i >= 0; i--) {
       const b = this.items[i];
       b.life -= dt;
@@ -182,16 +205,28 @@ export class Bolts {
         this.items[i] = last;
         continue;
       }
-      for (let k = 0; k < 6 && v < BOLT_CAP - 2; k++) {
-        // copie indexée (pas de subarray : zéro vue TypedArray par frame)
-        const src = k * 3,
-          dst = v * 3;
-        for (let c = 0; c < 6; c++) this.pos[dst + c] = b.pts[src + c];
-        v += 2;
+      const f = b.life / FEEL.bolt.life; // 1 → 0 : l'éclair s'éteint en s'amincissant
+      this.cGlow.copy(this.glowHex).multiplyScalar(f);
+      this.cCore.copy(this.coreHex).multiplyScalar(Math.min(1, f * 1.6));
+      const P = b.pts;
+      for (let k = 0; k < BOLT_SEG; k++) {
+        const o = k * 3;
+        const dx = P[o + 3] - P[o],
+          dy = P[o + 4] - P[o + 1],
+          dz = P[o + 5] - P[o + 2];
+        // projection du segment dans le plan face à la caméra (base : x monde, et y monde incliné de rx)
+        const su = dx,
+          sv = dy * cr + dz * sr,
+          len = Math.sqrt(su * su + sv * sv) + 0.08,
+          rz = Math.atan2(sv, su);
+        const mx = P[o] + dx * 0.5,
+          my = P[o + 1] + dy * 0.5,
+          mz = P[o + 2] + dz * 0.5;
+        w.put(mx, my, mz, 0, len, this.cGlow, rx, rz, FEEL.bolt.glowW * (0.6 + 0.4 * f), 1);
+        w.put(mx, my, mz, 0, len, this.cCore, rx, rz, FEEL.bolt.coreW, 1);
       }
     }
-    this.geo.setDrawRange(0, v);
-    (this.geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    w.end();
   }
 }
 
