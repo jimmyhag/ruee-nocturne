@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.25.1 — 7 nov. 2026 (retour de Jimmy sur les éruptions)
+
+### Modifié
+
+- **Éruptions** : le cercle rouge apparaît toujours sous le héros, mais il ne le suit plus. Il pète là où il est apparu, un peu plus vite (0,65 s au lieu de 0,8 s) : on en sort en marchant, ou on le saute au bon moment.
+
 ## 1.25.0 — 7 nov. 2026 (phase 30 « Armes stylées »)
 
 ### Modifié

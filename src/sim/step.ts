@@ -523,13 +523,8 @@ function tickShots(w: World, dt: number): void {
       }
       if (s.life <= 0) w.freeShot(i);
     } else if (s.kind === ShotKind.Eruption) {
-      if (s.life > 0) {
-        // la fissure suit le joueur (plus vite qu'il ne marche) : seuls le saut et le dash l'esquivent
-        const dd = Math.sqrt(dx * dx + dz * dz);
-        const k = dd > 1e-6 ? Math.min(HAZARDS.eruption.track, dd / dt) / dd : 0;
-        s.vx = dx * k;
-        s.vz = dz * k;
-      } else {
+      // 1.25.1 : le cercle reste où il est apparu (sous le joueur) ; on en sort, on le saute ou on le dashe
+      if (s.life <= 0) {
         // pic : blesse et projette le joueur au sol
         w.emit(Ev.Eruption, s.x, 0, s.z, s.r);
         if (inside && !airborne && P.invul <= 0) {

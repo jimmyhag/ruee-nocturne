@@ -69,7 +69,7 @@ export interface Projectile {
 export const enum ShotKind {
   Spit = 0, // crachat du Cracheur : au sol, lent, esquivable
   Zone, // Colosse : cercle rouge immobile qui explose à la fin de `life`
-  Eruption, // phase 11 : fissure qui suit le joueur pendant le télégraphe puis pic sous ses pieds — se saute ou se dashe
+  Eruption, // phase 11 : cercle sous le joueur, fixe depuis la 1.25.1, puis pic au même endroit — on en sort, le saute ou le dashe
   Ring, // phase 11 : anneau de choc du Gardien, rayon qui grandit (`r`), blesse une fois au passage — se saute
   Arrow, // phase 16 : flèche de l'Archer, rapide, en ligne droite, arrêtée par les obstacles ; touche aussi en l'air
   Fireball, // phase 16 : boule de feu du Sorcier, en cloche de (ox, oz) vers (x, z) ; explose à la fin de `life` comme une zone

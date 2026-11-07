@@ -12,7 +12,7 @@ export function eruptionPeriod(t: number): number {
   return E.period0 + (E.period1 - E.period0) * k;
 }
 
-/** Déclenche une éruption sous le joueur quand le minuteur tombe : fissure (télégraphe) qui le suit, pic à la fin. */
+/** Déclenche une éruption sous le joueur quand le minuteur tombe : cercle fixe (télégraphe), pic au même endroit. */
 export function tickEruptions(w: World): void {
   if (w.t < w.nextEruption) return;
   w.nextEruption = w.t + eruptionPeriod(w.t);

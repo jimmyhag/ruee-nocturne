@@ -41,19 +41,41 @@ describe('éruptions', () => {
     for (let i = 0; i < 60 * 10; i++) step(w, still, STEP);
     expect(firstShot(w, ShotKind.Eruption)).toBeNull();
   });
-  it('la fissure suit un joueur qui marche et le pic le blesse et le projette', () => {
+  it('1.25.1 : le cercle reste où il est apparu ; un joueur qui marche en sort sans être touché', () => {
     const w = worldAt(130);
     step(w, input(1, 0), STEP);
     const s = firstShot(w, ShotKind.Eruption)!;
     expect(s).not.toBeNull();
     expect(count(w, Ev.Telegraph)).toBe(1);
-    const hp = w.player.hp;
+    const x0 = s.x,
+      z0 = s.z,
+      hp = w.player.hp;
     let erupted = 0;
     for (let i = 0; i < 70; i++) {
+      const cur = firstShot(w, ShotKind.Eruption);
+      if (cur) expect([cur.x, cur.z]).toEqual([x0, z0]);
       w.clearEvents();
       step(w, input(1, 0), STEP);
       erupted += count(w, Ev.Eruption);
     }
+    expect(erupted).toBe(1);
+    expect(w.player.hp).toBe(hp);
+  });
+  it('le pic blesse et projette un joueur resté dans le cercle, au bout de 0,65 s', () => {
+    const w = worldAt(130);
+    step(w, still, STEP);
+    const life = firstShot(w, ShotKind.Eruption)!.life;
+    expect(life).toBeLessThanOrEqual(HAZARDS.eruption.telegraph);
+    expect(life).toBeGreaterThan(HAZARDS.eruption.telegraph - 2 * STEP);
+    expect(HAZARDS.eruption.telegraph).toBeLessThan(0.8); // pète plus vite qu'avant (0,8 s)
+    const hp = w.player.hp;
+    let erupted = 0;
+    for (let i = 0; i < 70 && erupted === 0; i++) {
+      w.clearEvents();
+      step(w, still, STEP);
+      erupted += count(w, Ev.Eruption);
+    }
+    for (let i = 0; i < 6; i++) step(w, still, STEP); // 0,1 s plus tard : en l'air
     expect(erupted).toBe(1);
     expect(w.player.hp).toBeLessThan(hp);
     expect(w.lastHurt).toBe(HurtSrc.Eruption);
@@ -82,7 +104,7 @@ describe('éruptions', () => {
     const w = worldAt(130);
     step(w, still, STEP);
     const hp = w.player.hp;
-    step(w, input(0, 0, true), STEP); // saute dès l'apparition de la fissure (0,8 s avant le pic)
+    step(w, input(0, 0, true), STEP); // saute dès l'apparition du cercle (0,65 s avant le pic) : retombé trop tôt
     for (let i = 0; i < 70; i++) step(w, still, STEP);
     expect(w.player.hp).toBeLessThan(hp);
   });

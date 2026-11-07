@@ -273,7 +273,14 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           dz = s.z - P.z,
           d2 = dx * dx + dz * dz;
         if (s.kind === ShotKind.Eruption) {
-          if (s.life < 0.4 && d2 < (s.r + 0.6) ** 2) hazard = true;
+          // 1.25.1 : cercle fixe sous les pieds → on en sort en marchant ; encore dedans au dernier moment → saut
+          if (d2 < (s.r + 0.6) ** 2) {
+            if (s.life < 0.4) hazard = true;
+            const wgt = 60 / (d2 + 0.5);
+            cx += dx * wgt;
+            cz += dz * wgt;
+            n++;
+          }
           continue;
         }
         if (s.kind === ShotKind.Ring) {

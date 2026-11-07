@@ -125,7 +125,7 @@ test('une éruption blesse au sol et se saute à mi-télégraphe', async ({ page
     w.nextEruption = 1e9;
   });
   await page.waitForFunction(() => (window as any).__game.world.player.onGround === true, null, { timeout: 15_000 });
-  // 2) saut quand la fissure est à mi-course : indemne
+  // 2) saut quand le cercle est à mi-course : indemne
   before = await hp(page);
   await arm();
   await waitShot(KIND_ERUPTION, 0.5);
