@@ -22,6 +22,7 @@ export class InputManager {
 
   /** Phase 27 : appui sur GLISSE au doigt, transmis à la sim pendant un pas (elle ne lit que le front montant). */
   private slideQueued = false;
+  private prevSlide = false; // glisse envoyée au pas précédent
   private padSlide = false;
 
   constructor(
@@ -157,8 +158,15 @@ export class InputManager {
     out.mz = mz;
     out.jump = this.jumpQueued;
     out.spell = this.spellQueued;
-    out.slide = !!k.KeyC || this.padSlide || this.slideQueued;
-    this.slideQueued = false;
+    // glisse : la sim ne compte que le front montant. Relâcher puis réappuyer entre deux pas laissait le signal à vrai
+    // (aucun front : le second appui ne relevait pas le joueur, CI 1.23.0) ; un nouvel appui alors que le pas précédent
+    // voyait la touche tenue passe d'abord par un pas « relâché », puis l'appui arrive au pas suivant (16 ms).
+    if (this.slideQueued && this.prevSlide) out.slide = false;
+    else {
+      out.slide = !!k.KeyC || this.padSlide || this.slideQueued;
+      this.slideQueued = false;
+    }
+    this.prevSlide = out.slide;
     out.pick = this.pickQueued;
     this.jumpQueued = this.spellQueued = false;
     this.pickQueued = -1;

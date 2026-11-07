@@ -1410,7 +1410,7 @@ function handleEvents(w: World, now: number): void {
         S.onJump(w.player.airMom);
         break;
       case Ev.Land:
-        S.onLand(w.player.sliding, Math.hypot(w.player.vx, w.player.vz));
+        S.onLand(w.player.sliding, Math.sqrt(w.player.vx * w.player.vx + w.player.vz * w.player.vz));
         S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
         break;
       // phase 27 : glissade, envol, vrille

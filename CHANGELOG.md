@@ -2,6 +2,23 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.24.0 — 7 nov. 2026 (phase 29 « Bordure et mouvements »)
+
+### Ajouté
+
+- **Bordure de la carte** : une lisière de forêt ferme la zone de jeu. Une rangée de rochers là où l'on bute, des sapins sombres derrière, un sous-bois qui se perd dans la nuit : fini le sol coupé net sur le vide et le mur invisible. Visible aussi sur la minicarte et la grande carte.
+
+### Modifié
+
+- **Glisser sur une piste** : le héros reste allongé en glisse sur les bosses, au lieu de se relever et de s'accroupir à chaque saut de bosse.
+- **Réceptions** : en courant ou en glissant, on enchaîne sans s'accroupir ; l'accroupi ne se joue qu'après un vrai saut, à l'arrêt. Un saut glissé garde la pose de glisse en l'air.
+- **Transitions plus douces** : chaque passage (course, repos, glisse, chute) a son propre fondu ; plus d'aller-retour course/repos à petite vitesse ; foulée qui ne s'emballe plus en sortie de glisse.
+- **Corps vivant** : le héros se penche dans les virages et en démarrant, et suit la pente quand il glisse. La vrille part vite et s'amortit.
+
+### Corrigé
+
+- **Glissade au clavier** : relâcher puis réappuyer vite sur C ne relevait parfois pas le joueur (l'appui se perdait entre deux pas de jeu).
+
 ## 1.23.0 — 7 nov. 2026 (phase 28 « Pistes et trésors »)
 
 Plus de choses à trouver et à faire, de vraies pentes pour rider, et une image pour chaque arme et chaque objet.

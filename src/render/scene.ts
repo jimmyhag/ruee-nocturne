@@ -675,7 +675,7 @@ export class GameScene {
       this.decorObjs.push(m);
     }
     // phase 29 : lisière de forêt au bord de la carte (rochers, sapins, sous-bois), un mesh par segment de 40 u ;
-    // même matériau que les ouvrages (libéré une fois, avec le premier mesh qui le porte)
+    // même matériau que les ouvrages (libéré avec eux ; un second dispose() est sans effet)
     this.borderMeshes.length = 0;
     for (const g of borderGeometry(w.seed, gy)) {
       const m = new THREE.Mesh(g, worksMat);
@@ -1758,7 +1758,7 @@ export class GameScene {
     this.player.position.set(0, 0, 0);
     this.player.scale.set(1, 1, 1);
     const a = Math.sin(now * 0.18) * 0.45; // ±26° autour de la face
-    this.player.rotation.y = a; // le modèle regarde vers +z : face à la caméra
+    this.player.rotation.set(0, a, 0); // le modèle regarde vers +z : face à la caméra (phase 29 : ni tangage ni roulis)
     this.model.torso.position.y =
       (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + (this.heroAnim ? 0 : Math.sin(now * 2.2) * 0.015);
     this.heroAnim?.update(dt, HeroAnim.Idle, 1);

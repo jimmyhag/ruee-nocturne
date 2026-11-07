@@ -100,7 +100,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   }, at);
   await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
   await page.waitForTimeout(1200);
-  let worst = { calls: 0, triangles: 0 };
+  const worst = { calls: 0, triangles: 0 };
   for (let k = 0; k < 6; k++) {
     await page.keyboard.press('ShiftLeft'); // Bond : silhouettes de dash à l'écran
     for (let f = 0; f < 4; f++) {
@@ -109,7 +109,8 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
         const g = (window as any).__game;
         return { calls: g.renderer.info.render.calls as number, triangles: g.renderer.info.render.triangles as number };
       });
-      if (r.triangles > worst.triangles) worst = r;
+      if (r.triangles > worst.triangles) worst.triangles = r.triangles;
+      worst.calls = Math.max(worst.calls, r.calls); // pic d'appels suivi à part (relecture perf phase 29)
     }
     await page.waitForTimeout(400);
   }
@@ -125,7 +126,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
     g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
   });
   await page.waitForTimeout(800);
-  let net = { calls: 0, triangles: 0 };
+  const net = { calls: 0, triangles: 0 };
   for (let k = 0; k < 3; k++) {
     await page.keyboard.press('ShiftLeft');
     for (let f = 0; f < 4; f++) {
@@ -134,7 +135,8 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
         const g = (window as any).__game;
         return { calls: g.renderer.info.render.calls as number, triangles: g.renderer.info.render.triangles as number };
       });
-      if (r.triangles > net.triangles) net = r;
+      if (r.triangles > net.triangles) net.triangles = r.triangles;
+      net.calls = Math.max(net.calls, r.calls);
     }
     await page.waitForTimeout(400);
   }
@@ -165,7 +167,7 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
       const g = (window as any).__game;
       g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: q } });
     }, quality);
-    let worst = { calls: 0, triangles: 0 };
+    const worst = { calls: 0, triangles: 0 };
     for (const [x, z] of [
       [162, 162],
       [0, -162],
@@ -192,7 +194,8 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
               triangles: g.renderer.info.render.triangles as number,
             };
           });
-          if (r.triangles > worst.triangles) worst = r;
+          if (r.triangles > worst.triangles) worst.triangles = r.triangles;
+          worst.calls = Math.max(worst.calls, r.calls); // pic d'appels suivi à part (relecture perf phase 29)
         }
       }
     }

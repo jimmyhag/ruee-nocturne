@@ -60,7 +60,8 @@ function firTemplate(): Template {
 }
 /** Rocher : dodécaèdre écrasé, mousse sur les faces du haut. */
 function rockTemplate(sx: number, sy: number, sz: number): Template {
-  const g = new THREE.DodecahedronGeometry(1, 0).toNonIndexed();
+  const d = new THREE.DodecahedronGeometry(1, 0);
+  const g = d.index ? d.toNonIndexed() : d; // déjà non indexé en three 0.187 (toNonIndexed avertirait)
   g.scale(sx, sy, sz);
   g.translate(0, sy * 0.55, 0);
   g.computeVertexNormals();
