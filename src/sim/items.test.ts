@@ -237,9 +237,9 @@ describe('marchand', () => {
 });
 
 describe('synergies', () => {
-  it('huit synergies, paires tome + arme uniques', () => {
-    expect(SYNERGIES.length).toBe(8);
-    expect(new Set(SYNERGIES.map((s) => s.tome + s.weapon)).size).toBe(8);
+  it('onze synergies (phase 28), paires tome + arme uniques', () => {
+    expect(SYNERGIES.length).toBe(11);
+    expect(new Set(SYNERGIES.map((s) => s.tome + s.weapon)).size).toBe(11);
   });
   it('s’active à SYN.tome cartes du tome avec l’arme équipée, une seule fois, et modifie l’arme', () => {
     const w = new World(20);

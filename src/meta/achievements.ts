@@ -30,6 +30,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'intouchable', goal: 240, get: (s) => s.noHitBest, time: true, unlocks: { character: 'feufollet' } },
   { id: 'marathon', goal: 4000, get: (s) => s.distanceBest },
   { id: 'erudit', goal: 25, get: (s) => s.weaponLvBest }, // phase 12 : une arme à 25 améliorations dans un run
+  // phase 28 : glisse, figures et exploration débloquent les armes nouvelles
+  { id: 'glisse1000', goal: 1000, get: (s) => s.slideDist, unlocks: { weapon: 'faux' } },
+  { id: 'vrilles5', goal: 5, get: (s) => s.tricksBest, unlocks: { weapon: 'lance' } },
+  { id: 'coffres50', goal: 50, get: (s) => s.mapChests, unlocks: { weapon: 'meteores' } },
 ];
 
 export const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((a) => a.id));
@@ -80,7 +84,9 @@ export function unlockedCharacters(m: Meta): CharacterKey[] {
 export function unlockedWeapons(m: Meta): WeaponKey[] {
   const locked = new Set<WeaponKey>();
   for (const a of ACHIEVEMENTS) if (a.unlocks?.weapon && !m.achievements.includes(a.id)) locked.add(a.unlocks.weapon);
-  return (['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines'] as WeaponKey[]).filter((k) => !locked.has(k));
+  return (['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines', 'faux', 'lance', 'meteores'] as WeaponKey[]).filter(
+    (k) => !locked.has(k),
+  );
 }
 export function dailyUnlocked(m: Meta): boolean {
   return ACHIEVEMENTS.some((a) => a.unlocks?.daily && m.achievements.includes(a.id));

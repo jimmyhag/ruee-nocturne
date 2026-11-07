@@ -280,6 +280,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       if (P.spin > 0) w.emit(Ev.TrickFail, P.x, 0, P.z);
       else if (P.spinDone) {
         P.elanT = SLIDE.elanTime;
+        w.tricks++;
         w.emit(Ev.Trick, P.x, 0, P.z, P.airT);
       }
       P.spin = 0;
@@ -306,6 +307,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     mz = P.z - P.pz;
   const moved = Math.sqrt(mx * mx + mz * mz);
   w.distance += moved;
+  if (P.sliding) w.slideDist += moved; // phase 28 : succès « Glisseur »
   if (P.dashT > 0 && w.trait === Trait.Trainee) {
     const S = w.wstate;
     S.fireDist += moved;

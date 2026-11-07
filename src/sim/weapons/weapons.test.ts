@@ -11,8 +11,8 @@ import { WEAPONS, WEAPON_KEYS, applyTomeLine, refreshStats, weaponStats } from '
 const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 
 describe('fiches d’armes et lignes', () => {
-  it('six armes, une base finie et des lignes qui touchent une stat de la base', () => {
-    expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines']);
+  it('neuf armes (phase 28), une base finie et des lignes qui touchent une stat de la base', () => {
+    expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines', 'faux', 'lance', 'meteores']);
     for (const k of WEAPON_KEYS) {
       const d = WEAPONS[k];
       expect(d.glyph.length).toBeGreaterThan(0);
@@ -192,6 +192,9 @@ describe('feedback de chaque coup', () => {
     foudre: HitSrc.Foudre,
     boomerang: HitSrc.Boomerang,
     mines: HitSrc.Mines,
+    faux: HitSrc.Faux,
+    lance: HitSrc.Lance,
+    meteores: HitSrc.Meteores,
   };
   it.each(WEAPON_KEYS)('%s seule, 30 s : chaque Hit porte sa source, des dégâts et un recul unitaire', (k) => {
     const w = new World(21);
@@ -223,5 +226,76 @@ describe('feedback de chaque coup', () => {
     for (let f = 0; f < 30 && w.enemies[i].flash <= 0; f++) step(w, still, STEP);
     expect(w.enemies[i].flash).toBeGreaterThan(0);
     expect(w.enemies[i].kx * w.enemies[i].kx + w.enemies[i].kz * w.enemies[i].kz).toBeGreaterThan(0);
+  });
+});
+
+describe('armes de la phase 28', () => {
+  /** Monde vide d'ennemis, l'arme seule ; ennemis posés à la main (immobiles : vitesse 0). */
+  const arena = (k: WeaponKey) => {
+    const w = new World(77);
+    w.weapons = { [k]: 1 };
+    refreshStats(w);
+    w.enemyCount = 0;
+    w.nextWave = 1e9;
+    w.player.maxHp = w.player.hp = 1e9;
+    w.player.need = 1e9;
+    return w;
+  };
+  const put = (w: World, x: number, z: number): number => {
+    const i = spawnEnemy(w, 0, 0, 10);
+    const e = w.enemies[i];
+    e.x = e.px = x;
+    e.z = e.pz = z;
+    e.hp = e.max = 1e6;
+    e.spd = 0;
+    return i;
+  };
+  const hitsBy = (w: World, src: HitSrc, seconds: number) => {
+    const ids = new Set<number>();
+    for (let f = 0; f < Math.round(seconds / STEP); f++) {
+      step(w, still, STEP);
+      for (let i = 0; i < w.eventCount; i++) {
+        const e = w.events[i];
+        if (e.type === Ev.Hit && ((e.x2 | 0) & 15) === src) ids.add(Math.round(e.x * 10) * 1000 + Math.round(e.z * 10));
+      }
+    }
+    return ids.size;
+  };
+  it('Faux : fauche devant (dans l’arc), pas derrière ; un coup de Faux est annoncé (Ev.Scythe)', () => {
+    const w = arena('faux');
+    w.player.dirX = 0;
+    w.player.dirZ = 1;
+    const front = put(w, 0, 2),
+      back = put(w, 0, -2);
+    let scythes = 0;
+    for (let f = 0; f < 90; f++) {
+      step(w, still, STEP);
+      for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === Ev.Scythe) scythes++;
+    }
+    expect(scythes).toBeGreaterThanOrEqual(1);
+    expect(w.enemies[front].hp).toBeLessThan(1e6);
+    expect(w.enemies[back].hp).toBe(1e6);
+  });
+  it('Lance : vise l’ennemi le plus loin et traverse tous ceux sur la ligne', () => {
+    const w = arena('lance');
+    for (let z = 3; z <= 13; z += 2.5) put(w, 0, z); // cinq ennemis alignés, le plus loin à 13 u
+    expect(hitsBy(w, HitSrc.Lance, 2.2)).toBe(5);
+  });
+  it('Météores : cercle annoncé, impact après le délai, dégâts de zone', () => {
+    const w = arena('meteores');
+    const a = put(w, 5, 0),
+      b = put(w, 5.8, 0.4);
+    let warn = -1,
+      hit = -1;
+    for (let f = 0; f < 60 * 4 && hit < 0; f++) {
+      step(w, still, STEP);
+      for (let i = 0; i < w.eventCount; i++) {
+        if (w.events[i].type === Ev.MeteorWarn && warn < 0) warn = w.t;
+        if (w.events[i].type === Ev.MeteorHit && hit < 0) hit = w.t;
+      }
+    }
+    expect(warn).toBeGreaterThan(0);
+    expect(hit - warn).toBeGreaterThan(0.5);
+    expect(w.enemies[a].hp + w.enemies[b].hp).toBeLessThan(2e6);
   });
 });

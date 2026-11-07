@@ -604,6 +604,9 @@ function gameOver(won = false): void {
   st.noHitBest = Math.max(st.noHitBest, world.noHitBest);
   st.distanceBest = Math.max(st.distanceBest, world.distance);
   st.weaponLvBest = Math.max(st.weaponLvBest, world.weaponLvBest);
+  st.slideDist += world.slideDist; // phase 28
+  st.tricksBest = Math.max(st.tricksBest, world.tricks);
+  st.mapChests += world.mapChestsOpened;
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -1321,6 +1324,9 @@ const HIT_COLORS = [
   PAL.bolt,
   PAL.boomerang,
   PAL.mine,
+  0xc9b3ff, // phase 28 : Faux
+  0x9fe8ff, // Lance
+  0xff9a5a, // Météores
   PAL.accent,
   PAL.paper,
   PAL.bolt,

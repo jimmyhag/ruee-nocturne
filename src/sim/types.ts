@@ -17,6 +17,7 @@ export interface Enemy {
   flash: number;
   lastBlade: number;
   lastBoom: number; // dernier coup de boomerang (un par passage)
+  lastLance: number; // phase 28 : dernier coup de Lance (une lance ne touche qu'une fois)
   spd: number;
   dmgMul: number;
   bob: number;
@@ -37,6 +38,7 @@ export const enum ProjKind {
   Boomerang,
   Mine,
   Fire, // traînée de feu du Feu follet : zone au sol qui brûle par impulsions
+  Lance, // phase 28 : perce tout, en ligne
 }
 
 export interface Projectile {
@@ -129,6 +131,9 @@ export const enum HitSrc {
   Foudre,
   Boomerang,
   Mines,
+  Faux, // phase 28
+  Lance,
+  Meteores,
   Fire,
   Thorns, // phase 17 : objet Épines
   Talisman, // phase 17 : objet Talisman orageux
@@ -184,6 +189,9 @@ export const enum Ev {
   RaceStart, // phase 28 : piste chronométrée lancée en (x,z), v = temps alloué, (x2,z2) = arrivée
   RaceWin, // phase 28 : arrivée à temps en (x,z), v = temps mis
   RaceFail, // phase 28 : temps écoulé
+  Scythe, // phase 28 : coup de Faux en (x,y,z), v = portée, x2/z2 = direction, y2 = angle de l'arc
+  MeteorWarn, // phase 28 : cercle d'un météore à venir en (x,z), v = rayon, x2 = délai
+  MeteorHit, // phase 28 : impact en (x,z), v = rayon
 }
 
 export interface GameEvent {
@@ -214,7 +222,7 @@ export const enum Mode {
   Merchant = 4, // phase 17 : échoppe ouverte, la partie est en pause
 }
 
-export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines';
+export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines' | 'faux' | 'lance' | 'meteores';
 export type CharacterKey =
   | 'eclaireuse'
   | 'bucheron'

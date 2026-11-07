@@ -474,6 +474,10 @@ export const LAMES = {
   hitR: 0.75, // rayon de frappe d'une lame (× sizeMul) ; phase 12 : 0,55 → 0,75, un Dard collé au joueur passait sous l'anneau (Bûcheron 3:12 et 46 % de morts < 3 min → 5:04 et 16 %), alors qu'un rayon plus grand aggravait le trou central
   kb: 5, // recul d'une lame (× Fendeur)
 };
+// phase 28 : comportement des armes nouvelles
+export const FAUX = { kb: 7, wait: 0.15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s
+export const LANCE = { range: 16, hitR: 0.45, kb: 2 }; // cible : l'ennemi le plus loin à moins de 16 u
+export const METEOR = { delay: 0.6, range: 13, around: 8, kb: 3, max: 16 }; // cercle annoncé 0,6 s ; sur un ennemi à < 13 u, sinon autour du joueur
 export const MINES = {
   spacing: 1.2, // u parcourus entre deux poses
   life: 14, // une mine jamais déclenchée expire
@@ -547,6 +551,28 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
     { stat: 'n', step: 1, kind: 'add', max: 12, weight: 2 },
     { stat: 'chain', step: 1, kind: 'add', max: 1, weight: 1 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  // phase 28
+  faux: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'arc', step: 15, kind: 'add', max: 16, weight: 2 }, // degrés : jusqu'au cercle complet
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  lance: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'n', step: 1, kind: 'add', max: 4, weight: 1.5 },
+    { stat: 'speed', step: 0.08, kind: 'pct', max: 10, weight: 2 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  meteores: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'r', step: 0.06, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'n', step: 1, kind: 'add', max: 6, weight: 1.5 },
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
 };
@@ -774,6 +800,9 @@ export const SYN = {
   ricochet: { n: 2, range: 0.3 }, // Chance + Boomerang
   moisson: { magnet: 0.5 }, // Savoir + Lames
   rempart: { dmgTaken: 0.6 }, // Vitalité + Halo : contact des ennemis dans le Halo
+  moissonneuse: { heal: 1, max: 6 }, // phase 28 : Vitalité + Faux, PV rendus par ennemi fauché (au plus 6 par coup)
+  volee: { n: 1 }, // Projectiles + Lance
+  pluie: { n: 1 }, // Savoir + Météores
 };
 export interface Synergy {
   key: string;
@@ -789,6 +818,9 @@ export const SYNERGIES: Synergy[] = [
   { key: 'ricochet', tome: 'chance', weapon: 'boomerang' },
   { key: 'moisson', tome: 'savoir', weapon: 'lames' },
   { key: 'rempart', tome: 'vitalite', weapon: 'aura' },
+  { key: 'moissonneuse', tome: 'vitalite', weapon: 'faux' }, // phase 28
+  { key: 'volee', tome: 'projectiles', weapon: 'lance' },
+  { key: 'pluie', tome: 'savoir', weapon: 'meteores' },
 ];
 export const enum Syn {
   Orage = 0,
@@ -799,6 +831,9 @@ export const enum Syn {
   Ricochet,
   Moisson,
   Rempart,
+  Moissonneuse, // phase 28
+  Volee,
+  Pluie,
 }
 
 export const REVIVE = {

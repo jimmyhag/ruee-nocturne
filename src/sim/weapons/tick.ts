@@ -1,4 +1,4 @@
-import { BOOMERANG, LAMES, MINES, TRAIT } from '../balance';
+import { BOOMERANG, FAUX, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind, Trait } from '../types';
 import type { Projectile } from '../types';
@@ -222,6 +222,114 @@ export function tickWeapons(w: World, dt: number): void {
     }
   }
 
+  // ---- Faux (phase 28) : arc devant le joueur, fauche et repousse ----
+  const lvX = w.weapons.faux ?? 0;
+  if (lvX > 0) {
+    const s = weaponStats(w, 'faux');
+    S.fauxT -= dt;
+    if (S.fauxT <= 0) {
+      const r = s.r,
+        cosHalf = Math.cos(Math.min(Math.PI, (s.arc * Math.PI) / 360)), // arc en degrés
+        dx0 = P.dirX,
+        dz0 = P.dirZ;
+      const n = w.grid.query(w.enemies, P.x, P.z, r, MAX_ENEMY_R, hits);
+      let fauched = 0;
+      for (let k = 0; k < n; k++) {
+        const e = w.enemies[hits[k]];
+        const dx = e.x - P.x,
+          dz = e.z - P.z,
+          d = Math.sqrt(dx * dx + dz * dz);
+        if (d > 1e-6 && (dx * dx0 + dz * dz0) / d < cosHalf && d > e.r) continue; // hors de l'arc (sauf collé au joueur)
+        if (hitEnemy(w, hits[k], s.dmg, FAUX.kb, P.x, P.z, HitSrc.Faux)) fauched++;
+      }
+      if (n > 0) {
+        S.fauxT = s.cd * P.cdMul;
+        if (w.syn[Syn.Moissonneuse] && fauched > 0) P.hp = Math.min(P.maxHp, P.hp + SYN.moissonneuse.heal * Math.min(fauched, SYN.moissonneuse.max));
+        w.emit(Ev.Scythe, P.x, P.y + 0.9, P.z, r, dx0, s.arc, dz0);
+      } else S.fauxT = FAUX.wait;
+    }
+  }
+
+  // ---- Lance (phase 28) : vers l'ennemi le plus loin à portée, perce tout ----
+  const lvN = w.weapons.lance ?? 0;
+  if (lvN > 0) {
+    const s = weaponStats(w, 'lance');
+    S.lanceT -= dt;
+    if (S.lanceT <= 0) {
+      let best = -1,
+        bd = 0;
+      const R2 = LANCE.range * LANCE.range;
+      for (let i = 0; i < w.enemyCount; i++) {
+        const e = w.enemies[i];
+        if (!e.alive) continue;
+        const dx = e.x - P.x,
+          dz = e.z - P.z,
+          d = dx * dx + dz * dz;
+        if (d < R2 && d > bd) {
+          bd = d;
+          best = i;
+        }
+      }
+      if (best >= 0) {
+        S.lanceT = s.cd * P.cdMul;
+        const t = w.enemies[best];
+        const a0 = Math.atan2(t.x - P.x, t.z - P.z);
+        for (let i = 0; i < s.n; i++) {
+          const a = a0 + (i === 0 ? 0 : (((i + 1) >> 1) * (i % 2 === 1 ? 1 : -1)) * 0.16);
+          const p = fireAngle(w, a, s.dmg, 999, s.speed);
+          if (!p) break;
+          p.kind = ProjKind.Lance;
+          p.life = (LANCE.range / s.speed) * 1.15 * P.projLifeMul;
+        }
+        w.emit(Ev.Shoot, P.x + Math.sin(a0) * 0.6, P.y + 1, P.z + Math.cos(a0) * 0.6, s.n);
+      } else S.lanceT = 0.25;
+    }
+  }
+
+  // ---- Météores (phase 28) : cercles annoncés autour, puis impact de zone ----
+  const lvT = w.weapons.meteores ?? 0;
+  if (lvT > 0) {
+    const s = weaponStats(w, 'meteores');
+    S.metT -= dt;
+    if (S.metT <= 0 && w.enemyCount > 0) {
+      S.metT = s.cd * P.cdMul;
+      for (let i = 0; i < s.n && S.metN < METEOR.max; i++) {
+        // sur un ennemi au hasard à portée (tirage par rejet borné), sinon autour du joueur
+        let x = P.x + w.rng.range(-METEOR.around, METEOR.around),
+          z = P.z + w.rng.range(-METEOR.around, METEOR.around);
+        for (let tries = 0; tries < 8; tries++) {
+          const e = w.enemies[w.rng.int(w.enemyCount)];
+          const dx = e.x - P.x,
+            dz = e.z - P.z;
+          if (e.alive && dx * dx + dz * dz < METEOR.range * METEOR.range) {
+            x = e.x;
+            z = e.z;
+            break;
+          }
+        }
+        const k = S.metN++;
+        S.metX[k] = x;
+        S.metZ[k] = z;
+        S.metLeft[k] = METEOR.delay;
+        w.emit(Ev.MeteorWarn, x, 0, z, s.r, METEOR.delay);
+      }
+    }
+    for (let k = S.metN - 1; k >= 0; k--) {
+      S.metLeft[k] -= dt;
+      if (S.metLeft[k] > 0) continue;
+      const x = S.metX[k],
+        z = S.metZ[k];
+      const n = w.grid.query(w.enemies, x, z, s.r, MAX_ENEMY_R, hits);
+      for (let j = 0; j < n; j++) hitEnemy(w, hits[j], s.dmg, METEOR.kb, x, z, HitSrc.Meteores);
+      w.emit(Ev.MeteorHit, x, 0, z, s.r);
+      // retrait sans allocation : le dernier prend la place
+      const last = --S.metN;
+      S.metX[k] = S.metX[last];
+      S.metZ[k] = S.metZ[last];
+      S.metLeft[k] = S.metLeft[last];
+    }
+  }
+
   // ---- Mines : posées sur le passage, explosent au contact ----
   const lvM = w.weapons.mines ?? 0;
   if (lvM > 0) {
@@ -356,6 +464,20 @@ export function tickProjectiles(w: World, dt: number): void {
           hitEnemy(w, hits[k], p.dmg, 3, p.x - p.vx, p.z - p.vz, HitSrc.Boomerang);
         }
       }
+      continue;
+    }
+    if (p.kind === ProjKind.Lance) {
+      // phase 28 : traverse tout ; chaque ennemi n'est touché qu'une fois par lance
+      p.x += p.vx * dt;
+      p.z += p.vz * dt;
+      const n = w.grid.query(w.enemies, p.x, p.z, LANCE.hitR * P.sizeMul, MAX_ENEMY_R, hits);
+      for (let k = 0; k < n; k++) {
+        const e = w.enemies[hits[k]];
+        if (w.t - e.lastLance < 0.3) continue;
+        e.lastLance = w.t;
+        hitEnemy(w, hits[k], p.dmg, LANCE.kb, p.x - p.vx, p.z - p.vz, HitSrc.Lance);
+      }
+      if (p.life <= 0) w.freeProj(i);
       continue;
     }
     // orbe

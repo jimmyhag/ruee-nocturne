@@ -16,7 +16,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   const P = w.player;
   let dealt = dmg * P.dmgMul * (e.elite || def.boss ? P.eliteDmgMul : 1); // tome Dégâts : élites et boss
   let crit = 0;
-  if (src <= HitSrc.Mines) {
+  if (src <= HitSrc.Meteores) {
     // phase 23 : coup critique (ligne de l'arme + tome Chance), ralentissement du Halo, étourdissement de la Foudre
     const s = w.wstats[WEAPON_KEYS[src]];
     const c = s.crit + P.crit;
