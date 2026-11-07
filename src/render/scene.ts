@@ -60,7 +60,7 @@ import { TerrainView } from './terrain';
 import { borderGeometry } from './border';
 import { Base, MotionState, spinEase } from './motion';
 import { OUTLINE, toonGradient, toonMaterial } from './toon';
-import { softDiscTexture } from './textures';
+import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, SLASH_ARC } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
 import { AimLines, Bolts, DamageNumbers, Particles } from './fx';
@@ -105,6 +105,8 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+const GLOW_CAP = 1024; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
+const SLASH_CAP = 32; // arcs de lame : 13 lames + arcs de Faux en cours
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (brouillard)
 const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
 const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
@@ -165,14 +167,17 @@ export class GameScene {
   private eliteColor: THREE.Color[] = [];
   private shadowW: InstanceWriter; // ombres douces de tous les ennemis (phase 9)
   private eliteW: InstanceWriter; // anneaux dorés des élites
-  private projW: InstanceWriter;
-  private trailW: InstanceWriter;
+  /** Phase 30 : sprites lumineux additifs (Orbe, boule de feu, météore, Lance, mines, boomerang) : un appel. */
+  private glowW: InstanceWriter;
+  /** Phase 30 : arcs de lame (Faux, sillage des Lames) : un appel. */
+  private slashW: InstanceWriter;
+  private slashes: { x: number; z: number; r: number; a: number; life: number; c: THREE.Color }[] = [];
+  private slashN = 0;
   private boomW: InstanceWriter;
   private mineW: InstanceWriter; // plaques de feu du Feu follet
   private bombW: InstanceWriter; // mines (bombe KayKit une fois chargée)
   private spitW: InstanceWriter;
   private arrowW: InstanceWriter; // phase 16 : flèches des Archers
-  private fireW: InstanceWriter; // phase 16 : boules de feu en vol
   private zoneW: InstanceWriter; // cercles rouges du Colosse (anneau)
   private zoneFillW: InstanceWriter; // disque qui se remplit pendant le télégraphe
   private ringW: InstanceWriter; // ondes de choc du Gardien (phase 11) : anneau fin, rayon = portée du coup
@@ -237,14 +242,26 @@ export class GameScene {
   private stallVisit = -1;
   private gemW: InstanceWriter;
   private bladeW: InstanceWriter;
-  private bladeGhostW: InstanceWriter;
   private metW: InstanceWriter;
   private cLance = new THREE.Color(0x7fe3ff);
   private cLanceGhost = [0.55, 0.35, 0.2].map((k) => new THREE.Color(0x7fe3ff).multiplyScalar(k));
+  // phase 30 : couleurs des lueurs (additives : une couleur sombre = une lueur discrète)
+  private cOrbCore = new THREE.Color(0xfff6d8);
+  private cOrbHalo = new THREE.Color(PAL.proj).multiplyScalar(0.7);
+  private cOrbTrail = PAL.trail.map((c, j) => new THREE.Color(c).multiplyScalar(0.75 - j * 0.15));
+  private cFireCore = new THREE.Color(0xffe9a8);
+  private cFireHalo = new THREE.Color(PAL.fire).multiplyScalar(0.85);
+  private cFireTrail = [0.6, 0.4, 0.25].map((k) => new THREE.Color(0xff5a2a).multiplyScalar(k));
+  private cMeteorCore = new THREE.Color(0xfff0c0);
+  private cMeteorHalo = new THREE.Color(0xff9a5a).multiplyScalar(0.8);
+  private cLanceTip = new THREE.Color(0xbff4ff);
+  private cBoomTrail = [0.45, 0.28, 0.15].map((k) => new THREE.Color(PAL.boomerang).multiplyScalar(k));
+  private cMineHalo = new THREE.Color();
+  private cSlashFaux = new THREE.Color(0xc9b3ff);
+  private cSlashBlade = new THREE.Color(0xbfe8ff).multiplyScalar(0.75);
+  private cSlashTmp = new THREE.Color();
   private cMeteor = new THREE.Color(PAL.gold);
   private dashGhostW: InstanceWriter;
-  private cProj = new THREE.Color(PAL.proj);
-  private cTrail = PAL.trail.map((c) => new THREE.Color(c));
   private cGem = [new THREE.Color(PAL.gem), new THREE.Color(PAL.gem2), new THREE.Color(PAL.gem3)];
   private cGold = new THREE.Color(PAL.gold);
   private cMine = new THREE.Color(PAL.mine);
@@ -252,10 +269,8 @@ export class GameScene {
   private cMineArmed = new THREE.Color(0xffffff);
   private cSpit = new THREE.Color(PAL.spit);
   private cArrow = new THREE.Color(PAL.arrow);
-  private cFireball = new THREE.Color(PAL.fire); // phase 16 : boule de feu du Sorcier
   private cTele = new THREE.Color(PAL.telegraph);
   private cShadow = new THREE.Color(PAL.ink);
-  private cBladeGhost = [0.6, 0.35, 0.15].map((f) => new THREE.Color(PAL.paper).multiplyScalar(f));
   private cGhost = new THREE.Color();
   // phase 19 : ennemis étourdis (Éclat, Collet) ou ralentis (Voile), silhouettes du Voile
   private cStun = new THREE.Color(0xfff1a8);
@@ -351,11 +366,21 @@ export class GameScene {
       makeInstanced(new THREE.RingGeometry(0.8, 1.05, 24).rotateX(-Math.PI / 2), additive(PAL.gold, 0.8), 48),
     );
     // projectiles, traînées, boomerangs, mines, crachats, cercles, coffres, gemmes
-    this.projW = new InstanceWriter(
-      makeInstanced(new THREE.IcosahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 250),
-    );
-    this.trailW = new InstanceWriter(
-      makeInstanced(new THREE.IcosahedronGeometry(0.22, 0), additive(0xffffff, 0.6), 250 * FEEL.trail.projGhosts),
+    // phase 30 : orbes, boules de feu, météores, lances, mines et boomerangs en sprites lumineux orientés caméra
+    // (texture radiale douce, additif) : des boules nettes et rondes au lieu d'icosaèdres à facettes ; remplace les
+    // anciens écrivains des orbes, de leurs traînées et des boules de feu (3 appels → 1)
+    this.glowW = new InstanceWriter(
+      makeInstanced(
+        new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          map: glowTexture(),
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+        GLOW_CAP,
+      ),
     );
     this.boomW = new InstanceWriter(
       makeInstanced(new THREE.BoxGeometry(1.1, 0.12, 0.32), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64), // 7 boomerangs par lancer à recharge courte (phase 12)
@@ -371,9 +396,6 @@ export class GameScene {
     );
     this.arrowW = new InstanceWriter(
       makeInstanced(new THREE.BoxGeometry(0.13, 0.13, 0.95), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
-    );
-    this.fireW = new InstanceWriter(
-      makeInstanced(new THREE.IcosahedronGeometry(0.42, 1), additive(0xffffff, 0.95), 32),
     );
     this.zoneW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.9, 1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 96),
@@ -401,14 +423,12 @@ export class GameScene {
     this.scene.add(
       this.shadowW.mesh,
       this.eliteW.mesh,
-      this.projW.mesh,
-      this.trailW.mesh,
+      this.glowW.mesh,
       this.boomW.mesh,
       this.mineW.mesh,
       this.bombW.mesh,
       this.spitW.mesh,
       this.arrowW.mesh,
-      this.fireW.mesh,
       this.zoneW.mesh,
       this.zoneFillW.mesh,
       this.ringW.mesh,
@@ -419,7 +439,18 @@ export class GameScene {
     );
 
     // armes
-    this.aura = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, 0.35)); // à plat : inclinable (phase 18)
+    // à plat : inclinable (phase 18) ; phase 30 : anneau runique additif qui tourne (texture plane sur l'anneau)
+    this.aura = new THREE.Mesh(
+      new THREE.RingGeometry(0.76, 1, 48).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: PAL.xp,
+        map: runeRingTexture(),
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
     this.aura.visible = false;
     this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, 0.08));
     this.auraDisc.visible = false;
@@ -432,27 +463,39 @@ export class GameScene {
     this.bladeW = new InstanceWriter(
       makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), BLADE_CAP),
     );
-    this.bladeGhostW = new InstanceWriter(
-      makeInstanced(bladeGeo, additive(0xffffff, 0.5), BLADE_CAP * FEEL.trail.bladeGhosts),
+    // phase 30 : arcs de lame à plat (Faux : l'arc réel de l'arme ; Lames : sillage derrière chaque lame), additifs ;
+    // remplace les fantômes des lames (même nombre d'appels)
+    this.slashW = new InstanceWriter(
+      makeInstanced(
+        new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          map: slashTexture(),
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+        SLASH_CAP,
+      ),
     );
     // phase 28 : cercles d'alerte des météores (bord fixe + disque qui se resserre), un seul appel
     this.metW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.88, 1, 40).rotateX(-Math.PI / 2), additive(0xffffff, 0.9), 2 * METEOR.max),
     );
     this.scene.add(this.metW.mesh);
-    this.scene.add(this.bladeW.mesh, this.bladeGhostW.mesh);
+    this.scene.add(this.bladeW.mesh, this.slashW.mesh);
     this.writers.push(
       ...this.enemyW,
       this.shadowW,
       this.eliteW,
-      this.projW,
-      this.trailW,
+      this.glowW,
+      this.slashW,
       this.boomW,
       this.mineW,
       this.bombW,
       this.spitW,
       this.arrowW,
-      this.fireW,
       this.zoneW,
       this.zoneFillW,
       this.ringW,
@@ -461,7 +504,6 @@ export class GameScene {
       this.gemW,
       this.dashGhostW,
       this.bladeW,
-      this.bladeGhostW,
       this.metW,
     );
 
@@ -846,7 +888,6 @@ export class GameScene {
       wr.mesh.geometry = geo;
       wr.mesh.material = m;
     }
-    this.bladeGhostW.mesh.geometry = sword;
     this.stall.add(...stallParts);
     this.cChest = CHEST_ELITE;
     this.cBladeCol = this.cBoomCol = WHITE;
@@ -1090,6 +1131,18 @@ export class GameScene {
   }
 
   /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
+  /** Phase 30 : coup de Faux, un arc de lame visible qui balaie l'angle réel de l'arme (direction dx, dz ; portée r). */
+  scythe(x: number, z: number, r: number, dx: number, dz: number): void {
+    if (this.slashN >= 8) return; // au plus 8 arcs en même temps (la Faux frappe toutes les ≥ 0,2 s)
+    const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, life: 0, c: this.cSlashFaux };
+    this.slashes[this.slashN++] = sl;
+    sl.x = x;
+    sl.z = z;
+    sl.r = r;
+    sl.a = Math.atan2(dx, dz);
+    sl.life = FEEL.slash.life;
+  }
+
   onJump(): void {
     // phase 29 : élan plus vif (il traînait au-dessus du sol) ; 1.24.1 : un saut depuis la glisse aussi (le saut
     // annule la glissade, animation normale)
@@ -1150,7 +1203,10 @@ export class GameScene {
     const gp = this.gy(px, pz); // phase 18 : sol local sous le joueur (la sim donne y au-dessus du sol)
     this.lightCycle(w.t);
     this.fireflies.update(px, pz, now, this.night);
-    this.particles.billboardRx = -Math.atan2(this.camPos.y - this.camLook.y, this.camPos.z - this.camLook.z);
+    this.particles.billboardRx = this.bolts.billboardRx = -Math.atan2(
+      this.camPos.y - this.camLook.y,
+      this.camPos.z - this.camLook.z,
+    );
 
     this.terrain.follow(px, pz); // phase 27 : la fenêtre de sol suit le joueur (recalée par pas de 16 u)
     // phase 29 : segments de lisière au-delà de la vue écartés (le frustum seul en gardait 3 à 5 dans le brouillard)
@@ -1424,7 +1480,7 @@ export class GameScene {
     // crachats et cercles rouges (projectiles ennemis)
     this.spitW.begin();
     this.arrowW.begin();
-    this.fireW.begin();
+    this.glowW.begin(); // phase 30 : rempli par les boules de feu, les projectiles, les lances et les météores
     this.zoneW.begin();
     this.ringW.begin();
     for (let i = 0; i < w.shotCount; i++) {
@@ -1442,14 +1498,22 @@ export class GameScene {
         const f = Math.min(1, 1 - (sh.life - alpha * STEP) / sh.t0);
         const g0 = this.gy(sh.ox, sh.oz),
           g1 = this.gy(sh.x, sh.z);
-        this.fireW.put(
-          sh.ox + (sh.x - sh.ox) * f,
-          g0 + (g1 - g0) * f + 0.9 + Math.sin(f * Math.PI) * 4.5 + (1 - f) * 0.6,
-          sh.oz + (sh.z - sh.oz) * f,
-          now * 6,
-          1 + Math.sin(now * 20) * 0.08,
-          this.cFireball,
-        );
+        // phase 30 : boule de feu en lueurs (cœur, halo qui vacille, trois flammèches en arrière sur l'arc)
+        const G = FEEL.glow,
+          brx = this.particles.billboardRx;
+        for (let k = 3; k >= 0; k--) {
+          const fk = Math.max(0, f - k * 0.045);
+          const fx = sh.ox + (sh.x - sh.ox) * fk,
+            fy = g0 + (g1 - g0) * fk + 0.9 + Math.sin(fk * Math.PI) * 4.5 + (1 - fk) * 0.6,
+            fz = sh.oz + (sh.z - sh.oz) * fk;
+          if (k > 0)
+            this.glowW.put(fx, fy, fz, 0, G.fireHalo * (0.75 - k * 0.15), this.cFireTrail[k - 1], brx, now * 4 + k);
+          else {
+            const fl = 1 + Math.sin(now * 23 + i) * 0.12;
+            this.glowW.put(fx, fy, fz, 0, G.fireHalo * fl, this.cFireHalo, brx, now * 3);
+            this.glowW.put(fx, fy, fz, 0, G.fireCore, this.cFireCore, brx, -now * 5);
+          }
+        }
         this.tilt(sh.x, sh.z);
         this.zoneW.put(sh.x, g1 + 0.1, sh.z, 0, sh.r, this.cTele, this.tRx, this.tRz);
         this.zoneFillW.put(sh.x, g1 + 0.09, sh.z, 0, sh.r * f, this.cTele, this.tRx, this.tRz);
@@ -1472,7 +1536,6 @@ export class GameScene {
     }
     this.spitW.end();
     this.arrowW.end();
-    this.fireW.end();
     this.zoneW.end();
     this.zoneFillW.end();
     this.ringW.end();
@@ -1591,8 +1654,6 @@ export class GameScene {
 
     // projectiles : orbes (+ traînées), boomerangs, mines ; Nova : orbes ×1,6
     const orbeScale = w.player.sizeMul; // tome Projectiles : projectiles plus gros
-    this.projW.begin();
-    this.trailW.begin();
     this.boomW.begin();
     this.mineW.begin();
     this.bombW.begin();
@@ -1601,13 +1662,34 @@ export class GameScene {
       const x = lerp(p.px, p.x, alpha),
         z = lerp(p.pz, p.z, alpha),
         y = p.y + this.gy(x, z); // phase 18 : y de la sim au-dessus du sol local
+      const G = FEEL.glow,
+        brx = this.particles.billboardRx;
       if (p.kind === ProjKind.Boomerang) {
         this.boomW.put(x, y, z, p.age * 22, 1, this.cBoomCol);
+        for (let j = 1; j <= 3; j++) {
+          const back = Math.min(j * 0.035, p.age);
+          this.glowW.put(
+            x - p.vx * back,
+            y,
+            z - p.vz * back,
+            0,
+            G.boomTrail * (1 - j * 0.2),
+            this.cBoomTrail[j - 1],
+            brx,
+            0,
+          );
+        }
         continue;
       }
       if (p.kind === ProjKind.Mine) {
         const blink = p.age < 0.3 ? 0.5 + p.age : 1 + Math.sin(now * 6 + p.x) * 0.1;
-        this.bombW.put(x, y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
+        this.bombW.put(x, y, z, now * 2, blink * 1.3, p.armed ? this.cMineArmed : this.cMine); // phase 30 : plus grosses
+        if (p.armed) {
+          // armée : un halo rouge qui bat sous la bombe
+          const beat = 0.5 + 0.5 * Math.sin(now * 9 + p.x * 3);
+          this.cMineHalo.setHex(PAL.mine).multiplyScalar(0.35 + beat * 0.45);
+          this.glowW.put(x, y + 0.25, z, 0, G.mineHalo * (0.85 + beat * 0.3), this.cMineHalo, brx, 0);
+        }
         continue;
       }
       if (p.kind === ProjKind.Lance) continue; // dessinée avec les lames (même modèle d'épée)
@@ -1620,14 +1702,24 @@ export class GameScene {
       }
       const grow = Math.min(1, p.age / 0.06);
       const sc = (1.7 + Math.sin(now * 40 + p.x) * 0.2) * grow * orbeScale;
-      this.projW.put(x, y, z, now * 7, sc, this.cProj, now * 9, 0);
-      for (let j = 1; j <= FEEL.trail.projGhosts; j++) {
+      // phase 30 : orbe = traînée dégradée (or → rouge), halo doré, cœur blanc chaud
+      const k = sc / 1.7;
+      for (let j = FEEL.trail.projGhosts; j >= 1; j--) {
         const back = Math.min(j * FEEL.trail.projGhostDt, p.age);
-        this.trailW.put(x - p.vx * back, y, z - p.vz * back, 0, sc * (1.15 - j * 0.2), this.cTrail[j - 1]);
+        this.glowW.put(
+          x - p.vx * back,
+          y,
+          z - p.vz * back,
+          0,
+          G.orbTrail * k * (1.1 - j * 0.18),
+          this.cOrbTrail[j - 1],
+          brx,
+          0,
+        );
       }
+      this.glowW.put(x, y, z, 0, G.orbHalo * k, this.cOrbHalo, brx, 0);
+      this.glowW.put(x, y, z, 0, G.orbCore * k, this.cOrbCore, brx, 0);
     }
-    this.projW.end();
-    this.trailW.end();
     this.boomW.end();
     this.mineW.end();
     this.bombW.end();
@@ -1641,12 +1733,12 @@ export class GameScene {
       this.tilt(px, pz);
       this.aura.position.set(px, gp + 0.12, pz);
       this.auraDisc.position.set(px, gp + 0.1, pz);
-      this.aura.rotation.set(this.tRx, 0, this.tRz);
+      this.aura.rotation.set(this.tRx, now * 0.6, this.tRz); // phase 30 : les runes tournent
       this.auraDisc.rotation.set(this.tRx, 0, this.tRz);
       this.aura.scale.setScalar(r * (1 + pulse * 0.06));
       this.auraDisc.scale.setScalar(r);
       const m = this.aura.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.25 + pulse * 0.35;
+      m.opacity = 0.55 + pulse * 0.45; // phase 30 : runes bien visibles, éclat à chaque tick
       m.color.setHex(PAL.xp);
       (this.auraDisc.material as THREE.MeshBasicMaterial).color.setHex(PAL.xp);
     } else this.aura.visible = this.auraDisc.visible = false;
@@ -1654,7 +1746,7 @@ export class GameScene {
     // lames + 3 fantômes chacune (angles précédents, fondu) ; taille = tome Projectiles
     const lvL = w.weapons.lames ?? 0;
     this.bladeW.begin();
-    this.bladeGhostW.begin();
+    this.slashW.begin();
     if (lvL > 0) {
       const sL = weaponStats(w, 'lames');
       const r = sL.r * w.bladeRangeMul;
@@ -1663,17 +1755,15 @@ export class GameScene {
       for (let i = 0; i < sL.n; i++) {
         const a = w.wstate.bladeA + (i * TAU) / sL.n;
         this.bladeW.put(px + Math.sin(a) * r, by, pz + Math.cos(a) * r, a + Math.PI / 2, bs, this.cBladeCol);
-        for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
-          const ag = a - k * sL.spd * 0.03;
-          this.bladeGhostW.put(
-            px + Math.sin(ag) * r,
-            by,
-            pz + Math.cos(ag) * r,
-            ag + Math.PI / 2,
-            bs * (1 - k * 0.15),
-            this.cBladeGhost[k - 1],
-          );
-        }
+        // phase 30 : sillage en arc derrière la lame (bord d'attaque sur la lame), à hauteur des lames
+        this.slashW.put(
+          px,
+          by - 0.05,
+          pz,
+          a - Math.PI / 2 - SLASH_ARC * Math.sign(sL.spd || 1),
+          r * 1.04,
+          this.cSlashBlade,
+        );
       }
     }
     // lances (phase 28) : l'épée part dans le sens du vol, teintée cyan, 3 fantômes en arrière
@@ -1687,14 +1777,51 @@ export class GameScene {
           y = p.y + this.gy(x, z);
         const ry = Math.atan2(-p.vz, p.vx);
         this.bladeW.put(x, y, z, ry, ls, this.cLance);
+        // phase 30 : pointe lumineuse et traînée en lueurs
+        const sp = Math.sqrt(p.vx * p.vx + p.vz * p.vz) || 1,
+          tx = (p.vx / sp) * 0.75 * ls,
+          tz = (p.vz / sp) * 0.75 * ls,
+          brx = this.particles.billboardRx;
+        this.glowW.put(x + tx, y, z + tz, 0, FEEL.glow.lanceTip, this.cLanceTip, brx, 0);
         for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
-          const back = Math.min(k * 0.025, p.age);
-          this.bladeGhostW.put(x - p.vx * back, y, z - p.vz * back, ry, ls * (1 - k * 0.12), this.cLanceGhost[k - 1]);
+          const back = Math.min(k * 0.03, p.age);
+          this.glowW.put(
+            x - p.vx * back,
+            y,
+            z - p.vz * back,
+            0,
+            FEEL.glow.lanceTip * (1 - k * 0.2),
+            this.cLanceGhost[k - 1],
+            brx,
+            0,
+          );
         }
       }
     }
+    // phase 30 : arcs de Faux en cours (posés par scythe(), balayage pendant leur courte vie)
+    for (let i = this.slashN - 1; i >= 0; i--) {
+      const sl = this.slashes[i];
+      sl.life -= dt;
+      if (sl.life <= 0) {
+        const last = this.slashes[--this.slashN];
+        this.slashes[this.slashN] = sl;
+        this.slashes[i] = last;
+        continue;
+      }
+      const f = sl.life / FEEL.slash.life; // 1 → 0
+      this.cSlashTmp.copy(sl.c).multiplyScalar(Math.min(1, f * 1.8));
+      const sweep = (0.5 - f) * FEEL.slash.sweep;
+      this.slashW.put(
+        sl.x,
+        this.gy(sl.x, sl.z) + 0.9,
+        sl.z,
+        sl.a - Math.PI / 2 + sweep,
+        sl.r * (1.05 - f * 0.1),
+        this.cSlashTmp,
+      );
+    }
     this.bladeW.end();
-    this.bladeGhostW.end();
+    this.slashW.end();
 
     // météores annoncés (phase 28) : cercle doré au sol, le disque intérieur se resserre jusqu'à l'impact
     this.metW.begin();
@@ -1709,9 +1836,27 @@ export class GameScene {
         this.tilt(mx, mz);
         this.metW.put(mx, gy + 0.14, mz, 0, mr, this.cMeteor, this.tRx, this.tRz);
         this.metW.put(mx, gy + 0.13, mz, 0, mr * (0.15 + 0.85 * f), this.cMeteor, this.tRx, this.tRz);
+        // phase 30 : le météore tombe du ciel pendant l'annonce (léger biais), avec sa traînée
+        const G = FEEL.glow,
+          brx = this.particles.billboardRx,
+          h = G.meteorFall * f;
+        for (let k = 3; k >= 1; k--)
+          this.glowW.put(
+            mx - h * 0.25 - k * 0.5,
+            gy + h + k * 1.4,
+            mz - k * 0.25,
+            0,
+            G.meteorHalo * (0.7 - k * 0.14),
+            this.cFireTrail[k - 1],
+            brx,
+            0,
+          );
+        this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorHalo, this.cMeteorHalo, brx, now * 3);
+        this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorCore, this.cMeteorCore, brx, 0);
       }
     }
     this.metW.end();
+    this.glowW.end();
 
     // lacs : la rive scintille
     for (let i = 1; i < this.lakeMeshes.length; i += 2)
