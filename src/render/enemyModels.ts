@@ -241,13 +241,19 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
 
 let enemiesPromise: Promise<(BakedEnemy | null)[]> | null = null;
 
-/** Charge enemies.glb et cuit tous les types (une fois ; nouvel essai après un échec, comme loadGLTF). */
+let staleFile = false;
+
+/**
+ * Charge enemies.glb et cuit tous les types (une fois ; nouvel essai après un échec, comme loadGLTF). Si le fichier
+ * reçu ne contient pas les types attendus (ancien fichier servi par un cache), l'essai suivant le retélécharge.
+ */
 export function loadEnemyModels(onStage?: (stage: string) => void): Promise<(BakedEnemy | null)[]> {
   if (enemiesPromise) return enemiesPromise;
-  onStage?.('téléchargement');
-  enemiesPromise = loadGLTF(MANIFEST.enemies.file).then((gltf) => {
+  onStage?.(staleFile ? 'téléchargement hors cache' : 'téléchargement');
+  enemiesPromise = loadGLTF(MANIFEST.enemies.file, staleFile).then((gltf) => {
+    staleFile = true; // remis à false si la cuisson aboutit
     onStage?.('cuisson des poses');
-    return ENEMY_LOOKS.map((look) => {
+    const baked = ENEMY_LOOKS.map((look) => {
       if (!look) return null;
       const loop = look.clips[0][1],
         action = look.clips[1]?.[1] ?? 0;
@@ -259,6 +265,8 @@ export function loadEnemyModels(onStage?: (stage: string) => void): Promise<(Bak
         lo = bake(gltf, look, 'lo');
       return { geo: { net: mid.geo, pixel: lo.geo }, map: mid.map, loop, action, boss: false };
     });
+    staleFile = false;
+    return baked;
   });
   enemiesPromise.catch(() => (enemiesPromise = null));
   return enemiesPromise;

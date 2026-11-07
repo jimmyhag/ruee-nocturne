@@ -99,3 +99,27 @@ test('réseau lent : « Jouer » attend les modèles 3D des ennemis (8 s au plus
   expect(s.kind, s.status).toBe('gltf');
   expect(s.status).toMatch(/3D prêts/);
 });
+
+test('cache périmé : un ancien enemies.glb est retéléchargé hors cache et les ennemis 3D arrivent (1.21.3)', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const urls: string[] = [];
+  // 1er téléchargement : un autre fichier glTF (sans les types d'ennemis), comme un vieux fichier servi par le cache
+  await page.route('**/models/enemies.glb*', async (route) => {
+    urls.push(route.request().url());
+    if (urls.length === 1) {
+      const res = await route.fetch({ url: route.request().url().replace('enemies.glb', 'props.glb').split('?')[0] });
+      return route.fulfill({ response: res });
+    }
+    return route.continue();
+  });
+  await openGame(page);
+  await page.waitForFunction(() => /3D prêts/.test((window as any).__game.scene.enemyStatus), null, {
+    timeout: 30_000,
+  });
+  expect(urls.length).toBe(2);
+  expect(urls[0]).toMatch(/enemies\.glb\?v=\d{4,}$/);
+  expect(urls[1]).toMatch(/enemies\.glb\?v=\d{4,}&r=\d+$/);
+  expect(await page.evaluate(() => (window as any).__game.scene.enemyKind)).toBe('gltf');
+});

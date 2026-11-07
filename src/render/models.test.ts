@@ -9,10 +9,20 @@ import { ENEMIES } from '../sim/balance';
 import { ENEMY_LOOKS } from './enemyModels';
 import { CLIP_NAMES, HERO_LOOKS } from './heroes';
 import MANIFEST from './models.json';
+import { modelUrl } from './models';
 
 const DIR = path.resolve(import.meta.dirname, '../../public/models');
 
 describe('modèles (phases 20, 21, 25, 26)', () => {
+  it('chaque fichier du manifeste a une URL versionnée par sa taille (sinon le cache garde l’ancien)', () => {
+    const files = [MANIFEST.props, MANIFEST.enemies, ...Object.values(MANIFEST.heroes)];
+    for (const f of files) {
+      expect(modelUrl(f.file)).toMatch(new RegExp(`/models/${f.file}\\?v=${f.bytes}$`));
+      expect(f.bytes).toBe(fs.statSync(path.join('public/models', f.file)).size);
+    }
+    expect(() => modelUrl('inconnu.glb')).toThrow();
+  });
+
   it('chaque personnage a son propre modèle de héros, construit au budget de triangles', () => {
     const files = new Set<string>();
     for (const c of CHARACTERS) {

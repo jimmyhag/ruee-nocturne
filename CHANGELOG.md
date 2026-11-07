@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.21.3 — 7 nov. 2026 (correctif)
+
+### Corrigé
+
+- **Les anciens ennemis revenaient après la mise à jour** (« enemies.glb : zombie absent » dans l'onglet perf) : l'adresse du fichier des ennemis n'était pas versionnée (`?v=0`), donc le cache hors ligne de l'application continuait de servir le fichier d'avant la phase 26. Elle porte maintenant sa taille, comme les héros et les objets, et un test vérifie que chaque fichier du manifeste est versionné.
+- Si le fichier reçu ne contient pas les ennemis attendus, l'essai suivant le retélécharge sans passer par le cache.
+
 ## 1.21.2 — 6 nov. 2026 (correctif)
 
 ### Corrigé

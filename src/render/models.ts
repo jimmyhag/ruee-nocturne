@@ -15,20 +15,31 @@ export type PropKey = keyof typeof MANIFEST.props.nodes;
 let loader: GLTFLoader | null = null;
 const cache = new Map<string, Promise<GLTF>>();
 
-/** Taille annoncée par le manifeste : sert de version dans l'URL (le cache CacheFirst suit un fichier réexporté). */
+/**
+ * Taille annoncée par le manifeste : sert de version dans l'URL (le cache CacheFirst suit un fichier réexporté).
+ * Tout fichier du manifeste doit y figurer : une version manquante figerait l'ancien fichier dans le cache (1.21.3).
+ */
 function bytesOf(file: string): number {
   if (MANIFEST.props.file === file) return MANIFEST.props.bytes;
+  if (MANIFEST.enemies.file === file) return MANIFEST.enemies.bytes;
   for (const h of Object.values(MANIFEST.heroes)) if (h.file === file) return h.bytes;
-  return 0;
+  throw new Error(`models.json : ${file} sans taille`);
 }
 
-/** Charge (une fois) un fichier de public/models. Rejeté si le réseau manque : l'appelant garde son repli procédural. */
-export function loadGLTF(file: string): Promise<GLTF> {
-  let p = cache.get(file);
+/** URL versionnée d'un fichier de public/models. */
+export function modelUrl(file: string): string {
+  return `${import.meta.env.BASE_URL}models/${file}?v=${bytesOf(file)}`;
+}
+
+/**
+ * Charge (une fois) un fichier de public/models. Rejeté si le réseau manque : l'appelant garde son repli procédural.
+ * `fresh` : contenu incohérent avec le manifeste (vieux fichier en cache) → nouvelle URL, donc nouveau téléchargement.
+ */
+export function loadGLTF(file: string, fresh = false): Promise<GLTF> {
+  let p = fresh ? undefined : cache.get(file);
   if (!p) {
     loader ??= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const url = `${import.meta.env.BASE_URL}models/${file}?v=${bytesOf(file)}`;
-    p = loader.loadAsync(url);
+    p = loader.loadAsync(fresh ? `${modelUrl(file)}&r=${Date.now()}` : modelUrl(file));
     p.catch(() => cache.delete(file)); // nouvel essai à la prochaine demande
     cache.set(file, p);
   }
