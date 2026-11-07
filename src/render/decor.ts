@@ -8,7 +8,7 @@ import { softDiscTexture } from './textures';
 import { OUTLINE, OUTLINE_RGB } from './toon';
 import type { Prim } from './parts';
 import type { World } from '../sim/world';
-import { WORLD_HALF } from '../sim/balance';
+import { RACE, WORLD_HALF } from '../sim/balance';
 import { TILES } from './terrain';
 
 const TRUNK = 0x5a3d3a;
@@ -25,6 +25,11 @@ const HOOP = 0x3c3a44;
 const CRATE = 0x96714c;
 const CRATE_LIGHT = 0xa8835a;
 const PUMPKIN = 0xd9782e;
+const ARCH_POST = 0x3a3550;
+const ARCH_START = 0x5fd8ff; // départ des pistes chronométrées
+const ARCH_START_FLAG = 0xbff1ff;
+const ARCH_FINISH = 0xffc845; // arrivée
+const ARCH_FINISH_FLAG = 0xfff0b8;
 const LEAF2 = 0x37604f; // feuillage un peu plus clair (feuillu)
 const build = (parts: (Prim & { color: number })[]) => merge(parts.map((p) => paintHex(primGeometry(p), p.color)));
 
@@ -334,6 +339,43 @@ export function worksGeometry(w: World, gy: (x: number, z: number) => number = (
         seg: 5,
       },
     ]);
+  }
+  // arches des pistes chronométrées (phase 28) : départ cyan en haut, arrivée dorée en bas, en travers de la piste
+  for (const r of w.races) {
+    const dx = r.fx - r.sx,
+      dz = r.fz - r.sz,
+      L = Math.hypot(dx, dz) || 1;
+    const qx = -dz / L,
+      qz = dx / L,
+      th = Math.atan2(qz, qx);
+    for (const [cx, cz, col, flag] of [
+      [r.sx, r.sz, ARCH_START, ARCH_START_FLAG],
+      [r.fx, r.fz, ARCH_FINISH, ARCH_FINISH_FLAG],
+    ] as const) {
+      const half = RACE.r * 0.95,
+        h = 3.4;
+      const ax = cx + qx * half,
+        az = cz + qz * half,
+        bx = cx - qx * half,
+        bz = cz - qz * half;
+      const ga = gy(ax, az),
+        gb = gy(bx, bz),
+        top = Math.max(ga, gb) + h;
+      const parts: (Prim & { color: number })[] = [
+        { shape: 'cyl', size: [0.16, 0.2, top - ga], pos: [ax, (ga + top) / 2, az], color: ARCH_POST, seg: 6 },
+        { shape: 'cyl', size: [0.16, 0.2, top - gb], pos: [bx, (gb + top) / 2, bz], color: ARCH_POST, seg: 6 },
+        { shape: 'box', size: [half * 2 + 0.5, 0.26, 0.26], pos: [cx, top, cz], rot: [0, -th, 0], color: col },
+        { shape: 'box', size: [half * 1.3, 0.62, 0.06], pos: [cx, top - 0.5, cz], rot: [0, -th, 0], color: flag },
+      ];
+      for (const k of [-1, 1])
+        parts.push({
+          shape: 'ico',
+          size: [0.22, 0.22, 0.22],
+          pos: [cx + qx * half * k, top + 0.2, cz + qz * half * k],
+          color: col,
+        });
+      piece(parts, cx, cz);
+    }
   }
   const out: THREE.BufferGeometry[] = [];
   for (const list of tiles)

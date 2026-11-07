@@ -21,6 +21,15 @@ const smooth = (a: number, b: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
+/** Distance du point au segment (construction des couleurs seulement). */
+function segDist(x: number, z: number, ax: number, az: number, bx: number, bz: number): number {
+  const ux = bx - ax,
+    uz = bz - az,
+    l2 = ux * ux + uz * uz;
+  let t = l2 > 1e-9 ? ((x - ax) * ux + (z - az) * uz) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(x - (ax + ux * t), z - (az + uz * t));
+}
 export class TerrainView {
   /** Hauteurs aux sommets du sol (N × N), échantillonnées une fois sur la sim. */
   readonly grid = new Float32Array(N * N);
@@ -115,9 +124,36 @@ export class TerrainView {
         const br = 1.32 + 0.18 * t,
           bg = 1.0 + 0.12 * t,
           bb = 0.78 + 0.08 * t;
-        col[g * 3] = (gr + (br - gr) * bank) * k;
-        col[g * 3 + 1] = (gg + (bg - gg) * bank) * k;
-        col[g * 3 + 2] = (gb + (bb - gb) * bank) * k;
+        let r = (gr + (br - gr) * bank) * k,
+          gC = (gg + (bg - gg) * bank) * k,
+          bC = (gb + (bb - gb) * bank) * k;
+        // phase 28 : grandes pistes en neige tassée (claire, bleutée) bordée d'un liseré sombre ; tremplins en bois clair
+        const x = -WORLD_HALF + i * CELL,
+          z = -WORLD_HALF + j * CELL;
+        let pist = 0,
+          rim = 0;
+        for (const p of w.pistes) {
+          const d = segDist(x, z, p.x0, p.z0, p.x1, p.z1);
+          pist = Math.max(pist, smooth(p.half + 0.8, p.half - 1.2, d));
+          rim = Math.max(rim, 1 - Math.min(1, Math.abs(d - p.half) / 1.1));
+        }
+        for (const q of w.kickers) {
+          const d = segDist(x, z, q.x, q.z, q.x + q.dx * TERRAIN.kickLen, q.z + q.dz * TERRAIN.kickLen);
+          pist = Math.max(pist, smooth(TERRAIN.kickHalf + 0.6, TERRAIN.kickHalf - 1, d));
+        }
+        if (pist > 0 || rim > 0) {
+          const kk = 0.75 + 0.35 * k;
+          r += (1.28 * kk - r) * pist * 0.8;
+          gC += (1.36 * kk - gC) * pist * 0.8;
+          bC += (1.5 * kk - bC) * pist * 0.8;
+          const dk = 1 - rim * 0.35;
+          r *= dk;
+          gC *= dk;
+          bC *= dk;
+        }
+        col[g * 3] = r;
+        col[g * 3 + 1] = gC;
+        col[g * 3 + 2] = bC;
       }
     // fenêtre : tableaux alloués une fois, remplis à chaque recalage
     if (!this.winGeo) {

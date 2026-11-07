@@ -12,6 +12,7 @@ import {
   HAZARDS,
   MAPCHEST,
   MERCHANT,
+  METEOR,
   REAPER_TYPE,
   SHRINE,
   SLIDE,
@@ -217,6 +218,10 @@ export class GameScene {
   private gemW: InstanceWriter;
   private bladeW: InstanceWriter;
   private bladeGhostW: InstanceWriter;
+  private metW: InstanceWriter;
+  private cLance = new THREE.Color(0x7fe3ff);
+  private cLanceGhost = [0.55, 0.35, 0.2].map((k) => new THREE.Color(0x7fe3ff).multiplyScalar(k));
+  private cMeteor = new THREE.Color(PAL.gold);
   private dashGhostW: InstanceWriter;
   private cProj = new THREE.Color(PAL.proj);
   private cTrail = PAL.trail.map((c) => new THREE.Color(c));
@@ -401,11 +406,16 @@ export class GameScene {
     this.scene.add(this.aura, this.auraDisc);
     // lames : un InstancedMesh (6 draw calls → 1) + fantômes additifs (3 par lame)
     const bladeGeo = new THREE.BoxGeometry(1.0, 0.1, 0.26);
-    // 13 lames au plus : 2 de base + 8 lignes + 3 du tome Projectiles (phase 12)
-    this.bladeW = new InstanceWriter(makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 13));
+    // 13 lames au plus : 2 de base + 8 lignes + 3 du tome Projectiles (phase 12) ; + 11 lances en vol (phase 28)
+    this.bladeW = new InstanceWriter(makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 24));
     this.bladeGhostW = new InstanceWriter(
-      makeInstanced(bladeGeo, additive(0xffffff, 0.5), 13 * FEEL.trail.bladeGhosts),
+      makeInstanced(bladeGeo, additive(0xffffff, 0.5), 24 * FEEL.trail.bladeGhosts),
     );
+    // phase 28 : cercles d'alerte des météores (bord fixe + disque qui se resserre), un seul appel
+    this.metW = new InstanceWriter(
+      makeInstanced(new THREE.RingGeometry(0.88, 1, 40).rotateX(-Math.PI / 2), additive(0xffffff, 0.9), 2 * METEOR.max),
+    );
+    this.scene.add(this.metW.mesh);
     this.scene.add(this.bladeW.mesh, this.bladeGhostW.mesh);
     this.writers.push(
       ...this.enemyW,
@@ -428,6 +438,7 @@ export class GameScene {
       this.dashGhostW,
       this.bladeW,
       this.bladeGhostW,
+      this.metW,
     );
 
     // points d'intérêt (phase 18) : 5 appels de plus au plus (coffres, anneau, sanctuaires, runes, colonnes)
@@ -1529,6 +1540,7 @@ export class GameScene {
         this.bombW.put(x, y, z, now * 2, blink, p.armed ? this.cMineArmed : this.cMine);
         continue;
       }
+      if (p.kind === ProjKind.Lance) continue; // dessinée avec les lames (même modèle d'épée)
       if (p.kind === ProjKind.Fire) {
         // plaque de feu : s'éteint en rétrécissant, vacille
         const fade = Math.max(0.2, p.life / TRAIT.trainee.life);
@@ -1594,8 +1606,42 @@ export class GameScene {
         }
       }
     }
+    // lances (phase 28) : l'épée part dans le sens du vol, teintée cyan, 3 fantômes en arrière
+    if ((w.weapons.lance ?? 0) > 0) {
+      const ls = 1.5 * w.player.sizeMul;
+      for (let i = 0; i < w.projCount; i++) {
+        const p = w.projs[i];
+        if (p.kind !== ProjKind.Lance) continue;
+        const x = lerp(p.px, p.x, alpha),
+          z = lerp(p.pz, p.z, alpha),
+          y = p.y + this.gy(x, z);
+        const ry = Math.atan2(-p.vz, p.vx);
+        this.bladeW.put(x, y, z, ry, ls, this.cLance);
+        for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
+          const back = Math.min(k * 0.025, p.age);
+          this.bladeGhostW.put(x - p.vx * back, y, z - p.vz * back, ry, ls * (1 - k * 0.12), this.cLanceGhost[k - 1]);
+        }
+      }
+    }
     this.bladeW.end();
     this.bladeGhostW.end();
+
+    // météores annoncés (phase 28) : cercle doré au sol, le disque intérieur se resserre jusqu'à l'impact
+    this.metW.begin();
+    const ws = w.wstate;
+    if (ws.metN > 0) {
+      const mr = weaponStats(w, 'meteores').r;
+      for (let i = 0; i < ws.metN; i++) {
+        const mx = ws.metX[i],
+          mz = ws.metZ[i];
+        const f = Math.max(0, Math.min(1, ws.metLeft[i] / METEOR.delay));
+        const gy = this.gy(mx, mz);
+        this.tilt(mx, mz);
+        this.metW.put(mx, gy + 0.14, mz, 0, mr, this.cMeteor, this.tRx, this.tRz);
+        this.metW.put(mx, gy + 0.13, mz, 0, mr * (0.15 + 0.85 * f), this.cMeteor, this.tRx, this.tRz);
+      }
+    }
+    this.metW.end();
 
     // lacs : la rive scintille
     for (let i = 1; i < this.lakeMeshes.length; i += 2)
