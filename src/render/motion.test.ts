@@ -9,6 +9,7 @@ const input = (o: Partial<MotionInput> = {}): MotionInput => ({
   onGround: true,
   sliding: false,
   airMom: false,
+  slideJump: false,
   height: 0,
   speed: 0,
   face: 0,
@@ -35,13 +36,28 @@ describe('mouvements', () => {
     expect(slide / frames).toBeGreaterThan(0.95);
     expect(lands).toBe(0);
   });
-  it('saut glissé : pose de glisse en l’air ; un long envol passe en pose de vol', () => {
+  it('envol en glisse : pose de glisse en l’air ; un long envol passe en pose de vol', () => {
     const m = new MotionState();
     m.update(DT, input({ speed: 10, sliding: true }));
     for (let f = 0; f < 18; f++) m.update(DT, input({ onGround: false, airMom: true, height: 1.5, speed: 10 })); // 0,3 s
     expect(m.base).toBe(Base.Slide);
     for (let f = 0; f < 18; f++) m.update(DT, input({ onGround: false, airMom: true, height: 2.5, speed: 10 }));
     expect(m.base).toBe(Base.Fall);
+  });
+  it('saut depuis la glisse (1.24.1) : animation normale en l’air, comme si la glissade était annulée', () => {
+    const m = new MotionState();
+    m.update(DT, input({ speed: 10, sliding: true }));
+    expect(m.base).toBe(Base.Slide);
+    let slide = 0;
+    for (let f = 0; f < 30; f++) {
+      m.update(DT, input({ onGround: false, airMom: true, slideJump: true, height: 0.2 + f * 0.04, speed: 10 }));
+      if (m.base === Base.Slide) slide++;
+    }
+    expect(m.base).toBe(Base.Fall);
+    expect(slide).toBeLessThanOrEqual(Math.ceil(MOTION.airDelay / DT)); // au plus le court délai avant la pose de vol
+    m.update(DT, input({ speed: 6 })); // réception debout, en courant
+    m.update(DT, input({ speed: 6 }));
+    expect(m.base).toBe(Base.Run);
   });
   it('petit saut de bosse sans élan : la pose de sol est gardée', () => {
     const m = new MotionState();

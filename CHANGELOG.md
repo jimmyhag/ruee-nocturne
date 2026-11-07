@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.24.1 — 7 nov. 2026 (retour de Jimmy sur le saut glissé)
+
+### Modifié
+
+- **Glisser puis sauter annule la glissade** : le héros reprend l'animation normale de saut, et la réception se fait debout, en course. L'élan de la glissade porte toujours le saut (on saute plus loin), et la vrille reste possible en l'air. Un envol depuis une crête ou un tremplin, lui, se réceptionne toujours en glissade.
+
 ## 1.24.0 — 7 nov. 2026 (phase 29 « Bordure et mouvements »)
 
 ### Ajouté

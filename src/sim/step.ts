@@ -134,6 +134,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       vy += Math.max(0, P.gv);
       P.sliding = false;
       P.airMom = true;
+      P.slideJump = true; // 1.24.1 (Jimmy) : sauter annule la glissade ; l'élan porte le saut, la réception se fait debout
       w.emit(Ev.Launch, P.x, P.y, P.z, Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz));
     }
     P.vy = vy;
@@ -254,6 +255,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
         P.airT = 0;
         P.spin = 0;
         P.spinDone = false;
+        P.slideJump = false; // envol : on décolle en glisse, la réception continue la glissade
         if (P.sliding) {
           P.sliding = false;
           P.airMom = true;
@@ -293,8 +295,9 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       }
       P.spin = 0;
       P.spinDone = false;
-      // réception glissée : après un saut glissé ou un envol, l'élan continue au sol, droit dans le sens du vol
-      if (P.airMom && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
+      // réception glissée : après un envol, l'élan continue au sol, droit dans le sens du vol ; après un saut glissé, on
+      // se réceptionne debout (1.24.1 : le saut annule la glissade)
+      if (P.airMom && !P.slideJump && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
         const m = Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz);
         P.dirX = P.mvx / m;
         P.dirZ = P.mvz / m;
@@ -302,6 +305,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
         w.emit(Ev.SlideStart, P.x, 0, P.z, Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz));
       }
       P.airMom = false;
+      P.slideJump = false;
       P.gv = 0;
     }
   }

@@ -193,6 +193,7 @@ export class GameScene {
     onGround: true,
     sliding: false,
     airMom: false,
+    slideJump: false,
     height: 0,
     speed: 0,
     face: 0,
@@ -1089,10 +1090,10 @@ export class GameScene {
   }
 
   /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
-  onJump(slideJump = false): void {
-    // phase 29 : élan plus vif (il traînait au-dessus du sol) ; un saut glissé garde la pose de glisse (le clip de
-    // saut le remettait debout en plein vol)
-    if (!slideJump) this.heroAnim?.trigger(HeroAnim.Jump, 2.2);
+  onJump(): void {
+    // phase 29 : élan plus vif (il traînait au-dessus du sol) ; 1.24.1 : un saut depuis la glisse aussi (le saut
+    // annule la glissade, animation normale)
+    this.heroAnim?.trigger(HeroAnim.Jump, 2.2);
   }
 
   /** Phase 27 : glissade lancée ou finie (l'animation de fond suit P.sliding ; ici, l'appui visuel). */
@@ -1182,6 +1183,7 @@ export class GameScene {
     mi.onGround = P.onGround;
     mi.sliding = P.sliding;
     mi.airMom = P.airMom;
+    mi.slideJump = P.slideJump;
     mi.height = py;
     mi.speed = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
     mi.face = this.face;

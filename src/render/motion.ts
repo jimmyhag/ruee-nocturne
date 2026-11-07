@@ -15,7 +15,7 @@ export const MOTION = {
   airDelay: 0.15, // s en l'air avant de passer en pose de chute (une bosse ne fait pas « tomber »)…
   airHigh: 0.6, // …ou plus haut que ça au-dessus du sol
   slideAirMax: 1.2, // en l'air avec l'élan de glisse : pose de glisse tant qu'on est sous cette hauteur…
-  slideAirLong: 0.45, // …ou que le vol est court (saut glissé) ; un long envol de tremplin passe en pose de vol
+  slideAirLong: 0.45, // …ou que le vol est court ; un long envol de tremplin passe en pose de vol
   landAir: 0.35, // la réception (clip Land) ne se joue qu'après ce temps en l'air…
   landSpeed: 2, // …et presque à l'arrêt (u/s) : en courant ou en glissant, on enchaîne sans s'accroupir
   runOn: 0.8, // u/s : la course démarre au-dessus…
@@ -40,6 +40,8 @@ export interface MotionInput {
   onGround: boolean;
   sliding: boolean;
   airMom: boolean;
+  /** élan venu d'un saut depuis la glisse (1.24.1 : animation normale, réception debout), pas d'un envol */
+  slideJump: boolean;
   /** hauteur au-dessus du sol (u) */
   height: number;
   /** vitesse horizontale (u/s) */
@@ -113,7 +115,8 @@ export class MotionState {
       next = s.sliding ? Base.Slide : ground;
     } else {
       this.airT += dt;
-      if (s.airMom && (s.height < M.slideAirMax || this.airT < M.slideAirLong)) next = Base.Slide;
+      // en l'air après un envol en glisse : pose de glisse ; après un saut, animation normale (le saut annule la glisse)
+      if (s.airMom && !s.slideJump && (s.height < M.slideAirMax || this.airT < M.slideAirLong)) next = Base.Slide;
       else if (this.airT > M.airDelay || s.height > M.airHigh) next = Base.Fall;
       else next = this.base === Base.Fall ? Base.Fall : this.base; // petit saut de bosse : on garde la pose
     }
