@@ -237,8 +237,10 @@ export const HAZARDS = {
     period1: 4, // …et à `at` (15:00) puis constant
     at: 900,
     r: 1.6,
-    telegraph: 0.8, // fenêtre de saut utile : en l'air ≥ 0,9 u entre 0,11 et 0,62 s après l'impulsion ⇒ sauter à mi-télégraphe
-    track: 7, // u/s : la fissure suit le joueur (6,2 u/s en marchant) ; seuls le saut et le dash (×3,2) l'esquivent
+    // 1.25.1 (retour de Jimmy) : le cercle ne suit plus le joueur, il pète là où il est apparu, plus vite (0,8 → 0,65 s).
+    // On en sort en marchant (rayon + corps ≈ 2 u : 0,32 s à 6,2 u/s), ou on le saute : en l'air ≥ 0,9 u entre 0,11 et
+    // 0,62 s après l'impulsion, donc un saut dès l'apparition retombe juste avant le pic (il faut viser, pas réagir)
+    telegraph: 0.65,
     dmg: 12, // × dmgScale (×1,25 à 2:30 ⇒ 15 PV ; 31 PV à 15:00) ; phase 12 : 15 → 12, les éruptions faisaient 16–17 % des morts d'un personnage complet (porte ≤ 15 %)
     launch: 6, // vitesse verticale donnée au joueur touché : projeté, lisible
   },

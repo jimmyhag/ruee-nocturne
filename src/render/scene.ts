@@ -1527,11 +1527,11 @@ export class GameScene {
         this.tilt(sh.x, sh.z);
         this.ringW.put(sh.x, this.gy(sh.x, sh.z) + 0.15, sh.z, 0, r, this.cTele, this.tRx, this.tRz);
       } else {
-        // cercle du Colosse (immobile) ou fissure d'éruption (suit le joueur, posée sur le sol local) : le disque se remplit
+        // cercle du Colosse ou d'éruption (fixes, posés sur le sol local) : le disque se remplit
         const eruption = sh.kind === ShotKind.Eruption;
         const f = 1 - Math.max(0, sh.life / (eruption ? HAZARDS.eruption.telegraph : BOSS.zoneTelegraph));
-        const sx = eruption ? lerp(sh.px, sh.x, alpha) : sh.x,
-          sz = eruption ? lerp(sh.pz, sh.z, alpha) : sh.z;
+        const sx = sh.x,
+          sz = sh.z;
         const gy = this.gy(sx, sz);
         this.tilt(sx, sz);
         this.zoneW.put(sx, gy + 0.1, sz, 0, sh.r, this.cTele, this.tRx, this.tRz);
