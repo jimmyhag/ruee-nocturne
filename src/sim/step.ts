@@ -2,10 +2,10 @@ import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN,
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
-import { applyCard, nextChoice, tickChests, tickGems } from './progression';
+import { LEVEL_REROLL, applyCard, nextChoice, rerollLevel, tickChests, tickGems } from './progression';
 import { merchantInput, tickMerchant } from './merchant';
 import { tickPOI } from './poi';
-import { shieldAbsorb, shieldTick, tickRideItems } from './items';
+import { healTick, shieldAbsorb, shieldTick, tickRideItems } from './items';
 import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
@@ -36,7 +36,8 @@ export function step(w: World, input: Input, dt: number): void {
   w.clearEvents();
   if (w.mode === Mode.Dead || w.mode === Mode.Won) return;
   if (w.mode === Mode.LevelUp) {
-    if (input.pick >= 0) applyCard(w, input.pick);
+    if (input.pick === LEVEL_REROLL) rerollLevel(w); // phase 31 : relance des cartes
+    else if (input.pick >= 0) applyCard(w, input.pick);
     return;
   }
   if (w.mode === Mode.Merchant) {
@@ -312,7 +313,12 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   // vitesse lissée (≈ 0,5 s) : le Faucheur s'y règle
   const vNow = Math.sqrt((P.x - P.px) ** 2 + (P.z - P.pz) ** 2) / dt;
   P.spd += (vNow - P.spd) * Math.min(1, dt * SLIDE.spdSmooth);
-  P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
+  // phase 31 : Mousse de troll (part des PV max par seconde), Second souffle (bien plus sous un seuil de PV)
+  let regen = P.regen;
+  if (w.items[It.Mousse]) regen += P.maxHp * ITEM.mousse.pct;
+  if (w.items[It.Souffle] && P.hp < P.maxHp * ITEM.souffle.below) regen += P.maxHp * ITEM.souffle.pct;
+  P.hp = Math.min(P.maxHp, P.hp + regen * dt);
+  healTick(w, dt);
   P.walk += l * dt * 12;
   // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de Comète
   const mx = P.x - P.px,

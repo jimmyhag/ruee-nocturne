@@ -199,6 +199,8 @@ export const enum Ev {
   ShieldBlock, // phase 28 : le Bouclier annule un coup en (x,z)
   ShieldReady, // phase 28 : le Bouclier est de nouveau prêt
   Horn, // phase 28 : onde de la Corne de guerre en (x,z), v = rayon
+  Reroll, // phase 31 : cartes de montée de niveau relancées, v = relances restantes
+  Heal, // phase 31 : PV rendus par les objets (vol de vie, kills) depuis la dernière annonce, en (x,y,z), v = PV
 }
 
 export interface GameEvent {
@@ -273,6 +275,7 @@ export interface WorldOptions {
   character?: CharacterKey; // défaut : Éclaireuse
   unlocked?: WeaponKey[]; // armes proposables ; undefined = toutes
   slots?: { weapons: number; passives: number }; // emplacements débloqués (phase 10) ; undefined = plafonds max
+  rerolls?: number; // phase 31 : relances de cartes pour la partie ; undefined = RUN_REROLL.base
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouvement' | 'savoir' | 'chance' | 'or';
@@ -300,7 +303,19 @@ export type ItemKey =
   | 'plume'
   | 'boussole'
   | 'bouclier'
-  | 'corne';
+  | 'corne'
+  | 'croc' // phase 31
+  | 'calice'
+  | 'mousse'
+  | 'souffle'
+  | 'pierre'
+  | 'de'
+  | 'gant'
+  | 'brume'
+  | 'sandales'
+  | 'amulette'
+  | 'ecorce'
+  | 'couronne';
 
 /**
  * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.

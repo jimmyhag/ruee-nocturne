@@ -234,6 +234,86 @@ export const ITEM_ICON: Record<ItemKey, string> = {
       path('M28 47l4-10 6 2-3 10zM40 38l5-9 5 4-5 8z', '#c9a77a') +
       hl('M10 47c12 1 24-4 32-16-4 9-14 17-32 18z'),
   ),
+  // phase 31 : vol de vie, régénération, pourcentages
+  croc: svg(
+    path('M10 8h44v9H10z', '#8f1d3a') +
+      path('M16 17h12l-6 28z', PAPER) +
+      path('M36 17h12l-6 28z', PAPER) +
+      path('M42 46c4 5 5 8 0 11-5-3-4-6 0-11z', RED) +
+      hl('M18 19h4l-3 14z'),
+  ),
+  calice: svg(
+    path('M12 8h40c0 15-9 24-20 24S12 23 12 8z', GOLD) +
+      path('M17 13h30c-2 9-8 14-15 14s-13-5-15-14z', RED) +
+      path('M29 32h6v13h-6z', GOLD) +
+      path('M18 45h28v9H18z', GOLD) +
+      hl('M20 15h5c1 5 3 8 6 10-6-1-10-5-11-10z'),
+  ),
+  mousse: svg(
+    path('M6 54c0-16 11-26 26-26s26 10 26 26z', '#5fb36a') +
+      circle(22, 42, 4, '#3f8a4c') +
+      circle(38, 38, 3, '#3f8a4c') +
+      circle(44, 48, 3.5, '#3f8a4c') +
+      path('M28 6h8v8h8v8h-8v8h-8v-8h-8v-8h8z', '#7ee0a1') +
+      hl('M12 48c2-8 8-13 15-15-5 4-9 9-11 15z'),
+  ),
+  souffle: svg(
+    `<g transform="translate(14 14) scale(.78)">${path(HEART, '#ff8aa0')}</g>` +
+      pole('M4 18c10-7 18 5 28-2', '#bff1ff', 3) +
+      pole('M30 8c8-5 16 2 26-2', '#bff1ff', 3),
+  ),
+  pierre: svg(
+    path('M6 42L34 14l22 20-28 28z', '#9aa0b8') +
+      path('M14 42L34 22l14 12-20 20z', '#c3c8dc') +
+      star(50, 12, 9, 3.5, 4, PAPER) +
+      hl('M14 41l17-17 3 3-17 17z'),
+  ),
+  de: svg(
+    `<rect x="10" y="10" width="44" height="44" rx="9" fill="${PAPER}"/>` +
+      circle(22, 22, 4, INK) +
+      circle(42, 22, 4, INK) +
+      circle(32, 32, 5, GOLD) +
+      circle(22, 42, 4, INK) +
+      circle(42, 42, 4, INK),
+  ),
+  gant: svg(
+    path('M16 58V32l-5-13 7-2 5 10V10h7v17V7h7v20V10h7v20l5-9 7 3-9 20v14z', '#7d7894') +
+      path('M16 50h31v8H16z', '#4b4766') +
+      hl('M24 12h3v15h-3z'),
+  ),
+  brume: svg(
+    pole('M12 6c2 13 9 19 20 19s18-6 20-19', '#c9a77a', 2) +
+      path('M32 22c9 11 13 17 13 24a13 13 0 0 1-26 0c0-7 4-13 13-24z', '#b3a2ff') +
+      path('M32 32c4 6 6 9 6 13a6 6 0 0 1-12 0c0-4 2-7 6-13z', '#e3dcff') +
+      hl('M25 42c0-5 3-9 6-13-2 5-3 9-3 14z'),
+  ),
+  sandales: svg(
+    path('M6 46h36c7 0 12 4 12 9H6z', WOOD) +
+      pole('M14 46l8-12M30 46l-6-12', '#c9a77a', 3) +
+      path('M30 38c4-17 16-27 28-29-4 6-6 10-12 12 4 2 7 2 11 2-5 7-13 11-27 15z', PAPER) +
+      hl('M36 30c4-9 10-15 17-18-5 5-9 10-12 17z'),
+  ),
+  amulette: svg(
+    pole('M14 6c2 12 8 18 18 18s16-6 18-18', '#c9a77a', 2) +
+      circle(32, 40, 17, GOLD) +
+      circle(32, 40, 11, '#2f5c8a') +
+      star(32, 40, 8, 3.5, 5, '#59d8ff') +
+      hl('M19 36a14 14 0 0 1 8-9c-3 3-5 6-5 10z'),
+  ),
+  ecorce: svg(
+    path('M12 8h40l-4 40-16 10-16-10z', WOOD) +
+      path('M22 14c2 10-2 20 0 34M32 12c-2 14 2 26 0 40M42 14c-2 10 2 20 0 34', 'none') +
+      path('M16 8h32v6H16z', '#5fb36a') +
+      hl('M17 16h4l-2 26-3-2z'),
+  ),
+  couronne: svg(
+    path('M8 48V18l12 12 12-20 12 20 12-12v30z', GOLD) +
+      path('M8 46h48v10H8z', '#b3263f') +
+      circle(32, 30, 5, RED) +
+      circle(18, 38, 3.5, RED) +
+      circle(46, 38, 3.5, RED) +
+      hl('M12 26l6 6v12h-6z'),
+  ),
 };
 
 export const BOON_ICON: Record<BoonKey, string> = {

@@ -13,6 +13,7 @@ import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t 
 import { achName, achUnlock, enemyName, itemName, synergyName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
+import { LEVEL_REROLL, canReroll } from './sim/progression';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -46,7 +47,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buyCharacter, buyOutfit, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
+import { buyCharacter, buyOutfit, buyReroll, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './meta/daily';
 import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
@@ -56,6 +57,7 @@ import {
   renderAchievements,
   renderCharacters,
   renderProgress,
+  renderRerolls,
   renderSlots,
   slotCondition,
   slotName,
@@ -262,6 +264,7 @@ function renderShopScreen(): void {
   // phase 17 : plus de boutique par personnage ; la feuille ne garde que les emplacements (communs à tous)
   $('shopGold').textContent = t('gold', { n: Math.round(meta.gold) });
   renderSlots($('slotList'), meta);
+  renderRerolls($('rerollList'), $('rerollNote'), meta); // phase 31
 }
 
 // ---------- langue : passe statique (index.html) et re-rendu de l'écran courant ----------
@@ -442,6 +445,11 @@ function openLevelUp(): void {
     pMax: world.maxTomes,
   });
   renderCards($('cards'), world.cards, world);
+  // phase 31 : relance des cartes (pas pour un coffre ni un sanctuaire)
+  const rr = $('luReroll') as HTMLButtonElement;
+  rr.hidden = chest || shrine;
+  rr.disabled = !canReroll(world);
+  rr.textContent = world.rerolls > 0 ? t('levelup.reroll', { n: world.rerolls }) : t('levelup.reroll0');
   if (again) return;
   showOnly('levelup');
   audio.levelUp();
@@ -501,6 +509,22 @@ addEventListener('keydown', (e) => {
     e.preventDefault();
     merchantAct(MERCHANT_LEAVE);
   }
+});
+
+/** Relance des cartes de montée de niveau (phase 31) : un pas de sim, puis nouvelles cartes en cascade. */
+function rerollCards(): void {
+  if (!world || app !== 'levelup' || choosing || !canReroll(world)) return;
+  inp.pick = LEVEL_REROLL;
+  step(world, inp, STEP);
+  inp.pick = -1;
+  handleEvents(world, performance.now() / 1000);
+  openLevelUp(); // re-rendu (déjà ouvert : ni son de niveau ni balayage d'XP)
+  audio.select('s');
+  if (!input.isTouch) ($('cards').firstElementChild as HTMLElement | null)?.focus({ preventScroll: true });
+}
+$('luReroll').onclick = () => rerollCards();
+addEventListener('keydown', (e) => {
+  if (app === 'levelup' && e.code === 'KeyR' && !e.repeat) rerollCards();
 });
 
 let choosing = false;
@@ -694,6 +718,18 @@ $('slotList').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-slot]') as HTMLButtonElement | null;
   if (!b || b.disabled) return;
   if (buySlot(meta, +b.dataset.slot!)) {
+    saveMeta(meta);
+    audio.init();
+    audio.chest();
+    renderShopScreen();
+    updateBestLine();
+  }
+});
+// relances (phase 31) : achat dans l'ordre, or suffisant
+$('rerollList').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-reroll]') as HTMLButtonElement | null;
+  if (!b || b.disabled) return;
+  if (buyReroll(meta)) {
     saveMeta(meta);
     audio.init();
     audio.chest();
@@ -1474,6 +1510,9 @@ function handleEvents(w: World, now: number): void {
         S.particles.ring(e.x, 1, e.z, 0x7fd8ff, (20 * fx) | 0, 4, 2);
         S.dmg.text(e.x, 2.2, e.z, t('banner.shield'), 'gold');
         audio.chest();
+        break;
+      case Ev.Heal: // phase 31 : soins des objets, un chiffre vert par seconde
+        S.dmg.text(e.x, 2, e.z, `+${Math.round(e.v)}`, 'heal');
         break;
       case Ev.ShieldReady:
         S.particles.ring(e.x, 0.6, e.z, 0x7fd8ff, (10 * fx) | 0, 1.5, 1);

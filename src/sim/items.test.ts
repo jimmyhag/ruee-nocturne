@@ -24,10 +24,12 @@ const god = (w: World) => {
 };
 
 describe('objets passifs', () => {
-  it('vingt objets (phase 22 : Rune, Collier ; phase 28 : six de plus), chacun avec une rareté', () => {
-    expect(ITEM_KEYS.length).toBe(20);
-    expect(new Set(ITEM_KEYS).size).toBe(20);
-    expect(ITEM_RARITY.length).toBe(20);
+  it('32 objets (phase 22 : Rune, Collier ; phase 28 : six de plus ; phase 31 : douze), chacun avec une rareté', () => {
+    expect(ITEM_KEYS.length).toBe(32);
+    expect(new Set(ITEM_KEYS).size).toBe(32);
+    expect(ITEM_RARITY.length).toBe(32);
+    expect(ITEM_KEYS.indexOf('corne')).toBe(It.Corne); // indices existants inchangés
+    expect(ITEM_KEYS.indexOf('couronne')).toBe(It.Couronne);
   });
   it('les effets immédiats modifient le joueur une seule fois (un objet est unique)', () => {
     const w = new World(1);
@@ -398,5 +400,107 @@ describe('objets de la phase 28', () => {
     step(a, still, STEP);
     step(b, still, STEP);
     expect(b.seenCount).toBeGreaterThan(a.seenCount * 2.5);
+  });
+});
+
+describe('objets de la phase 31 : vol de vie, régénération, pourcentages', () => {
+  const fresh = () => {
+    const w = new World(5);
+    startRun(w);
+    w.nextWave = w.nextElite = w.nextBoss = w.nextEruption = 1e9;
+    for (const k of Object.keys(w.weapons)) delete w.weapons[k as keyof typeof w.weapons];
+    return w;
+  };
+  it('pourcentages : dégâts, critique, dégâts subis, vitesse, expérience, armure', () => {
+    const w = fresh();
+    const P = w.player;
+    const b = { dmg: P.dmgMul, crit: P.crit, taken: P.dmgTaken, speed: P.speed, xp: P.xpMul, armor: P.armor };
+    for (const it of [It.Pierre, It.De, It.Brume, It.Sandales, It.Amulette, It.Ecorce]) gainItem(w, it);
+    expect(P.dmgMul).toBeCloseTo(b.dmg + ITEM.pierre.dmg, 6);
+    expect(P.crit).toBeCloseTo(b.crit + ITEM.de.crit, 6);
+    expect(P.dmgTaken).toBeCloseTo(b.taken * ITEM.brume.dmgTaken, 6);
+    expect(P.speed).toBeCloseTo(b.speed * ITEM.sandales.speedMul, 6);
+    expect(P.xpMul).toBeCloseTo(b.xp + ITEM.amulette.xp, 6);
+    expect(P.armor).toBeCloseTo(b.armor + ITEM.ecorce.armor, 6);
+  });
+  it('Mousse de troll : 1 % des PV max par seconde ; Second souffle seulement sous 35 %', () => {
+    const w = fresh();
+    const P = w.player;
+    P.hp = P.maxHp * 0.5;
+    gainItem(w, It.Mousse);
+    for (let i = 0; i < 60; i++) step(w, still, STEP);
+    expect(P.hp).toBeCloseTo(P.maxHp * (0.5 + ITEM.mousse.pct) + P.regen, 1);
+    const w2 = fresh();
+    const Q = w2.player;
+    gainItem(w2, It.Souffle);
+    Q.hp = Q.maxHp * 0.5;
+    for (let i = 0; i < 60; i++) step(w2, still, STEP);
+    expect(Q.hp).toBeCloseTo(Q.maxHp * 0.5 + Q.regen, 1); // au-dessus du seuil : rien
+    Q.hp = Q.maxHp * 0.2;
+    for (let i = 0; i < 60; i++) step(w2, still, STEP);
+    expect(Q.hp).toBeGreaterThan(Q.maxHp * (0.2 + ITEM.souffle.pct * 0.9));
+  });
+  it('Croc de vampire : vol de vie plafonné à 3 PV par seconde, annoncé une fois par seconde', () => {
+    const w = fresh();
+    const P = w.player;
+    gainItem(w, It.Croc);
+    P.hp = 10;
+    spawnEnemy(w, 0, P.x + 3, P.z);
+    w.enemies[0].hp = w.enemies[0].max = 1e9;
+    let heals = 0,
+      healed = 0;
+    for (let i = 0; i < 60 * 3; i++) {
+      hitEnemy(w, 0, 500, 0, P.x, P.z, HitSrc.Orbe); // 20 PV de vol par coup sans plafond
+      step(w, still, STEP);
+      for (let k = 0; k < w.eventCount; k++)
+        if (w.events[k].type === Ev.Heal) {
+          heals++;
+          healed += w.events[k].v;
+        }
+    }
+    expect(heals).toBeGreaterThanOrEqual(2);
+    expect(heals).toBeLessThanOrEqual(3);
+    // au plus 3 PV par seconde sur 3 s (plus la régénération de base)
+    expect(P.hp - 10).toBeLessThanOrEqual(ITEM.croc.cap * 3 + P.regen * 3 + 0.01);
+    expect(healed).toBeGreaterThan(ITEM.croc.cap * 1.5);
+  });
+  it('Calice sanglant : un kill rend 1 PV ; sans objet de soin, un coup ne soigne pas', () => {
+    const w = fresh();
+    const P = w.player;
+    P.hp = 10;
+    step(w, still, STEP); // réserve rechargée (vide sans objet)
+    spawnEnemy(w, 0, P.x + 3, P.z);
+    hitEnemy(w, 0, 1e6, 0, P.x, P.z, HitSrc.Orbe);
+    expect(P.hp).toBeCloseTo(10 + P.regen * STEP, 3);
+    gainItem(w, It.Calice);
+    w.healT = 0;
+    step(w, still, STEP); // réserve du Calice
+    const before = P.hp;
+    spawnEnemy(w, 0, P.x + 3, P.z);
+    hitEnemy(w, w.enemyCount - 1, 1e6, 0, P.x, P.z, HitSrc.Orbe);
+    expect(P.hp).toBeCloseTo(before + ITEM.calice.perKill, 3);
+  });
+  it('Gant du bourreau et Couronne du berserker : plus de dégâts sur un ennemi affaibli, et quand on saigne', () => {
+    const hit = (setup: (w: World) => void, frac: number): number => {
+      const w = fresh();
+      setup(w);
+      spawnEnemy(w, 0, w.player.x + 3, w.player.z);
+      const e = w.enemies[w.enemyCount - 1];
+      e.max = 1e6;
+      e.hp = e.max * frac;
+      const hp0 = e.hp;
+      w.player.crit = 0;
+      hitEnemy(w, w.enemyCount - 1, 100, 0, w.player.x, w.player.z, HitSrc.Thorns);
+      return hp0 - e.hp;
+    };
+    const base = hit(() => {}, 0.2);
+    expect(hit((w) => gainItem(w, It.Gant), 0.2)).toBeCloseTo(base * (1 + ITEM.gant.dmg), 3);
+    expect(hit((w) => gainItem(w, It.Gant), 0.9)).toBeCloseTo(base, 3);
+    expect(hit((w) => gainItem(w, It.Couronne), 0.9)).toBeCloseTo(base, 3); // PV pleins : rien
+    const half = hit((w) => {
+      gainItem(w, It.Couronne);
+      w.player.hp = w.player.maxHp * 0.5;
+    }, 0.9);
+    expect(half).toBeCloseTo(base * (1 + ITEM.couronne.dmg * 0.5), 3);
   });
 });

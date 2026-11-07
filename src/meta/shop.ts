@@ -1,6 +1,6 @@
 // Achats permanents à l'or : personnages, tenues, emplacements (phase 17 : plus de boutique par personnage), et
 // traduction de la méta en options de monde pour la sim.
-import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, OUTFIT, SLOTS } from '../sim/balance';
+import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS } from '../sim/balance';
 import type { CharacterKey } from '../sim/types';
 import type { WorldOptions } from '../sim/types';
 import type { Meta } from './save';
@@ -58,6 +58,25 @@ export function nextSlot(m: Meta): number {
   return -1;
 }
 
+/** Relances (phase 31) : état de la k-ième relance achetable (0 = la première au-delà de celle du départ). */
+export type RerollState = 'owned' | 'buyable' | 'poor' | 'later';
+export function rerollState(m: Meta, k: number): RerollState {
+  const have = m.slots.rerolls;
+  if (k < have) return 'owned';
+  if (k > have) return 'later';
+  return m.gold >= REROLL_SHOP[k] ? 'buyable' : 'poor';
+}
+/** Achète la relance suivante si l'or suffit. Retourne true si l'achat a eu lieu. */
+export function buyReroll(m: Meta): boolean {
+  const k = m.slots.rerolls;
+  if (k >= REROLL_SHOP.length || m.gold < REROLL_SHOP[k]) return false;
+  m.gold -= REROLL_SHOP[k];
+  m.slots.rerolls = k + 1;
+  return true;
+}
+/** Relances par partie : celle du départ plus celles achetées. */
+export const runRerolls = (m: Meta): number => RUN_REROLL.base + m.slots.rerolls;
+
 /**
  * Options de monde issues de la méta (personnage choisi, armes débloquées, emplacements).
  * `daily` : égalité entre joueurs — Éclaireuse, toutes les armes, tous les emplacements (même pool de cartes pour tous).
@@ -66,6 +85,9 @@ export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily 
   return {
     character: daily ? 'eclaireuse' : m.character,
     unlocked: daily ? undefined : unlocked,
-    slots: daily ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES } : { ...m.slots }, // défi du jour : égalité
+    slots: daily
+      ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES }
+      : { weapons: m.slots.weapons, passives: m.slots.passives }, // défi du jour : égalité
+    rerolls: daily ? RUN_REROLL.base : runRerolls(m), // phase 31 : relances de cartes
   };
 }

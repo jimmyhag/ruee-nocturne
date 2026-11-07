@@ -1,11 +1,11 @@
 // Écrans de méta en DOM natif : personnages, boutique, succès, réglages, progression de l'écran de mort.
 // Rendus à l'ouverture d'un écran (jamais par frame) : innerHTML est acceptable ici. Textes : src/i18n via cards.ts.
-import { CHARACTERS, OUTFIT, SLOTS, SPELL_KEYS } from '../sim/balance';
+import { CHARACTERS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS, SPELL_KEYS } from '../sim/balance';
 import { ACHIEVEMENTS, closest, progress, unlockedCharacters } from '../meta/achievements';
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
 import type { CharacterKey } from '../sim/types';
-import { outfitOf, slotState } from '../meta/shop';
+import { outfitOf, rerollState, runRerolls, slotState } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
 import { MISC_ICON, SPELL_ICON, WEAPON_ICON } from './icons';
@@ -111,6 +111,21 @@ export function renderSlots(container: HTMLElement, m: Meta): void {
           ? `<span class="badge">${esc(t('slot.later'))}</span>`
           : `<button class="ghost buy" data-slot="${i}" ${st === 'buyable' ? '' : 'disabled'}>${esc(t('gold', { n: u.price }))}</button>`;
     return `<div class="shoprow slotrow ${st}"><div><h3>${u.kind === 'weapon' ? '⚔' : '✦'} ${esc(slotName(i))}</h3>${cond}</div>${right}</div>`;
+  }).join('');
+}
+
+/** Relances (phase 31) : une ligne par relance achetable, dans l'ordre, comme les emplacements. */
+export function renderRerolls(container: HTMLElement, note: HTMLElement, m: Meta): void {
+  note.textContent = t('rerolls.note', { n: runRerolls(m) });
+  container.innerHTML = REROLL_SHOP.map((price, k) => {
+    const st = rerollState(m, k);
+    const right =
+      st === 'owned'
+        ? `<span class="badge">${esc(t('slot.owned'))}</span>`
+        : st === 'later'
+          ? `<span class="badge">${esc(t('slot.later'))}</span>`
+          : `<button class="ghost buy" data-reroll="${k}" ${st === 'buyable' ? '' : 'disabled'}>${esc(t('gold', { n: price }))}</button>`;
+    return `<div class="shoprow slotrow ${st}"><div><h3>↻ ${esc(t('rerolls.row', { n: k + RUN_REROLL.base + 1 }))}</h3></div>${right}</div>`;
   }).join('');
 }
 

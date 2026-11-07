@@ -439,6 +439,12 @@
         color: var(--muted);
         font-size: 18px;
       }
+      /* phase 31 : PV rendus par les objets (vol de vie, Calice), un chiffre par seconde */
+      #dmg span.heal {
+        color: #7ee0a1;
+        font-size: 20px;
+        -webkit-text-stroke: 1px var(--ink);
+      }
       #banner {
         position: fixed;
         left: 0;
@@ -1224,6 +1230,7 @@
         font-size: 16px;
         transition: transform 0.15s;
       }
+      #levelup .mrow,
       #merchant .mrow {
         display: flex;
         gap: 10px;
@@ -1996,6 +2003,8 @@
           <p class="note slotline" id="luSlots"></p>
         </div>
         <div class="cards" id="cards"></div>
+        <!-- phase 31 : relance des cartes (R), une par partie au départ, plus celles de la boutique -->
+        <div class="mrow"><button class="ghost" id="luReroll">Relancer (1)</button></div>
       </div>
     </section>
 
@@ -2087,6 +2096,9 @@
           Débloque des emplacements d'armes et de tomes pour tous tes personnages.
         </p>
         <div class="shop slots" id="slotList"></div>
+        <!-- phase 31 : relances des cartes de montée de niveau -->
+        <p class="note" id="rerollNote"></p>
+        <div class="shop slots" id="rerollList"></div>
       </div>
     </section>
 
