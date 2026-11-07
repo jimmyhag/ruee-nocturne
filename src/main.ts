@@ -1407,7 +1407,7 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.Jump:
         audio.jump();
-        S.onJump(w.player.airMom);
+        S.onJump();
         break;
       case Ev.Land:
         S.onLand(w.player.sliding, Math.sqrt(w.player.vx * w.player.vx + w.player.vz * w.player.vz));

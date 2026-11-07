@@ -106,21 +106,24 @@ describe('glissade (phase 27)', () => {
     expect(Math.abs(w.player.vz)).toBeLessThan(1e-9);
     expect(w.player.vx).toBeGreaterThan(0);
   });
-  it('réception glissée : après un saut glissé, l’élan continue au sol sans rien tenir ; un appui relève', () => {
+  it('saut depuis la glisse (1.24.1) : le saut annule la glissade, réception debout ; un appui relance la glisse', () => {
     const w = lab(() => 0);
     run(w, { ...still, mx: 1 }, 0.3);
     step(w, { ...still, mx: 1, slide: true }, STEP);
     step(w, { ...still, mx: 1, jump: true }, STEP);
+    expect(w.player.slideJump).toBe(true);
     let f = 0,
       starts = 0;
     while (!w.player.onGround && f++ < 200) {
       step(w, { ...still, mx: 1 }, STEP);
       starts += count(w, Ev.SlideStart);
     }
-    expect(starts).toBe(1);
-    expect(w.player.sliding).toBe(true);
-    step(w, { ...still, mx: 1, slide: true }, STEP);
+    expect(starts).toBe(0);
     expect(w.player.sliding).toBe(false);
+    expect(w.player.slideJump).toBe(false);
+    run(w, { ...still, mx: 1 }, 0.5); // la recharge de glisse est passée
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    expect(w.player.sliding).toBe(true);
   });
   it('saut glissé : l’élan porte en l’air, plus loin qu’un saut en marchant', () => {
     const jumpDist = (slide: boolean) => {

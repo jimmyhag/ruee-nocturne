@@ -378,6 +378,7 @@ export interface Player {
   mvx: number; // vitesse conservée (glissade, saut glissé, envol)
   mvz: number;
   airMom: boolean; // en l'air avec l'élan d'une glissade
+  slideJump: boolean; // 1.24.1 : cet élan vient d'un saut (la glissade est annulée : réception debout), pas d'un envol
   airT: number; // temps passé en l'air
   spin: number; // s restantes de vrille (0 : pas de vrille en cours)
   spinDone: boolean; // vrille terminée avant la réception

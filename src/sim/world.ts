@@ -559,6 +559,7 @@ export function makePlayer(opts?: WorldOptions): Player {
     mvx: 0,
     mvz: 0,
     airMom: false,
+    slideJump: false,
     airT: 0,
     spin: 0,
     spinDone: false,
