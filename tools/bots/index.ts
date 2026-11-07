@@ -102,6 +102,7 @@ const LINE_VALUE: Record<string, number> = {
   chain: 9,
   range: 4,
   crit: 5, // phase 23 (armes et tome Chance)
+  arc: 4, // phase 28 : Faux
   slow: 3,
   stun: 4,
   // tomes

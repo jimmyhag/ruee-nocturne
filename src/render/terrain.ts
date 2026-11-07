@@ -142,10 +142,12 @@ export class TerrainView {
           pist = Math.max(pist, smooth(TERRAIN.kickHalf + 0.6, TERRAIN.kickHalf - 1, d));
         }
         if (pist > 0 || rim > 0) {
+          // la texture d'herbe est verte et les couleurs de sommets sont linéaires (herbe ≈ 0,045 / 0,11 / 0,08) : pour
+          // lire « neige tassée » gris-bleu à l'écran (≈ 0,38 / 0,5 / 0,56 linéaire), la couleur compense fortement
           const kk = 0.75 + 0.35 * k;
-          r += (1.28 * kk - r) * pist * 0.8;
-          gC += (1.36 * kk - gC) * pist * 0.8;
-          bC += (1.5 * kk - bC) * pist * 0.8;
+          r += (8.5 * kk - r) * pist * 0.9;
+          gC += (4.6 * kk - gC) * pist * 0.9;
+          bC += (7 * kk - bC) * pist * 0.9;
           const dk = 1 - rim * 0.35;
           r *= dk;
           gC *= dk;
