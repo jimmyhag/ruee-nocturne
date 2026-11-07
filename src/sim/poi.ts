@@ -55,12 +55,12 @@ const spaced = (list: { x: number; z: number }[], x: number, z: number, d: numbe
 /** Place coffres de carte et sanctuaires (après le relief : on préfère les sommets). */
 export function buildPOI(w: World, r: Rng): void {
   const all: { x: number; z: number }[] = [];
-  // phase 28 : une piste chronométrée par grande piste (départ 2 u sous le sommet, arrivée au pied)
+  // phase 28 : une piste chronométrée par grande piste (départ un peu en aval du sommet, arrivée au pied)
   for (const p of w.pistes) {
     const L = Math.hypot(p.x1 - p.x0, p.z1 - p.z0),
       ux = (p.x1 - p.x0) / L,
       uz = (p.z1 - p.z0) / L;
-    w.races.push({ sx: p.x0 + ux * 2, sz: p.z0 + uz * 2, fx: p.x1, fz: p.z1, time: L / RACE.refSpeed, state: 0, t: 0 });
+    w.races.push({ sx: p.x0 + ux * RACE.startDown, sz: p.z0 + uz * RACE.startDown, fx: p.x1, fz: p.z1, time: L / RACE.refSpeed, state: 0, t: 0 });
   }
   const chestAt = (x: number, z: number, pad: number): boolean => {
     if (w.mapChests.length >= MAPCHEST.count) return false;

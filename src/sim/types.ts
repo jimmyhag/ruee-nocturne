@@ -17,7 +17,8 @@ export interface Enemy {
   flash: number;
   lastBlade: number;
   lastBoom: number; // dernier coup de boomerang (un par passage)
-  lastLance: number; // phase 28 : dernier coup de Lance (une lance ne touche qu'une fois)
+  lastLance: number; // phase 28 : salve de Lance qui l'a touché en dernier
+  lanceBits: number; // lances de cette salve qui l'ont déjà touché (un bit par lance : chacune ne touche qu'une fois)
   lastPatins: number; // phase 28 : dernier coup des Patins de braise
   spd: number;
   dmgMul: number;

@@ -406,10 +406,14 @@ export class GameScene {
     this.scene.add(this.aura, this.auraDisc);
     // lames : un InstancedMesh (6 draw calls → 1) + fantômes additifs (3 par lame)
     const bladeGeo = new THREE.BoxGeometry(1.0, 0.1, 0.26);
-    // 13 lames au plus : 2 de base + 8 lignes + 3 du tome Projectiles (phase 12) ; + 11 lances en vol (phase 28)
-    this.bladeW = new InstanceWriter(makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 24));
+    // 13 lames au plus : 2 de base + 8 lignes + 3 du tome Projectiles (phase 12) ; + 64 lances en vol (phase 28 :
+    // 54 mesurées au pire, 9 par salve à recharge plancher)
+    const BLADE_CAP = 13 + 64;
+    this.bladeW = new InstanceWriter(
+      makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), BLADE_CAP),
+    );
     this.bladeGhostW = new InstanceWriter(
-      makeInstanced(bladeGeo, additive(0xffffff, 0.5), 24 * FEEL.trail.bladeGhosts),
+      makeInstanced(bladeGeo, additive(0xffffff, 0.5), BLADE_CAP * FEEL.trail.bladeGhosts),
     );
     // phase 28 : cercles d'alerte des météores (bord fixe + disque qui se resserre), un seul appel
     this.metW = new InstanceWriter(

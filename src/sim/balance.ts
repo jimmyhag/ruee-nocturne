@@ -76,7 +76,10 @@ export const TERRAIN = {
   kickers: 6, // tremplins isolés (en plus de ceux des pistes)
   kickLen: 5, // tremplin : montée sur 5 u…
   kickH: 2.2, // …jusqu'à 2,2 u (pente 0,44), puis chute au flanc maximal
-  kickHalf: 4,
+  kickHalf: 4, // demi-largeur d'un tremplin
+  kickReach: 10, // u autour du pied d'un tremplin tenus libres (arbres, lieux)
+  kickRun: 12, // tremplin au pied d'une rampe : emprise au sol testée (plate à ±0,3 u)…
+  kickFlat: 0.3, // …écart de hauteur toléré sur cette emprise
   startFlat: 22, // clairière de départ plate (à 0)
   lakeDepth: 0.8, // fond plat des lacs sous la berge
   placeR: 0.85, // lieux construits posés à plat sur ce rayon (× empreinte), raccord à la pente des flancs
@@ -117,6 +120,7 @@ export const DISCOVER = {
 // marchant) → un coffre d'objet ; une fois par piste
 export const RACE = {
   r: 4.5, // rayon d'une arche (départ et arrivée)
+  startDown: 2, // u : arche de départ un peu en aval du sommet de la piste
   refSpeed: 6.2 * 1.6, // u/s : temps alloué = longueur / cette vitesse (marche de l'Éclaireuse × 1,6 ; la glisse tient, la marche non)
   rearm: 8, // u : après un échec, s'éloigner du départ pour réarmer
 };
@@ -476,8 +480,8 @@ export const LAMES = {
 };
 // phase 28 : comportement des armes nouvelles
 export const FAUX = { kb: 7, wait: 0.15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s
-export const LANCE = { range: 16, hitR: 0.45, kb: 2 }; // cible : l'ennemi le plus loin à moins de 16 u
-export const METEOR = { delay: 0.6, range: 13, around: 8, kb: 3, max: 16 }; // cercle annoncé 0,6 s ; sur un ennemi à < 13 u, sinon autour du joueur
+export const LANCE = { range: 16, hitR: 0.45, kb: 2, spread: 0.16, lifeMargin: 1.15, retry: 0.25, maxPerSalvo: 30 }; // cible : l'ennemi le plus loin à moins de 16 u ; éventail de 0,16 rad entre lances ; sans cible, nouvel essai dans 0,25 s ; au plus 30 lances par salve (un bit par lance)
+export const METEOR = { delay: 0.6, range: 13, around: 8, kb: 3, max: 32, tries: 8 }; // cercle annoncé 0,6 s ; sur un ennemi à < 13 u (8 tirages au plus), sinon autour du joueur ; 32 en attente au plus (le surplus d'une salve est perdu)
 export const MINES = {
   spacing: 1.2, // u parcourus entre deux poses
   life: 14, // une mine jamais déclenchée expire

@@ -5,7 +5,7 @@ import { compactEnemies } from './combat';
 import { applyCard, nextChoice, tickChests, tickGems } from './progression';
 import { merchantInput, tickMerchant } from './merchant';
 import { tickPOI } from './poi';
-import { shieldStep, tickRideItems } from './items';
+import { shieldAbsorb, shieldTick, tickRideItems } from './items';
 import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
@@ -44,7 +44,6 @@ export function step(w: World, input: Input, dt: number): void {
     return;
   }
   w.t += dt;
-  const hpStart = w.player.hp; // phase 28 : Bouclier (un coup annulé)
   stepPlayer(w, input, dt);
   tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
@@ -62,7 +61,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickMerchant(w); // phase 17 : peut ouvrir l'échoppe (Mode.Merchant)
   tickPOI(w, dt); // phase 18 : coffres de carte et sanctuaires
   discover(w, dt); // phase 27 : cases découvertes (carte)
-  shieldStep(w, hpStart, dt); // phase 28 : avant le test de mort
+  shieldTick(w, dt); // phase 28 : recharge du Bouclier (le coup est annulé là où il est reçu)
   // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
   if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
@@ -469,7 +468,7 @@ function stepEnemies(w: World, dt: number): void {
     }
   }
   w.shooters = shooters;
-  if (hurt > 0) {
+  if (hurt > 0 && !shieldAbsorb(w, hurt)) {
     w.lastAction = w.t;
     w.hurtAt = w.t;
     w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);
@@ -549,7 +548,7 @@ function tickShots(w: World, dt: number): void {
       w.freeShot(i);
     }
   }
-  if (hurt > 0) {
+  if (hurt > 0 && !shieldAbsorb(w, hurt)) {
     w.lastAction = w.t;
     w.hurtAt = w.t;
     w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);

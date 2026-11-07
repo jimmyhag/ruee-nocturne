@@ -63,7 +63,7 @@ function segD(x: number, z: number, ax: number, az: number, bx: number, bz: numb
 /** Vrai si (x, z) est à moins de `pad` u d'une grande piste (couloir compris) ou d'un tremplin. */
 export function nearRide(w: World, x: number, z: number, pad: number): boolean {
   for (const p of w.pistes) if (segD(x, z, p.x0, p.z0, p.x1, p.z1) < p.half + pad) return true;
-  for (const k of w.kickers) if (Math.hypot(x - k.x, z - k.z) < 10 + pad) return true;
+  for (const k of w.kickers) if (Math.hypot(x - k.x, z - k.z) < TERRAIN.kickReach + pad) return true;
   return false;
 }
 
@@ -330,16 +330,16 @@ export function buildTerrain(w: World, r: Rng): void {
       dz = (m.z1 - m.z0) / L,
       x = m.x1 + dx * 3,
       z = m.z1 + dz * 3,
-      tx = x + dx * 12,
-      tz = z + dz * 12;
+      tx = x + dx * T.kickRun,
+      tz = z + dz * T.kickRun;
     if (Math.abs(tx) > lim || Math.abs(tz) > lim || Math.hypot(x, z) < T.startFlat + 16) continue;
     if (nearRide(w, x, z, 8) || nearRide(w, tx, tz, 8)) continue;
     if (w.lakes.some((l) => Math.hypot(tx - l.x, tz - l.z) < l.r + 10 || Math.hypot(x - l.x, z - l.z) < l.r + 10)) continue;
     // emprise du tremplin sur un sol à peu près plat (un flanc voisin l'avalerait)
     let flatHere = true;
-    for (let f = 0; f <= 12 && flatHere; f += 2)
+    for (let f = 0; f <= T.kickRun && flatHere; f += 2)
       for (let l = -T.kickHalf; l <= T.kickHalf && flatHere; l += T.kickHalf)
-        if (Math.abs(w.heightAt(x + dx * f - dz * l, z + dz * f + dx * l)) > 0.3) flatHere = false;
+        if (Math.abs(w.heightAt(x + dx * f - dz * l, z + dz * f + dx * l)) > T.kickFlat) flatHere = false;
     if (!flatHere) continue;
     const kick: Kicker = { x, z, dx, dz };
     w.kickers.push(kick);

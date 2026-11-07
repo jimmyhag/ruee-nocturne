@@ -362,10 +362,16 @@ describe('objets de la phase 28', () => {
     e.x = e.px = 0.2;
     e.z = e.pz = 0;
     e.hp = e.max = 1e6;
-    let blocks = 0;
+    let blocks = 0,
+      hurts = 0;
     step(w, still, STEP);
-    for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.ShieldBlock) blocks++;
+    for (let k = 0; k < w.eventCount; k++) {
+      if (w.events[k].type === Ev.ShieldBlock) blocks++;
+      if (w.events[k].type === Ev.PlayerHurt) hurts++;
+    }
     expect(blocks).toBe(1);
+    expect(hurts).toBe(0); // un coup annulé ne blesse pas : ni retour de blessure, ni « Intouchable » brisé
+    expect(w.hurtAt).toBe(0);
     expect(w.player.hp).toBe(hp0);
     for (let f = 0; f < 60; f++) step(w, still, STEP);
     expect(w.player.hp).toBeLessThan(hp0);

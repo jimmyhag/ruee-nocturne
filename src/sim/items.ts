@@ -1,6 +1,6 @@
 // Objets passifs (phase 17, PLAN §3.6) : obtenus dans les coffres et chez le marchand. Chaque objet est une règle :
 // soit un effet appliqué une fois au joueur à l'obtention, soit un drapeau (w.items[It.X]) lu par la boucle de jeu.
-import { ENEMIES, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, TOME_CAPS, TRAIT } from './balance';
+import { ENEMIES, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, SPELL, TOME_CAPS, TRAIT } from './balance';
 import { hitEnemy } from './combat';
 import { Ev, HitSrc, Trait } from './types';
 import type { Card, ItemKey } from './types';
@@ -171,7 +171,7 @@ export function tickRideItems(w: World, dt: number): void {
   if (w.items[It.Patins] && P.sliding) {
     const v = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
     if (v > P.speed * ITEM.patins.minMul) {
-      const n = w.grid.query(w.enemies, P.x, P.z, ITEM.patins.r, 2.6, rideHits);
+      const n = w.grid.query(w.enemies, P.x, P.z, ITEM.patins.r, SPELL.maxEnemyR, rideHits);
       for (let k = 0; k < n; k++) {
         const e = w.enemies[rideHits[k]];
         if (w.t - e.lastPatins < ITEM.patins.rehit) continue;
@@ -204,19 +204,23 @@ export function tickRideItems(w: World, dt: number): void {
   }
 }
 
-/** Bouclier : si le joueur a perdu des PV ce pas et que le bouclier est prêt, le coup est annulé. */
-export function shieldStep(w: World, hpStart: number, dt: number): void {
-  if (!w.items[It.Bouclier]) return;
+/**
+ * Bouclier (phase 28) : la recharge court ; prêt, il annule les dégâts reçus pendant ce pas. Appelé là où une blessure
+ * serait signalée : un coup annulé ne pose ni hurtAt (défi « Intouchable ») ni PlayerHurt. Vrai si le coup est annulé.
+ */
+export function shieldAbsorb(w: World, hurt: number): boolean {
+  if (!w.items[It.Bouclier] || w.shieldT > 0 || hurt <= 0) return false;
   const P = w.player;
-  if (w.shieldT > 0) {
-    w.shieldT -= dt;
-    if (w.shieldT <= 0) w.emit(Ev.ShieldReady, P.x, 1, P.z);
-    return;
-  }
-  if (P.hp < hpStart - 1e-6) {
-    P.hp = hpStart;
-    P.invul = Math.max(P.invul, ITEM.bouclier.invul);
-    w.shieldT = ITEM.bouclier.period;
-    w.emit(Ev.ShieldBlock, P.x, 1, P.z);
-  }
+  P.hp += hurt;
+  P.invul = Math.max(P.invul, ITEM.bouclier.invul);
+  w.shieldT = ITEM.bouclier.period;
+  w.emit(Ev.ShieldBlock, P.x, 1, P.z);
+  return true;
+}
+
+/** Recharge du Bouclier (phase 28) : un anneau annonce qu'il est de nouveau prêt. */
+export function shieldTick(w: World, dt: number): void {
+  if (!w.items[It.Bouclier] || w.shieldT <= 0) return;
+  w.shieldT -= dt;
+  if (w.shieldT <= 0) w.emit(Ev.ShieldReady, w.player.x, 1, w.player.z);
 }

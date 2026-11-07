@@ -274,15 +274,19 @@ export function tickWeapons(w: World, dt: number): void {
         S.lanceT = s.cd * P.cdMul;
         const t = w.enemies[best];
         const a0 = Math.atan2(t.x - P.x, t.z - P.z);
-        for (let i = 0; i < s.n; i++) {
-          const a = a0 + (i === 0 ? 0 : (((i + 1) >> 1) * (i % 2 === 1 ? 1 : -1)) * 0.16);
+        const salvo = ++S.lanceSalvo;
+        const nL = Math.min(s.n, LANCE.maxPerSalvo);
+        for (let i = 0; i < nL; i++) {
+          const a = a0 + (i === 0 ? 0 : (((i + 1) >> 1) * (i % 2 === 1 ? 1 : -1)) * LANCE.spread);
           const p = fireAngle(w, a, s.dmg, 999, s.speed);
           if (!p) break;
           p.kind = ProjKind.Lance;
-          p.life = (LANCE.range / s.speed) * 1.15 * P.projLifeMul;
+          p.life = (LANCE.range / s.speed) * LANCE.lifeMargin * P.projLifeMul;
+          p.hit0 = salvo; // une lance n'a pas de liste d'ennemis touchés : hit0 = salve, hit1 = bit de la lance
+          p.hit1 = 1 << i;
         }
         w.emit(Ev.Shoot, P.x + Math.sin(a0) * 0.6, P.y + 1, P.z + Math.cos(a0) * 0.6, s.n);
-      } else S.lanceT = 0.25;
+      } else S.lanceT = LANCE.retry;
     }
   }
 
@@ -297,7 +301,7 @@ export function tickWeapons(w: World, dt: number): void {
         // sur un ennemi au hasard à portée (tirage par rejet borné), sinon autour du joueur
         let x = P.x + w.rng.range(-METEOR.around, METEOR.around),
           z = P.z + w.rng.range(-METEOR.around, METEOR.around);
-        for (let tries = 0; tries < 8; tries++) {
+        for (let tries = 0; tries < METEOR.tries; tries++) {
           const e = w.enemies[w.rng.int(w.enemyCount)];
           const dx = e.x - P.x,
             dz = e.z - P.z;
@@ -473,8 +477,13 @@ export function tickProjectiles(w: World, dt: number): void {
       const n = w.grid.query(w.enemies, p.x, p.z, LANCE.hitR * P.sizeMul, MAX_ENEMY_R, hits);
       for (let k = 0; k < n; k++) {
         const e = w.enemies[hits[k]];
-        if (w.t - e.lastLance < 0.3) continue;
-        e.lastLance = w.t;
+        // chaque lance d'une salve touche chaque ennemi une fois (un bit par lance)
+        if (e.lastLance !== p.hit0) {
+          e.lastLance = p.hit0;
+          e.lanceBits = 0;
+        }
+        if (e.lanceBits & p.hit1) continue;
+        e.lanceBits |= p.hit1;
         hitEnemy(w, hits[k], p.dmg, LANCE.kb, p.x - p.vx, p.z - p.vz, HitSrc.Lance);
       }
       if (p.life <= 0) w.freeProj(i);

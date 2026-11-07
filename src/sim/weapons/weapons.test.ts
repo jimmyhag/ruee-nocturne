@@ -281,6 +281,22 @@ describe('armes de la phase 28', () => {
     for (let z = 3; z <= 13; z += 2.5) put(w, 0, z); // cinq ennemis alignés, le plus loin à 13 u
     expect(hitsBy(w, HitSrc.Lance, 2.2)).toBe(5);
   });
+  it('Lance en éventail : chaque lance de la salve touche l’ennemi visé, une seule fois chacune', () => {
+    const w = arena('lance');
+    w.player.projAdd = 2; // trois lances par salve
+    refreshStats(w);
+    put(w, 0, 2.2); // près du joueur, les trois lances de l'éventail passent sur lui
+    expect(weaponStats(w, 'lance').n).toBe(3);
+    let n = 0;
+    for (let f = 0; f < Math.round(2.2 / STEP); f++) {
+      step(w, still, STEP);
+      for (let i = 0; i < w.eventCount; i++) {
+        const e = w.events[i];
+        if (e.type === Ev.Hit && ((e.x2 | 0) & 15) === HitSrc.Lance) n++;
+      }
+    }
+    expect(n).toBe(3); // une salve (recharge 2 s) : trois coups, pas un seul ni davantage
+  });
   it('Météores : cercle annoncé, impact après le délai, dégâts de zone', () => {
     const w = arena('meteores');
     const a = put(w, 5, 0),

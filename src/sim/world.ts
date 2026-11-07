@@ -110,6 +110,7 @@ export class World {
     // phase 28
     fauxT: 0.5,
     lanceT: 1,
+    lanceSalvo: 0, // numéro de la dernière salve de lances
     metT: 1.5,
     metN: 0, // météores annoncés en attente d'impact
     metX: new Float64Array(METEOR.max),
@@ -645,6 +646,7 @@ function makeEnemy(): Enemy {
     lastBlade: -9,
     lastBoom: -9,
     lastLance: -9,
+    lanceBits: 0,
     lastPatins: -9,
     spd: 1,
     dmgMul: 1,

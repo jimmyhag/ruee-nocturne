@@ -185,6 +185,7 @@ export class Hud {
       this.els.poiChip.hidden = kind === 0;
       this.els.poiChip.classList.toggle('shrine', kind === 2);
       this.els.poiChip.classList.toggle('race', kind === 3);
+      if (kind !== 1) this.els.poiChip.classList.remove('poor'); // « pas assez d'or » ne vaut que pour un coffre
     }
     if (kind === 3) {
       const tenths = Math.max(0, Math.ceil(raceT * 10));
