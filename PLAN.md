@@ -180,6 +180,22 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Boussole (phase 28) | rayon de découverte ×1,8 ; coffres et sanctuaires visibles sur la carte même non découverts | commun |
 | Bouclier (phase 28) | annule un coup toutes les 20 s | rare |
 | Corne de guerre (phase 28) | toutes les 25 s, onde de r 7 qui repousse et étourdit 0,5 s (pas les boss) | rare |
+| Croc de vampire (phase 31) | vol de vie : 4 % des dégâts infligés rendus en PV, 3 PV/s au plus | rare |
+| Calice sanglant (phase 31) | chaque kill rend 1 PV, 5 PV/s au plus | rare |
+| Mousse de troll (phase 31) | régénère 1 % des PV max par seconde | commun |
+| Second souffle (phase 31) | sous 35 % des PV, régénère 4 % des PV max par seconde | rare |
+| Pierre à aiguiser (phase 31) | +12 % de dégâts | commun |
+| Dé pipé (phase 31) | +8 % de chance de critique | commun |
+| Gant du bourreau (phase 31) | +40 % de dégâts aux ennemis sous 30 % de leurs PV | rare |
+| Pendentif de brume (phase 31) | −12 % de dégâts subis | rare |
+| Sandales ailées (phase 31) | +10 % de vitesse | commun |
+| Amulette du savant (phase 31) | +15 % d'expérience | commun |
+| Armure d'écorce (phase 31) | +8 % d'armure (dans le plafond) | commun |
+| Couronne du berserker (phase 31) | jusqu'à +60 % de dégâts selon les PV manquants, 2 % de vol de vie | épique |
+
+**Soins des objets (phase 31)** : vol de vie et Calice puisent dans une réserve rechargée chaque seconde (somme des plafonds des objets possédés) ; les PV rendus s'annoncent une fois par seconde (chiffre vert). Sans plafond, le vol de vie rendrait le héros immortel en fin de partie (dégâts en milliers).
+
+**Relances (phase 31)** : à une montée de niveau (pas un coffre ni un sanctuaire), « Relancer » (bouton, touche R) tire d'autres cartes que celles vues. Une relance par partie, plus 3 à acheter dans la boutique (500 / 1 500 / 4 000 or, `REROLL_SHOP`), rangées dans `meta.slots.rerolls` ; défi du jour : une.
 
 **Coffres** : choix d'un objet parmi 3 (4 avec le Colporteur), deux choix pour un coffre de boss ; 6 objets portés ou plus rien à obtenir → un sac d'or.
 
@@ -458,6 +474,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : des projectiles et des effets d'armes plus beaux, plus propres, plus stylisés et mieux définis (boules de feu) ; la Foudre trop forte au début (elle « interchoque » plusieurs ennemis dès le niveau 1) : une seule cible au départ, les ricochets avec les améliorations. Captures lues : orbes et boules de feu en polyèdres à facettes, éclairs invisibles (lignes de 1 px), aucune lame visible pour la Faux.
 - Décisions prises : effets en sprites lumineux et arcs de lame qui remplacent des écrivains existants (budget d'appels en baisse) ; Foudre : `chain` compte les ricochets (0 au départ, une cible), recharge 1,4 s, 34 dégâts, ligne de ricochet deux fois plus fréquente, Orage +3 ; Météores (la plus faible jouée seule) : recharge 2,5 s, 42 dégâts.
 - **Porte** : chaque arme et chaque boule de feu a un effet lisible (e2e, captures PC et iPhone, net et pixel, lues) ; Foudre à une cible au départ, ricochets par cartes (Vitest) ; cibles nu et maxé tenues, 9 personnages à ± 3 min ; ≤ 40 appels, ≤ 150 k (pixel) et ≤ 250 k (net) ; bench OK ; test de Jimmy.
+
+### Phase 31 — Relances et nouveaux objets (après la 1.25.1)
+- Demande de Jimmy : pouvoir relancer les cartes d'une montée de niveau (une au départ, plus avec la boutique, « jusqu'à 3 ») ; plus d'objets, avec des pourcentages, du vol de vie et de la régénération (dans les objets seulement, pas dans les stats d'armes : « trop pété »).
+- Décisions prises : « jusqu'à 3 » lu comme 3 relances achetables en plus de celle du départ ; relance réservée aux montées de niveau (le marchand a la sienne) ; douze objets (§3.6) ; soins des objets plafonnés par seconde ; le bot de référence ne relance pas (mesures prudentes).
+- **Porte** : relance au clavier et au doigt, refusée à zéro et pour un coffre, cartes différentes (Vitest, e2e) ; achat en boutique et relances à la partie suivante (e2e) ; chaque nouvel objet a son effet (Vitest) ; cibles nu et maxé tenues, 9 personnages à ± 3 min ; bench OK.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
