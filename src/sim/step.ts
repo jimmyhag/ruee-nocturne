@@ -116,9 +116,10 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.dirX = ix / l;
     P.dirZ = iz / l;
   }
-  // phase 27 : glisse tenue ; son front montant lance une vrille en l'air
+  // phase 27 : glisse à l'appui (front montant : la tenir ne compte qu'une fois) ; au sol, un appui lance la glissade
+  // ou relève le joueur ; en l'air, il lance la vrille
   const slideIn = input.slide === true;
-  const slidePress = slideIn && !P.slideHeld;
+  let slidePress = slideIn && !P.slideHeld;
   P.slideHeld = slideIn;
   if (P.elanT > 0) P.elanT -= dt;
   if (P.slideCd > 0) P.slideCd -= dt;
@@ -144,7 +145,14 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.sliding = false; // un Bond ou une Comète reprend la main sur l'élan
     P.airMom = false;
   }
-  // départ de glissade : appui (pas maintien : tenir la touche ne relance pas en boucle), au sol, en mouvement
+  // relevé : un appui pendant la glissade remet le joueur debout (l'appui est consommé)
+  if (slidePress && P.onGround && P.sliding) {
+    P.sliding = false;
+    P.slideCd = SLIDE.cd;
+    slidePress = false;
+    w.emit(Ev.SlideEnd, P.x, 0, P.z, Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz));
+  }
+  // départ de glissade : au sol, en mouvement, droit devant
   if (slidePress && P.onGround && !P.sliding && P.slideCd <= 0 && l > SLIDE.startInput && P.dashT <= 0) {
     const cur = Math.sqrt(P.vx * P.vx + P.vz * P.vz),
       v0 = Math.max(cur, walk * SLIDE.startMul);
@@ -167,46 +175,23 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   }
   let vx: number, vz: number;
   if (P.sliding) {
-    // pente → accélération (vers le bas), frottement constant, l'entrée tourne la trajectoire
+    // ligne droite : la direction est celle du départ ; la pente dans cette direction accélère (descente) ou freine
+    // (montée), un frottement constant use l'élan ; ni la pente de côté ni l'entrée ne font tourner
     gradAt(w.height, P.x, P.z, g2);
-    let mx = P.mvx - g2[0] * SLIDE.grav * dt,
-      mz = P.mvz - g2[1] * SLIDE.grav * dt;
-    let sp = Math.sqrt(mx * mx + mz * mz);
+    const dx = P.dirX,
+      dz = P.dirZ;
+    let sp = P.mvx * dx + P.mvz * dz; // élan dans l'axe (un obstacle a pu en absorber une partie)
+    sp -= (g2[0] * dx + g2[1] * dz) * SLIDE.grav * dt;
     const fr = w.speedAt(P.x, P.z) < 1 ? SLIDE.lakeFriction : SLIDE.friction;
-    if (sp > 1e-6) {
-      const k = Math.max(0, sp - fr * dt) / sp;
-      mx *= k;
-      mz *= k;
-      sp *= k;
-    }
-    if (l > 0.05 && sp > 1e-6) {
-      const cross = (mx * iz - mz * ix) / (sp * l),
-        dot = (mx * ix + mz * iz) / (sp * l);
-      let a = Math.atan2(cross, dot); // angle de la vitesse vers l'entrée
-      const lim = SLIDE.turn * dt;
-      a = a > lim ? lim : a < -lim ? -lim : a;
-      const c = Math.cos(a),
-        s = Math.sin(a);
-      const nx = mx * c + mz * s,
-        nz = -mx * s + mz * c;
-      mx = nx;
-      mz = nz;
-    }
+    sp = Math.max(0, sp - fr * dt);
     const cap = walk * SLIDE.maxMul;
-    if (sp > cap) {
-      mx *= cap / sp;
-      mz *= cap / sp;
-      sp = cap;
-    }
-    P.mvx = mx;
-    P.mvz = mz;
-    if (!slideIn || sp < walk * SLIDE.endMul) {
+    if (sp > cap) sp = cap;
+    P.mvx = dx * sp;
+    P.mvz = dz * sp;
+    if (sp < walk * SLIDE.endMul) {
       P.sliding = false;
       P.slideCd = SLIDE.cd;
       w.emit(Ev.SlideEnd, P.x, 0, P.z, sp);
-    } else {
-      P.dirX = mx / sp;
-      P.dirZ = mz / sp;
     }
   }
   if (P.sliding) {
@@ -299,8 +284,11 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       }
       P.spin = 0;
       P.spinDone = false;
-      // réception glissée : glisse tenue, l'élan continue au sol
-      if (P.airMom && slideIn && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
+      // réception glissée : après un saut glissé ou un envol, l'élan continue au sol, droit dans le sens du vol
+      if (P.airMom && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
+        const m = Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz);
+        P.dirX = P.mvx / m;
+        P.dirZ = P.mvz / m;
         P.sliding = true;
         w.emit(Ev.SlideStart, P.x, 0, P.z, Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz));
       }

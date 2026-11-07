@@ -2,6 +2,14 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.22.1 — 7 nov. 2026 (retour de Jimmy sur la glissade)
+
+### Modifié
+
+- **Glissade droite** : elle part tout droit dans ta direction et ne fait plus de courbes (ni la pente de côté ni le joystick ne la font tourner) ; la pente ne change que la vitesse (plus vite en descente, elle cale en montée).
+- **Se relever** : un second appui sur GLISSE (ou C) pendant la glissade remet debout ; relâcher ne coupe plus rien, au clavier comme au doigt.
+- **Glisser, sauter, glisser** : après un saut glissé, la réception continue la glissade toute seule ; un appui relève.
+
 ## 1.22.0 — 7 nov. 2026 (phase 27 « Glisse et carte »)
 
 Le terrain change de forme et le mouvement prend de l'élan : on glisse, on saute, on s'envole des plateaux, et chaque partie a sa propre carte à découvrir.

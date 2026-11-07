@@ -199,7 +199,7 @@ export interface Input {
   mz: number;
   jump: boolean; // front montant géré par la plateforme
   spell: boolean; // phase 19 : sort de classe (remplace le dash)
-  slide?: boolean; // phase 27 : glisse tenue (en l'air : vrille au front montant)
+  slide?: boolean; // phase 27 : glisse (front montant : au sol lance ou relève, en l'air vrille)
   pick: number; // -1 ou index de carte choisie (mode levelup)
 }
 
@@ -349,7 +349,7 @@ export interface Player {
   recoil: number;
   // phase 27 : glissade, élan et figures
   sliding: boolean;
-  slideHeld: boolean; // touche de glisse tenue au pas précédent (front montant : vrille en l'air)
+  slideHeld: boolean; // touche de glisse tenue au pas précédent (seul le front montant compte)
   slideCd: number;
   mvx: number; // vitesse conservée (glissade, saut glissé, envol)
   mvz: number;

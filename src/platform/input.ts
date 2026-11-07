@@ -20,10 +20,8 @@ export class InputManager {
   onConfirm: (() => void) | null = null;
   gamepadUsed = false;
 
-  /** Phase 27 : glisse au doigt, verrouillée d'un appui jusqu'à la fin de la glissade (un pouce ne peut pas tenir et sauter). */
-  private slideLatch = false;
-  /** Un appui pendant le verrou : la glisse « retombe » un pas, pour que la sim voie un nouvel appui (vrille en l'air). */
-  private slideBlink = false;
+  /** Phase 27 : appui sur GLISSE au doigt, transmis à la sim pendant un pas (elle ne lit que le front montant). */
+  private slideQueued = false;
   private padSlide = false;
 
   constructor(
@@ -43,6 +41,7 @@ export class InputManager {
         this.jumpQueued = true;
       }
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.spellQueued = true;
+      if (e.code === 'KeyC') this.slideQueued = true; // phase 27 : un tapotement plus court qu'un pas compte aussi
       if (e.code === 'Escape' || e.code === 'KeyP') this.onPause?.();
       if (e.code === 'Enter') this.onConfirm?.();
     });
@@ -59,11 +58,7 @@ export class InputManager {
       });
     hold(jumpBtn, () => (this.jumpQueued = true));
     hold(spellBtn, () => (this.spellQueued = true));
-    if (slideBtn)
-      hold(slideBtn, () => {
-        if (this.slideLatch) this.slideBlink = true;
-        else this.slideLatch = true;
-      });
+    if (slideBtn) hold(slideBtn, () => (this.slideQueued = true));
 
     addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse') return;
@@ -162,20 +157,11 @@ export class InputManager {
     out.mz = mz;
     out.jump = this.jumpQueued;
     out.spell = this.spellQueued;
-    out.slide = (!!k.KeyC || this.padSlide || this.slideLatch) && !this.slideBlink;
-    this.slideBlink = false;
+    out.slide = !!k.KeyC || this.padSlide || this.slideQueued;
+    this.slideQueued = false;
     out.pick = this.pickQueued;
     this.jumpQueued = this.spellQueued = false;
     this.pickQueued = -1;
-  }
-
-  /** Fin de glissade (ou réception sans glissade) : le verrou tactile retombe. */
-  unlatchSlide(): void {
-    this.slideLatch = false;
-  }
-  /** Glisse tactile verrouillée (bouton allumé). */
-  get slideLatched(): boolean {
-    return this.slideLatch;
   }
 
   /** En mode level-up : index de carte demandé au clavier (1-4) ou à la manette, −1 sinon. Consomme la demande. */

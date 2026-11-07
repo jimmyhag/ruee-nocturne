@@ -9,7 +9,10 @@ const state = (page: import('@playwright/test').Page) =>
     return { sliding: P.sliding as boolean, v: Math.hypot(P.vx, P.vz), walk: P.speed as number };
   });
 
-test('clavier : C pendant la marche lance une glissade plus rapide que la marche', async ({ page, hasTouch }) => {
+test('clavier : C lance une glissade plus rapide que la marche, un second appui remet debout', async ({
+  page,
+  hasTouch,
+}) => {
   test.skip(hasTouch, 'projet PC');
   const errors = collectConsoleErrors(page);
   await openGame(page);
@@ -22,12 +25,15 @@ test('clavier : C pendant la marche lance une glissade plus rapide que la marche
   const s = await state(page);
   expect(s.v).toBeGreaterThan(s.walk * 1.2);
   await page.keyboard.up('KeyC');
+  // relâcher ne coupe pas ; un second appui remet debout
+  expect((await state(page)).sliding).toBe(true);
+  await page.keyboard.press('KeyC');
   await page.waitForFunction(() => (window as any).__game.world.player.sliding === false, null, { timeout: 2000 });
   await page.keyboard.up('KeyD');
   expect(errors).toEqual([]);
 });
 
-test('tactile : un appui sur GLISSE lance la glissade (bouton allumé) sans tenir le doigt', async ({
+test('tactile : un appui sur GLISSE lance la glissade (bouton allumé) sans tenir le doigt, un second remet debout', async ({
   page,
   hasTouch,
 }) => {
@@ -63,6 +69,17 @@ test('tactile : un appui sur GLISSE lance la glissade (bouton allumé) sans teni
   await expect(page.locator('#btnSlide')).toHaveClass(/on/);
   const s = await state(page);
   expect(s.v).toBeGreaterThan(s.walk * 1.2);
+  // second appui sur GLISSE : debout, le bouton s'éteint
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [
+      { x: x0 + 60, y: y0, id: 1 },
+      { x: bx, y: by, id: 3 },
+    ],
+  });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: x0 + 60, y: y0, id: 1 }] });
+  await page.waitForFunction(() => (window as any).__game.world.player.sliding === false, null, { timeout: 2000 });
+  await expect(page.locator('#btnSlide')).not.toHaveClass(/on/);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 });
 

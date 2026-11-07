@@ -824,7 +824,7 @@ input.onPause = () => {
 // ---------- carte (phase 27) : M, appui sur la minicarte, bouton de la pause ; la partie est en pause ----------
 const mapView = new MapView($('minimap') as HTMLCanvasElement, $('bigmap') as HTMLCanvasElement);
 let mapFrom: 'play' | 'pause' = 'play';
-let slideBtnOn = false; // bouton GLISSE allumé (verrou tactile ou glissade en cours)
+let slideBtnOn = false; // bouton GLISSE allumé pendant la glissade
 function openMap(): void {
   if (!world || (app !== 'play' && app !== 'pause')) return;
   mapFrom = app;
@@ -1404,7 +1404,6 @@ function handleEvents(w: World, now: number): void {
       case Ev.Land:
         S.onLand();
         S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
-        if (!w.player.sliding) input.unlatchSlide(); // réception sans glissade : le verrou tactile retombe
         break;
       // phase 27 : glissade, envol, vrille
       case Ev.SlideStart:
@@ -1414,7 +1413,6 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.SlideEnd:
         S.onSlide(false);
-        input.unlatchSlide();
         break;
       case Ev.Launch:
         S.particles.burst(e.x, 0.3, e.z, PAL.dust, (PT.land.n * fx) | 0, PT.land.speed, PT.land.up * 1.5);
@@ -1637,7 +1635,7 @@ function frame(nowMs: number): void {
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);
     mapView.update(world, realDt); // phase 27 : minicarte (4 fois par seconde)
-    const slideOn = input.slideLatched || world.player.sliding;
+    const slideOn = world.player.sliding;
     if (slideOn !== slideBtnOn) {
       slideBtnOn = slideOn;
       $('btnSlide').classList.toggle('on', slideOn);

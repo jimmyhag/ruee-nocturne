@@ -68,7 +68,8 @@ export const TERRAIN = {
   placeR: 0.85, // lieux construits posés à plat sur ce rayon (× empreinte), raccord à la pente des flancs
   maxSlope: 0.55, // pente maximale (≈ 29°), imposée après coup
 };
-// glissade (phase 27, PLAN §3.4) : élan conservé, gagné en descente, perdu en montée et sur le plat ; saut glissé, envol
+// glissade (phase 27, PLAN §3.4) : en ligne droite, élan gagné en descente, perdu en montée et sur le plat ; un appui
+// relève ; saut glissé, envol
 // sur les crêtes, vrille en l'air (élan à la réception). Sur le plat, la glisse ne fait guère mieux que la marche.
 export const SLIDE = {
   startMul: 1.35, // vitesse de départ ≥ marche × 1,35…
@@ -76,7 +77,6 @@ export const SLIDE = {
   grav: 30, // u/s² par unité de pente (rampe à 0,2 : +6 − frottement ; flanc à 0,5 : +15)
   friction: 3.2, // u/s² (sur le plat : 1,35 → 0,85 × marche en ≈ 0,85 s)
   lakeFriction: 14, // dans l'eau, la glisse cale
-  turn: 2.4, // rad/s : l'entrée tourne la glissade
   endMul: 0.85, // sous marche × 0,85, la glissade s'arrête
   cd: 0.4, // s avant la glissade suivante
   airControl: 0.3, // part de la vitesse de marche que l'entrée ajoute en l'air après un saut glissé

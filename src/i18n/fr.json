@@ -449,7 +449,7 @@
   "mapchest.boon": "Coffre · {gold} (6 objets : un bonus)",
   "keys.slide": "Glisse",
   "touch.slide": "GLISSE",
-  "touch.slideAria": "Glisser (un appui : la glissade dure tant qu'elle a de l'élan ; en l'air : vrille)",
+  "touch.slideAria": "Glisser (un appui : glissade droite devant ; un autre appui : debout ; en l'air : vrille)",
   "trick.ok": "Vrille !",
   "trick.fail": "Raté",
   "map.title": "Carte",

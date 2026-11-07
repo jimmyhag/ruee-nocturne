@@ -449,7 +449,7 @@
   "mapchest.boon": "Chest · {gold} (6 items: a bonus)",
   "keys.slide": "Slide",
   "touch.slide": "SLIDE",
-  "touch.slideAria": "Slide (one tap: the slide lasts while it has momentum; in the air: spin)",
+  "touch.slideAria": "Slide (one tap: straight slide ahead; tap again: stand up; in the air: spin)",
   "trick.ok": "Spin!",
   "trick.fail": "Missed",
   "map.title": "Map",

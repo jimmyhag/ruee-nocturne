@@ -68,13 +68,20 @@ describe('glissade (phase 27)', () => {
     expect(run(w, { ...still, mx: 1 }, 0.3, Ev.SlideStart)).toBe(0);
     expect(run(w, { ...still, mx: 1, slide: true }, 0.1, Ev.SlideStart)).toBe(1);
   });
-  it('relâcher la glisse l’arrête ; immobile, on ne glisse pas', () => {
+  it('un appui lance, relâcher ne coupe pas, un second appui relève ; immobile, on ne glisse pas', () => {
     const w = lab(() => 0);
     expect(run(w, { ...still, slide: true }, 0.3, Ev.SlideStart)).toBe(0);
     run(w, { ...still, mx: 1 }, 0.2);
-    run(w, { ...still, mx: 1, slide: true }, 0.2);
+    step(w, { ...still, mx: 1, slide: true }, STEP); // appui bref
     expect(w.player.sliding).toBe(true);
-    expect(run(w, { ...still, mx: 1 }, STEP, Ev.SlideEnd)).toBe(1);
+    run(w, { ...still, mx: 1 }, 0.2); // relâché : la glissade continue
+    expect(w.player.sliding).toBe(true);
+    let ends = 0;
+    step(w, { ...still, mx: 1, slide: true }, STEP); // second appui : debout
+    ends += count(w, Ev.SlideEnd);
+    expect(ends).toBe(1);
+    expect(w.player.sliding).toBe(false);
+    expect(speed(w)).toBeLessThanOrEqual(w.player.speed + 1e-6); // retour à la marche
   });
   it('en descente la glissade gagne de la vitesse (jusqu’au plafond), en montée elle cale vite', () => {
     const down = lab((x) => -0.25 * x, -60, 0);
@@ -89,11 +96,30 @@ describe('glissade (phase 27)', () => {
     const ends = run(up, { ...still, mx: 1, slide: true }, 0.6, Ev.SlideEnd);
     expect(ends).toBe(1);
   });
-  it('la pente fait tourner la glissade vers le bas ; l’entrée la tourne à vitesse bornée', () => {
-    const w = lab((x, z) => -0.3 * z, 0, 0); // descente vers +z
+  it('la glissade va tout droit : ni la pente de côté ni l’entrée ne la font tourner', () => {
+    const w = lab((x, z) => -0.3 * z, 0, 0); // descente vers +z, glissade vers +x
     run(w, { ...still, mx: 1 }, 0.2);
-    run(w, { ...still, mx: 1, slide: true }, 1);
-    expect(w.player.vz).toBeGreaterThan(0); // déviée vers la descente
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    run(w, { ...still, mx: 0.3, mz: -1 }, 0.6); // on pousse vers −z : sans effet
+    expect(w.player.sliding).toBe(true);
+    expect(Math.abs(w.player.vz)).toBeLessThan(1e-9);
+    expect(w.player.vx).toBeGreaterThan(0);
+  });
+  it('réception glissée : après un saut glissé, l’élan continue au sol sans rien tenir ; un appui relève', () => {
+    const w = lab(() => 0);
+    run(w, { ...still, mx: 1 }, 0.3);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    step(w, { ...still, mx: 1, jump: true }, STEP);
+    let f = 0,
+      starts = 0;
+    while (!w.player.onGround && f++ < 200) {
+      step(w, { ...still, mx: 1 }, STEP);
+      starts += count(w, Ev.SlideStart);
+    }
+    expect(starts).toBe(1);
+    expect(w.player.sliding).toBe(true);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    expect(w.player.sliding).toBe(false);
   });
   it('saut glissé : l’élan porte en l’air, plus loin qu’un saut en marchant', () => {
     const jumpDist = (slide: boolean) => {

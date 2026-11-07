@@ -488,7 +488,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       if (BOT_SLIDE) {
         const mlen = Math.hypot(out.mx, out.mz);
         const along = mlen > 0.5 ? slopeAlong(w.height, P.x, P.z, out.mx, out.mz) : 0;
-        out.slide = P.onGround && mlen > 0.5 && (P.sliding ? along < 0.03 : along < -0.08);
+        out.slide = P.onGround && mlen > 0.5 && (P.sliding ? along > 0.03 : along < -0.08); // appui : lance ou relève
       }
     },
     pick(w, cards) {
