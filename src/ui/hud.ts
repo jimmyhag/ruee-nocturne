@@ -6,7 +6,7 @@ import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
 import type { World } from '../sim/world';
-import { fmtTime, onLangChange, t } from '../i18n';
+import { fmtTime, onLangChange, t, fmtNum } from '../i18n';
 import {
   BOON_GLYPH,
   ITEM_GLYPH,
@@ -173,9 +173,25 @@ export class Hud {
         fill = s.charge / SHRINE.charge;
       }
     }
+    // phase 28 : piste chronométrée en cours (prioritaire) : secondes restantes et jauge du temps
+    let raceT = -1;
+    for (let i = 0; i < w.races.length; i++)
+      if (w.races[i].state === 1) {
+        raceT = w.races[i].t;
+        fill = Math.max(0, w.races[i].t / w.races[i].time);
+        kind = 3;
+      }
     if (this.cache.poiOn !== kind) {
       this.els.poiChip.hidden = kind === 0;
       this.els.poiChip.classList.toggle('shrine', kind === 2);
+      this.els.poiChip.classList.toggle('race', kind === 3);
+    }
+    if (kind === 3) {
+      const tenths = Math.max(0, Math.ceil(raceT * 10));
+      if (this.cache.poiKey !== -100 - tenths) {
+        this.cache.poiKey = -100 - tenths;
+        this.els.poiText.textContent = t('race.left', { s: fmtNum(tenths / 10) });
+      }
     }
     if (kind === 1) {
       // l'état (prix, pas assez d'or, 6 objets) ne change que rarement : la chaîne n'est reconstruite qu'à ce moment

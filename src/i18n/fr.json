@@ -498,5 +498,10 @@
   "item.bouclier.name": "Bouclier",
   "item.bouclier.text": "Annule un coup toutes les 20 s",
   "item.corne.name": "Corne de guerre",
-  "item.corne.text": "Toutes les 25 s, une onde repousse et étourdit les ennemis proches (pas les boss)"
+  "item.corne.text": "Toutes les 25 s, une onde repousse et étourdit les ennemis proches (pas les boss)",
+  "race.left": "Piste chronométrée : {s} s",
+  "banner.raceStart": "Piste chronométrée ! Descends à temps",
+  "banner.raceWin": "Piste réussie : un coffre !",
+  "banner.raceFail": "Trop lent… reviens au départ",
+  "banner.shield": "Bouclier !"
 }

@@ -498,5 +498,10 @@
   "item.bouclier.name": "Shield",
   "item.bouclier.text": "Cancels one hit every 20 s",
   "item.corne.name": "War horn",
-  "item.corne.text": "Every 25 s, a shockwave knocks back and stuns nearby enemies (not bosses)"
+  "item.corne.text": "Every 25 s, a shockwave knocks back and stuns nearby enemies (not bosses)",
+  "race.left": "Timed run: {s} s",
+  "banner.raceStart": "Timed run! Get down in time",
+  "banner.raceWin": "Run cleared: a chest!",
+  "banner.raceFail": "Too slow… back to the start",
+  "banner.shield": "Shield!"
 }
