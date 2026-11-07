@@ -1,7 +1,8 @@
 import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
-import { TERRAIN_N, buildTerrain, heightAt, slopeMul } from './terrain';
+import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
+import type { Plateau, Ramp } from './terrain';
 import { buildPOI } from './poi';
 import type { MapChest, Shrine } from './poi';
 import { makeMerchant } from './merchant';
@@ -31,7 +32,7 @@ export interface Obstacle {
   r: number;
 }
 
-/** Obstacle long (phase 16) : segment épaissi. kind 0 = muret, 1 = tronc couché ; tous deux se sautent (h). */
+/** Obstacle long (phase 16) : segment épaissi. kind 0 = muret, 1 = tronc couché, 2 = clôture (phase 27) ; tous se sautent (h). */
 export interface Wall {
   x1: number;
   z1: number;
@@ -108,13 +109,25 @@ export class World {
 
   // décor (généré par seed, collisions) et zones
   obstacles: Obstacle[] = [];
-  treeCount = 0; // obstacles[0..treeCount) = arbres, [treeCount..rockEnd) = rochers, [rockEnd..) = menhirs (phase 16)
+  // obstacles[0..treeCount) = arbres, [treeCount..rockEnd) = rochers, [rockEnd..stoneEnd) = menhirs (phase 16),
+  // [stoneEnd..) = objets des lieux (phase 27 : tombes, tonneaux, caisses ; leur sorte dans propKinds)
+  treeCount = 0;
   rockEnd = 0;
-  walls: Wall[] = []; // phase 16 : murets et troncs couchés
+  stoneEnd = 0;
+  propKinds = new Uint8Array(0);
+  /** Phase 27 : décor sans collision (citrouilles), et centres des cimetières et campements. */
+  decor: { k: number; x: number; z: number; ry: number }[] = [];
+  yards: Obstacle[] = [];
+  camps: Obstacle[] = [];
+  walls: Wall[] = []; // phase 16 : murets et troncs couchés ; phase 27 : clôtures (kind 2)
   places: Obstacle[] = []; // phase 16 : emprise des lieux construits (arbres épars exclus)
   stoneCenters: Obstacle[] = []; // phase 16 : centres des cercles de pierres (une lanterne au milieu)
   lakes: Obstacle[] = [];
   woods: Obstacle[] = [];
+  /** Relief (phase 27) : plateaux, rampes et combes posés par buildTerrain (lus par les points d'intérêt et la carte). */
+  plateaus: Plateau[] = [];
+  ramps: Ramp[] = [];
+  combes: { pts: number[]; half: number }[] = [];
   readonly obstacleGrid = new Map<number, number[]>();
   readonly wallGrid = new Map<number, number[]>();
   /** Relief (phase 18) : hauteurs du sol sur une grille de TERRAIN.cell u (src/sim/terrain.ts). */
@@ -213,9 +226,10 @@ export class World {
     for (let i = 0; i < CAPS.events; i++) this.events.push({ type: Ev.Hit, x: 0, y: 0, z: 0, x2: 0, y2: 0, z2: 0, v: 0 });
     const r = new Rng(this.seed ^ 0x9e3779b9);
     buildZones(this, r);
-    buildMap(this, r);
-    buildTerrain(this, r); // après la carte : les lieux construits sont posés à plat
-    buildPOI(this, r); // après le relief : coffres et sanctuaires sur les hauteurs
+    buildTerrain(this, r); // phase 27 : le relief d'abord (plateaux, rampes, combes)…
+    buildMap(this, r); // …puis les lieux construits, seulement sur le plat
+    settlePlaces(this); // posés exactement à plat
+    buildPOI(this, r); // coffres et sanctuaires (sommets, pieds de rampes, combes)
   }
 
   // ---------- événements ----------

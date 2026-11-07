@@ -2,7 +2,8 @@
 // sur une grille de secteurs, puis les arbres et rochers épars autour. Règle d'accès : deux obstacles d'ouvrages
 // différents laissent toujours MAP.pass u de passage, et chaque ouvrage a des brèches. Exécuté une fois à la création
 // du monde : les allocations y sont permises (rien ici ne tourne pendant un run).
-import { DECOR, ELITE, ENEMIES, FLOW, MAP, PLAY_LIMIT, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { DECOR, ELITE, ENEMIES, FLOW, MAP, PLAY_LIMIT, TERRAIN, TREE_CELL, WORLD_HALF, ZONES } from './balance';
+import { unevenness } from './terrain';
 
 /** Plus gros rayon d'un marcheur (élite comprise, boss exclus) : marge de la grille `near` hors de laquelle la collision est sautée. */
 const ENEMY_MAX_R = Math.max(...ENEMIES.filter((d) => !d.boss).map((d) => d.r)) * ELITE.rMul;
@@ -35,6 +36,22 @@ function segSegDist(a: Wall, b: Wall): number {
     segDist(b.x2, b.z2, a.x1, a.z1, a.x2, a.z2),
   );
 }
+
+/** Sorte des obstacles posés par les lieux (construction seulement) : 255 = menhir, sinon PropKind. */
+let placeKinds: number[] = [];
+/** Objets des lieux (phase 27), lus par le rendu (w.propKinds). */
+export const enum PropKind {
+  Grave = 0,
+  Gravestone = 1,
+  Barrel = 2,
+  Crates = 3,
+}
+export const enum DecorKind {
+  Pumpkin = 0,
+}
+
+/** Parts des sortes de lieux, dans l'ordre : ruine, cercle de pierres, troncs, cimetière, campement, citrouilles. */
+const PLACE_SHARE = [MAP.ruins, MAP.stones, MAP.logs, MAP.graveyards, MAP.camps, MAP.pumpkins];
 
 /** Ajoute un obstacle circulaire (arbre, rocher, menhir) et l'indexe dans la grille. */
 function addCircle(w: World, x: number, z: number, r: number): void {
@@ -158,6 +175,7 @@ function placeStones(w: World, r: Rng, cx: number, cz: number): void {
   for (let i = 0; i < n; i++) {
     const a = a0 + (i / n) * TAU;
     addCircle(w, cx + Math.sin(a) * MAP.stoneRing, cz + Math.cos(a) * MAP.stoneRing, MAP.stoneR);
+    placeKinds.push(255);
   }
   w.stoneCenters.push({ x: cx, z: cz, r: MAP.stoneRing });
 }
@@ -181,6 +199,71 @@ function placeLogs(w: World, r: Rng, cx: number, cz: number): void {
   }
 }
 
+/** Cimetière (phase 27) : clôture carrée à une brèche par côté, quatre tombes et une stèle au centre. */
+function placeGraveyard(w: World, r: Rng, cx: number, cz: number): void {
+  const k = MAP.yardHalf,
+    b = MAP.breach / 2,
+    th = r.range(0, TAU),
+    c = Math.cos(th),
+    s = Math.sin(th);
+  const at = (x: number, z: number): [number, number] => [cx + x * c - z * s, cz + x * s + z * c];
+  for (const [sx, sz, ex, ez] of [
+    [-k, -k, k, -k],
+    [k, -k, k, k],
+    [k, k, -k, k],
+    [-k, k, -k, -k],
+  ]) {
+    const mx = (sx + ex) / 2,
+      mz = (sz + ez) / 2,
+      ux = Math.sign(ex - sx),
+      uz = Math.sign(ez - sz);
+    for (const [x1, z1, x2, z2] of [
+      [sx, sz, mx - ux * b, mz - uz * b],
+      [mx + ux * b, mz + uz * b, ex, ez],
+    ]) {
+      const [ax, az] = at(x1, z1),
+        [bx, bz] = at(x2, z2);
+      addWall(w, ax, az, bx, bz, MAP.fenceR, MAP.fenceH, 2);
+    }
+  }
+  // tombes à (±3, ±3) : 3,2 u jusqu'à la clôture, 5,1 u entre elles ; stèle au centre
+  for (const [x, z] of [
+    [-3, -3],
+    [3, -3],
+    [-3, 3],
+    [3, 3],
+  ]) {
+    const [px, pz] = at(x, z);
+    addCircle(w, px, pz, MAP.graveR);
+    placeKinds.push(PropKind.Grave);
+  }
+  addCircle(w, cx, cz, MAP.graveR);
+  placeKinds.push(PropKind.Gravestone);
+  w.yards.push({ x: cx, z: cz, r: k });
+}
+
+/** Campement abandonné (phase 27) : tonneaux et caisses en cercle autour d'une cour libre (un coffre y est posé). */
+function placeCamp(w: World, r: Rng, cx: number, cz: number): void {
+  const a0 = r.range(0, TAU),
+    n = MAP.campItems;
+  for (let i = 0; i < n; i++) {
+    const a = a0 + ((i + r.range(-0.12, 0.12)) / n) * TAU;
+    addCircle(w, cx + Math.cos(a) * MAP.campRing, cz + Math.sin(a) * MAP.campRing, MAP.campR);
+    placeKinds.push(r.next() < 0.5 ? PropKind.Barrel : PropKind.Crates);
+  }
+  w.camps.push({ x: cx, z: cz, r: MAP.campRing });
+}
+
+/** Champ de citrouilles (phase 27) : décor seul, sans collision. */
+function placePumpkins(w: World, r: Rng, cx: number, cz: number): void {
+  const n = 10 + Math.floor(r.next() * 7);
+  for (let i = 0; i < n; i++) {
+    const a = r.range(0, TAU),
+      d = Math.sqrt(r.next()) * 8;
+    w.decor.push({ k: DecorKind.Pumpkin, x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, ry: r.range(0, TAU) });
+  }
+}
+
 /** Arbres et rochers : tirage par rejet, hors lacs, hors lieux, à MAP.pass de tout autre obstacle. */
 function scatter(w: World, r: Rng, n: number, sMin: number, sMax: number, baseR: number, tries: number, pick: () => [number, number]): void {
   for (let i = 0; i < n; i++)
@@ -199,20 +282,46 @@ function scatter(w: World, r: Rng, n: number, sMin: number, sMax: number, baseR:
 
 /** Génère toute la carte : lieux, bois, arbres et rochers épars, puis la grille des cases pleines (champ de flux). */
 export function buildMap(w: World, r: Rng): void {
+  placeKinds = [];
+  const placeExt: number[] = [];
   // 1. lieux par secteur (hors lacs, bois et clairière de départ)
   const n = Math.floor((2 * (PLAY_LIMIT - MAP.edge)) / MAP.sector);
   const o = -(n * MAP.sector) / 2;
   for (let i = 0; i < n; i++)
     for (let j = 0; j < n; j++) {
-      const cx = o + (i + 0.5) * MAP.sector + r.range(-MAP.jitter, MAP.jitter),
-        cz = o + (j + 0.5) * MAP.sector + r.range(-MAP.jitter, MAP.jitter);
+      // sorte tirée d'abord : sa demi-emprise (le cimetière, carré, est plus large en diagonale) règle l'espacement
       const roll = r.next();
+      let kind = -1;
+      for (let k = 0, acc = 0; k < PLACE_SHARE.length; k++)
+        if (roll < (acc += PLACE_SHARE[k])) {
+          kind = k;
+          break;
+        }
+      let cx = 0,
+        cz = 0,
+        flat = false;
+      const ext = kind === 3 ? MAP.yardHalf * Math.SQRT2 + MAP.fenceR : MAP.placeExt;
+      // phase 27 : un lieu ne se pose que sur le plat (sol de base ou sommet de plateau) ; quelques essais dans le secteur
+      for (let t = 0; t < MAP.flatTries && !flat; t++) {
+        cx = o + (i + 0.5) * MAP.sector + r.range(-MAP.jitter, MAP.jitter);
+        cz = o + (j + 0.5) * MAP.sector + r.range(-MAP.jitter, MAP.jitter);
+        flat = unevenness(w, cx, cz, MAP.footprint * TERRAIN.placeR) < MAP.flatMax;
+        for (let q = 0; q < w.places.length && flat; q++) {
+          const p = w.places[q],
+            gap = ext + placeExt[q] + MAP.pass + 0.5;
+          if ((p.x - cx) ** 2 + (p.z - cz) ** 2 < gap * gap) flat = false;
+        }
+      }
+      if (kind < 0 || !flat) continue;
       if (cx * cx + cz * cz < MAP.startClear * MAP.startClear) continue;
       if (inDisk(w.lakes, cx, cz, MAP.footprint) || inDisk(w.woods, cx, cz, MAP.footprint)) continue;
-      if (roll < MAP.ruins) placeRuin(w, r, cx, cz);
-      else if (roll < MAP.ruins + MAP.stones) placeStones(w, r, cx, cz);
-      else if (roll < MAP.ruins + MAP.stones + MAP.logs) placeLogs(w, r, cx, cz);
-      else continue;
+      if (kind === 0) placeRuin(w, r, cx, cz);
+      else if (kind === 1) placeStones(w, r, cx, cz);
+      else if (kind === 2) placeLogs(w, r, cx, cz);
+      else if (kind === 3) placeGraveyard(w, r, cx, cz);
+      else if (kind === 4) placeCamp(w, r, cx, cz);
+      else placePumpkins(w, r, cx, cz);
+      placeExt.push(kind === 5 ? 0 : ext); // citrouilles : sans collision
       w.places.push({ x: cx, z: cz, r: MAP.footprint });
     }
   const stoneEnd = w.obstacles.length; // menhirs : obstacles[0..stoneEnd)
@@ -234,10 +343,10 @@ export function buildMap(w: World, r: Rng): void {
   buildSolid(w);
 }
 
-/** Remet les obstacles dans l'ordre arbres, rochers, menhirs (le rendu lit des plages d'indices) et refait la grille. */
+/** Remet les obstacles dans l'ordre arbres, rochers, menhirs, objets des lieux (le rendu lit des plages d'indices). */
 function reorder(w: World, stoneEnd: number, treeEnd: number): void {
   const all = w.obstacles;
-  const stones = all.slice(0, stoneEnd),
+  const placed = all.slice(0, stoneEnd),
     trees = all.slice(stoneEnd, treeEnd),
     rocks = all.slice(treeEnd);
   w.obstacles = [];
@@ -246,7 +355,15 @@ function reorder(w: World, stoneEnd: number, treeEnd: number): void {
   w.treeCount = w.obstacles.length;
   for (const k of rocks) addCircle(w, k.x, k.z, k.r);
   w.rockEnd = w.obstacles.length;
-  for (const s of stones) addCircle(w, s.x, s.z, s.r);
+  for (let i = 0; i < placed.length; i++) if (placeKinds[i] === 255) addCircle(w, placed[i].x, placed[i].z, placed[i].r);
+  w.stoneEnd = w.obstacles.length;
+  const kinds: number[] = [];
+  for (let i = 0; i < placed.length; i++)
+    if (placeKinds[i] !== 255) {
+      addCircle(w, placed[i].x, placed[i].z, placed[i].r);
+      kinds.push(placeKinds[i]);
+    }
+  w.propKinds = Uint8Array.from(kinds);
 }
 
 /** Grille des cases pleines de toute la carte (FLOW.cell) : 1 si le centre est à moins de r + FLOW.clear d'un obstacle. */
@@ -279,6 +396,40 @@ function buildSolid(w: World): void {
       mark(sol, Math.min(s.x1, s.x2) - m, Math.max(s.x1, s.x2) + m, Math.min(s.z1, s.z2) - m, Math.max(s.z1, s.z2) + m, (x, z) => segDist(x, z, s.x1, s.z1, s.x2, s.z2) < m);
     }
   }
+  sealPockets(w);
+}
+
+/**
+ * Phase 27 : une case libre que le départ n'atteint pas (coin intérieur d'une ruine en L à la résolution du flux,
+ * quelques cases au plus) devient pleine. Garantit « toute case libre est atteignable » pour n'importe quelle graine.
+ */
+function sealPockets(w: World): void {
+  const N = w.solidN,
+    sol = w.solid;
+  const seen = new Uint8Array(N * N),
+    queue = new Int32Array(N * N);
+  const c = Math.floor(WORLD_HALF / FLOW.cell),
+    s0 = c * N + c; // le départ (0, 0) est toujours libre
+  let head = 0,
+    tail = 0;
+  queue[tail++] = s0;
+  seen[s0] = 1;
+  while (head < tail) {
+    const k = queue[head++],
+      i = k % N,
+      j = (k - i) / N;
+    const next = (n: number) => {
+      if (!seen[n] && !sol[n]) {
+        seen[n] = 1;
+        queue[tail++] = n;
+      }
+    };
+    if (i > 0) next(k - 1);
+    if (i < N - 1) next(k + 1);
+    if (j > 0) next(k - N);
+    if (j < N - 1) next(k + N);
+  }
+  for (let k = 0; k < N * N; k++) if (!sol[k] && !seen[k]) sol[k] = 1;
 }
 
 /** Lacs et bois, loin du départ (inchangé depuis la phase 3, bois plus petits en phase 16). */

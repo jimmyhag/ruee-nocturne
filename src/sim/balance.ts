@@ -44,24 +44,29 @@ export const DECOR = {
   lamps: 160,
 };
 
-// relief (phase 18, PLAN §3.4) : collines douces qu'on monte et descend, jamais de marche (le champ de flux reste un BFS
-// sur les obstacles : toute pente se franchit). La sim garde y = hauteur au-dessus du sol local ; le rendu ajoute le sol.
+// relief (phase 27, PLAN §3.4) : des plans nets plutôt que des collines. Plateaux à flancs plans, terrasses, longues
+// rampes (pistes de glisse) et combes (demi-tubes). Jamais de marche : toute pente ≤ maxSlope (le champ de flux reste un
+// BFS sur les obstacles). La sim garde y = hauteur au-dessus du sol local ; le rendu ajoute le sol.
 export const TERRAIN = {
   cell: 2, // u : grille de hauteurs (interpolation bilinéaire)
-  hills: 70, // collines gaussiennes (partout : la carte ne doit plus paraître plate)
-  rMin: 14, // rayon (≈ 2σ)…
-  rMax: 30,
-  hMin: 1.5, // …et hauteur au sommet
-  hMax: 4.5,
-  peak: 6, // les collines qui se chevauchent sont adoucies au-delà (tanh) : sommets ≈ 4–6 u
-  wave: 0.5, // ondulation de basse fréquence (amplitude, u)
-  waveLen: 70, // u
-  startFlat: 22, // clairière de départ plate…
-  startBlend: 12, // …fondue sur 12 u
+  bank: 0.5, // pente des flancs (plans nets, ≈ 27°)
+  plateaus: 22, // plateaux (rectangles arrondis orientés)…
+  plateauMin: 9, // …demi-côtés de 9 à 20 u
+  plateauMax: 20,
+  levels: [2.5, 4, 5.5], // hauteurs des sommets, par paliers
+  terrace: 0.4, // part des plateaux qui portent une terrasse…
+  terraceUp: 2, // …2 u plus haut
+  rampLen: [22, 34], // rampes : longueur (pente ≈ hauteur / longueur ≈ 0,1–0,25)…
+  rampHalf: [4, 6], // …demi-largeur
+  combes: 6, // combes : tranchées en ligne brisée (2 segments)…
+  combeLen: [26, 46], // …longueur d'un segment
+  combeHalf: [3, 5], // …demi-largeur du fond plat
+  combeDepth: [1.6, 2.6], // …profondeur sous le sol de base
+  peak: 7.5, // plus haut sommet possible (5,5 + terrasse)
+  startFlat: 22, // clairière de départ plate (à 0)
   lakeDepth: 0.8, // fond plat des lacs sous la berge
-  lakeBlend: 7,
-  placeBlend: 6, // lieux construits posés à plat (murets, cercles de pierres)
-  maxSlope: 0.35, // pente maximale (≈ 19°), imposée après coup
+  placeR: 0.85, // lieux construits posés à plat sur ce rayon (× empreinte), raccord à la pente des flancs
+  maxSlope: 0.55, // pente maximale (≈ 29°), imposée après coup
 };
 export const SLOPE = {
   k: 1.1, // vitesse × (1 − k · pente dans le sens de la marche) : montée plus lente, descente plus rapide…
@@ -72,19 +77,20 @@ export const SLOPE = {
 // points d'intérêt (phase 18, PLAN §3.6) : coffres posés sur la carte (payés avec l'or de la partie, prix croissant) et
 // sanctuaires (rester dedans pour gagner un bonus permanent) ; repérés de loin par une colonne de lumière
 export const MAPCHEST = {
-  count: 20,
-  spacing: 22, // u entre deux coffres
+  count: 30, // phase 27 : 20 → 30 (carte plus remplie)
+  spacing: 20, // u entre deux coffres
   fromStart: 32, // aucun dans la clairière de départ
   r: 1.2, // rester dans ce rayon…
   hold: 0.6, // …ce temps (s) pour ouvrir : on n'ouvre rien par accident, même règle au clavier et au doigt
   price: 40, // or, premier coffre…
   growth: 0.35, // …+35 % par coffre ouvert…
   timeScale: 250, // …et × (1 + t / 250) : ×2 à 4:10, ×3 à 8:20 (l'or gagné croît avec le temps ; /400 : 23 % de l'or dépensé en maxé)
-  placeShare: 0.4, // part des coffres posés dans les lieux construits (le reste sur les hauteurs)
+  placeShare: 0.3, // part des coffres posés dans les lieux construits…
+  glideShare: 0.25, // …au pied des rampes et au fond des combes (phase 27) ; campements en plus ; le reste sur les hauteurs
 };
 export const SHRINE = {
-  count: 10,
-  spacing: 34,
+  count: 14, // phase 27 : 10 → 14
+  spacing: 30,
   fromStart: 40,
   r: 3, // rayon du cercle
   charge: 4, // s à rester dedans
@@ -113,13 +119,26 @@ export const ZONES = {
 // et chaque ouvrage a des brèches : une Brute élite (2,5 u de large) atteint toute case libre de la carte (map.test.ts).
 export const MAP = {
   seed: 20261102, // la carte du jeu (main.ts) : toujours la même, celle que l'on dessine et que l'on vérifie
-  sector: 34, // côté d'un secteur ; un lieu par secteur au plus
-  jitter: 5, // décalage aléatoire du centre d'un lieu dans son secteur
+  sector: 28, // côté d'un secteur ; un lieu par secteur au plus (phase 27 : 34 → 28, carte plus remplie)
+  jitter: 7, // décalage aléatoire du centre d'un lieu dans son secteur
+  flatTries: 12, // phase 27 : essais pour trouver du plat dans le secteur…
+  flatMax: 0.6, // …écart de hauteur toléré sur l'empreinte (le lieu est ensuite posé exactement à plat)
+  placeExt: 7.6, // demi-emprise d'un lieu (cercle de pierres, enceinte, troncs) ; le cimetière : 7√2 + clôture ; deux lieux à demi-emprises + MAP.pass + 0,5
   startClear: 30, // aucun lieu à moins de 30 u du départ : la clairière de départ reste ouverte
   // part des secteurs libres (hors lacs et bois) : ruines, cercle de pierres, troncs couchés, le reste vide (respiration)
-  ruins: 0.32,
-  stones: 0.14,
-  logs: 0.2,
+  ruins: 0.26,
+  stones: 0.12,
+  logs: 0.16,
+  graveyards: 0.12, // phase 27 : cimetière (clôture à brèches, tombes)
+  camps: 0.12, // campement abandonné (tonneaux et caisses en cercle, un coffre au milieu)
+  pumpkins: 0.08, // champ de citrouilles (décor seul)
+  fenceR: 0.3, // clôture : se saute comme un muret
+  fenceH: 0.8,
+  yardHalf: 7, // demi-côté du cimetière (une brèche de MAP.breach au milieu de chaque côté)
+  graveR: 0.45, // tombe (obstacle bas, arrête les tirs)
+  campRing: 5, // tonneaux et caisses sur un cercle de 5 u…
+  campItems: 5, // …au nombre de 5 (passage ≥ 4,5 u entre deux)
+  campR: 0.7,
   pass: 3, // passage libre minimal entre deux obstacles d'ouvrages différents (Brute élite 2,5 u + 0,5 de marge)
   breach: 4, // brèche d'un muret, bout à bout (passage libre 4 − 2 × wallR = 3,1 u)
   footprint: 10, // rayon réservé autour d'un lieu : arbres et rochers épars en sont exclus
