@@ -57,6 +57,7 @@ import {
 import { buildEnemyGeometries } from './enemies';
 import { setDetail } from './parts';
 import { TerrainView } from './terrain';
+import { borderGeometry } from './border';
 import { OUTLINE, toonGradient, toonMaterial } from './toon';
 import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
@@ -651,6 +652,13 @@ export class GameScene {
     // géométrie statique par tuile de sol (écartée hors champ), un appel de rendu par tuile visible
     const worksMat = vc();
     for (const g of worksGeometry(w, gy)) {
+      const m = new THREE.Mesh(g, worksMat);
+      this.scene.add(m);
+      this.decorObjs.push(m);
+    }
+    // phase 29 : lisière de forêt au bord de la carte (rochers, sapins, sous-bois), un mesh par segment de 40 u ;
+    // même matériau que les ouvrages (libéré une fois, avec le premier mesh qui le porte)
+    for (const g of borderGeometry(w.seed, gy)) {
       const m = new THREE.Mesh(g, worksMat);
       this.scene.add(m);
       this.decorObjs.push(m);
