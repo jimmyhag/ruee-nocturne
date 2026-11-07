@@ -10,7 +10,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 - **Boules de feu des Sorciers** : de vraies comètes de feu (cœur clair, halo orange, flammèches) au lieu d'une boule à facettes.
 - **Foudre** : elle ne frappe plus qu'**un** ennemi au départ (avant : quatre), mais plus souvent ; les ricochets arrivent avec les cartes « +1 cible en chaîne » (deux fois plus fréquentes), le tome Projectiles et la synergie Orage (+3).
 - **Météores** : un peu plus forts (recharge 2,5 s, 42 dégâts) : c'était l'arme la plus faible jouée seule.
-- Moins d'appels de rendu pour les projectiles (34 à 37 au pire point au lieu de 37 à 40).
+- **Optimisation** : les projectiles, traînées et boules de feu partagent une seule famille de sprites lumineux (deux appels de rendu en moins quand ils sont à l'écran), et seules les instances réellement affichées partent vers la carte graphique à chaque image (avant, chaque famille d'objets renvoyait toute sa réserve, même vide).
 
 ## 1.24.1 — 7 nov. 2026 (retour de Jimmy sur le saut glissé)
 

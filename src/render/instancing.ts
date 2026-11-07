@@ -51,9 +51,25 @@ export class InstanceWriter {
     this.mesh.setColorAt(this.n, color);
     this.n++;
   }
+  // plages d'envoi réutilisées (phase 30) : seules les n instances écrites partent vers la carte graphique
+  private rangeM = { start: 0, count: 0 };
+  private rangeC = { start: 0, count: 0 };
   end(): void {
     this.mesh.count = this.n;
-    this.mesh.instanceMatrix.needsUpdate = true;
-    this.mesh.instanceColor!.needsUpdate = true;
+    // phase 30 : vide, rien à envoyer (count = 0 ne dessine rien). Avant, chaque écrivain renvoyait toute sa capacité
+    // à chaque image, même vide : sur un rendu logiciel (SwiftShader), 18 → 8 fps avec un écrivain de 1 024 sprites
+    if (this.n === 0) return;
+    const m = this.mesh.instanceMatrix,
+      c = this.mesh.instanceColor!;
+    // une seule plage par attribut, objet réutilisé (addUpdateRange en allouerait un à chaque image) ; three vide la
+    // liste après l'envoi
+    this.rangeM.count = this.n * 16;
+    this.rangeC.count = this.n * 3;
+    m.updateRanges.length = 0;
+    m.updateRanges.push(this.rangeM);
+    c.updateRanges.length = 0;
+    c.updateRanges.push(this.rangeC);
+    m.needsUpdate = true;
+    c.needsUpdate = true;
   }
 }
