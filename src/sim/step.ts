@@ -145,7 +145,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.airMom = false;
   }
   // départ de glissade : appui (pas maintien : tenir la touche ne relance pas en boucle), au sol, en mouvement
-  if (slidePress && P.onGround && !P.sliding && P.slideCd <= 0 && l > 0.3 && P.dashT <= 0) {
+  if (slidePress && P.onGround && !P.sliding && P.slideCd <= 0 && l > SLIDE.startInput && P.dashT <= 0) {
     const cur = Math.sqrt(P.vx * P.vx + P.vz * P.vz),
       v0 = Math.max(cur, walk * SLIDE.startMul);
     P.mvx = P.dirX * v0;
@@ -253,7 +253,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   // un joueur en vol le laisse plus haut) ; au sol, une crête franchie vite fait décoller
   const g = w.heightAt(P.x, P.z);
   const dg = g - P.gPrev;
-  const teleport = dg > 3 || dg < -3; // déplacement d'un test ou réapparition : pas de physique sur ce pas
+  const teleport = dg > SLIDE.teleport || dg < -SLIDE.teleport; // déplacement d'un test ou réapparition : pas de physique sur ce pas
   if (!teleport) {
     const gv = dg / dt;
     if (!P.onGround) P.y -= dg;
@@ -310,7 +310,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   }
   // vitesse lissée (≈ 0,5 s) : le Faucheur s'y règle
   const vNow = Math.sqrt((P.x - P.px) ** 2 + (P.z - P.pz) ** 2) / dt;
-  P.spd += (vNow - P.spd) * Math.min(1, dt * 2);
+  P.spd += (vNow - P.spd) * Math.min(1, dt * SLIDE.spdSmooth);
   P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   P.walk += l * dt * 12;
   // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de Comète

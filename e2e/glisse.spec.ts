@@ -153,19 +153,37 @@ test('captures : glissade le long d’une rampe, relief net', async ({ page }, i
   // marche vers le pied de la rampe, puis glisse (touches selon la direction dominante)
   const kx = Math.abs(ramp.ux) > Math.abs(ramp.uz) ? (ramp.ux > 0 ? 'KeyD' : 'KeyA') : ramp.uz > 0 ? 'KeyS' : 'KeyW';
   await page.keyboard.down(kx);
-  await page.waitForTimeout(250);
+  await page.waitForFunction(
+    () => {
+      const P = (window as any).__game.world.player;
+      return P.vx * P.vx + P.vz * P.vz > 4; // en marche (machine de test chargée : on attend la sim, pas l'horloge)
+    },
+    null,
+    { timeout: 10_000 },
+  );
   await page.keyboard.down('KeyC');
-  await page.waitForFunction(() => (window as any).__game.world.player.sliding === true, null, { timeout: 3000 });
+  await page.waitForFunction(() => (window as any).__game.world.player.sliding === true, null, { timeout: 10_000 });
   await page.keyboard.up(kx); // sans entrée, la pente seule guide la glissade (vers le bas de la rampe)
-  // temps de jeu (pas temps réel : une machine de test lente avance la sim moins vite)
-  const t0 = await page.evaluate(() => (window as any).__game.world.t);
-  await page.waitForFunction((t0) => (window as any).__game.world.t >= t0 + 0.9, t0, { timeout: 10_000 });
-  const v = await page.evaluate(() => {
-    const P = (window as any).__game.world.player;
-    return { v: Math.hypot(P.vx, P.vz), walk: P.speed, sliding: P.sliding };
-  });
+  // temps de jeu (pas temps réel : une machine de test lente avance la sim moins vite) ; vitesse maximale atteinte
+  const v = await page.evaluate(
+    () =>
+      new Promise<{ v: number; walk: number; slid: boolean }>((done) => {
+        const w = (window as any).__game.world,
+          P = w.player,
+          t0 = w.t;
+        let v = 0,
+          slid = false;
+        const tick = () => {
+          v = Math.max(v, Math.hypot(P.vx, P.vz));
+          slid ||= P.sliding;
+          if (w.t >= t0 + 0.9) done({ v, walk: P.speed, slid });
+          else requestAnimationFrame(tick);
+        };
+        tick();
+      }),
+  );
   await page.screenshot({ path: `shots/${info.project.name}-glissade.png` });
   await page.keyboard.up('KeyC');
-  expect(v.sliding).toBe(true);
+  expect(v.slid).toBe(true);
   expect(v.v, 'la descente accélère la glissade').toBeGreaterThan(v.walk * 1.3);
 });

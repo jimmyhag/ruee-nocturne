@@ -1,3 +1,7 @@
+import { slopeAlong } from '../../src/sim/terrain';
+
+/** Phase 27 : variante du bot qui glisse dans les descentes (mesure, pas la référence d'équilibrage). */
+const BOT_SLIDE = typeof process !== 'undefined' && process.env?.BOT_SLIDE === '1';
 import type { BoonKey, Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { ShotKind, Spell } from '../../src/sim/types';
@@ -479,6 +483,13 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       }
       out.spell = cast && P.spellCd <= 0;
       out.jump = (diving || hazard || blocked || close >= 3) && P.onGround && !out.spell;
+      // phase 27 : le bot de référence ne glisse pas (la glisse reste un bonus d'adresse) ; avec BOT_SLIDE, il glisse
+      // dans les descentes — naïvement, il fonce alors dans la horde (survie maxée 9:50 contre 10:23 sans glisse)
+      if (BOT_SLIDE) {
+        const mlen = Math.hypot(out.mx, out.mz);
+        const along = mlen > 0.5 ? slopeAlong(w.height, P.x, P.z, out.mx, out.mz) : 0;
+        out.slide = P.onGround && mlen > 0.5 && (P.sliding ? along < 0.03 : along < -0.08);
+      }
     },
     pick(w, cards) {
       if (r.next() < randomness) return r.int(cards.length);

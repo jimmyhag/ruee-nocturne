@@ -376,6 +376,7 @@ function startGame(variant?: number, daily = false): void {
     S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
     decorSeed = mapSeed;
   }
+  mapView.prepare(world); // fond de la minicarte construit ici, pas dans la première image de jeu
   // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
   // `variant` (debug/tests) remplace l'horloge ; le défi du jour utilise la seed de la date : même run pour tous
   const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;

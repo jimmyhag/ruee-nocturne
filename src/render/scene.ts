@@ -435,16 +435,18 @@ export class GameScene {
     this.holdW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.82, 1, 32).rotateX(-Math.PI / 2), additive(0xffffff, 0.85), 4),
     );
-    this.shrineW = new InstanceWriter(makeInstanced(shrineGeometry(), toonMaterial({ vertexColors: true }), 12));
+    this.shrineW = new InstanceWriter(
+      makeInstanced(shrineGeometry(), toonMaterial({ vertexColors: true }), SHRINE.count),
+    );
     this.shrineGlowW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2), additive(0xffffff, 0.7), 12),
+      makeInstanced(new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2), additive(0xffffff, 0.7), SHRINE.count),
     );
     // colonne de lumière : cylindre ouvert, additif, 16 u de haut, visible au-dessus des arbres
     this.beamW = new InstanceWriter(
       makeInstanced(
         new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
         additive(0xffffff, 0.22),
-        36,
+        MAPCHEST.count + SHRINE.count, // phase 27 : 30 coffres et 14 sanctuaires
       ),
     );
     this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
@@ -483,13 +485,14 @@ export class GameScene {
     for (const o of this.decorObjs) {
       this.scene.remove(o);
       const m = o as THREE.Mesh;
+      if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose(); // tampons d'instances (GPU)
       m.geometry?.dispose();
       const mat = m.material as THREE.Material | THREE.Material[] | undefined;
       if (Array.isArray(mat)) for (const x of mat) x.dispose();
       else mat?.dispose();
     }
     this.decorObjs.length = 0;
-    // sol en relief : tuiles à la résolution de la sim (phase 27), sa grille sert aussi à poser tout le reste
+    // sol en relief : fenêtre à la résolution de la sim (phase 27), sa grille sert aussi à poser tout le reste
     this.groundMesh = this.terrain.build(w, this.groundMat);
     this.scene.add(this.groundMesh);
     const gy = this.gy;

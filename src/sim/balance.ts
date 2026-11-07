@@ -87,6 +87,9 @@ export const SLIDE = {
   elanMul: 1.2, // vrille réussie : vitesse × 1,2…
   elanTime: 1.5, // …pendant 1,5 s
   reaperMul: 1.1, // le Faucheur va toujours au moins 1,1 × la vitesse lissée du joueur (il rattrape toujours)
+  startInput: 0.3, // entrée minimale (0–1) pour lancer une glissade
+  spdSmooth: 2, // lissage de la vitesse du joueur lue par le Faucheur (1/s : ≈ 0,5 s)
+  teleport: 3, // u : un saut de sol plus grand en un pas est un déplacement forcé (test, réapparition), sans physique
 };
 
 // découverte de la carte (phase 27) : cases de 4 u révélées autour du joueur (minicarte, grande carte, écran de fin)
@@ -219,7 +222,7 @@ export const HAZARDS = {
     speed: 9, // u/s
     width: 0.8, // épaisseur de l'onde
     maxR: 14,
-    dmg: 14, // × dmgScale ; une fois par onde
+    dmg: 11, // × dmgScale ; une fois par onde (phase 27 : 14 → 11, sur le relief en plans l’onde faisait une falaise à 5:00)
   },
   charge: {
     first: 2.5, // s après l'apparition d'une Brute élite

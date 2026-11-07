@@ -2,7 +2,25 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
-## 1.21.4 — 7 nov. 2026 (correctif)
+## 1.22.0 — 7 nov. 2026 (phase 27 « Glisse et carte »)
+
+Le terrain change de forme et le mouvement prend de l'élan : on glisse, on saute, on s'envole des plateaux, et chaque partie a sa propre carte à découvrir.
+
+### Ajouté
+
+- **Glissade** : C au clavier, X ou LB à la manette, bouton **GLISSE** au doigt (un appui suffit, la glissade dure tant qu'elle a de l'élan). Plus rapide que la marche au départ, elle **accélère dans les descentes** et cale en montée.
+- **Saut glissé et envol** : sauter en glissant garde l'élan (la montée d'une rampe s'ajoute au saut) ; passer vite le bord d'un plateau fait décoller, et l'on vole d'autant plus longtemps que le sol descend.
+- **Vrille** : en l'air après un saut glissé ou un envol, un appui sur glisse fait tourner le héros ; réussie à la réception (« Vrille ! »), elle donne un élan de vitesse ; ratée si l'on atterrit en pleine vrille.
+- **Une carte par partie** : relief, lieux, coffres et sanctuaires tirés au hasard à chaque partie (même carte pour tous au défi du jour).
+- **Carte à découvrir** : minicarte en haut à droite, grande carte (M, appui sur la minicarte, ou bouton « Carte » de la pause) ; ce qui n'a pas été vu reste dans le brouillard ; coffres, sanctuaires, marchand et boss y sont repérés, avec la part explorée.
+- **Nouveaux lieux** : cimetières (clôture, tombes, stèle), campements abandonnés (tonneaux, caisses, un coffre au milieu), champs de citrouilles.
+- Animation de glissade pour les neuf héros.
+
+### Modifié
+
+- **Relief en plans nets** : fini les collines molles ; des plateaux à flancs plans, des terrasses, de longues rampes (les pistes de glisse) et des combes à fond plat. Les flancs ont la couleur de la terre, les arêtes sont éclairées.
+- **Carte plus remplie** : environ 1,5 fois plus de lieux, 30 coffres de carte (au lieu de 20), dont au pied des rampes et au fond des combes, 14 sanctuaires (au lieu de 10).
+- Le Faucheur va toujours plus vite que le joueur, même lancé en glissade.
 
 ### Corrigé
 

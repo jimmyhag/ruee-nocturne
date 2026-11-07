@@ -120,25 +120,37 @@ export class MapView {
     return i >= 0 && j >= 0 && i < SEEN_N && j < SEEN_N && w.seen[j * SEEN_N + i] === 1;
   }
 
+  // repère courant (pas de fermeture recréée à chaque dessin)
+  private ox = 0;
+  private oz = 0;
+  private k = 1;
+  private X(x: number): number {
+    return (x - this.ox) * this.k;
+  }
+  private Z(z: number): number {
+    return (z - this.oz) * this.k;
+  }
+
   /** Repères (coffres non ouverts et sanctuaires découverts, marchand, boss) et joueur. `k` : pixels par unité. */
   private marks(ctx: CanvasRenderingContext2D, w: World, ox: number, oz: number, k: number, r: number): void {
-    const X = (x: number) => (x - ox) * k,
-      Z = (z: number) => (z - oz) * k;
+    this.ox = ox;
+    this.oz = oz;
+    this.k = k;
     ctx.fillStyle = '#ffd45a';
     for (const c of w.mapChests)
-      if (!c.open && this.seenAt(w, c.x, c.z)) ctx.fillRect(X(c.x) - r, Z(c.z) - r, r * 2, r * 2);
+      if (!c.open && this.seenAt(w, c.x, c.z)) ctx.fillRect(this.X(c.x) - r, this.Z(c.z) - r, r * 2, r * 2);
     ctx.fillStyle = '#7fd8ff';
     for (const s of w.shrines)
       if (!s.used && this.seenAt(w, s.x, s.z)) {
         ctx.beginPath();
-        ctx.arc(X(s.x), Z(s.z), r * 1.2, 0, Math.PI * 2);
+        ctx.arc(this.X(s.x), this.Z(s.z), r * 1.2, 0, Math.PI * 2);
         ctx.fill();
       }
     const M = w.merchant;
     if (M.active) {
       ctx.fillStyle = '#ff9f43';
       ctx.beginPath();
-      ctx.arc(X(M.x), Z(M.z), r * 1.4, 0, Math.PI * 2);
+      ctx.arc(this.X(M.x), this.Z(M.z), r * 1.4, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.fillStyle = '#ff4d5e';
@@ -146,13 +158,13 @@ export class MapView {
       const e = w.enemies[i];
       if (!e.alive || !ENEMIES[e.type].boss) continue;
       ctx.beginPath();
-      ctx.arc(X(e.x), Z(e.z), r * 1.6, 0, Math.PI * 2);
+      ctx.arc(this.X(e.x), this.Z(e.z), r * 1.6, 0, Math.PI * 2);
       ctx.fill();
     }
     // joueur : flèche dans le sens de la marche
     const P = w.player,
-      px = X(P.x),
-      pz = Z(P.z),
+      px = this.X(P.x),
+      pz = this.Z(P.z),
       a = r * 2.2;
     ctx.fillStyle = '#f3ecdc';
     ctx.strokeStyle = '#0c0f1a';
@@ -164,6 +176,12 @@ export class MapView {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  }
+
+  /** Fond de la nouvelle carte, à préparer hors d'une image de jeu (lancement de la partie). */
+  prepare(w: World): void {
+    if (w.seed !== this.seed) this.build(w);
+    this.t = 0;
   }
 
   /** Minicarte : appelée chaque frame, ne redessine que 4 fois par seconde. */
