@@ -1,7 +1,7 @@
 // Phase 27 : glissade (élan gagné en descente, perdu en montée et sur le plat), saut glissé, envol sur une crête,
 // vrille en l'air (élan à la réception), Faucheur qui suit la vitesse du joueur. Terrains de test posés à la main.
 import { describe, expect, it } from 'vitest';
-import { REAPER_TYPE, SLIDE, STEP, TERRAIN, WORLD_HALF } from './balance';
+import { RACE, REAPER_TYPE, SLIDE, STEP, TERRAIN, WORLD_HALF } from './balance';
 import { spawnEnemy } from './spawner';
 import { step } from './step';
 import { TERRAIN_N } from './terrain';
@@ -148,6 +148,23 @@ describe('glissade (phase 27)', () => {
     expect(launches).toBeGreaterThanOrEqual(1);
     expect(air).toBeGreaterThan(0.25); // un vrai décollage (un saut sur place : 0,73 s)
   });
+  it('phase 28 : un tremplin fait décoller une glissade (vol nettement plus long qu’un simple bord)', () => {
+    const K = TERRAIN.kickLen,
+      KH = TERRAIN.kickH;
+    // descente de 0,2 jusqu'au pied (x = 0), tremplin à x ∈ [0, K], puis chute à 0,54 : on arrive lancé
+    const w = lab((x) => (x < 0 ? -0.2 * x : x < K ? (KH * x) / K : Math.max(0, KH - 0.54 * (x - K))), -30, 0);
+    run(w, { ...still, mx: 1 }, 0.2);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    let launches = 0,
+      air = 0;
+    for (let f = 0; f < 360; f++) {
+      step(w, { ...still, mx: 1 }, STEP);
+      launches += count(w, Ev.Launch);
+      if (!w.player.onGround) air += STEP;
+    }
+    expect(launches).toBe(1);
+    expect(air).toBeGreaterThan(0.6); // de quoi lancer une vrille (0,45 s)
+  });
   it('en marchant, passer le même bord ne fait pas décoller', () => {
     const w = lab((x) => (x < 0 ? 6 : Math.max(0, 6 - 0.5 * x)), -6, 0);
     expect(run(w, { ...still, mx: 1 }, 3, Ev.Launch)).toBe(0);
@@ -211,5 +228,38 @@ describe('découverte de la carte (phase 27)', () => {
     let n = 0;
     for (const v of w.seen) n += v;
     expect(n).toBe(w.seenCount);
+  });
+});
+
+describe('pistes chronométrées (phase 28)', () => {
+  const race = (sx: number, fx: number) => ({ sx, sz: 0, fx, fz: 0, time: Math.abs(fx - sx) / RACE.refSpeed, state: 0, t: 0 });
+  it('passer le départ puis l’arrivée à temps donne un coffre d’objet, une seule fois', () => {
+    const w = lab((x) => -0.2 * x, -40, 0); // descente vers +x
+    w.races = [race(-38, 20)];
+    run(w, { ...still, mx: 1 }, 0.3);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    let win = 0;
+    for (let f = 0; f < 60 * 8 && w.player.x < 25; f++) {
+      step(w, { ...still, mx: 1 }, STEP);
+      win += count(w, Ev.RaceWin);
+    }
+    expect(win).toBe(1);
+    expect(w.racesWon).toBe(1);
+    expect(w.itemPicks + w.boonPicks).toBeGreaterThanOrEqual(1);
+    expect(w.races[0].state).toBe(2);
+  });
+  it('en marchant, le temps file : échec, puis réarmement en s’éloignant du départ', () => {
+    const w = lab(() => 0, -40, 0);
+    w.races = [race(-38, 20)];
+    let fail = 0,
+      starts = 0;
+    for (let f = 0; f < 60 * 12; f++) {
+      step(w, { ...still, mx: 1 }, STEP);
+      fail += count(w, Ev.RaceFail);
+      starts += count(w, Ev.RaceStart);
+    }
+    expect(starts).toBe(1);
+    expect(fail).toBe(1);
+    expect(w.races[0].state).toBe(0); // loin du départ : réarmée
   });
 });

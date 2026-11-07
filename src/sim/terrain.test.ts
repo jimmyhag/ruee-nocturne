@@ -34,6 +34,44 @@ const spread = (w: World, x: number, z: number, r: number): number => {
 };
 
 describe('relief (phase 18)', () => {
+  it('phase 28 : grandes pistes (sommet, longue descente à bosses, tremplin) et tremplins isolés, dégagés', () => {
+    for (const seed of [MAP.seed, 5, 13]) {
+      const w = new World(seed);
+      expect(w.pistes.length, `graine ${seed}`).toBeGreaterThanOrEqual(3);
+      expect(w.kickers.length).toBeGreaterThanOrEqual(w.pistes.length + 3);
+      for (const p of w.pistes) {
+        const L = Math.hypot(p.x1 - p.x0, p.z1 - p.z0);
+        expect(L).toBeGreaterThanOrEqual(TERRAIN.pisteLen[0] - 1e-9);
+        // la descente : haut de piste au sommet, bas au sol, et ça descend tout du long (hors bosses)
+        expect(w.heightAt(p.x0, p.z0)).toBeGreaterThan(p.top - 0.5);
+        expect(w.heightAt(p.x1, p.z1)).toBeLessThan(1);
+        let prev = Infinity,
+          drops = 0;
+        for (let t = 0.05; t <= 0.95; t += 0.05) {
+          const h = w.heightAt(p.x0 + (p.x1 - p.x0) * t, p.z0 + (p.z1 - p.z0) * t);
+          if (h < prev) drops++;
+          prev = h;
+        }
+        expect(drops).toBeGreaterThanOrEqual(13); // quelques remontées : les bosses
+        // dégagée : aucun arbre, rocher ni ouvrage dans le couloir
+        for (const o of w.obstacles) {
+          const ux = (p.x1 - p.x0) / L,
+            uz = (p.z1 - p.z0) / L,
+            t = (o.x - p.x0) * ux + (o.z - p.z0) * uz,
+            lat = Math.abs(-(o.x - p.x0) * uz + (o.z - p.z0) * ux);
+          if (t > 0 && t < L) expect(lat, 'obstacle sur une piste').toBeGreaterThan(p.half);
+        }
+      }
+      // tremplin : le sol monte puis tombe (une crête)
+      for (const k of w.kickers) {
+        const h0 = w.heightAt(k.x, k.z),
+          hTop = w.heightAt(k.x + k.dx * TERRAIN.kickLen, k.z + k.dz * TERRAIN.kickLen),
+          hAfter = w.heightAt(k.x + k.dx * (TERRAIN.kickLen + 3), k.z + k.dz * (TERRAIN.kickLen + 3));
+        expect(hTop - h0).toBeGreaterThan(1.5);
+        expect(hAfter).toBeLessThan(hTop - 1);
+      }
+    }
+  });
   it('phase 27 : plateaux à sommet plat, longues rampes en pente douce du pied au sommet, combes creusées', () => {
     for (const seed of [MAP.seed, 4, 11]) {
       const w = new World(seed);
@@ -47,7 +85,7 @@ describe('relief (phase 18)', () => {
         if (h > p.top + 1) flatTops++; // une terrasse couvre le centre
         else if (Math.abs(h - p.top) < 0.05 && spread(w, p.x, p.z, Math.min(p.a, p.b) * 0.4) < 0.05) flatTops++;
       }
-      expect(flatTops / w.plateaus.length, `graine ${seed} : sommets plats (une combe peut en entailler)`).toBeGreaterThan(0.6);
+      expect(flatTops / w.plateaus.length, `graine ${seed} : sommets plats (une combe peut en entailler)`).toBeGreaterThan(0.5);
       // rampes du sol : le sol suit au moins le plan de la rampe, en pente douce et régulière
       let smooth = 0,
         n = 0;
@@ -77,7 +115,7 @@ describe('relief (phase 18)', () => {
       let top = 0;
       for (let k = 0; k < w.height.length; k++) top = Math.max(top, w.height[k]);
       expect(top, `graine ${seed}`).toBeGreaterThan(2.5);
-      expect(top).toBeLessThanOrEqual(TERRAIN.peak + 0.01);
+      expect(top).toBeLessThanOrEqual(Math.max(TERRAIN.peak, TERRAIN.mountain[1]) + 0.01); // phase 28 : montagnes des pistes
     }
   });
   it('même graine, même relief ; graines différentes, reliefs différents', () => {

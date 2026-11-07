@@ -50,7 +50,7 @@ export const DECOR = {
 export const TERRAIN = {
   cell: 2, // u : grille de hauteurs (interpolation bilinéaire)
   bank: 0.5, // pente des flancs (plans nets, ≈ 27°)
-  plateaus: 22, // plateaux (rectangles arrondis orientés)…
+  plateaus: 18, // plateaux (phase 28 : 22 → 18, place aux grandes pistes) (rectangles arrondis orientés)…
   plateauMin: 9, // …demi-côtés de 9 à 20 u
   plateauMax: 20,
   levels: [2.5, 4, 5.5], // hauteurs des sommets, par paliers
@@ -62,7 +62,21 @@ export const TERRAIN = {
   combeLen: [26, 46], // …longueur d'un segment
   combeHalf: [3, 5], // …demi-largeur du fond plat
   combeDepth: [1.6, 2.6], // …profondeur sous le sol de base
-  peak: 7.5, // plus haut sommet possible (5,5 + terrasse)
+  peak: 7.5, // plus haut sommet d'un plateau (5,5 + terrasse) ; les montagnes des pistes montent plus haut
+  // phase 28 : vraies pentes à rider. Grandes pistes : une montagne d'où part une longue descente droite, ponctuée de
+  // bosses (on décolle en glissade), finie par un tremplin ; tremplins isolés sur le plat
+  pistes: 4, // grandes pistes (tentatives : 3 ou 4 tiennent sur une carte)
+  mountain: [9, 11], // hauteur du sommet d'où part une piste
+  mountainHalf: [8, 11], // demi-côté du sommet
+  pisteLen: [50, 78], // longueur de la descente (pente ≈ 0,12–0,22)
+  pisteHalf: [6, 8], // demi-largeur
+  bumpEvery: 12, // u entre deux bosses…
+  bumpH: 0.8, // …hauteur d'une bosse…
+  bumpLen: 2.5, // …demi-longueur (pente de la bosse 0,32, plus celle de la piste : ≤ 0,55)
+  kickers: 6, // tremplins isolés (en plus de ceux des pistes)
+  kickLen: 5, // tremplin : montée sur 5 u…
+  kickH: 2.2, // …jusqu'à 2,2 u (pente 0,44), puis chute au flanc maximal
+  kickHalf: 4,
   startFlat: 22, // clairière de départ plate (à 0)
   lakeDepth: 0.8, // fond plat des lacs sous la berge
   placeR: 0.85, // lieux construits posés à plat sur ce rayon (× empreinte), raccord à la pente des flancs
@@ -97,6 +111,14 @@ export const DISCOVER = {
   cell: 4,
   radius: 26,
   period: 0.25, // s entre deux mises à jour
+};
+
+// pistes chronométrées (phase 28) : passer l'arche du haut, atteindre celle du bas à temps (en glissant, pas en
+// marchant) → un coffre d'objet ; une fois par piste
+export const RACE = {
+  r: 4.5, // rayon d'une arche (départ et arrivée)
+  refSpeed: 6.2 * 1.6, // u/s : temps alloué = longueur / cette vitesse (marche de l'Éclaireuse × 1,6 ; la glisse tient, la marche non)
+  rearm: 8, // u : après un échec, s'éloigner du départ pour réarmer
 };
 
 export const SLOPE = {

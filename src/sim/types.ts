@@ -181,6 +181,9 @@ export const enum Ev {
   Spin, // phase 27 : vrille lancée en l'air
   Trick, // phase 27 : vrille réussie à la réception, v = temps passé en l'air
   TrickFail, // phase 27 : réception en pleine vrille
+  RaceStart, // phase 28 : piste chronométrée lancée en (x,z), v = temps alloué, (x2,z2) = arrivée
+  RaceWin, // phase 28 : arrivée à temps en (x,z), v = temps mis
+  RaceFail, // phase 28 : temps écoulé
 }
 
 export interface GameEvent {

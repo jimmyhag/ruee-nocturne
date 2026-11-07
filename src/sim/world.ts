@@ -2,7 +2,8 @@ import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, S
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
-import type { Plateau, Ramp } from './terrain';
+import type { Kicker, Piste, Plateau, Ramp } from './terrain';
+import type { Race } from './poi';
 import { buildPOI } from './poi';
 import type { MapChest, Shrine } from './poi';
 import { makeMerchant } from './merchant';
@@ -128,6 +129,10 @@ export class World {
   plateaus: Plateau[] = [];
   ramps: Ramp[] = [];
   combes: { pts: number[]; half: number }[] = [];
+  /** Phase 28 : grandes pistes, tremplins, pistes chronométrées. */
+  pistes: Piste[] = [];
+  kickers: Kicker[] = [];
+  races: Race[] = [];
   readonly obstacleGrid = new Map<number, number[]>();
   readonly wallGrid = new Map<number, number[]>();
   /** Relief (phase 18) : hauteurs du sol sur une grille de TERRAIN.cell u (src/sim/terrain.ts). */
@@ -153,6 +158,7 @@ export class World {
   readonly mapChests: MapChest[] = [];
   readonly shrines: Shrine[] = [];
   mapChestsOpened = 0;
+  racesWon = 0; // phase 28 : pistes chronométrées réussies
   shrinesUsed = 0;
   boonPicks = 0; // choix de bonus de sanctuaire en attente
   readonly boons = new Uint8Array(BOON_KEYS.length); // bonus pris (CLI, HUD)
