@@ -1434,7 +1434,7 @@ function handleEvents(w: World, now: number): void {
       // phase 28 : armes, objets, pistes chronométrées
       case Ev.Scythe: {
         // phase 30 : arc de lame visible (balayage), plus quelques étincelles violettes le long du tranchant
-        S.scythe(e.x, e.z, e.v, e.x2, e.z2);
+        S.scythe(e.x, e.z, e.v, e.x2, e.z2, e.y2);
         const n = (8 * fx) | 0,
           half = (Math.min(360, e.y2) * Math.PI) / 360,
           a0 = Math.atan2(e.x2, e.z2);

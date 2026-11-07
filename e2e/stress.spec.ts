@@ -212,3 +212,67 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
   expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
   expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
 });
+
+// Phase 30 (relecture perf) : les effets d'armes (sprites lumineux, arcs, éclairs, halo) sous charge. Le kit de départ
+// n'a qu'une arme : ici, 4 armes (le plafond d'emplacements) parmi les plus chargées à l'écran, niveau 8, 400 ennemis.
+test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ page }, info) => {
+  const errors = collectConsoleErrors(page);
+  await page.goto('/?debug=1&stress=400');
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+  });
+  await page.locator('#playBtn').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await page.waitForFunction(
+    () => {
+      const s = (window as any).__game.scene;
+      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
+    },
+    null,
+    { timeout: 20_000 },
+  );
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.world.player.need = 1e9;
+    for (const k of Object.keys(g.world.weapons)) delete g.world.weapons[k];
+    for (const k of ['lames', 'meteores', 'foudre', 'orbe']) g.debug.give(k, 8);
+  });
+  await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
+  await page.waitForTimeout(1500);
+  const measure = async () => {
+    const worst = { calls: 0, triangles: 0, glow: 0 };
+    for (let f = 0; f < 16; f++) {
+      await page.waitForTimeout(90);
+      const r = await page.evaluate(() => {
+        const g = (window as any).__game;
+        return {
+          calls: g.renderer.info.render.calls as number,
+          triangles: g.renderer.info.render.triangles as number,
+          glow: g.scene.glowW.mesh.count as number,
+        };
+      });
+      worst.calls = Math.max(worst.calls, r.calls);
+      worst.triangles = Math.max(worst.triangles, r.triangles);
+      worst.glow = Math.max(worst.glow, r.glow);
+    }
+    return worst;
+  };
+  const px = await measure();
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
+  });
+  await page.waitForTimeout(800);
+  const net = await measure();
+  console.log(
+    `[${info.project.name}] 4 armes : pixel ${px.calls} appels, ${(px.triangles / 1000).toFixed(1)} k tris ; net ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris ; lueurs ≤ ${Math.max(px.glow, net.glow)}`,
+  );
+  expect(px.glow, 'des lueurs sont à l’écran').toBeGreaterThan(0);
+  expect(px.calls, 'draw calls ≤ 40').toBeLessThanOrEqual(40);
+  expect(px.triangles, 'triangles ≤ 150 k (pixel)').toBeLessThan(150_000);
+  expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
+  expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
+  expect(errors).toEqual([]);
+});

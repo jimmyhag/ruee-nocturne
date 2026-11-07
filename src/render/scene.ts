@@ -105,8 +105,8 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
-const GLOW_CAP = 1024; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
-const SLASH_CAP = 32; // arcs de lame : 13 lames + arcs de Faux en cours
+const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
+const SLASH_CAP = 40; // arcs de lame : 13 lames + arcs de Faux en cours (8 coups × 3 croissants à 360°)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (brouillard)
 const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
 const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
@@ -171,7 +171,7 @@ export class GameScene {
   private glowW: InstanceWriter;
   /** Phase 30 : arcs de lame (Faux, sillage des Lames) : un appel. */
   private slashW: InstanceWriter;
-  private slashes: { x: number; z: number; r: number; a: number; life: number; c: THREE.Color }[] = [];
+  private slashes: { x: number; z: number; r: number; a: number; arc: number; life: number; c: THREE.Color }[] = [];
   private slashN = 0;
   private boomW: InstanceWriter;
   private mineW: InstanceWriter; // plaques de feu du Feu follet
@@ -1130,19 +1130,23 @@ export class GameScene {
     return this.renderer.compileAsync(this.scene, this.camera).then(() => undefined);
   }
 
-  /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
-  /** Phase 30 : coup de Faux, un arc de lame visible qui balaie l'angle réel de l'arme (direction dx, dz ; portée r). */
-  scythe(x: number, z: number, r: number, dx: number, dz: number): void {
-    if (this.slashN >= 8) return; // au plus 8 arcs en même temps (la Faux frappe toutes les ≥ 0,2 s)
-    const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, life: 0, c: this.cSlashFaux };
+  /**
+   * Phase 30 : coup de Faux, un arc de lame visible qui couvre l'angle réel de l'arme (direction dx, dz ; portée r ;
+   * `arcDeg` : ouverture totale en degrés, jusqu'à 360 avec les cartes).
+   */
+  scythe(x: number, z: number, r: number, dx: number, dz: number, arcDeg: number): void {
+    if (this.slashN >= FEEL.slash.max) return;
+    const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, arc: 0, life: 0, c: this.cSlashFaux };
     this.slashes[this.slashN++] = sl;
     sl.x = x;
     sl.z = z;
     sl.r = r;
     sl.a = Math.atan2(dx, dz);
+    sl.arc = (Math.min(360, arcDeg) * Math.PI) / 180;
     sl.life = FEEL.slash.life;
   }
 
+  /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
   onJump(): void {
     // phase 29 : élan plus vif (il traînait au-dessus du sol) ; 1.24.1 : un saut depuis la glisse aussi (le saut
     // annule la glissade, animation normale)
@@ -1811,14 +1815,16 @@ export class GameScene {
       const f = sl.life / FEEL.slash.life; // 1 → 0
       this.cSlashTmp.copy(sl.c).multiplyScalar(Math.min(1, f * 1.8));
       const sweep = (0.5 - f) * FEEL.slash.sweep;
-      this.slashW.put(
-        sl.x,
-        this.gy(sl.x, sl.z) + 0.9,
-        sl.z,
-        sl.a - Math.PI / 2 + sweep,
-        sl.r * (1.05 - f * 0.1),
-        this.cSlashTmp,
-      );
+      // un croissant couvre 2·SLASH_ARC ; au-delà (cartes d'arc), plusieurs croissants se répartissent sur l'ouverture
+      const span = 2 * SLASH_ARC,
+        nArc = sl.arc > span ? Math.ceil(sl.arc / span) : 1,
+        step = nArc > 1 ? (sl.arc - span) / (nArc - 1) : 0,
+        y = this.gy(sl.x, sl.z) + 0.9,
+        rr = sl.r * (1.05 - f * 0.1);
+      for (let j = 0; j < nArc; j++) {
+        const off = nArc > 1 ? -(sl.arc - span) / 2 + j * step : 0;
+        this.slashW.put(sl.x, y, sl.z, sl.a - Math.PI / 2 + sweep + off, rr, this.cSlashTmp);
+      }
     }
     this.bladeW.end();
     this.slashW.end();

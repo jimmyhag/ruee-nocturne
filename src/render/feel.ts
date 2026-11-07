@@ -67,7 +67,7 @@ export const FEEL = {
     mineHalo: 1.5, // pouls des mines armées
     boomTrail: 1.2, // traînée du boomerang
   },
-  slash: { life: 0.2, sweep: 0.5 }, // Faux : durée de l'arc (s) et balayage (rad) pendant sa vie
+  slash: { life: 0.2, sweep: 0.5, max: 8 }, // Faux : durée de l'arc (s), balayage (rad) pendant sa vie, arcs en même temps
   damageNumbers: {
     rise: 1.8, // u/s
     life: 0.6,
