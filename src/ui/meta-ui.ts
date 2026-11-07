@@ -8,8 +8,8 @@ import type { CharacterKey } from '../sim/types';
 import { outfitOf, slotState } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
+import { MISC_ICON, SPELL_ICON, WEAPON_ICON } from './icons';
 import {
-  SPELL_GLYPH,
   achName,
   achText,
   achUnlock,
@@ -42,7 +42,7 @@ export function renderCharacters(container: HTMLElement, m: Meta, info?: HTMLEle
     const sel = m.character === c.key ? ' selected' : '';
     const buyable = !open && c.price > 0; // une carte achetable reste un bouton actif (le faux bouton d'achat est dedans)
     return `<button class="card char${open ? '' : ' locked'}${sel}" data-char="${c.key}" ${open || buyable ? '' : 'aria-disabled="true"'}>
-      <div class="top"><span class="glyph" style="background:${open ? 'var(--accent)' : 'var(--ink-3)'}">${open ? SPELL_GLYPH[SPELL_KEYS[c.spell]] : '🔒'}</span><h3>${esc(characterName(c.key))}</h3></div>
+      <div class="top"><span class="glyph" style="background:${open ? 'var(--accent)' : 'var(--ink-3)'}">${open ? SPELL_ICON[SPELL_KEYS[c.spell]] : MISC_ICON.lock}</span><h3>${esc(characterName(c.key))}</h3></div>
       ${cond}<p>${esc(characterText(c.key))}</p></button>`;
   }).join('');
   // ligne d'information sous la grille (lisible sur téléphone, où le texte des cartes est masqué) : stats, passif, tenues
@@ -51,7 +51,7 @@ export function renderCharacters(container: HTMLElement, m: Meta, info?: HTMLEle
     const trait = characterTrait(k);
     // phase 19 : le sort de classe, juste sous le nom
     const sk = SPELL_KEYS[(CHARACTERS.find((c) => c.key === k) ?? CHARACTERS[0]).spell];
-    const spell = `<span class="spell">${SPELL_GLYPH[sk]} <b>${esc(spellName(sk))}</b> : ${esc(spellText(sk))}</span>`;
+    const spell = `<span class="spell">${SPELL_ICON[sk]} <b>${esc(spellName(sk))}</b> : ${esc(spellText(sk))}</span>`;
     info.innerHTML = `<b>${esc(characterName(k))}</b> · ${esc(characterText(k))}<br />${spell}${trait ? `<br /><em>${esc(trait)}</em>` : ''}<div class="outfits">${renderOutfits(m, k)}</div>`;
   }
   // la carte choisie reste visible dans le défilement horizontal (téléphone)
@@ -120,7 +120,14 @@ function bar(a: Achievement, m: Meta): string {
   const txt = `${achValue(a, Math.min(v, a.goal))} / ${achValue(a, a.goal)}`;
   const done = m.achievements.includes(a.id);
   const unlock = a.unlocks ? ` · <em>${esc(t('ach.unlocks', { what: achUnlock(a) }))}</em>` : '';
-  return `<div class="ach${done ? ' done' : ''}"><div class="achtop"><b>${esc(achName(a))}</b><span>${done ? esc(t('ach.done')) : txt}</span></div>
+  // phase 28 : icône de ce que le succès débloque (arme, sort du personnage) ou trophée
+  const ch = a.unlocks?.character ? CHARACTERS.find((c) => c.key === a.unlocks!.character) : undefined;
+  const ico = a.unlocks?.weapon
+    ? WEAPON_ICON[a.unlocks.weapon]
+    : ch
+      ? SPELL_ICON[SPELL_KEYS[ch.spell]]
+      : MISC_ICON.trophy;
+  return `<div class="ach${done ? ' done' : ''}"><div class="achtop"><b>${ico}${esc(achName(a))}</b><span>${done ? esc(t('ach.done')) : txt}</span></div>
     <p>${esc(achText(a))}${unlock}</p>
     <div class="bar"><i style="width:${(p * 100).toFixed(0)}%"></i></div></div>`;
 }

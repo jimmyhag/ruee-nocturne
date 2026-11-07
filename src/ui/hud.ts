@@ -5,13 +5,13 @@ import { spellCooldown } from '../sim/spells';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
+import { BOON_ICON, ITEM_ICON, SPELL_ICON, TOME_ICON, WEAPON_ICON } from './icons';
 import type { World } from '../sim/world';
 import { fmtTime, onLangChange, t, fmtNum } from '../i18n';
 import {
   BOON_GLYPH,
   ITEM_GLYPH,
   RARITY_COLOR,
-  SPELL_GLYPH,
   cardLines,
   cardText,
   cardTitle,
@@ -66,7 +66,7 @@ export class Hud {
     banner: $('banner'),
     perf: $('perf'),
   };
-  private spellGlyphChar = '✦'; // symbole du sort de la classe (remplacé par les secondes pendant la recharge)
+  private spellGlyphChar = '✦'; // icône du sort de la classe (remplacée par les secondes pendant la recharge)
   private bannerT = 0;
   private lastKillTens = 0;
   private killPopT = 0;
@@ -266,7 +266,8 @@ export class Hud {
     const sec = P.spellCd > 0 ? Math.ceil(P.spellCd) : 0;
     if (this.cache.sec !== sec) {
       this.cache.sec = sec;
-      this.els.spellGlyph.textContent = sec > 0 ? String(sec) : this.spellGlyphChar;
+      if (sec > 0) this.els.spellGlyph.textContent = String(sec);
+      else this.els.spellGlyph.innerHTML = this.spellGlyphChar; // icône du sort (au plus une fois par seconde)
       this.els.spellSec.textContent = sec > 0 ? `${sec} s` : '';
       this.els.btnSpell.classList.toggle('cooling', sec > 0);
     }
@@ -308,20 +309,26 @@ export class Hud {
   kit(w: World): void {
     // phase 19 : bouton et touche du sort au nom du sort de la classe
     const sk = SPELL_KEYS[w.spell];
-    this.spellGlyphChar = SPELL_GLYPH[sk];
-    this.els.spellGlyph.textContent = SPELL_GLYPH[sk];
+    this.spellGlyphChar = SPELL_ICON[sk];
+    this.els.spellGlyph.innerHTML = SPELL_ICON[sk];
     this.cache.sec = -1; // affichage des secondes à refaire avec le nouveau symbole
     this.els.spellName.textContent = spellName(sk).toUpperCase();
     this.els.spellKey.textContent = spellName(sk);
     this.els.btnSpell.setAttribute('aria-label', spellName(sk));
     const parts: string[] = [];
-    for (const k in w.weapons) parts.push(`<span>${weaponName(k as WeaponKey)} ${w.weapons[k as WeaponKey]}</span>`);
+    // phase 28 : icône dessinée devant chaque arme et tome
+    for (const k in w.weapons)
+      parts.push(
+        `<span>${WEAPON_ICON[k as WeaponKey]}${weaponName(k as WeaponKey)} ${w.weapons[k as WeaponKey]}</span>`,
+      );
     for (const k in w.tomes)
-      parts.push(`<span style="color:var(--muted)">${tomeName(k as TomeKey)} ${w.tomes[k as TomeKey]}</span>`);
+      parts.push(
+        `<span style="color:var(--muted)">${TOME_ICON[k as TomeKey]}${tomeName(k as TomeKey)} ${w.tomes[k as TomeKey]}</span>`,
+      );
     // phase 17 : objets passifs (glyphes à la couleur de leur rareté) et synergies actives
     for (const i of w.itemOrder)
       parts.push(
-        `<span class="item" title="${itemName(ITEM_KEYS[i])}" style="color:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_GLYPH[ITEM_KEYS[i]]}</span>`,
+        `<span class="item" title="${itemName(ITEM_KEYS[i])}" aria-label="${itemName(ITEM_KEYS[i])}" style="border-color:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_ICON[ITEM_KEYS[i]]}</span>`,
       );
     for (let i = 0; i < w.syn.length; i++)
       if (w.syn[i]) parts.push(`<span class="syn" title="${synergyText(i)}">✦ ${synergyName(i)}</span>`);
@@ -357,6 +364,7 @@ export function renderCards(
   container.innerHTML = cards
     .map((c, i) => {
       let glyph = '+',
+        icon = '',
         color = '#7ee0a1',
         badge = `<span class="badge">${t('card.bonus')}</span>`;
       const syn = w ? cardSynergy(w, c) : -1;
@@ -366,6 +374,7 @@ export function renderCards(
         off = false;
       if (c.kind === 'i') {
         glyph = ITEM_GLYPH[c.key as ItemKey];
+        icon = ITEM_ICON[c.key as ItemKey];
         color = RARITY_COLOR[c.lv];
         badge = `<span class="badge new item">${t('card.item')}</span>`;
         if (shop) {
@@ -375,11 +384,13 @@ export function renderCards(
         }
       } else if (c.kind === 'b') {
         glyph = BOON_GLYPH[c.key as BoonKey];
+        icon = BOON_ICON[c.key as BoonKey];
         color = '#5fd3ff';
         badge = `<span class="badge new boon">${t('card.boon')}</span>`;
       } else if (c.kind === 'w') {
         const d = WEAPONS[c.key as WeaponKey];
         glyph = d.glyph;
+        icon = WEAPON_ICON[c.key as WeaponKey];
         color = d.color;
         badge =
           c.lv === 1
@@ -388,6 +399,7 @@ export function renderCards(
       } else if (c.kind === 't') {
         const d = TOME_LOOK[c.key as TomeKey];
         glyph = d.glyph;
+        icon = TOME_ICON[c.key as TomeKey];
         color = d.color;
         badge =
           c.lv === 1
@@ -408,7 +420,7 @@ export function renderCards(
           : `${intro}<ul class="lines">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
       // phase 17 : la carte qui complète une synergie dit ce qu'elle débloque
       const synLine = syn >= 0 ? `<p class="synline">✦ ${synergyText(syn)}</p>` : '';
-      return `<button class="card${rarity}${off ? ' off' : ''}" data-i="${i}" ${off ? 'aria-disabled="true"' : ''}><div class="top"><span class="glyph" style="background:${color}">${glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}${synBadge}${price}</div>${body}${synLine}</button>`;
+      return `<button class="card${rarity}${off ? ' off' : ''}" data-i="${i}" ${off ? 'aria-disabled="true"' : ''}><div class="top"><span class="glyph" style="background:${color}" aria-label="${glyph}">${icon || glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}${synBadge}${price}</div>${body}${synLine}</button>`;
     })
     .join('');
 }
