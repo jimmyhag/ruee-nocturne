@@ -64,6 +64,12 @@ export const ITEM_GLYPH: Record<ItemKey, string> = {
   bourse: '¤',
   rune: 'ᚱ', // phase 22
   collier: '☠',
+  patins: '⛸', // phase 28
+  echarpe: '≋',
+  plume: '❦',
+  boussole: '✧',
+  bouclier: '⛨',
+  corne: '♫',
 };
 export const RARITY_COLOR = ['#9aa4c2', '#5fd3ff', '#ffd166'];
 export const synergyName = (i: number): string => t(`syn.${SYNERGIES[i].key}.name`);

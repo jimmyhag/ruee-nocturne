@@ -1,7 +1,8 @@
 // Phase 27 : glissade (élan gagné en descente, perdu en montée et sur le plat), saut glissé, envol sur une crête,
 // vrille en l'air (élan à la réception), Faucheur qui suit la vitesse du joueur. Terrains de test posés à la main.
 import { describe, expect, it } from 'vitest';
-import { RACE, REAPER_TYPE, SLIDE, STEP, TERRAIN, WORLD_HALF } from './balance';
+import { It, RACE, REAPER_TYPE, SLIDE, STEP, TERRAIN, WORLD_HALF } from './balance';
+import { gainItem } from './items';
 import { spawnEnemy } from './spawner';
 import { step } from './step';
 import { TERRAIN_N } from './terrain';
@@ -228,6 +229,34 @@ describe('découverte de la carte (phase 27)', () => {
     let n = 0;
     for (const v of w.seen) n += v;
     expect(n).toBe(w.seenCount);
+  });
+});
+
+describe('objets de glisse (phase 28)', () => {
+  const ledgeJump = (item?: number) => {
+    const w = lab((x) => (x < 0 ? 6 : Math.max(0, 6 - 0.5 * x)), -2, 0);
+    if (item !== undefined) gainItem(w, item);
+    w.player.hp = 50;
+    run(w, { ...still, mx: 1 }, 0.1);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    step(w, { ...still, mx: 1, jump: true }, STEP);
+    step(w, { ...still, mx: 1, slide: true }, STEP); // vrille tout de suite
+    let air = 0,
+      tricks = 0;
+    for (let f = 0; f < 400 && !w.player.onGround; f++) {
+      step(w, { ...still, mx: 1 }, STEP);
+      air += STEP;
+      tricks += count(w, Ev.Trick);
+    }
+    return { air, tricks, hp: w.player.hp };
+  };
+  it('Plume : le vol après un saut glissé dure plus longtemps', () => {
+    expect(ledgeJump(It.Plume).air).toBeGreaterThan(ledgeJump().air * 1.08);
+  });
+  it('Écharpe du vent : une vrille réussie soigne', () => {
+    const r = ledgeJump(It.Echarpe);
+    expect(r.tricks).toBe(1);
+    expect(r.hp).toBeGreaterThanOrEqual(50 + 8 - 1e-9);
   });
 });
 

@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -179,6 +179,8 @@ export class World {
   racesWon = 0; // phase 28 : pistes chronométrées réussies
   slideDist = 0; // phase 28 : u glissés dans la partie
   tricks = 0; // phase 28 : vrilles réussies dans la partie
+  shieldT = 0; // phase 28 : Bouclier, s avant d'être prêt (0 : prêt)
+  hornT = 0; // phase 28 : Corne de guerre, s avant la prochaine onde
   shrinesUsed = 0;
   boonPicks = 0; // choix de bonus de sanctuaire en attente
   readonly boons = new Uint8Array(BOON_KEYS.length); // bonus pris (CLI, HUD)
@@ -481,7 +483,7 @@ export function discover(w: World, dt: number): void {
   if (w.seenT > 0) return;
   w.seenT = DISCOVER.period;
   const C = DISCOVER.cell,
-    R = DISCOVER.radius,
+    R = DISCOVER.radius * (w.items[It.Boussole] ? ITEM.boussole.radiusMul : 1), // phase 28 : Boussole
     P = w.player;
   const i0 = Math.max(0, Math.floor((P.x - R + WORLD_HALF) / C)),
     i1 = Math.min(SEEN_N - 1, Math.floor((P.x + R + WORLD_HALF) / C)),
@@ -643,6 +645,7 @@ function makeEnemy(): Enemy {
     lastBlade: -9,
     lastBoom: -9,
     lastLance: -9,
+    lastPatins: -9,
     spd: 1,
     dmgMul: 1,
     bob: 0,

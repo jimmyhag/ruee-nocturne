@@ -486,5 +486,17 @@
   "ach.vrilles5.unlock": "Unlocks the Lance",
   "ach.coffres50.name": "Looter",
   "ach.coffres50.text": "Open {n} map chests in total",
-  "ach.coffres50.unlock": "Unlocks the Meteors"
+  "ach.coffres50.unlock": "Unlocks the Meteors",
+  "item.patins.name": "Ember skates",
+  "item.patins.text": "While sliding, enemies you pass through burn (the faster you go, the more it hurts) and are knocked back",
+  "item.echarpe.name": "Wind scarf",
+  "item.echarpe.text": "Each landed spin heals 8 HP and gives 1 s of spell cooldown back",
+  "item.plume.name": "Raven feather",
+  "item.plume.text": "After a slide jump or a launch, you fall slower: longer flights",
+  "item.boussole.name": "Compass",
+  "item.boussole.text": "You reveal the map much further; chests and shrines are marked on it even undiscovered",
+  "item.bouclier.name": "Shield",
+  "item.bouclier.text": "Cancels one hit every 20 s",
+  "item.corne.name": "War horn",
+  "item.corne.text": "Every 25 s, a shockwave knocks back and stuns nearby enemies (not bosses)"
 }

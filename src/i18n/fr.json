@@ -486,5 +486,17 @@
   "ach.vrilles5.unlock": "Débloque la Lance",
   "ach.coffres50.name": "Pilleur",
   "ach.coffres50.text": "Ouvre {n} coffres de carte au total",
-  "ach.coffres50.unlock": "Débloque les Météores"
+  "ach.coffres50.unlock": "Débloque les Météores",
+  "item.patins.name": "Patins de braise",
+  "item.patins.text": "En glissade, les ennemis que tu traverses brûlent (plus tu vas vite, plus ça fait mal) et sont repoussés",
+  "item.echarpe.name": "Écharpe du vent",
+  "item.echarpe.text": "Chaque vrille réussie rend 8 PV et 1 s de recharge du sort",
+  "item.plume.name": "Plume de corbeau",
+  "item.plume.text": "Après un saut glissé ou un envol, tu retombes moins vite : vols plus longs",
+  "item.boussole.name": "Boussole",
+  "item.boussole.text": "Tu découvres la carte bien plus loin ; coffres et sanctuaires y sont marqués même non découverts",
+  "item.bouclier.name": "Bouclier",
+  "item.bouclier.text": "Annule un coup toutes les 20 s",
+  "item.corne.name": "Corne de guerre",
+  "item.corne.text": "Toutes les 25 s, une onde repousse et étourdit les ennemis proches (pas les boss)"
 }

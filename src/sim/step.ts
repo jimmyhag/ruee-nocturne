@@ -5,6 +5,7 @@ import { compactEnemies } from './combat';
 import { applyCard, nextChoice, tickChests, tickGems } from './progression';
 import { merchantInput, tickMerchant } from './merchant';
 import { tickPOI } from './poi';
+import { shieldStep, tickRideItems } from './items';
 import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
@@ -43,6 +44,7 @@ export function step(w: World, input: Input, dt: number): void {
     return;
   }
   w.t += dt;
+  const hpStart = w.player.hp; // phase 28 : Bouclier (un coup annulé)
   stepPlayer(w, input, dt);
   tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
@@ -53,12 +55,14 @@ export function step(w: World, input: Input, dt: number): void {
   tickWeapons(w, dt);
   tickSpells(w, dt); // phase 19 : coups des sorts (grille à jour)
   tickProjectiles(w, dt);
+  tickRideItems(w, dt); // phase 28 : Patins de braise, Corne de guerre
   compactEnemies(w);
   tickGems(w, dt);
   tickChests(w, dt);
   tickMerchant(w); // phase 17 : peut ouvrir l'échoppe (Mode.Merchant)
   tickPOI(w, dt); // phase 18 : coffres de carte et sanctuaires
   discover(w, dt); // phase 27 : cases découvertes (carte)
+  shieldStep(w, hpStart, dt); // phase 28 : avant le test de mort
   // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
   if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
@@ -267,7 +271,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.gPrev = g;
   const ground = 0; // y = hauteur au-dessus du sol local (le relief est ajouté par le rendu)
   if (!P.onGround) {
-    P.vy -= PLAYER.gravity * dt;
+    P.vy -= PLAYER.gravity * (P.airMom && w.items[It.Plume] ? ITEM.plume.gravMul : 1) * dt; // phase 28 : Plume
     P.y += P.vy * dt;
     P.airT += dt;
     if (P.y <= ground) {
@@ -281,6 +285,11 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       else if (P.spinDone) {
         P.elanT = SLIDE.elanTime;
         w.tricks++;
+        if (w.items[It.Echarpe]) {
+          // phase 28 : Écharpe du vent
+          P.hp = Math.min(P.maxHp, P.hp + ITEM.echarpe.heal);
+          P.spellCd -= ITEM.echarpe.spell;
+        }
         w.emit(Ev.Trick, P.x, 0, P.z, P.airT);
       }
       P.spin = 0;

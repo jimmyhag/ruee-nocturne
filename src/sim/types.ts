@@ -18,6 +18,7 @@ export interface Enemy {
   lastBlade: number;
   lastBoom: number; // dernier coup de boomerang (un par passage)
   lastLance: number; // phase 28 : dernier coup de Lance (une lance ne touche qu'une fois)
+  lastPatins: number; // phase 28 : dernier coup des Patins de braise
   spd: number;
   dmgMul: number;
   bob: number;
@@ -138,6 +139,8 @@ export const enum HitSrc {
   Thorns, // phase 17 : objet Épines
   Talisman, // phase 17 : objet Talisman orageux
   Spell, // phase 19 : sort de classe
+  Patins, // phase 28 : Patins de braise (glissade)
+  Horn, // phase 28 : Corne de guerre
 }
 
 export const enum Ev {
@@ -192,6 +195,9 @@ export const enum Ev {
   Scythe, // phase 28 : coup de Faux en (x,y,z), v = portée, x2/z2 = direction, y2 = angle de l'arc
   MeteorWarn, // phase 28 : cercle d'un météore à venir en (x,z), v = rayon, x2 = délai
   MeteorHit, // phase 28 : impact en (x,z), v = rayon
+  ShieldBlock, // phase 28 : le Bouclier annule un coup en (x,z)
+  ShieldReady, // phase 28 : le Bouclier est de nouveau prêt
+  Horn, // phase 28 : onde de la Corne de guerre en (x,z), v = rayon
 }
 
 export interface GameEvent {
@@ -287,7 +293,13 @@ export type ItemKey =
   | 'fer'
   | 'bourse'
   | 'rune'
-  | 'collier';
+  | 'collier'
+  | 'patins' // phase 28
+  | 'echarpe'
+  | 'plume'
+  | 'boussole'
+  | 'bouclier'
+  | 'corne';
 
 /**
  * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.

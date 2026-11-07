@@ -1331,6 +1331,7 @@ const HIT_COLORS = [
   PAL.paper,
   PAL.bolt,
   PAL.gold,
+  0xff8a3d, // phase 28 : Patins de braise
 ];
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)

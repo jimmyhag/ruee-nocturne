@@ -161,3 +161,62 @@ export function talismanKill(w: World): void {
   }
   talismanBusy = false;
 }
+
+// ---- phase 28 : objets de la glisse et de l'exploration ----
+const rideHits = new Int32Array(64);
+
+/** Patins de braise (glissade : les ennemis traversés brûlent) et Corne de guerre (onde périodique). Grille à jour. */
+export function tickRideItems(w: World, dt: number): void {
+  const P = w.player;
+  if (w.items[It.Patins] && P.sliding) {
+    const v = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
+    if (v > P.speed * ITEM.patins.minMul) {
+      const n = w.grid.query(w.enemies, P.x, P.z, ITEM.patins.r, 2.6, rideHits);
+      for (let k = 0; k < n; k++) {
+        const e = w.enemies[rideHits[k]];
+        if (w.t - e.lastPatins < ITEM.patins.rehit) continue;
+        e.lastPatins = w.t;
+        hitEnemy(w, rideHits[k], ITEM.patins.perSpeed * v, ITEM.patins.kb, P.x, P.z, HitSrc.Patins);
+      }
+    }
+  }
+  if (w.items[It.Corne]) {
+    w.hornT -= dt;
+    if (w.hornT <= 0) {
+      w.hornT = ITEM.corne.period;
+      const C = ITEM.corne,
+        r2 = C.r * C.r;
+      for (let i = 0; i < w.enemyCount; i++) {
+        const e = w.enemies[i];
+        if (!e.alive || ENEMIES[e.type].boss) continue;
+        const dx = e.x - P.x,
+          dz = e.z - P.z,
+          d2 = dx * dx + dz * dz;
+        if (d2 > r2 || d2 < 1e-6) continue;
+        const d = Math.sqrt(d2),
+          k = C.kb * ENEMIES[e.type].kbMul * (1 - d / C.r);
+        e.kx += (dx / d) * k;
+        e.kz += (dz / d) * k;
+        e.stun = Math.max(e.stun, C.stun);
+      }
+      w.emit(Ev.Horn, P.x, 0, P.z, C.r);
+    }
+  }
+}
+
+/** Bouclier : si le joueur a perdu des PV ce pas et que le bouclier est prêt, le coup est annulé. */
+export function shieldStep(w: World, hpStart: number, dt: number): void {
+  if (!w.items[It.Bouclier]) return;
+  const P = w.player;
+  if (w.shieldT > 0) {
+    w.shieldT -= dt;
+    if (w.shieldT <= 0) w.emit(Ev.ShieldReady, P.x, 1, P.z);
+    return;
+  }
+  if (P.hp < hpStart - 1e-6) {
+    P.hp = hpStart;
+    P.invul = Math.max(P.invul, ITEM.bouclier.invul);
+    w.shieldT = ITEM.bouclier.period;
+    w.emit(Ev.ShieldBlock, P.x, 1, P.z);
+  }
+}

@@ -727,7 +727,7 @@ export const CHARACTERS: CharacterDef[] = [
 // tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
 
 // objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun, uniques, au plus ITEM.max par run
-export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier'];
+export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne'];
 /** Index fixes (drapeaux de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
   Phenix = 0,
@@ -744,9 +744,15 @@ export const enum It {
   Bourse,
   Rune, // phase 22
   Collier,
+  Patins, // phase 28
+  Echarpe,
+  Plume,
+  Boussole,
+  Bouclier,
+  Corne,
 }
 /** Rareté par objet : 0 commun, 1 rare, 2 épique (couleur de carte, prix, poids de tirage). */
-export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1];
+export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1];
 export const ITEM = {
   max: 6, // objets par run
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
@@ -767,6 +773,13 @@ export const ITEM = {
   rune: { cdMul: 0.7 }, // phase 22 : Rune de rappel, recharge du sort −30 %
   // phase 22 : Collier d'os, chaque kill rend 0,1 s de recharge (au plus 1 s par seconde, réserve de 1 s), un boss 4 s
   collier: { perKill: 0.1, perBoss: 4, perSec: 1, bank: 1 },
+  // phase 28
+  patins: { perSpeed: 1.6, minMul: 1.15, r: 1.1, rehit: 0.35, kb: 6 }, // en glissade (≥ marche × 1,15) : dégâts = 1,6 × vitesse (u/s) aux ennemis traversés
+  echarpe: { heal: 8, spell: 1 }, // vrille réussie : 8 PV et 1 s de recharge du sort
+  plume: { gravMul: 0.8 }, // en l'air avec l'élan d'une glissade
+  boussole: { radiusMul: 1.8 }, // découverte ; la carte montre aussi coffres et sanctuaires non découverts
+  bouclier: { period: 20, invul: 0.6 }, // un coup annulé toutes les 20 s
+  corne: { period: 25, r: 7, kb: 10, stun: 0.5 }, // onde qui repousse et étourdit (pas les boss)
 };
 
 // marchand (phase 17, PLAN §3.6) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
