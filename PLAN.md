@@ -70,7 +70,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 | Orbe filante | Projectile auto-visé | dégâts, recharge, +1 projectile, vitesse, +1 perforation |
 | Halo brûlant | Aura de dégâts périodiques | dégâts, rayon, période |
 | Lames orbitales | Lames tournantes, recul fort | dégâts, +1 lame, rayon, rotation |
-| Foudre en chaîne | Frappe N ennemis en chaîne | dégâts, recharge, +1 cible |
+| Foudre en chaîne | Frappe **un** ennemi au départ (phase 30) ; chaque ricochet (ligne, tome Projectiles, Orage) saute à un voisin | dégâts, recharge, +1 cible en chaîne |
 | Boomerang | Aller-retour en ligne, traverse | dégâts, recharge, portée, +1 boomerang, vitesse |
 | Mines | Posées sur le passage, explosent au contact | dégâts, recharge, rayon, +1 mine, chaîne |
 | **Faux** (phase 28) | Arc de 120° devant le joueur, recul fort | dégâts, recharge, rayon, angle, critique |
@@ -189,7 +189,7 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 
 | Synergie | Paire | Effet |
 |---|---|---|
-| Orage | Cadence + Foudre | +4 cibles en chaîne |
+| Orage | Cadence + Foudre | +3 cibles en chaîne (phase 30 : +4 → +3) |
 | Essaim | Projectiles + Orbe | +1 orbe, +1 perforation (seule paire du kit de départ de l'Éclaireuse : modérée) |
 | Brasier | Dégâts + Halo | dégâts du Halo +80 % |
 | Tourbillon | Mouvement + Lames | lames 60 % plus rapides, rayon +25 % |
@@ -270,6 +270,8 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 - **Ennemis (phase 21, modèles de la phase 26)** : morts-vivants Quaternius HD (même kit que les héros : tenue, tête, coiffure, objets tenus ; peau gris-vert ; marche de zombie et gestes des Universal Animation Library) dans `public/models/enemies.glb`, 8 modèles pour 11 types, atlas 256² (masse) ou 512² (boss) par modèle, seuls les niveaux de détail cuits (hi pour les boss, mid et lo pour la masse), pistes des doigts omises, yeux lumineux (zone « yeux » de l'atlas). Corps fusionné et simplifié en trois niveaux par meshopt (boss ≈ 1 800 triangles, masse ≈ 330 en rendu net, ≈ 110 en pixel). Au chargement, les poses (marche ou course, plus un geste) sont **cuites** par skinning CPU en cibles de morph absolues (`src/render/enemyModels.ts`). Chaque instance mélange deux poses voisines via `InstancedMesh.morphTexture` (`src/render/pose.ts`) : un appel par type, aucun mixer par ennemi. Le Volant est un crâne flottant. Les boss ont un contour (`InstancedMesh` jumeau qui partage matrices et poses). Les silhouettes procédurales restent le repli.
 - **Mouvements du héros (phase 29)** : `src/render/motion.ts`, logique pure lue depuis la sim, choisit le clip de fond (repos, course, glisse, chute) avec hystérésis (une bosse de piste ne fait pas « tomber » ; course de 0,8 u/s à 0,35 u/s), un fondu par transition (0,08 s vers la glisse, 0,22 s pour se relever, 0,2 s course ↔ repos), une cadence de course bornée (×0,75 à ×1,35) et l'inclinaison du corps (roulis dans les virages, tangage à l'accélération, pente suivie à 80 % en glisse). La réception (clip Land) ne se joue qu'après plus de 0,35 s en l'air, presque à l'arrêt et sans glisse qui continue ; en l'air après un envol en glisse, pose de glisse ; après un saut depuis la glisse, animation normale de saut (1.24.1). Squash & stretch toujours neutres (demande de Jimmy).
 - **Bordure (phase 29)** : `src/render/border.ts`, une lisière ferme la carte : rochers juste derrière la limite jouable (là où bute le joueur), trois rangées de sapins bas-poly, un sous-bois qui se fond dans la nuit jusqu'à 90 u au-delà du bord. Gabarits recopiés dans des segments de 40 u (≈ 3 k triangles chacun) ; seuls les segments à moins de 46 u du joueur sont dessinés (0 appel loin du bord, 3 à 5 au coin). Minicarte : bande de forêt et liseré de la limite.
+
+- **Effets d'armes (phase 30)** : sprites lumineux additifs orientés caméra (`glowW`, texture radiale) pour les orbes et leur traînée, les boules de feu des Sorciers, les météores qui tombent, la pointe des lances, les mines armées et les boomerangs (un appel au lieu de trois) ; arcs de lame à plat (`slashW`) pour la Faux et le sillage des Lames ; éclairs en rayons épais à deux couches (cœur blanc, lueur cyan) au lieu de lignes de 1 px ; anneau runique tournant pour le Halo. Textures procédurales dans `src/render/textures.ts`, constantes dans `FEEL.glow`, `FEEL.slash`, `FEEL.bolt`.
 
 ### 4.5 Entrées
 - Clavier (ZQSD/WASD/flèches, Espace, Maj, **C** glisse, **M** carte), **manette** (phase 27 : X ou LB glisse) (Gamepad API, deadzone 0,2), tactile (joystick flottant sous le pouce gauche, boutons droite, rebinding gauche/droite).
@@ -451,6 +453,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : rendre la bordure de la carte plus propre, et les animations des mécaniques de mouvement aussi. Captures lues : le sol s'arrêtait net sur le vide, mur invisible sans décor ; sur une piste à bosses, le héros alternait pose de chute et réception accroupie au lieu de glisser, réception complète même en courant, transitions sèches, foulée emballée, corps vertical sur les pentes.
 - Décisions prises : lisière de forêt (pas de falaise : les ennemis qui apparaissent au-delà du bord sortent des bois, pas de la roche) ; rendu seulement, sim inchangée ; squash & stretch laissés neutres ; segments de lisière écartés au-delà de 46 u (le frustum seul en gardait dans le brouillard).
 - **Porte** : lisière sur les 4 côtés et aux coins, aucun vide visible (captures PC et iPhone lues), minicarte avec la limite ; descente glissée en clip de glisse ≥ 90 % (e2e), pas de réception accroupie en course ni en glisse, hystérésis et inclinaison testées (Vitest), planches avant/après lues ; ≤ 40 appels, ≤ 150 k (pixel) et ≤ 250 k (net) à 400 ennemis au centre et au bord ; bench inchangé ; test de Jimmy.
+
+### Phase 30 — Armes stylées, Foudre rééquilibrée (après la 1.24.1)
+- Demande de Jimmy : des projectiles et des effets d'armes plus beaux, plus propres, plus stylisés et mieux définis (boules de feu) ; la Foudre trop forte au début (elle « interchoque » plusieurs ennemis dès le niveau 1) : une seule cible au départ, les ricochets avec les améliorations. Captures lues : orbes et boules de feu en polyèdres à facettes, éclairs invisibles (lignes de 1 px), aucune lame visible pour la Faux.
+- Décisions prises : effets en sprites lumineux et arcs de lame qui remplacent des écrivains existants (budget d'appels en baisse) ; Foudre : `chain` compte les ricochets (0 au départ, une cible), recharge 1,4 s, 34 dégâts, ligne de ricochet deux fois plus fréquente, Orage +3 ; Météores (la plus faible jouée seule) : recharge 2,5 s, 42 dégâts.
+- **Porte** : chaque arme et chaque boule de feu a un effet lisible (e2e, captures PC et iPhone, net et pixel, lues) ; Foudre à une cible au départ, ricochets par cartes (Vitest) ; cibles nu et maxé tenues, 9 personnages à ± 3 min ; ≤ 40 appels, ≤ 150 k (pixel) et ≤ 250 k (net) ; bench OK ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

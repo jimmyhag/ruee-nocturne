@@ -2,6 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.25.0 — 7 nov. 2026 (phase 30 « Armes stylées »)
+
+### Modifié
+
+- **Effets d'armes redessinés** : orbes en boules de lumière avec une traînée or et rouge ; éclairs de Foudre épais et lumineux (on les voit enfin, aussi sur téléphone) ; la Faux trace un vrai arc de lame ; les Lames laissent un sillage en arc ; la Lance a une pointe lumineuse ; les météores tombent du ciel avant l'impact ; mines armées qui battent en rouge ; boomerangs avec une traînée ; Halo en anneau de runes qui tourne.
+- **Boules de feu des Sorciers** : de vraies comètes de feu (cœur clair, halo orange, flammèches) au lieu d'une boule à facettes.
+- **Foudre** : elle ne frappe plus qu'**un** ennemi au départ (avant : quatre), mais plus souvent ; les ricochets arrivent avec les cartes « +1 cible en chaîne » (deux fois plus fréquentes), le tome Projectiles et la synergie Orage (+3).
+- **Météores** : un peu plus forts (recharge 2,5 s, 42 dégâts) : c'était l'arme la plus faible jouée seule.
+- Moins d'appels de rendu pour les projectiles (34 à 37 au pire point au lieu de 37 à 40).
+
 ## 1.24.1 — 7 nov. 2026 (retour de Jimmy sur le saut glissé)
 
 ### Modifié
