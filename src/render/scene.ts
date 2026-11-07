@@ -479,10 +479,7 @@ export class GameScene {
   buildDecor(w: World): void {
     const d = new THREE.Object3D();
     // phase 27 : une carte par partie ; le décor de la précédente est retiré et libéré (le matériau du sol est partagé)
-    if (this.groundMesh) {
-      this.scene.remove(this.groundMesh);
-      for (const m of this.groundMesh.children) (m as THREE.Mesh).geometry.dispose();
-    }
+    if (this.groundMesh) this.scene.remove(this.groundMesh); // la géométrie de la fenêtre de sol est réutilisée
     for (const o of this.decorObjs) {
       this.scene.remove(o);
       const m = o as THREE.Mesh;
@@ -1102,6 +1099,7 @@ export class GameScene {
     this.fireflies.update(px, pz, now, this.night);
     this.particles.billboardRx = -Math.atan2(this.camPos.y - this.camLook.y, this.camPos.z - this.camLook.z);
 
+    this.terrain.follow(px, pz); // phase 27 : la fenêtre de sol suit le joueur (recalée par pas de 16 u)
     // joueur
     this.player.position.set(px, py + gp, pz);
     const target = Math.atan2(P.dirX, P.dirZ);

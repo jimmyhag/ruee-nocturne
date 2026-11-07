@@ -304,9 +304,8 @@ export function worksGeometry(w: World, gy: (x: number, z: number) => number = (
       ]);
     else if (k === 2)
       piece([
-        { shape: 'cyl', size: [0.5, 0.58, 1.1], pos: [o.x, g + 0.55, o.z], rot: [0, a, 0], color: BARREL, seg: 10 },
-        { shape: 'cyl', size: [0.6, 0.6, 0.08], pos: [o.x, g + 0.3, o.z], rot: [0, 0, 0], color: HOOP, seg: 10 },
-        { shape: 'cyl', size: [0.6, 0.6, 0.08], pos: [o.x, g + 0.82, o.z], rot: [0, 0, 0], color: HOOP, seg: 10 },
+        { shape: 'cyl', size: [0.5, 0.58, 1.1], pos: [o.x, g + 0.55, o.z], rot: [0, a, 0], color: BARREL, seg: 7 },
+        { shape: 'cyl', size: [0.6, 0.6, 0.08], pos: [o.x, g + 0.55, o.z], rot: [0, 0, 0], color: HOOP, seg: 7 },
       ]);
     else
       piece([
@@ -325,7 +324,7 @@ export function worksGeometry(w: World, gy: (x: number, z: number) => number = (
     const g = gy(p.x, p.z),
       r = 0.32 + ((p.ry * 7) % 1) * 0.14;
     piece([
-      { shape: 'sphere', size: [r, r, r], pos: [p.x, g + r * 0.7, p.z], rot: [0, p.ry, 0], color: PUMPKIN, seg: 7 },
+      { shape: 'ico', size: [r, r, r], pos: [p.x, g + r * 0.7, p.z], rot: [0, p.ry, 0], color: PUMPKIN },
       {
         shape: 'cyl',
         size: [0.05, 0.07, 0.22],

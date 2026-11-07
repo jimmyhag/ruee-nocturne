@@ -120,3 +120,52 @@ test('chaque partie tire une nouvelle carte (relief et lieux), construite en moi
   }
   expect(seeds[0]).not.toBe(seeds[1]);
 });
+
+test('captures : glissade le long d’une rampe, relief net', async ({ page }, info) => {
+  test.setTimeout(90_000);
+  await openGame(page);
+  await startRun(page, 2);
+  const ramp = await page.evaluate(() => {
+    const g = (window as any).__game,
+      w = g.world;
+    g.debug.god();
+    w.player.need = 1e9;
+    w.nextWave = 1e9;
+    for (let i = 0; i < w.enemyCount; i++) w.enemies[i].alive = false;
+    // rampe intacte la plus haute : départ au sommet, en direction du pied
+    // rampe intacte (le sol suit son plan : ni combe ni lac ne la coupe), la plus haute
+    const intact = (m: any) => {
+      for (let t = 0; t <= 1; t += 0.1)
+        if (w.heightAt(m.x0 + (m.x1 - m.x0) * t, m.z0 + (m.z1 - m.z0) * t) < m.h0 * (1 - t) - 0.15) return false;
+      return true;
+    };
+    const r = w.ramps.filter((m: any) => m.h1 === 0 && intact(m)).sort((a: any, b: any) => b.h0 - a.h0)[0];
+    const L = Math.hypot(r.x1 - r.x0, r.z1 - r.z0);
+    const ux = (r.x1 - r.x0) / L,
+      uz = (r.z1 - r.z0) / L;
+    const P = w.player;
+    P.x = P.px = r.x0 + ux * 2;
+    P.z = P.pz = r.z0 + uz * 2;
+    P.gPrev = w.heightAt(P.x, P.z);
+    return { ux, uz };
+  });
+  await page.waitForTimeout(600);
+  // marche vers le pied de la rampe, puis glisse (touches selon la direction dominante)
+  const kx = Math.abs(ramp.ux) > Math.abs(ramp.uz) ? (ramp.ux > 0 ? 'KeyD' : 'KeyA') : ramp.uz > 0 ? 'KeyS' : 'KeyW';
+  await page.keyboard.down(kx);
+  await page.waitForTimeout(250);
+  await page.keyboard.down('KeyC');
+  await page.waitForFunction(() => (window as any).__game.world.player.sliding === true, null, { timeout: 3000 });
+  await page.keyboard.up(kx); // sans entrée, la pente seule guide la glissade (vers le bas de la rampe)
+  // temps de jeu (pas temps réel : une machine de test lente avance la sim moins vite)
+  const t0 = await page.evaluate(() => (window as any).__game.world.t);
+  await page.waitForFunction((t0) => (window as any).__game.world.t >= t0 + 0.9, t0, { timeout: 10_000 });
+  const v = await page.evaluate(() => {
+    const P = (window as any).__game.world.player;
+    return { v: Math.hypot(P.vx, P.vz), walk: P.speed, sliding: P.sliding };
+  });
+  await page.screenshot({ path: `shots/${info.project.name}-glissade.png` });
+  await page.keyboard.up('KeyC');
+  expect(v.sliding).toBe(true);
+  expect(v.v, 'la descente accélère la glissade').toBeGreaterThan(v.walk * 1.3);
+});

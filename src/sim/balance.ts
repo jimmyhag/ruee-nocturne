@@ -73,7 +73,7 @@ export const TERRAIN = {
 export const SLIDE = {
   startMul: 1.35, // vitesse de départ ≥ marche × 1,35…
   maxMul: 2.6, // …plafond × marche
-  grav: 22, // u/s² par unité de pente (rampe à 0,2 : +4,4 ; flanc à 0,5 : +11)
+  grav: 30, // u/s² par unité de pente (rampe à 0,2 : +6 − frottement ; flanc à 0,5 : +15)
   friction: 3.2, // u/s² (sur le plat : 1,35 → 0,85 × marche en ≈ 0,85 s)
   lakeFriction: 14, // dans l'eau, la glisse cale
   turn: 2.4, // rad/s : l'entrée tourne la glissade
