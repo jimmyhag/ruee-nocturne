@@ -16,6 +16,10 @@ Plus de choses à trouver et à faire, de vraies pentes pour rider, et une image
 - **Six objets** : Patins de braise (en glissade, on blesse ce qu'on traverse), Écharpe du vent (une vrille réussie soigne et recharge le sort), Plume (vols plus longs), Boussole (on découvre plus loin, coffres et sanctuaires visibles sur la carte), Bouclier (annule un coup toutes les 20 s), Corne de guerre (onde qui repousse et étourdit toutes les 25 s).
 - **Icônes dessinées** pour les 9 armes, 8 tomes, 20 objets, 7 bonus de sanctuaire et 9 sorts : cartes de montée de niveau, coffres, marchand, HUD, bouton du sort, fiche personnage et succès.
 
+### Modifié
+
+- Le Bouclier annule le coup au moment où il est reçu : plus d'écran rouge ni de défi « Intouchable » perdu pour un coup bloqué.
+
 ## 1.22.1 — 7 nov. 2026 (retour de Jimmy sur la glissade)
 
 ### Modifié
