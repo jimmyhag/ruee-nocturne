@@ -68,6 +68,34 @@ export const TERRAIN = {
   placeR: 0.85, // lieux construits posés à plat sur ce rayon (× empreinte), raccord à la pente des flancs
   maxSlope: 0.55, // pente maximale (≈ 29°), imposée après coup
 };
+// glissade (phase 27, PLAN §3.4) : élan conservé, gagné en descente, perdu en montée et sur le plat ; saut glissé, envol
+// sur les crêtes, vrille en l'air (élan à la réception). Sur le plat, la glisse ne fait guère mieux que la marche.
+export const SLIDE = {
+  startMul: 1.35, // vitesse de départ ≥ marche × 1,35…
+  maxMul: 2.6, // …plafond × marche
+  grav: 22, // u/s² par unité de pente (rampe à 0,2 : +4,4 ; flanc à 0,5 : +11)
+  friction: 3.2, // u/s² (sur le plat : 1,35 → 0,85 × marche en ≈ 0,85 s)
+  lakeFriction: 14, // dans l'eau, la glisse cale
+  turn: 2.4, // rad/s : l'entrée tourne la glissade
+  endMul: 0.85, // sous marche × 0,85, la glissade s'arrête
+  cd: 0.4, // s avant la glissade suivante
+  airControl: 0.3, // part de la vitesse de marche que l'entrée ajoute en l'air après un saut glissé
+  launchAcc: 0.8, // envol : le sol « tombe » (accélération verticale) plus vite que 0,8 × gravité
+  launchMin: 1.2, // …à au moins marche × 1,2 (la marche en descente plafonne à 1,15)
+  launchPop: 2.5, // u/s vers le haut à l'envol (assez de vol pour une vrille si l'on va vite)
+  spinTime: 0.45, // durée d'une vrille
+  elanMul: 1.2, // vrille réussie : vitesse × 1,2…
+  elanTime: 1.5, // …pendant 1,5 s
+  reaperMul: 1.1, // le Faucheur va toujours au moins 1,1 × la vitesse lissée du joueur (il rattrape toujours)
+};
+
+// découverte de la carte (phase 27) : cases de 4 u révélées autour du joueur (minicarte, grande carte, écran de fin)
+export const DISCOVER = {
+  cell: 4,
+  radius: 26,
+  period: 0.25, // s entre deux mises à jour
+};
+
 export const SLOPE = {
   k: 1.1, // vitesse × (1 − k · pente dans le sens de la marche) : montée plus lente, descente plus rapide…
   min: 0.75, // …bornée

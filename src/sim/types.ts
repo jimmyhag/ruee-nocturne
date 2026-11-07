@@ -175,6 +175,12 @@ export const enum Ev {
   MapChestOpen, // phase 18 : coffre de carte ouvert en (x,z), v = prix payé
   ShrineDone, // phase 18 : sanctuaire chargé en (x,z) → choix d'un bonus
   BossWarn, // phase 18 : un boss arrive dans BOSS_WARN.lead s, v = index du boss (1..)
+  SlideStart, // phase 27 : glissade lancée en (x,z), v = vitesse
+  SlideEnd, // phase 27 : fin de glissade
+  Launch, // phase 27 : envol sur une crête ou saut glissé, v = vitesse horizontale
+  Spin, // phase 27 : vrille lancée en l'air
+  Trick, // phase 27 : vrille réussie à la réception, v = temps passé en l'air
+  TrickFail, // phase 27 : réception en pleine vrille
 }
 
 export interface GameEvent {
@@ -193,6 +199,7 @@ export interface Input {
   mz: number;
   jump: boolean; // front montant géré par la plateforme
   spell: boolean; // phase 19 : sort de classe (remplace le dash)
+  slide?: boolean; // phase 27 : glisse tenue (en l'air : vrille au front montant)
   pick: number; // -1 ou index de carte choisie (mode levelup)
 }
 
@@ -340,4 +347,18 @@ export interface Player {
   invul: number;
   walk: number;
   recoil: number;
+  // phase 27 : glissade, élan et figures
+  sliding: boolean;
+  slideHeld: boolean; // touche de glisse tenue au pas précédent (front montant : vrille en l'air)
+  slideCd: number;
+  mvx: number; // vitesse conservée (glissade, saut glissé, envol)
+  mvz: number;
+  airMom: boolean; // en l'air avec l'élan d'une glissade
+  airT: number; // temps passé en l'air
+  spin: number; // s restantes de vrille (0 : pas de vrille en cours)
+  spinDone: boolean; // vrille terminée avant la réception
+  elanT: number; // s restantes de l'élan gagné par une figure réussie
+  gPrev: number; // hauteur du sol au pas précédent (altitude absolue en l'air)
+  gv: number; // vitesse verticale du sol sous les pieds (u/s, envol sur une crête)
+  spd: number; // vitesse au sol lissée (le Faucheur s'y règle)
 }

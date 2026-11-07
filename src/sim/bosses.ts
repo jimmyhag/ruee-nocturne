@@ -1,6 +1,6 @@
 // Scripts des boss (survivor-design §7) : 2 attaques télégraphiées + phase à 50 % PV, 45–90 s.
 // Chaque script écrit le déplacement voulu dans `mv` (u/s) ; les dégâts de contact restent gérés par step.ts.
-import { ARCHER, BOSS, BOSS_TYPE, COLOSSUS_TYPE, CRACHEUR, DARD_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SORCIER, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, BOSS, BOSS_TYPE, COLOSSUS_TYPE, CRACHEUR, DARD_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SLIDE, SORCIER, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
 import { emitRing } from './hazards';
 import { spawnEnemy } from './spawner';
 import { Ev, ShotKind } from './types';
@@ -94,9 +94,14 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
       }
       break;
     }
-    case REAPER_TYPE:
-      // Faucheur : droit sur le joueur, plus vite que lui, rien ne l'arrête (ni lac, ni recul : kbMul 0)
+    case REAPER_TYPE: {
+      // Faucheur : droit sur le joueur, plus vite que lui, rien ne l'arrête (ni lac, ni recul : kbMul 0) ; phase 27 : ni
+      // la glisse ni les descentes ne le distancent (au moins 1,1 × la vitesse lissée du joueur)
+      const v = Math.max(sp, w.player.spd * SLIDE.reaperMul);
+      mv[0] = ux * v;
+      mv[1] = uz * v;
       break;
+    }
   }
 }
 

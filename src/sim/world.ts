@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -132,6 +132,10 @@ export class World {
   readonly wallGrid = new Map<number, number[]>();
   /** Relief (phase 18) : hauteurs du sol sur une grille de TERRAIN.cell u (src/sim/terrain.ts). */
   readonly height = new Float32Array(TERRAIN_N * TERRAIN_N);
+  /** Phase 27 : cases découvertes (DISCOVER.cell u, SEEN_N × SEEN_N), leur nombre, et l'attente avant la prochaine mise à jour. */
+  readonly seen = new Uint8Array(SEEN_N * SEEN_N);
+  seenCount = 0;
+  seenT = 0;
   /** Cases pleines de toute la carte (FLOW.cell), lues par le champ de flux ; solidN cases de côté. */
   readonly solidN = Math.ceil((2 * WORLD_HALF) / FLOW.cell);
   readonly solid = new Uint8Array(this.solidN * this.solidN);
@@ -442,6 +446,34 @@ export class World {
 }
 
 /** Joueur de départ : constantes PLAYER, puis personnage, puis paliers de boutique (opts). */
+/** Cases de découverte par côté (phase 27). */
+export const SEEN_N = Math.ceil((2 * WORLD_HALF) / DISCOVER.cell);
+
+/** Révèle les cases à moins de DISCOVER.radius du joueur (toutes les DISCOVER.period s). Aucune allocation. */
+export function discover(w: World, dt: number): void {
+  w.seenT -= dt;
+  if (w.seenT > 0) return;
+  w.seenT = DISCOVER.period;
+  const C = DISCOVER.cell,
+    R = DISCOVER.radius,
+    P = w.player;
+  const i0 = Math.max(0, Math.floor((P.x - R + WORLD_HALF) / C)),
+    i1 = Math.min(SEEN_N - 1, Math.floor((P.x + R + WORLD_HALF) / C)),
+    j0 = Math.max(0, Math.floor((P.z - R + WORLD_HALF) / C)),
+    j1 = Math.min(SEEN_N - 1, Math.floor((P.z + R + WORLD_HALF) / C));
+  for (let j = j0; j <= j1; j++)
+    for (let i = i0; i <= i1; i++) {
+      const k = j * SEEN_N + i;
+      if (w.seen[k]) continue;
+      const dx = -WORLD_HALF + (i + 0.5) * C - P.x,
+        dz = -WORLD_HALF + (j + 0.5) * C - P.z;
+      if (dx * dx + dz * dz <= R * R) {
+        w.seen[k] = 1;
+        w.seenCount++;
+      }
+    }
+}
+
 export function makePlayer(opts?: WorldOptions): Player {
   const ch = CHARACTERS.find((c) => c.key === (opts?.character ?? 'eclaireuse')) ?? CHARACTERS[0];
   const maxHp = Math.round((PLAYER.hp + ch.hpAdd) * ch.hpMul); // phase 17 : plus de boutique par personnage
@@ -492,6 +524,19 @@ export function makePlayer(opts?: WorldOptions): Player {
     dirX: 0,
     dirZ: 1,
     dashT: 0,
+    sliding: false,
+    slideHeld: false,
+    slideCd: 0,
+    mvx: 0,
+    mvz: 0,
+    airMom: false,
+    airT: 0,
+    spin: 0,
+    spinDone: false,
+    elanT: 0,
+    gPrev: 0,
+    gv: 0,
+    spd: 0,
     spellCd: 0,
     spellT: 0,
     dmgTaken: 1,
@@ -511,6 +556,15 @@ export function makePlayer(opts?: WorldOptions): Player {
 }
 /** Champs numériques de Player qui peuvent devenir fractionnaires en run (tomes, boutique). */
 const DOUBLE_FIELDS = [
+  'mvx',
+  'mvz',
+  'airT',
+  'spin',
+  'elanT',
+  'gPrev',
+  'gv',
+  'spd',
+  'slideCd',
   'regen',
   'speed',
   'magnet',
