@@ -1,6 +1,6 @@
 // Armes : bases, lignes de stats (phase 12), tomes, et comportement sur un monde minimal (sim-testing §1).
 import { describe, expect, it } from 'vitest';
-import { STEP, TOMES, TOME_KEYS, WEAPON_LINES } from '../balance';
+import { STEP, SYN, TOMES, TOME_KEYS, WEAPON_LINES } from '../balance';
 import { spawnEnemy } from '../spawner';
 import { startRun, step } from '../step';
 import { Ev, HitSrc } from '../types';
@@ -56,7 +56,7 @@ describe('fiches d’armes et lignes', () => {
     expect(weaponStats(w, 'boomerang').n).toBe(3);
     expect(weaponStats(w, 'lames').n).toBe(4);
     expect(weaponStats(w, 'mines').n).toBe(7);
-    expect(weaponStats(w, 'foudre').chain).toBe(5);
+    expect(weaponStats(w, 'foudre').chain).toBe(2); // phase 30 : aucun ricochet au départ, +2 par le tome
     expect(weaponStats(w, 'aura').r).toBeCloseTo(2.2 * 1.5);
     expect(weaponStats(w, 'orbe').speed).toBeCloseTo(34);
   });
@@ -143,14 +143,16 @@ describe('comportement sur un monde minimal', () => {
   });
   it('la Foudre enchaîne plusieurs ennemis groupés', () => {
     const w = new World(3);
-    w.weapons = { foudre: 1 };
+    w.weapons = { foudre: 2 };
+    w.wmods.foudre[WEAPON_LINES.foudre.findIndex((l) => l.stat === 'chain')] = 1; // phase 30 : un ricochet par carte
+    refreshStats(w);
     for (let i = 0; i < 4; i++) spawnEnemy(w, 2, i * 0.3, 6); // 4 Brutes (80 PV) : survivent au premier éclair
     let bolts = 0;
     for (let f = 0; f < 240 && bolts === 0; f++) {
       step(w, still, STEP);
       for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Bolt) bolts++;
     }
-    expect(bolts).toBeGreaterThanOrEqual(2); // chain = 3 : au moins la cible et un voisin
+    expect(bolts).toBeGreaterThanOrEqual(2); // un ricochet : la cible et un voisin
   });
   it('les lames reculent les ennemis et ne frappent pas deux fois en 0,4 s', () => {
     const w = new World(5);
@@ -275,6 +277,33 @@ describe('armes de la phase 28', () => {
     expect(scythes).toBeGreaterThanOrEqual(1);
     expect(w.enemies[front].hp).toBeLessThan(1e6);
     expect(w.enemies[back].hp).toBe(1e6);
+  });
+  it('Foudre (phase 30) : une seule cible au départ, un ricochet de plus par ligne « chain », Orage +3', () => {
+    // coups portés par la première frappe (toutes les cibles d'une chaîne tombent dans le même pas)
+    const firstStrike = (w: World) => {
+      for (let f = 0; f < 240; f++) {
+        step(w, still, STEP);
+        let n = 0;
+        for (let i = 0; i < w.eventCount; i++) {
+          const e = w.events[i];
+          if (e.type === Ev.Hit && ((e.x2 | 0) & 15) === HitSrc.Foudre) n++;
+        }
+        if (n > 0) return n;
+      }
+      return 0;
+    };
+    const w = arena('foudre');
+    for (let z = 3; z <= 9; z += 1.5) put(w, 0, z); // cinq ennemis en file, à portée de ricochet
+    expect(weaponStats(w, 'foudre').chain).toBe(0); // chain = ricochets : 0 → une seule cible
+    expect(firstStrike(w)).toBe(1);
+    const w2 = arena('foudre');
+    for (let z = 3; z <= 9; z += 1.5) put(w2, 0, z);
+    const chainLine = WEAPON_LINES.foudre.findIndex((l) => l.stat === 'chain');
+    w2.wmods.foudre[chainLine] += 2; // deux cartes « +1 ricochet »
+    refreshStats(w2);
+    expect(weaponStats(w2, 'foudre').chain).toBe(2);
+    expect(firstStrike(w2)).toBe(3); // la cible et deux ricochets
+    expect(SYN.orage.chain).toBe(3);
   });
   it('Lance : vise l’ennemi le plus loin et traverse tous ceux sur la ligne', () => {
     const w = arena('lance');

@@ -18,7 +18,8 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // courte · orbite · continu. r 1,95 : avec 2,45 u un Dard collé au joueur passait sous l'anneau
   lames: { glyph: '✦', color: '#fff1db', base: { n: 2, dmg: 12, r: 1.95, spd: 3.35, crit: 0 } },
   // longue · aléatoire + chaîne · lent et fort
-  foudre: { glyph: 'ϟ', color: '#d8f4ff', base: { cd: 2.3, dmg: 28, chain: 3, crit: 0, stun: 0 } },
+  // phase 30 (Jimmy) : une seule cible au départ, les ricochets viennent des cartes (ligne chain, Projectiles, Orage)
+  foudre: { glyph: 'ϟ', color: '#d8f4ff', base: { cd: 1.4, dmg: 34, chain: 0, crit: 0, stun: 0 } }, // chain = ricochets (cibles = chain + 1)
   // longue · direction du regard · salve
   boomerang: { glyph: '⟲', color: '#7ee0a1', base: { cd: 1.7, dmg: 14, range: 9, speed: 14, n: 1, crit: 0 } },
   // contact · là où je passe · pose
@@ -28,7 +29,7 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // longue · ennemi le plus loin (ligne) · lent : perce tout
   lance: { glyph: '➹', color: '#9fe8ff', base: { cd: 2.0, dmg: 30, speed: 22, n: 1, crit: 0 } },
   // longue · zone aléatoire autour · lent : cercles annoncés, puis impact
-  meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 2.8, dmg: 36, r: 2.4, n: 2, crit: 0 } },
+  meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 2.5, dmg: 42, r: 2.4, n: 2, crit: 0 } }, // phase 30 : la plus faible seule (2:36) → relevée
 };
 export const WEAPON_KEYS = Object.keys(WEAPONS) as WeaponKey[];
 
