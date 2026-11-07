@@ -3,7 +3,7 @@
   "heroes": {
     "eclaireuse": {
       "file": "hero-eclaireuse.glb",
-      "bytes": 638808,
+      "bytes": 667968,
       "tris": 9000,
       "anims": [
         "Idle",
@@ -19,12 +19,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "bucheron": {
       "file": "hero-bucheron.glb",
-      "bytes": 587296,
+      "bytes": 617832,
       "tris": 8999,
       "anims": [
         "Idle",
@@ -40,12 +41,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "sorciere": {
       "file": "hero-sorciere.glb",
-      "bytes": 560716,
+      "bytes": 589872,
       "tris": 8999,
       "anims": [
         "Idle",
@@ -61,12 +63,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "veilleuse": {
       "file": "hero-veilleuse.glb",
-      "bytes": 635416,
+      "bytes": 664588,
       "tris": 8999,
       "anims": [
         "Idle",
@@ -82,12 +85,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "braconnier": {
       "file": "hero-braconnier.glb",
-      "bytes": 644992,
+      "bytes": 675528,
       "tris": 8999,
       "anims": [
         "Idle",
@@ -103,12 +107,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "sapeur": {
       "file": "hero-sapeur.glb",
-      "bytes": 574220,
+      "bytes": 604760,
       "tris": 8999,
       "anims": [
         "Idle",
@@ -124,12 +129,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "feufollet": {
       "file": "hero-feufollet.glb",
-      "bytes": 575756,
+      "bytes": 604912,
       "tris": 8999,
       "anims": [
         "Idle",
@@ -145,12 +151,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "revenante": {
       "file": "hero-revenante.glb",
-      "bytes": 639508,
+      "bytes": 668612,
       "tris": 9000,
       "anims": [
         "Idle",
@@ -166,12 +173,13 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     },
     "colporteur": {
       "file": "hero-colporteur.glb",
-      "bytes": 654460,
+      "bytes": 685016,
       "tris": 8999,
       "anims": [
         "Idle",
@@ -187,7 +195,8 @@
         "Cast",
         "Throw",
         "Long",
-        "Raise"
+        "Raise",
+        "Slide"
       ]
     }
   },

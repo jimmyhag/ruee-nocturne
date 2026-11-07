@@ -446,5 +446,20 @@
   "mapchest.poor": "Coffre · {gold} (pas assez d'or)",
   "banner.bossWarn": "{name} approche…",
   "banner.shrine": "Sanctuaire activé",
-  "mapchest.boon": "Coffre · {gold} (6 objets : un bonus)"
+  "mapchest.boon": "Coffre · {gold} (6 objets : un bonus)",
+  "keys.slide": "Glisse",
+  "touch.slide": "GLISSE",
+  "touch.slideAria": "Glisser (un appui : la glissade dure tant qu'elle a de l'élan ; en l'air : vrille)",
+  "trick.ok": "Vrille !",
+  "trick.fail": "Raté",
+  "map.title": "Carte",
+  "map.explored": "{pct} % exploré",
+  "map.legend.you": "Toi",
+  "map.legend.chest": "Coffre",
+  "map.legend.shrine": "Sanctuaire",
+  "map.legend.merchant": "Marchand",
+  "map.legend.boss": "Boss",
+  "map.close": "Fermer",
+  "map.open": "Ouvrir la carte",
+  "keys.map": "Carte"
 }

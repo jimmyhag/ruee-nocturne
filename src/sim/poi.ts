@@ -44,8 +44,26 @@ const spaced = (list: { x: number; z: number }[], x: number, z: number, d: numbe
 /** Place coffres de carte et sanctuaires (après le relief : on préfère les sommets). */
 export function buildPOI(w: World, r: Rng): void {
   const all: { x: number; z: number }[] = [];
+  const chestAt = (x: number, z: number, pad: number): boolean => {
+    if (w.mapChests.length >= MAPCHEST.count) return false;
+    if (x * x + z * z < MAPCHEST.fromStart ** 2 || !free(w, x, z, pad) || !spaced(all, x, z, MAPCHEST.spacing)) return false;
+    w.mapChests.push({ x, z, open: false, hold: 0 });
+    all.push({ x, z });
+    return true;
+  };
+  // phase 27 : un coffre au milieu de chaque campement, puis au pied des rampes et au fond des combes (la glisse y mène)
+  for (const c of w.camps) chestAt(c.x, c.z, 1);
+  const glide: [number, number][] = [];
+  for (const m of w.ramps) if (m.h1 === 0) glide.push([m.x1, m.z1]);
+  for (const c of w.combes) glide.push([c.pts[2], c.pts[3]]);
+  for (let i = glide.length - 1; i > 0; i--) {
+    const k = Math.floor(r.next() * (i + 1));
+    [glide[i], glide[k]] = [glide[k], glide[i]];
+  }
+  const wantGlide = w.mapChests.length + Math.round(MAPCHEST.count * MAPCHEST.glideShare);
+  for (const [x, z] of glide) if (w.mapChests.length < wantGlide) chestAt(x, z, 2);
   // coffres dans les lieux construits : au centre (cour d'une ruine, milieu d'un cercle de pierres)
-  const wantPlaces = Math.round(MAPCHEST.count * MAPCHEST.placeShare);
+  const wantPlaces = w.mapChests.length + Math.round(MAPCHEST.count * MAPCHEST.placeShare);
   const order = w.places.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
     const k = Math.floor(r.next() * (i + 1));

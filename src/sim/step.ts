@@ -1,19 +1,22 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SPAWN, SPELL, VOLANT_TYPE, TRAIT } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
 import { applyCard, nextChoice, tickChests, tickGems } from './progression';
 import { merchantInput, tickMerchant } from './merchant';
 import { tickPOI } from './poi';
+import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
 import { Ev, HitSrc, HurtSrc, Mode, ShotKind, Spell, Trait } from './types';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
+import { discover } from './world';
 import type { World } from './world';
 
 const out2 = new Float64Array(2);
+const g2 = new Float64Array(2);
 const mv = new Float64Array(2);
 const fl = new Float64Array(2);
 const nb = new Int32Array(64);
@@ -55,6 +58,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickChests(w, dt);
   tickMerchant(w); // phase 17 : peut ouvrir l'échoppe (Mode.Merchant)
   tickPOI(w, dt); // phase 18 : coffres de carte et sanctuaires
+  discover(w, dt); // phase 27 : cases découvertes (carte)
   // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
   if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
@@ -108,30 +112,128 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     iz /= l;
     l = 1;
   }
-  if (l > 0.05) {
+  if (l > 0.05 && !P.sliding) {
     P.dirX = ix / l;
     P.dirZ = iz / l;
   }
+  // phase 27 : glisse tenue ; son front montant lance une vrille en l'air
+  const slideIn = input.slide === true;
+  const slidePress = slideIn && !P.slideHeld;
+  P.slideHeld = slideIn;
+  if (P.elanT > 0) P.elanT -= dt;
+  if (P.slideCd > 0) P.slideCd -= dt;
+  const walk = P.speed * (P.elanT > 0 ? SLIDE.elanMul : 1);
   if (input.jump && P.onGround) {
-    P.vy = PLAYER.jumpVel * P.jumpMul; // phase 17 : Bottes de saut
+    let vy = PLAYER.jumpVel * P.jumpMul; // phase 17 : Bottes de saut
+    if (P.sliding) {
+      // saut glissé : l'élan part avec le joueur ; sur une rampe qui monte, la montée du sol s'ajoute au saut
+      vy += Math.max(0, P.gv);
+      P.sliding = false;
+      P.airMom = true;
+      w.emit(Ev.Launch, P.x, P.y, P.z, Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz));
+    }
+    P.vy = vy;
     P.onGround = false;
+    P.airT = 0;
+    P.spin = 0;
+    P.spinDone = false;
     w.emit(Ev.Jump, P.x, P.y, P.z);
   }
   if (input.spell && P.spellCd <= 0) castSpell(w, P.dirX, P.dirZ); // phase 19 : sort de classe (ancien dash)
-  // lac : ralentit au sol seulement ; phase 18 : la pente aussi (montée plus lente, descente plus rapide)
-  let sp = P.speed * (P.onGround ? w.speedAt(P.x, P.z) * w.slopeMul(P.x, P.z, ix, iz) : 1);
-  if (P.dashT > 0) {
-    P.dashT -= dt;
-    sp *= PLAYER.dashMul;
-    ix = P.dirX;
-    iz = P.dirZ;
+  if (P.dashT > 0 && (P.sliding || P.airMom)) {
+    P.sliding = false; // un Bond ou une Comète reprend la main sur l'élan
+    P.airMom = false;
   }
-  if (P.spellT > 0) {
-    if (w.spell === Spell.Tourbillon) sp *= SPELL.tourbillon.speedMul;
-    else if (w.spell === Spell.Voile) sp *= SPELL.voile.speedMul;
+  // départ de glissade : appui (pas maintien : tenir la touche ne relance pas en boucle), au sol, en mouvement
+  if (slidePress && P.onGround && !P.sliding && P.slideCd <= 0 && l > SLIDE.startInput && P.dashT <= 0) {
+    const cur = Math.sqrt(P.vx * P.vx + P.vz * P.vz),
+      v0 = Math.max(cur, walk * SLIDE.startMul);
+    P.mvx = P.dirX * v0;
+    P.mvz = P.dirZ * v0;
+    P.sliding = true;
+    w.emit(Ev.SlideStart, P.x, 0, P.z, v0);
   }
-  P.vx = ix * sp;
-  P.vz = iz * sp;
+  // vrille : en l'air avec l'élan d'une glissade (saut glissé ou envol)
+  if (slidePress && !P.onGround && P.airMom && P.spin <= 0 && !P.spinDone) {
+    P.spin = SLIDE.spinTime;
+    w.emit(Ev.Spin, P.x, P.y, P.z);
+  }
+  if (P.spin > 0) {
+    P.spin -= dt;
+    if (P.spin <= 0) {
+      P.spin = 0;
+      P.spinDone = true;
+    }
+  }
+  let vx: number, vz: number;
+  if (P.sliding) {
+    // pente → accélération (vers le bas), frottement constant, l'entrée tourne la trajectoire
+    gradAt(w.height, P.x, P.z, g2);
+    let mx = P.mvx - g2[0] * SLIDE.grav * dt,
+      mz = P.mvz - g2[1] * SLIDE.grav * dt;
+    let sp = Math.sqrt(mx * mx + mz * mz);
+    const fr = w.speedAt(P.x, P.z) < 1 ? SLIDE.lakeFriction : SLIDE.friction;
+    if (sp > 1e-6) {
+      const k = Math.max(0, sp - fr * dt) / sp;
+      mx *= k;
+      mz *= k;
+      sp *= k;
+    }
+    if (l > 0.05 && sp > 1e-6) {
+      const cross = (mx * iz - mz * ix) / (sp * l),
+        dot = (mx * ix + mz * iz) / (sp * l);
+      let a = Math.atan2(cross, dot); // angle de la vitesse vers l'entrée
+      const lim = SLIDE.turn * dt;
+      a = a > lim ? lim : a < -lim ? -lim : a;
+      const c = Math.cos(a),
+        s = Math.sin(a);
+      const nx = mx * c + mz * s,
+        nz = -mx * s + mz * c;
+      mx = nx;
+      mz = nz;
+    }
+    const cap = walk * SLIDE.maxMul;
+    if (sp > cap) {
+      mx *= cap / sp;
+      mz *= cap / sp;
+      sp = cap;
+    }
+    P.mvx = mx;
+    P.mvz = mz;
+    if (!slideIn || sp < walk * SLIDE.endMul) {
+      P.sliding = false;
+      P.slideCd = SLIDE.cd;
+      w.emit(Ev.SlideEnd, P.x, 0, P.z, sp);
+    } else {
+      P.dirX = mx / sp;
+      P.dirZ = mz / sp;
+    }
+  }
+  if (P.sliding) {
+    vx = P.mvx;
+    vz = P.mvz;
+  } else if (!P.onGround && P.airMom) {
+    // saut glissé ou envol : l'élan porte, l'entrée corrige un peu
+    vx = P.mvx + ix * walk * SLIDE.airControl;
+    vz = P.mvz + iz * walk * SLIDE.airControl;
+  } else {
+    // lac : ralentit au sol seulement ; phase 18 : la pente aussi (montée plus lente, descente plus rapide)
+    let sp = walk * (P.onGround ? w.speedAt(P.x, P.z) * w.slopeMul(P.x, P.z, ix, iz) : 1);
+    if (P.dashT > 0) {
+      P.dashT -= dt;
+      sp *= PLAYER.dashMul;
+      ix = P.dirX;
+      iz = P.dirZ;
+    }
+    if (P.spellT > 0) {
+      if (w.spell === Spell.Tourbillon) sp *= SPELL.tourbillon.speedMul;
+      else if (w.spell === Spell.Voile) sp *= SPELL.voile.speedMul;
+    }
+    vx = ix * sp;
+    vz = iz * sp;
+  }
+  P.vx = vx;
+  P.vz = vz;
   P.x += P.vx * dt;
   P.z += P.vz * dt;
   P.spellCd -= dt;
@@ -142,19 +244,73 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   w.resolveObstacles(P.x, P.z, 0.4, out2, P.y);
   P.x = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[0]));
   P.z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
-  const ground = 0; // y = hauteur au-dessus du sol local (phase 18 : le relief est ajouté par le rendu)
+  if (P.sliding || P.airMom) {
+    // un obstacle absorbe l'élan : la vitesse conservée devient le déplacement réel
+    P.mvx = (P.x - P.px) / dt - (P.airMom ? ix * walk * SLIDE.airControl : 0);
+    P.mvz = (P.z - P.pz) / dt - (P.airMom ? iz * walk * SLIDE.airControl : 0);
+  }
+  // phase 27 : y reste la hauteur au-dessus du sol local, mais l'altitude est absolue en l'air (le sol qui descend sous
+  // un joueur en vol le laisse plus haut) ; au sol, une crête franchie vite fait décoller
+  const g = w.heightAt(P.x, P.z);
+  const dg = g - P.gPrev;
+  const teleport = dg > SLIDE.teleport || dg < -SLIDE.teleport; // déplacement d'un test ou réapparition : pas de physique sur ce pas
+  if (!teleport) {
+    const gv = dg / dt;
+    if (!P.onGround) P.y -= dg;
+    else {
+      const fast = P.sliding || P.vx * P.vx + P.vz * P.vz > (walk * SLIDE.launchMin) ** 2;
+      if (fast && (gv - P.gv) / dt < -PLAYER.gravity * SLIDE.launchAcc) {
+        P.onGround = false;
+        P.vy = Math.max(0, P.gv) + SLIDE.launchPop; // la montée qu'avait le sol (sommet d'une rampe) et un petit bond
+        P.y = -dg;
+        P.airT = 0;
+        P.spin = 0;
+        P.spinDone = false;
+        if (P.sliding) {
+          P.sliding = false;
+          P.airMom = true;
+        } else {
+          P.airMom = true;
+          P.mvx = P.vx;
+          P.mvz = P.vz;
+        }
+        w.emit(Ev.Launch, P.x, 0, P.z, Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz));
+      }
+      P.gv = gv;
+    }
+  }
+  P.gPrev = g;
+  const ground = 0; // y = hauteur au-dessus du sol local (le relief est ajouté par le rendu)
   if (!P.onGround) {
     P.vy -= PLAYER.gravity * dt;
     P.y += P.vy * dt;
+    P.airT += dt;
     if (P.y <= ground) {
       P.y = ground;
       P.vy = 0;
       P.onGround = true;
-      w.emit(Ev.Land, P.x, ground, P.z);
+      w.emit(Ev.Land, P.x, ground, P.z, P.airT);
       if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
       if (w.items[It.Bottes]) landingShockwave(w); // phase 17 : l'atterrissage repousse les ennemis proches
+      if (P.spin > 0) w.emit(Ev.TrickFail, P.x, 0, P.z);
+      else if (P.spinDone) {
+        P.elanT = SLIDE.elanTime;
+        w.emit(Ev.Trick, P.x, 0, P.z, P.airT);
+      }
+      P.spin = 0;
+      P.spinDone = false;
+      // réception glissée : glisse tenue, l'élan continue au sol
+      if (P.airMom && slideIn && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
+        P.sliding = true;
+        w.emit(Ev.SlideStart, P.x, 0, P.z, Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz));
+      }
+      P.airMom = false;
+      P.gv = 0;
     }
   }
+  // vitesse lissée (≈ 0,5 s) : le Faucheur s'y règle
+  const vNow = Math.sqrt((P.x - P.px) ** 2 + (P.z - P.pz) ** 2) / dt;
+  P.spd += (vNow - P.spd) * Math.min(1, dt * SLIDE.spdSmooth);
   P.hp = Math.min(P.maxHp, P.hp + P.regen * dt);
   P.walk += l * dt * 12;
   // défi « Marathon » : distance réellement parcourue ; Feu follet : traînée de feu posée tous les TRAIT.trainee.spacing u de Comète

@@ -1,4 +1,4 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, REAPER_TYPE, STEP } from './sim/balance';
+import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, REAPER_TYPE, SLIDE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Spell } from './sim/types';
 import type { Input } from './sim/types';
@@ -47,7 +47,9 @@ import {
   unlockedWeapons,
 } from './meta/achievements';
 import { buyCharacter, buyOutfit, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
-import { dailyBest, dailySeed, recordDaily } from './meta/daily';
+import { dailyBest, dailySeed, recordDaily, todayKey } from './meta/daily';
+import { hashString } from './sim/rng';
+import { MapView } from './ui/minimap';
 import {
   bestLine,
   esc,
@@ -104,7 +106,7 @@ applyLangStatic();
 
 const hud = new Hud();
 const audio = new AudioBus();
-const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnSpell'));
+const input = new InputManager($('stick'), $('knob'), $('btnJump'), $('btnSpell'), $('btnSlide'));
 
 // ---------- état applicatif ----------
 type AppMode =
@@ -119,7 +121,8 @@ type AppMode =
   | 'account'
   | 'characters'
   | 'help'
-  | 'merchant';
+  | 'merchant'
+  | 'map';
 const SCREENS = [
   'menu',
   'levelup',
@@ -132,6 +135,7 @@ const SCREENS = [
   'account',
   'characters',
   'help',
+  'map',
 ] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 let dailyRun = false; // partie en cours = défi du jour
@@ -301,9 +305,18 @@ function closeScreen(): void {
   if (backTo === 'menu') updateBestLine();
 }
 
-// ---------- décor : construit une fois (loadScene) pour la seed de décor fixe ----------
-// Le décor dépend de la seed du monde ; on garde une seed de décor constante pour ne pas le reconstruire à chaque run.
-const DECOR_SEED = MAP.seed; // phase 16 : la carte construite vit dans balance.ts (vérifiée par map.test.ts)
+// ---------- carte : phase 27, une nouvelle carte à chaque partie ----------
+// Le menu montre la carte MAP.seed (décor construit au chargement). Chaque partie tire sa graine de carte : l'horloge
+// en jeu normal, la date pour le défi du jour (même carte pour tous), MAP.seed quand un test impose sa variante.
+const DECOR_SEED = MAP.seed;
+let decorSeed = DECOR_SEED; // graine du décor actuellement construit dans la scène
+function mapSeedFor(variant: number | undefined, daily: boolean): number {
+  if (daily) return (hashString('carte-' + todayKey()) % 1_000_000) + 1;
+  if (variant !== undefined) return debugMapSeed ?? DECOR_SEED;
+  return (Date.now() % 1_000_000_007) + 1;
+}
+/** Graine imposée par le débogage (tests e2e) aux parties lancées avec une variante. */
+let debugMapSeed: number | null = null;
 
 let startWanted: { variant?: number; daily: boolean } | null = null;
 /** Attente des modèles des ennemis au premier départ de la session (une seule fois). */
@@ -357,7 +370,13 @@ function startGame(variant?: number, daily = false): void {
   runStats.dards = runStats.elites = runStats.bosses = 0;
   runStats.won = false;
   // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
-  world = new World(DECOR_SEED, worldOptions(meta, unlockedWeapons(meta), daily)); // même décor à chaque run
+  const mapSeed = mapSeedFor(variant, daily);
+  world = new World(mapSeed, worldOptions(meta, unlockedWeapons(meta), daily));
+  if (mapSeed !== decorSeed) {
+    S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
+    decorSeed = mapSeed;
+  }
+  mapView.prepare(world); // fond de la minicarte construit ici, pas dans la première image de jeu
   // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
   // `variant` (debug/tests) remplace l'horloge ; le défi du jour utilise la seed de la date : même run pour tous
   const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;
@@ -800,7 +819,40 @@ $('cards').addEventListener('click', (e) => {
 input.onPause = () => {
   if (app === 'play') pauseGame();
   else if (app === 'pause') resumeGame();
+  else if (app === 'map') closeMap();
 };
+// ---------- carte (phase 27) : M, appui sur la minicarte, bouton de la pause ; la partie est en pause ----------
+const mapView = new MapView($('minimap') as HTMLCanvasElement, $('bigmap') as HTMLCanvasElement);
+let mapFrom: 'play' | 'pause' = 'play';
+let slideBtnOn = false; // bouton GLISSE allumé (verrou tactile ou glissade en cours)
+function openMap(): void {
+  if (!world || (app !== 'play' && app !== 'pause')) return;
+  mapFrom = app;
+  app = 'map';
+  showOnly('map');
+  const f = mapView.drawBig(world);
+  $('mapExplored').textContent = t('map.explored', { pct: Math.round(f * 100) });
+}
+function closeMap(): void {
+  if (app !== 'map') return;
+  app = 'pause';
+  if (mapFrom === 'pause') showOnly('pause');
+  else resumeGame();
+}
+$('minimap').addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  e.stopPropagation(); // pas de joystick sous le doigt
+  openMap();
+});
+$('pauseMapBtn').onclick = () => openMap();
+$('mapClose').onclick = () => closeMap();
+addEventListener('keydown', (e) => {
+  if (e.code !== 'KeyM' || e.repeat) return;
+  const el = e.target as HTMLElement | null;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+  if (app === 'map') closeMap();
+  else openMap();
+});
 input.onConfirm = () => {
   if (app === 'menu') startGame();
   else if (app === 'over') startGame();
@@ -1352,6 +1404,35 @@ function handleEvents(w: World, now: number): void {
       case Ev.Land:
         S.onLand();
         S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
+        if (!w.player.sliding) input.unlatchSlide(); // réception sans glissade : le verrou tactile retombe
+        break;
+      // phase 27 : glissade, envol, vrille
+      case Ev.SlideStart:
+        S.onSlide(true);
+        S.particles.burst(e.x, 0.15, e.z, PAL.dust, (PT.land.n * fx) | 0, PT.land.speed * 1.4, PT.land.up * 0.5);
+        audio.slide(Math.min(1, e.v / (w.player.speed * SLIDE.maxMul)));
+        break;
+      case Ev.SlideEnd:
+        S.onSlide(false);
+        input.unlatchSlide();
+        break;
+      case Ev.Launch:
+        S.particles.burst(e.x, 0.3, e.z, PAL.dust, (PT.land.n * fx) | 0, PT.land.speed, PT.land.up * 1.5);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt * 0.4);
+        audio.launch();
+        break;
+      case Ev.Spin:
+        S.onSpin();
+        audio.spin();
+        break;
+      case Ev.Trick:
+        S.dmg.text(e.x, 2.4, e.z, t('trick.ok'), 'gold');
+        S.particles.ring(e.x, 0.3, e.z, PAL.gold, (18 * fx) | 0, 4, 3);
+        audio.trick();
+        break;
+      case Ev.TrickFail:
+        S.dmg.text(e.x, 2.2, e.z, t('trick.fail'), 'grey');
+        audio.trickFail();
         break;
       case Ev.Spell:
         if (e.y2 === 0) S.onSpell(e.v | 0); // phase 20 : animation du sort sur le héros
@@ -1555,6 +1636,12 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);
+    mapView.update(world, realDt); // phase 27 : minicarte (4 fois par seconde)
+    const slideOn = input.slideLatched || world.player.sliding;
+    if (slideOn !== slideBtnOn) {
+      slideBtnOn = slideOn;
+      $('btnSlide').classList.toggle('on', slideOn);
+    }
   } else if (app === 'levelup') {
     // clavier / manette : touches 1-3 (parité avec le tap sur la carte)
     const pick = input.takePick();
@@ -1662,6 +1749,12 @@ const debugRt = installDebugHooks({
   },
   ready: () => sceneReady && metaLoaded,
   start: startGame,
+  setMapSeed(seed) {
+    debugMapSeed = seed;
+  },
+  get mapSeed() {
+    return decorSeed;
+  },
   afterSimJump() {
     if (!world) return;
     hud.kit(world);

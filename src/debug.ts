@@ -20,6 +20,10 @@ export interface DebugHost {
   ready(): boolean;
   /** Démarre une partie ; `variant` fixe le décalage du rng pour une partie reproductible. */
   start(variant?: number): void;
+  /** Phase 27 : graine de carte imposée aux parties lancées avec une variante (null : MAP.seed). */
+  setMapSeed(seed: number | null): void;
+  /** Graine de la carte construite dans la scène. */
+  readonly mapSeed: number;
   /** À appeler après un saut dans la sim : resynchronise le HUD et l'écran de niveau. */
   afterSimJump(): void;
   audioVoices(): number;
@@ -52,6 +56,10 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
   let stressWorld: World | null = null; // monde déjà passé en god mode
 
   const debug = {
+    /** Phase 27 : carte des prochaines parties de test (null : MAP.seed). */
+    mapSeed(seed: number | null): void {
+      host.setMapSeed(seed);
+    },
     /** Avance la sim de `seconds` secondes, joueur invincible, cartes prises automatiquement. */
     warp(seconds: number): void {
       const world = w();
@@ -230,6 +238,9 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       return host.scene;
     },
     start: (variant?: number) => host.start(variant),
+    get mapSeed() {
+      return host.mapSeed;
+    },
     debug,
     // raccourcis historiques
     warp: debug.warp,

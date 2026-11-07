@@ -20,7 +20,19 @@ export class InputManager {
   onConfirm: (() => void) | null = null;
   gamepadUsed = false;
 
-  constructor(stick: HTMLElement, knob: HTMLElement, jumpBtn: HTMLElement, spellBtn: HTMLElement) {
+  /** Phase 27 : glisse au doigt, verrouillée d'un appui jusqu'à la fin de la glissade (un pouce ne peut pas tenir et sauter). */
+  private slideLatch = false;
+  /** Un appui pendant le verrou : la glisse « retombe » un pas, pour que la sim voie un nouvel appui (vrille en l'air). */
+  private slideBlink = false;
+  private padSlide = false;
+
+  constructor(
+    stick: HTMLElement,
+    knob: HTMLElement,
+    jumpBtn: HTMLElement,
+    spellBtn: HTMLElement,
+    slideBtn?: HTMLElement,
+  ) {
     addEventListener('keydown', (e) => {
       if (isEditable(e.target)) return; // champ texte (compte, sauvegarde) : Espace, Entrée et chiffres restent au navigateur
       this.keys[e.code] = true;
@@ -47,6 +59,11 @@ export class InputManager {
       });
     hold(jumpBtn, () => (this.jumpQueued = true));
     hold(spellBtn, () => (this.spellQueued = true));
+    if (slideBtn)
+      hold(slideBtn, () => {
+        if (this.slideLatch) this.slideBlink = true;
+        else this.slideLatch = true;
+      });
 
     addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse') return;
@@ -135,6 +152,7 @@ export class InputManager {
       // cartes : A=1, X=2, Y=3 en mode level-up (gérées par l'UI via pick)
       const pick = b(2) ? 1 : b(3) ? 2 : -1;
       if (pick >= 0 && this.prevPadButtons.pick !== pick) this.pickQueued = pick;
+      this.padSlide = b(2) || b(4); // X / LB tenus : glisse (phase 27)
       this.prevPadButtons.jump = b(0);
       this.prevPadButtons.spell = b(1) || b(5) || b(7);
       this.prevPadButtons.pause = b(9);
@@ -144,9 +162,20 @@ export class InputManager {
     out.mz = mz;
     out.jump = this.jumpQueued;
     out.spell = this.spellQueued;
+    out.slide = (!!k.KeyC || this.padSlide || this.slideLatch) && !this.slideBlink;
+    this.slideBlink = false;
     out.pick = this.pickQueued;
     this.jumpQueued = this.spellQueued = false;
     this.pickQueued = -1;
+  }
+
+  /** Fin de glissade (ou réception sans glissade) : le verrou tactile retombe. */
+  unlatchSlide(): void {
+    this.slideLatch = false;
+  }
+  /** Glisse tactile verrouillée (bouton allumé). */
+  get slideLatched(): boolean {
+    return this.slideLatch;
   }
 
   /** En mode level-up : index de carte demandé au clavier (1-4) ou à la manette, −1 sinon. Consomme la demande. */

@@ -446,5 +446,20 @@
   "mapchest.poor": "Chest · {gold} (not enough gold)",
   "banner.bossWarn": "{name} is coming…",
   "banner.shrine": "Shrine activated",
-  "mapchest.boon": "Chest · {gold} (6 items: a bonus)"
+  "mapchest.boon": "Chest · {gold} (6 items: a bonus)",
+  "keys.slide": "Slide",
+  "touch.slide": "SLIDE",
+  "touch.slideAria": "Slide (one tap: the slide lasts while it has momentum; in the air: spin)",
+  "trick.ok": "Spin!",
+  "trick.fail": "Missed",
+  "map.title": "Map",
+  "map.explored": "{pct}% explored",
+  "map.legend.you": "You",
+  "map.legend.chest": "Chest",
+  "map.legend.shrine": "Shrine",
+  "map.legend.merchant": "Merchant",
+  "map.legend.boss": "Boss",
+  "map.close": "Close",
+  "map.open": "Open the map",
+  "keys.map": "Map"
 }

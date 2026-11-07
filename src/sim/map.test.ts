@@ -87,7 +87,7 @@ function unreachable(w: World, rad: number): { free: number; lost: number } {
   return { free: nFree, lost };
 }
 
-describe('carte construite (phase 16)', () => {
+describe('carte construite (phases 16 et 27)', () => {
   it('toute case libre est atteignable par une Brute élite : la carte du jeu et 24 seeds', { timeout: 120_000 }, () => {
     const rad = 1.25; // Brute élite : r 1,0 × 1,25
     for (const seed of [MAP.seed, ...Array.from({ length: 24 }, (_, i) => i + 1)]) {
@@ -102,10 +102,16 @@ describe('carte construite (phase 16)', () => {
       const w = new World(seed);
       const murets = w.walls.filter((s) => s.kind === 0).length,
         troncs = w.walls.filter((s) => s.kind === 1).length;
-      expect(murets, `seed ${seed}`).toBeGreaterThan(20);
+      // phase 27 : lieux seulement sur le plat, six sortes (ruines, cercles, troncs, cimetières, campements, citrouilles)
+      expect(w.places.length, `seed ${seed}`).toBeGreaterThanOrEqual(30);
+      expect(murets, `seed ${seed}`).toBeGreaterThan(10);
       expect(troncs, `seed ${seed}`).toBeGreaterThan(5);
-      expect(w.stoneCenters.length, `seed ${seed}`).toBeGreaterThan(3);
-      expect(w.obstacles.length - w.rockEnd).toBeGreaterThanOrEqual(6 * w.stoneCenters.length);
+      expect(w.stoneCenters.length, `seed ${seed}`).toBeGreaterThanOrEqual(2);
+      expect(w.yards.length + w.camps.length, `seed ${seed}`).toBeGreaterThanOrEqual(4);
+      expect(w.walls.filter((s) => s.kind === 2).length, `seed ${seed} : clôtures`).toBe(8 * w.yards.length);
+      expect(w.stoneEnd - w.rockEnd).toBeGreaterThanOrEqual(6 * w.stoneCenters.length);
+      expect(w.obstacles.length - w.stoneEnd).toBe(5 * w.yards.length + MAP.campItems * w.camps.length);
+      expect(w.propKinds.length).toBe(w.obstacles.length - w.stoneEnd);
       expect(freeAt(w, 0, 0)).toBeGreaterThan(MAP.start - 1.5);
       for (const p of w.places) expect(Math.hypot(p.x, p.z)).toBeGreaterThanOrEqual(MAP.startClear);
     }
@@ -131,7 +137,7 @@ describe('carte construite (phase 16)', () => {
     expect(Array.from(b.solid)).toEqual(Array.from(a.solid));
   });
   it('toute case libre de la grille du flux est atteinte depuis le joueur (aucune poche à cette résolution)', () => {
-    for (const seed of [MAP.seed, 2, 9]) {
+    for (const seed of [MAP.seed, 1, 2, 3, 9, 14]) {
       const w = new World(seed);
       for (const [px, pz] of [
         [0, 0],
@@ -143,8 +149,10 @@ describe('carte construite (phase 16)', () => {
         w.flow.compute(w);
         const S = FLOW.half * 2;
         let lost = 0;
-        for (let lj = 0; lj < S; lj++)
-          for (let li = 0; li < S; li++) {
+        // le champ est local (fenêtre de 2 × FLOW.half cases) : une case du bord peut n'être atteinte que par un détour
+        // hors fenêtre ; on vérifie l'intérieur (marge de 10 cases), où se joue la poursuite
+        for (let lj = 10; lj < S - 10; lj++)
+          for (let li = 10; li < S - 10; li++) {
             const gi = li + w.flow.oi,
               gj = lj + w.flow.oj;
             if (gi < 0 || gj < 0 || gi >= w.solidN || gj >= w.solidN) continue;

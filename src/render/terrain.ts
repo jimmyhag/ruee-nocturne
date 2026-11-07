@@ -4,13 +4,23 @@ import * as THREE from 'three';
 import { TERRAIN, WORLD_HALF } from '../sim/balance';
 import type { World } from '../sim/world';
 
-/** Segments par côté du sol : 64 × 64 ≈ 8 k triangles, 1 appel (cases de ≈ 5,3 u, collines de σ ≥ 7 u). */
-export const GROUND_SEG = 64;
-const N = GROUND_SEG + 1;
-const CELL = (2 * WORLD_HALF) / GROUND_SEG;
+/**
+ * Phase 27 : le sol suit exactement la grille de la sim (cases de TERRAIN.cell u) pour garder les arêtes nettes des
+ * plateaux et des rampes. La caméra ne voit qu'environ 50 × 30 u : un seul maillage de WIN × WIN cases (≈ 96 u de côté,
+ * ≈ 4 600 triangles, un appel) suit le joueur et se recale par pas de RECENTER u, rempli depuis les tableaux de toute
+ * la carte calculés une fois (hauteurs, normales, couleurs). Les ouvrages, eux, sont rangés en TILES × TILES tuiles.
+ */
+export const TILES = 3;
+const N = Math.round((2 * WORLD_HALF) / TERRAIN.cell) + 1;
+const CELL = TERRAIN.cell;
+const WIN = 48; // cases par côté de la fenêtre de sol
+const RECENTER = 16; // u : on recale la fenêtre quand le joueur s'éloigne de son centre de plus que ça
 /** Lumière rasante (du côté de la lune de la scène) pour l'ombrage cuit du sol : une lumière basse révèle le relief. */
 const sunDir = new THREE.Vector3(-8, 5, 5).normalize();
-
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
 export class TerrainView {
   /** Hauteurs aux sommets du sol (N × N), échantillonnées une fois sur la sim. */
   readonly grid = new Float32Array(N * N);
@@ -57,30 +67,143 @@ export class TerrainView {
     return a + (b - a) * tz;
   }
 
-  /** Échantillonne la sim et construit le maillage du sol (couleurs par sommet : crêtes plus claires, creux plus sombres). */
-  build(w: World, mat: THREE.Material): THREE.Mesh {
+  /** Normales et couleurs de toute la carte (calculées une fois par carte) ; la fenêtre de sol y puise. */
+  private nrm = new Float32Array(N * N * 3);
+  private col = new Float32Array(N * N * 3);
+  private winGeo: THREE.BufferGeometry | null = null;
+  private winI = -1e9; // nœud du coin de la fenêtre (−1e9 : à remplir)
+  private winJ = -1e9;
+
+  /**
+   * Échantillonne la sim, prépare normales et couleurs (herbe sur le plat, terre et pierre sur les flancs, arêtes
+   * claires, pieds de flancs sombres, ombrage cuit par la lune) et renvoie le maillage du sol (fenêtre mobile).
+   */
+  build(w: World, mat: THREE.Material): THREE.Group {
+    const G = this.grid,
+      nrm = this.nrm,
+      col = this.col,
+      L = sunDir;
     for (let j = 0; j < N; j++)
-      for (let i = 0; i < N; i++) this.grid[j * N + i] = w.heightAt(-WORLD_HALF + i * CELL, -WORLD_HALF + j * CELL);
-    const geo = new THREE.PlaneGeometry(WORLD_HALF * 2, WORLD_HALF * 2, GROUND_SEG, GROUND_SEG).rotateX(-Math.PI / 2);
-    const pos = geo.attributes.position as THREE.BufferAttribute;
-    for (let v = 0; v < pos.count; v++) pos.setY(v, this.gy(pos.getX(v), pos.getZ(v)));
-    geo.computeVertexNormals();
-    // couleurs par sommet : ombrage « cuit » par la lune (sun) bien plus marqué que la seule lumière de la scène, pour que
-    // les pentes douces se lisent depuis la caméra haute la nuit ; creux plus sombres, sommets plus clairs
-    const nrm = geo.attributes.normal as THREE.BufferAttribute;
-    const col = new Float32Array(pos.count * 3);
-    const L = sunDir;
-    for (let v = 0; v < pos.count; v++) {
-      const h = pos.getY(v);
-      const lit = nrm.getX(v) * L.x + nrm.getY(v) * L.y + nrm.getZ(v) * L.z - L.y; // 0 sur le plat
-      const t = Math.min(1, h / (TERRAIN.peak * 0.8));
-      const k = Math.max(0.45, Math.min(1.45, 1 + 3.2 * lit));
-      // creux bleutés et sombres → sommets plus clairs et chauds (lisible la nuit depuis la caméra haute)
-      col[v * 3] = (0.62 + 0.55 * t) * k;
-      col[v * 3 + 1] = (0.7 + 0.45 * t) * k;
-      col[v * 3 + 2] = (0.86 + 0.12 * t) * k;
+      for (let i = 0; i < N; i++) G[j * N + i] = w.heightAt(-WORLD_HALF + i * CELL, -WORLD_HALF + j * CELL);
+    for (let j = 0; j < N; j++)
+      for (let i = 0; i < N; i++) {
+        const g = j * N + i,
+          h = G[g];
+        const gx = (G[j * N + Math.min(N - 1, i + 1)] - G[j * N + Math.max(0, i - 1)]) / (2 * CELL),
+          gz = (G[Math.min(N - 1, j + 1) * N + i] - G[Math.max(0, j - 1) * N + i]) / (2 * CELL);
+        const l = Math.hypot(gx, 1, gz);
+        nrm[g * 3] = -gx / l;
+        nrm[g * 3 + 1] = 1 / l;
+        nrm[g * 3 + 2] = -gz / l;
+        const lit = nrm[g * 3] * L.x + nrm[g * 3 + 1] * L.y + nrm[g * 3 + 2] * L.z - L.y; // 0 sur le plat
+        const t = Math.max(-0.35, Math.min(1, h / (TERRAIN.peak * 0.8)));
+        const bank = smooth(0.1, 0.3, Math.hypot(gx, gz));
+        // courbure (laplacien) : arête d'un sommet (convexe) éclairée, pied de flanc (concave) assombri — les plateaux et
+        // les rampes se lisent d'en haut, la nuit, comme des formes nettes
+        const lap =
+          (G[j * N + Math.min(N - 1, i + 1)] +
+            G[j * N + Math.max(0, i - 1)] +
+            G[Math.min(N - 1, j + 1) * N + i] +
+            G[Math.max(0, j - 1) * N + i] -
+            4 * h) /
+          (CELL * CELL);
+        const edge = Math.max(-0.35, Math.min(0.3, -lap * 1.6));
+        const k = Math.max(0.6 + 0.3 * bank, Math.min(1.6, 1 + 2.2 * lit + edge)); // un flanc à l'ombre reste de la terre
+        const gr = 0.6 + 0.6 * t,
+          gg = 0.68 + 0.5 * t,
+          gb = 0.86 + 0.12 * t;
+        const br = 1.32 + 0.18 * t,
+          bg = 1.0 + 0.12 * t,
+          bb = 0.78 + 0.08 * t;
+        col[g * 3] = (gr + (br - gr) * bank) * k;
+        col[g * 3 + 1] = (gg + (bg - gg) * bank) * k;
+        col[g * 3 + 2] = (gb + (bb - gb) * bank) * k;
+      }
+    // fenêtre : tableaux alloués une fois, remplis à chaque recalage
+    if (!this.winGeo) {
+      const M = WIN + 1,
+        geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(M * M * 3), 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(M * M * 3), 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(M * M * 2), 2));
+      geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(M * M * 3), 3));
+      geo.setIndex(new THREE.BufferAttribute(new Uint16Array(WIN * WIN * 6), 1));
+      geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), WIN * CELL);
+      this.winGeo = geo;
     }
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    return new THREE.Mesh(geo, mat);
+    this.winI = this.winJ = -1e9;
+    this.follow(0, 0);
+    const group = new THREE.Group();
+    const mesh = new THREE.Mesh(this.winGeo, mat);
+    mesh.frustumCulled = false; // toujours sous la caméra
+    group.add(mesh);
+    return group;
+  }
+
+  /** Recale la fenêtre de sol sous (x, z) si le joueur s'est éloigné de son centre. Aucune allocation. */
+  follow(x: number, z: number): void {
+    const geo = this.winGeo;
+    if (!geo) return;
+    const cx = -WORLD_HALF + (this.winI + WIN / 2) * CELL,
+      cz = -WORLD_HALF + (this.winJ + WIN / 2) * CELL;
+    if (Math.abs(x - cx) < RECENTER && Math.abs(z - cz) < RECENTER) return;
+    // coin de la fenêtre, aligné sur la grille et gardé dans la carte
+    const i0 = Math.max(0, Math.min(N - 1 - WIN, Math.round((x + WORLD_HALF) / CELL) - WIN / 2)),
+      j0 = Math.max(0, Math.min(N - 1 - WIN, Math.round((z + WORLD_HALF) / CELL) - WIN / 2));
+    this.winI = i0;
+    this.winJ = j0;
+    const M = WIN + 1,
+      G = this.grid;
+    const pos = geo.attributes.position as THREE.BufferAttribute,
+      nor = geo.attributes.normal as THREE.BufferAttribute,
+      uv = geo.attributes.uv as THREE.BufferAttribute,
+      col = geo.attributes.color as THREE.BufferAttribute;
+    const P = pos.array as Float32Array,
+      Nn = nor.array as Float32Array,
+      U = uv.array as Float32Array,
+      Cc = col.array as Float32Array;
+    for (let b = 0; b < M; b++)
+      for (let a = 0; a < M; a++) {
+        const g = (j0 + b) * N + i0 + a,
+          v = b * M + a;
+        const px = -WORLD_HALF + (i0 + a) * CELL,
+          pz = -WORLD_HALF + (j0 + b) * CELL;
+        P[v * 3] = px;
+        P[v * 3 + 1] = G[g];
+        P[v * 3 + 2] = pz;
+        Nn[v * 3] = this.nrm[g * 3];
+        Nn[v * 3 + 1] = this.nrm[g * 3 + 1];
+        Nn[v * 3 + 2] = this.nrm[g * 3 + 2];
+        Cc[v * 3] = this.col[g * 3];
+        Cc[v * 3 + 1] = this.col[g * 3 + 1];
+        Cc[v * 3 + 2] = this.col[g * 3 + 2];
+        U[v * 2] = (px + WORLD_HALF) / (2 * WORLD_HALF);
+        U[v * 2 + 1] = 1 - (pz + WORLD_HALF) / (2 * WORLD_HALF);
+      }
+    const idx = geo.index!.array as Uint16Array;
+    let n = 0;
+    for (let b = 0; b < WIN; b++)
+      for (let a = 0; a < WIN; a++) {
+        const v = b * M + a,
+          g = (j0 + b) * N + i0 + a;
+        // diagonale le long de la pente du quad : les plans gardent leurs arêtes
+        if (Math.abs(G[g] - G[g + N + 1]) <= Math.abs(G[g + 1] - G[g + N])) {
+          idx[n++] = v;
+          idx[n++] = v + M;
+          idx[n++] = v + M + 1;
+          idx[n++] = v;
+          idx[n++] = v + M + 1;
+          idx[n++] = v + 1;
+        } else {
+          idx[n++] = v;
+          idx[n++] = v + M;
+          idx[n++] = v + 1;
+          idx[n++] = v + 1;
+          idx[n++] = v + M;
+          idx[n++] = v + M + 1;
+        }
+      }
+    pos.needsUpdate = nor.needsUpdate = uv.needsUpdate = col.needsUpdate = true;
+    geo.index!.needsUpdate = true;
   }
 }

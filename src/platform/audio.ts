@@ -187,6 +187,27 @@ export class AudioBus {
   jump(): void {
     this.tone(this.sfx, 300, 0.14, 'square', 0.2, 260, PRIO.move);
   }
+  /** Phase 27 : départ de glissade, d'autant plus grave et long que l'on va vite (frottement). */
+  slide(fast: number): void {
+    this.tone(this.sfx, 220 - 60 * fast, 0.22 + 0.18 * fast, 'sawtooth', 0.1 + 0.06 * fast, -90, PRIO.move);
+  }
+  /** Envol sur une crête ou saut glissé : montée brève. */
+  launch(): void {
+    this.tone(this.sfx, 320, 0.2, 'triangle', 0.2, 420, PRIO.move);
+  }
+  /** Vrille lancée : souffle qui tourne. */
+  spin(): void {
+    this.tone(this.sfx, 900, 0.3, 'sine', 0.14, -500, PRIO.move);
+  }
+  /** Vrille réussie : petit accord brillant. */
+  trick(): void {
+    this.tone(this.ui, 659, 0.08, 'triangle', 0.24, 0, PRIO.levelUp);
+    this.tone(this.ui, 988, 0.16, 'triangle', 0.26, 0, PRIO.levelUp, 0.06);
+  }
+  /** Réception en pleine vrille : bruit mat. */
+  trickFail(): void {
+    this.tone(this.sfx, 110, 0.18, 'square', 0.2, -40, PRIO.move);
+  }
   dash(): void {
     this.tone(this.sfx, 500, 0.12, 'sawtooth', 0.15, -300, PRIO.move);
   }

@@ -1,4 +1,5 @@
-// Phase 18 : relief en collines douces. Jamais de marche (pente bornée), départ, lacs et lieux construits à plat.
+// Phase 18 : relief ; phase 27 : plans nets (plateaux, terrasses, rampes, combes). Jamais de marche (pente bornée),
+// départ, lacs et lieux construits à plat.
 import { describe, expect, it } from 'vitest';
 import { MAP, SLOPE, STEP, TERRAIN, WORLD_HALF } from './balance';
 import { startRun, step } from './step';
@@ -33,6 +34,42 @@ const spread = (w: World, x: number, z: number, r: number): number => {
 };
 
 describe('relief (phase 18)', () => {
+  it('phase 27 : plateaux à sommet plat, longues rampes en pente douce du pied au sommet, combes creusées', () => {
+    for (const seed of [MAP.seed, 4, 11]) {
+      const w = new World(seed);
+      expect(w.plateaus.length, `graine ${seed}`).toBeGreaterThanOrEqual(15);
+      expect(w.ramps.length).toBeGreaterThanOrEqual(w.plateaus.length * 0.8);
+      expect(w.combes.length).toBeGreaterThanOrEqual(4);
+      // sommets : plats sur l'essentiel de leur surface (hors lieux, lacs et combes qui peuvent les entailler)
+      let flatTops = 0;
+      for (const p of w.plateaus) {
+        const h = w.heightAt(p.x, p.z);
+        if (h > p.top + 1) flatTops++; // une terrasse couvre le centre
+        else if (Math.abs(h - p.top) < 0.05 && spread(w, p.x, p.z, Math.min(p.a, p.b) * 0.4) < 0.05) flatTops++;
+      }
+      expect(flatTops / w.plateaus.length, `graine ${seed} : sommets plats (une combe peut en entailler)`).toBeGreaterThan(0.6);
+      // rampes du sol : le sol suit au moins le plan de la rampe, en pente douce et régulière
+      let smooth = 0,
+        n = 0;
+      for (const m of w.ramps) {
+        if (m.h1 !== 0) continue;
+        n++;
+        let ok = true;
+        const L = Math.hypot(m.x1 - m.x0, m.z1 - m.z0);
+        expect(m.h0 / L).toBeLessThan(0.3);
+        for (let t = 0.1; t <= 0.9; t += 0.1) {
+          const x = m.x0 + (m.x1 - m.x0) * t,
+            z = m.z0 + (m.z1 - m.z0) * t;
+          if (w.heightAt(x, z) < m.h0 + (m.h1 - m.h0) * t - 0.15) ok = false;
+        }
+        if (ok) smooth++;
+      }
+      expect(smooth / n, `graine ${seed} : rampes intactes (une combe peut en couper)`).toBeGreaterThan(0.6);
+      let low = 0;
+      for (const c of w.combes) if (w.heightAt(c.pts[2], c.pts[3]) < -1) low++;
+      expect(low).toBeGreaterThanOrEqual(w.combes.length - 1);
+    }
+  });
   it('pente ≤ TERRAIN.maxSlope partout, sur la carte du jeu et 12 graines ; il y a bien du relief', () => {
     for (const seed of [MAP.seed, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
       const w = new World(seed);
