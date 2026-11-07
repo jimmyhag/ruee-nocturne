@@ -17,6 +17,9 @@ export interface Enemy {
   flash: number;
   lastBlade: number;
   lastBoom: number; // dernier coup de boomerang (un par passage)
+  lastLance: number; // phase 28 : salve de Lance qui l'a touché en dernier
+  lanceBits: number; // lances de cette salve qui l'ont déjà touché (un bit par lance : chacune ne touche qu'une fois)
+  lastPatins: number; // phase 28 : dernier coup des Patins de braise
   spd: number;
   dmgMul: number;
   bob: number;
@@ -37,6 +40,7 @@ export const enum ProjKind {
   Boomerang,
   Mine,
   Fire, // traînée de feu du Feu follet : zone au sol qui brûle par impulsions
+  Lance, // phase 28 : perce tout, en ligne
 }
 
 export interface Projectile {
@@ -129,10 +133,15 @@ export const enum HitSrc {
   Foudre,
   Boomerang,
   Mines,
+  Faux, // phase 28
+  Lance,
+  Meteores,
   Fire,
   Thorns, // phase 17 : objet Épines
   Talisman, // phase 17 : objet Talisman orageux
   Spell, // phase 19 : sort de classe
+  Patins, // phase 28 : Patins de braise (glissade)
+  Horn, // phase 28 : Corne de guerre
 }
 
 export const enum Ev {
@@ -181,6 +190,15 @@ export const enum Ev {
   Spin, // phase 27 : vrille lancée en l'air
   Trick, // phase 27 : vrille réussie à la réception, v = temps passé en l'air
   TrickFail, // phase 27 : réception en pleine vrille
+  RaceStart, // phase 28 : piste chronométrée lancée en (x,z), v = temps alloué, (x2,z2) = arrivée
+  RaceWin, // phase 28 : arrivée à temps en (x,z), v = temps mis
+  RaceFail, // phase 28 : temps écoulé
+  Scythe, // phase 28 : coup de Faux en (x,y,z), v = portée, x2/z2 = direction, y2 = angle de l'arc
+  MeteorWarn, // phase 28 : cercle d'un météore à venir en (x,z), v = rayon, x2 = délai
+  MeteorHit, // phase 28 : impact en (x,z), v = rayon
+  ShieldBlock, // phase 28 : le Bouclier annule un coup en (x,z)
+  ShieldReady, // phase 28 : le Bouclier est de nouveau prêt
+  Horn, // phase 28 : onde de la Corne de guerre en (x,z), v = rayon
 }
 
 export interface GameEvent {
@@ -211,7 +229,7 @@ export const enum Mode {
   Merchant = 4, // phase 17 : échoppe ouverte, la partie est en pause
 }
 
-export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines';
+export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines' | 'faux' | 'lance' | 'meteores';
 export type CharacterKey =
   | 'eclaireuse'
   | 'bucheron'
@@ -276,7 +294,13 @@ export type ItemKey =
   | 'fer'
   | 'bourse'
   | 'rune'
-  | 'collier';
+  | 'collier'
+  | 'patins' // phase 28
+  | 'echarpe'
+  | 'plume'
+  | 'boussole'
+  | 'bouclier'
+  | 'corne';
 
 /**
  * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.

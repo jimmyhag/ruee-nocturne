@@ -1,7 +1,7 @@
 // Carte de la partie (phase 27) : minicarte du HUD (autour du joueur, redessinée 4 fois par seconde) et grande carte
 // (toute la carte, à l'ouverture). Fond construit une fois par carte (relief, lacs, ouvrages), brouillard sur ce qui
 // n'est pas encore découvert (w.seen, tenu par la sim). Lecture seule du monde. Hors de la boucle de rendu 3D.
-import { DISCOVER, ENEMIES, WORLD_HALF } from '../sim/balance';
+import { DISCOVER, ENEMIES, It, WORLD_HALF } from '../sim/balance';
 import { SEEN_N } from '../sim/world';
 import type { World } from '../sim/world';
 
@@ -97,6 +97,23 @@ export class MapView {
     }
     ctx.fillStyle = '#d9782e';
     for (const p of w.decor) ctx.fillRect(px(p.x) - 1, px(p.z) - 1, 2, 2);
+    // phase 28 : grandes pistes en bande claire, tremplins en trait doré
+    ctx.strokeStyle = 'rgba(214,232,255,0.55)';
+    for (const p of w.pistes) {
+      ctx.lineWidth = p.half * 2;
+      ctx.beginPath();
+      ctx.moveTo(px(p.x0), px(p.z0));
+      ctx.lineTo(px(p.x1), px(p.z1));
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#ffc845';
+    ctx.lineWidth = 3;
+    for (const q of w.kickers) {
+      ctx.beginPath();
+      ctx.moveTo(px(q.x), px(q.z));
+      ctx.lineTo(px(q.x + q.dx * 5), px(q.z + q.dz * 5));
+      ctx.stroke();
+    }
   }
 
   /** Brouillard : opaque sur les cases jamais vues (seulement quand la découverte a progressé). */
@@ -136,12 +153,29 @@ export class MapView {
     this.ox = ox;
     this.oz = oz;
     this.k = k;
+    const compass = w.items[It.Boussole] > 0; // phase 28 : la Boussole montre aussi ce qui n'est pas découvert
     ctx.fillStyle = '#ffd45a';
     for (const c of w.mapChests)
-      if (!c.open && this.seenAt(w, c.x, c.z)) ctx.fillRect(this.X(c.x) - r, this.Z(c.z) - r, r * 2, r * 2);
+      if (!c.open && (compass || this.seenAt(w, c.x, c.z)))
+        ctx.fillRect(this.X(c.x) - r, this.Z(c.z) - r, r * 2, r * 2);
+    // départs des pistes chronométrées : losange cyan (gris une fois gagnée)
+    for (const q of w.races)
+      if (this.seenAt(w, q.sx, q.sz)) {
+        const x = this.X(q.sx),
+          z = this.Z(q.sz),
+          a = r * 1.5;
+        ctx.fillStyle = q.state === 2 ? '#6b7088' : '#5fd8ff';
+        ctx.beginPath();
+        ctx.moveTo(x, z - a);
+        ctx.lineTo(x + a, z);
+        ctx.lineTo(x, z + a);
+        ctx.lineTo(x - a, z);
+        ctx.closePath();
+        ctx.fill();
+      }
     ctx.fillStyle = '#7fd8ff';
     for (const s of w.shrines)
-      if (!s.used && this.seenAt(w, s.x, s.z)) {
+      if (!s.used && (compass || this.seenAt(w, s.x, s.z))) {
         ctx.beginPath();
         ctx.arc(this.X(s.x), this.Z(s.z), r * 1.2, 0, Math.PI * 2);
         ctx.fill();

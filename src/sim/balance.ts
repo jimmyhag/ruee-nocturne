@@ -50,7 +50,7 @@ export const DECOR = {
 export const TERRAIN = {
   cell: 2, // u : grille de hauteurs (interpolation bilinéaire)
   bank: 0.5, // pente des flancs (plans nets, ≈ 27°)
-  plateaus: 22, // plateaux (rectangles arrondis orientés)…
+  plateaus: 18, // plateaux (phase 28 : 22 → 18, place aux grandes pistes) (rectangles arrondis orientés)…
   plateauMin: 9, // …demi-côtés de 9 à 20 u
   plateauMax: 20,
   levels: [2.5, 4, 5.5], // hauteurs des sommets, par paliers
@@ -62,7 +62,24 @@ export const TERRAIN = {
   combeLen: [26, 46], // …longueur d'un segment
   combeHalf: [3, 5], // …demi-largeur du fond plat
   combeDepth: [1.6, 2.6], // …profondeur sous le sol de base
-  peak: 7.5, // plus haut sommet possible (5,5 + terrasse)
+  peak: 7.5, // plus haut sommet d'un plateau (5,5 + terrasse) ; les montagnes des pistes montent plus haut
+  // phase 28 : vraies pentes à rider. Grandes pistes : une montagne d'où part une longue descente droite, ponctuée de
+  // bosses (on décolle en glissade), finie par un tremplin ; tremplins isolés sur le plat
+  pistes: 4, // grandes pistes (tentatives : 3 ou 4 tiennent sur une carte)
+  mountain: [9, 11], // hauteur du sommet d'où part une piste
+  mountainHalf: [8, 11], // demi-côté du sommet
+  pisteLen: [50, 78], // longueur de la descente (pente ≈ 0,12–0,22)
+  pisteHalf: [6, 8], // demi-largeur
+  bumpEvery: 12, // u entre deux bosses…
+  bumpH: 0.8, // …hauteur d'une bosse…
+  bumpLen: 2.5, // …demi-longueur (pente de la bosse 0,32, plus celle de la piste : ≤ 0,55)
+  kickers: 6, // tremplins isolés (en plus de ceux des pistes)
+  kickLen: 5, // tremplin : montée sur 5 u…
+  kickH: 2.2, // …jusqu'à 2,2 u (pente 0,44), puis chute au flanc maximal
+  kickHalf: 4, // demi-largeur d'un tremplin
+  kickReach: 10, // u autour du pied d'un tremplin tenus libres (arbres, lieux)
+  kickRun: 12, // tremplin au pied d'une rampe : emprise au sol testée (plate à ±0,3 u)…
+  kickFlat: 0.3, // …écart de hauteur toléré sur cette emprise
   startFlat: 22, // clairière de départ plate (à 0)
   lakeDepth: 0.8, // fond plat des lacs sous la berge
   placeR: 0.85, // lieux construits posés à plat sur ce rayon (× empreinte), raccord à la pente des flancs
@@ -97,6 +114,15 @@ export const DISCOVER = {
   cell: 4,
   radius: 26,
   period: 0.25, // s entre deux mises à jour
+};
+
+// pistes chronométrées (phase 28) : passer l'arche du haut, atteindre celle du bas à temps (en glissant, pas en
+// marchant) → un coffre d'objet ; une fois par piste
+export const RACE = {
+  r: 4.5, // rayon d'une arche (départ et arrivée)
+  startDown: 2, // u : arche de départ un peu en aval du sommet de la piste
+  refSpeed: 6.2 * 1.6, // u/s : temps alloué = longueur / cette vitesse (marche de l'Éclaireuse × 1,6 ; la glisse tient, la marche non)
+  rearm: 8, // u : après un échec, s'éloigner du départ pour réarmer
 };
 
 export const SLOPE = {
@@ -452,6 +478,10 @@ export const LAMES = {
   hitR: 0.75, // rayon de frappe d'une lame (× sizeMul) ; phase 12 : 0,55 → 0,75, un Dard collé au joueur passait sous l'anneau (Bûcheron 3:12 et 46 % de morts < 3 min → 5:04 et 16 %), alors qu'un rayon plus grand aggravait le trou central
   kb: 5, // recul d'une lame (× Fendeur)
 };
+// phase 28 : comportement des armes nouvelles
+export const FAUX = { kb: 7, wait: 0.15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s
+export const LANCE = { range: 16, hitR: 0.45, kb: 2, spread: 0.16, lifeMargin: 1.15, retry: 0.25, maxPerSalvo: 30 }; // cible : l'ennemi le plus loin à moins de 16 u ; éventail de 0,16 rad entre lances ; sans cible, nouvel essai dans 0,25 s ; au plus 30 lances par salve (un bit par lance)
+export const METEOR = { delay: 0.6, range: 13, around: 8, kb: 3, max: 32, tries: 8 }; // cercle annoncé 0,6 s ; sur un ennemi à < 13 u (8 tirages au plus), sinon autour du joueur ; 32 en attente au plus (le surplus d'une salve est perdu)
 export const MINES = {
   spacing: 1.2, // u parcourus entre deux poses
   life: 14, // une mine jamais déclenchée expire
@@ -525,6 +555,28 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
     { stat: 'n', step: 1, kind: 'add', max: 12, weight: 2 },
     { stat: 'chain', step: 1, kind: 'add', max: 1, weight: 1 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  // phase 28
+  faux: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'arc', step: 15, kind: 'add', max: 16, weight: 2 }, // degrés : jusqu'au cercle complet
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  lance: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'n', step: 1, kind: 'add', max: 4, weight: 1.5 },
+    { stat: 'speed', step: 0.08, kind: 'pct', max: 10, weight: 2 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  meteores: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'r', step: 0.06, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'n', step: 1, kind: 'add', max: 6, weight: 1.5 },
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
 };
@@ -679,7 +731,7 @@ export const CHARACTERS: CharacterDef[] = [
 // tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
 
 // objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun, uniques, au plus ITEM.max par run
-export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier'];
+export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne'];
 /** Index fixes (drapeaux de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
   Phenix = 0,
@@ -696,9 +748,15 @@ export const enum It {
   Bourse,
   Rune, // phase 22
   Collier,
+  Patins, // phase 28
+  Echarpe,
+  Plume,
+  Boussole,
+  Bouclier,
+  Corne,
 }
 /** Rareté par objet : 0 commun, 1 rare, 2 épique (couleur de carte, prix, poids de tirage). */
-export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1];
+export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1];
 export const ITEM = {
   max: 6, // objets par run
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
@@ -719,6 +777,13 @@ export const ITEM = {
   rune: { cdMul: 0.7 }, // phase 22 : Rune de rappel, recharge du sort −30 %
   // phase 22 : Collier d'os, chaque kill rend 0,1 s de recharge (au plus 1 s par seconde, réserve de 1 s), un boss 4 s
   collier: { perKill: 0.1, perBoss: 4, perSec: 1, bank: 1 },
+  // phase 28
+  patins: { perSpeed: 1.6, minMul: 1.15, r: 1.1, rehit: 0.35, kb: 6 }, // en glissade (≥ marche × 1,15) : dégâts = 1,6 × vitesse (u/s) aux ennemis traversés
+  echarpe: { heal: 8, spell: 1 }, // vrille réussie : 8 PV et 1 s de recharge du sort
+  plume: { gravMul: 0.8 }, // en l'air avec l'élan d'une glissade
+  boussole: { radiusMul: 1.8 }, // découverte ; la carte montre aussi coffres et sanctuaires non découverts
+  bouclier: { period: 20, invul: 0.6 }, // un coup annulé toutes les 20 s
+  corne: { period: 25, r: 7, kb: 10, stun: 0.5 }, // onde qui repousse et étourdit (pas les boss)
 };
 
 // marchand (phase 17, PLAN §3.6) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
@@ -752,6 +817,9 @@ export const SYN = {
   ricochet: { n: 2, range: 0.3 }, // Chance + Boomerang
   moisson: { magnet: 0.5 }, // Savoir + Lames
   rempart: { dmgTaken: 0.6 }, // Vitalité + Halo : contact des ennemis dans le Halo
+  moissonneuse: { heal: 1, max: 6 }, // phase 28 : Vitalité + Faux, PV rendus par ennemi fauché (au plus 6 par coup)
+  volee: { n: 1 }, // Projectiles + Lance
+  pluie: { n: 1 }, // Savoir + Météores
 };
 export interface Synergy {
   key: string;
@@ -767,6 +835,9 @@ export const SYNERGIES: Synergy[] = [
   { key: 'ricochet', tome: 'chance', weapon: 'boomerang' },
   { key: 'moisson', tome: 'savoir', weapon: 'lames' },
   { key: 'rempart', tome: 'vitalite', weapon: 'aura' },
+  { key: 'moissonneuse', tome: 'vitalite', weapon: 'faux' }, // phase 28
+  { key: 'volee', tome: 'projectiles', weapon: 'lance' },
+  { key: 'pluie', tome: 'savoir', weapon: 'meteores' },
 ];
 export const enum Syn {
   Orage = 0,
@@ -777,6 +848,9 @@ export const enum Syn {
   Ricochet,
   Moisson,
   Rempart,
+  Moissonneuse, // phase 28
+  Volee,
+  Pluie,
 }
 
 export const REVIVE = {

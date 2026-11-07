@@ -21,6 +21,9 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.flash = 0;
   e.lastBlade = -9;
   e.lastBoom = -9;
+  e.lastLance = -9;
+  e.lanceBits = 0;
+  e.lastPatins = -9;
   e.face = 0;
   e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.t);
   e.dmgMul = SPAWN.dmgScale(w.t);

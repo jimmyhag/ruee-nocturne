@@ -103,9 +103,9 @@ describe('carte construite (phases 16 et 27)', () => {
       const murets = w.walls.filter((s) => s.kind === 0).length,
         troncs = w.walls.filter((s) => s.kind === 1).length;
       // phase 27 : lieux seulement sur le plat, six sortes (ruines, cercles, troncs, cimetières, campements, citrouilles)
-      expect(w.places.length, `seed ${seed}`).toBeGreaterThanOrEqual(30);
+      expect(w.places.length, `seed ${seed}`).toBeGreaterThanOrEqual(20); // phase 28 : les grandes pistes prennent de la place
       expect(murets, `seed ${seed}`).toBeGreaterThan(10);
-      expect(troncs, `seed ${seed}`).toBeGreaterThan(5);
+      expect(troncs, `seed ${seed}`).toBeGreaterThanOrEqual(3);
       expect(w.stoneCenters.length, `seed ${seed}`).toBeGreaterThanOrEqual(2);
       expect(w.yards.length + w.camps.length, `seed ${seed}`).toBeGreaterThanOrEqual(4);
       expect(w.walls.filter((s) => s.kind === 2).length, `seed ${seed} : clôtures`).toBe(8 * w.yards.length);

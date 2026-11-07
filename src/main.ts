@@ -604,6 +604,9 @@ function gameOver(won = false): void {
   st.noHitBest = Math.max(st.noHitBest, world.noHitBest);
   st.distanceBest = Math.max(st.distanceBest, world.distance);
   st.weaponLvBest = Math.max(st.weaponLvBest, world.weaponLvBest);
+  st.slideDist += world.slideDist; // phase 28
+  st.tricksBest = Math.max(st.tricksBest, world.tricks);
+  st.mapChests += world.mapChestsOpened;
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -1321,10 +1324,15 @@ const HIT_COLORS = [
   PAL.bolt,
   PAL.boomerang,
   PAL.mine,
+  0xc9b3ff, // phase 28 : Faux
+  0x9fe8ff, // Lance
+  0xff9a5a, // Météores
   PAL.accent,
   PAL.paper,
   PAL.bolt,
   PAL.gold,
+  0xff8a3d, // phase 28 : Patins de braise
+  0xffe08a, // Corne de guerre
 ];
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
@@ -1422,6 +1430,65 @@ function handleEvents(w: World, now: number): void {
       case Ev.Spin:
         S.onSpin();
         audio.spin();
+        break;
+      // phase 28 : armes, objets, pistes chronométrées
+      case Ev.Scythe: {
+        // arc de particules violettes devant le joueur
+        const n = (14 * fx) | 0,
+          half = (Math.min(360, e.y2) * Math.PI) / 360,
+          a0 = Math.atan2(e.x2, e.z2);
+        for (let k = 0; k < n; k++) {
+          const a = a0 - half + (2 * half * k) / Math.max(1, n - 1);
+          S.particles.burst(
+            e.x + Math.sin(a) * e.v * 0.8,
+            0.9,
+            e.z + Math.cos(a) * e.v * 0.8,
+            0xc9b3ff,
+            1,
+            3,
+            1.5,
+            false,
+            Math.sin(a),
+            Math.cos(a),
+            1,
+          );
+        }
+        audio.throwSound();
+        break;
+      }
+      case Ev.MeteorWarn:
+        audio.spit();
+        break;
+      case Ev.MeteorHit:
+        S.particles.burst(e.x, 0.3, e.z, 0xff9a5a, (18 * fx) | 0, 7, 7);
+        S.particles.ring(e.x, 0.2, e.z, PAL.gold, (14 * fx) | 0, e.v * 2.4, 1.5);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt * 0.5);
+        audio.blast();
+        break;
+      case Ev.Horn:
+        S.particles.ring(e.x, 0.4, e.z, PAL.paper, (26 * fx) | 0, e.v * 2.2, 2);
+        audio.roar();
+        break;
+      case Ev.ShieldBlock:
+        S.particles.ring(e.x, 1, e.z, 0x7fd8ff, (20 * fx) | 0, 4, 2);
+        S.dmg.text(e.x, 2.2, e.z, t('banner.shield'), 'gold');
+        audio.chest();
+        break;
+      case Ev.ShieldReady:
+        S.particles.ring(e.x, 0.6, e.z, 0x7fd8ff, (10 * fx) | 0, 1.5, 1);
+        break;
+      case Ev.RaceStart:
+        hud.banner(t('banner.raceStart'));
+        audio.levelUp();
+        break;
+      case Ev.RaceWin:
+        hud.banner(t('banner.raceWin'));
+        S.particles.ring(e.x, 0.5, e.z, PAL.gold, (30 * fx) | 0, 5, 5);
+        audio.chest();
+        break;
+      case Ev.RaceFail:
+        hud.banner(t('banner.raceFail'));
+        audio.trickFail();
         break;
       case Ev.Trick:
         S.dmg.text(e.x, 2.4, e.z, t('trick.ok'), 'gold');

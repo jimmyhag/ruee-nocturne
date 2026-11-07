@@ -23,6 +23,12 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   boomerang: { glyph: '⟲', color: '#7ee0a1', base: { cd: 1.7, dmg: 14, range: 9, speed: 14, n: 1, crit: 0 } },
   // contact · là où je passe · pose
   mines: { glyph: '✸', color: '#ff7a3d', base: { cd: 0.9, dmg: 30, r: 2.2, n: 5, chain: 0, crit: 0 } },
+  // phase 28 — courte · devant (regard) · salve : un arc qui fauche et repousse
+  faux: { glyph: '☾', color: '#c9b3ff', base: { cd: 1.1, dmg: 20, r: 3.2, arc: 120, crit: 0 } }, // arc en degrés
+  // longue · ennemi le plus loin (ligne) · lent : perce tout
+  lance: { glyph: '➹', color: '#9fe8ff', base: { cd: 2.0, dmg: 30, speed: 22, n: 1, crit: 0 } },
+  // longue · zone aléatoire autour · lent : cercles annoncés, puis impact
+  meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 2.8, dmg: 36, r: 2.4, n: 2, crit: 0 } },
 };
 export const WEAPON_KEYS = Object.keys(WEAPONS) as WeaponKey[];
 
@@ -86,6 +92,8 @@ export function refreshStats(w: World): void {
     s.boomerang.n += SYN.ricochet.n;
     s.boomerang.range *= 1 + SYN.ricochet.range;
   }
+  if (w.syn[Syn.Volee]) s.lance.n += SYN.volee.n; // phase 28
+  if (w.syn[Syn.Pluie]) s.meteores.n += SYN.pluie.n;
 }
 
 /** Applique au joueur une ligne de tome (clé `stat` de TOMES[k]). Les effets se cumulent de façon additive sur la base. */

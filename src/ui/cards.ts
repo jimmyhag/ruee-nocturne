@@ -64,6 +64,12 @@ export const ITEM_GLYPH: Record<ItemKey, string> = {
   bourse: '¤',
   rune: 'ᚱ', // phase 22
   collier: '☠',
+  patins: '⛸', // phase 28
+  echarpe: '≋',
+  plume: '❦',
+  boussole: '✧',
+  bouclier: '⛨',
+  corne: '♫',
 };
 export const RARITY_COLOR = ['#9aa4c2', '#5fd3ff', '#ffd166'];
 export const synergyName = (i: number): string => t(`syn.${SYNERGIES[i].key}.name`);
@@ -134,6 +140,16 @@ export function weaponSummary(w: World, k: WeaponKey): string {
       return t('weapon.boomerang.stats', { n: s.n, range: Math.round(s.range), dmg: Math.round(s.dmg) });
     case 'mines':
       return t('weapon.mines.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+    case 'faux':
+      return t('weapon.faux.stats', {
+        deg: Math.round(Math.min(360, s.arc)),
+        dmg: Math.round(s.dmg),
+        r: +s.r.toFixed(1),
+      });
+    case 'lance':
+      return t('weapon.lance.stats', { n: s.n, dmg: Math.round(s.dmg) });
+    case 'meteores':
+      return t('weapon.meteores.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
   }
 }
 

@@ -80,6 +80,12 @@ const ITEM_VALUE: Record<ItemKey, number> = {
   bourse: 9,
   rune: 17, // phase 22
   collier: 15,
+  bouclier: 17, // phase 28
+  corne: 14,
+  echarpe: 8, // le bot de référence ne vrille pas
+  patins: 6, // ni ne glisse
+  plume: 5,
+  boussole: 7,
 };
 
 /** Valeur d'une ligne de stat pour le bot (phase 12) : gain relatif approximatif, +1 projectile pèse lourd. */
@@ -96,6 +102,7 @@ const LINE_VALUE: Record<string, number> = {
   chain: 9,
   range: 4,
   crit: 5, // phase 23 (armes et tome Chance)
+  arc: 4, // phase 28 : Faux
   slow: 3,
   stun: 4,
   // tomes

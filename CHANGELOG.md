@@ -2,6 +2,24 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.23.0 — 7 nov. 2026 (phase 28 « Pistes et trésors »)
+
+Plus de choses à trouver et à faire, de vraies pentes pour rider, et une image pour chaque arme et chaque objet.
+
+### Ajouté
+
+- **Grandes pistes** : quatre par carte. Une montagne, une longue descente claire (neige tassée) ponctuée de bosses qui font décoller, et un tremplin au pied. D'autres tremplins attendent au bas des rampes : on y arrive en glissade, on s'envole, on vrille.
+- **Pistes chronométrées** : une arche cyan en haut de chaque grande piste, une arche dorée en bas. Passer l'arche lance le chrono (affiché en haut de l'écran) ; arriver à temps, en glissant, donne un **coffre d'objet**, une fois par piste. Départs repérés sur la minicarte.
+- **Trois armes** : **Faux** (un arc devant soi, recul fort), **Lance** (vers l'ennemi le plus loin, traverse tout), **Météores** (cercles dorés annoncés, puis impact de zone). Chacune avec ses lignes de stats, son critique, son son et sa couleur de chiffre.
+- **Trois succès** pour les débloquer, liés à la glisse : glisser 1 000 u au total (Faux), 5 vrilles réussies dans une partie (Lance), ouvrir 50 coffres de carte (Météores).
+- **Trois synergies** : Moissonneuse (Vitalité + Faux, soigne sur les coups), Volée (Projectiles + Lance, +1 lance), Pluie d'étoiles (Savoir + Météores, +1 météore).
+- **Six objets** : Patins de braise (en glissade, on blesse ce qu'on traverse), Écharpe du vent (une vrille réussie soigne et recharge le sort), Plume (vols plus longs), Boussole (on découvre plus loin, coffres et sanctuaires visibles sur la carte), Bouclier (annule un coup toutes les 20 s), Corne de guerre (onde qui repousse et étourdit toutes les 25 s).
+- **Icônes dessinées** pour les 9 armes, 8 tomes, 20 objets, 7 bonus de sanctuaire et 9 sorts : cartes de montée de niveau, coffres, marchand, HUD, bouton du sort, fiche personnage et succès.
+
+### Modifié
+
+- Le Bouclier annule le coup au moment où il est reçu : plus d'écran rouge ni de défi « Intouchable » perdu pour un coup bloqué.
+
 ## 1.22.1 — 7 nov. 2026 (retour de Jimmy sur la glissade)
 
 ### Modifié

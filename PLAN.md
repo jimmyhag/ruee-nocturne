@@ -64,7 +64,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 
 ## 3. Contenu V1
 
-### 3.1 Armes (6) et lignes de stats (phase 12)
+### 3.1 Armes (9) et lignes de stats (phase 12, phase 28)
 | Arme | Comportement | Lignes possibles |
 |---|---|---|
 | Orbe filante | Projectile auto-visé | dégâts, recharge, +1 projectile, vitesse, +1 perforation |
@@ -73,6 +73,11 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 | Foudre en chaîne | Frappe N ennemis en chaîne | dégâts, recharge, +1 cible |
 | Boomerang | Aller-retour en ligne, traverse | dégâts, recharge, portée, +1 boomerang, vitesse |
 | Mines | Posées sur le passage, explosent au contact | dégâts, recharge, rayon, +1 mine, chaîne |
+| **Faux** (phase 28) | Arc de 120° devant le joueur, recul fort | dégâts, recharge, rayon, angle, critique |
+| **Lance** (phase 28) | Vers l'ennemi le plus loin à 16 u, perce tout, touche chaque ennemi une fois | dégâts, recharge, +1 lance, vitesse, critique |
+| **Météores** (phase 28) | Cercles dorés annoncés 0,6 s autour des ennemis, puis impact de zone | dégâts, recharge, rayon, +1 météore, critique |
+
+Déblocage des armes de la phase 28 par des succès de glisse : Faux (glisser 1 000 u au total), Lance (5 vrilles réussies dans une partie), Météores (ouvrir 50 coffres de carte).
 
 Chaque arme s'améliore jusqu'à **100 fois** ; chaque carte apporte **1 à 3 lignes** de sa famille (1 ligne 67 %, 2 lignes « rare » 25 %, 3 lignes « épique » 8 %, décalées par la chance), chacune petite (`WEAPON_LINES` dans `balance.ts`). Il n'y a **plus d'évolutions** (décision de Jimmy, 4 nov. 2026) : la puissance vient des lignes, la montée est longue.
 
@@ -109,6 +114,8 @@ Dégâts (dégâts, élites et boss, recul, dégâts critiques) · Cadence (rech
 - **Glissade (phase 27, revue en 1.22.1)** : à l'appui, au sol et en mouvement ; **en ligne droite** dans la direction du départ (ni la pente de côté ni l'entrée ne la font tourner) ; vitesse de départ ≥ marche × 1,35, gagnée en descente (gravité de glisse × pente dans l'axe), perdue en montée et sur le plat (≈ 0,85 s), plafond marche × 2,6, recharge 0,4 s ; **un second appui relève** le joueur (relâcher ne coupe rien) ; après un saut glissé, la réception continue la glissade toute seule. **Saut glissé** : l'élan porte en l'air (la montée d'une rampe s'ajoute au saut) ; en l'air, l'altitude est absolue (un saut depuis un bord vole plus loin) ; **envol** sur une crête franchie vite. **Vrille** (appui sur glisse en l'air après un saut glissé ou un envol) : réussie à la réception, élan × 1,2 pendant 1,5 s ; ratée si l'on atterrit en pleine vrille. Le Faucheur va toujours au moins 1,1 × la vitesse lissée du joueur. Constantes : `SLIDE`.
 - **Carte et découverte (phase 27)** : cases de 4 u découvertes dans un rayon de 26 u (`World.seen`) ; minicarte (HUD, nord en haut) et grande carte (M, appui sur la minicarte, bouton de la pause ; partie en pause) avec brouillard, coffres et sanctuaires découverts, marchand, boss, part explorée.
 - Cycle de lumière lié au temps de run : crépuscule → nuit → aube (lisibilité du temps restant sans regarder le chrono).
+
+**Phase 28 — vraies pentes** : chaque carte a 4 **grandes pistes** (`TERRAIN.pistes`) : une montagne de 9 à 11 u d'où descend une piste de 50 à 78 u, large de 12 à 16 u, ponctuée de **bosses** (0,8 u tous les 12 u, on décolle à vitesse de glisse), qui finit sur un **tremplin**. D'autres tremplins attendent au pied des rampes (6 au plus) : montée de 5 u jusqu'à 2,2 u, puis chute au flanc maximal. Pistes et tremplins sont tenus à l'écart des arbres, des lieux et des combes ; la pente reste ≤ 0,55. Au rendu, la piste est en neige tassée claire bordée d'un liseré, le tremplin en bois clair. **Pistes chronométrées** : une arche cyan en haut de chaque grande piste, une arche dorée en bas ; passer l'arche de départ lance le chrono (temps de référence : la longueur à 1,6 × la vitesse de marche), atteindre l'arrivée à temps donne un coffre d'objet (une fois par piste) ; trop lent, on recommence en revenant au départ. Repérées sur la minicarte (losange cyan).
 
 ### 3.5 Personnages (9, phase 6 ; 3 en V1)
 Un personnage = une arme de départ + un passif signature (une règle de jeu, pas un pourcentage) + une condition de déblocage qui est un objectif en soi. « Différents, pas meilleurs » : chaque personnage à ± 3 min de l'Éclaireuse sur 100 runs du bot. Détail et décisions : `docs/PHASE6-PERSONNAGES.md`.
@@ -167,6 +174,12 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Bourse du colporteur | +40 % d'or ramassé, prix du marchand −15 % | commun |
 | Rune de rappel (phase 22) | recharge du sort −30 % | rare |
 | Collier d'os (phase 22) | chaque kill rend 0,1 s de recharge du sort (réserve d'1 s), un boss 4 s | rare |
+| Patins de braise (phase 28) | en glissade, les ennemis traversés prennent des dégâts selon la vitesse (×1,6 par u/s) et sont repoussés | rare |
+| Écharpe du vent (phase 28) | chaque vrille réussie soigne 8 PV et rend 1 s de recharge du sort | commun |
+| Plume (phase 28) | gravité ×0,8 en l'air : vols plus longs | commun |
+| Boussole (phase 28) | rayon de découverte ×1,8 ; coffres et sanctuaires visibles sur la carte même non découverts | commun |
+| Bouclier (phase 28) | annule un coup toutes les 20 s | rare |
+| Corne de guerre (phase 28) | toutes les 25 s, onde de r 7 qui repousse et étourdit 0,5 s (pas les boss) | rare |
 
 **Coffres** : choix d'un objet parmi 3 (4 avec le Colporteur), deux choix pour un coffre de boss ; 6 objets portés ou plus rien à obtenir → un sac d'or.
 
@@ -183,6 +196,9 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Charge creuse | Dégâts + Mines | rayon des mines +60 % |
 | Ricochet | Chance + Boomerang | +2 boomerangs, portée +30 % |
 | Moisson | Savoir + Lames | rayon de collecte +50 % |
+| Moissonneuse (phase 28) | Vitalité + Faux | chaque coup de Faux soigne 1 PV (6 par coup au plus) |
+| Volée (phase 28) | Projectiles + Lance | +1 lance en éventail |
+| Pluie d'étoiles (phase 28) | Savoir + Météores | +1 météore |
 | Rempart | Vitalité + Halo | −40 % de dégâts des ennemis dans le Halo |
 
 Décision prise : les synergies sont des bonus de stats ou des règles simples plutôt que de nouveaux comportements d'arme (brûlure, rebond, rotation au dash) : même lisibilité, aucun nouvel objet de pool dans la boucle chaude, réglables par la CLI.
@@ -423,6 +439,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : une glissade pour des mouvements plus dynamiques (glisser, sauter, des petites figures ; plus vite dans les descentes) ; une carte plus définie (des montées et descentes en pente, pas des collines) ; une carte qui montre ce qui est découvert ; des cartes tirées au hasard, bien plus remplies (sanctuaires, coffres, lieux). Relief en plans nets, glissade, saut glissé, envol, vrille, une carte par partie, trois lieux nouveaux, minicarte et grande carte (§3.4, §4.5).
 - Décisions prises : une carte tirée au hasard reste **la carte V1** (mêmes règles, mêmes tests), pas la « deuxième carte » de la V2 ; la glisse démarre à l'**appui** (la tenir ne relance pas en boucle) ; 1.22.1, retour de Jimmy : glissade **droite** et **second appui pour se relever** (au clavier comme au doigt) ; pas de récompense en XP ni en or pour les figures (le gain, c'est la vitesse) ; touche C (pas Ctrl : Ctrl+W fermerait l'onglet en jouant au ZQSD) ; sol en fenêtre mobile (un appel) plutôt qu'en tuiles (le budget de 40 appels ne tenait pas) ; ouvrages en 3 × 3 tuiles.
 - **Porte** : glissade, saut glissé, envol et vrille testés (Vitest) et glisse e2e au clavier et au doigt ; pente ≤ 0,55 ; connexité 100 % (carte du jeu et 24 graines) ; une carte différente à chaque partie, construite en moins de 2 s ; minicarte et grande carte avec brouillard ; cibles des profils nu et maxé tenues ; ≤ 40 appels, ≤ 150 k (pixel) et ≤ 250 k (net) à 400 ennemis ; bench OK ; captures lues ; test de Jimmy.
+
+### Phase 28 — Plus à découvrir, vraies pentes, icônes (après la 1.22.1)
+- Demande de Jimmy : plus d'armes, d'objets et de choses à découvrir et à faire ; une carte améliorée au maximum, avec de **vraies pentes** où l'on ride et glisse ; des **images** pour les objets et les armes. Trois armes (Faux, Lance, Météores), trois synergies, trois succès liés à la glisse, six objets (Patins de braise, Écharpe du vent, Plume, Boussole, Bouclier, Corne de guerre), grandes pistes à bosses depuis une montagne, tremplins, pistes chronométrées, icônes SVG partout (§3.1, §3.4, §3.6).
+- Décisions prises : les pistes chronométrées donnent un **coffre d'objet** (un bonus de sanctuaire si les objets sont pleins), une fois par piste ; le chrono se tient en glissant (référence : marche × 1,6), pas en marchant ; une seule course à la fois ; les tremplins sont au pied des pistes et des rampes (sur le plat, la glisse calait avant le bord) ; icônes dessinées en SVG en ligne (pas d'images à télécharger), glyphes Unicode gardés en repli texte ; la Lance réutilise le modèle d'épée des Lames, teinté cyan.
+- **Porte** : 9 armes, 20 objets, 11 synergies, 3 succès nouveaux, chacun testé ; pistes et tremplins sur chaque carte, envol sur tremplin testé, pente ≤ 0,55, connexité 100 % (24 graines), pistes chronométrées testées (Vitest et e2e) ; une icône par élément, affichée partout (captures lues) ; cibles nu et maxé tenues, 9 personnages à ± 3 min ; ≤ 40 appels, ≤ 150 k (pixel) et ≤ 250 k (net) à 400 ennemis ; bench OK ; test de Jimmy.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

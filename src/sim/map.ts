@@ -3,7 +3,7 @@
 // différents laissent toujours MAP.pass u de passage, et chaque ouvrage a des brèches. Exécuté une fois à la création
 // du monde : les allocations y sont permises (rien ici ne tourne pendant un run).
 import { DECOR, ELITE, ENEMIES, FLOW, MAP, PLAY_LIMIT, TERRAIN, TREE_CELL, WORLD_HALF, ZONES } from './balance';
-import { unevenness } from './terrain';
+import { nearRide, unevenness } from './terrain';
 
 /** Plus gros rayon d'un marcheur (élite comprise, boss exclus) : marge de la grille `near` hors de laquelle la collision est sautée. */
 const ENEMY_MAX_R = Math.max(...ENEMIES.filter((d) => !d.boss).map((d) => d.r)) * ELITE.rMul;
@@ -274,6 +274,7 @@ function scatter(w: World, r: Rng, n: number, sMin: number, sMax: number, baseR:
       if (Math.abs(x) > edge || Math.abs(z) > edge) continue;
       if (x * x + z * z < MAP.start * MAP.start) continue;
       if (inDisk(w.lakes, x, z, rad) || inDisk(w.places, x, z, 0)) continue;
+      if (nearRide(w, x, z, rad + 1)) continue; // phase 28 : pistes et tremplins dégagés (on y glisse)
       if (clearance(w, x, z) - rad < MAP.pass) continue;
       addCircle(w, x, z, rad);
       break;
@@ -305,7 +306,7 @@ export function buildMap(w: World, r: Rng): void {
       for (let t = 0; t < MAP.flatTries && !flat; t++) {
         cx = o + (i + 0.5) * MAP.sector + r.range(-MAP.jitter, MAP.jitter);
         cz = o + (j + 0.5) * MAP.sector + r.range(-MAP.jitter, MAP.jitter);
-        flat = unevenness(w, cx, cz, MAP.footprint * TERRAIN.placeR) < MAP.flatMax;
+        flat = unevenness(w, cx, cz, MAP.footprint * TERRAIN.placeR) < MAP.flatMax && !nearRide(w, cx, cz, MAP.footprint + 6);
         for (let q = 0; q < w.places.length && flat; q++) {
           const p = w.places[q],
             gap = ext + placeExt[q] + MAP.pass + 0.5;

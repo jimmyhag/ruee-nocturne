@@ -1,7 +1,7 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BOON, BOON_KEYS, ITEM, It, MAPCHEST, SHRINE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BOON, BOON_KEYS, ITEM, It, MAPCHEST, RACE, SHRINE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card } from './types';
@@ -20,6 +20,17 @@ export interface Shrine {
   z: number;
   used: boolean;
   charge: number; // s (pleine à SHRINE.charge)
+}
+
+/** Piste chronométrée (phase 28) : arche de départ (en haut d'une grande piste) et d'arrivée (au pied). */
+export interface Race {
+  sx: number;
+  sz: number;
+  fx: number;
+  fz: number;
+  time: number; // s allouées
+  state: number; // 0 prête, 1 en cours, 2 gagnée, 3 à réarmer (après un échec, s'éloigner du départ)
+  t: number; // s restantes (en cours)
 }
 
 /** Une case est libre pour un point d'intérêt : pas d'obstacle dans `pad` u, pas dans un lac, dans la carte. */
@@ -44,6 +55,13 @@ const spaced = (list: { x: number; z: number }[], x: number, z: number, d: numbe
 /** Place coffres de carte et sanctuaires (après le relief : on préfère les sommets). */
 export function buildPOI(w: World, r: Rng): void {
   const all: { x: number; z: number }[] = [];
+  // phase 28 : une piste chronométrée par grande piste (départ un peu en aval du sommet, arrivée au pied)
+  for (const p of w.pistes) {
+    const L = Math.hypot(p.x1 - p.x0, p.z1 - p.z0),
+      ux = (p.x1 - p.x0) / L,
+      uz = (p.z1 - p.z0) / L;
+    w.races.push({ sx: p.x0 + ux * RACE.startDown, sz: p.z0 + uz * RACE.startDown, fx: p.x1, fz: p.z1, time: L / RACE.refSpeed, state: 0, t: 0 });
+  }
   const chestAt = (x: number, z: number, pad: number): boolean => {
     if (w.mapChests.length >= MAPCHEST.count) return false;
     if (x * x + z * z < MAPCHEST.fromStart ** 2 || !free(w, x, z, pad) || !spaced(all, x, z, MAPCHEST.spacing)) return false;
@@ -121,6 +139,7 @@ export function canOpenMapChest(w: World): boolean {
 /** Coffres de carte et sanctuaires, à chaque pas de jeu (Mode.Play). ≈ 30 tests de distance, aucune allocation. */
 export function tickPOI(w: World, dt: number): void {
   const P = w.player;
+  tickRaces(w, dt);
   const onGround = P.onGround;
   const cr2 = MAPCHEST.r * MAPCHEST.r;
   for (let i = 0; i < w.mapChests.length; i++) {
@@ -199,4 +218,37 @@ export function applyBoon(w: World, key: BoonKey): void {
   }
   w.boons[BOON_KEYS.indexOf(key)]++;
   refreshStats(w);
+}
+
+/** Pistes chronométrées (phase 28) : une seule en cours à la fois ; gagnée une fois, ratée on peut réessayer. */
+function tickRaces(w: World, dt: number): void {
+  const P = w.player,
+    r2 = RACE.r * RACE.r;
+  let running = false;
+  for (let i = 0; i < w.races.length; i++) if (w.races[i].state === 1) running = true;
+  for (let i = 0; i < w.races.length; i++) {
+    const c = w.races[i];
+    const ds = (c.sx - P.x) ** 2 + (c.sz - P.z) ** 2;
+    if (c.state === 3 && ds > RACE.rearm * RACE.rearm) c.state = 0;
+    if (c.state === 0 && !running && ds < r2) {
+      c.state = 1;
+      c.t = c.time;
+      running = true;
+      w.emit(Ev.RaceStart, c.sx, 0, c.sz, c.time, c.fx, 0, c.fz);
+    } else if (c.state === 1) {
+      c.t -= dt;
+      if ((c.fx - P.x) ** 2 + (c.fz - P.z) ** 2 < r2) {
+        c.state = 2;
+        running = false;
+        if (canGainItem(w)) w.itemPicks++;
+        else w.boonPicks++;
+        w.racesWon++;
+        w.emit(Ev.RaceWin, c.fx, 0.5, c.fz, c.time - c.t);
+      } else if (c.t <= 0) {
+        c.state = 3;
+        running = false;
+        w.emit(Ev.RaceFail, P.x, 0, P.z);
+      }
+    }
+  }
 }

@@ -9,6 +9,8 @@ import type { World } from './world';
 
 /** Nombre de nœuds par côté de la grille de hauteurs. */
 export const TERRAIN_N = Math.round((2 * WORLD_HALF) / TERRAIN.cell) + 1;
+/** Plus haut sol possible (sommet de montagne des pistes) : portée des fondus et des creusements. */
+const TOP = Math.max(TERRAIN.peak, TERRAIN.mountain[1]);
 
 /** Plateau posé (lu par la génération des points d'intérêt : sommets, pieds de rampes). */
 export interface Plateau {
@@ -31,6 +33,82 @@ export interface Ramp {
 }
 
 const pick = (r: Rng, [a, b]: number[]): number => r.range(a, b);
+
+/** Grande piste (phase 28) : de (x0, z0) en haut (hauteur top) à (x1, z1) en bas, tremplin au bout. */
+export interface Piste {
+  x0: number;
+  z0: number;
+  x1: number;
+  z1: number;
+  top: number;
+  half: number;
+}
+/** Tremplin (phase 28) : pied en (x, z), monte dans la direction (dx, dz). */
+export interface Kicker {
+  x: number;
+  z: number;
+  dx: number;
+  dz: number;
+}
+
+/** Distance du point au segment (construction seulement). */
+function segD(x: number, z: number, ax: number, az: number, bx: number, bz: number): number {
+  const ux = bx - ax,
+    uz = bz - az,
+    l2 = ux * ux + uz * uz;
+  let t = l2 > 1e-9 ? ((x - ax) * ux + (z - az) * uz) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(x - (ax + ux * t), z - (az + uz * t));
+}
+/** Vrai si (x, z) est à moins de `pad` u d'une grande piste (couloir compris) ou d'un tremplin. */
+export function nearRide(w: World, x: number, z: number, pad: number): boolean {
+  for (const p of w.pistes) if (segD(x, z, p.x0, p.z0, p.x1, p.z1) < p.half + pad) return true;
+  for (const k of w.kickers) if (Math.hypot(x - k.x, z - k.z) < TERRAIN.kickReach + pad) return true;
+  return false;
+}
+
+/** Piste : plan incliné du sommet au pied, bosses régulières, flancs plans ; tremplin au pied. */
+function addPiste(H: Float32Array, p: Piste): void {
+  const T = TERRAIN,
+    L = Math.hypot(p.x1 - p.x0, p.z1 - p.z0),
+    ux = (p.x1 - p.x0) / L,
+    uz = (p.z1 - p.z0) / L,
+    reach = p.half + p.top / T.bank + 2;
+  raise(H, Math.min(p.x0, p.x1) - reach, Math.max(p.x0, p.x1) + reach, Math.min(p.z0, p.z1) - reach, Math.max(p.z0, p.z1) + reach, (x, z) => {
+    const dx = x - p.x0,
+      dz = z - p.z0;
+    const t = dx * ux + dz * uz,
+      lat = Math.abs(-dx * uz + dz * ux);
+    let h: number;
+    if (t < 0) h = p.top + T.bank * t;
+    else if (t > L) h = -T.bank * (t - L);
+    else {
+      h = p.top * (1 - t / L);
+      // bosses : tous les bumpEvery u, entre 15 % et 85 % de la descente
+      const k = Math.round(t / T.bumpEvery),
+        tb = k * T.bumpEvery;
+      if (tb > L * 0.15 && tb < L * 0.85) h += T.bumpH * Math.max(0, 1 - Math.abs(t - tb) / T.bumpLen);
+    }
+    return h - T.bank * Math.max(0, lat - p.half);
+  });
+}
+
+/** Tremplin : montée raide de kickLen u jusqu'à kickH, puis chute au flanc maximal (on décolle en glissade). */
+function addKicker(H: Float32Array, k: Kicker): void {
+  const T = TERRAIN,
+    reach = T.kickLen + T.kickH / T.bank + T.kickHalf + 4;
+  raise(H, k.x - reach, k.x + reach, k.z - reach, k.z + reach, (x, z) => {
+    const dx = x - k.x,
+      dz = z - k.z;
+    const t = dx * k.dx + dz * k.dz,
+      lat = Math.abs(-dx * k.dz + dz * k.dx);
+    let h: number;
+    if (t < 0) h = T.bank * t;
+    else if (t < T.kickLen) h = (T.kickH * t) / T.kickLen;
+    else h = T.kickH - T.maxSlope * 0.98 * (t - T.kickLen);
+    return h - T.bank * Math.max(0, lat - T.kickHalf);
+  });
+}
 
 /** Applique `f` (contribution de hauteur, ou NaN pour « rien ») aux nœuds de la boîte, en gardant le maximum. */
 function raise(H: Float32Array, x0: number, x1: number, z0: number, z1: number, f: (x: number, z: number) => number): void {
@@ -92,7 +170,7 @@ function addCombe(H: Float32Array, pts: number[], half: number, depth: number): 
       az = pts[k + 1],
       bx = pts[k + 2],
       bz = pts[k + 3];
-    const reach = half + (TERRAIN.peak + depth) / TERRAIN.bank;
+    const reach = half + (TOP + depth) / TERRAIN.bank;
     const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - reach + WORLD_HALF) / C)),
       i1 = Math.min(N - 1, Math.ceil((Math.max(ax, bx) + reach + WORLD_HALF) / C)),
       j0 = Math.max(0, Math.floor((Math.min(az, bz) - reach + WORLD_HALF) / C)),
@@ -117,7 +195,7 @@ function addCombe(H: Float32Array, pts: number[], half: number, depth: number): 
 function flatten(H: Float32Array, x: number, z: number, rad: number, level: number): void {
   const N = TERRAIN_N,
     C = TERRAIN.cell,
-    out = rad + (TERRAIN.peak + TERRAIN.lakeDepth + 4) / TERRAIN.bank;
+    out = rad + (TOP + TERRAIN.lakeDepth + 4) / TERRAIN.bank;
   const i0 = Math.max(0, Math.floor((x - out + WORLD_HALF) / C)),
     i1 = Math.min(N - 1, Math.ceil((x + out + WORLD_HALF) / C)),
     j0 = Math.max(0, Math.floor((z - out + WORLD_HALF) / C)),
@@ -138,6 +216,41 @@ export function buildTerrain(w: World, r: Rng): void {
   H.fill(0);
   const T = TERRAIN,
     lim = PLAY_LIMIT - 16;
+  // 0. grandes pistes (phase 28) : sommet, descente droite à bosses, tremplin au pied ; loin du départ et entre elles
+  for (let k = 0, tries = 0; k < T.pistes && tries < 300; tries++) {
+    const top = pick(r, T.mountain),
+      L = pick(r, T.pisteLen),
+      half = pick(r, T.pisteHalf),
+      mh = pick(r, T.mountainHalf),
+      th = r.range(0, Math.PI * 2),
+      ux = Math.cos(th),
+      uz = Math.sin(th);
+    const x0 = r.range(-lim + mh, lim - mh),
+      z0 = r.range(-lim + mh, lim - mh),
+      x1 = x0 + ux * L,
+      z1 = z0 + uz * L,
+      kx = x1 + ux * (T.kickLen + T.kickH / T.maxSlope + 2),
+      kz = z1 + uz * (T.kickLen + T.kickH / T.maxSlope + 2);
+    if (Math.abs(kx) > lim || Math.abs(kz) > lim) continue;
+    // ni la montagne ni la piste ni son tremplin près de la clairière de départ, d'un lac ou d'une autre piste
+    // la clairière et les lacs sont aplanis en cône (pente des flancs) : la piste s'en tient à sa hauteur / pente
+    const far = (x: number, z: number, pad: number, h: number) =>
+      Math.hypot(x, z) > T.startFlat + pad + h / T.bank &&
+      !w.lakes.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + pad + h / T.bank) &&
+      !nearRide(w, x, z, pad + h / T.bank);
+    let ok = far(x0 - ux * mh, z0 - uz * mh, mh, top) && far(kx, kz, 12, T.kickH);
+    for (let f = 0; f <= 1 && ok; f += 0.1) ok = far(x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, half + 4, top * (1 - f));
+    if (!ok) continue;
+    const p: Piste = { x0, z0, x1, z1, top, half };
+    w.pistes.push(p);
+    // sommet : plateau carré derrière le départ de la piste
+    addPlateau(H, { x: x0 - ux * mh, z: z0 - uz * mh, a: mh, b: mh, th, top });
+    addPiste(H, p);
+    const kick: Kicker = { x: x1 + ux * 2, z: z1 + uz * 2, dx: ux, dz: uz };
+    w.kickers.push(kick);
+    addKicker(H, kick);
+    k++;
+  }
   // 1. plateaux, chacun avec une ou deux rampes ; une terrasse sur certains (et sa rampe depuis le plateau)
   for (let k = 0, tries = 0; k < T.plateaus && tries < 400; tries++) {
     const a = r.range(T.plateauMin, T.plateauMax),
@@ -150,6 +263,7 @@ export function buildTerrain(w: World, r: Rng): void {
     if (Math.hypot(x, z) < T.startFlat + big * 0.8 + 6) continue; // la clairière (à plat) rogne le flanc voisin
     if (w.lakes.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + big + 6)) continue;
     if (w.plateaus.some((p) => Math.hypot(x - p.x, z - p.z) < Math.max(p.a, p.b) + big + 4)) continue;
+    if (nearRide(w, x, z, big + top / T.bank)) continue; // phase 28 : une piste reste entière
     const p: Plateau = { x, z, a, b, th, top };
     w.plateaus.push(p);
     addPlateau(H, p);
@@ -173,6 +287,10 @@ export function buildTerrain(w: World, r: Rng): void {
         wz = nx * s + nz * c,
         L = pick(r, T.rampLen) * (top / 4);
       const m: Ramp = { x0: ex - wx * 1.5, z0: ez - wz * 1.5, x1: ex + wx * L, z1: ez + wz * L, h0: top, h1: 0, half: pick(r, T.rampHalf) };
+      // phase 28 : une rampe ne mord ni une grande piste ni un tremplin
+      let free = true;
+      for (let f = 0; f <= 1 && free; f += 0.125) if (nearRide(w, m.x0 + (m.x1 - m.x0) * f, m.z0 + (m.z1 - m.z0) * f, m.half + 4)) free = false;
+      if (!free) continue;
       w.ramps.push(m);
       addRamp(H, m);
     }
@@ -198,6 +316,36 @@ export function buildTerrain(w: World, r: Rng): void {
     }
     k++;
   }
+  // 1 bis. tremplins au pied des rampes (phase 28) : on y arrive lancé ; depuis le plat, la glisse cale avant le haut
+  const feet = w.ramps.filter((m) => m.h1 === 0);
+  for (let i = feet.length - 1; i > 0; i--) {
+    const k = Math.floor(r.next() * (i + 1));
+    [feet[i], feet[k]] = [feet[k], feet[i]];
+  }
+  let placedKick = 0;
+  for (const m of feet) {
+    if (placedKick >= T.kickers) break;
+    const L = Math.hypot(m.x1 - m.x0, m.z1 - m.z0),
+      dx = (m.x1 - m.x0) / L,
+      dz = (m.z1 - m.z0) / L,
+      x = m.x1 + dx * 3,
+      z = m.z1 + dz * 3,
+      tx = x + dx * T.kickRun,
+      tz = z + dz * T.kickRun;
+    if (Math.abs(tx) > lim || Math.abs(tz) > lim || Math.hypot(x, z) < T.startFlat + 16) continue;
+    if (nearRide(w, x, z, 8) || nearRide(w, tx, tz, 8)) continue;
+    if (w.lakes.some((l) => Math.hypot(tx - l.x, tz - l.z) < l.r + 10 || Math.hypot(x - l.x, z - l.z) < l.r + 10)) continue;
+    // emprise du tremplin sur un sol à peu près plat (un flanc voisin l'avalerait)
+    let flatHere = true;
+    for (let f = 0; f <= T.kickRun && flatHere; f += 2)
+      for (let l = -T.kickHalf; l <= T.kickHalf && flatHere; l += T.kickHalf)
+        if (Math.abs(w.heightAt(x + dx * f - dz * l, z + dz * f + dx * l)) > T.kickFlat) flatHere = false;
+    if (!flatHere) continue;
+    const kick: Kicker = { x, z, dx, dz };
+    w.kickers.push(kick);
+    addKicker(H, kick);
+    placedKick++;
+  }
   // 2. combes : lignes brisées (deux segments) loin du départ
   for (let k = 0, tries = 0; k < T.combes && tries < 200; tries++) {
     const x = r.range(-lim, lim),
@@ -215,6 +363,8 @@ export function buildTerrain(w: World, r: Rng): void {
     for (let q = 0; q + 3 < pts.length && ok; q += 2)
       for (let t = 0; t <= 1; t += 2 / Math.max(l1, l2))
         if (Math.hypot(pts[q] + (pts[q + 2] - pts[q]) * t, pts[q + 1] + (pts[q + 3] - pts[q + 1]) * t) < T.startFlat + 16) ok = false;
+    for (let q = 0; q + 3 < pts.length && ok; q += 2)
+      for (let t = 0; t <= 1; t += 0.1) if (nearRide(w, pts[q] + (pts[q + 2] - pts[q]) * t, pts[q + 1] + (pts[q + 3] - pts[q + 1]) * t, (TOP + 2.6) / T.bank)) ok = false; // les flancs d'une combe ne mordent pas une piste
     if (!ok) continue;
     const half = pick(r, T.combeHalf);
     w.combes.push({ pts, half });

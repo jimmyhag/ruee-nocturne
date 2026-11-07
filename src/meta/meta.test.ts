@@ -106,8 +106,8 @@ describe('sauvegarde', () => {
 });
 
 describe('succès', () => {
-  it('14 succès, identifiants uniques, « survie3 » débloque le défi du jour au premier run de 3 min', () => {
-    expect(ACHIEVEMENTS.length).toBe(14);
+  it('17 succès (phase 28), identifiants uniques, « survie3 » débloque le défi du jour au premier run de 3 min', () => {
+    expect(ACHIEVEMENTS.length).toBe(17);
     expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(ACHIEVEMENTS.length);
     const m = fresh();
     expect(dailyUnlocked(m)).toBe(false);
@@ -288,5 +288,27 @@ describe('emplacements (phase 10)', () => {
     });
     const back = importMeta(exportMeta(m))!;
     expect(back.slots.weapons).toBe(2);
+  });
+});
+
+describe('phase 28 : succès de glisse et d’exploration', () => {
+  it('glisser, vriller et ouvrir des coffres débloque la Faux, la Lance et les Météores', () => {
+    const m = normalizeMeta(DEFAULT_META);
+    expect(unlockedWeapons(m)).not.toContain('faux');
+    m.stats.slideDist = 1000;
+    m.stats.tricksBest = 5;
+    m.stats.mapChests = 50;
+    checkAchievements(m);
+    expect(unlockedWeapons(m)).toEqual(expect.arrayContaining(['faux', 'lance', 'meteores']));
+  });
+  it('une sauvegarde d’avant la phase 28 garde ses compteurs et part de 0 pour les nouveaux', () => {
+    const old = JSON.parse(JSON.stringify(DEFAULT_META));
+    delete old.stats.slideDist;
+    delete old.stats.tricksBest;
+    delete old.stats.mapChests;
+    old.stats.kills = 321;
+    const m = normalizeMeta(old);
+    expect(m.stats.kills).toBe(321);
+    expect([m.stats.slideDist, m.stats.tricksBest, m.stats.mapChests]).toEqual([0, 0, 0]);
   });
 });

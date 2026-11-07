@@ -24,10 +24,10 @@ const god = (w: World) => {
 };
 
 describe('objets passifs', () => {
-  it('quatorze objets (phase 22 : Rune, Collier), chacun avec une rareté', () => {
-    expect(ITEM_KEYS.length).toBe(14);
-    expect(new Set(ITEM_KEYS).size).toBe(14);
-    expect(ITEM_RARITY.length).toBe(14);
+  it('vingt objets (phase 22 : Rune, Collier ; phase 28 : six de plus), chacun avec une rareté', () => {
+    expect(ITEM_KEYS.length).toBe(20);
+    expect(new Set(ITEM_KEYS).size).toBe(20);
+    expect(ITEM_RARITY.length).toBe(20);
   });
   it('les effets immédiats modifient le joueur une seule fois (un objet est unique)', () => {
     const w = new World(1);
@@ -237,9 +237,9 @@ describe('marchand', () => {
 });
 
 describe('synergies', () => {
-  it('huit synergies, paires tome + arme uniques', () => {
-    expect(SYNERGIES.length).toBe(8);
-    expect(new Set(SYNERGIES.map((s) => s.tome + s.weapon)).size).toBe(8);
+  it('onze synergies (phase 28), paires tome + arme uniques', () => {
+    expect(SYNERGIES.length).toBe(11);
+    expect(new Set(SYNERGIES.map((s) => s.tome + s.weapon)).size).toBe(11);
   });
   it('s’active à SYN.tome cartes du tome avec l’arme équipée, une seule fois, et modifie l’arme', () => {
     const w = new World(20);
@@ -320,5 +320,83 @@ describe('déterminisme (phase 17)', () => {
     expect([...a.itemOrder]).toEqual([...b.itemOrder]);
     expect(a.rng.state()).toBe(b.rng.state());
     expect(a.itemOrder.length).toBeGreaterThanOrEqual(CHEST.bossPicks);
+  });
+});
+
+describe('objets de la phase 28', () => {
+  const arena = () => {
+    const w = new World(91);
+    w.weapons = {};
+    w.enemyCount = 0;
+    w.nextWave = 1e9;
+    w.player.need = 1e9;
+    return w;
+  };
+  it('Patins de braise : une glissade rapide brûle les ennemis traversés, pas la marche', () => {
+    const run = (slide: boolean) => {
+      const w = arena();
+      gainItem(w, It.Patins);
+      w.player.maxHp = w.player.hp = 1e9;
+      const i = spawnEnemy(w, 0, 0, 10);
+      const e = w.enemies[i];
+      e.x = e.px = 3;
+      e.z = e.pz = 0;
+      e.hp = e.max = 1e6;
+      e.spd = 0;
+      let patins = 0;
+      for (let f = 0; f < 60; f++) {
+        step(w, { ...still, mx: 1, slide: slide && f === 2 }, STEP);
+        for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit && ((w.events[k].x2 | 0) & 15) === HitSrc.Patins) patins++;
+      }
+      return patins;
+    };
+    expect(run(true)).toBeGreaterThanOrEqual(1);
+    expect(run(false)).toBe(0);
+  });
+  it('Bouclier : le premier coup est annulé, le suivant dans les 20 s ne l’est pas', () => {
+    const w = arena();
+    gainItem(w, It.Bouclier);
+    const hp0 = w.player.hp;
+    const i = spawnEnemy(w, 0, 0, 10);
+    const e = w.enemies[i];
+    e.x = e.px = 0.2;
+    e.z = e.pz = 0;
+    e.hp = e.max = 1e6;
+    let blocks = 0,
+      hurts = 0;
+    step(w, still, STEP);
+    for (let k = 0; k < w.eventCount; k++) {
+      if (w.events[k].type === Ev.ShieldBlock) blocks++;
+      if (w.events[k].type === Ev.PlayerHurt) hurts++;
+    }
+    expect(blocks).toBe(1);
+    expect(hurts).toBe(0); // un coup annulé ne blesse pas : ni retour de blessure, ni « Intouchable » brisé
+    expect(w.hurtAt).toBe(0);
+    expect(w.player.hp).toBe(hp0);
+    for (let f = 0; f < 60; f++) step(w, still, STEP);
+    expect(w.player.hp).toBeLessThan(hp0);
+  });
+  it('Corne de guerre : une onde repousse et étourdit les ennemis proches', () => {
+    const w = arena();
+    gainItem(w, It.Corne);
+    w.player.maxHp = w.player.hp = 1e9;
+    const i = spawnEnemy(w, 0, 0, 10);
+    const e = w.enemies[i];
+    e.x = e.px = 3;
+    e.z = e.pz = 0;
+    let horns = 0;
+    step(w, still, STEP);
+    for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Horn) horns++;
+    expect(horns).toBe(1);
+    expect(e.stun).toBeGreaterThan(0);
+    expect(e.kx).toBeGreaterThan(0);
+  });
+  it('Boussole : la découverte porte plus loin', () => {
+    const a = arena(),
+      b = arena();
+    gainItem(b, It.Boussole);
+    step(a, still, STEP);
+    step(b, still, STEP);
+    expect(b.seenCount).toBeGreaterThan(a.seenCount * 2.5);
   });
 });

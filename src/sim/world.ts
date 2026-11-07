@@ -1,8 +1,9 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
-import type { Plateau, Ramp } from './terrain';
+import type { Kicker, Piste, Plateau, Ramp } from './terrain';
+import type { Race } from './poi';
 import { buildPOI } from './poi';
 import type { MapChest, Shrine } from './poi';
 import { makeMerchant } from './merchant';
@@ -96,7 +97,26 @@ export class World {
   maxWeapons = MAX_WEAPONS;
   maxTomes = MAX_PASSIVES;
   bladeRangeMul = 1; // Bûcheron : lames à portée +20 %
-  wstate = { orbeT: 0.4, auraT: 0, auraPulse: 0, foudreT: 1.5, bladeA: 0, boomT: 0.8, mineT: 0, mineDist: 0, fireDist: 0 };
+  wstate = {
+    orbeT: 0.4,
+    auraT: 0,
+    auraPulse: 0,
+    foudreT: 1.5,
+    bladeA: 0,
+    boomT: 0.8,
+    mineT: 0,
+    mineDist: 0,
+    fireDist: 0,
+    // phase 28
+    fauxT: 0.5,
+    lanceT: 1,
+    lanceSalvo: 0, // numéro de la dernière salve de lances
+    metT: 1.5,
+    metN: 0, // météores annoncés en attente d'impact
+    metX: new Float64Array(METEOR.max),
+    metZ: new Float64Array(METEOR.max),
+    metLeft: new Float64Array(METEOR.max),
+  };
   trait: Trait = Trait.None; // passif signature du personnage (phase 6)
   spell: Spell = Spell.Bond; // sort de classe (phase 19)
   // état des sorts qui durent (phase 19) : centre du Collet, impulsions, salve du Bond en attente, lancers et kills (CLI)
@@ -128,6 +148,10 @@ export class World {
   plateaus: Plateau[] = [];
   ramps: Ramp[] = [];
   combes: { pts: number[]; half: number }[] = [];
+  /** Phase 28 : grandes pistes, tremplins, pistes chronométrées. */
+  pistes: Piste[] = [];
+  kickers: Kicker[] = [];
+  races: Race[] = [];
   readonly obstacleGrid = new Map<number, number[]>();
   readonly wallGrid = new Map<number, number[]>();
   /** Relief (phase 18) : hauteurs du sol sur une grille de TERRAIN.cell u (src/sim/terrain.ts). */
@@ -153,6 +177,11 @@ export class World {
   readonly mapChests: MapChest[] = [];
   readonly shrines: Shrine[] = [];
   mapChestsOpened = 0;
+  racesWon = 0; // phase 28 : pistes chronométrées réussies
+  slideDist = 0; // phase 28 : u glissés dans la partie
+  tricks = 0; // phase 28 : vrilles réussies dans la partie
+  shieldT = 0; // phase 28 : Bouclier, s avant d'être prêt (0 : prêt)
+  hornT = 0; // phase 28 : Corne de guerre, s avant la prochaine onde
   shrinesUsed = 0;
   boonPicks = 0; // choix de bonus de sanctuaire en attente
   readonly boons = new Uint8Array(BOON_KEYS.length); // bonus pris (CLI, HUD)
@@ -455,7 +484,7 @@ export function discover(w: World, dt: number): void {
   if (w.seenT > 0) return;
   w.seenT = DISCOVER.period;
   const C = DISCOVER.cell,
-    R = DISCOVER.radius,
+    R = DISCOVER.radius * (w.items[It.Boussole] ? ITEM.boussole.radiusMul : 1), // phase 28 : Boussole
     P = w.player;
   const i0 = Math.max(0, Math.floor((P.x - R + WORLD_HALF) / C)),
     i1 = Math.min(SEEN_N - 1, Math.floor((P.x + R + WORLD_HALF) / C)),
@@ -616,6 +645,9 @@ function makeEnemy(): Enemy {
     flash: 0,
     lastBlade: -9,
     lastBoom: -9,
+    lastLance: -9,
+    lanceBits: 0,
+    lastPatins: -9,
     spd: 1,
     dmgMul: 1,
     bob: 0,

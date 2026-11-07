@@ -21,6 +21,10 @@ export interface MetaStats {
   noHitBest: number; // s sans dégât
   distanceBest: number; // u parcourus
   weaponLvBest: number; // meilleur niveau d'arme (améliorations) en un run (phase 12)
+  // phase 28 : glisse, figures, exploration (succès qui débloquent la Faux, la Lance, les Météores)
+  slideDist: number; // u glissés, cumulés
+  tricksBest: number; // vrilles réussies en un run (meilleur)
+  mapChests: number; // coffres de carte ouverts, cumulés
 }
 export interface MetaSettings {
   vibrate: boolean;
@@ -79,6 +83,9 @@ export const DEFAULT_META: Meta = {
     noHitBest: 0,
     distanceBest: 0,
     weaponLvBest: 0,
+    slideDist: 0,
+    tricksBest: 0,
+    mapChests: 0,
   },
   achievements: [],
   bought: [],
@@ -195,6 +202,9 @@ export function normalizeMeta(raw: unknown): Meta {
       noHitBest: Math.max(0, num(st.noHitBest)),
       distanceBest: Math.max(0, num(st.distanceBest)),
       weaponLvBest: Math.max(0, num(st.weaponLvBest) | 0),
+      slideDist: Math.max(0, num(st.slideDist)),
+      tricksBest: Math.max(0, num(st.tricksBest) | 0),
+      mapChests: Math.max(0, num(st.mapChests) | 0),
     },
     achievements: Array.isArray(r.achievements)
       ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
