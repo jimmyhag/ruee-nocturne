@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.21.4 — 7 nov. 2026 (correctif)
+
+### Corrigé
+
+- **Morts-vivants en lévitation** : les ennemis 3D gardaient la hauteur des anciennes silhouettes (centrées, donc posées en l'air) : de 0,5 m pour les petits à plus de 2 m pour le Gardien. Ils marchent maintenant pieds au sol, sans le petit saut des silhouettes ; seul le Volant (le crâne) reste en vol. Le sol du modèle est le point le plus bas de sa marche, pour qu'aucun pas ne s'enfonce. Test e2e : pieds à hauteur du sol pour le Spectre, la Brute, le Gardien et l'Archer, Volant en l'air.
+
 ## 1.21.3 — 7 nov. 2026 (correctif)
 
 ### Corrigé

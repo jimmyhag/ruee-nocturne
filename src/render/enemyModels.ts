@@ -199,8 +199,12 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
   mixer.stopAllAction();
   mixer.uncacheRoot(holder);
 
-  // pieds au sol, centré en x/z sur la première pose, hauteur visée ; regard vers +z comme les modèles procéduraux
+  // pieds au sol, centré en x/z sur la première pose, hauteur visée ; regard vers +z comme les modèles procéduraux.
+  // Sol = point le plus bas de toute la boucle de marche : aucune pose ne s'enfonce (1.21.4)
   const f0 = frames[0].pos;
+  let floor = Infinity;
+  for (let f = 0; f < look.clips[0][1]; f++)
+    for (let i = 0; i < nv; i++) floor = Math.min(floor, frames[f].pos[i * 3 + 1]);
   let minY = Infinity,
     maxY = -Infinity,
     minX = Infinity,
@@ -221,7 +225,7 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
   for (const f of frames)
     for (let i = 0; i < nv; i++) {
       f.pos[i * 3] = (f.pos[i * 3] - cx) * k;
-      f.pos[i * 3 + 1] = (f.pos[i * 3 + 1] - minY) * k;
+      f.pos[i * 3 + 1] = (f.pos[i * 3 + 1] - floor) * k;
       f.pos[i * 3 + 2] = (f.pos[i * 3 + 2] - cz) * k;
     }
 

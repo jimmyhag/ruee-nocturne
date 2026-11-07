@@ -123,3 +123,33 @@ test('cache périmé : un ancien enemies.glb est retéléchargé hors cache et l
   expect(urls[1]).toMatch(/enemies\.glb\?v=\d{4,}&r=\d+$/);
   expect(await page.evaluate(() => (window as any).__game.scene.enemyKind)).toBe('gltf');
 });
+
+test('les morts-vivants marchent au sol, le Volant reste en l’air (1.21.4)', async ({ page }) => {
+  test.setTimeout(60_000);
+  await openGame(page);
+  await startRun(page, 0);
+  await page.waitForFunction(() => (window as any).__game.scene.enemyKind === 'gltf', null, { timeout: 20_000 });
+  await page.evaluate(() => (window as any).__game.debug.god());
+  // Spectre, Brute, Gardien (boss), Archer : pieds au sol ; Volant : en vol
+  const types = [0, 2, 3, 9, 4];
+  for (const t of types) await page.evaluate((t) => (window as any).__game.debug.spawn(t, 1, 6), t);
+  await page.waitForTimeout(500);
+  await page.evaluate(() => (window as any).__game.debug.speed(0));
+  await page.waitForTimeout(200);
+  const lift = await page.evaluate((types) => {
+    const sc = (window as any).__game.scene;
+    const m = new (sc.camera.matrix.constructor as any)();
+    const out: Record<number, number> = {};
+    for (const t of types) {
+      const mesh = sc.enemyW[t].mesh;
+      if (mesh.count < 1) continue;
+      mesh.getMatrixAt(0, m);
+      const e = m.elements;
+      // origine du modèle = pieds (sol de la boucle de marche) : hauteur au-dessus du sol local, sous l'instance
+      out[t] = e[13] - sc.gy(e[12], e[14]);
+    }
+    return out;
+  }, types);
+  for (const t of [0, 2, 3, 9]) expect(Math.abs(lift[t]), `type ${t}`).toBeLessThan(0.08);
+  expect(lift[4]).toBeGreaterThan(0.8);
+});

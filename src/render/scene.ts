@@ -1182,11 +1182,15 @@ export class GameScene {
       const ex = lerp(e.px, e.x, alpha),
         ez = lerp(e.pz, e.z, alpha);
       const boss = def.boss;
-      const hop = boss
-        ? 0
-        : Math.abs(Math.sin(now * 8 + e.bob)) *
-          (e.type === 1 ? 0.12 : 0.1) *
-          (e.type === VOLANT_TYPE ? 1 : this.enemyHop);
+      // modèles 3D (pieds à y = 0) : posés au sol, la marche animée remplace le hop ; e.y (hauteur de rendu des
+      // silhouettes procédurales, centrées) ne sert plus qu'au Volant, qui vole (1.21.4)
+      const grounded = !!this.enemyMorph[e.type] && e.type !== VOLANT_TYPE;
+      const hop =
+        boss || grounded
+          ? 0
+          : Math.abs(Math.sin(now * 8 + e.bob)) *
+            (e.type === 1 ? 0.12 : 0.1) *
+            (e.type === VOLANT_TYPE ? 1 : this.enemyHop);
       // phase 19 : un ennemi étourdi pâlit (jaune), un ennemi ralenti bleuit ; le flash blanc du coup passe avant
       const col =
         e.flash > 0
@@ -1200,7 +1204,7 @@ export class GameScene {
                 : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
       const eg = this.gy(ex, ez);
-      const ey = e.y + hop + eg;
+      const ey = (grounded ? 0 : e.y + hop) + eg;
       if (e.type === VOLANT_TYPE) {
         // ombre au sol : grossit pendant le télégraphe (0,6 s avant la plongée)
         const tele = e.state === 1 ? 1 + (1 - Math.max(0, e.timer / VOLANT.telegraph)) * 1.6 : 1;
