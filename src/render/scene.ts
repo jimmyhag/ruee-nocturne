@@ -105,6 +105,7 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (brouillard)
 const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
 const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
@@ -184,6 +185,10 @@ export class GameScene {
   private spinT = 0; // phase 27 : vrille en cours (s restantes)
   /** Phase 29 : animation de fond, fondus, inclinaison du corps (lus depuis la sim, sans allocation). */
   readonly motion = new MotionState();
+  /** Phase 29 : segments de la lisière ; n'est dessiné que ce qui est à portée de vue (le brouillard cache le reste). */
+  private borderMeshes: THREE.Mesh[] = [];
+  private borderX = 1e9;
+  private borderZ = 1e9;
   private motionIn = {
     onGround: true,
     sliding: false,
@@ -671,11 +676,14 @@ export class GameScene {
     }
     // phase 29 : lisière de forêt au bord de la carte (rochers, sapins, sous-bois), un mesh par segment de 40 u ;
     // même matériau que les ouvrages (libéré une fois, avec le premier mesh qui le porte)
+    this.borderMeshes.length = 0;
     for (const g of borderGeometry(w.seed, gy)) {
       const m = new THREE.Mesh(g, worksMat);
       this.scene.add(m);
       this.decorObjs.push(m);
+      this.borderMeshes.push(m);
     }
+    this.borderX = this.borderZ = 1e9;
     // lacs : disque bleu + anneau de rive qui scintille (animé dans render)
     for (const m of this.lakeMeshes) {
       this.scene.remove(m);
@@ -1144,6 +1152,19 @@ export class GameScene {
     this.particles.billboardRx = -Math.atan2(this.camPos.y - this.camLook.y, this.camPos.z - this.camLook.z);
 
     this.terrain.follow(px, pz); // phase 27 : la fenêtre de sol suit le joueur (recalée par pas de 16 u)
+    // phase 29 : segments de lisière au-delà de la vue écartés (le frustum seul en gardait 3 à 5 dans le brouillard)
+    if ((px - this.borderX) ** 2 + (pz - this.borderZ) ** 2 > 16) {
+      this.borderX = px;
+      this.borderZ = pz;
+      for (let i = 0; i < this.borderMeshes.length; i++) {
+        const m = this.borderMeshes[i],
+          bs = m.geometry.boundingSphere!;
+        const dx = bs.center.x - px,
+          dz = bs.center.z - pz,
+          r = bs.radius + BORDER_VIEW;
+        m.visible = dx * dx + dz * dz < r * r;
+      }
+    }
     // joueur
     this.player.position.set(px, py + gp, pz);
     const target = Math.atan2(P.dirX, P.dirZ);
