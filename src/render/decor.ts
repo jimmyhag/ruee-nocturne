@@ -8,11 +8,23 @@ import { softDiscTexture } from './textures';
 import { OUTLINE, OUTLINE_RGB } from './toon';
 import type { Prim } from './parts';
 import type { World } from '../sim/world';
+import { WORLD_HALF } from '../sim/balance';
+import { TILES } from './terrain';
 
 const TRUNK = 0x5a3d3a;
 const WOOD_CUT = 0xc9a77a; // tranche de tronc
 const STONE = 0x7d7894; // pierre des murets et menhirs, froide comme la nuit bleue
 const MOSS = 0x56806a;
+// phase 27 : lieux nouveaux (cimetière, campement, citrouilles)
+const FENCE = 0x6b5146;
+const FENCE_RAIL = 0x7d5f4f;
+const GRAVE = 0x8a879a;
+const DIRT = 0x4e3f3a;
+const BARREL = 0x7a5238;
+const HOOP = 0x3c3a44;
+const CRATE = 0x96714c;
+const CRATE_LIGHT = 0xa8835a;
+const PUMPKIN = 0xd9782e;
 const LEAF2 = 0x37604f; // feuillage un peu plus clair (feuillu)
 const build = (parts: (Prim & { color: number })[]) => merge(parts.map((p) => paintHex(primGeometry(p), p.color)));
 
@@ -143,10 +155,16 @@ export const MERCHANT_LANTERN = { x: 1.0, y: 1.75, z: 0.75 };
  * Ouvrages de la carte (phase 16) : murets, troncs couchés et menhirs cuits en UNE géométrie statique (un seul appel de
  * rendu pour toute la carte), chaque pièce avec son contour toon. Construit une fois, au chargement du décor.
  */
-export function worksGeometry(w: World, gy: (x: number, z: number) => number = () => 0): THREE.BufferGeometry | null {
-  const pieces: THREE.BufferGeometry[] = [];
-  const piece = (parts: (Prim & { color: number })[]) =>
-    pieces.push(withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB));
+export function worksGeometry(w: World, gy: (x: number, z: number) => number = () => 0): THREE.BufferGeometry[] {
+  // phase 27 : une géométrie par tuile de sol (TILES × TILES), rangement par le centre de la pièce : écartée hors champ
+  const T = TILES,
+    span = (2 * WORLD_HALF) / T;
+  const tiles: THREE.BufferGeometry[][] = Array.from({ length: T * T }, () => []);
+  const piece = (parts: (Prim & { color: number })[], cx = parts[0].pos[0], cz = parts[0].pos[2]) => {
+    const ti = Math.max(0, Math.min(T - 1, Math.floor((cx + WORLD_HALF) / span))),
+      tj = Math.max(0, Math.min(T - 1, Math.floor((cz + WORLD_HALF) / span)));
+    tiles[tj * T + ti].push(withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB));
+  };
   for (let i = 0; i < w.walls.length; i++) {
     const s = w.walls[i];
     const dx = s.x2 - s.x1,
@@ -176,7 +194,32 @@ export function worksGeometry(w: World, gy: (x: number, z: number) => number = (
           color: c,
         });
       }
-      piece(parts);
+      piece(parts, mx, mz);
+    } else if (s.kind === 2) {
+      // clôture (phase 27) : piquets tous les ≈ 1,6 u, deux lisses
+      const n = Math.max(2, Math.round(L / 1.6)),
+        parts: (Prim & { color: number })[] = [];
+      for (let b = 0; b <= n; b++) {
+        const t = b / n,
+          px = s.x1 + dx * t,
+          pz = s.z1 + dz * t;
+        parts.push({
+          shape: 'box',
+          size: [0.16, s.h, 0.16],
+          pos: [px, gy(px, pz) + s.h / 2, pz],
+          rot: [0, -th, 0],
+          color: FENCE,
+        });
+      }
+      for (const hy of [s.h * 0.4, s.h * 0.8])
+        parts.push({
+          shape: 'box',
+          size: [L, 0.09, 0.07],
+          pos: [mx, gy(mx, mz) + hy, mz],
+          rot: [0, -th, 0],
+          color: FENCE_RAIL,
+        });
+      piece(parts, mx, mz);
     } else {
       // tronc couché : écorce, deux tranches claires aux bouts
       const ux = dx / L,
@@ -210,7 +253,7 @@ export function worksGeometry(w: World, gy: (x: number, z: number) => number = (
     }
   }
   // menhirs : pierres dressées à six pans, effilées vers le haut, légèrement penchées, coiffées de mousse
-  for (let i = w.rockEnd; i < w.obstacles.length; i++) {
+  for (let i = w.rockEnd; i < w.stoneEnd; i++) {
     const o = w.obstacles[i];
     const k = i - w.rockEnd,
       h = 2.4 + ((k * 5) % 4) * 0.25,
@@ -229,7 +272,78 @@ export function worksGeometry(w: World, gy: (x: number, z: number) => number = (
       { shape: 'cone', size: [o.r * 0.64, 0.45], pos: [o.x, g + h - 0.02, o.z], rot: tilt, color: MOSS, seg: 6 },
     ]);
   }
-  return pieces.length ? merge(pieces) : null;
+  // objets des lieux (phase 27) : tombes et stèles, tonneaux et caisses
+  for (let i = w.stoneEnd; i < w.obstacles.length; i++) {
+    const o = w.obstacles[i],
+      k = w.propKinds[i - w.stoneEnd],
+      g = gy(o.x, o.z),
+      a = ((i * 2.399) % 1) * 0.5 - 0.25;
+    if (k === 0)
+      piece([
+        { shape: 'box', size: [0.9, 0.95, 0.24], pos: [o.x, g + 0.47, o.z], rot: [0, a, 0], color: GRAVE },
+        {
+          shape: 'cyl',
+          size: [0.45, 0.45, 0.24],
+          pos: [o.x, g + 0.95, o.z],
+          rot: [Math.PI / 2, a, 0],
+          color: GRAVE,
+          seg: 8,
+        },
+        {
+          shape: 'box',
+          size: [0.8, 0.08, 1.3],
+          pos: [o.x + Math.sin(a) * 0.7, g + 0.04, o.z + Math.cos(a) * 0.7],
+          rot: [0, a, 0],
+          color: DIRT,
+        },
+      ]);
+    else if (k === 1)
+      piece([
+        { shape: 'box', size: [0.26, 1.6, 0.26], pos: [o.x, g + 0.8, o.z], rot: [0, a, 0], color: GRAVE },
+        { shape: 'box', size: [1.0, 0.26, 0.26], pos: [o.x, g + 1.15, o.z], rot: [0, a, 0], color: GRAVE },
+      ]);
+    else if (k === 2)
+      piece([
+        { shape: 'cyl', size: [0.5, 0.58, 1.1], pos: [o.x, g + 0.55, o.z], rot: [0, a, 0], color: BARREL, seg: 10 },
+        { shape: 'cyl', size: [0.6, 0.6, 0.08], pos: [o.x, g + 0.3, o.z], rot: [0, 0, 0], color: HOOP, seg: 10 },
+        { shape: 'cyl', size: [0.6, 0.6, 0.08], pos: [o.x, g + 0.82, o.z], rot: [0, 0, 0], color: HOOP, seg: 10 },
+      ]);
+    else
+      piece([
+        { shape: 'box', size: [1.1, 0.9, 1.1], pos: [o.x, g + 0.45, o.z], rot: [0, a, 0], color: CRATE },
+        {
+          shape: 'box',
+          size: [0.7, 0.6, 0.7],
+          pos: [o.x + 0.15, g + 1.2, o.z - 0.1],
+          rot: [0, a + 0.5, 0],
+          color: CRATE_LIGHT,
+        },
+      ]);
+  }
+  // citrouilles (décor sans collision)
+  for (const p of w.decor) {
+    const g = gy(p.x, p.z),
+      r = 0.32 + ((p.ry * 7) % 1) * 0.14;
+    piece([
+      { shape: 'sphere', size: [r, r, r], pos: [p.x, g + r * 0.7, p.z], rot: [0, p.ry, 0], color: PUMPKIN, seg: 7 },
+      {
+        shape: 'cyl',
+        size: [0.05, 0.07, 0.22],
+        pos: [p.x, g + r * 1.45, p.z],
+        rot: [0.2, p.ry, 0],
+        color: MOSS,
+        seg: 5,
+      },
+    ]);
+  }
+  const out: THREE.BufferGeometry[] = [];
+  for (const list of tiles)
+    if (list.length) {
+      const g = merge(list);
+      g.computeBoundingSphere();
+      out.push(g);
+    }
+  return out;
 }
 
 /** Nombre de touffes et de lucioles (statique / par frame). */

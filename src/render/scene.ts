@@ -14,6 +14,7 @@ import {
   MERCHANT,
   REAPER_TYPE,
   SHRINE,
+  SLIDE,
   SPELL,
   STEP,
   SWARM_TYPE,
@@ -176,7 +177,11 @@ export class GameScene {
   // phase 18 : relief (sol déplacé, tout est posé au sol local)
   readonly terrain = new TerrainView();
   private gy = this.terrain.gy;
-  private groundMesh: THREE.Mesh | null = null;
+  private groundMesh: THREE.Group | null = null;
+  private spinT = 0; // phase 27 : vrille en cours (s restantes)
+  private slideDust = 0; // distance glissée depuis la dernière bouffée de poussière
+  /** Phase 27 : objets du décor de la carte courante (retirés et libérés quand une nouvelle carte est construite). */
+  private decorObjs: THREE.Object3D[] = [];
   private tRx = 0; // inclinaison du sol au dernier point demandé (tilt) : ombres et cercles collés à la pente
   private tRz = 0;
   private camGy = 0; // hauteur du sol suivie par la caméra (amortie)
@@ -473,8 +478,21 @@ export class GameScene {
   /** Décor statique généré depuis les obstacles et zones de la sim (même seed ⇒ même décor). */
   buildDecor(w: World): void {
     const d = new THREE.Object3D();
-    // sol en relief (phase 18) : un appel, ≈ 8 k triangles ; sa grille sert aussi à poser tout le reste
-    if (this.groundMesh) this.scene.remove(this.groundMesh);
+    // phase 27 : une carte par partie ; le décor de la précédente est retiré et libéré (le matériau du sol est partagé)
+    if (this.groundMesh) {
+      this.scene.remove(this.groundMesh);
+      for (const m of this.groundMesh.children) (m as THREE.Mesh).geometry.dispose();
+    }
+    for (const o of this.decorObjs) {
+      this.scene.remove(o);
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) for (const x of mat) x.dispose();
+      else mat?.dispose();
+    }
+    this.decorObjs.length = 0;
+    // sol en relief : tuiles à la résolution de la sim (phase 27), sa grille sert aussi à poser tout le reste
     this.groundMesh = this.terrain.build(w, this.groundMat);
     this.scene.add(this.groundMesh);
     const gy = this.gy;
@@ -496,7 +514,7 @@ export class GameScene {
     );
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
     // ombres des arbres et des menhirs (phase 9 : +1 appel ; phase 16 : les menhirs partagent le mesh)
-    const nStones = w.obstacles.length - w.rockEnd;
+    const nStones = w.stoneEnd - w.rockEnd;
     const treeShadows = makeInstanced(shadowGeometry(1), shadowMaterial(0.3), treeCap + nStones);
     const tint = new THREE.Color();
     let nf = 0,
@@ -612,12 +630,22 @@ export class GameScene {
       m.instanceMatrix.needsUpdate = true;
       m.instanceColor!.needsUpdate = true;
       this.scene.add(m);
+      this.decorObjs.push(m);
     }
-    // ouvrages (phase 16) : murets, troncs et menhirs en une seule géométrie statique, un appel de rendu
-    const works = worksGeometry(w, gy);
-    if (works) this.scene.add(new THREE.Mesh(works, vc()));
+    // ouvrages (phase 16) : murets, troncs, menhirs ; phase 27 : clôtures, tombes, tonneaux, caisses, citrouilles ; une
+    // géométrie statique par tuile de sol (écartée hors champ), un appel de rendu par tuile visible
+    const worksMat = vc();
+    for (const g of worksGeometry(w, gy)) {
+      const m = new THREE.Mesh(g, worksMat);
+      this.scene.add(m);
+      this.decorObjs.push(m);
+    }
     // lacs : disque bleu + anneau de rive qui scintille (animé dans render)
-    for (const m of this.lakeMeshes) this.scene.remove(m);
+    for (const m of this.lakeMeshes) {
+      this.scene.remove(m);
+      m.geometry.dispose();
+      (m.material as THREE.Material).dispose();
+    }
     this.lakeMeshes.length = 0;
     for (const l of w.lakes) {
       const water = new THREE.Mesh(new THREE.CircleGeometry(l.r, 40), flat(PAL.lake, 0.6));
@@ -1020,6 +1048,15 @@ export class GameScene {
     this.heroAnim?.trigger(HeroAnim.Jump, 1.6);
   }
 
+  /** Phase 27 : glissade lancée ou finie (l'animation de fond suit P.sliding ; ici, l'appui visuel). */
+  onSlide(on: boolean): void {
+    if (on) this.slideDust = 1.4; // première bouffée tout de suite
+  }
+  /** Phase 27 : vrille en l'air (rotation du héros pendant SLIDE.spinTime). */
+  onSpin(): void {
+    this.spinT = SLIDE.spinTime;
+  }
+
   /** Atterrissage du joueur : lance le ressort d'écrasement (valeurs neutres depuis la PR #6). */
   onLand(): void {
     this.landT = 0;
@@ -1071,8 +1108,27 @@ export class GameScene {
     let diff = target - this.face;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     this.face += diff * Math.min(1, dt * 18);
-    this.player.rotation.y = this.face;
-    const moving = P.vx * P.vx + P.vz * P.vz > 0.1;
+    // phase 27 : vrille (un tour complet pendant SLIDE.spinTime), poussière derrière la glissade, champ élargi en vitesse
+    let spinA = 0;
+    if (this.spinT > 0) {
+      this.spinT = Math.max(0, this.spinT - dt);
+      spinA = Math.PI * 2 * (1 - this.spinT / SLIDE.spinTime);
+    }
+    this.player.rotation.y = this.face + spinA;
+    const v2 = P.vx * P.vx + P.vz * P.vz;
+    if (P.sliding) {
+      this.slideDust += dt * Math.sqrt(v2);
+      if (this.slideDust > 1.4) {
+        this.slideDust = 0;
+        this.particles.burst(px - P.dirX * 0.4, 0.12, pz - P.dirZ * 0.4, PAL.dust, 2, 1.6, 1.2);
+      }
+    }
+    const fov = 50 + Math.min(6, Math.max(0, Math.sqrt(v2) - P.speed * 1.2) * 0.9);
+    if (Math.abs(fov - this.camera.fov) > 0.05) {
+      this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 4);
+      this.camera.updateProjectionMatrix();
+    }
+    const moving = v2 > 0.1;
     const M = this.model;
     const sw = moving && P.onGround ? Math.sin(P.walk) * 0.6 : 0;
     if (M.legL && M.legR) {
@@ -1092,7 +1148,13 @@ export class GameScene {
       if (this.hurtAnimT > 0) this.hurtAnimT -= dt;
       if (w.mode === Mode.Dead) A.trigger(HeroAnim.Death);
       const sp = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
-      const base = !P.onGround ? HeroAnim.Fall : moving && !M.float ? HeroAnim.Run : HeroAnim.Idle;
+      const base = P.sliding
+        ? HeroAnim.Slide
+        : !P.onGround
+          ? HeroAnim.Fall
+          : moving && !M.float
+            ? HeroAnim.Run
+            : HeroAnim.Idle;
       A.update(dt, base, Math.max(0.6, Math.min(1.8, sp / 6.2)));
     }
     M.torso.rotation.z = M.float ? Math.sin(now * 2.1) * 0.06 : 0;

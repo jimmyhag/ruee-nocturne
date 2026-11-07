@@ -429,6 +429,16 @@
         font-size: 26px;
         -webkit-text-stroke: 1px var(--ink);
       }
+      /* phase 27 : figures (vrille réussie, ratée) */
+      #dmg span.trick {
+        color: var(--accent);
+        font-size: 28px;
+        -webkit-text-stroke: 1px var(--ink);
+      }
+      #dmg span.trickfail {
+        color: var(--muted);
+        font-size: 18px;
+      }
       #banner {
         position: fixed;
         left: 0;
@@ -566,6 +576,19 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      /* phase 27 : glisse au doigt, verrouillée d'un appui (allumée tant que la glissade dure) */
+      #btnSlide {
+        width: 62px;
+        height: 62px;
+        padding: 0;
+        font-size: 11px;
+        color: var(--text);
+        background: var(--ink-3);
+      }
+      #btnSlide.on {
+        color: var(--ink);
+        background: var(--accent);
       }
       #btnJump {
         width: 84px;
@@ -1015,6 +1038,78 @@
         color: var(--accent);
       }
       /* repère du marchand : flèche vers l'échoppe et compte à rebours, sous le HUD du haut */
+      /* phase 27 : minicarte (nord en haut), un appui ouvre la grande carte */
+      #minimap {
+        position: absolute;
+        right: max(16px, env(safe-area-inset-right, 0px));
+        top: calc(env(safe-area-inset-top, 0px) + 62px);
+        width: 96px;
+        height: 96px;
+        border-radius: 14px;
+        border: 2px solid var(--ink-3);
+        box-shadow: 0 3px 0 var(--ink);
+        pointer-events: auto;
+        cursor: pointer;
+        opacity: 0.92;
+      }
+      @media (min-width: 900px) {
+        #minimap {
+          width: 140px;
+          height: 140px;
+        }
+      }
+      .mappanel {
+        align-items: center;
+      }
+      #bigmap {
+        width: min(84vw, 62vh);
+        height: min(84vw, 62vh);
+        border-radius: 14px;
+        border: 2px solid var(--ink-3);
+        display: block;
+        margin: 4px auto 10px;
+      }
+      .maplegend {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 14px;
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .maplegend > span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .lg {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .lg.you {
+        background: #f3ecdc;
+      }
+      .lg.chest {
+        background: #ffd45a;
+        border-radius: 2px;
+      }
+      .lg.shrine {
+        background: #7fd8ff;
+      }
+      .lg.merchant {
+        background: #ff9f43;
+      }
+      .lg.boss {
+        background: #ff4d5e;
+      }
+      .mapexplored {
+        margin: 8px 0 4px;
+        font-family: var(--f-display);
+        color: var(--paper);
+      }
       #merchantChip {
         position: absolute;
         left: 50%;
@@ -1635,6 +1730,14 @@
           <button id="pauseBtn" aria-label="Pause" data-i18n-attr="aria-label:hud.pause">II</button>
         </div>
       </div>
+      <canvas
+        id="minimap"
+        width="140"
+        height="140"
+        role="button"
+        aria-label="Ouvrir la carte"
+        data-i18n-attr="aria-label:map.open"
+      ></canvas>
       <div id="merchantChip" hidden>
         <span id="merchantArrow">▲</span><span data-i18n="merchant.chip">Marchand</span><span id="merchantDist"></span>
       </div>
@@ -1650,9 +1753,11 @@
     <div id="perf" hidden></div>
     <div class="keys" id="keys" hidden>
       <span><b data-i18n="keys.space">Espace</b><span data-i18n="keys.jump">Saut</span></span
+      ><span><b>C</b><span data-i18n="keys.slide">Glisse</span></span
       ><span
         ><b data-i18n="keys.shift">Maj</b><span id="spellKey" data-i18n="keys.spell">Sort</span><em id="spellSec"></em
         ><i id="spellbar"></i></span
+      ><span><b>M</b><span data-i18n="keys.map">Carte</span></span
       ><span><b>F3</b><span data-i18n="keys.perf">Perf</span></span>
     </div>
     <div id="dmg" aria-hidden="true"></div>
@@ -1665,7 +1770,9 @@
     <div id="touch" hidden>
       <div id="stick"><div id="knob"></div></div>
       <div class="tbtns">
-        <button id="btnSpell" aria-label="Sort de classe" data-i18n-attr="aria-label:touch.spellAria">
+        <button id="btnSlide" aria-label="Glisser" data-i18n="touch.slide" data-i18n-attr="aria-label:touch.slideAria">
+          GLISSE</button
+        ><button id="btnSpell" aria-label="Sort de classe" data-i18n-attr="aria-label:touch.spellAria">
           <b id="spellGlyph">✦</b><small id="spellName" data-i18n="touch.spell">SORT</small></button
         ><button id="btnJump" aria-label="Sauter" data-i18n="touch.jump" data-i18n-attr="aria-label:touch.jumpAria">
           SAUT
@@ -1885,10 +1992,27 @@
           ><button class="ghost" id="fxBtn">Effets : complets</button
           ><button class="ghost" id="qualityBtn">Rendu : auto</button
           ><button class="ghost" id="perfBtn">Perf : masquée</button
+          ><button class="ghost" id="pauseMapBtn" data-i18n="map.title">Carte</button
           ><button class="ghost" id="pauseSettingsBtn" data-i18n="pause.settings">Réglages</button
           ><button class="ghost" id="restartBtn" data-i18n="pause.restart">Recommencer</button
           ><button class="ghost" id="quitBtn" data-i18n="pause.menu">Menu</button>
         </div>
+      </div>
+    </section>
+
+    <section id="map" class="screen" hidden>
+      <div class="panel mappanel">
+        <h2 class="h2" data-i18n="map.title">Carte</h2>
+        <canvas id="bigmap" width="680" height="680"></canvas>
+        <p class="maplegend">
+          <span><i class="lg you"></i><span data-i18n="map.legend.you">Toi</span></span
+          ><span><i class="lg chest"></i><span data-i18n="map.legend.chest">Coffre</span></span
+          ><span><i class="lg shrine"></i><span data-i18n="map.legend.shrine">Sanctuaire</span></span
+          ><span><i class="lg merchant"></i><span data-i18n="map.legend.merchant">Marchand</span></span
+          ><span><i class="lg boss"></i><span data-i18n="map.legend.boss">Boss</span></span>
+        </p>
+        <p class="mapexplored" id="mapExplored"></p>
+        <div class="btnrow"><button class="big" id="mapClose" data-i18n="map.close">Fermer</button></div>
       </div>
     </section>
 

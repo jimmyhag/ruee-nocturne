@@ -63,6 +63,7 @@ export const enum HeroAnim {
   SpellThrow,
   SpellLong,
   SpellRaise,
+  Slide, // phase 27 : glissade (fond, en boucle)
 }
 /** Clips produits par tools/assets/config.ts (HERO_CLIPS), dans l'ordre de HeroAnim. */
 export const CLIP_NAMES = [
@@ -80,6 +81,7 @@ export const CLIP_NAMES = [
   'Throw',
   'Long',
   'Raise',
+  'Slide',
 ];
 /** Clips joués une fois (puis retour à l'état de fond) ; la mort reste figée sur sa dernière image. */
 const ONCE = new Set<HeroAnim>([

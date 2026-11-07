@@ -297,6 +297,25 @@ export class DamageNumbers {
     d.el.hidden = false;
     if (this.frameN < MERGE_SLOTS) this.frame[this.frameN++] = i;
   }
+  /** Phase 27 : un mot (figure réussie ou ratée) à la place d'un chiffre ; jamais fusionné. */
+  text(x: number, y: number, z: number, label: string, kind: 'gold' | 'grey'): void {
+    const D = FEEL.damageNumbers;
+    const i = this.idx;
+    const d = this.items[i];
+    this.idx = (i + 1) % DMG_CAP;
+    d.x = x;
+    d.y = y + this.ground(x, z);
+    d.z = z;
+    d.life = D.life * 1.4;
+    d.v = 0;
+    d.el.textContent = label;
+    d.el.className = kind === 'gold' ? 'trick' : 'trickfail';
+    if (d.op !== 1) {
+      d.op = 1;
+      d.el.style.opacity = '1';
+    }
+    d.el.hidden = false;
+  }
   update(dt: number, camera: THREE.Camera, w: number, h: number): void {
     const D = FEEL.damageNumbers;
     this.frameN = 0;

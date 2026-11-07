@@ -62,6 +62,7 @@ export const HERO_CLIPS: { to: string; src: 'ual1' | 'ual2'; from: string; speed
   { to: 'Throw', src: 'ual2', from: 'OverhandThrow' }, // Collet, Bourse
   { to: 'Long', src: 'ual1', from: 'Spell_Simple_Enter' }, // Voile
   { to: 'Raise', src: 'ual2', from: 'NinjaJump_Start', inPlace: true }, // Pétard (envol)
+  { to: 'Slide', src: 'ual2', from: 'Slide_Loop', inPlace: true }, // phase 27 : glissade
 ];
 
 /**
