@@ -57,6 +57,8 @@ import {
 import { buildEnemyGeometries } from './enemies';
 import { setDetail } from './parts';
 import { TerrainView } from './terrain';
+import { borderGeometry } from './border';
+import { Base, MotionState, spinEase } from './motion';
 import { OUTLINE, toonGradient, toonMaterial } from './toon';
 import { softDiscTexture } from './textures';
 import type { CharacterModel } from './characters';
@@ -103,6 +105,7 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (brouillard)
 const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
 const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
@@ -180,6 +183,22 @@ export class GameScene {
   private gy = this.terrain.gy;
   private groundMesh: THREE.Group | null = null;
   private spinT = 0; // phase 27 : vrille en cours (s restantes)
+  /** Phase 29 : animation de fond, fondus, inclinaison du corps (lus depuis la sim, sans allocation). */
+  readonly motion = new MotionState();
+  /** Phase 29 : segments de la lisière ; n'est dessiné que ce qui est à portée de vue (le brouillard cache le reste). */
+  private borderMeshes: THREE.Mesh[] = [];
+  private borderX = 1e9;
+  private borderZ = 1e9;
+  private motionIn = {
+    onGround: true,
+    sliding: false,
+    airMom: false,
+    height: 0,
+    speed: 0,
+    face: 0,
+    slopeAlong: 0,
+    slopeLat: 0,
+  };
   private slideDust = 0; // distance glissée depuis la dernière bouffée de poussière
   /** Phase 27 : objets du décor de la carte courante (retirés et libérés quand une nouvelle carte est construite). */
   private decorObjs: THREE.Object3D[] = [];
@@ -655,6 +674,16 @@ export class GameScene {
       this.scene.add(m);
       this.decorObjs.push(m);
     }
+    // phase 29 : lisière de forêt au bord de la carte (rochers, sapins, sous-bois), un mesh par segment de 40 u ;
+    // même matériau que les ouvrages (libéré avec eux ; un second dispose() est sans effet)
+    this.borderMeshes.length = 0;
+    for (const g of borderGeometry(w.seed, gy)) {
+      const m = new THREE.Mesh(g, worksMat);
+      this.scene.add(m);
+      this.decorObjs.push(m);
+      this.borderMeshes.push(m);
+    }
+    this.borderX = this.borderZ = 1e9;
     // lacs : disque bleu + anneau de rive qui scintille (animé dans render)
     for (const m of this.lakeMeshes) {
       this.scene.remove(m);
@@ -733,6 +762,7 @@ export class GameScene {
   /** Nouvelle partie : le héros repart de l'animation de repos (la mort reste figée sinon). */
   resetHero(): void {
     this.heroAnim?.reset();
+    this.motion.reset();
   }
 
   /** Objets KayKit chargés : géométries et matériaux toon texturés à la place des formes procédurales. */
@@ -1059,8 +1089,10 @@ export class GameScene {
   }
 
   /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
-  onJump(): void {
-    this.heroAnim?.trigger(HeroAnim.Jump, 1.6);
+  onJump(slideJump = false): void {
+    // phase 29 : élan plus vif (il traînait au-dessus du sol) ; un saut glissé garde la pose de glisse (le clip de
+    // saut le remettait debout en plein vol)
+    if (!slideJump) this.heroAnim?.trigger(HeroAnim.Jump, 2.2);
   }
 
   /** Phase 27 : glissade lancée ou finie (l'animation de fond suit P.sliding ; ici, l'appui visuel). */
@@ -1073,9 +1105,11 @@ export class GameScene {
   }
 
   /** Atterrissage du joueur : lance le ressort d'écrasement (valeurs neutres depuis la PR #6). */
-  onLand(): void {
+  onLand(sliding = false, speed = 0): void {
     this.landT = 0;
-    this.heroAnim?.trigger(HeroAnim.Land, 2);
+    // phase 29 : le clip de réception (accroupi) seulement après un vrai vol, presque à l'arrêt et sans glisse qui
+    // continue ; en courant ou en glissant, on enchaîne sans freiner à l'écran
+    if (this.motion.shouldLand(sliding, speed)) this.heroAnim?.trigger(HeroAnim.Land, 2);
   }
 
   /** Cycle de lumière lié au temps de run : crépuscule 0:00 → nuit 8:00 → aube 20:00 (le temps se lit sans chrono). */
@@ -1118,6 +1152,19 @@ export class GameScene {
     this.particles.billboardRx = -Math.atan2(this.camPos.y - this.camLook.y, this.camPos.z - this.camLook.z);
 
     this.terrain.follow(px, pz); // phase 27 : la fenêtre de sol suit le joueur (recalée par pas de 16 u)
+    // phase 29 : segments de lisière au-delà de la vue écartés (le frustum seul en gardait 3 à 5 dans le brouillard)
+    if ((px - this.borderX) ** 2 + (pz - this.borderZ) ** 2 > 16) {
+      this.borderX = px;
+      this.borderZ = pz;
+      for (let i = 0; i < this.borderMeshes.length; i++) {
+        const m = this.borderMeshes[i],
+          bs = m.geometry.boundingSphere!;
+        const dx = bs.center.x - px,
+          dz = bs.center.z - pz,
+          r = bs.radius + BORDER_VIEW;
+        m.visible = dx * dx + dz * dz < r * r;
+      }
+    }
     // joueur
     this.player.position.set(px, py + gp, pz);
     const target = Math.atan2(P.dirX, P.dirZ);
@@ -1128,9 +1175,25 @@ export class GameScene {
     let spinA = 0;
     if (this.spinT > 0) {
       this.spinT = Math.max(0, this.spinT - dt);
-      spinA = Math.PI * 2 * (1 - this.spinT / SLIDE.spinTime);
+      spinA = Math.PI * 2 * spinEase(1 - this.spinT / SLIDE.spinTime); // phase 29 : rapide puis amorti
     }
-    this.player.rotation.y = this.face + spinA;
+    // phase 29 : état de mouvement (fond, fondus, inclinaison) ; lacet puis tangage et roulis dans le repère du héros
+    const mi = this.motionIn;
+    mi.onGround = P.onGround;
+    mi.sliding = P.sliding;
+    mi.airMom = P.airMom;
+    mi.height = py;
+    mi.speed = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
+    mi.face = this.face;
+    if (P.sliding) {
+      this.terrain.gyGrad(px, pz);
+      const sf = Math.sin(this.face),
+        cf = Math.cos(this.face);
+      mi.slopeAlong = this.terrain.gradX * sf + this.terrain.gradZ * cf;
+      mi.slopeLat = this.terrain.gradX * cf - this.terrain.gradZ * sf;
+    } else mi.slopeAlong = mi.slopeLat = 0;
+    this.motion.update(dt, mi);
+    this.player.rotation.set(this.motion.pitch, this.face + spinA, this.motion.roll, 'YXZ');
     const v2 = P.vx * P.vx + P.vz * P.vz;
     if (P.sliding) {
       this.slideDust += dt * Math.sqrt(v2);
@@ -1163,15 +1226,16 @@ export class GameScene {
       // phase 20 : animation de fond depuis l'état de la sim (lecture seule) ; la mort se joue une fois
       if (this.hurtAnimT > 0) this.hurtAnimT -= dt;
       if (w.mode === Mode.Dead) A.trigger(HeroAnim.Death);
-      const sp = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
-      const base = P.sliding
-        ? HeroAnim.Slide
-        : !P.onGround
-          ? HeroAnim.Fall
-          : moving && !M.float
-            ? HeroAnim.Run
-            : HeroAnim.Idle;
-      A.update(dt, base, Math.max(0.6, Math.min(1.8, sp / 6.2)));
+      const mb = this.motion.base;
+      const base =
+        mb === Base.Slide
+          ? HeroAnim.Slide
+          : mb === Base.Fall
+            ? HeroAnim.Fall
+            : mb === Base.Run && !M.float
+              ? HeroAnim.Run
+              : HeroAnim.Idle;
+      A.update(dt, base, this.motion.runScale, this.motion.fade);
     }
     M.torso.rotation.z = M.float ? Math.sin(now * 2.1) * 0.06 : 0;
     // tir : le corps s'écrase (1+r, 1−0,8r, 1+r), r porté par la sim (Player.recoil)
@@ -1694,7 +1758,7 @@ export class GameScene {
     this.player.position.set(0, 0, 0);
     this.player.scale.set(1, 1, 1);
     const a = Math.sin(now * 0.18) * 0.45; // ±26° autour de la face
-    this.player.rotation.y = a; // le modèle regarde vers +z : face à la caméra
+    this.player.rotation.set(0, a, 0); // le modèle regarde vers +z : face à la caméra (phase 29 : ni tangage ni roulis)
     this.model.torso.position.y =
       (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + (this.heroAnim ? 0 : Math.sin(now * 2.2) * 0.015);
     this.heroAnim?.update(dt, HeroAnim.Idle, 1);
@@ -1729,6 +1793,7 @@ export class GameScene {
     this.zoom = 1;
     this.stallVisit = -1; // nouveau run : l'échoppe se tourne de nouveau vers le joueur à sa première visite
     this.landT = -1;
+    this.motion.reset();
     for (const g of this.ghosts) g.life = 0;
     this.camGy = this.gy(w.player.x, w.player.z);
     this.camPos.set(w.player.x, this.camGy + 12.5 * this.camScale, w.player.z + 10.5 * this.camScale);

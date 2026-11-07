@@ -112,3 +112,49 @@ test('cartes : chaque arme, tome et objet a son icône dessinée', async ({ page
   await expect(page.locator('#cards .card .glyph svg.ico')).toHaveCount(3);
   await page.screenshot({ path: `shots/${info.project.name}-coffre-icones.png` });
 });
+
+test('descente glissée : le héros reste en pose de glisse sur les bosses (phase 29)', async ({ page, hasTouch }) => {
+  test.skip(hasTouch, 'clavier (la glisse au doigt est couverte par glisse.spec)');
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  await startRun(page, 4);
+  const dir = await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.world.player.need = 1e9;
+    const r = g.world.races[0];
+    g.debug.teleport(r.sx, r.sz);
+    const dx = r.fx - r.sx,
+      dz = r.fz - r.sz,
+      L = Math.hypot(dx, dz);
+    return [dx / L, dz / L];
+  });
+  const keys: string[] = [];
+  if (dir[0] > 0.38) keys.push('KeyD');
+  if (dir[0] < -0.38) keys.push('KeyA');
+  if (dir[1] > 0.38) keys.push('KeyS');
+  if (dir[1] < -0.38) keys.push('KeyW');
+  await page.waitForFunction(() => (window as any).__game.scene.heroAnim, null, { timeout: 10000 });
+  for (const k of keys) await page.keyboard.down(k);
+  await page.waitForTimeout(200);
+  await page.keyboard.press('KeyC');
+  let gliding = 0,
+    inSlide = 0;
+  for (let i = 0; i < 40; i++) {
+    const s = await page.evaluate(() => {
+      const g = (window as any).__game,
+        P = g.world.player;
+      return { glide: P.sliding || P.airMom, clip: g.scene.heroAnim.playing as number };
+    });
+    if (s.glide) {
+      gliding++;
+      if (s.clip === 14) inSlide++; // HeroAnim.Slide
+    }
+    await page.waitForTimeout(50);
+  }
+  for (const k of keys) await page.keyboard.up(k);
+  expect(gliding).toBeGreaterThan(5);
+  expect(inSlide / gliding).toBeGreaterThanOrEqual(0.9);
+  await page.screenshot({ path: `shots/${test.info().project.name}-descente-glissee.png` });
+  expect(errors).toEqual([]);
+});

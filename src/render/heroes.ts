@@ -156,17 +156,21 @@ export class HeroAnimator {
     else this.fadeTo(i, 0.08);
     a.setEffectiveTimeScale(speed);
   }
-  /** Clip de fond voulu (course, idle, chute), vitesse de course ; avance le mixer. */
-  update(dt: number, base: HeroAnim, runSpeed: number): void {
+  /** Clip de fond voulu (course, idle, chute, glisse), vitesse de course, durée du fondu ; avance le mixer. */
+  update(dt: number, base: HeroAnim, runSpeed: number, fade = 0.15): void {
     if (this.oneShot >= 0) {
       this.oneShotLeft -= dt;
       if (this.oneShotLeft <= 0) this.oneShot = -1;
     }
     if (this.oneShot < 0) {
-      this.fadeTo(base, 0.15);
+      this.fadeTo(base, fade);
       if (base === HeroAnim.Run) this.actions[HeroAnim.Run].setEffectiveTimeScale(runSpeed);
     }
     this.mixer.update(dt);
+  }
+  /** Clip qui se joue (debug et tests : la glisse d'une piste reste-t-elle en Slide ?). */
+  get playing(): number {
+    return this.current;
   }
   /** Remise à l'état de fond (nouvelle partie, menu). */
   reset(): void {

@@ -100,7 +100,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   }, at);
   await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
   await page.waitForTimeout(1200);
-  let worst = { calls: 0, triangles: 0 };
+  const worst = { calls: 0, triangles: 0 };
   for (let k = 0; k < 6; k++) {
     await page.keyboard.press('ShiftLeft'); // Bond : silhouettes de dash à l'écran
     for (let f = 0; f < 4; f++) {
@@ -109,7 +109,8 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
         const g = (window as any).__game;
         return { calls: g.renderer.info.render.calls as number, triangles: g.renderer.info.render.triangles as number };
       });
-      if (r.triangles > worst.triangles) worst = r;
+      if (r.triangles > worst.triangles) worst.triangles = r.triangles;
+      worst.calls = Math.max(worst.calls, r.calls); // pic d'appels suivi à part (relecture perf phase 29)
     }
     await page.waitForTimeout(400);
   }
@@ -125,7 +126,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
     g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
   });
   await page.waitForTimeout(800);
-  let net = { calls: 0, triangles: 0 };
+  const net = { calls: 0, triangles: 0 };
   for (let k = 0; k < 3; k++) {
     await page.keyboard.press('ShiftLeft');
     for (let f = 0; f < 4; f++) {
@@ -134,13 +135,80 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
         const g = (window as any).__game;
         return { calls: g.renderer.info.render.calls as number, triangles: g.renderer.info.render.triangles as number };
       });
-      if (r.triangles > net.triangles) net = r;
+      if (r.triangles > net.triangles) net.triangles = r.triangles;
+      net.calls = Math.max(net.calls, r.calls);
     }
     await page.waitForTimeout(400);
   }
   console.log(
     `[${info.project.name}] pire point, rendu net : ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris`,
   );
+  expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
+  expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
+});
+
+// Phase 29 : la lisière de la bordure (rochers, sapins, sous-bois) s'ajoute au champ près du bord ; le budget doit
+// tenir au coin de la carte et le long du bord nord (le plus profond à l'écran), 400 ennemis, sort en cours.
+test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu', async ({ page }, info) => {
+  await page.goto('/?debug=1&stress=400');
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await page.locator('#playBtn').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await page.waitForFunction(
+    () => {
+      const s = (window as any).__game.scene;
+      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
+    },
+    null,
+    { timeout: 20_000 },
+  );
+  const measure = async (quality: 'pixel' | 'net') => {
+    await page.evaluate((q) => {
+      const g = (window as any).__game;
+      g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: q } });
+    }, quality);
+    const worst = { calls: 0, triangles: 0 };
+    for (const [x, z] of [
+      [162, 162],
+      [0, -162],
+      [-162, -162],
+    ]) {
+      await page.evaluate(
+        ([x, z]) => {
+          const g = (window as any).__game;
+          g.world.player.need = 1e9;
+          g.debug.teleport(x, z);
+        },
+        [x, z],
+      );
+      await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
+      await page.waitForTimeout(800);
+      for (let k = 0; k < 2; k++) {
+        await page.keyboard.press('ShiftLeft');
+        for (let f = 0; f < 4; f++) {
+          await page.waitForTimeout(100);
+          const r = await page.evaluate(() => {
+            const g = (window as any).__game;
+            return {
+              calls: g.renderer.info.render.calls as number,
+              triangles: g.renderer.info.render.triangles as number,
+            };
+          });
+          if (r.triangles > worst.triangles) worst.triangles = r.triangles;
+          worst.calls = Math.max(worst.calls, r.calls); // pic d'appels suivi à part (relecture perf phase 29)
+        }
+      }
+    }
+    return worst;
+  };
+  const pixel = await measure('pixel');
+  console.log(
+    `[${info.project.name}] bord, pixel : ${pixel.calls} appels, ${(pixel.triangles / 1000).toFixed(1)} k tris`,
+  );
+  expect(pixel.calls, 'draw calls ≤ 40').toBeLessThanOrEqual(40);
+  expect(pixel.triangles, 'triangles ≤ 150 k (pixel)').toBeLessThan(150_000);
+  const net = await measure('net');
+  console.log(`[${info.project.name}] bord, net : ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris`);
   expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
   expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
 });

@@ -1,7 +1,7 @@
 // Carte de la partie (phase 27) : minicarte du HUD (autour du joueur, redessinée 4 fois par seconde) et grande carte
 // (toute la carte, à l'ouverture). Fond construit une fois par carte (relief, lacs, ouvrages), brouillard sur ce qui
 // n'est pas encore découvert (w.seen, tenu par la sim). Lecture seule du monde. Hors de la boucle de rendu 3D.
-import { DISCOVER, ENEMIES, It, WORLD_HALF } from '../sim/balance';
+import { DISCOVER, ENEMIES, It, PLAY_LIMIT, WORLD_HALF } from '../sim/balance';
 import { SEEN_N } from '../sim/world';
 import type { World } from '../sim/world';
 
@@ -114,6 +114,26 @@ export class MapView {
       ctx.lineTo(px(q.x + q.dx * 5), px(q.z + q.dz * 5));
       ctx.stroke();
     }
+    // phase 29 : lisière de forêt hors de la zone jouable (comme en jeu), liseré clair sur la limite
+    const e0 = px(-PLAY_LIMIT),
+      e1 = px(PLAY_LIMIT),
+      band = SIZE - e1;
+    ctx.fillStyle = '#12221d';
+    ctx.fillRect(0, 0, SIZE, e0);
+    ctx.fillRect(0, e1, SIZE, band);
+    ctx.fillRect(0, 0, e0, SIZE);
+    ctx.fillRect(e1, 0, band, SIZE);
+    ctx.fillStyle = '#0a1612';
+    for (let t = 1; t < SIZE; t += 3) {
+      const o = (t * 7) % 3;
+      ctx.fillRect(t, o, 2, 2);
+      ctx.fillRect(t, SIZE - 3 - o, 2, 2);
+      ctx.fillRect(o, t, 2, 2);
+      ctx.fillRect(SIZE - 3 - o, t, 2, 2);
+    }
+    ctx.strokeStyle = 'rgba(201,196,216,0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(e0 + 0.5, e0 + 0.5, e1 - e0 - 1, e1 - e0 - 1);
   }
 
   /** Brouillard : opaque sur les cases jamais vues (seulement quand la découverte a progressé). */
