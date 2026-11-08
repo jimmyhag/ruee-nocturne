@@ -1,7 +1,7 @@
 // Sauvegarde méta : IndexedDB via idb-keyval, repli localStorage, jamais bloquante.
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { get, set } from 'idb-keyval';
-import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, SLOTS_START } from '../sim/balance';
+import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, REROLL_SHOP, SLOTS_START } from '../sim/balance';
 import { ACHIEVEMENT_IDS } from './achievements';
 import type { CharacterKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -51,7 +51,7 @@ export interface Meta {
   outfits: CharacterKey[]; // personnages dont la tenue alternative est achetée (phase 7)
   outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
-  slots: { weapons: number; passives: number }; // emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
+  slots: { weapons: number; passives: number; rerolls: number }; // phase 31 : `rerolls` = relances achetées (rangées ici : les règles Firestore bornent les clés de progress) ; emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   seenHelp: boolean; // aide « Comment jouer » déjà vue au premier lancement (phase 14 ; propre à l'appareil)
   settings: MetaSettings;
@@ -93,7 +93,7 @@ export const DEFAULT_META: Meta = {
   outfits: [],
   outfit: {},
   daily: { date: '', times: [] },
-  slots: { ...SLOTS_START },
+  slots: { ...SLOTS_START, rerolls: 0 },
   seenReset: true,
   seenHelp: false,
   settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto' },
@@ -226,6 +226,7 @@ export function normalizeMeta(raw: unknown): Meta {
     slots: {
       weapons: Math.max(SLOTS_START.weapons, Math.min(MAX_WEAPONS, num(sl.weapons, SLOTS_START.weapons) | 0)),
       passives: Math.max(SLOTS_START.passives, Math.min(MAX_PASSIVES, num(sl.passives, SLOTS_START.passives) | 0)),
+      rerolls: Math.max(0, Math.min(REROLL_SHOP.length, num(sl.rerolls, 0) | 0)),
     },
     seenReset: bool(r.seenReset, true),
     seenHelp: bool(r.seenHelp, false),

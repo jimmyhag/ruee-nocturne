@@ -1,6 +1,6 @@
 // Méta (phase 4) : migrations, export/import, succès, achats à l'or, défi du jour. Aucun DOM : tout est pur.
 import { describe, expect, it } from 'vitest';
-import { MAX_PASSIVES, MAX_WEAPONS, OUTFIT, SLOTS } from '../sim/balance';
+import { MAX_PASSIVES, MAX_WEAPONS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS } from '../sim/balance';
 import {
   ACHIEVEMENTS,
   checkAchievements,
@@ -12,7 +12,19 @@ import {
 } from './achievements';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './daily';
 import { DEFAULT_META, LEGACY_SHOP, exportMeta, importMeta, legacyShopSpent, normalizeMeta } from './save';
-import { buyCharacter, buyOutfit, buySlot, characterPrice, nextSlot, outfitOf, slotState, worldOptions } from './shop';
+import {
+  buyCharacter,
+  buyOutfit,
+  buyReroll,
+  buySlot,
+  characterPrice,
+  nextSlot,
+  outfitOf,
+  rerollState,
+  runRerolls,
+  slotState,
+  worldOptions,
+} from './shop';
 
 const fresh = () => normalizeMeta(DEFAULT_META);
 
@@ -37,7 +49,7 @@ describe('sauvegarde', () => {
     expect(m.stats.kills).toBe(0);
     expect(m.gold).toBe(0);
     expect('shops' in m).toBe(false);
-    expect(m.slots).toEqual({ weapons: 1, passives: 2 });
+    expect(m.slots).toEqual({ weapons: 1, passives: 2, rerolls: 0 });
     expect(m.seenReset).toBe(false); // elle avait du vécu : on prévient
     const v2 = normalizeMeta({
       version: 3,
@@ -160,7 +172,7 @@ describe('retrait de la boutique par personnage (phase 17)', () => {
     expect(m.gold).toBe(50 + 200 + 260 + 338 + 200 + 200);
     expect('shops' in m).toBe(false);
     expect(m.bought).toEqual(['veilleuse']); // déblocages, emplacements gardés
-    expect(m.slots).toEqual({ weapons: 2, passives: 3 });
+    expect(m.slots).toEqual({ weapons: 2, passives: 3, rerolls: 0 });
     expect(normalizeMeta(m).gold).toBe(m.gold); // relue : rien de plus
     expect(importMeta(exportMeta(m))!.gold).toBe(m.gold);
   });
@@ -264,7 +276,7 @@ describe('tenues (phase 7)', () => {
 describe('emplacements (phase 10)', () => {
   it('départ 1 arme / 2 améliorations ; déblocage dans l’ordre, par succès puis or ; défi du jour au maximum', () => {
     const m = fresh();
-    expect(m.slots).toEqual({ weapons: 1, passives: 2 });
+    expect(m.slots).toEqual({ weapons: 1, passives: 2, rerolls: 0 });
     expect(worldOptions(m, ['orbe']).slots).toEqual({ weapons: 1, passives: 2 });
     expect(worldOptions(m, ['orbe'], true).slots).toEqual({ weapons: MAX_WEAPONS, passives: MAX_PASSIVES });
     expect(nextSlot(m)).toBe(0);
@@ -282,9 +294,10 @@ describe('emplacements (phase 10)', () => {
     expect(buySlot(m, 0)).toBe(false);
     expect(nextSlot(m)).toBe(1);
     // import borné : jamais sous le départ ni au-dessus du maximum
-    expect(normalizeMeta({ version: 3, slots: { weapons: 9, passives: 0 } }).slots).toEqual({
+    expect(normalizeMeta({ version: 3, slots: { weapons: 9, passives: 0, rerolls: 99 } }).slots).toEqual({
       weapons: 4,
       passives: 2,
+      rerolls: REROLL_SHOP.length,
     });
     const back = importMeta(exportMeta(m))!;
     expect(back.slots.weapons).toBe(2);
@@ -310,5 +323,27 @@ describe('phase 28 : succès de glisse et d’exploration', () => {
     const m = normalizeMeta(old);
     expect(m.stats.kills).toBe(321);
     expect([m.stats.slideDist, m.stats.tricksBest, m.stats.mapChests]).toEqual([0, 0, 0]);
+  });
+});
+
+describe('relances (phase 31)', () => {
+  it('une relance au départ, jusqu’à 3 de plus achetées dans l’ordre ; défi du jour à une ; sauvegarde bornée', () => {
+    const m = fresh();
+    expect(runRerolls(m)).toBe(RUN_REROLL.base);
+    expect(worldOptions(m, ['orbe']).rerolls).toBe(RUN_REROLL.base);
+    expect(rerollState(m, 0)).toBe('poor');
+    expect(rerollState(m, 1)).toBe('later');
+    expect(buyReroll(m)).toBe(false);
+    m.gold = REROLL_SHOP[0] + REROLL_SHOP[1] + REROLL_SHOP[2] + 10;
+    expect(rerollState(m, 0)).toBe('buyable');
+    for (let k = 0; k < REROLL_SHOP.length; k++) expect(buyReroll(m)).toBe(true);
+    expect(buyReroll(m)).toBe(false); // plafond
+    expect(m.gold).toBe(10);
+    expect(rerollState(m, REROLL_SHOP.length - 1)).toBe('owned');
+    expect(runRerolls(m)).toBe(RUN_REROLL.base + REROLL_SHOP.length);
+    expect(worldOptions(m, ['orbe']).rerolls).toBe(RUN_REROLL.base + REROLL_SHOP.length);
+    expect(worldOptions(m, ['orbe'], true).rerolls).toBe(RUN_REROLL.base); // égalité
+    expect(importMeta(exportMeta(m))!.slots.rerolls).toBe(REROLL_SHOP.length);
+    expect(normalizeMeta({ version: 4, slots: { rerolls: -3 } }).slots.rerolls).toBe(0);
   });
 });

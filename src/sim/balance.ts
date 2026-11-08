@@ -733,7 +733,7 @@ export const CHARACTERS: CharacterDef[] = [
 // tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
 
 // objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun, uniques, au plus ITEM.max par run
-export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne'];
+export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne', 'croc', 'calice', 'mousse', 'souffle', 'pierre', 'de', 'gant', 'brume', 'sandales', 'amulette', 'ecorce', 'couronne'];
 /** Index fixes (drapeaux de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
   Phenix = 0,
@@ -756,9 +756,25 @@ export const enum It {
   Boussole,
   Bouclier,
   Corne,
+  Croc, // phase 31 : vol de vie, régénération, pourcentages
+  Calice,
+  Mousse,
+  Souffle,
+  Pierre,
+  De,
+  Gant,
+  Brume,
+  Sandales,
+  Amulette,
+  Ecorce,
+  Couronne,
 }
 /** Rareté par objet : 0 commun, 1 rare, 2 épique (couleur de carte, prix, poids de tirage). */
-export const ITEM_RARITY: number[] = [2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1];
+export const ITEM_RARITY: number[] = [
+  2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1,
+  // phase 31 : croc, calice, mousse, souffle, pierre, dé, gant, brume, sandales, amulette, écorce, couronne
+  1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 2,
+];
 export const ITEM = {
   max: 6, // objets par run
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
@@ -786,7 +802,28 @@ export const ITEM = {
   boussole: { radiusMul: 1.8 }, // découverte ; la carte montre aussi coffres et sanctuaires non découverts
   bouclier: { period: 20, invul: 0.6 }, // un coup annulé toutes les 20 s
   corne: { period: 25, r: 7, kb: 10, stun: 0.5 }, // onde qui repousse et étourdit (pas les boss)
+  // phase 31 (demande de Jimmy : vol de vie, régénération, pourcentages). Les soins des objets (vol de vie, kills)
+  // puisent dans une réserve de `healCap` PV par seconde : en fin de partie, les dégâts se comptent en milliers et un
+  // vol de vie sans plafond rendrait le héros immortel
+  croc: { steal: 0.03, cap: 1 }, // part des dégâts infligés rendue en PV ; PV/s au plus
+  calice: { perKill: 1, cap: 1.5 }, // PV par ennemi tué ; PV/s au plus
+  mousse: { pct: 0.002 }, // part des PV max régénérée par seconde
+  souffle: { below: 0.35, pct: 0.015 }, // sous 35 % des PV : part des PV max régénérée par seconde
+  pierre: { dmg: 0.08 },
+  de: { crit: 0.06 },
+  gant: { below: 0.3, dmg: 0.4 }, // ennemis sous 30 % de leurs PV : +40 % de dégâts
+  brume: { dmgTaken: 0.92 }, // −8 % de dégâts subis
+  sandales: { speedMul: 1.1 },
+  amulette: { xp: 0.15 },
+  ecorce: { armor: 0.05 }, // dans le plafond TOME_CAPS.armorMax
+  couronne: { dmg: 0.5, steal: 0.02, cap: 1 }, // dégâts × (1 + 0,5 × part des PV manquants) ; vol de vie 2 %
+  healReport: 1, // s : les soins des objets sont annoncés (chiffre vert) au plus une fois par seconde
 };
+
+// relances des cartes de montée de niveau (phase 31, demande de Jimmy) : une par partie au départ, jusqu'à 3 de plus
+// achetées dans la boutique permanente (prix croissants, sans succès requis)
+export const RUN_REROLL = { base: 1, avoid: 1e-3 }; // avoid : poids des cartes déjà proposées (elles reviennent seulement si le pool est maigre)
+export const REROLL_SHOP = [500, 1500, 4000];
 
 // marchand (phase 17, PLAN §3.6) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
 export const MERCHANT = {

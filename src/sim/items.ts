@@ -57,6 +57,25 @@ export function gainItem(w: World, i: number, bought = false): void {
     case It.Bourse:
       P.goldMul += ITEM.bourse.goldMul;
       break;
+    // phase 31 : pourcentages simples (les soins et la Couronne sont lus dans la boucle)
+    case It.Pierre:
+      P.dmgMul += ITEM.pierre.dmg;
+      break;
+    case It.De:
+      P.crit += ITEM.de.crit;
+      break;
+    case It.Brume:
+      P.dmgTaken *= ITEM.brume.dmgTaken;
+      break;
+    case It.Sandales:
+      P.speed *= ITEM.sandales.speedMul;
+      break;
+    case It.Amulette:
+      P.xpMul += ITEM.amulette.xp;
+      break;
+    case It.Ecorce:
+      P.armor = Math.min(TOME_CAPS.armorMax, P.armor + ITEM.ecorce.armor);
+      break;
     default:
       break; // Talisman, Sablier, Épines, Aimant : drapeaux lus par la boucle
   }
@@ -223,4 +242,46 @@ export function shieldTick(w: World, dt: number): void {
   if (!w.items[It.Bouclier] || w.shieldT <= 0) return;
   w.shieldT -= dt;
   if (w.shieldT <= 0) w.emit(Ev.ShieldReady, w.player.x, 1, w.player.z);
+}
+
+// ---- phase 31 : soins des objets (vol de vie, Calice) ----
+
+/** Plafond de soin par seconde des objets possédés (vol de vie et Calice cumulés). */
+function healCap(w: World): number {
+  let c = 0;
+  if (w.items[It.Croc]) c += ITEM.croc.cap;
+  if (w.items[It.Calice]) c += ITEM.calice.cap;
+  if (w.items[It.Couronne]) c += ITEM.couronne.cap;
+  return c;
+}
+
+/** Soigne de `hp` PV en puisant dans la réserve de la seconde ; compte le soin pour l'annonce. */
+export function itemHeal(w: World, hp: number): void {
+  const P = w.player;
+  const h = Math.min(hp, w.healBank, P.maxHp - P.hp);
+  if (h <= 0) return;
+  w.healBank -= h;
+  P.hp += h;
+  w.healed += h;
+}
+
+/** Vol de vie (Croc de vampire, Couronne du berserker) : appelé par hitEnemy avec les dégâts infligés. */
+export function lifesteal(w: World, dealt: number): void {
+  let k = 0;
+  if (w.items[It.Croc]) k += ITEM.croc.steal;
+  if (w.items[It.Couronne]) k += ITEM.couronne.steal;
+  if (k > 0) itemHeal(w, dealt * k);
+}
+
+/** Toutes les ITEM.healReport s : recharge la réserve de soin et annonce les PV rendus (un seul chiffre vert). */
+export function healTick(w: World, dt: number): void {
+  w.healT -= dt;
+  if (w.healT > 0) return;
+  w.healT = ITEM.healReport;
+  w.healBank = healCap(w) * ITEM.healReport;
+  if (w.healed >= 0.5) { // affiché arrondi : « +1 » dès un demi-PV (plafond de 1 PV/s : la somme peut tomber à 0,999…)
+    const P = w.player;
+    w.emit(Ev.Heal, P.x, P.y, P.z, w.healed); // la hauteur d'affichage est choisie par le rendu
+  }
+  w.healed = 0;
 }

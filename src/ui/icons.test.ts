@@ -19,7 +19,7 @@ describe('icônes', () => {
     for (const k of BOON_KEYS) valid(BOON_ICON[k]);
     for (const k of SPELL_KEYS) valid(SPELL_ICON[k]);
     for (const k of Object.keys(MISC_ICON) as (keyof typeof MISC_ICON)[]) valid(MISC_ICON[k]);
-    expect(WEAPON_KEYS.length + TOME_KEYS.length + ITEM_KEYS.length + BOON_KEYS.length + SPELL_KEYS.length).toBe(53);
+    expect(WEAPON_KEYS.length + TOME_KEYS.length + ITEM_KEYS.length + BOON_KEYS.length + SPELL_KEYS.length).toBe(65); // phase 31 : 32 objets;
   });
   it('les objets ont chacun une image distincte (hors bourse, partagée avec le sort du même nom)', () => {
     const seen = new Set(ITEM_KEYS.map((k) => ITEM_ICON[k]));

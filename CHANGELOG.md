@@ -2,6 +2,17 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.26.0 — 8 nov. 2026 (phase 31 « Relances et nouveaux objets »)
+
+### Ajouté
+
+- **Relancer les cartes** : à une montée de niveau, le bouton « Relancer » (ou la touche R) tire d'autres cartes que celles proposées. Une relance par partie au départ, et jusqu'à 3 de plus à acheter dans la boutique (500, 1 500 puis 4 000 or). Les coffres et les sanctuaires ne se relancent pas ; le marchand garde sa propre relance payante.
+- **Douze nouveaux objets** :
+  - **Soin** : Croc de vampire (vol de vie), Calice sanglant (chaque ennemi tué soigne), Mousse de troll (régénération), Second souffle (forte régénération quand les PV sont bas).
+  - **Pourcentages** : Pierre à aiguiser (dégâts), Dé pipé (critique), Gant du bourreau (dégâts contre les ennemis affaiblis), Pendentif de brume (dégâts subis), Sandales ailées (vitesse), Amulette du savant (expérience), Armure d'écorce (armure).
+  - **Couronne du berserker** (épique) : plus de dégâts quand tes PV baissent, avec un peu de vol de vie.
+- **Chiffre vert** : les PV rendus par le vol de vie et le Calice s'affichent au-dessus du héros, une fois par seconde.
+
 ## 1.25.1 — 7 nov. 2026 (retour de Jimmy sur les éruptions)
 
 ### Modifié

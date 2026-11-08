@@ -105,6 +105,7 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+const ELITE_RINGS = 48; // anneaux dorés des élites à l'écran, au plus
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
 const SLASH_CAP = 40; // arcs de lame : 13 lames + arcs de Faux en cours (8 coups × 3 croissants à 360°)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (brouillard)
@@ -166,7 +167,6 @@ export class GameScene {
   private cFlash = WHITE; // flash du coup : blanc sur les couleurs de sommet, surexposé sur une texture
   private eliteColor: THREE.Color[] = [];
   private shadowW: InstanceWriter; // ombres douces de tous les ennemis (phase 9)
-  private eliteW: InstanceWriter; // anneaux dorés des élites
   /** Phase 30 : sprites lumineux additifs (Orbe, boule de feu, météore, Lance, mines, boomerang) : un appel. */
   private glowW: InstanceWriter;
   /** Phase 30 : arcs de lame (Faux, sillage des Lames) : un appel. */
@@ -180,7 +180,6 @@ export class GameScene {
   private arrowW: InstanceWriter; // phase 16 : flèches des Archers
   private zoneW: InstanceWriter; // cercles rouges du Colosse (anneau)
   private zoneFillW: InstanceWriter; // disque qui se remplit pendant le télégraphe
-  private ringW: InstanceWriter; // ondes de choc du Gardien (phase 11) : anneau fin, rayon = portée du coup
   private chestW: InstanceWriter;
   private netW: InstanceWriter; // phase 19 : filet du Collet (Braconnier)
   // phase 18 : relief (sol déplacé, tout est posé au sol local)
@@ -261,6 +260,7 @@ export class GameScene {
   private cSlashBlade = new THREE.Color(0xbfe8ff).multiplyScalar(0.75);
   private cSlashTmp = new THREE.Color();
   private cMeteor = new THREE.Color(PAL.gold);
+  private cEliteRing = new THREE.Color(PAL.gold).multiplyScalar(0.8 / 0.9); // ancien matériau doré à 0,8, ici à 0,9
   private dashGhostW: InstanceWriter;
   private cGem = [new THREE.Color(PAL.gem), new THREE.Color(PAL.gem2), new THREE.Color(PAL.gem3)];
   private cGold = new THREE.Color(PAL.gold);
@@ -362,9 +362,6 @@ export class GameScene {
     this.loadEnemies(0);
     // phase 9 : une ombre douce sous chaque ennemi (un seul appel pour tous) ; celle des Volants grossit au télégraphe
     this.shadowW = new InstanceWriter(makeInstanced(shadowGeometry(1), shadowMaterial(0.4), CAPS.enemies));
-    this.eliteW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.8, 1.05, 24).rotateX(-Math.PI / 2), additive(PAL.gold, 0.8), 48),
-    );
     // projectiles, traînées, boomerangs, mines, crachats, cercles, coffres, gemmes
     // phase 30 : orbes, boules de feu, météores, lances, mines et boomerangs en sprites lumineux orientés caméra
     // (texture radiale douce, additif) : des boules nettes et rondes au lieu d'icosaèdres à facettes ; remplace les
@@ -397,11 +394,10 @@ export class GameScene {
     this.arrowW = new InstanceWriter(
       makeInstanced(new THREE.BoxGeometry(0.13, 0.13, 0.95), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
     );
+    // cercles rouges (Colosse, éruptions, boules de feu) et, depuis la phase 31, ondes de choc du Gardien : même
+    // matériau, un seul appel (l'anneau à 10 % du rayon suit l'épaisseur réelle de l'onde, 0,8 u, mieux que l'ancien)
     this.zoneW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.9, 1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 96),
-    );
-    this.ringW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.955, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 8),
+      makeInstanced(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 96 + 8),
     );
     this.zoneFillW = new InstanceWriter(
       makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.35), 96),
@@ -422,7 +418,6 @@ export class GameScene {
     );
     this.scene.add(
       this.shadowW.mesh,
-      this.eliteW.mesh,
       this.glowW.mesh,
       this.boomW.mesh,
       this.mineW.mesh,
@@ -431,7 +426,6 @@ export class GameScene {
       this.arrowW.mesh,
       this.zoneW.mesh,
       this.zoneFillW.mesh,
-      this.ringW.mesh,
       this.chestW.mesh,
       this.netW.mesh,
       this.gemW.mesh,
@@ -479,16 +473,20 @@ export class GameScene {
         SLASH_CAP,
       ),
     );
-    // phase 28 : cercles d'alerte des météores (bord fixe + disque qui se resserre), un seul appel
+    // phase 28 : cercles d'alerte des météores (bord fixe + disque qui se resserre) ; phase 31 (budget d'appels avec
+    // 4 armes) : les anneaux dorés des élites y sont écrits aussi, un seul appel pour tous les anneaux additifs au sol
     this.metW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.88, 1, 40).rotateX(-Math.PI / 2), additive(0xffffff, 0.9), 2 * METEOR.max),
+      makeInstanced(
+        new THREE.RingGeometry(0.84, 1, 40).rotateX(-Math.PI / 2),
+        additive(0xffffff, 0.9),
+        ELITE_RINGS + 2 * METEOR.max,
+      ),
     );
     this.scene.add(this.metW.mesh);
     this.scene.add(this.bladeW.mesh, this.slashW.mesh);
     this.writers.push(
       ...this.enemyW,
       this.shadowW,
-      this.eliteW,
       this.glowW,
       this.slashW,
       this.boomW,
@@ -498,7 +496,6 @@ export class GameScene {
       this.arrowW,
       this.zoneW,
       this.zoneFillW,
-      this.ringW,
       this.chestW,
       this.netW,
       this.gemW,
@@ -1376,7 +1373,7 @@ export class GameScene {
     // ennemis : hop constant, flash blanc au coup, élites dorées avec anneau, Volants avec ombre
     for (let t = 0; t < this.enemyW.length; t++) this.enemyW[t].begin();
     this.shadowW.begin();
-    this.eliteW.begin();
+    this.metW.begin(); // anneaux des élites (ici) puis cercles des météores (plus bas)
     this.aims.begin();
     this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
     for (let i = 0; i < w.enemyCount; i++) {
@@ -1467,7 +1464,7 @@ export class GameScene {
       if (e.type !== VOLANT_TYPE || e.elite) this.tilt(ex, ez);
       if (e.type !== VOLANT_TYPE)
         this.shadowW.put(ex, eg + 0.05, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow, this.tRx, this.tRz);
-      if (e.elite) this.eliteW.put(ex, eg + 0.08, ez, now * 1.5, e.r * 1.3, this.cGold, this.tRx, this.tRz);
+      if (e.elite) this.metW.put(ex, eg + 0.08, ez, now * 1.5, e.r * 1.37, this.cEliteRing, this.tRx, this.tRz);
     }
     for (let t = 0; t < this.enemyW.length; t++) {
       const wr = this.enemyW[t];
@@ -1478,7 +1475,6 @@ export class GameScene {
       if (o) o.count = wr.n;
     }
     this.shadowW.end();
-    this.eliteW.end();
     this.aims.end();
 
     // crachats et cercles rouges (projectiles ennemis)
@@ -1486,7 +1482,6 @@ export class GameScene {
     this.arrowW.begin();
     this.glowW.begin(); // phase 30 : rempli par les boules de feu, les projectiles, les lances et les météores
     this.zoneW.begin();
-    this.ringW.begin();
     for (let i = 0; i < w.shotCount; i++) {
       const sh = w.shots[i];
       if (sh.kind === ShotKind.Spit) {
@@ -1525,7 +1520,7 @@ export class GameScene {
         // onde de choc du Gardien : anneau qui grandit, posé au sol (le joueur la saute)
         const r = sh.r + HAZARDS.ring.speed * alpha * STEP;
         this.tilt(sh.x, sh.z);
-        this.ringW.put(sh.x, this.gy(sh.x, sh.z) + 0.15, sh.z, 0, r, this.cTele, this.tRx, this.tRz);
+        this.zoneW.put(sh.x, this.gy(sh.x, sh.z) + 0.15, sh.z, 0, r, this.cTele, this.tRx, this.tRz);
       } else {
         // cercle du Colosse ou d'éruption (fixes, posés sur le sol local) : le disque se remplit
         const eruption = sh.kind === ShotKind.Eruption;
@@ -1542,7 +1537,6 @@ export class GameScene {
     this.arrowW.end();
     this.zoneW.end();
     this.zoneFillW.end();
-    this.ringW.end();
 
     // phase 20 : arbres et lanternes KayKit autour du joueur (tri refait tous les 4 u de déplacement)
     if (this.propsReady && (px - this.propX) ** 2 + (pz - this.propZ) ** 2 > 16) this.sortNearDecor(px, pz);
@@ -1829,8 +1823,8 @@ export class GameScene {
     this.bladeW.end();
     this.slashW.end();
 
-    // météores annoncés (phase 28) : cercle doré au sol, le disque intérieur se resserre jusqu'à l'impact
-    this.metW.begin();
+    // météores annoncés (phase 28) : cercle doré au sol, le disque intérieur se resserre jusqu'à l'impact (même
+    // écrivain que les anneaux des élites, commencé dans la boucle des ennemis)
     const ws = w.wstate;
     if (ws.metN > 0) {
       const mr = weaponStats(w, 'meteores').r;

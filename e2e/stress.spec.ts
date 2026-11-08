@@ -3,6 +3,13 @@
 import { expect, test } from '@playwright/test';
 import { collectConsoleErrors } from './helpers';
 
+/**
+ * Budget d'appels de PLAN.md §4.3 : ≤ 40 sur mobile milieu de gamme, ≤ 80 sur desktop. Phase 31 : jusque-là les deux
+ * projets visaient 40 ; en paysage (desktop), le champ plus large montre plus de types d'ennemis et de décor, et une
+ * carte aléatoire sur trois passait à 41–45 avec 4 armes au niveau 8. Le budget mobile reste tenu (≤ 39 mesurés).
+ */
+const callBudget = (project: string): number => (project === 'mobile' ? 40 : 80);
+
 test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisible', async ({ page }, info) => {
   const errors = collectConsoleErrors(page);
   await page.goto('/?debug=1&stress=400');
@@ -42,7 +49,9 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   });
   expect(state.enemies).toBeGreaterThanOrEqual(380);
   expect(state.hp).toBeGreaterThan(1000); // god mode : on mesure le rendu, pas la survie
-  expect(state.calls, 'draw calls ≤ 40').toBeLessThanOrEqual(40);
+  expect(state.calls, `draw calls ≤ ${callBudget(info.project.name)}`).toBeLessThanOrEqual(
+    callBudget(info.project.name),
+  );
   expect(state.triangles, 'triangles ≤ 150 k').toBeLessThan(150_000);
   expect(state.perfHidden).toBe(false);
   expect(state.perf).toMatch(/fps \d+/);
@@ -117,7 +126,9 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   console.log(
     `[${info.project.name}] pire point (${at.x.toFixed(0)}, ${at.z.toFixed(0)}) : ${worst.calls} appels, ${(worst.triangles / 1000).toFixed(1)} k tris`,
   );
-  expect(worst.calls, 'draw calls ≤ 40').toBeLessThanOrEqual(40);
+  expect(worst.calls, `draw calls ≤ ${callBudget(info.project.name)}`).toBeLessThanOrEqual(
+    callBudget(info.project.name),
+  );
   expect(worst.triangles, 'triangles ≤ 150 k (pixel)').toBeLessThan(150_000);
 
   // phase 21 : en rendu net, squelettes détaillés (≈ 330 triangles) ; budget mobile relevé à 250 k (décision de Jimmy)
@@ -143,7 +154,9 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   console.log(
     `[${info.project.name}] pire point, rendu net : ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris`,
   );
-  expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
+  expect(net.calls, `draw calls ≤ ${callBudget(info.project.name)} (net)`).toBeLessThanOrEqual(
+    callBudget(info.project.name),
+  );
   expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
 });
 
@@ -205,11 +218,15 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
   console.log(
     `[${info.project.name}] bord, pixel : ${pixel.calls} appels, ${(pixel.triangles / 1000).toFixed(1)} k tris`,
   );
-  expect(pixel.calls, 'draw calls ≤ 40').toBeLessThanOrEqual(40);
+  expect(pixel.calls, `draw calls ≤ ${callBudget(info.project.name)}`).toBeLessThanOrEqual(
+    callBudget(info.project.name),
+  );
   expect(pixel.triangles, 'triangles ≤ 150 k (pixel)').toBeLessThan(150_000);
   const net = await measure('net');
   console.log(`[${info.project.name}] bord, net : ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris`);
-  expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
+  expect(net.calls, `draw calls ≤ ${callBudget(info.project.name)} (net)`).toBeLessThanOrEqual(
+    callBudget(info.project.name),
+  );
   expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
 });
 
@@ -270,9 +287,11 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
     `[${info.project.name}] 4 armes : pixel ${px.calls} appels, ${(px.triangles / 1000).toFixed(1)} k tris ; net ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris ; lueurs ≤ ${Math.max(px.glow, net.glow)}`,
   );
   expect(px.glow, 'des lueurs sont à l’écran').toBeGreaterThan(0);
-  expect(px.calls, 'draw calls ≤ 40').toBeLessThanOrEqual(40);
+  expect(px.calls, `draw calls ≤ ${callBudget(info.project.name)}`).toBeLessThanOrEqual(callBudget(info.project.name));
   expect(px.triangles, 'triangles ≤ 150 k (pixel)').toBeLessThan(150_000);
-  expect(net.calls, 'draw calls ≤ 40 (net)').toBeLessThanOrEqual(40);
+  expect(net.calls, `draw calls ≤ ${callBudget(info.project.name)} (net)`).toBeLessThanOrEqual(
+    callBudget(info.project.name),
+  );
   expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
   expect(errors).toEqual([]);
 });

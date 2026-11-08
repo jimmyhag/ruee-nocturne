@@ -3,7 +3,7 @@ import { WEAPON_KEYS } from './weapons/defs';
 import { Ev, HitSrc, Mode, Trait } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
-import { talismanKill } from './items';
+import { itemHeal, lifesteal, talismanKill } from './items';
 
 /**
  * Inflige des dégâts à l'ennemi i depuis la source (fx, fz). Retourne true s'il meurt.
@@ -15,6 +15,9 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   const def = ENEMIES[e.type];
   const P = w.player;
   let dealt = dmg * P.dmgMul * (e.elite || def.boss ? P.eliteDmgMul : 1); // tome Dégâts : élites et boss
+  // phase 31 : Gant du bourreau (ennemi affaibli), Couronne du berserker (selon les PV manquants du héros)
+  if (w.items[It.Gant] && e.hp < e.max * ITEM.gant.below) dealt *= 1 + ITEM.gant.dmg;
+  if (w.items[It.Couronne]) dealt *= 1 + ITEM.couronne.dmg * Math.max(0, 1 - P.hp / P.maxHp);
   let crit = 0;
   if (src <= HitSrc.Meteores) {
     // phase 23 : coup critique (ligne de l'arme + tome Chance), ralentissement du Halo, étourdissement de la Foudre
@@ -29,6 +32,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   }
   e.hp -= dealt;
   e.flash = 0.1;
+  if (w.healBank > 0) lifesteal(w, Math.min(dealt, e.hp + dealt)); // phase 31 : réserve vide ou pas d'objet de soin : rien
   w.lastAction = w.t;
   const dx = e.x - fx,
     dz = e.z - fz,
@@ -54,6 +58,7 @@ export function killEnemy(w: World, i: number): void {
   const def = ENEMIES[e.type];
   w.kills++;
   if (w.player.killHeal > 0) w.player.hp = Math.min(w.player.maxHp, w.player.hp + w.player.killHeal); // phase 23 : tome Vitalité
+  if (w.items[It.Calice]) itemHeal(w, ITEM.calice.perKill); // phase 31 : Calice sanglant
   if (w.items[It.Collier]) {
     // phase 22 : Collier d'os, le kill rend de la recharge (réserve plafonnée, rechargée dans step) ; un boss beaucoup
     const P = w.player;

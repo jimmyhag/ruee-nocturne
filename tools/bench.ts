@@ -1,5 +1,6 @@
 // Bench : 400 ennemis forcés, 600 steps. Échoue si p95 > 6 ms, max > 20 ms ou tas +2 Mo.
-import { STEP } from '../src/sim/balance';
+import { It, STEP } from '../src/sim/balance';
+import { gainItem } from '../src/sim/items';
 import { startRun, step } from '../src/sim/step';
 import { spawnEnemy } from '../src/sim/spawner';
 import { World } from '../src/sim/world';
@@ -19,11 +20,14 @@ const MIX = [0, 1, 2, 4, 5, 9, 10]; // masse + Volants + Cracheurs + Archers et 
 for (let i = 0; i < 390; i++) spawnEnemy(w, MIX[i % MIX.length], (i / 390) * Math.PI * 2, 6 + (i % 17));
 const inp = { mx: 0.7, mz: 0.3, jump: false, spell: false, pick: 0 };
 w.player.maxHp = 1e9; // invincible : on mesure le coût du step, pas la survie
+// phase 31 (relecture perf) : objets de soin et de dégâts actifs, PV sous le maximum (vol de vie, Couronne, Second souffle)
+for (const it of [It.Croc, It.Calice, It.Mousse, It.Souffle, It.Gant, It.Couronne]) gainItem(w, it);
+const HP = 3e8; // 30 % des PV max : Couronne et Second souffle jouent, le vol de vie trouve de la place
 const gc = (globalThis as any).gc as (() => void) | undefined;
 // chauffe
-w.player.hp = 1e9;
+w.player.hp = HP;
 for (let i = 0; i < 120; i++) {
-  w.player.hp = 1e9;
+  w.player.hp = HP;
   step(w, inp, STEP);
 }
 gc?.();
@@ -33,7 +37,7 @@ for (let i = 0; i < 600; i++) {
   inp.mx = Math.cos(i / 60);
   inp.mz = Math.sin(i / 60);
   inp.spell = i % 45 === 0; // phase 19 : le sort de classe est lancé régulièrement (Bond de l'Éclaireuse)
-  w.player.hp = 1e9;
+  w.player.hp = HP;
   const t0 = performance.now();
   step(w, inp, STEP);
   times.push(performance.now() - t0);

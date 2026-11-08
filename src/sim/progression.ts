@@ -1,4 +1,4 @@
-import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, TOME_MAX, WEAPON_LINES, WEAPON_MAX, XP, It } from './balance';
+import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, TOME_MAX, WEAPON_LINES, WEAPON_MAX, XP, It, RUN_REROLL } from './balance';
 import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
@@ -58,7 +58,7 @@ function fillLines(w: World, c: Card, lines: StatLine[], taken: ArrayLike<number
  * Tire 3 cartes (4 avec la chance) selon survivor-design §3 : armes et tomes non maxés, pondérés (possédé ×1,6, nouveau ×1,3),
  * chaque carte avec 1 à 3 lignes. Écrit dans w.cards.
  */
-export function rollChoices(w: World): void {
+export function rollChoices(w: World, avoid?: readonly Card[]): void {
   let n = 0;
   const nW = Object.keys(w.weapons).length;
   const nT = Object.keys(w.tomes).length;
@@ -91,6 +91,11 @@ export function rollChoices(w: World): void {
     n++;
     weights.push(lv > 0 ? CHOICE.ownedWeight : CHOICE.newWeight);
   }
+  // phase 31 : une relance écarte les cartes qu'on vient de voir (elles ne reviennent que si le pool est maigre)
+  if (avoid)
+    for (let i = 0; i < n; i++)
+      for (let a = 0; a < avoid.length; a++)
+        if (avoid[a].kind === pool[i].kind && avoid[a].key === pool[i].key) weights[i] *= RUN_REROLL.avoid;
   w.cards.length = 0;
   if (n === 0) {
     w.cards.push({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1, s1: -1, s2: -1 });
@@ -181,6 +186,28 @@ export function applyCard(w: World, idx: number): void {
   }
   w.pending--;
   nextChoice(w);
+}
+
+/** Code d'entrée (Input.pick) pendant une montée de niveau : relancer les cartes (phase 31). */
+export const LEVEL_REROLL = 10;
+const lastCards: Card[] = [];
+
+/** Une montée de niveau (cartes d'arme ou de tome) peut-elle être relancée ? Pas un coffre, un sanctuaire ni un soin. */
+export function canReroll(w: World): boolean {
+  if (w.mode !== Mode.LevelUp || w.rerolls <= 0 || w.cards.length === 0) return false;
+  const k = w.cards[0].kind;
+  return k === 'w' || k === 't';
+}
+
+/** Relance (phase 31) : consomme une relance de la partie et tire de nouvelles cartes, autres que celles vues. */
+export function rerollLevel(w: World): boolean {
+  if (!canReroll(w)) return false;
+  w.rerolls--;
+  lastCards.length = 0;
+  for (const c of w.cards) lastCards.push(c);
+  rollChoices(w, lastCards);
+  w.emit(Ev.Reroll, w.player.x, w.player.y + 1, w.player.z, w.rerolls);
+  return true;
 }
 
 /**

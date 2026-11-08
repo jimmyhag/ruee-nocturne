@@ -86,6 +86,18 @@ const ITEM_VALUE: Record<ItemKey, number> = {
   patins: 6, // ni ne glisse
   plume: 5,
   boussole: 7,
+  croc: 20, // phase 31 : un joueur moyen aime le soin
+  calice: 17,
+  mousse: 18,
+  souffle: 15,
+  pierre: 19,
+  de: 14,
+  gant: 13,
+  brume: 18,
+  sandales: 11,
+  amulette: 12,
+  ecorce: 17,
+  couronne: 22,
 };
 
 /** Valeur d'une ligne de stat pour le bot (phase 12) : gain relatif approximatif, +1 projectile pèse lourd. */

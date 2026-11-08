@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -182,6 +182,10 @@ export class World {
   tricks = 0; // phase 28 : vrilles réussies dans la partie
   shieldT = 0; // phase 28 : Bouclier, s avant d'être prêt (0 : prêt)
   hornT = 0; // phase 28 : Corne de guerre, s avant la prochaine onde
+  rerolls: number = RUN_REROLL.base; // phase 31 : relances de cartes restantes pour la partie
+  healBank = 0; // phase 31 : PV que les objets peuvent encore rendre cette seconde (vol de vie, Calice)
+  healT = 0; // s avant la prochaine recharge de la réserve et l'annonce des soins
+  healed = 0; // PV rendus par les objets depuis la dernière annonce
   shrinesUsed = 0;
   boonPicks = 0; // choix de bonus de sanctuaire en attente
   readonly boons = new Uint8Array(BOON_KEYS.length); // bonus pris (CLI, HUD)
@@ -240,6 +244,7 @@ export class World {
         this.tomes[tk] = names.length;
       }
     if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
+    if (opts?.rerolls !== undefined) this.rerolls = Math.max(0, opts.rerolls | 0);
     if (opts?.slots) {
       this.maxWeapons = Math.max(
         Math.max(1, Math.min(MAX_WEAPONS, opts.slots.weapons | 0)),
