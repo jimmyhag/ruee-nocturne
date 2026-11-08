@@ -149,10 +149,10 @@ describe('passifs', () => {
     };
     expect(kick('bucheron')).toBeCloseTo(kick('eclaireuse') * TRAIT.fendeur.kbMul, 1);
   });
-  it('Revenante : deux armes, une réanimation gratuite, XP ×2 sur les kills en l’air', () => {
+  it('Revenante : Foudre seule (phase 34), une réanimation gratuite, XP ×2 sur les kills en l’air', () => {
     const w = new World(1, { character: 'revenante' });
     startRun(w);
-    expect(w.weapons).toEqual({ foudre: 1, aura: 1 });
+    expect(w.weapons).toEqual({ foudre: 1 });
     expect(w.player.revives).toBe(TRAIT.dejamorte.revives);
     // XP : un Spectre (1 XP) tué au sol puis en l'air (coup direct, le joueur étant en l'air à cet instant)
     const gemValue = (air: boolean) => {
@@ -165,11 +165,12 @@ describe('passifs', () => {
     expect(gemValue(false)).toBe(1);
     expect(gemValue(true)).toBe(TRAIT.dejamorte.airXpMul);
   });
-  it('Colporteur : tomes Chance et Or au départ, ses coffres proposent un objet de plus', () => {
+  it('Colporteur : aucun tome au départ (phase 34), flair du Marchand (+1 Chance, +40 % d’or), coffres à un objet de plus', () => {
     const w = make('colporteur');
-    expect(w.tomes).toEqual({ chance: 2, or: 3 });
-    expect(w.player.luck).toBe(1);
-    expect(w.player.goldMul).toBeCloseTo(1.24);
+    const e = make('eclaireuse');
+    expect(w.tomes).toEqual({});
+    expect(w.player.luck).toBe(e.player.luck + TRAIT.marchand.luck);
+    expect(w.player.goldMul).toBeCloseTo(e.player.goldMul + TRAIT.marchand.goldMul, 6);
     expect(chestOffers(w)).toBe(TRAIT.marchand.offers);
     expect(chestOffers(make('eclaireuse'))).toBe(ITEM.offers);
   });
@@ -188,5 +189,27 @@ describe('compteurs de défis', () => {
     expect(w.hurtAt).toBeGreaterThan(1);
     expect(w.noHitBest).toBeGreaterThan(0.9);
     expect(w.noHitBest).toBeLessThan(w.t);
+  });
+});
+
+describe('Revenante : frisson du tombeau (phase 34)', () => {
+  it('les ennemis à moins de chillR sont ralentis, pas au-delà ; rien chez l’Éclaireuse', () => {
+    for (const c of ['revenante', 'eclaireuse'] as const) {
+      const w = make(c);
+      w.player.maxHp = w.player.hp = 1e9;
+      w.weapons = {};
+      const near = spawnEnemy(w, 2, 0, 0.5); // Brute collée (angle, distance)
+      const mid = spawnEnemy(w, 2, Math.PI / 2, TRAIT.dejamorte.chillR - 0.6); // dans l'aura
+      const far = spawnEnemy(w, 2, Math.PI, TRAIT.dejamorte.chillR + 2); // hors de l'aura
+      step(w, still, STEP);
+      if (c === 'revenante') {
+        expect(w.enemies[near].slowT).toBeGreaterThan(0);
+        expect(w.enemies[mid].slowT).toBeGreaterThan(0);
+      } else {
+        expect(w.enemies[near].slowT).toBe(0);
+        expect(w.enemies[mid].slowT).toBe(0);
+      }
+      expect(w.enemies[far].slowT).toBe(0);
+    }
   });
 });

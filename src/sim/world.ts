@@ -223,6 +223,11 @@ export class World {
     this.trait = ch.trait;
     this.spell = ch.spell;
     if (ch.trait === Trait.DejaMorte) this.player.revives += TRAIT.dejamorte.revives;
+    if (ch.trait === Trait.Marchand) {
+      // phase 34 : flair du Colporteur (personnage, pas un tome : les emplacements de tomes restent libres)
+      this.player.luck += TRAIT.marchand.luck;
+      this.player.goldMul += TRAIT.marchand.goldMul;
+    }
     // kit de départ : lignes fixes (hors plafond d'emplacements, comme avant)
     if (ch.startLines)
       for (const k in ch.startLines) {

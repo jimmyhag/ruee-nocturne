@@ -680,8 +680,8 @@ export const TRAIT = {
   // ≈ +11 min de médiane au kit de départ (15:23 contre 5:46 pour l'Éclaireuse) ; 30 % et 2 lignes : 5:31 (60 runs)
   rapporteur: { refund: 0.3 },
   trainee: { spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25, kb: 0.6 }, // Feu follet : la Comète pose un feu de 1,5 s à 8 PV/s
-  dejamorte: { revives: 1, airXpMul: 2 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP
-  marchand: { offers: 4 }, // Colporteur (phase 17) : les coffres proposent 4 objets
+  dejamorte: { revives: 1, airXpMul: 2, chill: 0.8, chillR: 3.5 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP ; phase 34 : frisson du tombeau, les ennemis à moins de chillR u sont ralentis (0,8 s entretenues) ; au seul contact, 40 % de morts < 3 min (Dards), à 2,5 u 26 %, à 3,5 u 13 %
+  marchand: { offers: 4, luck: 1, goldMul: 0.4 }, // Colporteur (phase 17) : les coffres proposent 4 objets ; phase 34 : flair (+1 Chance, +40 % d'or) à la place des tomes de départ
 };
 
 export interface CharacterDef {
@@ -726,9 +726,10 @@ export const CHARACTERS: CharacterDef[] = [
   { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, spell: Spell.Petard, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
     spell: Spell.Comete, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
-  { key: 'revenante', weapon: 'foudre', weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, spell: Spell.Voile, bladeRangeMul: 1, unlock: 'win', price: 0 },
+  { key: 'revenante', weapon: 'foudre', trait: Trait.DejaMorte, // phase 34 : une seule arme au départ (plus de Halo)
+    speedMul: 0.9, hpAdd: 0, hpMul: 0.45, spell: Spell.Voile, bladeRangeMul: 1, unlock: 'win', price: 0 },
   { key: 'colporteur', weapon: 'lames', // phase 33 : plus de lignes de départ (une arme part de zéro) ; avant : // ≈ l'ancien Lames 3 ; avec 1 lame et 1 ligne de dégâts, 2:19 et 78 % de morts < 3 min
-    startTomes: { chance: ['luck', 'luck'], or: ['gold', 'gold', 'gold'] }, // ≈ Trèfle 1 et Bourse 1 d'avant
+    // phase 34 : plus de tomes de départ (Chance, Or) : le flair du Marchand les remplace (TRAIT.marchand)
     trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, spell: Spell.Bourse, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];
 

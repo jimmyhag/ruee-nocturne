@@ -2,6 +2,15 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.29.0 — 8 nov. 2026 (phase 34 « Une seule arme au départ »)
+
+### Modifié
+
+- **Tous les personnages commencent avec une seule arme, au niveau 1, et aucun tome** : les tomes se choisissent en partie.
+- **Revenante** : elle ne part plus avec le Halo en plus de la Foudre. À la place, _frisson du tombeau_ : une aura de froid ralentit les ennemis à moins de 3,5 u (ils virent au bleu).
+- **Colporteur** : il ne part plus avec les tomes Chance et Or. À la place, son passif _Marchand_ gagne un flair : +1 Chance et +40 % d'or ramassé, sans occuper d'emplacement de tome.
+- Textes de personnages corrigés (Braconnier +35 PV, Feu follet −40 % PV).
+
 ## 1.28.0 — 8 nov. 2026 (phase 33 « Armes qui partent de zéro »)
 
 ### Modifié
