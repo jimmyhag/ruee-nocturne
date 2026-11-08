@@ -202,6 +202,9 @@ export const enum Ev {
   Horn, // phase 28 : onde de la Corne de guerre en (x,z), v = rayon
   Reroll, // phase 31 : cartes de montée de niveau relancées, v = relances restantes
   Heal, // phase 31 : PV rendus par les objets (vol de vie, kills) depuis la dernière annonce, en (x,y,z), v = PV
+  PowerDrop, // phase 35 : bonus posé au sol en (x,z), v = Pw
+  PowerUp, // phase 35 : bonus ramassé en (x,z), v = Pw, x2 = durée de l'effet (0 : instantané)
+  PowerEnd, // phase 35 : effet d'un bonus terminé, v = Pw
 }
 
 export interface GameEvent {
@@ -280,6 +283,26 @@ export interface WorldOptions {
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouvement' | 'savoir' | 'chance' | 'or';
+
+/** Bonus au sol (phase 35) : ramassés en marchant dessus, effet immédiat ou temporaire. */
+export type PowerKey = 'aimant' | 'or' | 'vitesse' | 'gel' | 'rage';
+/** Index des bonus dans POWER_KEYS et w.powerT. */
+export const enum Pw {
+  Aimant = 0,
+  Or,
+  Vitesse,
+  Gel,
+  Rage,
+}
+
+/** Bonus posé au sol (phase 35). */
+export interface Power {
+  alive: boolean;
+  x: number;
+  z: number;
+  kind: Pw;
+  age: number; // s depuis l'apparition (rendu : pop, clignotement avant de disparaître)
+}
 
 /** Objets passifs (phase 17) : une règle de jeu chacun, obtenus dans les coffres et chez le marchand. */
 /** Bonus de sanctuaire (phase 18) : permanents pour la partie. */

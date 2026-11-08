@@ -2,7 +2,7 @@
 // repères (verrou, or, coffre, trophée). Style toon de l'UI : contour sombre, aplats colorés, un reflet. Le fond rond ou
 // carré (couleur de l'arme ou de la rareté) reste celui du conteneur `.glyph`. Aucune dépendance, aucune requête réseau :
 // chaînes construites une fois au chargement du module. Le glyphe Unicode reste en repli texte (aria-label).
-import type { BoonKey, ItemKey, SpellKey, TomeKey, WeaponKey } from '../sim/types';
+import type { BoonKey, ItemKey, PowerKey, SpellKey, TomeKey, WeaponKey } from '../sim/types';
 
 const INK = '#1b1631';
 const PAPER = '#fff1db';
@@ -366,6 +366,19 @@ export const SPELL_ICON: Record<SpellKey, string> = {
       hl('M18 22a20 20 0 0 1 12-12c-5 5-8 9-9 16z'),
   ),
   bourse: svg(bag()),
+};
+
+/** Phase 35 : bonus au sol (dessins propres, distincts des objets et des bonus de sanctuaire). */
+export const POWER_ICON: Record<PowerKey, string> = {
+  aimant: svg(magnet() + star(52, 12, 8, 3, 4, '#c08cff') + star(10, 54, 6, 2.5, 4, '#c08cff')),
+  or: svg(coin(24, 38, 16) + coin(42, 26, 16) + star(54, 52, 7, 2.5, 4, PAPER)),
+  vitesse: svg(chevrons('#7ee0a1') + hl('M12 16l12 14-3 3-11-13z')),
+  gel: svg(hourglass() + pole('M50 4v20M40 14h20M43 7l14 14M57 7L43 21', '#9fe8ff', 3) + circle(50, 14, 3, PAPER)),
+  rage: svg(
+    path('M32 4c6 10 18 14 18 30a18 18 0 0 1-36 0c0-8 4-12 8-16 0 6 3 9 6 9-2-9 0-17 4-23z', '#ff5a3c') +
+      path('M32 26c3 5 9 8 9 15a9 9 0 0 1-18 0c0-4 2-6 4-8 1 3 2 4 4 4-1-4 0-8 1-11z', GOLD) +
+      hl('M20 34c0-5 2-8 5-11-1 4-1 7 0 11z'),
+  ),
 };
 
 /** Repères hors catalogue. */

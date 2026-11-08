@@ -1,7 +1,7 @@
 // Toutes les constantes de gameplay. Chaque ligne dit pourquoi.
 // Unités : mètres (u), secondes, PV.
 
-import type { BoonKey, EnemyKey, ItemKey, TomeKey, WeaponKey } from './types';
+import type { BoonKey, EnemyKey, ItemKey, PowerKey, TomeKey, WeaponKey } from './types';
 import { Spell, Trait } from './types';
 
 export const STEP = 1 / 60; // pas fixe de la simulation
@@ -33,6 +33,7 @@ export const CAPS = {
   shots: 192, // crachats, flèches et boules de feu (24 tireurs au plus, phase 16) + éruptions et anneaux (phase 11)
   gems: 900,
   chests: 16, // jamais plus de quelques coffres au sol en pratique (une élite / 40 s)
+  powers: 8, // phase 35 : bonus au sol en même temps
   events: 1024,
 };
 
@@ -499,6 +500,32 @@ export const CHEST = {
   pickupR: 1.1,
   bossPicks: 2, // phase 17 : un coffre d'élite = un objet au choix, un coffre de boss = deux (avant : 1 à 5 cartes de niveau)
   gold: 10, // or par coffre
+};
+
+/**
+ * Bonus au sol (phase 35) : posés sur la carte devant le joueur et lâchés par les ennemis, ramassés en marchant
+ * dessus (jamais attirés par l'aimant). Reprendre un bonus actif remet sa durée au maximum.
+ */
+export const POWER_KEYS: PowerKey[] = ['aimant', 'or', 'vitesse', 'gel', 'rage'];
+export const POWER = {
+  pickupR: 1.1,
+  life: 30, // s au sol
+  blink: 5, // clignote les dernières secondes
+  weights: [25, 20, 20, 15, 20], // aimant, or, vitesse, gel, rage
+  dur: [0, 15, 7, 3, 6], // s d'effet (aimant : instantané) ; phase 35 : 20/10/4/10 doublaient la survie du profil nu (9:35)
+  goldMul: 2, // Pluie d'or : or des ennemis
+  speedMul: 1.3, // Élan
+  dmgMul: 1.25, // Rage (×1,5 pendant 10 s : 10:16 de survie nue à elle seule)
+  killChance: 0.003, // ennemi normal
+  eliteChance: 0.2,
+  bossDrops: 2,
+  mapFirst: 30, // premier bonus de carte
+  mapEvery: [45, 70], // s entre deux bonus de carte
+  mapDist: [14, 24], // u du joueur
+  mapCone: Math.PI / 4, // demi-angle autour de la direction du héros
+  placeTries: 6,
+  bossScatter: 1.6, // u : écart des bonus lâchés par un boss
+  mapMinGround: 1, // un bonus de carte n'est pas posé dans le lac (speedAt < 1)
 };
 
 export const LUCK = {

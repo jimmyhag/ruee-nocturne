@@ -2,6 +2,21 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.30.0 — 8 nov. 2026 (phase 35 « Bonus au sol »)
+
+### Ajouté
+
+- **Bonus au sol** : cinq bonus à ramasser en marchant dessus. Ils apparaissent sur la carte devant le héros toutes les 45 à 70 s, et les ennemis en lâchent (souvent les élites, deux pour chaque boss). L'aimant ne les attire pas : il faut aller les chercher.
+  - **Aimant** : toute l'XP de la carte arrive sur le héros.
+  - **Pluie d'or** : or des ennemis ×2 pendant 15 s.
+  - **Élan** : vitesse ×1,3 pendant 7 s.
+  - **Temps figé** : ennemis, tirs et dangers immobiles pendant 3 s, et toujours touchables.
+  - **Rage** : dégâts ×1,25 pendant 6 s.
+- Au sol, chaque bonus est un gros cristal de couleur avec son icône. Il clignote avant de disparaître (30 s) et apparaît sur la minicarte.
+- Au ramassage : une bannière, un son propre et une pastille avec la durée restante au HUD.
+- Pendant le Temps figé : ennemis givrés et voile bleuté. Pendant l'Élan : silhouettes vertes. Pendant la Rage : lueur rouge autour du héros.
+- PLAN.md : la liste des idées retenues pour la suite (Nuits, esquive parfaite, série sans dégât, etc.).
+
 ## 1.29.0 — 8 nov. 2026 (phase 34 « Une seule arme au départ »)
 
 ### Modifié

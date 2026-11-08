@@ -229,6 +229,33 @@ export class AudioBus {
     this.tone(this.ui, 659, 0.1, 'triangle', 0.26, 0, PRIO.levelUp, 0.08);
     this.tone(this.ui, 784, 0.2, 'triangle', 0.3, 0, PRIO.levelUp, 0.16);
   }
+  /** Phase 35 : un bonus apparaît au sol, tintement discret. */
+  powerDrop(): void {
+    this.tone(this.ui, 1568, 0.09, 'sine', 0.1, 0, PRIO.pickup);
+  }
+  /**
+   * Phase 35 : bonus ramassé, un motif par bonus (Pw) : Aimant aspiration, Pluie d'or pièces, Élan montée vive,
+   * Temps figé cloche grave qui s'arrête, Rage grondement.
+   */
+  power(k: number): void {
+    const P = PRIO.levelUp;
+    if (k === 0) {
+      this.tone(this.ui, 300, 0.35, 'sine', 0.26, 900, P);
+      this.tone(this.ui, 600, 0.3, 'triangle', 0.18, 900, P, 0.05);
+    } else if (k === 1) {
+      for (let i = 0; i < 4; i++) this.tone(this.ui, 1180 + i * 150, 0.06, 'square', 0.12, 0, P, i * 0.05);
+    } else if (k === 2) {
+      this.tone(this.ui, 440, 0.18, 'triangle', 0.26, 660, P);
+      this.tone(this.ui, 880, 0.2, 'triangle', 0.2, 440, P, 0.08);
+    } else if (k === 3) {
+      this.tone(this.ui, 196, 0.9, 'sine', 0.32, 0, P);
+      this.tone(this.ui, 1175, 0.6, 'sine', 0.14, -400, P, 0.02);
+    } else {
+      this.tone(this.sfx, 80, 0.45, 'sawtooth', 0.38, 60, P);
+      this.tone(this.ui, 330, 0.25, 'square', 0.16, 160, P, 0.06);
+    }
+  }
+
   /** Coffre de carte payé (phase 18) : pièces qui tintent puis l'arpège du coffre. */
   mapChest(): void {
     this.tone(this.ui, 1180, 0.05, 'square', 0.12, 0, PRIO.levelUp);

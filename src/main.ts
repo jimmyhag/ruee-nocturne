@@ -1,6 +1,7 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, REAPER_TYPE, SLIDE, STEP } from './sim/balance';
+import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
-import { Ev, Mode, Spell } from './sim/types';
+import { Ev, Mode, Pw, Spell } from './sim/types';
+import { POWER_ICON } from './ui/icons';
 import type { Input } from './sim/types';
 import { World } from './sim/world';
 import type { GameScene } from './render/scene';
@@ -82,7 +83,11 @@ function loadScene(): Promise<GameScene> {
   return (scenePromise ??= import('./render/scene').then(async ({ GameScene }) => {
     let s: GameScene;
     try {
-      s = new GameScene($('c') as HTMLCanvasElement, $('dmg'));
+      s = new GameScene(
+        $('c') as HTMLCanvasElement,
+        $('dmg'),
+        POWER_KEYS.map((k) => POWER_ICON[k]),
+      );
     } catch (e) {
       $('nogl').hidden = false;
       $('menu').hidden = true;
@@ -148,6 +153,7 @@ let app: AppMode = 'menu';
 let world: World | null = null;
 let meta: Meta = metaAtStart;
 let hurtT = 0;
+let timestopOn = false; // phase 35 : Temps figé affiché
 const hitStop = new HitStop(); // borné : voir render/feel.ts
 // « réduction des effets » : réglage du joueur, sinon prefers-reduced-motion (skill game-feel §9)
 const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -325,6 +331,8 @@ let startWanted: { variant?: number; daily: boolean } | null = null;
 /** Attente des modèles des ennemis au premier départ de la session (une seule fois). */
 let modelsWaited = false;
 function startGame(variant?: number, daily = false): void {
+  timestopOn = false; // phase 35
+  document.body.classList.remove('timestop');
   if (!meta.seenReset) {
     meta.seenReset = true; // la bannière « nouvelle progression » a été vue
     saveMeta(meta);
@@ -404,6 +412,7 @@ function startGame(variant?: number, daily = false): void {
 function toMenu(): void {
   app = 'menu';
   world = null;
+  scene?.marks.clear(); // phase 35 : les icônes des bonus ne restent pas sur le menu
   showOnly('menu');
   if (pendingReconcile) void reconcileAccount(); // une synchronisation attendait la fin de la partie
   scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // après un défi du jour (Éclaireuse forcée)
@@ -603,6 +612,8 @@ function renderOverScreen(): void {
           : esc(t('over.toBeat', { time: fmtTime(meta.bestTime - world.t), gold: g }));
 }
 function gameOver(won = false): void {
+  timestopOn = false; // phase 35
+  document.body.classList.remove('timestop');
   if (!world || !scene) return;
   const S = scene;
   app = 'over';
@@ -1522,6 +1533,20 @@ function handleEvents(w: World, now: number): void {
         S.dmg.text(e.x, 2.2, e.z, t('banner.shield'), 'gold');
         audio.chest();
         break;
+      // phase 35 : bonus au sol
+      case Ev.PowerDrop:
+        S.particles.ring(e.x, 0.8, e.z, PAL.power[e.v], (10 * fx) | 0, 2, 2);
+        audio.powerDrop();
+        break;
+      case Ev.PowerUp:
+        S.particles.ring(e.x, 0.8, e.z, PAL.power[e.v], (26 * fx) | 0, 4, 5);
+        audio.power(e.v);
+        hud.banner(t('banner.power.' + POWER_KEYS[e.v]));
+        hud.powerFlash(e.v);
+        break;
+      case Ev.PowerEnd:
+        if (e.v === Pw.Gel) audio.whoosh(); // le temps repart
+        break;
       case Ev.Heal: // phase 31 : soins des objets, un chiffre vert par seconde
         S.dmg.text(e.x, 2, e.z, `+${Math.round(e.v)}`, 'heal');
         break;
@@ -1752,6 +1777,11 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);
+    const frozenNow = world.powerT[Pw.Gel] > 0; // phase 35 : voile bleuté du Temps figé (classe CSS, écrite au changement)
+    if (frozenNow !== timestopOn) {
+      timestopOn = frozenNow;
+      document.body.classList.toggle('timestop', frozenNow);
+    }
     mapView.update(world, realDt); // phase 27 : minicarte (4 fois par seconde)
     const slideOn = world.player.sliding;
     if (slideOn !== slideBtnOn) {
@@ -1771,6 +1801,7 @@ function frame(nowMs: number): void {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
     scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
+    scene.marks.update(world.powers, world.powerCount, now, scene.camera, innerWidth, innerHeight); // phase 35
   } else if (scene && sceneReady) {
     scene.renderIdle(now, realDt);
   }

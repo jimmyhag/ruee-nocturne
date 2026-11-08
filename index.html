@@ -265,6 +265,64 @@
         border-radius: 4px;
         white-space: nowrap;
       }
+      /* phase 35 : bonus actifs, une pastille par effet (icône + barre de durée) */
+      .powers {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .powers .pw {
+        position: relative;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: #0f1628cc;
+        border: 2px solid var(--pc, #fff);
+        box-shadow: 0 0 10px var(--pc, #fff);
+        overflow: hidden;
+      }
+      .powers .pw svg.ico {
+        width: 22px;
+        height: 22px;
+        margin: 2px;
+      }
+      .powers .pw i {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 4px;
+        width: 100%;
+        background: var(--pc, #fff);
+      }
+      .powers .pw.pop {
+        animation: pwpop 0.35s ease-out;
+      }
+      @keyframes pwpop {
+        from {
+          transform: scale(1.5);
+        }
+      }
+      /* icône d'un bonus au sol, au-dessus de son cristal (projetée par PowerMarks) */
+      #dmg .pmark {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 34px;
+        height: 34px;
+        padding: 3px;
+        border-radius: 50%;
+        background: #0f1628b3;
+        box-shadow: 0 0 12px #fff8;
+        will-change: transform;
+      }
+      #dmg .pmark svg.ico {
+        width: 28px;
+        height: 28px;
+      }
+      /* phase 35 : Temps figé, voile bleuté par-dessus le jeu (CSS, gratuit côté GPU) */
+      body.timestop #vignette {
+        background: radial-gradient(ellipse at center, #9fe8ff1a 35%, #5fb8ffb0 115%);
+      }
       .time {
         font-family: var(--f-display);
         font-size: 34px;
@@ -1761,6 +1819,8 @@
             <div class="hpbar"><em id="hpghost"></em><i id="hpfill"></i><span id="hptxt">100</span></div>
           </div>
           <div class="kit" id="kit"></div>
+          <!-- phase 35 : bonus au sol actifs (icône + durée restante), remplis par Hud -->
+          <div class="powers" id="powers"></div>
         </div>
         <div class="time" id="time">0:00</div>
         <div class="hright">

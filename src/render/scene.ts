@@ -23,6 +23,7 @@ import {
   VOLANT,
   VOLANT_TYPE,
   WORLD_HALF,
+  POWER,
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
@@ -32,7 +33,7 @@ import { enemyOutlineMaterial, loadEnemyModels } from './enemyModels';
 import type { BakedEnemy } from './enemyModels';
 import { writeLoopPose, writeOncePose } from './pose';
 import type { PropGeometry, PropKey } from './models';
-import { Mode, ProjKind, ShotKind, Spell } from '../sim/types';
+import { Mode, ProjKind, Pw, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey, Enemy } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
@@ -63,7 +64,7 @@ import { OUTLINE, toonGradient, toonMaterial } from './toon';
 import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, SLASH_ARC } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
-import { AimLines, Bolts, DamageNumbers, Particles } from './fx';
+import { AimLines, Bolts, DamageNumbers, Particles, PowerMarks } from './fx';
 import { InstanceWriter, makeInstanced } from './instancing';
 import { PAL } from './palette';
 
@@ -140,6 +141,7 @@ export class GameScene {
   bolts: Bolts;
   aims: AimLines;
   dmg: DamageNumbers;
+  marks: PowerMarks; // phase 35 : icônes des bonus au sol
 
   private player = new THREE.Group(); // contient le modèle du personnage courant (src/render/characters.ts)
   private model: CharacterModel;
@@ -278,6 +280,10 @@ export class GameScene {
   // phase 19 : ennemis étourdis (Éclat, Collet) ou ralentis (Voile), silhouettes du Voile
   private cStun = new THREE.Color(0xfff1a8);
   private cSlow = new THREE.Color(0x9fd8ff);
+  private cFreeze = new THREE.Color(PAL.freeze); // phase 35 : Temps figé
+  private frozenPose = false; // phase 35 : poses des ennemis 3D arrêtées pendant le Temps figé
+  private cPower = PAL.power.map((c) => new THREE.Color(c)); // phase 35 : bonus au sol (index Pw)
+  private cPowerHalo = PAL.power.map((c) => new THREE.Color(c).multiplyScalar(0.9));
   private cVoile = new THREE.Color(PAL.xp);
   private writers: InstanceWriter[] = []; // tous les InstanceWriter dynamiques (remise à zéro au menu)
 
@@ -316,7 +322,7 @@ export class GameScene {
   private zoom = 1; // zoom-out progressif + recul au boss (FEEL.camera)
   shake = 0;
 
-  constructor(canvas: HTMLCanvasElement, dmgLayer: HTMLElement) {
+  constructor(canvas: HTMLCanvasElement, dmgLayer: HTMLElement, powerIcons: readonly string[] = []) {
     // MSAA toujours actif (quasi gratuit sur les GPU mobiles à tuiles) ; la résolution interne dépend du niveau (setQuality)
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1);
@@ -549,8 +555,15 @@ export class GameScene {
     this.bolts = new Bolts(this.scene);
     this.aims = new AimLines(this.scene);
     this.dmg = new DamageNumbers(dmgLayer);
+    this.marks = new PowerMarks(dmgLayer, powerIcons, CAPS.powers);
     // phase 18 : les effets reçoivent des y au-dessus du sol local (comme la sim) ; le sol est ajouté ici
-    this.particles.ground = this.bolts.ground = this.aims.ground = this.dmg.ground = this.fireflies.ground = this.gy;
+    this.particles.ground =
+      this.bolts.ground =
+      this.aims.ground =
+      this.dmg.ground =
+      this.marks.ground =
+      this.fireflies.ground =
+        this.gy;
   }
 
   /** Décor statique généré depuis les obstacles et zones de la sim (même seed ⇒ même décor). */
@@ -1021,6 +1034,11 @@ export class GameScene {
     const len = 1 + b.loop + b.action;
     const row = this.enemyW[t].last; // -1 : instance refusée (capacité pleine), rien à poser
     if (row < 0) return;
+    if (this.frozenPose) {
+      // phase 35 : Temps figé, pose de marche arrêtée (un instant différent par ennemi), pas de geste
+      writeLoopPose(data, row, len, 0, b.loop, 0.1 + e.bob * 0.16);
+      return;
+    }
     if (b.action) {
       // Archer et Cracheur : visée 0 → 1 ; Sorcier et boss : geste en boucle pendant le télégraphe (state 1)
       if ((t === ARCHER_TYPE && e.state === 1) || (t === CRACHEUR_TYPE && e.aim > 0)) {
@@ -1340,8 +1358,10 @@ export class GameScene {
 
     // dash (Bond, Comète) et Voile (phase 19) : 1 particule par frame + silhouettes en fondu
     const voile = w.spell === Spell.Voile && P.spellT > 0;
-    if (P.dashT > 0 || voile) {
-      this.particles.burst(px, py + 0.8, pz, voile ? PAL.xp : PAL.cream, 1, 0, 0, false);
+    // phase 35 : Élan, silhouettes vertes tant que le héros court
+    const elan = w.powerT[Pw.Vitesse] > 0 && P.dashT <= 0 && !voile && (P.x !== P.px || P.z !== P.pz);
+    if (P.dashT > 0 || voile || elan) {
+      if (!elan) this.particles.burst(px, py + 0.8, pz, voile ? PAL.xp : PAL.cream, 1, 0, 0, false);
       if (now - this.lastGhost >= FEEL.trail.dashGhostEvery) {
         this.lastGhost = now;
         const g = this.ghosts[this.ghostNext];
@@ -1358,7 +1378,9 @@ export class GameScene {
       const g = this.ghosts[i];
       if (g.life <= 0) continue;
       g.life -= dt;
-      this.cGhost.copy(voile ? this.cVoile : this.cFire).multiplyScalar(Math.max(0, g.life / FEEL.trail.dashGhostLife));
+      this.cGhost
+        .copy(voile ? this.cVoile : elan ? this.cPower[Pw.Vitesse] : this.cFire)
+        .multiplyScalar(Math.max(0, g.life / FEEL.trail.dashGhostLife));
       this.dashGhostW.put(g.x, g.y, g.z, g.ry, 1, this.cGhost);
     }
     this.dashGhostW.end();
@@ -1390,6 +1412,8 @@ export class GameScene {
     this.metW.begin(); // anneaux des élites (ici) puis cercles des météores (plus bas)
     this.aims.begin();
     this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
+    const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé, ennemis givrés et sans sautillement
+    this.frozenPose = frozen;
     for (let i = 0; i < w.enemyCount; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;
@@ -1401,7 +1425,7 @@ export class GameScene {
       // silhouettes procédurales, centrées) ne sert plus qu'au Volant, qui vole (1.21.4)
       const grounded = !!this.enemyMorph[e.type] && e.type !== VOLANT_TYPE;
       const hop =
-        boss || grounded
+        boss || grounded || frozen
           ? 0
           : Math.abs(Math.sin(now * 8 + e.bob)) *
             (e.type === 1 ? 0.12 : 0.1) *
@@ -1410,13 +1434,15 @@ export class GameScene {
       const col =
         e.flash > 0
           ? this.cFlash
-          : e.stun > 0
-            ? this.cStun
-            : e.slowT > 0
-              ? this.cSlow
-              : e.elite
-                ? this.eliteColor[e.type]
-                : this.enemyColor[e.type];
+          : frozen
+            ? this.cFreeze
+            : e.stun > 0
+              ? this.cStun
+              : e.slowT > 0
+                ? this.cSlow
+                : e.elite
+                  ? this.eliteColor[e.type]
+                  : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
@@ -1662,7 +1688,42 @@ export class GameScene {
         g.v >= 10 ? this.cGem[2] : g.v >= 4 ? this.cGem[1] : this.cGem[0],
       );
     }
+    // phase 35 : bonus au sol, gros cristal coloré + halo (l'icône est en DOM, PowerMarks) ; clignote avant de partir
+    const PF = FEEL.power,
+      G = FEEL.glow,
+      brx = this.particles.billboardRx;
+    for (let i = 0; i < w.powerCount; i++) {
+      const pw = w.powers[i];
+      if (pw.age > POWER.life - POWER.blink && Math.sin(now * PF.blinkHz * TAU) < 0) continue;
+      const pop = pw.age < PF.pop ? pw.age / PF.pop : 1;
+      const y = this.gy(pw.x, pw.z) + PF.lift + Math.sin(now * 2.4 + pw.x) * PF.bob;
+      this.gemW.put(pw.x, y, pw.z, now * 1.6 + pw.z, PF.scale * pop, this.cPower[pw.kind]);
+      this.glowW.put(
+        pw.x,
+        y,
+        pw.z,
+        0,
+        G.powerHalo * pop * (0.9 + 0.1 * Math.sin(now * 5)),
+        this.cPowerHalo[pw.kind],
+        brx,
+        now,
+      );
+    }
     this.gemW.end();
+    if (w.powerT[Pw.Rage] > 0) {
+      const hx = lerp(w.player.px, w.player.x, alpha),
+        hz = lerp(w.player.pz, w.player.z, alpha);
+      this.glowW.put(
+        hx,
+        this.gy(hx, hz) + w.player.y + 1,
+        hz,
+        0,
+        G.rageHalo * (0.85 + 0.15 * Math.sin(now * 9)),
+        this.cPowerHalo[Pw.Rage],
+        brx,
+        now * 2,
+      );
+    }
 
     // projectiles : orbes (+ traînées), boomerangs, mines ; Nova : orbes ×1,6
     const orbeScale = w.player.sizeMul; // tome Projectiles : projectiles plus gros
@@ -1963,6 +2024,7 @@ export class GameScene {
     this.landT = -1;
     this.motion.reset();
     for (const g of this.ghosts) g.life = 0;
+    this.marks.clear();
     this.camGy = this.gy(w.player.x, w.player.z);
     this.camPos.set(w.player.x, this.camGy + 12.5 * this.camScale, w.player.z + 10.5 * this.camScale);
     this.camLook.set(w.player.x, this.camGy + 0.8, w.player.z);

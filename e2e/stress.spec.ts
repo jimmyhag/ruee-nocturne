@@ -25,6 +25,17 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
+  // phase 35 : des bonus au sol pendant la mesure (cristaux + halos + icônes DOM : aucun appel de plus attendu)
+  await page.evaluate(() => {
+    const d = (window as any).__game.debug;
+    for (const [k, dx, dz] of [
+      ['aimant', -4, -3],
+      ['or', 4, -3],
+      ['vitesse', -4, 3],
+      ['rage', 4, 3],
+    ] as const)
+      d.power(k, dx, dz);
+  });
   // phase 20 : mesure avec les modèles KayKit chargés (héros glTF, décor), pas avec le repli procédural
   await page.waitForFunction(
     () => {

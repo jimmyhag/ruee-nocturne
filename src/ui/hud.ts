@@ -1,11 +1,14 @@
-import { ENEMIES, ITEM_KEYS, ITEM_RARITY, MAPCHEST, SHRINE, SPELL_KEYS } from '../sim/balance';
+import { ENEMIES, ITEM_KEYS, ITEM_RARITY, MAPCHEST, POWER, POWER_KEYS, SHRINE, SPELL_KEYS } from '../sim/balance';
+import { PAL } from '../render/palette';
 import { canGainItem } from '../sim/items';
 import { mapChestPrice } from '../sim/poi';
 import { spellCooldown } from '../sim/spells';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
-import { BOON_ICON, ITEM_ICON, SPELL_ICON, TOME_ICON, WEAPON_ICON } from './icons';
+import { BOON_ICON, ITEM_ICON, POWER_ICON, SPELL_ICON, TOME_ICON, WEAPON_ICON } from './icons';
+
+const PAL_POWER = PAL.power;
 import type { World } from '../sim/world';
 import { fmtTime, onLangChange, t, fmtNum } from '../i18n';
 import {
@@ -65,7 +68,12 @@ export class Hud {
     flash: $('flash'),
     banner: $('banner'),
     perf: $('perf'),
+    powers: $('powers'),
   };
+  /** Phase 35 : une pastille par bonus à durée (index Pw ; l'Aimant, instantané, n'en a pas). */
+  private pw: { box: HTMLElement; bar: HTMLElement }[] = [];
+  private pwOn = new Uint8Array(POWER_KEYS.length);
+  private pwW = new Int16Array(POWER_KEYS.length).fill(-1);
   private spellGlyphChar = '✦'; // icône du sort de la classe (remplacée par les secondes pendant la recharge)
   private bannerT = 0;
   private lastKillTens = 0;
@@ -79,6 +87,18 @@ export class Hud {
   flashMul = 1;
 
   constructor() {
+    for (let k = 0; k < POWER_KEYS.length; k++) {
+      const box = document.createElement('div');
+      box.className = 'pw';
+      box.dataset.k = POWER_KEYS[k];
+      box.style.setProperty('--pc', '#' + PAL_POWER[k].toString(16).padStart(6, '0'));
+      box.innerHTML = POWER_ICON[POWER_KEYS[k]];
+      const bar = document.createElement('i');
+      box.appendChild(bar);
+      box.hidden = true;
+      this.els.powers.appendChild(box);
+      this.pw.push({ box, bar });
+    }
     this.relabel();
     onLangChange(() => this.relabel());
   }
@@ -97,6 +117,11 @@ export class Hud {
     this.lastSweep = 0;
     this.flashT = 0;
     this.els.killsBox.classList.remove('pop');
+    for (let k = 0; k < this.pw.length; k++) {
+      this.pw[k].box.hidden = true;
+      this.pwOn[k] = 0;
+      this.pwW[k] = -1;
+    }
     this.els.goldBox.classList.remove('pop');
   }
   private text(k: keyof typeof this.els, v: string): void {
@@ -256,6 +281,21 @@ export class Hud {
       this.width('bossfill', b.hp / b.max);
       this.text('bossname', this.bossNames[b.type]);
     }
+    // phase 35 : bonus actifs, pastille visible et barre de durée (écrite par pas de 2 %)
+    for (let k = 1; k < this.pw.length; k++) {
+      const left = w.powerT[k];
+      const on = left > 0 ? 1 : 0;
+      if (on !== this.pwOn[k]) {
+        this.pwOn[k] = on;
+        this.pw[k].box.hidden = !on;
+      }
+      if (!on) continue;
+      const pct = Math.round((left / POWER.dur[k]) * 50) * 2;
+      if (pct !== this.pwW[k]) {
+        this.pwW[k] = pct;
+        this.pw[k].bar.style.width = pct + '%';
+      }
+    }
     const cd = P.spellCd > 0 ? 1 - P.spellCd / spellCooldown(w) : 1; // phase 19 : sort de classe
     const cdv = cd.toFixed(2);
     if (this.cache.cd !== cdv) {
@@ -293,6 +333,14 @@ export class Hud {
       this.cache.flk = k;
       this.els.flash.classList.toggle('gold', k === 'gold');
     }
+  }
+  /** Phase 35 : la pastille du bonus ramassé saute (relancée même si l'effet était déjà actif). */
+  powerFlash(k: number): void {
+    const b = this.pw[k]?.box;
+    if (!b || k === 0) return;
+    b.classList.remove('pop');
+    void b.offsetWidth; // relance l'animation CSS
+    b.classList.add('pop');
   }
   /** Flash d'écran ponctuel (boss vaincu : doré). */
   flash(kind: FlashKind): void {
