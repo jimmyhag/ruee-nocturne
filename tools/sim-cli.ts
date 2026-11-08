@@ -104,6 +104,8 @@ interface RunResult {
   bought: number; // dont achetés au marchand
   synergies: string[]; // synergies actives en fin de run
   mapChests: number; // phase 18 : coffres de carte ouverts
+  powersDropped: number; // phase 35 : bonus apparus
+  powersTaken: number; // phase 35 : bonus ramassés
   shrines: number; // sanctuaires pris
   spellCasts: number; // phase 19 : sorts lancés
   spellKills: number; // kills faits par le sort
@@ -260,6 +262,8 @@ function runOnce(seed: number): RunResult {
     bought,
     synergies: SYNERGIES.filter((_, i) => w.syn[i]).map((s) => s.key),
     mapChests: w.mapChestsOpened,
+    powersDropped: w.powersDropped,
+    powersTaken: w.powersTaken,
     shrines: w.shrinesUsed,
     spellCasts: w.sstate.casts,
     spellKills: w.sstate.kills,
@@ -358,6 +362,17 @@ const summary = {
   synergyRunPct: (100 * results.filter((r) => r.synergies.length > 0).length) / RUNS,
   // phase 18 : points d'intérêt et part de l'or dépensé en partie (coffres de carte + marchand)
   mapChestsPerRun: +(results.reduce((a, r) => a + r.mapChests, 0) / RUNS).toFixed(2),
+  // phase 35 : bonus au sol, ramassés par minute de jeu et part ramassée
+  powersPerMin: +(
+    results.reduce((a, r) => a + r.powersTaken, 0) / Math.max(1, results.reduce((a, r) => a + r.time, 0) / 60)
+  ).toFixed(2),
+  powersTakenPct: Math.round(
+    (100 * results.reduce((a, r) => a + r.powersTaken, 0)) /
+      Math.max(
+        1,
+        results.reduce((a, r) => a + r.powersDropped, 0),
+      ),
+  ),
   shrinesPerRun: +(results.reduce((a, r) => a + r.shrines, 0) / RUNS).toFixed(2),
   // phase 19 : sort de classe, lancers par minute de jeu et part des kills
   spellPerMin: +(
@@ -518,6 +533,7 @@ lines.push(
 );
 lines.push(`vivants/min ${summary.aliveCurve.join(' ')}  (plus forte chute ${summary.maxDrop} pts en 1 min)`);
 lines.push(
+  `bonus       ${summary.powersPerMin} ramassés par minute · ${summary.powersTakenPct} % des bonus apparus`,
   `carte       ${summary.mapChestsPerRun} coffres de carte et ${summary.shrinesPerRun} sanctuaires par run · ${summary.goldSpentPct} % de l'or gagné dépensé en partie`,
 );
 lines.push(`sort        ${summary.spellPerMin} lancers par minute · ${summary.spellKillPct} % des kills`);

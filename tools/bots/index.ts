@@ -21,6 +21,8 @@ import {
 import { canGainItem } from '../../src/sim/items';
 import { MERCHANT_LEAVE, canAffordAny } from '../../src/sim/merchant';
 import { cardSynergy } from '../../src/sim/synergies';
+
+const POWER_SEEK2 = 16 * 16; // phase 35 : rayon (u²) où le bot va chercher un bonus au sol
 import { canOpenMapChest } from '../../src/sim/poi';
 
 export interface Bot {
@@ -386,6 +388,25 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         const k = n > 0 ? pullFleeing * 1.5 : pullFree * 1.5;
         out.mx += (kx / l) * k;
         out.mz += (kz / l) * k;
+      }
+      // phase 35 : bonus au sol à portée, on va le chercher comme un coffre (il ne vient jamais seul)
+      let qx = 0,
+        qz = 0,
+        qd = POWER_SEEK2;
+      for (let i = 0; i < w.powerCount; i++) {
+        const p = w.powers[i];
+        const d = (p.x - P.x) ** 2 + (p.z - P.z) ** 2;
+        if (d < qd) {
+          qd = d;
+          qx = p.x - P.x;
+          qz = p.z - P.z;
+        }
+      }
+      if (qd < POWER_SEEK2) {
+        const l = Math.sqrt(qd) || 1;
+        const k = n > 0 ? pullFleeing * 1.5 : pullFree * 1.5;
+        out.mx += (qx / l) * k;
+        out.mz += (qz / l) * k;
       }
       // échoppe du marchand à portée, de l'or et une place libre : on y va (pas si on vient d'en sortir)
       const M = w.merchant;

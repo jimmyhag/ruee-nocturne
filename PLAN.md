@@ -224,6 +224,32 @@ Décision prise : les synergies sont des bonus de stats ou des règles simples p
 - **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie parmi 3 : +12 PV max, +8 % de dégâts, +6 % de vitesse, −6 % de recharge, +25 % de collecte, +20 % d'or, −12 % de recharge du sort (sanctuaire de l'arcane, phase 22). Un usage chacun.
 - **Respiration avant un boss** : bannière « … approche » 15 s avant, spawn à 60 % les 10 dernières secondes.
 
+### 3.7 Bonus au sol (phase 35)
+
+Cinq bonus à ramasser en marchant dessus. Ils ne sont jamais attirés par l'aimant : il faut aller les chercher. Valeurs dans `POWER` (`balance.ts`).
+
+| Bonus | Effet | Durée |
+|---|---|---|
+| Aimant | toutes les gemmes de la carte filent vers le héros | instantané |
+| Pluie d'or | or des ennemis ×2 | 20 s |
+| Élan | vitesse ×1,4 | 10 s |
+| Temps figé | ennemis, tirs ennemis, dangers et apparitions figés ; les ennemis prennent toujours les coups | 4 s |
+| Rage | dégâts ×1,5 | 10 s |
+
+- **Apparition** :
+  - sur la carte, toutes les 35 à 55 s (le premier à 30 s), entre 14 et 24 u, devant le héros ;
+  - au kill : 0,4 % pour un ennemi normal, 30 % pour une élite, deux bonus pour un boss ;
+  - tirage pondéré : aimant 25, or 20, vitesse 20, gel 15, rage 20.
+- **Au sol** : 30 s au plus, avec un clignotement les 5 dernières ; 8 au plus en même temps.
+- **Reprise** : reprendre un bonus actif remet sa durée au maximum, sans cumul. Des bonus différents se cumulent.
+- **Lisibilité** :
+  - au sol : un gros cristal de la couleur du bonus, un halo et une icône au-dessus ;
+  - au ramassage : une bannière et un son propre au bonus ;
+  - pendant l'effet : une pastille avec la durée au HUD ;
+  - Temps figé : ennemis givrés et voile bleuté ;
+  - Élan : silhouettes vertes ;
+  - Rage : lueur rouge.
+
 ---
 
 ## 4. Architecture technique
@@ -494,6 +520,30 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : chaque personnage commence avec une seule arme au niveau 1 et aucun tome ; les tomes se choisissent en partie. Les bonus retirés deviennent des passifs propres au personnage.
 - Décisions prises : Revenante sans Halo (frisson du tombeau : les ennemis à moins de 3,5 u sont ralentis ; au seul contact, la Foudre seule laissait 40 % de morts avant 3 min, surtout par les Dards ; 13 % avec l'aura) ; Colporteur sans tomes Chance et Or (flair du Marchand : +1 Chance, +40 % d'or, sur le personnage). Aucun autre personnage n'avait de tome ni de seconde arme.
 - **Porte** : les 9 personnages partent avec une arme au niveau 1 et aucun tome (Vitest) ; Revenante et Colporteur dans la règle (± 3 min, morts < 3 min).
+
+### Phase 35 — Bonus au sol (après la 1.29.0)
+- **Demande de Jimmy** : des bonus à ramasser au sol, posés sur la carte et lâchés par les ennemis : un aimant qui ramène toute l'XP, plus d'or, plus de vitesse, le temps arrêté et plus de dégâts, chacun pendant un temps (§3.7).
+- **Décisions prises** :
+  - jamais attirés par l'aimant : le déplacement est le prix du bonus ;
+  - Temps figé à 4 s, boss compris, l'horloge de la partie continuant ;
+  - rendu sans aucun appel de dessin en plus : cristaux dans l'écrivain des gemmes, halo dans celui des lueurs, icône en DOM.
+- **Porte** :
+  - effets, apparition, durée de vie et déterminisme couverts par Vitest ;
+  - ramassage au clavier et au doigt, pastille, bannière et gel couverts par e2e ;
+  - cibles d'équilibrage tenues (nu 4–6 min, maxé 10–13 min, 9 personnages à ± 3 min) ;
+  - budget d'appels inchangé.
+
+### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
+- **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
+- **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.
+- **Série sans dégât** : un multiplicateur d'XP qui monte tant qu'on n'est pas touché et retombe au premier coup.
+- **Figures utiles** : vrilles et longs envols remplissent une jauge qui recharge le sort.
+- **Bannir** une carte de montée de niveau pour la partie, à côté des relances.
+- **Sanctuaires de défi** : accepter une malédiction (plus d'ennemis, PV réduits) contre un objet rare garanti.
+- **Quêtes par personnage**, par exemple « 50 kills en l'air avec la Revenante », qui débloquent objets ou armes.
+- **Événements de carte** : élite « recherchée » qui fuit avec un coffre, horde annoncée d'une direction, pluie de météores sur une zone.
+- **Écran de fin détaillé** : dégâts par arme, cause de la mort, trajet sur la carte.
+- Sur décision de Jimmy (V2) : classement en ligne du défi du jour (des scores quitteraient l'appareil), deuxième carte.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
