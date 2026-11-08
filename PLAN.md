@@ -69,7 +69,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 |---|---|---|
 | Orbe filante | Projectile auto-visé | dégâts, recharge, +1 projectile, vitesse, +1 perforation |
 | Halo brûlant | Aura de dégâts périodiques | dégâts, rayon, période |
-| Lames orbitales | Lames tournantes, recul fort | dégâts, +1 lame, rayon, rotation |
+| Lames (phase 32) | toutes les 0,9 s, frappent l'ennemi le plus proche à moins de 6 u : coup de lame sur tout ce qui est à moins de r de la cible (zone × taille), recul | dégâts, +1 cible, zone, recharge |
 | Foudre en chaîne | Frappe **un** ennemi au départ (phase 30) ; chaque ricochet (ligne, tome Projectiles, Orage) saute à un voisin | dégâts, recharge, +1 cible en chaîne |
 | Boomerang | Aller-retour en ligne, traverse | dégâts, recharge, portée, +1 boomerang, vitesse |
 | Mines | Posées sur le passage, explosent au contact | dégâts, recharge, rayon, +1 mine, chaîne |
@@ -139,7 +139,7 @@ Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'an
 | Nom | Stats de départ | Arme de départ | Passif signature | Déblocage |
 |---|---|---|---|---|
 | Éclaireuse | +15 % vitesse, sort Bond | Orbe | aucun (référence d'équilibrage) | Départ |
-| Bûcheron | +30 PV, lames à portée +20 % | Lames 2 | Fendeur : les Lames repoussent 50 % plus fort | Survivre 10 min |
+| Bûcheron | +30 PV (phase 32 : plus de portée bonus) | Lames | Fendeur : les Lames repoussent 50 % plus fort | Survivre 10 min |
 | Vieille sorcière | −30 % PV | Foudre | Paratonnerre : la Foudre vise d'abord le plus proche | 500 kills cumulés |
 | Veilleuse | +20 PV | Halo | Braise : le Halo grandit de 8 % par minute, max +40 % | 800 or |
 | Braconnier | +10 PV | Boomerang (1 ligne de dégâts, phase 18) | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
@@ -150,7 +150,7 @@ Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'an
 
 ---|---|---|---|
 | Éclaireuse | +15 % vitesse, dash plus court | Orbe | Départ |
-| Bûcheron | +30 PV, lames à portée +20 % | Lames | Survivre 10 min |
+| Bûcheron | +30 PV | Lames | Survivre 10 min |
 | Vieille sorcière | Foudre dès le départ, −20 % PV | Foudre | 500 kills cumulés |
 
 ### 3.6 Objets passifs, marchand et synergies (phase 17)
@@ -208,7 +208,7 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Orage | Cadence + Foudre | +3 cibles en chaîne (phase 30 : +4 → +3) |
 | Essaim | Projectiles + Orbe | +1 orbe, +1 perforation (seule paire du kit de départ de l'Éclaireuse : modérée) |
 | Brasier | Dégâts + Halo | dégâts du Halo +80 % |
-| Tourbillon | Mouvement + Lames | lames 60 % plus rapides, rayon +25 % |
+| Tourbillon | Mouvement + Lames | coups 30 % plus fréquents, zone +25 % (phase 32) |
 | Charge creuse | Dégâts + Mines | rayon des mines +60 % |
 | Ricochet | Chance + Boomerang | +2 boomerangs, portée +30 % |
 | Moisson | Savoir + Lames | rayon de collecte +50 % |
@@ -479,6 +479,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : pouvoir relancer les cartes d'une montée de niveau (une au départ, plus avec la boutique, « jusqu'à 3 ») ; plus d'objets, avec des pourcentages, du vol de vie et de la régénération (dans les objets seulement, pas dans les stats d'armes : « trop pété »).
 - Décisions prises : « jusqu'à 3 » lu comme 3 relances achetables en plus de celle du départ ; relance réservée aux montées de niveau (le marchand a la sienne) ; douze objets (§3.6) ; soins des objets plafonnés par seconde ; le bot de référence ne relance pas (mesures prudentes).
 - **Porte** : relance au clavier et au doigt, refusée à zéro et pour un coffre, cartes différentes (Vitest, e2e) ; achat en boutique et relances à la partie suivante (e2e) ; chaque nouvel objet a son effet (Vitest) ; cibles nu et maxé tenues, 9 personnages à ± 3 min ; bench OK.
+
+### Phase 32 — Lames ciblées (après la 1.26.0)
+- Demande de Jimmy : les Lames tournaient en cercle comme le Halo ; elles doivent repérer les ennemis proches et porter un coup de lame sur eux, dans une zone qui grossit avec les stats.
+- Décisions prises : toutes les `cd` s, coup sur les `n` ennemis les plus proches à moins de 6 u, zone de rayon `r` autour de chaque cible (la taille s'applique désormais à `r`) ; lignes dégâts, cibles, zone, recharge, critique ; Tourbillon : recharge −30 %, zone +25 % ; rendu : l'épée tourne autour de la cible en traçant un croissant. Bûcheron sans lignes de départ ni portée bonus (avec : 13–16 min nu).
+- **Porte** : cible la plus proche, zone autour d'elle, cibles en plus, taille (Vitest) ; effet visible (captures PC et iPhone lues) ; Lames seules dans la fourchette des autres armes ; Bûcheron et Colporteur à ± 3 min ; cibles nu et maxé tenues.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

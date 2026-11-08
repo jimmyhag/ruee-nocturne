@@ -2,6 +2,14 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.27.0 — 8 nov. 2026 (phase 32 « Lames ciblées »)
+
+### Modifié
+
+- **Lames** : elles ne tournent plus autour du héros (le Halo fait déjà le cercle). Elles repèrent l'ennemi le plus proche et le tranchent : l'épée apparaît sur lui et balaie tout ce qui est autour, dans une zone qui grossit avec la taille (ligne « zone » de l'arme, tome Projectiles, synergie Tourbillon). Les cartes ajoutent des cibles par coup, de la zone, des dégâts et de la cadence.
+- **Tourbillon** (Mouvement + Lames) : coups 30 % plus fréquents et zone +25 %.
+- **Bûcheron** : part avec les Lames de base (avec ses anciens bonus, les nouvelles Lames le rendaient presque immortel) ; il garde ses +30 PV et son recul renforcé.
+
 ## 1.26.0 — 8 nov. 2026 (phase 31 « Relances et nouveaux objets »)
 
 ### Ajouté
