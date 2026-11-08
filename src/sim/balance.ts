@@ -805,10 +805,10 @@ export const ITEM = {
   // phase 31 (demande de Jimmy : vol de vie, régénération, pourcentages). Les soins des objets (vol de vie, kills)
   // puisent dans une réserve de `healCap` PV par seconde : en fin de partie, les dégâts se comptent en milliers et un
   // vol de vie sans plafond rendrait le héros immortel
-  croc: { steal: 0.03, cap: 1.2 }, // part des dégâts infligés rendue en PV ; PV/s au plus
-  calice: { perKill: 1, cap: 2 }, // PV par ennemi tué ; PV/s au plus
-  mousse: { pct: 0.003 }, // part des PV max régénérée par seconde
-  souffle: { below: 0.35, pct: 0.02 }, // sous 35 % des PV : part des PV max régénérée par seconde
+  croc: { steal: 0.03, cap: 1 }, // part des dégâts infligés rendue en PV ; PV/s au plus
+  calice: { perKill: 1, cap: 1.5 }, // PV par ennemi tué ; PV/s au plus
+  mousse: { pct: 0.002 }, // part des PV max régénérée par seconde
+  souffle: { below: 0.35, pct: 0.015 }, // sous 35 % des PV : part des PV max régénérée par seconde
   pierre: { dmg: 0.08 },
   de: { crit: 0.06 },
   gant: { below: 0.3, dmg: 0.4 }, // ennemis sous 30 % de leurs PV : +40 % de dégâts

@@ -180,10 +180,10 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Boussole (phase 28) | rayon de découverte ×1,8 ; coffres et sanctuaires visibles sur la carte même non découverts | commun |
 | Bouclier (phase 28) | annule un coup toutes les 20 s | rare |
 | Corne de guerre (phase 28) | toutes les 25 s, onde de r 7 qui repousse et étourdit 0,5 s (pas les boss) | rare |
-| Croc de vampire (phase 31) | vol de vie : 3 % des dégâts infligés rendus en PV, 1,2 PV/s au plus | rare |
-| Calice sanglant (phase 31) | chaque kill rend 1 PV, 2 PV/s au plus | rare |
-| Mousse de troll (phase 31) | régénère 0,3 % des PV max par seconde | commun |
-| Second souffle (phase 31) | sous 35 % des PV, régénère 2 % des PV max par seconde | rare |
+| Croc de vampire (phase 31) | vol de vie : 3 % des dégâts infligés rendus en PV, 1 PV/s au plus | rare |
+| Calice sanglant (phase 31) | chaque kill rend 1 PV, 1,5 PV/s au plus | rare |
+| Mousse de troll (phase 31) | régénère 0,2 % des PV max par seconde | commun |
+| Second souffle (phase 31) | sous 35 % des PV, régénère 1,5 % des PV max par seconde | rare |
 | Pierre à aiguiser (phase 31) | +8 % de dégâts | commun |
 | Dé pipé (phase 31) | +6 % de chance de critique | commun |
 | Gant du bourreau (phase 31) | +40 % de dégâts aux ennemis sous 30 % de leurs PV | rare |
