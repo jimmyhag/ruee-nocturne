@@ -72,8 +72,8 @@ export class Hud {
   };
   /** Phase 35 : une pastille par bonus à durée (index Pw ; l'Aimant, instantané, n'en a pas). */
   private pw: { box: HTMLElement; bar: HTMLElement }[] = [];
-  private pwOn = new Uint8Array(5);
-  private pwW = new Int16Array(5).fill(-1);
+  private pwOn = new Uint8Array(POWER_KEYS.length);
+  private pwW = new Int16Array(POWER_KEYS.length).fill(-1);
   private spellGlyphChar = '✦'; // icône du sort de la classe (remplacée par les secondes pendant la recharge)
   private bannerT = 0;
   private lastKillTens = 0;

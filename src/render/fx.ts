@@ -290,6 +290,8 @@ export class PowerMarks {
   private els: HTMLElement[] = [];
   private kind: Int8Array;
   private shown: Uint8Array;
+  private px: Int16Array;
+  private py: Int16Array;
   private v = new THREE.Vector3();
   constructor(
     layer: HTMLElement,
@@ -298,6 +300,8 @@ export class PowerMarks {
   ) {
     this.kind = new Int8Array(cap).fill(-1);
     this.shown = new Uint8Array(cap);
+    this.px = new Int16Array(cap);
+    this.py = new Int16Array(cap);
     for (let i = 0; i < cap; i++) {
       const el = document.createElement('div');
       el.className = 'pmark';
@@ -336,8 +340,16 @@ export class PowerMarks {
       if (!this.shown[i]) {
         this.shown[i] = 1;
         el.hidden = false;
+        this.px[i] = this.py[i] = -32768; // réécrit la position au retour
       }
-      el.style.transform = `translate(${(((this.v.x + 1) / 2) * w).toFixed(1)}px,${(((1 - this.v.y) / 2) * h).toFixed(1)}px) translate(-50%,-100%)`;
+      // pixel entier, écrit seulement au changement : un bonus reste 30 s au sol, pas de chaîne neuve par frame à l'arrêt
+      const sx = Math.round(((this.v.x + 1) / 2) * w),
+        sy = Math.round(((1 - this.v.y) / 2) * h);
+      if (sx !== this.px[i] || sy !== this.py[i]) {
+        this.px[i] = sx;
+        this.py[i] = sy;
+        el.style.transform = `translate(${sx}px,${sy}px) translate(-50%,-100%)`;
+      }
     }
   }
   clear(): void {

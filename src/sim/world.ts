@@ -68,7 +68,7 @@ export class World {
   /** phase 35 : bonus au sol, durées d'effet restantes (index Pw) et prochain bonus de carte (w.t) */
   powers: Power[] = [];
   powerCount = 0;
-  readonly powerT = new Float64Array(5);
+  readonly powerT = new Float64Array(POWER.weights.length);
   powerNext = POWER.mapFirst;
   powersDropped = 0;
   powersTaken = 0;

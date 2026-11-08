@@ -44,7 +44,7 @@ export function powerOnKill(w: World, x: number, z: number, elite: boolean, boss
   if (boss) {
     for (let k = 0; k < POWER.bossDrops; k++) {
       const a = w.rng.range(0, Math.PI * 2);
-      dropPower(w, x + Math.sin(a) * 1.6, z + Math.cos(a) * 1.6, rollPowerKind(w));
+      dropPower(w, x + Math.sin(a) * POWER.bossScatter, z + Math.cos(a) * POWER.bossScatter, rollPowerKind(w));
     }
     return;
   }
@@ -63,7 +63,7 @@ function dropOnMap(w: World): void {
     w.resolveObstacles(P.x + Math.sin(a) * d, P.z + Math.cos(a) * d, POWER.pickupR, out2, 0);
     x = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[0]));
     z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
-    if (!w.nearObstacle(x, z) && w.speedAt(x, z) >= 1) break;
+    if (!w.nearObstacle(x, z) && w.speedAt(x, z) >= POWER.mapMinGround) break;
   }
   dropPower(w, x, z, rollPowerKind(w));
 }

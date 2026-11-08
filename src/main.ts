@@ -412,6 +412,7 @@ function startGame(variant?: number, daily = false): void {
 function toMenu(): void {
   app = 'menu';
   world = null;
+  scene?.marks.clear(); // phase 35 : les icônes des bonus ne restent pas sur le menu
   showOnly('menu');
   if (pendingReconcile) void reconcileAccount(); // une synchronisation attendait la fin de la partie
   scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // après un défi du jour (Éclaireuse forcée)

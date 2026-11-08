@@ -524,6 +524,8 @@ export const POWER = {
   mapDist: [14, 24], // u du joueur
   mapCone: Math.PI / 4, // demi-angle autour de la direction du héros
   placeTries: 6,
+  bossScatter: 1.6, // u : écart des bonus lâchés par un boss
+  mapMinGround: 1, // un bonus de carte n'est pas posé dans le lac (speedAt < 1)
 };
 
 export const LUCK = {

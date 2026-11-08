@@ -281,6 +281,7 @@ export class GameScene {
   private cStun = new THREE.Color(0xfff1a8);
   private cSlow = new THREE.Color(0x9fd8ff);
   private cFreeze = new THREE.Color(PAL.freeze); // phase 35 : Temps figé
+  private frozenPose = false; // phase 35 : poses des ennemis 3D arrêtées pendant le Temps figé
   private cPower = PAL.power.map((c) => new THREE.Color(c)); // phase 35 : bonus au sol (index Pw)
   private cPowerHalo = PAL.power.map((c) => new THREE.Color(c).multiplyScalar(0.9));
   private cVoile = new THREE.Color(PAL.xp);
@@ -1033,6 +1034,11 @@ export class GameScene {
     const len = 1 + b.loop + b.action;
     const row = this.enemyW[t].last; // -1 : instance refusée (capacité pleine), rien à poser
     if (row < 0) return;
+    if (this.frozenPose) {
+      // phase 35 : Temps figé, pose de marche arrêtée (un instant différent par ennemi), pas de geste
+      writeLoopPose(data, row, len, 0, b.loop, 0.1 + e.bob * 0.16);
+      return;
+    }
     if (b.action) {
       // Archer et Cracheur : visée 0 → 1 ; Sorcier et boss : geste en boucle pendant le télégraphe (state 1)
       if ((t === ARCHER_TYPE && e.state === 1) || (t === CRACHEUR_TYPE && e.aim > 0)) {
@@ -1407,6 +1413,7 @@ export class GameScene {
     this.aims.begin();
     this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
     const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé, ennemis givrés et sans sautillement
+    this.frozenPose = frozen;
     for (let i = 0; i < w.enemyCount; i++) {
       const e = w.enemies[i];
       if (!e.alive) continue;

@@ -460,7 +460,7 @@ function stepEnemies(w: World, dt: number): void {
       e.x = out2[0];
       e.z = out2[1];
     }
-    e.face = Math.atan2(dx, dz);
+    if (!frozen) e.face = Math.atan2(dx, dz); // phase 35 : un ennemi figé ne suit plus le héros des yeux
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     // phase 19 : un ennemi étourdi (Éclat, Collet) ne blesse pas : une Brute figée en pleine charge ne la porte pas
