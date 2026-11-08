@@ -15,7 +15,6 @@ import {
   METEOR,
   REAPER_TYPE,
   SHRINE,
-  SLIDE,
   SPELL,
   STEP,
   SWARM_TYPE,
@@ -59,7 +58,7 @@ import { buildEnemyGeometries } from './enemies';
 import { setDetail } from './parts';
 import { TerrainView } from './terrain';
 import { borderGeometry } from './border';
-import { Base, MotionState, spinEase } from './motion';
+import { Base, MotionState } from './motion';
 import { OUTLINE, toonGradient, toonMaterial } from './toon';
 import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, SLASH_ARC } from './textures';
 import type { CharacterModel } from './characters';
@@ -191,7 +190,6 @@ export class GameScene {
   readonly terrain = new TerrainView();
   private gy = this.terrain.gy;
   private groundMesh: THREE.Group | null = null;
-  private spinT = 0; // phase 27 : vrille en cours (s restantes)
   /** Phase 29 : animation de fond, fondus, inclinaison du corps (lus depuis la sim, sans allocation). */
   readonly motion = new MotionState();
   /** Phase 29 : segments de la lisière ; n'est dessiné que ce qui est à portée de vue (le brouillard cache le reste). */
@@ -1186,10 +1184,6 @@ export class GameScene {
   onSlide(on: boolean): void {
     if (on) this.slideDust = 1.4; // première bouffée tout de suite
   }
-  /** Phase 27 : vrille en l'air (rotation du héros pendant SLIDE.spinTime). */
-  onSpin(): void {
-    this.spinT = SLIDE.spinTime;
-  }
 
   /** Atterrissage du joueur : lance le ressort d'écrasement (valeurs neutres depuis la PR #6). */
   onLand(sliding = false, speed = 0): void {
@@ -1261,12 +1255,7 @@ export class GameScene {
     let diff = target - this.face;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     this.face += diff * Math.min(1, dt * 18);
-    // phase 27 : vrille (un tour complet pendant SLIDE.spinTime), poussière derrière la glissade, champ élargi en vitesse
-    let spinA = 0;
-    if (this.spinT > 0) {
-      this.spinT = Math.max(0, this.spinT - dt);
-      spinA = Math.PI * 2 * spinEase(1 - this.spinT / SLIDE.spinTime); // phase 29 : rapide puis amorti
-    }
+    // poussière derrière la glissade, champ élargi en vitesse (1.30.1 : plus de vrille)
     // phase 29 : état de mouvement (fond, fondus, inclinaison) ; lacet puis tangage et roulis dans le repère du héros
     const mi = this.motionIn;
     mi.onGround = P.onGround;
@@ -1284,7 +1273,7 @@ export class GameScene {
       mi.slopeLat = this.terrain.gradX * cf - this.terrain.gradZ * sf;
     } else mi.slopeAlong = mi.slopeLat = 0;
     this.motion.update(dt, mi);
-    this.player.rotation.set(this.motion.pitch, this.face + spinA, this.motion.roll, 'YXZ');
+    this.player.rotation.set(this.motion.pitch, this.face, this.motion.roll, 'YXZ');
     const v2 = P.vx * P.vx + P.vz * P.vz;
     if (P.sliding) {
       this.slideDust += dt * Math.sqrt(v2);
