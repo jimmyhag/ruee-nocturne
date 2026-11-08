@@ -72,9 +72,14 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
     c.kind = 'w';
     c.key = k;
     c.lv = lv + 1;
-    // une nouvelle arme arrive avec sa base : une seule ligne en prime, tirée comme les autres
-    fillLines(w, c, WEAPON_LINES[k], w.wmods[k], rollLineCount(w));
-    if (c.n === 0) continue; // toutes les lignes plafonnées : rien à proposer
+    if (lv === 0) {
+      // phase 33 (Jimmy) : une arme débloquée part de zéro — sa base seule (un projectile, une cible), aucune ligne
+      c.n = 0;
+      c.s0 = c.s1 = c.s2 = -1;
+    } else {
+      fillLines(w, c, WEAPON_LINES[k], w.wmods[k], rollLineCount(w));
+      if (c.n === 0) continue; // toutes les lignes plafonnées : rien à proposer
+    }
     n++;
     weights.push(lv > 0 ? CHOICE.ownedWeight : CHOICE.newWeight);
   }

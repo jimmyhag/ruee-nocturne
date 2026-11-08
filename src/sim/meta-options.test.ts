@@ -76,8 +76,12 @@ describe('armes débloquées', () => {
       for (const c of w.cards) if (c.kind === 'w' && c.lv === 1) expect(['aura', 'lames', 'foudre']).toContain(c.key);
     }
     const b = new World(5, { character: 'bucheron', unlocked: ['orbe'] }); // Lames possédée mais « verrouillée »
-    rollChoices(b);
-    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 2)).toBe(true); // Lames niv 1 de départ → niv 2 proposé
+    let seen = false; // Lames niv 1 de départ → niv 2 proposé (sur quelques tirages : une main peut n'avoir que des tomes)
+    for (let i = 0; i < 20 && !seen; i++) {
+      rollChoices(b);
+      seen = b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 2);
+    }
+    expect(seen).toBe(true);
   });
   it('un run complet avec options reste déterministe', () => {
     const opts = { character: 'bucheron' as const, unlocked: ['orbe', 'lames', 'foudre'] as const };
