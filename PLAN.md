@@ -145,7 +145,7 @@ Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'an
 | Braconnier | +35 PV (phase 33) | Boomerang | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
 | Sapeur | −20 % PV, vitesse 0,92 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
 | Feu follet | +30 % vitesse, −40 % PV | Orbe | Traînée : sa Comète (dash 2× plus long) laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
-| Revenante | −55 % PV, vitesse 0,9 | Foudre (phase 34 : plus de Halo) | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air ; frisson du tombeau : un ennemi à son contact est ralenti 0,8 s (phase 34) | Vaincre le Faucheur |
+| Revenante | −55 % PV, vitesse 0,9 | Foudre (phase 34 : plus de Halo) | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air ; frisson du tombeau : les ennemis à moins de 3,5 u sont ralentis (phase 34) | Vaincre le Faucheur |
 | Colporteur | +15 PV, vitesse 1,03 | Lames | Marchand : les coffres proposent 4 objets au lieu de 3 (phase 17) ; flair : +1 Chance, +40 % d'or (phase 34, à la place des tomes de départ) | 2 000 or |
 
 ---|---|---|---|
@@ -492,7 +492,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 
 ### Phase 34 — Une seule arme au départ (après la 1.28.0)
 - Demande de Jimmy : chaque personnage commence avec une seule arme au niveau 1 et aucun tome ; les tomes se choisissent en partie. Les bonus retirés deviennent des passifs propres au personnage.
-- Décisions prises : Revenante sans Halo (frisson du tombeau : les ennemis à son contact sont ralentis) ; Colporteur sans tomes Chance et Or (flair du Marchand : +1 Chance, +40 % d'or, sur le personnage). Aucun autre personnage n'avait de tome ni de seconde arme.
+- Décisions prises : Revenante sans Halo (frisson du tombeau : les ennemis à moins de 3,5 u sont ralentis ; au seul contact, la Foudre seule laissait 40 % de morts avant 3 min, surtout par les Dards ; 13 % avec l'aura) ; Colporteur sans tomes Chance et Or (flair du Marchand : +1 Chance, +40 % d'or, sur le personnage). Aucun autre personnage n'avait de tome ni de seconde arme.
 - **Porte** : les 9 personnages partent avec une arme au niveau 1 et aucun tome (Vitest) ; Revenante et Colporteur dans la règle (± 3 min, morts < 3 min).
 
 ### V2 (hors périmètre, à ne pas commencer)

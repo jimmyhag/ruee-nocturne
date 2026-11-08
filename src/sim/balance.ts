@@ -680,7 +680,7 @@ export const TRAIT = {
   // ≈ +11 min de médiane au kit de départ (15:23 contre 5:46 pour l'Éclaireuse) ; 30 % et 2 lignes : 5:31 (60 runs)
   rapporteur: { refund: 0.3 },
   trainee: { spacing: 0.7, life: 1.5, dps: 8, r: 0.9, period: 0.25, kb: 0.6 }, // Feu follet : la Comète pose un feu de 1,5 s à 8 PV/s
-  dejamorte: { revives: 1, airXpMul: 2, chill: 0.8 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP ; phase 34 : un ennemi qui la touche est ralenti 0,8 s (frisson du tombeau)
+  dejamorte: { revives: 1, airXpMul: 2, chill: 0.8, chillR: 3.5 }, // Revenante : une réanimation gratuite, kills en l'air ×2 XP ; phase 34 : frisson du tombeau, les ennemis à moins de chillR u sont ralentis (0,8 s entretenues) ; au seul contact, 40 % de morts < 3 min (Dards), à 2,5 u 26 %, à 3,5 u 13 %
   marchand: { offers: 4, luck: 1, goldMul: 0.4 }, // Colporteur (phase 17) : les coffres proposent 4 objets ; phase 34 : flair (+1 Chance, +40 % d'or) à la place des tomes de départ
 };
 

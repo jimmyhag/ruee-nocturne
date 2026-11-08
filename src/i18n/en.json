@@ -194,7 +194,7 @@
   "char.feufollet.trait": "Blaze: its Comet leaves fire behind",
   "char.revenante.name": "Revenant",
   "char.revenante.text": "Lightning from the start, −55% HP, a bit slower",
-  "char.revenante.trait": "Already dead: one free Revive per run, ×2 XP on enemies killed in mid-air; enemies that touch her are slowed",
+  "char.revenante.trait": "Already dead: one free Revive per run, ×2 XP on enemies killed in mid-air; enemies near her are slowed",
   "char.colporteur.name": "Peddler",
   "char.colporteur.text": "Blades from the start, +15 HP",
   "char.colporteur.trait": "Merchant: chests offer 4 items instead of 3; +1 Luck and +40% gold picked up",

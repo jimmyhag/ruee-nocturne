@@ -193,14 +193,23 @@ describe('compteurs de défis', () => {
 });
 
 describe('Revenante : frisson du tombeau (phase 34)', () => {
-  it('un ennemi qui la touche est ralenti ; pas chez l’Éclaireuse', () => {
+  it('les ennemis à moins de chillR sont ralentis, pas au-delà ; rien chez l’Éclaireuse', () => {
     for (const c of ['revenante', 'eclaireuse'] as const) {
       const w = make(c);
       w.player.maxHp = w.player.hp = 1e9;
-      const i = spawnEnemy(w, 2, 0, 0.5); // Brute collée
+      w.weapons = {};
+      const near = spawnEnemy(w, 2, 0, 0.5); // Brute collée (angle, distance)
+      const mid = spawnEnemy(w, 2, Math.PI / 2, TRAIT.dejamorte.chillR - 0.6); // dans l'aura
+      const far = spawnEnemy(w, 2, Math.PI, TRAIT.dejamorte.chillR + 2); // hors de l'aura
       step(w, still, STEP);
-      if (c === 'revenante') expect(w.enemies[i].slowT).toBeGreaterThan(0);
-      else expect(w.enemies[i].slowT).toBe(0);
+      if (c === 'revenante') {
+        expect(w.enemies[near].slowT).toBeGreaterThan(0);
+        expect(w.enemies[mid].slowT).toBeGreaterThan(0);
+      } else {
+        expect(w.enemies[near].slowT).toBe(0);
+        expect(w.enemies[mid].slowT).toBe(0);
+      }
+      expect(w.enemies[far].slowT).toBe(0);
     }
   });
 });

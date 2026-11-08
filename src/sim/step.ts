@@ -455,8 +455,8 @@ function stepEnemies(w: World, dt: number): void {
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     // phase 19 : un ennemi étourdi (Éclat, Collet) ne blesse pas : une Brute figée en pleine charge ne la porte pas
     const canHurt = e.stun > 0 ? false : e.type === VOLANT_TYPE ? e.state === 2 : true;
-    // phase 34 : Revenante, frisson du tombeau — un ennemi à son contact est ralenti
-    if (w.trait === Trait.DejaMorte && d < e.r + PLAYER.radius && !airborne) e.slowT = Math.max(e.slowT, TRAIT.dejamorte.chill);
+    // phase 34 : Revenante, frisson du tombeau — les ennemis proches d'elle sont ralentis
+    if (w.trait === Trait.DejaMorte && d < TRAIT.dejamorte.chillR && !airborne) e.slowT = Math.max(e.slowT, TRAIT.dejamorte.chill);
     if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)

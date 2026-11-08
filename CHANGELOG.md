@@ -7,7 +7,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 ### Modifié
 
 - **Tous les personnages commencent avec une seule arme, au niveau 1, et aucun tome** : les tomes se choisissent en partie.
-- **Revenante** : elle ne part plus avec le Halo en plus de la Foudre. À la place, _frisson du tombeau_ : les ennemis qui la touchent sont ralentis.
+- **Revenante** : elle ne part plus avec le Halo en plus de la Foudre. À la place, _frisson du tombeau_ : une aura de froid ralentit les ennemis à moins de 3,5 u (ils virent au bleu).
 - **Colporteur** : il ne part plus avec les tomes Chance et Or. À la place, son passif _Marchand_ gagne un flair : +1 Chance et +40 % d'or ramassé, sans occuper d'emplacement de tome.
 - Textes de personnages corrigés (Braconnier +35 PV, Feu follet −40 % PV).
 

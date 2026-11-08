@@ -194,7 +194,7 @@
   "char.feufollet.trait": "Traînée : sa Comète laisse du feu derrière elle",
   "char.revenante.name": "Revenante",
   "char.revenante.text": "Foudre dès le départ, −55 % PV, un peu plus lente",
-  "char.revenante.trait": "Déjà morte : une Réanimation gratuite par run, ×2 XP sur les ennemis tués en l'air ; les ennemis qui la touchent sont ralentis",
+  "char.revenante.trait": "Déjà morte : une Réanimation gratuite par run, ×2 XP sur les ennemis tués en l'air ; les ennemis proches d'elle sont ralentis",
   "char.colporteur.name": "Colporteur",
   "char.colporteur.text": "Lames dès le départ, +15 PV",
   "char.colporteur.trait": "Marchand : les coffres proposent 4 objets au lieu de 3 ; +1 Chance et +40 % d'or ramassé",
