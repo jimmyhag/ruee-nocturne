@@ -1,7 +1,7 @@
 // Phase 27 : glissade (élan gagné en descente, perdu en montée et sur le plat), saut glissé, envol sur une crête,
 // glisse parfaite à la réception (1.30.1, remplace la vrille), Faucheur qui suit la vitesse du joueur. Terrains de test posés à la main.
 import { describe, expect, it } from 'vitest';
-import { It, RACE, REAPER_TYPE, SLIDE, STEP, TERRAIN, WORLD_HALF } from './balance';
+import { It, PLAYER, RACE, REAPER_TYPE, SLIDE, STEP, TERRAIN, WORLD_HALF } from './balance';
 import { gainItem } from './items';
 import { spawnEnemy } from './spawner';
 import { step } from './step';
@@ -224,6 +224,51 @@ describe('glissade (phase 27)', () => {
     const late = hop(-(SLIDE.landPost + 0.1));
     expect(late.trick).toBe(0);
     expect(late.starts).toBe(1); // une glissade ordinaire (départ à la vitesse de marche)
+  });
+  /**
+   * 1.30.2 : glisse vers +x, saut, puis entrée `air` pendant le vol ; appui de glisse `before` s avant la réception
+   * (négatif : après). Renvoie la direction de la glissade qui suit.
+   */
+  const turn = (air: { mx: number; mz: number }, before: number) => {
+    const w = lab(() => 0);
+    run(w, { ...still, mx: 1 }, 0.3);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    run(w, { ...still, mx: 1 }, 0.1);
+    step(w, { ...still, mx: 1, jump: true }, STEP);
+    for (let f = 0; f < 200; f++) {
+      const P = w.player;
+      // temps restant avant le sol, estimé sur le vol balistique (sol plat)
+      const g = PLAYER.gravity;
+      const left = P.onGround ? -f : (P.vy + Math.sqrt(P.vy * P.vy + 2 * g * P.y)) / g;
+      const press = before >= 0 ? !P.onGround && left <= before : P.onGround;
+      step(w, { ...still, ...air, slide: press }, STEP);
+      if (press) break;
+    }
+    run(w, { ...still, ...air }, 0.1);
+    const P = w.player;
+    const v = Math.hypot(P.mvx, P.mvz);
+    return { sliding: P.sliding, x: P.mvx / v, z: P.mvz / v, v, tricks: w.tricks };
+  };
+  it('changer de direction en l’air puis re-glisser : la glissade part dans la nouvelle direction (avant ou juste après le sol)', () => {
+    for (const before of [0.08, -0.01]) {
+      const r = turn({ mx: 0, mz: 1 }, before); // on tenait +x, on tient maintenant +z
+      expect(r.sliding, `avant ${before}`).toBe(true);
+      expect(r.tricks).toBe(1);
+      expect(r.z).toBeGreaterThan(0.99);
+      expect(Math.abs(r.x)).toBeLessThan(0.1);
+      const back = turn({ mx: -1, mz: 0 }, before); // demi-tour complet
+      expect(back.x).toBeLessThan(-0.99);
+    }
+  });
+  it('sans direction tenue à la réception, la glissade suit l’élan du saut', () => {
+    const r = turn({ mx: 0, mz: 0 }, 0.08);
+    expect(r.sliding).toBe(true);
+    expect(r.x).toBeGreaterThan(0.99);
+  });
+  it('la vitesse du saut est gardée en changeant de direction', () => {
+    const straight = turn({ mx: 1, mz: 0 }, 0.08);
+    const turned = turn({ mx: 0, mz: 1 }, 0.08);
+    expect(turned.v).toBeCloseTo(straight.v, 0);
   });
   it('enchaînement propre : glisse → saut → glisse parfaite → saut → glisse parfaite → relevé', () => {
     const w = lab(() => 0);
