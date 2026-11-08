@@ -29,7 +29,7 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // longue · ennemi le plus loin (ligne) · lent : perce tout
   lance: { glyph: '➹', color: '#9fe8ff', base: { cd: 2.0, dmg: 30, speed: 22, n: 1, crit: 0 } },
   // longue · zone aléatoire autour · lent : cercles annoncés, puis impact
-  meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 1.4, dmg: 42, r: 2.4, n: 1, crit: 0 } }, // phase 33 : un météore par salve au départ (2 avant, recharge 2,5 s)
+  meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 2.0, dmg: 42, r: 2.4, n: 1, crit: 0 } }, // phase 33 : un météore par salve au départ (2 avant, recharge 2,5 s) ; à 2,0 s, même profil qu'avant seule (3:28 contre 3:21) — à 1,4 s, 17:27
 };
 export const WEAPON_KEYS = Object.keys(WEAPONS) as WeaponKey[];
 

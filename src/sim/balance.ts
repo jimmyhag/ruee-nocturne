@@ -721,7 +721,8 @@ export const CHARACTERS: CharacterDef[] = [
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
   { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, spell: Spell.Eclat, bladeRangeMul: 1, unlock: '', price: 800 },
   { key: 'braconnier', weapon: 'boomerang', // phase 33 : plus de lignes de départ (une arme part de zéro) ; avant : // phase 17 : 4 → 2 lignes de dégâts (avec le remboursement à 30 %) ; phase 18 : 2 → 1 (relief et sanctuaires : nu 9:34, +3:48 sur l'Éclaireuse)
-    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, spell: Spell.Collet, bladeRangeMul: 1, unlock: '', price: 1200 },
+    // phase 33 : 10 → 25 PV (sans lignes de départ : 22 % de morts < 3 min)
+    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 25, hpMul: 1, spell: Spell.Collet, bladeRangeMul: 1, unlock: '', price: 1200 },
   { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, spell: Spell.Petard, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
     spell: Spell.Comete, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
