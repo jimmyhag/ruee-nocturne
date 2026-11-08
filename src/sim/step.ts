@@ -1,4 +1,4 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
@@ -10,7 +10,8 @@ import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { Ev, HitSrc, HurtSrc, Mode, ShotKind, Spell, Trait } from './types';
+import { Ev, HitSrc, HurtSrc, Mode, Pw, ShotKind, Spell, Trait } from './types';
+import { tickPowers } from './powers';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
 import { discover } from './world';
@@ -46,12 +47,16 @@ export function step(w: World, input: Input, dt: number): void {
   }
   w.t += dt;
   stepPlayer(w, input, dt);
-  tickSpawner(w, dt);
+  // phase 35 : Temps figé, plus d'apparitions, de tirs ennemis ni de dangers (les ennemis restent touchables)
+  const frozen = w.powerT[Pw.Gel] > 0;
+  if (!frozen) tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
   w.flow.tick(w, dt);
   stepEnemies(w, dt);
-  tickEruptions(w);
-  tickShots(w, dt);
+  if (!frozen) {
+    tickEruptions(w);
+    tickShots(w, dt);
+  }
   tickWeapons(w, dt);
   tickSpells(w, dt); // phase 19 : coups des sorts (grille à jour)
   tickProjectiles(w, dt);
@@ -59,6 +64,7 @@ export function step(w: World, input: Input, dt: number): void {
   compactEnemies(w);
   tickGems(w, dt);
   tickChests(w, dt);
+  tickPowers(w, dt); // phase 35 : bonus au sol
   tickMerchant(w); // phase 17 : peut ouvrir l'échoppe (Mode.Merchant)
   tickPOI(w, dt); // phase 18 : coffres de carte et sanctuaires
   discover(w, dt); // phase 27 : cases découvertes (carte)
@@ -127,7 +133,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.slideHeld = slideIn;
   if (P.elanT > 0) P.elanT -= dt;
   if (P.slideCd > 0) P.slideCd -= dt;
-  const walk = P.speed * (P.elanT > 0 ? SLIDE.elanMul : 1);
+  const walk = P.speed * (P.elanT > 0 ? SLIDE.elanMul : 1) * (w.powerT[Pw.Vitesse] > 0 ? POWER.speedMul : 1); // phase 35 : Élan
   if (input.jump && P.onGround) {
     let vy = PLAYER.jumpVel * P.jumpMul; // phase 17 : Bottes de saut
     if (P.sliding) {
@@ -346,6 +352,7 @@ function stepEnemies(w: World, dt: number): void {
   let shooters = 0;
   // Épines (phase 17) : le renvoi de dégâts tombe toutes les ITEM.epines.period s, pas à chaque pas (moins de chiffres)
   const sablier = w.items[It.Sablier] === 1; // Sablier fêlé : élites et boss ralentis
+  const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé
   let thorns = false;
   if (w.items[It.Epines]) {
     w.thornT -= dt;
@@ -369,8 +376,11 @@ function stepEnemies(w: World, dt: number): void {
       respawnNear(w, i);
       continue;
     }
-    // déplacement voulu selon le rôle ; phase 19 : un ennemi étourdi (Éclat, Collet) ne bouge ni n'agit
-    if (e.stun > 0) {
+    // déplacement voulu selon le rôle ; phase 19 : un ennemi étourdi (Éclat, Collet) ne bouge ni n'agit ;
+    // phase 35 : Temps figé, aucun ennemi ne bouge ni n'agit (boss compris)
+    if (frozen) {
+      mv[0] = mv[1] = 0;
+    } else if (e.stun > 0) {
       e.stun -= dt;
       mv[0] = mv[1] = 0;
     } else if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
@@ -415,7 +425,7 @@ function stepEnemies(w: World, dt: number): void {
       const slow = w.speedAt(e.x, e.z) * w.slopeMul(e.x, e.z, mx, mz); // lac et pente (phase 18)
       mx *= slow;
       mz *= slow;
-      if (!def.boss && e.stun <= 0) {
+      if (!def.boss && e.stun <= 0 && !frozen) {
         // séparation avec les voisins (9 cellules) ; phase 19 : un ennemi étourdi reste planté (Collet)
         const nn = grid.neighbors(i, nb);
         for (let k = 0; k < nn; k++) {
@@ -454,7 +464,7 @@ function stepEnemies(w: World, dt: number): void {
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     // phase 19 : un ennemi étourdi (Éclat, Collet) ne blesse pas : une Brute figée en pleine charge ne la porte pas
-    const canHurt = e.stun > 0 ? false : e.type === VOLANT_TYPE ? e.state === 2 : true;
+    const canHurt = e.stun > 0 || frozen ? false : e.type === VOLANT_TYPE ? e.state === 2 : true;
     // phase 34 : Revenante, frisson du tombeau — les ennemis proches d'elle sont ralentis
     if (w.trait === Trait.DejaMorte && d < TRAIT.dejamorte.chillR && !airborne) e.slowT = Math.max(e.slowT, TRAIT.dejamorte.chill);
     if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {

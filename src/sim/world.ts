@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -19,6 +19,7 @@ import type {
   GameEvent,
   Gem,
   Input,
+  Power,
   TomeKey,
   Player,
   Projectile,
@@ -64,6 +65,13 @@ export class World {
   gemCount = 0;
   chests: Chest[] = [];
   chestCount = 0;
+  /** phase 35 : bonus au sol, durées d'effet restantes (index Pw) et prochain bonus de carte (w.t) */
+  powers: Power[] = [];
+  powerCount = 0;
+  readonly powerT = new Float64Array(5);
+  powerNext = POWER.mapFirst;
+  powersDropped = 0;
+  powersTaken = 0;
 
   events: GameEvent[] = [];
   eventCount = 0;
@@ -266,6 +274,7 @@ export class World {
     for (let i = 0; i < CAPS.shots; i++) this.shots.push(makeShot());
     for (let i = 0; i < CAPS.gems; i++) this.gems.push(makeGem());
     for (let i = 0; i < CAPS.chests; i++) this.chests.push({ alive: false, x: 0, z: 0, age: 0, boss: false });
+    for (let i = 0; i < CAPS.powers; i++) this.powers.push({ alive: false, x: 0, z: 0, kind: 0, age: 0 });
     for (let i = 0; i < CAPS.events; i++) this.events.push({ type: Ev.Hit, x: 0, y: 0, z: 0, x2: 0, y2: 0, z2: 0, v: 0 });
     const r = new Rng(this.seed ^ 0x9e3779b9);
     buildZones(this, r);
@@ -362,6 +371,21 @@ export class World {
     const c = this.chests[this.chestCount++];
     c.alive = true;
     return c;
+  }
+  allocPower(): Power | null {
+    if (this.powerCount >= CAPS.powers) return null;
+    const p = this.powers[this.powerCount++];
+    p.alive = true;
+    return p;
+  }
+  freePower(i: number): void {
+    const last = --this.powerCount;
+    if (i !== last) {
+      const a = this.powers[i];
+      this.powers[i] = this.powers[last];
+      this.powers[last] = a;
+    }
+    this.powers[last].alive = false;
   }
   freeChest(i: number): void {
     const last = --this.chestCount;

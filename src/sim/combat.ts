@@ -1,6 +1,7 @@
-import { CRIT, ELITE, ENEMIES, GOLD, ITEM, It, REAPER_TYPE, TRAIT, XP } from './balance';
+import { CRIT, ELITE, ENEMIES, GOLD, ITEM, It, POWER, REAPER_TYPE, TRAIT, XP } from './balance';
 import { WEAPON_KEYS } from './weapons/defs';
-import { Ev, HitSrc, Mode, Trait } from './types';
+import { Ev, HitSrc, Mode, Pw, Trait } from './types';
+import { powerOnKill } from './powers';
 import type { Enemy } from './types';
 import type { World } from './world';
 import { itemHeal, lifesteal, talismanKill } from './items';
@@ -18,6 +19,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   // phase 31 : Gant du bourreau (ennemi affaibli), Couronne du berserker (selon les PV manquants du héros)
   if (w.items[It.Gant] && e.hp < e.max * ITEM.gant.below) dealt *= 1 + ITEM.gant.dmg;
   if (w.items[It.Couronne]) dealt *= 1 + ITEM.couronne.dmg * Math.max(0, 1 - P.hp / P.maxHp);
+  if (w.powerT[Pw.Rage] > 0) dealt *= POWER.dmgMul; // phase 35 : bonus Rage
   let crit = 0;
   if (src <= HitSrc.Meteores) {
     // phase 23 : coup critique (ligne de l'arme + tome Chance), ralentissement du Halo, étourdissement de la Foudre
@@ -68,7 +70,10 @@ export function killEnemy(w: World, i: number): void {
     P.spellCd = Math.max(0, P.spellCd - give);
   }
   const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
-  w.gold += (GOLD.perKill * goldMul + (e.elite ? w.player.eliteGold : 0)) * w.player.goldMul;
+  w.gold +=
+    (GOLD.perKill * goldMul + (e.elite ? w.player.eliteGold : 0)) *
+    w.player.goldMul *
+    (w.powerT[Pw.Or] > 0 ? POWER.goldMul : 1); // phase 35 : Pluie d'or
   // Revenante : les ennemis tués pendant un saut valent ×2 XP
   const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
   dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul : 1) * air);
@@ -85,6 +90,7 @@ export function killEnemy(w: World, i: number): void {
     if (e.elite) dropChest(w, e.x, e.z, false);
     w.emit(Ev.Kill, e.x, e.y, e.z, e.type, e.elite ? 1 : 0);
   }
+  if (w.mode === Mode.Play) powerOnKill(w, e.x, e.z, e.elite, def.boss); // phase 35 : bonus au sol
   // marque mort ; le retrait du pool se fait en fin de step (indices stables pendant le step)
   e.alive = false;
   talismanKill(w); // phase 17 : Talisman orageux
