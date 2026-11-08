@@ -714,8 +714,8 @@ export const OUTFIT = { price: 400 };
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
   { key: 'eclaireuse', weapon: 'orbe', trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, spell: Spell.Bond, bladeRangeMul: 1, unlock: '', price: 0 },
-  { key: 'bucheron', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 (4 lames, 21 dégâts) : avec 1 lame et 1 ligne de dégâts, 2:24 et 71 % de morts < 3 min
-    trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, spell: Spell.Tourbillon, bladeRangeMul: 1.2, unlock: 'survie10', price: 0 },
+  { key: 'bucheron', weapon: 'lames', // phase 32 : Lames ciblées sans lignes de départ ni portée bonus (avec : 13–16 min nu, 19–27 % de fins)
+    trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, spell: Spell.Tourbillon, bladeRangeMul: 1, unlock: 'survie10', price: 0 },
   { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, spell: Spell.Clignement, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
   { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, spell: Spell.Eclat, bladeRangeMul: 1, unlock: '', price: 800 },
