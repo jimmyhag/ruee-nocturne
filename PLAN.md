@@ -75,7 +75,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 | Mines | Posées sur le passage, explosent au contact | dégâts, recharge, rayon, +1 mine, chaîne |
 | **Faux** (phase 28) | Arc de 120° devant le joueur, recul fort | dégâts, recharge, rayon, angle, critique |
 | **Lance** (phase 28) | Vers l'ennemi le plus loin à 16 u, perce tout, touche chaque ennemi une fois | dégâts, recharge, +1 lance, vitesse, critique |
-| **Météores** (phase 28) | Cercles dorés annoncés 0,6 s autour des ennemis, puis impact de zone | dégâts, recharge, rayon, +1 météore, critique |
+| **Météores** (phase 28) | Cercles dorés annoncés 0,6 s autour des ennemis, puis impact de zone (phase 33 : un seul météore au départ, toutes les 2 s) | dégâts, recharge, rayon, +1 météore, critique |
 
 Déblocage des armes de la phase 28 par des succès de glisse : Faux (glisser 1 000 u au total), Lance (5 vrilles réussies dans une partie), Météores (ouvrir 50 coffres de carte).
 
@@ -142,11 +142,11 @@ Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'an
 | Bûcheron | +30 PV (phase 32 : plus de portée bonus) | Lames | Fendeur : les Lames repoussent 50 % plus fort | Survivre 10 min |
 | Vieille sorcière | −30 % PV | Foudre | Paratonnerre : la Foudre vise d'abord le plus proche | 500 kills cumulés |
 | Veilleuse | +20 PV | Halo | Braise : le Halo grandit de 8 % par minute, max +40 % | 800 or |
-| Braconnier | +10 PV | Boomerang (1 ligne de dégâts, phase 18) | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
+| Braconnier | +35 PV (phase 33) | Boomerang | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
 | Sapeur | −20 % PV, vitesse 0,92 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
 | Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : sa Comète (dash 2× plus long) laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
 | Revenante | −55 % PV, vitesse 0,9 | Foudre et Halo | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air | Vaincre le Faucheur |
-| Colporteur | +15 PV, vitesse 1,03, Trèfle 1 et Bourse 1 | Lames 2 | Marchand : les coffres proposent 4 objets au lieu de 3 (phase 17) | 2 000 or |
+| Colporteur | +15 PV, vitesse 1,03, Trèfle 1 et Bourse 1 | Lames | Marchand : les coffres proposent 4 objets au lieu de 3 (phase 17) | 2 000 or |
 
 ---|---|---|---|
 | Éclaireuse | +15 % vitesse, dash plus court | Orbe | Départ |
@@ -484,6 +484,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : les Lames tournaient en cercle comme le Halo ; elles doivent repérer les ennemis proches et porter un coup de lame sur eux, dans une zone qui grossit avec les stats.
 - Décisions prises : toutes les `cd` s, coup sur les `n` ennemis les plus proches à moins de 6 u, zone de rayon `r` autour de chaque cible (la taille s'applique désormais à `r`) ; lignes dégâts, cibles, zone, recharge, critique ; Tourbillon : recharge −30 %, zone +25 % ; rendu : l'épée tourne autour de la cible en traçant un croissant. Bûcheron sans lignes de départ ni portée bonus (avec : 13–16 min nu).
 - **Porte** : cible la plus proche, zone autour d'elle, cibles en plus, taille (Vitest) ; effet visible (captures PC et iPhone lues) ; Lames seules dans la fourchette des autres armes ; Bûcheron et Colporteur à ± 3 min ; cibles nu et maxé tenues.
+
+### Phase 33 — Armes qui partent de zéro (après la 1.27.0)
+- Demande de Jimmy : une arme débloquée part de zéro (un projectile, une cible, aucune stat en prime) ; les cartes ajoutent ensuite projectiles ou cibles, dégâts, cadence.
+- Décisions prises : la carte d'une nouvelle arme n'a plus de lignes (avant : 1 à 3 en prime) ; Météores à un météore par salve (recharge 2 s, même profil seule qu'avant) ; plus de lignes d'arme de départ pour les personnages (Colporteur, Braconnier ; le Braconnier reçoit +35 PV à la place). Les Mines gardent n = 5 : c'est le nombre de mines posées à la fois, pas une salve.
+- **Porte** : carte de nouvelle arme sans ligne, base à une cible (Vitest) ; capture de carte lue ; cibles nu et maxé, Colporteur et Braconnier dans la règle.
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).

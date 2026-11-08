@@ -130,7 +130,8 @@ export function cardText(c: Card): string {
   if (c.kind === 'i') return itemText(c.key as ItemKey);
   if (c.kind === 'b') return boonText(c.key as BoonKey);
   const lines = cardLines(c).join(' · ');
-  if (c.lv === 1) return `${c.kind === 'w' ? t(`weapon.${c.key}.text`) : tomeText(c.key as TomeKey)} — ${lines}`;
+  const rule = c.kind === 'w' ? t(`weapon.${c.key}.text`) : tomeText(c.key as TomeKey);
+  if (c.lv === 1) return lines ? `${rule} — ${lines}` : rule; // phase 33 : une nouvelle arme n'a que sa règle
   return lines;
 }
 /** Nom de la rareté d'une carte (1 ligne : commune, 2 : rare, 3 : épique). */

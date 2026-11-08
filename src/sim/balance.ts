@@ -720,13 +720,14 @@ export const CHARACTERS: CharacterDef[] = [
   { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, spell: Spell.Clignement, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
   { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, spell: Spell.Eclat, bladeRangeMul: 1, unlock: '', price: 800 },
-  { key: 'braconnier', weapon: 'boomerang', startLines: { boomerang: ['dmg', 'cd', 'range'] }, // phase 17 : 4 → 2 lignes de dégâts (avec le remboursement à 30 %) ; phase 18 : 2 → 1 (relief et sanctuaires : nu 9:34, +3:48 sur l'Éclaireuse)
-    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 10, hpMul: 1, spell: Spell.Collet, bladeRangeMul: 1, unlock: '', price: 1200 },
+  { key: 'braconnier', weapon: 'boomerang', // phase 33 : plus de lignes de départ (une arme part de zéro) ; avant : // phase 17 : 4 → 2 lignes de dégâts (avec le remboursement à 30 %) ; phase 18 : 2 → 1 (relief et sanctuaires : nu 9:34, +3:48 sur l'Éclaireuse)
+    // phase 33 : 10 → 35 PV (sans lignes de départ : 22 % de morts < 3 min avec 10, 21 % avec 25)
+    trait: Trait.Rapporteur, speedMul: 1, hpAdd: 35, hpMul: 1, spell: Spell.Collet, bladeRangeMul: 1, unlock: '', price: 1200 },
   { key: 'sapeur', weapon: 'mines', trait: Trait.Demolisseur, speedMul: 0.92, hpAdd: 0, hpMul: 0.8, spell: Spell.Petard, bladeRangeMul: 1, unlock: 'boss1', price: 0 },
   { key: 'feufollet', weapon: 'orbe', trait: Trait.Trainee, speedMul: 1.3, hpAdd: 0, hpMul: 0.6, // phase 10 : 0,5 → 0,6, seul avec l'Orbe il passait sous 4 min (3:51) et 20 % de morts < 3 min
     spell: Spell.Comete, bladeRangeMul: 1, unlock: 'intouchable', price: 0 },
   { key: 'revenante', weapon: 'foudre', weapon2: 'aura', trait: Trait.DejaMorte, speedMul: 0.9, hpAdd: 0, hpMul: 0.45, spell: Spell.Voile, bladeRangeMul: 1, unlock: 'win', price: 0 },
-  { key: 'colporteur', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 ; avec 1 lame et 1 ligne de dégâts, 2:19 et 78 % de morts < 3 min
+  { key: 'colporteur', weapon: 'lames', // phase 33 : plus de lignes de départ (une arme part de zéro) ; avant : // ≈ l'ancien Lames 3 ; avec 1 lame et 1 ligne de dégâts, 2:19 et 78 % de morts < 3 min
     startTomes: { chance: ['luck', 'luck'], or: ['gold', 'gold', 'gold'] }, // ≈ Trèfle 1 et Bourse 1 d'avant
     trait: Trait.Marchand, speedMul: 1.03, hpAdd: 15, hpMul: 1, spell: Spell.Bourse, bladeRangeMul: 1, unlock: '', price: 2000 },
 ];

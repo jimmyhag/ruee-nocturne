@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { STEP, SYN, Syn, TOMES, TOME_KEYS, WEAPON_LINES } from '../balance';
 import { spawnEnemy } from '../spawner';
 import { startRun, step } from '../step';
+import { rollChoices } from '../progression';
 import { Ev, HitSrc } from '../types';
 import type { Input, TomeKey, WeaponKey } from '../types';
 import { World } from '../world';
@@ -415,5 +416,35 @@ describe('Lames ciblées (phase 32)', () => {
     refreshStats(w);
     expect(weaponStats(w, 'lames').cd).toBeCloseTo(base.cd * SYN.tourbillon.cd, 6);
     expect(weaponStats(w, 'lames').r).toBeCloseTo(base.r * (1 + SYN.tourbillon.r), 6);
+  });
+});
+
+describe('armes qui partent de zéro (phase 33)', () => {
+  it('une carte de nouvelle arme n’a aucune ligne ; la prendre donne la base (une cible, un projectile)', () => {
+    const w = new World(31);
+    w.maxWeapons = 4;
+    let found = 0;
+    for (let i = 0; i < 200 && found < 20; i++) {
+      rollChoices(w);
+      for (const c of w.cards)
+        if (c.kind === 'w' && c.lv === 1) {
+          found++;
+          expect([c.n, c.s0, c.s1, c.s2]).toEqual([0, -1, -1, -1]);
+        }
+    }
+    expect(found).toBeGreaterThan(5);
+    for (const k of WEAPON_KEYS) {
+      const s = weaponStats(new World(1), k);
+      if ('n' in WEAPONS[k].base && k !== 'mines') expect(s.n, k).toBe(1); // les Mines : n = mines posées à la fois
+      if (k === 'foudre') expect(s.chain).toBe(0);
+    }
+  });
+  it('une arme possédée reçoit toujours 1 à 3 lignes', () => {
+    const w = new World(32);
+    w.weapons = { orbe: 3 };
+    for (let i = 0; i < 100; i++) {
+      rollChoices(w);
+      for (const c of w.cards) if (c.kind === 'w' && c.key === 'orbe') expect(c.n).toBeGreaterThanOrEqual(1);
+    }
   });
 });

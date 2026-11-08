@@ -2,6 +2,14 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.28.0 — 8 nov. 2026 (phase 33 « Armes qui partent de zéro »)
+
+### Modifié
+
+- **Une arme débloquée part de zéro** : la carte « Nouvelle arme » donne l'arme de base seule — un projectile, une cible, aucune stat en prime. Ce sont les cartes suivantes qui ajoutent des projectiles, des cibles (Foudre, Lames…), des dégâts ou de la cadence.
+- **Météores** : un seul météore au départ (deux avant), qui tombe plus souvent (toutes les 2 s) ; les cartes en ajoutent.
+- **Colporteur et Braconnier** : ils partent eux aussi avec leur arme de base, sans améliorations ; le Braconnier gagne des PV en échange (+35).
+
 ## 1.27.0 — 8 nov. 2026 (phase 32 « Lames ciblées »)
 
 ### Modifié
