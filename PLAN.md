@@ -180,18 +180,18 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Boussole (phase 28) | rayon de découverte ×1,8 ; coffres et sanctuaires visibles sur la carte même non découverts | commun |
 | Bouclier (phase 28) | annule un coup toutes les 20 s | rare |
 | Corne de guerre (phase 28) | toutes les 25 s, onde de r 7 qui repousse et étourdit 0,5 s (pas les boss) | rare |
-| Croc de vampire (phase 31) | vol de vie : 4 % des dégâts infligés rendus en PV, 3 PV/s au plus | rare |
-| Calice sanglant (phase 31) | chaque kill rend 1 PV, 5 PV/s au plus | rare |
-| Mousse de troll (phase 31) | régénère 1 % des PV max par seconde | commun |
-| Second souffle (phase 31) | sous 35 % des PV, régénère 4 % des PV max par seconde | rare |
-| Pierre à aiguiser (phase 31) | +12 % de dégâts | commun |
-| Dé pipé (phase 31) | +8 % de chance de critique | commun |
+| Croc de vampire (phase 31) | vol de vie : 3 % des dégâts infligés rendus en PV, 1,2 PV/s au plus | rare |
+| Calice sanglant (phase 31) | chaque kill rend 1 PV, 2 PV/s au plus | rare |
+| Mousse de troll (phase 31) | régénère 0,3 % des PV max par seconde | commun |
+| Second souffle (phase 31) | sous 35 % des PV, régénère 2 % des PV max par seconde | rare |
+| Pierre à aiguiser (phase 31) | +8 % de dégâts | commun |
+| Dé pipé (phase 31) | +6 % de chance de critique | commun |
 | Gant du bourreau (phase 31) | +40 % de dégâts aux ennemis sous 30 % de leurs PV | rare |
-| Pendentif de brume (phase 31) | −12 % de dégâts subis | rare |
+| Pendentif de brume (phase 31) | −8 % de dégâts subis | rare |
 | Sandales ailées (phase 31) | +10 % de vitesse | commun |
 | Amulette du savant (phase 31) | +15 % d'expérience | commun |
-| Armure d'écorce (phase 31) | +8 % d'armure (dans le plafond) | commun |
-| Couronne du berserker (phase 31) | jusqu'à +60 % de dégâts selon les PV manquants, 2 % de vol de vie | épique |
+| Armure d'écorce (phase 31) | +5 % d'armure (dans le plafond) | commun |
+| Couronne du berserker (phase 31) | jusqu'à +50 % de dégâts selon les PV manquants, 2 % de vol de vie | épique |
 
 **Soins des objets (phase 31)** : vol de vie et Calice puisent dans une réserve rechargée chaque seconde (somme des plafonds des objets possédés) ; les PV rendus s'annoncent une fois par seconde (chiffre vert). Sans plafond, le vol de vie rendrait le héros immortel en fin de partie (dégâts en milliers).
 
