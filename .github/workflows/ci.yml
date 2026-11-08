@@ -12,7 +12,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 45 # tests Playwright sous SwiftShader puis Lighthouse (3 runs) : annulé à 30 min sur la #30 (25 min sur la #29)
+    timeout-minutes: 60 # tests Playwright sous SwiftShader puis Lighthouse (3 runs) : annulé à 30 min sur la #30 (25 min sur la #29), à 45 min en 1.30.2 (e2e bonus et glisse)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
