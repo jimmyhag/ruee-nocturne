@@ -528,6 +528,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - Temps figé à 3 s, boss compris, l'horloge de la partie continuant ;
   - valeurs réduites après mesure : à 20/10/4/10 s, ×1,4 de vitesse, ×1,5 de dégâts et 2,3 bonus par minute, la survie médiane du profil nu passait de 5:50 à 9:35 (la Rage seule : 10:16). Les autres bonus pesaient aussi : en retirer un seul laissait la survie autour de 10:30 ;
   - rendu sans aucun appel de dessin en plus : cristaux dans l'écrivain des gemmes, halo dans celui des lueurs, icône en DOM.
+  - cible du profil nu lue sur les quartiles et la part qui passe le premier boss, pas sur la médiane : la distribution a un creux entre 7:30 et 10:00 (on meurt avant le premier boss ou on tient longtemps), et la médiane de `main` (5:47) est au bord de ce creux. Les bonus font passer 10 % de runs de plus de l'autre côté (42 → 51 %), sans toucher aux morts précoces ni aux quartiles bas (p25 3:56 → 3:36, p40 5:07 → 5:19) ; la médiane saute donc à 9:10.
 - **Porte** :
   - effets, apparition, durée de vie et déterminisme couverts par Vitest ;
   - ramassage au clavier et au doigt, pastille, bannière et gel couverts par e2e ;
