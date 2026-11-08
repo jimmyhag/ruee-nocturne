@@ -188,10 +188,6 @@ export function applyCard(w: World, idx: number): void {
   nextChoice(w);
 }
 
-/**
- * Choix suivant : d'abord les objets des coffres (w.itemPicks), puis les montées de niveau (w.pending), sinon la partie
- * reprend. Appelé par step à la sortie d'un pas de jeu et après chaque carte.
- */
 /** Code d'entrée (Input.pick) pendant une montée de niveau : relancer les cartes (phase 31). */
 export const LEVEL_REROLL = 10;
 const lastCards: Card[] = [];
@@ -214,6 +210,10 @@ export function rerollLevel(w: World): boolean {
   return true;
 }
 
+/**
+ * Choix suivant : d'abord les objets des coffres (w.itemPicks), puis les montées de niveau (w.pending), sinon la partie
+ * reprend. Appelé par step à la sortie d'un pas de jeu et après chaque carte.
+ */
 export function nextChoice(w: World): void {
   if (w.itemPicks > 0 && canGainItem(w)) {
     rollItemChoices(w, chestOffers(w), false, w.cards);

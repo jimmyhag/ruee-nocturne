@@ -423,7 +423,7 @@ describe('objets de la phase 31 : vol de vie, régénération, pourcentages', ()
     expect(P.xpMul).toBeCloseTo(b.xp + ITEM.amulette.xp, 6);
     expect(P.armor).toBeCloseTo(b.armor + ITEM.ecorce.armor, 6);
   });
-  it('Mousse de troll : 1 % des PV max par seconde ; Second souffle seulement sous 35 %', () => {
+  it('Mousse de troll : une part des PV max par seconde ; Second souffle seulement sous son seuil', () => {
     const w = fresh();
     const P = w.player;
     P.hp = P.maxHp * 0.5;
@@ -440,7 +440,7 @@ describe('objets de la phase 31 : vol de vie, régénération, pourcentages', ()
     for (let i = 0; i < 60; i++) step(w2, still, STEP);
     expect(Q.hp).toBeGreaterThan(Q.maxHp * (0.2 + ITEM.souffle.pct * 0.9));
   });
-  it('Croc de vampire : vol de vie plafonné à 3 PV par seconde, annoncé une fois par seconde', () => {
+  it('Croc de vampire : vol de vie plafonné par seconde, annoncé une fois par seconde', () => {
     const w = fresh();
     const P = w.player;
     gainItem(w, It.Croc);
@@ -450,7 +450,7 @@ describe('objets de la phase 31 : vol de vie, régénération, pourcentages', ()
     let heals = 0,
       healed = 0;
     for (let i = 0; i < 60 * 3; i++) {
-      hitEnemy(w, 0, 500, 0, P.x, P.z, HitSrc.Orbe); // 20 PV de vol par coup sans plafond
+      hitEnemy(w, 0, 500, 0, P.x, P.z, HitSrc.Orbe); // 15 PV de vol par coup sans plafond (3 % de 500)
       step(w, still, STEP);
       for (let k = 0; k < w.eventCount; k++)
         if (w.events[k].type === Ev.Heal) {
@@ -460,7 +460,7 @@ describe('objets de la phase 31 : vol de vie, régénération, pourcentages', ()
     }
     expect(heals).toBeGreaterThanOrEqual(2);
     expect(heals).toBeLessThanOrEqual(3);
-    // au plus 3 PV par seconde sur 3 s (plus la régénération de base)
+    // au plus ITEM.croc.cap PV par seconde sur 3 s (plus la régénération de base)
     expect(P.hp - 10).toBeLessThanOrEqual(ITEM.croc.cap * 3 + P.regen * 3 + 0.01);
     expect(healed).toBeGreaterThan(ITEM.croc.cap * 1.5);
   });

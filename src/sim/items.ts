@@ -281,7 +281,7 @@ export function healTick(w: World, dt: number): void {
   w.healBank = healCap(w) * ITEM.healReport;
   if (w.healed >= 1) {
     const P = w.player;
-    w.emit(Ev.Heal, P.x, P.y + 1.6, P.z, w.healed);
+    w.emit(Ev.Heal, P.x, P.y, P.z, w.healed); // la hauteur d'affichage est choisie par le rendu
   }
   w.healed = 0;
 }
