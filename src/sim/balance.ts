@@ -475,10 +475,13 @@ export const BOOMERANG = {
   rehit: 0.45, // un ennemi n'est touché qu'une fois par passage (aller, puis retour)
   safetyLife: 6, // libéré bien avant par le retour ; sécurité si le joueur fuit plus vite
 };
+// phase 32 (demande de Jimmy) : les Lames ne tournent plus autour du héros (le Halo le fait déjà) ; toutes les `cd` s, elles
+// frappent les `n` ennemis les plus proches à moins de `range` u, chaque coup touchant tout ce qui est à moins de `r` de la cible
 export const LAMES = {
-  window: 0.4, // un ennemi n'est touché par les lames qu'une fois par fenêtre (s)
-  hitR: 0.75, // rayon de frappe d'une lame (× sizeMul) ; phase 12 : 0,55 → 0,75, un Dard collé au joueur passait sous l'anneau (Bûcheron 3:12 et 46 % de morts < 3 min → 5:04 et 16 %), alors qu'un rayon plus grand aggravait le trou central
-  kb: 5, // recul d'une lame (× Fendeur)
+  range: 6, // u de détection (× portée du Bûcheron)
+  kb: 5, // recul d'un coup (× Fendeur)
+  wait: 0.15, // sans ennemi à portée, nouvel essai dans 0,15 s
+  first: 0.3, // s avant le premier coup d'une partie
 };
 // phase 28 : comportement des armes nouvelles
 export const FAUX = { kb: 7, wait: 0.15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s
@@ -510,6 +513,7 @@ export interface StatLine {
   kind: 'pct' | 'add';
   max?: number; // nombre de lignes maximum (plafond de la stat)
   weight: number; // poids de tirage (les lignes « rares » comptent 1 contre 3)
+  label?: string; // phase 32 : clé de texte si elle diffère de `stat` (Lames : `n` compte des cibles, pas des projectiles)
 }
 export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
   // le niveau 5 d'avant (≈ ×3 de DPS) se retrouve vers 10–12 améliorations ; au-delà c'est la marge jusqu'à 100
@@ -531,9 +535,9 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
   ],
   lames: [
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
-    { stat: 'n', step: 1, kind: 'add', max: 8, weight: 1.5 },
-    { stat: 'r', step: 0.04, kind: 'pct', max: 15, weight: 2 },
-    { stat: 'spd', step: 0.06, kind: 'pct', max: 15, weight: 2 },
+    { stat: 'n', step: 1, kind: 'add', max: 4, weight: 1.5, label: 'targets' }, // cibles par coup (phase 32)
+    { stat: 'r', step: 0.06, kind: 'pct', max: 15, weight: 2 }, // zone de coupe autour de chaque cible
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
   foudre: [
@@ -711,8 +715,8 @@ export const OUTFIT = { price: 400 };
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle
   { key: 'eclaireuse', weapon: 'orbe', trait: Trait.None, speedMul: 1.15, hpAdd: 0, hpMul: 1, spell: Spell.Bond, bladeRangeMul: 1, unlock: '', price: 0 },
-  { key: 'bucheron', weapon: 'lames', startLines: { lames: ['n', 'n', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg', 'dmg'] }, // ≈ l'ancien Lames 3 (4 lames, 21 dégâts) : avec 1 lame et 1 ligne de dégâts, 2:24 et 71 % de morts < 3 min
-    trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, spell: Spell.Tourbillon, bladeRangeMul: 1.2, unlock: 'survie10', price: 0 },
+  { key: 'bucheron', weapon: 'lames', // phase 32 : Lames ciblées sans lignes de départ ni portée bonus (avec : 13–16 min nu, 19–27 % de fins)
+    trait: Trait.Fendeur, speedMul: 1.05, hpAdd: 30, hpMul: 1, spell: Spell.Tourbillon, bladeRangeMul: 1, unlock: 'survie10', price: 0 },
   { key: 'sorciere', weapon: 'foudre', trait: Trait.Paratonnerre, speedMul: 1, hpAdd: 0, hpMul: 0.7, spell: Spell.Clignement, bladeRangeMul: 1, unlock: 'kills500', price: 0 },
   // phase 6 : un personnage par arme manquante (Halo, Boomerang, Mines), deux variantes extrêmes, un économe
   { key: 'veilleuse', weapon: 'aura', trait: Trait.Braise, speedMul: 1, hpAdd: 20, hpMul: 1, spell: Spell.Eclat, bladeRangeMul: 1, unlock: '', price: 800 },
@@ -851,7 +855,7 @@ export const SYN = {
   orage: { chain: 3 }, // Cadence + Foudre (phase 30 : +4 → +3)
   essaim: { pierce: 1, n: 1 }, // Projectiles + Orbe (la seule paire du kit de départ de l'Éclaireuse : modérée)
   brasier: { dmg: 0.8 }, // Dégâts + Halo
-  tourbillon: { spd: 0.6, r: 0.25 }, // Mouvement + Lames
+  tourbillon: { cd: 0.7, r: 0.25 }, // phase 32 : Lames qui frappent 30 % plus souvent, zone +25 % // Mouvement + Lames
   charge: { r: 0.6 }, // Dégâts + Mines
   ricochet: { n: 2, range: 0.3 }, // Chance + Boomerang
   moisson: { magnet: 0.5 }, // Savoir + Lames

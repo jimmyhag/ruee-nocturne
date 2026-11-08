@@ -26,11 +26,11 @@ describe('personnages', () => {
     expect(w.unlocked).toBeNull();
     expect(w.player.revives).toBe(0);
   });
-  it('Bûcheron : +30 PV, Lames de départ, portée des lames ×1,2 ; Sorcière : Foudre, −20 % PV', () => {
+  it('Bûcheron : +30 PV, Lames de départ (phase 32 : ni lignes ni portée bonus) ; Sorcière : Foudre, −20 % PV', () => {
     const b = new World(1, { character: 'bucheron' });
-    expect(b.weapons).toEqual({ lames: 9 }); // phase 12 : 8 lignes fixes (+2 lames, 6 × dégâts) ≈ l'ancien Lames 3 ; seul avec moins, il ne tenait pas 3 min
+    expect(b.weapons).toEqual({ lames: 1 });
     expect(b.player.maxHp).toBe(PLAYER.hp + 30);
-    expect(b.bladeRangeMul).toBeCloseTo(1.2, 6);
+    expect(b.bladeRangeMul).toBeCloseTo(1, 6);
     expect(b.player.speed).toBeCloseTo(PLAYER.speed * 1.05, 6); // plus lent que l'Éclaireuse
     expect(b.spell).toBe(Spell.Tourbillon); // phase 19 : un sort par classe
     const s = new World(1, { character: 'sorciere' });
@@ -77,7 +77,7 @@ describe('armes débloquées', () => {
     }
     const b = new World(5, { character: 'bucheron', unlocked: ['orbe'] }); // Lames possédée mais « verrouillée »
     rollChoices(b);
-    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 10)).toBe(true); // Lames niv 9 de départ → niv 10 proposé
+    expect(b.cards.some((c) => c.kind === 'w' && c.key === 'lames' && c.lv === 2)).toBe(true); // Lames niv 1 de départ → niv 2 proposé
   });
   it('un run complet avec options reste déterministe', () => {
     const opts = { character: 'bucheron' as const, unlocked: ['orbe', 'lames', 'foudre'] as const };

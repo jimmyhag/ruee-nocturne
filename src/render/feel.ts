@@ -68,6 +68,17 @@ export const FEEL = {
     boomTrail: 1.2, // traînée du boomerang
   },
   slash: { life: 0.2, sweep: 0.5, max: 8 }, // Faux : durée de l'arc (s), balayage (rad) pendant sa vie, arcs en même temps
+  // phase 32 : coup des Lames sur une cible (l'épée tourne autour de la cible en traçant un croissant)
+  blade: {
+    life: 0.22,
+    sweep: 2.6,
+    max: 32,
+    swordAt: 0.75,
+    swordScale: 0.6,
+    fade: 2.2,
+    sparks: 5,
+    sparkColor: 0xbfe8ff,
+  },
   damageNumbers: {
     rise: 1.8, // u/s
     life: 0.6,

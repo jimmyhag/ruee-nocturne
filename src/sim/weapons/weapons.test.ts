@@ -1,6 +1,6 @@
 // Armes : bases, lignes de stats (phase 12), tomes, et comportement sur un monde minimal (sim-testing §1).
 import { describe, expect, it } from 'vitest';
-import { STEP, SYN, TOMES, TOME_KEYS, WEAPON_LINES } from '../balance';
+import { STEP, SYN, Syn, TOMES, TOME_KEYS, WEAPON_LINES } from '../balance';
 import { spawnEnemy } from '../spawner';
 import { startRun, step } from '../step';
 import { Ev, HitSrc } from '../types';
@@ -54,7 +54,8 @@ describe('fiches d’armes et lignes', () => {
     refreshStats(w);
     expect(weaponStats(w, 'orbe').n).toBe(3);
     expect(weaponStats(w, 'boomerang').n).toBe(3);
-    expect(weaponStats(w, 'lames').n).toBe(4);
+    expect(weaponStats(w, 'lames').n).toBe(3); // phase 32 : 1 cible + 2 du tome
+    expect(weaponStats(w, 'lames').r).toBeCloseTo(WEAPONS.lames.base.r * 1.5); // la taille agrandit la zone de coupe
     expect(weaponStats(w, 'mines').n).toBe(7);
     expect(weaponStats(w, 'foudre').chain).toBe(2); // phase 30 : aucun ricochet au départ, +2 par le tome
     expect(weaponStats(w, 'aura').r).toBeCloseTo(2.2 * 1.5);
@@ -154,20 +155,18 @@ describe('comportement sur un monde minimal', () => {
     }
     expect(bolts).toBeGreaterThanOrEqual(2); // un ricochet : la cible et un voisin
   });
-  it('les lames reculent les ennemis et ne frappent pas deux fois en 0,4 s', () => {
+  it('les lames frappent puis attendent leur recharge, et reculent l’ennemi', () => {
     const w = new World(5);
-    w.weapons = { lames: 2 };
-    w.wmods.lames[1] = 1; // 3 lames
+    w.weapons = { lames: 1 };
     refreshStats(w);
-    const i = spawnEnemy(w, 2, 0, 2.6); // Brute sur l’orbite des lames
+    const i = spawnEnemy(w, 2, 0, 2.6); // Brute à portée des lames
     const hpBefore = w.enemies[i].hp;
-    let hits = 0;
-    for (let f = 0; f < 12; f++) {
+    let blades = 0;
+    for (let f = 0; f < Math.round(WEAPONS.lames.base.cd / STEP) + 30; f++) {
       step(w, still, STEP);
-      for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit) hits++;
+      for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Blade) blades++;
     }
-    expect(hits).toBeGreaterThanOrEqual(1);
-    expect(hits).toBeLessThanOrEqual(3); // 3 lames, chacune au plus une fois en 0,2 s
+    expect(blades).toBe(2); // un coup tout de suite, un second après la recharge
     expect(w.enemies[i].hp).toBeLessThan(hpBefore);
   });
   it('l’aura pulse à période fixe et émet AuraPulse', () => {
@@ -342,5 +341,79 @@ describe('armes de la phase 28', () => {
     expect(warn).toBeGreaterThan(0);
     expect(hit - warn).toBeGreaterThan(0.5);
     expect(w.enemies[a].hp + w.enemies[b].hp).toBeLessThan(2e6);
+  });
+});
+
+describe('Lames ciblées (phase 32)', () => {
+  const arena = (lines: { n?: number; r?: number } = {}) => {
+    const w = new World(78);
+    w.weapons = { lames: 1 };
+    w.wmods.lames[1] = lines.n ?? 0; // ligne `n` : cibles
+    w.wmods.lames[2] = lines.r ?? 0; // ligne `r` : zone
+    refreshStats(w);
+    w.enemyCount = 0;
+    w.nextWave = 1e9;
+    w.player.maxHp = w.player.hp = 1e9;
+    w.player.need = 1e9;
+    return w;
+  };
+  const put = (w: World, x: number, z: number): number => {
+    const i = spawnEnemy(w, 0, 0, 10);
+    const e = w.enemies[i];
+    e.x = e.px = x;
+    e.z = e.pz = z;
+    e.hp = e.max = 1e6;
+    e.spd = 0;
+    return i;
+  };
+  /** Joue jusqu'au premier coup ; rend les événements Blade du pas. */
+  const firstStrike = (w: World) => {
+    for (let f = 0; f < 60; f++) {
+      step(w, still, STEP);
+      const out: { x: number; z: number; v: number }[] = [];
+      for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Blade) out.push(w.events[k]);
+      if (out.length) return out;
+    }
+    return [];
+  };
+  const hurt = (w: World, i: number) => w.enemies[i].hp < 1e6;
+  it('frappent l’ennemi le plus proche à portée et tout ce qui est dans la zone autour de lui ; rien au-delà', () => {
+    const w = arena();
+    const r = weaponStats(w, 'lames').r;
+    const a = put(w, 0, 3), // la plus proche : cible
+      b = put(w, r * 0.8, 3), // voisine dans la zone de coupe
+      c = put(w, r * 1.6, 3), // voisine hors zone
+      d = put(w, 0, -3.5), // de l'autre côté, plus loin que la cible
+      far = put(w, 0, -20); // hors de portée
+    const ev = firstStrike(w);
+    expect(ev.length).toBe(1);
+    expect(ev[0].x).toBeCloseTo(0, 3);
+    expect(ev[0].z).toBeCloseTo(3, 3);
+    expect(ev[0].v).toBeCloseTo(r, 6);
+    expect([hurt(w, a), hurt(w, b), hurt(w, c), hurt(w, d), hurt(w, far)]).toEqual([true, true, false, false, false]);
+  });
+  it('sans ennemi à portée, pas de coup', () => {
+    const w = arena();
+    put(w, 0, 30);
+    expect(firstStrike(w).length).toBe(0);
+  });
+  it('les lignes `n` ajoutent des cibles, la ligne `r` et la taille élargissent la zone', () => {
+    const w = arena({ n: 2 });
+    const ids = [put(w, 0, 2), put(w, 4, 0), put(w, -4, 0), put(w, 0, -5)];
+    expect(firstStrike(w).length).toBe(3);
+    expect(ids.map((i) => hurt(w, i))).toEqual([true, true, true, false]);
+    const small = weaponStats(arena(), 'lames').r;
+    const wide = arena({ r: 5 });
+    wide.player.sizeMul = 1.3;
+    refreshStats(wide);
+    expect(weaponStats(wide, 'lames').r).toBeCloseTo(small * Math.pow(1.06, 5) * 1.3, 6);
+  });
+  it('Tourbillon (Mouvement + Lames) : coups plus fréquents, zone plus grande', () => {
+    const w = arena();
+    const base = { ...weaponStats(w, 'lames') };
+    w.syn[Syn.Tourbillon] = 1;
+    refreshStats(w);
+    expect(weaponStats(w, 'lames').cd).toBeCloseTo(base.cd * SYN.tourbillon.cd, 6);
+    expect(weaponStats(w, 'lames').r).toBeCloseTo(base.r * (1 + SYN.tourbillon.r), 6);
   });
 });
