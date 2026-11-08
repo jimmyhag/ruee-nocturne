@@ -5,6 +5,8 @@ import { FEEL } from './feel';
 import { InstanceWriter, makeInstanced } from './instancing';
 import { beamTexture, hardDiscTexture } from './textures';
 import { PAL } from './palette';
+import { POWER } from '../sim/balance';
+import type { Power } from '../sim/types';
 
 const TAU = Math.PI * 2;
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -278,6 +280,73 @@ interface DmgItem {
 }
 const DMG_CAP = 48;
 const MERGE_SLOTS = 16;
+
+/**
+ * Phase 35 : icône de chaque bonus au sol, en DOM au-dessus de son cristal (aucun appel de dessin en plus).
+ * Un élément par place du pool ; l'icône n'est réécrite que quand le bonus de la place change.
+ */
+export class PowerMarks {
+  ground: GroundFn = FLAT;
+  private els: HTMLElement[] = [];
+  private kind: Int8Array;
+  private shown: Uint8Array;
+  private v = new THREE.Vector3();
+  constructor(
+    layer: HTMLElement,
+    private icons: readonly string[],
+    cap: number,
+  ) {
+    this.kind = new Int8Array(cap).fill(-1);
+    this.shown = new Uint8Array(cap);
+    for (let i = 0; i < cap; i++) {
+      const el = document.createElement('div');
+      el.className = 'pmark';
+      el.hidden = true;
+      layer.appendChild(el);
+      this.els.push(el);
+    }
+  }
+  update(powers: readonly Power[], count: number, now: number, camera: THREE.Camera, w: number, h: number): void {
+    const PF = FEEL.power;
+    for (let i = 0; i < this.els.length; i++) {
+      const el = this.els[i];
+      const p = i < count ? powers[i] : null;
+      const blinkOff = p !== null && p.age > POWER.life - POWER.blink && Math.sin(now * PF.blinkHz * Math.PI * 2) < 0;
+      if (p === null || blinkOff) {
+        if (this.shown[i]) {
+          this.shown[i] = 0;
+          el.hidden = true;
+        }
+        continue;
+      }
+      if (this.kind[i] !== p.kind) {
+        this.kind[i] = p.kind;
+        el.innerHTML = this.icons[p.kind];
+      }
+      this.v
+        .set(p.x, this.ground(p.x, p.z) + PF.lift + PF.iconLift + Math.sin(now * 2.4 + p.x) * PF.bob, p.z)
+        .project(camera);
+      if (this.v.z > 1) {
+        if (this.shown[i]) {
+          this.shown[i] = 0;
+          el.hidden = true;
+        }
+        continue;
+      }
+      if (!this.shown[i]) {
+        this.shown[i] = 1;
+        el.hidden = false;
+      }
+      el.style.transform = `translate(${(((this.v.x + 1) / 2) * w).toFixed(1)}px,${(((1 - this.v.y) / 2) * h).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+  }
+  clear(): void {
+    for (let i = 0; i < this.els.length; i++) {
+      this.shown[i] = 0;
+      this.els[i].hidden = true;
+    }
+  }
+}
 
 /**
  * Chiffres de dégâts en DOM, projetés depuis la 3D. 48 éléments recyclés.

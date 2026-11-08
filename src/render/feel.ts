@@ -54,6 +54,8 @@ export const FEEL = {
   },
   // phase 30 : effets d'armes stylisés (rendu seulement)
   bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
+  // phase 35 : bonus au sol (cristal ×scale, flottement, apparition, clignotement avant de disparaître)
+  power: { scale: 2.6, lift: 0.9, bob: 0.18, pop: 0.18, blinkHz: 7, iconLift: 0.9 },
   glow: {
     orbCore: 0.8, // u : cœur de l'Orbe…
     orbHalo: 2.1, // …et son halo
@@ -66,6 +68,8 @@ export const FEEL = {
     lanceTip: 1.5, // pointe lumineuse de la Lance
     mineHalo: 1.5, // pouls des mines armées
     boomTrail: 1.2, // traînée du boomerang
+    powerHalo: 2.8, // phase 35 : halo d'un bonus au sol
+    rageHalo: 2.8, // halo rouge du héros pendant la Rage
   },
   slash: { life: 0.2, sweep: 0.5, max: 8 }, // Faux : durée de l'arc (s), balayage (rad) pendant sa vie, arcs en même temps
   // phase 32 : coup des Lames sur une cible (l'épée tourne autour de la cible en traçant un croissant)

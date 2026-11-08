@@ -4,6 +4,9 @@
 import { DISCOVER, ENEMIES, It, PLAY_LIMIT, WORLD_HALF } from '../sim/balance';
 import { SEEN_N } from '../sim/world';
 import type { World } from '../sim/world';
+import { PAL } from '../render/palette';
+
+const POWER_CSS = PAL.power.map((c) => '#' + c.toString(16).padStart(6, '0')); // phase 35
 
 const SIZE = 2 * WORLD_HALF; // u, un pixel du fond par unité
 const VIEW = 110; // u de côté visibles dans la minicarte
@@ -205,6 +208,14 @@ export class MapView {
       ctx.fillStyle = '#ff9f43';
       ctx.beginPath();
       ctx.arc(this.X(M.x), this.Z(M.z), r * 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // phase 35 : bonus au sol, un point de la couleur du bonus (toujours visibles : ils durent 30 s)
+    for (let i = 0; i < w.powerCount; i++) {
+      const p = w.powers[i];
+      ctx.fillStyle = POWER_CSS[p.kind];
+      ctx.beginPath();
+      ctx.arc(this.X(p.x), this.Z(p.z), r * 1.1, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.fillStyle = '#ff4d5e';

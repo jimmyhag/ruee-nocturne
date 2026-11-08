@@ -1,14 +1,16 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, ITEM_KEYS, MERCHANT, STEP, WEAPON_LINES } from './sim/balance';
+import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STEP, WEAPON_LINES } from './sim/balance';
+import { dropPower } from './sim/powers';
 import { dropChest } from './sim/combat';
 import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
 import { refreshStats } from './sim/weapons/defs';
 import { step } from './sim/step';
 import { Ev, Mode } from './sim/types';
-import type { Input, ItemKey, WeaponKey } from './sim/types';
+import type { Pw } from './sim/types';
+import type { Input, ItemKey, PowerKey, WeaponKey } from './sim/types';
 import type { World } from './sim/world';
 
 export interface DebugHost {
@@ -130,6 +132,11 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     chest(boss = false): void {
       const world = w();
       if (world) dropChest(world, world.player.x, world.player.z + 0.3, boss);
+    },
+    /** Phase 35 : pose le bonus `key` à (dx, dz) du joueur (dz < 0 : devant, vers le haut de l'écran). */
+    power(key: PowerKey, dx = 0, dz = -3): void {
+      const world = w();
+      if (world) dropPower(world, world.player.x + dx, world.player.z + dz, POWER_KEYS.indexOf(key) as Pw);
     },
     /** Fait venir le marchand à `dist` u devant le joueur, maintenant (phase 17 : tests, captures). */
     merchant(dist = 4): void {
