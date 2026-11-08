@@ -118,12 +118,13 @@ describe('emplacements (phase 10)', () => {
       rollChoices(w);
       for (const c of w.cards) if (c.kind === 't') expect(['degats', 'mouvement']).toContain(c.key);
     }
-    // Revenante : deux armes de départ avec un seul emplacement → les deux montent, pas de troisième
-    const r = new World(12, { character: 'revenante', slots: { weapons: 1, passives: 2 } });
-    expect(r.maxWeapons).toBe(2);
-    for (let i = 0; i < 40; i++) {
-      rollChoices(r);
-      for (const c of r.cards) if (c.kind === 'w') expect(['foudre', 'aura']).toContain(c.key);
+    // phase 34 : chaque personnage part avec une seule arme et aucun tome (Revenante comprise)
+    for (const c of ['eclaireuse', 'bucheron', 'sorciere', 'veilleuse', 'braconnier', 'sapeur', 'feufollet', 'revenante', 'colporteur'] as const) {
+      const r = new World(12, { character: c, slots: { weapons: 1, passives: 2 } });
+      expect(Object.keys(r.weapons).length, c).toBe(1);
+      expect(Object.values(r.weapons)[0], c).toBe(1);
+      expect(r.tomes, c).toEqual({});
+      expect(r.maxWeapons, c).toBe(1);
     }
     // sans option : plafonds maximum (tests et défi du jour)
     expect(new World(13).maxWeapons).toBe(MAX_WEAPONS);

@@ -144,9 +144,9 @@ Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'an
 | Veilleuse | +20 PV | Halo | Braise : le Halo grandit de 8 % par minute, max +40 % | 800 or |
 | Braconnier | +35 PV (phase 33) | Boomerang | Rapporteur : un boomerang attrapé rend 30 % de sa recharge (phase 17) | 1 200 or |
 | Sapeur | −20 % PV, vitesse 0,92 | Mines | Démolisseur : chaque atterrissage pose une mine | Vaincre un boss |
-| Feu follet | +30 % vitesse, −50 % PV | Orbe | Traînée : sa Comète (dash 2× plus long) laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
-| Revenante | −55 % PV, vitesse 0,9 | Foudre et Halo | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air | Vaincre le Faucheur |
-| Colporteur | +15 PV, vitesse 1,03, Trèfle 1 et Bourse 1 | Lames | Marchand : les coffres proposent 4 objets au lieu de 3 (phase 17) | 2 000 or |
+| Feu follet | +30 % vitesse, −40 % PV | Orbe | Traînée : sa Comète (dash 2× plus long) laisse du feu 1,5 s | Défi « Intouchable » (4 min sans dégât) |
+| Revenante | −55 % PV, vitesse 0,9 | Foudre (phase 34 : plus de Halo) | Déjà morte : une Réanimation gratuite ; ×2 XP sur les kills en l'air ; frisson du tombeau : un ennemi à son contact est ralenti 0,8 s (phase 34) | Vaincre le Faucheur |
+| Colporteur | +15 PV, vitesse 1,03 | Lames | Marchand : les coffres proposent 4 objets au lieu de 3 (phase 17) ; flair : +1 Chance, +40 % d'or (phase 34, à la place des tomes de départ) | 2 000 or |
 
 ---|---|---|---|
 | Éclaireuse | +15 % vitesse, dash plus court | Orbe | Départ |
@@ -489,6 +489,11 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - Demande de Jimmy : une arme débloquée part de zéro (un projectile, une cible, aucune stat en prime) ; les cartes ajoutent ensuite projectiles ou cibles, dégâts, cadence.
 - Décisions prises : la carte d'une nouvelle arme n'a plus de lignes (avant : 1 à 3 en prime) ; Météores à un météore par salve (recharge 2 s, même profil seule qu'avant) ; plus de lignes d'arme de départ pour les personnages (Colporteur, Braconnier ; le Braconnier reçoit +35 PV à la place). Les Mines gardent n = 5 : c'est le nombre de mines posées à la fois, pas une salve.
 - **Porte** : carte de nouvelle arme sans ligne, base à une cible (Vitest) ; capture de carte lue ; cibles nu et maxé, Colporteur et Braconnier dans la règle.
+
+### Phase 34 — Une seule arme au départ (après la 1.28.0)
+- Demande de Jimmy : chaque personnage commence avec une seule arme au niveau 1 et aucun tome ; les tomes se choisissent en partie. Les bonus retirés deviennent des passifs propres au personnage.
+- Décisions prises : Revenante sans Halo (frisson du tombeau : les ennemis à son contact sont ralentis) ; Colporteur sans tomes Chance et Or (flair du Marchand : +1 Chance, +40 % d'or, sur le personnage). Aucun autre personnage n'avait de tome ni de seconde arme.
+- **Porte** : les 9 personnages partent avec une arme au niveau 1 et aucun tome (Vitest) ; Revenante et Colporteur dans la règle (± 3 min, morts < 3 min).
 
 ### V2 (hors périmètre, à ne pas commencer)
 Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
