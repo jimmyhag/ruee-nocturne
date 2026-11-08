@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.30.2 — 8 nov. 2026 (retour de Jimmy sur la glisse)
+
+### Corrigé
+
+- **Glisse parfaite dans la direction tenue** : en changeant de direction en l'air puis en re-glissant à la réception, la glissade part dans la nouvelle direction (même un demi-tour), avec la vitesse du saut. Avant, elle repartait dans la direction de l'ancien élan. Sans direction tenue, elle suit l'élan du saut.
+
 ## 1.30.1 — 8 nov. 2026 (retour de Jimmy sur la glisse)
 
 ### Modifié

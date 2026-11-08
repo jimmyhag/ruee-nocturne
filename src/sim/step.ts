@@ -110,14 +110,19 @@ function landingShockwave(w: World): void {
 }
 
 /**
- * 1.30.1 : glisse parfaite, la glisse est appuyée au bon moment de la réception. On repart en glissade avec l'élan du
- * vol (au moins le départ d'une glissade normale), sans attendre la recharge ; l'élan (SLIDE.elanMul) récompense le
+ * 1.30.1 : glisse parfaite, la glisse est appuyée au bon moment de la réception. On repart en glissade avec la vitesse
+ * du vol (au moins le départ d'une glissade normale) dans la direction tenue, sans attendre la recharge ; l'élan (SLIDE.elanMul) récompense le
  * bon timing, et l'Écharpe du vent soigne.
  */
-function perfectSlide(w: World, hx: number, hz: number, walk: number): void {
+function perfectSlide(w: World, hx: number, hz: number, walk: number, ix: number, iz: number, l: number): void {
   const P = w.player;
   const h = Math.sqrt(hx * hx + hz * hz);
-  if (h > 0.5) {
+  // 1.30.2 (Jimmy) : la glissade part dans la direction tenue au moment de l'appui (changer de direction en l'air puis
+  // re-glisser tourne la glissade) ; sans entrée, elle suit l'élan du vol
+  if (l > SLIDE.startInput) {
+    P.dirX = ix / l;
+    P.dirZ = iz / l;
+  } else if (h > 0.5) {
     P.dirX = hx / h;
     P.dirZ = hz / h;
   }
@@ -193,7 +198,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.slideBuf = SLIDE.landPre;
     slidePress = false;
   } else if (slidePress && P.onGround && P.landGrace > 0) {
-    perfectSlide(w, P.landMx, P.landMz, walk);
+    perfectSlide(w, P.landMx, P.landMz, walk, ix, iz, l);
     slidePress = false;
   }
   // relevé : un appui pendant la glissade remet le joueur debout (l'appui est consommé)
@@ -323,7 +328,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
         // 1.30.1 : glisse appuyée juste avant de toucher le sol, on repart en glissade avec l'élan du vol
         P.slideBuf = 0;
         P.airMom = false;
-        perfectSlide(w, hx, hz, walk);
+        perfectSlide(w, hx, hz, walk, ix, iz, l);
       } else {
         P.landGrace = SLIDE.landPost; // un appui dans l'instant qui suit compte encore
         P.landMx = hx;
