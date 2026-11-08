@@ -6,12 +6,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 ### Ajouté
 
-- **Bonus au sol** : cinq bonus à ramasser en marchant dessus. Ils apparaissent sur la carte devant le héros toutes les 35 à 55 s, et les ennemis en lâchent (souvent les élites, deux pour chaque boss). L'aimant ne les attire pas : il faut aller les chercher.
+- **Bonus au sol** : cinq bonus à ramasser en marchant dessus. Ils apparaissent sur la carte devant le héros toutes les 45 à 70 s, et les ennemis en lâchent (souvent les élites, deux pour chaque boss). L'aimant ne les attire pas : il faut aller les chercher.
   - **Aimant** : toute l'XP de la carte arrive sur le héros.
-  - **Pluie d'or** : or des ennemis ×2 pendant 20 s.
-  - **Élan** : vitesse ×1,4 pendant 10 s.
-  - **Temps figé** : ennemis, tirs et dangers immobiles pendant 4 s, et toujours touchables.
-  - **Rage** : dégâts ×1,5 pendant 10 s.
+  - **Pluie d'or** : or des ennemis ×2 pendant 15 s.
+  - **Élan** : vitesse ×1,3 pendant 7 s.
+  - **Temps figé** : ennemis, tirs et dangers immobiles pendant 3 s, et toujours touchables.
+  - **Rage** : dégâts ×1,25 pendant 6 s.
 - Au sol, chaque bonus est un gros cristal de couleur avec son icône. Il clignote avant de disparaître (30 s) et apparaît sur la minicarte.
 - Au ramassage : une bannière, un son propre et une pastille avec la durée restante au HUD.
 - Pendant le Temps figé : ennemis givrés et voile bleuté. Pendant l'Élan : silhouettes vertes. Pendant la Rage : lueur rouge autour du héros.

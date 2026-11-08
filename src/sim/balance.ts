@@ -512,15 +512,15 @@ export const POWER = {
   life: 30, // s au sol
   blink: 5, // clignote les dernières secondes
   weights: [25, 20, 20, 15, 20], // aimant, or, vitesse, gel, rage
-  dur: [0, 20, 10, 4, 10], // s d'effet (aimant : instantané)
+  dur: [0, 15, 7, 3, 6], // s d'effet (aimant : instantané) ; phase 35 : 20/10/4/10 doublaient la survie du profil nu (9:35)
   goldMul: 2, // Pluie d'or : or des ennemis
-  speedMul: 1.4, // Élan
-  dmgMul: 1.5, // Rage
-  killChance: 0.004, // ennemi normal
-  eliteChance: 0.3,
+  speedMul: 1.3, // Élan
+  dmgMul: 1.25, // Rage (×1,5 pendant 10 s : 10:16 de survie nue à elle seule)
+  killChance: 0.003, // ennemi normal
+  eliteChance: 0.2,
   bossDrops: 2,
   mapFirst: 30, // premier bonus de carte
-  mapEvery: [35, 55], // s entre deux bonus de carte
+  mapEvery: [45, 70], // s entre deux bonus de carte
   mapDist: [14, 24], // u du joueur
   mapCone: Math.PI / 4, // demi-angle autour de la direction du héros
   placeTries: 6,

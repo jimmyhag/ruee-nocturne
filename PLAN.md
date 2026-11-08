@@ -231,14 +231,14 @@ Cinq bonus à ramasser en marchant dessus. Ils ne sont jamais attirés par l'aim
 | Bonus | Effet | Durée |
 |---|---|---|
 | Aimant | toutes les gemmes de la carte filent vers le héros | instantané |
-| Pluie d'or | or des ennemis ×2 | 20 s |
-| Élan | vitesse ×1,4 | 10 s |
-| Temps figé | ennemis, tirs ennemis, dangers et apparitions figés ; les ennemis prennent toujours les coups | 4 s |
-| Rage | dégâts ×1,5 | 10 s |
+| Pluie d'or | or des ennemis ×2 | 15 s |
+| Élan | vitesse ×1,3 | 7 s |
+| Temps figé | ennemis, tirs ennemis, dangers et apparitions figés ; les ennemis prennent toujours les coups | 3 s |
+| Rage | dégâts ×1,25 | 6 s |
 
 - **Apparition** :
-  - sur la carte, toutes les 35 à 55 s (le premier à 30 s), entre 14 et 24 u, devant le héros ;
-  - au kill : 0,4 % pour un ennemi normal, 30 % pour une élite, deux bonus pour un boss ;
+  - sur la carte, toutes les 45 à 70 s (le premier à 30 s), entre 14 et 24 u, devant le héros ;
+  - au kill : 0,3 % pour un ennemi normal, 20 % pour une élite, deux bonus pour un boss ;
   - tirage pondéré : aimant 25, or 20, vitesse 20, gel 15, rage 20.
 - **Au sol** : 30 s au plus, avec un clignotement les 5 dernières ; 8 au plus en même temps.
 - **Reprise** : reprendre un bonus actif remet sa durée au maximum, sans cumul. Des bonus différents se cumulent.
@@ -525,7 +525,8 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Demande de Jimmy** : des bonus à ramasser au sol, posés sur la carte et lâchés par les ennemis : un aimant qui ramène toute l'XP, plus d'or, plus de vitesse, le temps arrêté et plus de dégâts, chacun pendant un temps (§3.7).
 - **Décisions prises** :
   - jamais attirés par l'aimant : le déplacement est le prix du bonus ;
-  - Temps figé à 4 s, boss compris, l'horloge de la partie continuant ;
+  - Temps figé à 3 s, boss compris, l'horloge de la partie continuant ;
+  - valeurs réduites après mesure : à 20/10/4/10 s, ×1,4 de vitesse, ×1,5 de dégâts et 2,3 bonus par minute, la survie médiane du profil nu passait de 5:50 à 9:35 (la Rage seule : 10:16). Les autres bonus pesaient aussi : en retirer un seul laissait la survie autour de 10:30 ;
   - rendu sans aucun appel de dessin en plus : cristaux dans l'écrivain des gemmes, halo dans celui des lueurs, icône en DOM.
 - **Porte** :
   - effets, apparition, durée de vie et déterminisme couverts par Vitest ;
