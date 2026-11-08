@@ -1,7 +1,7 @@
 // Mouvements à l'écran (phase 29) : sur une piste à bosses, la glisse reste en pose de glisse ; la réception n'est
 // jouée qu'après un vrai vol à l'arrêt ; pas d'aller-retour course/repos ; inclinaison bornée.
 import { describe, expect, it } from 'vitest';
-import { Base, MOTION, MotionState, spinEase } from './motion';
+import { Base, MOTION, MotionState } from './motion';
 import type { MotionInput } from './motion';
 
 const DT = 1 / 60;
@@ -122,10 +122,5 @@ describe('mouvements', () => {
     for (let f = 0; f < 120; f++) m.update(DT, input({ face }));
     expect(Math.abs(m.pitch)).toBeLessThan(0.01);
     expect(Math.abs(m.roll)).toBeLessThan(0.01);
-  });
-  it('vrille : rapide puis amortie, un tour complet', () => {
-    expect(spinEase(0)).toBe(0);
-    expect(spinEase(1)).toBe(1);
-    expect(spinEase(0.3)).toBeGreaterThan(0.6);
   });
 });

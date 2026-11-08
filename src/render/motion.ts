@@ -152,9 +152,3 @@ export class MotionState {
     this.roll += (rT - this.roll) * k;
   }
 }
-
-/** Vrille : un tour, rapide puis amorti (ease-out cubique) ; `f` de 0 à 1. */
-export function spinEase(f: number): number {
-  const u = 1 - clamp(f, 0, 1);
-  return 1 - u * u * u;
-}

@@ -1,5 +1,5 @@
 // Phase 27 : glissade (élan gagné en descente, perdu en montée et sur le plat), saut glissé, envol sur une crête,
-// vrille en l'air (élan à la réception), Faucheur qui suit la vitesse du joueur. Terrains de test posés à la main.
+// glisse parfaite à la réception (1.30.1, remplace la vrille), Faucheur qui suit la vitesse du joueur. Terrains de test posés à la main.
 import { describe, expect, it } from 'vitest';
 import { It, RACE, REAPER_TYPE, SLIDE, STEP, TERRAIN, WORLD_HALF } from './balance';
 import { gainItem } from './items';
@@ -167,40 +167,89 @@ describe('glissade (phase 27)', () => {
       if (!w.player.onGround) air += STEP;
     }
     expect(launches).toBe(1);
-    expect(air).toBeGreaterThan(0.6); // de quoi lancer une vrille (0,45 s)
+    expect(air).toBeGreaterThan(0.6); // un vrai vol (de quoi viser la réception)
   });
   it('en marchant, passer le même bord ne fait pas décoller', () => {
     const w = lab((x) => (x < 0 ? 6 : Math.max(0, 6 - 0.5 * x)), -6, 0);
     expect(run(w, { ...still, mx: 1 }, 3, Ev.Launch)).toBe(0);
     expect(w.player.onGround).toBe(true);
   });
-  it('vrille : lancée en l’air après un saut glissé ; finie avant la réception → figure et élan, sinon ratée', () => {
-    const trick = (late: number) => {
-      // saut glissé au bord d'un plateau : long vol au-dessus du flanc
-      const w = lab((x) => (x < 0 ? 6 : Math.max(0, 6 - 0.5 * x)), -2, 0);
+  /**
+   * 1.30.1 : glisse sur le plat, saut, puis appui de glisse `before` s avant la réception (négatif : après). Renvoie ce
+   * qui s'est passé à la réception.
+   */
+  const hop = (before: number) => {
+    const start = (w: World) => {
+      run(w, { ...still, mx: 1 }, 0.3);
+      step(w, { ...still, mx: 1, slide: true }, STEP);
       run(w, { ...still, mx: 1 }, 0.1);
-      run(w, { ...still, mx: 1, slide: true }, 0.1);
-      step(w, { ...still, mx: 1, slide: true, jump: true }, STEP);
-      run(w, { ...still, mx: 1 }, late); // lâche la glisse, puis appuie à nouveau : vrille
-      const out = { spin: 0, trick: 0, fail: 0 };
-      for (let k = 0; k < 400 && !w.player.onGround; k++) {
-        step(w, { ...still, mx: 1, slide: true }, STEP);
-        out.spin += count(w, Ev.Spin);
-        out.trick += count(w, Ev.Trick);
-        out.fail += count(w, Ev.TrickFail);
-      }
-      return { ...out, elan: w.player.elanT };
+      step(w, { ...still, mx: 1, jump: true }, STEP);
     };
-    const ok = trick(0.05);
-    expect(ok.spin).toBe(1);
-    expect(ok.trick).toBe(1);
-    expect(ok.elan).toBeGreaterThan(0);
-    // vol de l'envol : on cherche un départ de vrille trop tardif (moins de 0,45 s avant la réception)
-    let failed = false;
-    for (let late = 0.3; late < 1.6 && !failed; late += 0.1) if (trick(late).fail === 1) failed = true;
-    expect(failed).toBe(true);
+    // même saut sans appui : nombre de pas jusqu'à la réception
+    const probe = lab(() => 0);
+    start(probe);
+    let land = 0;
+    while (!probe.player.onGround) {
+      step(probe, { ...still, mx: 1 }, STEP);
+      land++;
+    }
+    const at = land - Math.round(before / STEP); // pas de l'appui, compté depuis le saut
+    const w = lab(() => 0);
+    start(w);
+    let trick = 0,
+      starts = 0;
+    for (let f = 0; f < land + 60; f++) {
+      step(w, { ...still, mx: 1, slide: f === at }, STEP);
+      trick += count(w, Ev.Trick);
+      starts += count(w, Ev.SlideStart);
+    }
+    return { trick, starts, elan: w.player.elanT, tricks: w.tricks };
+  };
+  it('glisse appuyée juste avant de toucher le sol : on repart en glissade avec l’élan (glisse parfaite)', () => {
+    const r = hop(0.1);
+    expect(r.trick).toBe(1);
+    expect(r.starts).toBe(1);
+    expect(r.elan).toBeGreaterThan(0);
+    expect(r.tricks).toBe(1);
   });
-  it('vrille réussie : l’élan accélère la marche pendant SLIDE.elanTime', () => {
+  it('glisse appuyée juste après la réception (dans SLIDE.landPost) : glisse parfaite aussi', () => {
+    const r = hop(-0.05);
+    expect(r.trick).toBe(1);
+    expect(r.starts).toBe(1);
+  });
+  it('trop tôt en l’air : l’appui se perd, réception debout ; trop tard : glissade normale, sans récompense', () => {
+    const early = hop(SLIDE.landPre + 0.15);
+    expect(early.trick).toBe(0);
+    expect(early.starts).toBe(0);
+    const late = hop(-(SLIDE.landPost + 0.1));
+    expect(late.trick).toBe(0);
+    expect(late.starts).toBe(1); // une glissade ordinaire (départ à la vitesse de marche)
+  });
+  it('enchaînement propre : glisse → saut → glisse parfaite → saut → glisse parfaite → relevé', () => {
+    const w = lab(() => 0);
+    run(w, { ...still, mx: 1 }, 0.3);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    for (let k = 0; k < 2; k++) {
+      run(w, { ...still, mx: 1 }, 0.1);
+      expect(w.player.sliding).toBe(true);
+      step(w, { ...still, mx: 1, jump: true }, STEP); // le saut annule la glissade
+      expect(w.player.sliding).toBe(false);
+      // on appuie sur glisse en redescendant, près du sol
+      while (w.player.y > 0.25 || w.player.vy > 0) {
+        step(w, { ...still, mx: 1 }, STEP);
+      }
+      step(w, { ...still, mx: 1, slide: true }, STEP);
+      for (let f = 0; f < 20 && !w.player.onGround; f++) step(w, { ...still, mx: 1 }, STEP);
+      step(w, { ...still, mx: 1 }, STEP);
+      expect(w.player.sliding).toBe(true);
+    }
+    expect(w.tricks).toBe(2);
+    // un appui de plus : relevé
+    run(w, { ...still, mx: 1 }, 0.2);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    expect(w.player.sliding).toBe(false);
+  });
+  it('glisse parfaite : l’élan accélère la marche pendant SLIDE.elanTime', () => {
     const w = lab(() => 0);
     w.player.elanT = SLIDE.elanTime;
     run(w, { ...still, mx: 1 }, 0.1);
@@ -243,11 +292,12 @@ describe('objets de glisse (phase 28)', () => {
     run(w, { ...still, mx: 1 }, 0.1);
     step(w, { ...still, mx: 1, slide: true }, STEP);
     step(w, { ...still, mx: 1, jump: true }, STEP);
-    step(w, { ...still, mx: 1, slide: true }, STEP); // vrille tout de suite
     let air = 0,
       tricks = 0;
     for (let f = 0; f < 400 && !w.player.onGround; f++) {
-      step(w, { ...still, mx: 1 }, STEP);
+      // glisse appuyée en descendant, près du sol : glisse parfaite à la réception
+      const near = w.player.vy < 0 && w.player.y < 0.6;
+      step(w, { ...still, mx: 1, slide: near }, STEP);
       air += STEP;
       tricks += count(w, Ev.Trick);
     }
@@ -256,7 +306,7 @@ describe('objets de glisse (phase 28)', () => {
   it('Plume : le vol après un saut glissé dure plus longtemps', () => {
     expect(ledgeJump(It.Plume).air).toBeGreaterThan(ledgeJump().air * 1.08);
   });
-  it('Écharpe du vent : une vrille réussie soigne', () => {
+  it('Écharpe du vent : une glisse parfaite soigne', () => {
     const r = ledgeJump(It.Echarpe);
     expect(r.tricks).toBe(1);
     expect(r.hp).toBeGreaterThanOrEqual(50 + 8 - 1e-9);

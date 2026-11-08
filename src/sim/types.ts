@@ -187,9 +187,7 @@ export const enum Ev {
   SlideStart, // phase 27 : glissade lancée en (x,z), v = vitesse
   SlideEnd, // phase 27 : fin de glissade
   Launch, // phase 27 : envol sur une crête ou saut glissé, v = vitesse horizontale
-  Spin, // phase 27 : vrille lancée en l'air
-  Trick, // phase 27 : vrille réussie à la réception, v = temps passé en l'air
-  TrickFail, // phase 27 : réception en pleine vrille
+  Trick, // 1.30.1 : glisse parfaite (glisse au bon moment de la réception), v = vitesse de départ
   RaceStart, // phase 28 : piste chronométrée lancée en (x,z), v = temps alloué, (x2,z2) = arrivée
   RaceWin, // phase 28 : arrivée à temps en (x,z), v = temps mis
   RaceFail, // phase 28 : temps écoulé
@@ -419,9 +417,11 @@ export interface Player {
   airMom: boolean; // en l'air avec l'élan d'une glissade
   slideJump: boolean; // 1.24.1 : cet élan vient d'un saut (la glissade est annulée : réception debout), pas d'un envol
   airT: number; // temps passé en l'air
-  spin: number; // s restantes de vrille (0 : pas de vrille en cours)
-  spinDone: boolean; // vrille terminée avant la réception
-  elanT: number; // s restantes de l'élan gagné par une figure réussie
+  slideBuf: number; // 1.30.1 : s restantes d'un appui de glisse fait en l'air (il servira à la réception)
+  landGrace: number; // 1.30.1 : s restantes après une réception pendant lesquelles un appui de glisse est parfait
+  landMx: number; // élan horizontal au moment de la réception
+  landMz: number;
+  elanT: number; // s restantes de l'élan gagné par une glisse parfaite
   gPrev: number; // hauteur du sol au pas précédent (altitude absolue en l'air)
   gv: number; // vitesse verticale du sol sous les pieds (u/s, envol sur une crête)
   spd: number; // vitesse au sol lissée (le Faucheur s'y règle)

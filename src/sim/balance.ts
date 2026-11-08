@@ -100,9 +100,12 @@ export const SLIDE = {
   airControl: 0.3, // part de la vitesse de marche que l'entrée ajoute en l'air après un saut glissé
   launchAcc: 0.8, // envol : le sol « tombe » (accélération verticale) plus vite que 0,8 × gravité
   launchMin: 1.2, // …à au moins marche × 1,2 (la marche en descente plafonne à 1,15)
-  launchPop: 2.5, // u/s vers le haut à l'envol (assez de vol pour une vrille si l'on va vite)
-  spinTime: 0.45, // durée d'une vrille
-  elanMul: 1.2, // vrille réussie : vitesse × 1,2…
+  launchPop: 2.5, // u/s vers le haut à l'envol
+  // 1.30.1 (Jimmy) : plus de vrille. Glisse au bon moment de la réception : appui dans les 0,25 s avant de toucher le
+  // sol, ou dans les 0,12 s après ; on repart en glissade avec l'élan du vol (glisse parfaite)
+  landPre: 0.25,
+  landPost: 0.12,
+  elanMul: 1.2, // glisse parfaite : vitesse × 1,2…
   elanTime: 1.5, // …pendant 1,5 s
   reaperMul: 1.1, // le Faucheur va toujours au moins 1,1 × la vitesse lissée du joueur (il rattrape toujours)
   startInput: 0.3, // entrée minimale (0–1) pour lancer une glissade

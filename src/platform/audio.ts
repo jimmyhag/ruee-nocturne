@@ -195,16 +195,12 @@ export class AudioBus {
   launch(): void {
     this.tone(this.sfx, 320, 0.2, 'triangle', 0.2, 420, PRIO.move);
   }
-  /** Vrille lancée : souffle qui tourne. */
-  spin(): void {
-    this.tone(this.sfx, 900, 0.3, 'sine', 0.14, -500, PRIO.move);
-  }
-  /** Vrille réussie : petit accord brillant. */
+  /** Glisse parfaite (1.30.1, avant : vrille réussie) : petit accord brillant. */
   trick(): void {
     this.tone(this.ui, 659, 0.08, 'triangle', 0.24, 0, PRIO.levelUp);
     this.tone(this.ui, 988, 0.16, 'triangle', 0.26, 0, PRIO.levelUp, 0.06);
   }
-  /** Réception en pleine vrille : bruit mat. */
+  /** Bruit mat (piste chronométrée ratée). */
   trickFail(): void {
     this.tone(this.sfx, 110, 0.18, 'square', 0.2, -40, PRIO.move);
   }

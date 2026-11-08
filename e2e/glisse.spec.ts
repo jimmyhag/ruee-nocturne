@@ -1,5 +1,5 @@
 // Phase 27 : glissade au clavier (C tenue) et au doigt (GLISSE, verrouillée d'un appui), carte (M, minicarte, pause),
-// nouvelle carte à chaque partie.
+// nouvelle carte à chaque partie ; 1.30.1 : glisse parfaite à la réception (plus de vrille).
 import { expect, test } from '@playwright/test';
 import { collectConsoleErrors, openGame, startRun } from './helpers';
 
@@ -81,6 +81,73 @@ test('tactile : un appui sur GLISSE lance la glissade (bouton allumé) sans teni
   await page.waitForFunction(() => (window as any).__game.world.player.sliding === false, null, { timeout: 2000 });
   await expect(page.locator('#btnSlide')).not.toHaveClass(/on/);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+});
+
+test('1.30.1 : glisse → saut → glisse au bon moment de la réception = glisse parfaite, au clavier et au doigt ; plus de vrille', async ({
+  page,
+  hasTouch,
+}, info) => {
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  await startRun(page, 2);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.world.enemyCount = 0;
+    g.world.powerNext = 1e9;
+  });
+  // appuis : C / Espace au clavier ; au doigt, joystick tenu (doigt 1) et boutons GLISSE / SAUT (doigt 2)
+  const cdp = hasTouch ? await page.context().newCDPSession(page) : null;
+  const vp = page.viewportSize()!;
+  const x0 = Math.round(vp.width * 0.25),
+    y0 = Math.round(vp.height * 0.6);
+  let id = 2;
+  const tap = async (sel: string, key: string) => {
+    if (!cdp) {
+      await page.keyboard.press(key);
+      return;
+    }
+    const b = (await page.locator(sel).boundingBox())!;
+    const pt = { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2), id: id++ };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0 + 60, y: y0, id: 1 }, pt] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: x0 + 60, y: y0, id: 1 }] });
+  };
+  if (cdp) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id: 1 }] });
+    for (let i = 1; i <= 6; i++) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: x0 + i * 10, y: y0, id: 1 }],
+      });
+      await page.waitForTimeout(30);
+    }
+  } else await page.keyboard.down('KeyD');
+  await page.waitForTimeout(300);
+  await tap('#btnSlide', 'KeyC');
+  await page.waitForFunction(() => (window as any).__game.world.player.sliding === true, null, { timeout: 2000 });
+  await tap('#btnJump', 'Space');
+  await page.waitForFunction(() => (window as any).__game.world.player.onGround === false, null, { timeout: 2000 });
+  expect(await page.evaluate(() => (window as any).__game.world.player.sliding)).toBe(false); // le saut annule
+  // on redescend : glisse juste avant de toucher le sol
+  await page.waitForFunction(
+    () => {
+      const P = (window as any).__game.world.player;
+      return P.vy < 0 && P.y < 0.9;
+    },
+    null,
+    { timeout: 3000, polling: 'raf' },
+  );
+  await tap('#btnSlide', 'KeyC');
+  await page.waitForFunction(() => (window as any).__game.world.tricks === 1, null, { timeout: 2000 });
+  await expect(page.locator('#dmg span.trick')).toContainText('Glisse parfaite');
+  expect(await page.evaluate(() => (window as any).__game.world.player.sliding)).toBe(true);
+  await page.screenshot({ path: `shots/${info.project.name}-glisse-parfaite.png` });
+  // relevé propre : un appui remet debout
+  await tap('#btnSlide', 'KeyC');
+  await page.waitForFunction(() => (window as any).__game.world.player.sliding === false, null, { timeout: 2000 });
+  if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  else await page.keyboard.up('KeyD');
+  expect(errors).toEqual([]);
 });
 
 test('carte : M (ou la minicarte au doigt) ouvre la grande carte en pause, avec le brouillard et la part explorée', async ({

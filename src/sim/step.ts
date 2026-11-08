@@ -109,6 +109,35 @@ function landingShockwave(w: World): void {
   w.emit(Ev.Shockwave, P.x, 0, P.z, B.r);
 }
 
+/**
+ * 1.30.1 : glisse parfaite, la glisse est appuyée au bon moment de la réception. On repart en glissade avec l'élan du
+ * vol (au moins le départ d'une glissade normale), sans attendre la recharge ; l'élan (SLIDE.elanMul) récompense le
+ * bon timing, et l'Écharpe du vent soigne.
+ */
+function perfectSlide(w: World, hx: number, hz: number, walk: number): void {
+  const P = w.player;
+  const h = Math.sqrt(hx * hx + hz * hz);
+  if (h > 0.5) {
+    P.dirX = hx / h;
+    P.dirZ = hz / h;
+  }
+  const v0 = Math.max(h, walk * SLIDE.startMul, P.sliding ? Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz) : 0);
+  P.mvx = P.dirX * v0;
+  P.mvz = P.dirZ * v0;
+  if (!P.sliding) w.emit(Ev.SlideStart, P.x, 0, P.z, v0);
+  P.sliding = true;
+  P.slideCd = 0;
+  P.landGrace = 0;
+  P.elanT = SLIDE.elanTime;
+  w.tricks++;
+  if (w.items[It.Echarpe]) {
+    // phase 28 : Écharpe du vent
+    P.hp = Math.min(P.maxHp, P.hp + ITEM.echarpe.heal);
+    P.spellCd -= ITEM.echarpe.spell;
+  }
+  w.emit(Ev.Trick, P.x, 0, P.z, v0);
+}
+
 function stepPlayer(w: World, input: Input, dt: number): void {
   const P = w.player;
   P.px = P.x;
@@ -127,7 +156,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.dirZ = iz / l;
   }
   // phase 27 : glisse à l'appui (front montant : la tenir ne compte qu'une fois) ; au sol, un appui lance la glissade
-  // ou relève le joueur ; en l'air, il lance la vrille
+  // ou relève le joueur ; 1.30.1 : en l'air, il prépare la réception (glisse parfaite si le sol arrive à temps)
   const slideIn = input.slide === true;
   let slidePress = slideIn && !P.slideHeld;
   P.slideHeld = slideIn;
@@ -147,14 +176,25 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.vy = vy;
     P.onGround = false;
     P.airT = 0;
-    P.spin = 0;
-    P.spinDone = false;
+    P.slideBuf = 0;
+    P.landGrace = 0;
     w.emit(Ev.Jump, P.x, P.y, P.z);
   }
   if (input.spell && P.spellCd <= 0) castSpell(w, P.dirX, P.dirZ); // phase 19 : sort de classe (ancien dash)
   if (P.dashT > 0 && (P.sliding || P.airMom)) {
     P.sliding = false; // un Bond ou une Comète reprend la main sur l'élan
     P.airMom = false;
+  }
+  // 1.30.1 : glisse au bon moment de la réception. En l'air, l'appui est gardé SLIDE.landPre s ; juste après avoir
+  // touché le sol, il compte encore SLIDE.landPost s (avec l'élan du vol)
+  if (P.slideBuf > 0) P.slideBuf -= dt;
+  if (P.landGrace > 0) P.landGrace -= dt;
+  if (slidePress && !P.onGround) {
+    P.slideBuf = SLIDE.landPre;
+    slidePress = false;
+  } else if (slidePress && P.onGround && P.landGrace > 0) {
+    perfectSlide(w, P.landMx, P.landMz, walk);
+    slidePress = false;
   }
   // relevé : un appui pendant la glissade remet le joueur debout (l'appui est consommé)
   if (slidePress && P.onGround && P.sliding) {
@@ -171,18 +211,6 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.mvz = P.dirZ * v0;
     P.sliding = true;
     w.emit(Ev.SlideStart, P.x, 0, P.z, v0);
-  }
-  // vrille : en l'air avec l'élan d'une glissade (saut glissé ou envol)
-  if (slidePress && !P.onGround && P.airMom && P.spin <= 0 && !P.spinDone) {
-    P.spin = SLIDE.spinTime;
-    w.emit(Ev.Spin, P.x, P.y, P.z);
-  }
-  if (P.spin > 0) {
-    P.spin -= dt;
-    if (P.spin <= 0) {
-      P.spin = 0;
-      P.spinDone = true;
-    }
   }
   let vx: number, vz: number;
   if (P.sliding) {
@@ -260,8 +288,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
         P.vy = Math.max(0, P.gv) + SLIDE.launchPop; // la montée qu'avait le sol (sommet d'une rampe) et un petit bond
         P.y = -dg;
         P.airT = 0;
-        P.spin = 0;
-        P.spinDone = false;
+        P.slideBuf = 0;
         P.slideJump = false; // envol : on décolle en glisse, la réception continue la glissade
         if (P.sliding) {
           P.sliding = false;
@@ -289,22 +316,22 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       w.emit(Ev.Land, P.x, ground, P.z, P.airT);
       if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
       if (w.items[It.Bottes]) landingShockwave(w); // phase 17 : l'atterrissage repousse les ennemis proches
-      if (P.spin > 0) w.emit(Ev.TrickFail, P.x, 0, P.z);
-      else if (P.spinDone) {
-        P.elanT = SLIDE.elanTime;
-        w.tricks++;
-        if (w.items[It.Echarpe]) {
-          // phase 28 : Écharpe du vent
-          P.hp = Math.min(P.maxHp, P.hp + ITEM.echarpe.heal);
-          P.spellCd -= ITEM.echarpe.spell;
-        }
-        w.emit(Ev.Trick, P.x, 0, P.z, P.airT);
+      // élan horizontal du vol : celui de la glissade (saut glissé, envol) ou la marche
+      const hx = P.airMom ? P.mvx : P.vx,
+        hz = P.airMom ? P.mvz : P.vz;
+      if (P.slideBuf > 0) {
+        // 1.30.1 : glisse appuyée juste avant de toucher le sol, on repart en glissade avec l'élan du vol
+        P.slideBuf = 0;
+        P.airMom = false;
+        perfectSlide(w, hx, hz, walk);
+      } else {
+        P.landGrace = SLIDE.landPost; // un appui dans l'instant qui suit compte encore
+        P.landMx = hx;
+        P.landMz = hz;
       }
-      P.spin = 0;
-      P.spinDone = false;
       // réception glissée : après un envol, l'élan continue au sol, droit dans le sens du vol ; après un saut glissé, on
       // se réceptionne debout (1.24.1 : le saut annule la glissade)
-      if (P.airMom && !P.slideJump && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
+      if (!P.sliding && P.airMom && !P.slideJump && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
         const m = Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz);
         P.dirX = P.mvx / m;
         P.dirZ = P.mvz / m;

@@ -2,6 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.30.1 — 8 nov. 2026 (retour de Jimmy sur la glisse)
+
+### Modifié
+
+- **Plus de vrille** : en l'air, la touche de glisse ne fait plus tourner le héros.
+- **Glisse parfaite** : appuie sur glisse juste avant de toucher le sol (0,25 s) ou juste après (0,12 s). Tu repars en glissade avec l'élan du saut, sans attendre la recharge, et un élan de vitesse ×1,2 pendant 1,5 s. « Glisse parfaite ! » s'affiche.
+  - Trop tôt, l'appui se perd ; trop tard, c'est une glissade normale.
+  - Ça permet d'enchaîner proprement : glisse, saut, glisse parfaite, saut, puis un appui pour se relever.
+- Le succès Acrobate (5 dans une partie, débloque la Lance) et l'Écharpe du vent comptent désormais les glisses parfaites.
+
 ## 1.30.0 — 8 nov. 2026 (phase 35 « Bonus au sol »)
 
 ### Ajouté

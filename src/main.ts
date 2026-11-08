@@ -1475,10 +1475,6 @@ function handleEvents(w: World, now: number): void {
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt * 0.4);
         audio.launch();
         break;
-      case Ev.Spin:
-        S.onSpin();
-        audio.spin();
-        break;
       // phase 28 : armes, objets, pistes chronométrées
       case Ev.Blade: {
         // phase 32 : coup des Lames sur une cible ; étincelles bleu acier sur la zone de coupe
@@ -1570,10 +1566,6 @@ function handleEvents(w: World, now: number): void {
         S.dmg.text(e.x, 2.4, e.z, t('trick.ok'), 'gold');
         S.particles.ring(e.x, 0.3, e.z, PAL.gold, (18 * fx) | 0, 4, 3);
         audio.trick();
-        break;
-      case Ev.TrickFail:
-        S.dmg.text(e.x, 2.2, e.z, t('trick.fail'), 'grey');
-        audio.trickFail();
         break;
       case Ev.Spell:
         if (e.y2 === 0) S.onSpell(e.v | 0); // phase 20 : animation du sort sur le héros

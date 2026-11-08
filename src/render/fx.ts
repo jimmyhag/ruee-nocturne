@@ -413,8 +413,8 @@ export class DamageNumbers {
     d.el.hidden = false;
     if (this.frameN < MERGE_SLOTS) this.frame[this.frameN++] = i;
   }
-  /** Phase 27 : un mot (figure réussie ou ratée) à la place d'un chiffre ; jamais fusionné. */
-  text(x: number, y: number, z: number, label: string, kind: 'gold' | 'grey' | 'heal'): void {
+  /** Un mot (glisse parfaite, 1.30.1) ou un soin à la place d'un chiffre ; jamais fusionné. */
+  text(x: number, y: number, z: number, label: string, kind: 'gold' | 'heal'): void {
     const D = FEEL.damageNumbers;
     const i = this.idx;
     const d = this.items[i];
@@ -425,7 +425,7 @@ export class DamageNumbers {
     d.life = D.life * 1.4;
     d.v = 0;
     d.el.textContent = label;
-    d.el.className = kind === 'gold' ? 'trick' : kind === 'heal' ? 'heal' : 'trickfail';
+    d.el.className = kind === 'gold' ? 'trick' : 'heal';
     if (d.op !== 1) {
       d.op = 1;
       d.el.style.opacity = '1';

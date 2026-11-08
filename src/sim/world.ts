@@ -187,7 +187,7 @@ export class World {
   mapChestsOpened = 0;
   racesWon = 0; // phase 28 : pistes chronométrées réussies
   slideDist = 0; // phase 28 : u glissés dans la partie
-  tricks = 0; // phase 28 : vrilles réussies dans la partie
+  tricks = 0; // glisses parfaites dans la partie (phase 28 : vrilles, 1.30.1 : glisses au bon moment)
   shieldT = 0; // phase 28 : Bouclier, s avant d'être prêt (0 : prêt)
   hornT = 0; // phase 28 : Corne de guerre, s avant la prochaine onde
   rerolls: number = RUN_REROLL.base; // phase 31 : relances de cartes restantes pour la partie
@@ -595,8 +595,10 @@ export function makePlayer(opts?: WorldOptions): Player {
     airMom: false,
     slideJump: false,
     airT: 0,
-    spin: 0,
-    spinDone: false,
+    slideBuf: 0,
+    landGrace: 0,
+    landMx: 0,
+    landMz: 0,
     elanT: 0,
     gPrev: 0,
     gv: 0,
@@ -623,7 +625,10 @@ const DOUBLE_FIELDS = [
   'mvx',
   'mvz',
   'airT',
-  'spin',
+  'slideBuf',
+  'landGrace',
+  'landMx',
+  'landMz',
   'elanT',
   'gPrev',
   'gv',
