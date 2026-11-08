@@ -1472,7 +1472,7 @@ function handleEvents(w: World, now: number): void {
       case Ev.Blade: {
         // phase 32 : coup des Lames sur une cible ; étincelles bleu acier sur la zone de coupe
         S.blade(e.x, e.z, e.v, e.x2, e.z2);
-        S.particles.burst(e.x, 0.9, e.z, 0xbfe8ff, (5 * fx) | 0, 4, 2);
+        S.particles.burst(e.x, 0.9, e.z, FEEL.blade.sparkColor, (FEEL.blade.sparks * fx) | 0, 4, 2);
         if (!bladeSnd) {
           audio.throwSound();
           bladeSnd = true;

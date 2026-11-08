@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -102,7 +102,7 @@ export class World {
     auraT: 0,
     auraPulse: 0,
     foudreT: 1.5,
-    bladeT: 0.3, // phase 32 : prochain coup des Lames
+    bladeT: LAMES.first, // phase 32 : prochain coup des Lames
     boomT: 0.8,
     mineT: 0,
     mineDist: 0,

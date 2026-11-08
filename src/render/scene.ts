@@ -107,7 +107,7 @@ const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
 const ELITE_RINGS = 48; // anneaux dorés des élites à l'écran, au plus
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
-const SLASH_CAP = 40; // arcs de lame : 13 lames + arcs de Faux en cours (8 coups × 3 croissants à 360°)
+const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (brouillard)
 const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
 const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
@@ -452,11 +452,10 @@ export class GameScene {
     this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, 0.08));
     this.auraDisc.visible = false;
     this.scene.add(this.aura, this.auraDisc);
-    // lames : un InstancedMesh (6 draw calls → 1) + fantômes additifs (3 par lame)
+    // épées : coups des Lames en cours (phase 32 : FEEL.blade.max) + 64 lances en vol (phase 28 : 54 mesurées au pire,
+    // 9 par salve à recharge plancher), un seul InstancedMesh
     const bladeGeo = new THREE.BoxGeometry(1.0, 0.1, 0.26);
-    // 13 lames au plus : 2 de base + 8 lignes + 3 du tome Projectiles (phase 12) ; + 64 lances en vol (phase 28 :
-    // 54 mesurées au pire, 9 par salve à recharge plancher)
-    const BLADE_CAP = 13 + 64;
+    const BLADE_CAP = FEEL.blade.max + 64;
     this.bladeW = new InstanceWriter(
       makeInstanced(bladeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), BLADE_CAP),
     );
@@ -1130,10 +1129,6 @@ export class GameScene {
     return this.renderer.compileAsync(this.scene, this.camera).then(() => undefined);
   }
 
-  /**
-   * Phase 30 : coup de Faux, un arc de lame visible qui couvre l'angle réel de l'arme (direction dx, dz ; portée r ;
-   * `arcDeg` : ouverture totale en degrés, jusqu'à 360 avec les cartes).
-   */
   /** Phase 32 : coup des Lames centré sur une cible (zone de rayon r), dans la direction héros → cible. */
   blade(x: number, z: number, r: number, dx: number, dz: number): void {
     if (this.bladeN >= FEEL.blade.max) return;
@@ -1146,6 +1141,10 @@ export class GameScene {
     b.life = FEEL.blade.life;
   }
 
+  /**
+   * Phase 30 : coup de Faux, un arc de lame visible qui couvre l'angle réel de l'arme (direction dx, dz ; portée r ;
+   * `arcDeg` : ouverture totale en degrés, jusqu'à 360 avec les cartes).
+   */
   scythe(x: number, z: number, r: number, dx: number, dz: number, arcDeg: number): void {
     if (this.slashN >= FEEL.slash.max) return;
     const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, arc: 0, life: 0, c: this.cSlashFaux };
@@ -1780,10 +1779,10 @@ export class GameScene {
         by,
         b.z + Math.cos(ang) * rs,
         ang + Math.PI / 2,
-        b.r * BL.swordScale * 0.67,
+        b.r * BL.swordScale,
         this.cBladeCol,
       );
-      this.cSlashTmp.copy(this.cSlashBlade).multiplyScalar(Math.min(1, (1 - f) * 2.2));
+      this.cSlashTmp.copy(this.cSlashBlade).multiplyScalar(Math.min(1, (1 - f) * BL.fade));
       this.slashW.put(b.x, by - 0.05, b.z, ang - Math.PI / 2 - SLASH_ARC, b.r * 1.04, this.cSlashTmp);
     }
     // lances (phase 28) : l'épée part dans le sens du vol, teintée cyan, 3 fantômes en arrière

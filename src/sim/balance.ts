@@ -481,6 +481,7 @@ export const LAMES = {
   range: 6, // u de détection (× portée du Bûcheron)
   kb: 5, // recul d'un coup (× Fendeur)
   wait: 0.15, // sans ennemi à portée, nouvel essai dans 0,15 s
+  first: 0.3, // s avant le premier coup d'une partie
 };
 // phase 28 : comportement des armes nouvelles
 export const FAUX = { kb: 7, wait: 0.15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s

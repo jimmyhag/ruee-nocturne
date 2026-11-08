@@ -141,7 +141,13 @@ export function tickWeapons(w: World, dt: number): void {
           const tx = seenX[c],
             tz = seenZ[c];
           const n = w.grid.query(w.enemies, tx, tz, s.r, MAX_ENEMY_R, hits);
-          for (let k = 0; k < n; k++) hitEnemy(w, hits[k], s.dmg, kb, P.x, P.z, HitSrc.Lames);
+          for (let k = 0; k < n; k++) {
+            // un ennemi pris dans plusieurs zones du même coup n'est frappé qu'une fois (relecture perf phase 32)
+            const e = w.enemies[hits[k]];
+            if (e.lastBlade === w.t) continue;
+            e.lastBlade = w.t;
+            hitEnemy(w, hits[k], s.dmg, kb, P.x, P.z, HitSrc.Lames);
+          }
           const dx = tx - P.x,
             dz = tz - P.z,
             d = Math.sqrt(dx * dx + dz * dz) || 1;
