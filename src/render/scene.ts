@@ -173,6 +173,9 @@ export class GameScene {
   private slashW: InstanceWriter;
   private slashes: { x: number; z: number; r: number; a: number; arc: number; life: number; c: THREE.Color }[] = [];
   private slashN = 0;
+  /** Phase 32 : coups des Lames en cours (posés par blade()). */
+  private blades: { x: number; z: number; r: number; a: number; life: number }[] = [];
+  private bladeN = 0;
   private boomW: InstanceWriter;
   private mineW: InstanceWriter; // plaques de feu du Feu follet
   private bombW: InstanceWriter; // mines (bombe KayKit une fois chargée)
@@ -1131,6 +1134,18 @@ export class GameScene {
    * Phase 30 : coup de Faux, un arc de lame visible qui couvre l'angle réel de l'arme (direction dx, dz ; portée r ;
    * `arcDeg` : ouverture totale en degrés, jusqu'à 360 avec les cartes).
    */
+  /** Phase 32 : coup des Lames centré sur une cible (zone de rayon r), dans la direction héros → cible. */
+  blade(x: number, z: number, r: number, dx: number, dz: number): void {
+    if (this.bladeN >= FEEL.blade.max) return;
+    const b = this.blades[this.bladeN] ?? { x: 0, z: 0, r: 0, a: 0, life: 0 };
+    this.blades[this.bladeN++] = b;
+    b.x = x;
+    b.z = z;
+    b.r = r;
+    b.a = Math.atan2(dx, dz);
+    b.life = FEEL.blade.life;
+  }
+
   scythe(x: number, z: number, r: number, dx: number, dz: number, arcDeg: number): void {
     if (this.slashN >= FEEL.slash.max) return;
     const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, arc: 0, life: 0, c: this.cSlashFaux };
@@ -1741,28 +1756,35 @@ export class GameScene {
       (this.auraDisc.material as THREE.MeshBasicMaterial).color.setHex(PAL.xp);
     } else this.aura.visible = this.auraDisc.visible = false;
 
-    // lames + 3 fantômes chacune (angles précédents, fondu) ; taille = tome Projectiles
-    const lvL = w.weapons.lames ?? 0;
+    // phase 32 : coups des Lames (posés par blade()) : l'épée tourne autour de la cible en traçant un croissant de rayon
+    // r (la zone de coupe), du côté opposé au héros ; le croissant s'efface derrière elle
     this.bladeW.begin();
     this.slashW.begin();
-    if (lvL > 0) {
-      const sL = weaponStats(w, 'lames');
-      const r = sL.r * w.bladeRangeMul;
-      const bs = w.player.sizeMul;
-      const by = py + gp + 0.8;
-      for (let i = 0; i < sL.n; i++) {
-        const a = w.wstate.bladeA + (i * TAU) / sL.n;
-        this.bladeW.put(px + Math.sin(a) * r, by, pz + Math.cos(a) * r, a + Math.PI / 2, bs, this.cBladeCol);
-        // phase 30 : sillage en arc derrière la lame (bord d'attaque sur la lame), à hauteur des lames
-        this.slashW.put(
-          px,
-          by - 0.05,
-          pz,
-          a - Math.PI / 2 - SLASH_ARC * Math.sign(sL.spd || 1),
-          r * 1.04,
-          this.cSlashBlade,
-        );
+    const BL = FEEL.blade;
+    for (let i = this.bladeN - 1; i >= 0; i--) {
+      const b = this.blades[i];
+      b.life -= dt;
+      if (b.life <= 0) {
+        const last = this.blades[--this.bladeN];
+        this.blades[this.bladeN] = b;
+        this.blades[i] = last;
+        continue;
       }
+      const f = 1 - b.life / BL.life, // 0 → 1
+        e = 1 - (1 - f) * (1 - f) * (1 - f), // départ vif, fin amortie
+        ang = b.a - BL.sweep / 2 + BL.sweep * e,
+        by = this.gy(b.x, b.z) + 0.8,
+        rs = b.r * BL.swordAt;
+      this.bladeW.put(
+        b.x + Math.sin(ang) * rs,
+        by,
+        b.z + Math.cos(ang) * rs,
+        ang + Math.PI / 2,
+        b.r * BL.swordScale * 0.67,
+        this.cBladeCol,
+      );
+      this.cSlashTmp.copy(this.cSlashBlade).multiplyScalar(Math.min(1, (1 - f) * 2.2));
+      this.slashW.put(b.x, by - 0.05, b.z, ang - Math.PI / 2 - SLASH_ARC, b.r * 1.04, this.cSlashTmp);
     }
     // lances (phase 28) : l'épée part dans le sens du vol, teintée cyan, 3 fantômes en arrière
     if ((w.weapons.lance ?? 0) > 0) {

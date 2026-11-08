@@ -136,9 +136,9 @@ describe('passifs', () => {
     const kick = (character: CharacterKey) => {
       const w = make(character);
       w.weapons = { lames: 1 };
-      w.wmods.lames.fill(0); // même nombre de lames pour les deux (le Bûcheron part avec une lame de plus)
+      w.wmods.lames.fill(0); // mêmes lignes pour les deux (le Bûcheron part avec des cibles et des dégâts en plus)
       refreshStats(w);
-      const i = spawnEnemy(w, 2, 0, 2.0); // Brute (kbMul 1/3), dans l'anneau des lames
+      const i = spawnEnemy(w, 2, 0, 2.0); // Brute (kbMul 1/3), à portée des lames
       let kb = 0;
       for (let f = 0; f < 60; f++) {
         step(w, still, STEP);

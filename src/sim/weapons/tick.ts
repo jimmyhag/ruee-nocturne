@@ -6,11 +6,12 @@ import type { World } from '../world';
 import { weaponStats } from './defs';
 
 const MAX_ENEMY_R = 2.6; // Colosse
-const TAU = Math.PI * 2;
 // tampons réutilisés (zéro allocation)
 const near = new Int32Array(9); // Orbe : 1 + 5 lignes + 3 (tome Projectiles) tirs au plus
 const nearD = new Float64Array(9);
 const seen = new Int32Array(16);
+const seenX = new Float64Array(9); // phase 32 : positions des cibles des Lames (taille de `near`)
+const seenZ = new Float64Array(9);
 const hits = new Int32Array(256);
 
 /** Les n ennemis les plus proches dans `range`. Retourne le nombre trouvé. Résultat dans `near`. */
@@ -119,27 +120,34 @@ export function tickWeapons(w: World, dt: number): void {
     }
   }
 
-  // ---- Lames orbitales / Tempête ----
+  // ---- Lames (phase 32) : frappent les n ennemis les plus proches, zone de coupe r autour de chaque cible ----
   const lvL = w.weapons.lames ?? 0;
   if (lvL > 0) {
-    const s = weaponStats(w, 'lames');
-    const r = s.r * w.bladeRangeMul;
-    const dmg = s.dmg;
-    S.bladeA += s.spd * dt;
-    const window = LAMES.window;
-    const kb = LAMES.kb * (w.trait === Trait.Fendeur ? TRAIT.fendeur.kbMul : 1); // Bûcheron : Fendeur
-    for (let i = 0; i < s.n; i++) {
-      const a = S.bladeA + (i * TAU) / s.n;
-      const bx = P.x + Math.sin(a) * r,
-        bz = P.z + Math.cos(a) * r;
-      const n = w.grid.query(w.enemies, bx, bz, LAMES.hitR * P.sizeMul, MAX_ENEMY_R, hits);
-      for (let k = 0; k < n; k++) {
-        const e = w.enemies[hits[k]];
-        if (w.t - e.lastBlade > window) {
-          e.lastBlade = w.t;
-          hitEnemy(w, hits[k], dmg, kb, P.x, P.z, HitSrc.Lames);
+    S.bladeT -= dt;
+    if (S.bladeT <= 0) {
+      const s = weaponStats(w, 'lames');
+      const found = nearest(w, Math.min(s.n, near.length), LAMES.range * w.bladeRangeMul);
+      if (found > 0) {
+        S.bladeT = s.cd * P.cdMul;
+        const kb = LAMES.kb * (w.trait === Trait.Fendeur ? TRAIT.fendeur.kbMul : 1); // Bûcheron : Fendeur
+        // positions des cibles copiées d'abord : une cible peut mourir sous le coup d'une autre (zones qui se recouvrent),
+        // son coup tombe quand même à l'endroit visé
+        for (let c = 0; c < found; c++) {
+          const t = w.enemies[near[c]];
+          seenX[c] = t.x;
+          seenZ[c] = t.z;
         }
-      }
+        for (let c = 0; c < found; c++) {
+          const tx = seenX[c],
+            tz = seenZ[c];
+          const n = w.grid.query(w.enemies, tx, tz, s.r, MAX_ENEMY_R, hits);
+          for (let k = 0; k < n; k++) hitEnemy(w, hits[k], s.dmg, kb, P.x, P.z, HitSrc.Lames);
+          const dx = tx - P.x,
+            dz = tz - P.z,
+            d = Math.sqrt(dx * dx + dz * dz) || 1;
+          w.emit(Ev.Blade, tx, P.y + 0.9, tz, s.r, dx / d, 0, dz / d);
+        }
+      } else S.bladeT = LAMES.wait;
     }
   }
 

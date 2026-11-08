@@ -105,7 +105,7 @@ function lineValue(l: StatLine, kind: 'w' | 't'): string {
 }
 /** Texte d'une ligne de stat (arme : `line.w.<stat>`, tome : `line.t.<stat>`), ex. « +7 % dégâts », « +1 projectile ». */
 export function lineText(kind: 'w' | 't', l: StatLine): string {
-  return t(`line.${kind}.${l.stat}`, { v: lineValue(l, kind) });
+  return t(`line.${kind}.${l.label ?? l.stat}`, { v: lineValue(l, kind) });
 }
 /** Les lignes d'une carte, dans l'ordre (vide pour un soin). */
 export function cardLines(c: Card): string[] {
@@ -145,7 +145,7 @@ export function weaponSummary(w: World, k: WeaponKey): string {
     case 'aura':
       return t('weapon.aura.stats', { r: +s.r.toFixed(1), dmg: Math.round(s.dmg) });
     case 'lames':
-      return t('weapon.lames.stats', { n: s.n, dmg: Math.round(s.dmg) });
+      return t('weapon.lames.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
     case 'foudre':
       return t('weapon.foudre.stats', { n: s.chain + 1, dmg: Math.round(s.dmg) });
     case 'boomerang':

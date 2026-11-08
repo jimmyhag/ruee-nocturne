@@ -132,7 +132,7 @@
   "card.healText": "Rend tous tes PV",
   "weapon.orbe.name": "Orbe filante",
   "weapon.aura.name": "Halo brûlant",
-  "weapon.lames.name": "Lames orbitales",
+  "weapon.lames.name": "Lames",
   "weapon.foudre.name": "Foudre en chaîne",
   "weapon.boomerang.name": "Boomerang",
   "weapon.mines.name": "Mines",
@@ -245,8 +245,7 @@
   "weapon.orbe.stats_other": "{n} tirs, {dmg} dégâts, transperce {pierce}",
   "weapon.aura.text": "Brûle tout autour de toi par impulsions",
   "weapon.aura.stats": "Rayon {r} m, {dmg} dégâts par impulsion",
-  "weapon.lames.text": "Des lames tournent autour de toi et repoussent",
-  "weapon.lames.stats": "{n} lames, {dmg} dégâts",
+  "weapon.lames.text": "Repèrent les ennemis proches et les tranchent ; la zone de coupe grandit avec la taille",
   "weapon.foudre.text": "Frappe un ennemi au hasard ; chaque ricochet (cartes, tome Projectiles) saute à un voisin",
   "weapon.foudre.stats_one": "Un seul ennemi, {dmg} dégâts",
   "weapon.foudre.stats_other": "{n} ennemis à la suite, {dmg} dégâts chacun",
@@ -401,7 +400,7 @@
   "syn.brasier.name": "Brasier",
   "syn.brasier.text": "Dégâts + Halo : +80 % de dégâts du Halo.",
   "syn.tourbillon.name": "Tourbillon",
-  "syn.tourbillon.text": "Mouvement + Lames : lames 60 % plus rapides, rayon +25 %.",
+  "syn.tourbillon.text": "Mouvement + Lames : coups 30 % plus fréquents, zone +25 %.",
   "syn.charge.name": "Charge creuse",
   "syn.charge.text": "Dégâts + Mines : rayon des mines +60 %.",
   "syn.ricochet.name": "Ricochet",
@@ -535,5 +534,8 @@
   "item.ecorce.name": "Armure d'écorce",
   "item.ecorce.text": "+5 % d'armure",
   "item.couronne.name": "Couronne du berserker",
-  "item.couronne.text": "Jusqu'à +50 % de dégâts quand tes PV baissent, et 2 % de vol de vie"
+  "item.couronne.text": "Jusqu'à +50 % de dégâts quand tes PV baissent, et 2 % de vol de vie",
+  "weapon.lames.stats_one": "{n} cible, {dmg} dégâts, zone {r} u",
+  "weapon.lames.stats_other": "{n} cibles, {dmg} dégâts, zone {r} u",
+  "line.w.targets": "{v} cible par coup"
 }

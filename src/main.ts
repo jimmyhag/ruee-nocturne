@@ -1375,6 +1375,7 @@ function handleEvents(w: World, now: number): void {
   const reduced = reducedFx();
   const fx = reduced ? 0.5 : 1; // particules ÷2 en mode réduit
   const PT = FEEL.particles;
+  let bladeSnd = false; // phase 32 : un seul son de lame par pas, même si plusieurs cibles sont frappées
   for (let i = 0; i < w.eventCount; i++) {
     const e = w.events[i];
     switch (e.type) {
@@ -1468,6 +1469,16 @@ function handleEvents(w: World, now: number): void {
         audio.spin();
         break;
       // phase 28 : armes, objets, pistes chronométrées
+      case Ev.Blade: {
+        // phase 32 : coup des Lames sur une cible ; étincelles bleu acier sur la zone de coupe
+        S.blade(e.x, e.z, e.v, e.x2, e.z2);
+        S.particles.burst(e.x, 0.9, e.z, 0xbfe8ff, (5 * fx) | 0, 4, 2);
+        if (!bladeSnd) {
+          audio.throwSound();
+          bladeSnd = true;
+        }
+        break;
+      }
       case Ev.Scythe: {
         // phase 30 : arc de lame visible (balayage), plus quelques étincelles violettes le long du tranchant
         S.scythe(e.x, e.z, e.v, e.x2, e.z2, e.y2);

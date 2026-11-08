@@ -102,7 +102,7 @@ export class World {
     auraT: 0,
     auraPulse: 0,
     foudreT: 1.5,
-    bladeA: 0,
+    bladeT: 0.3, // phase 32 : prochain coup des Lames
     boomT: 0.8,
     mineT: 0,
     mineDist: 0,

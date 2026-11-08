@@ -194,6 +194,7 @@ export const enum Ev {
   RaceWin, // phase 28 : arrivée à temps en (x,z), v = temps mis
   RaceFail, // phase 28 : temps écoulé
   Scythe, // phase 28 : coup de Faux en (x,y,z), v = portée, x2/z2 = direction, y2 = angle de l'arc
+  Blade, // phase 32 : coup des Lames centré sur la cible en (x,y,z), v = rayon de la zone, x2/z2 = direction héros → cible
   MeteorWarn, // phase 28 : cercle d'un météore à venir en (x,z), v = rayon, x2 = délai
   MeteorHit, // phase 28 : impact en (x,z), v = rayon
   ShieldBlock, // phase 28 : le Bouclier annule un coup en (x,z)

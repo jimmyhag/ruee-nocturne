@@ -16,7 +16,7 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // contact · zone autour · continu
   aura: { glyph: '◎', color: '#59d8ff', base: { r: 2.2, dmg: 5, period: 0.45, crit: 0, slow: 0 } },
   // courte · orbite · continu. r 1,95 : avec 2,45 u un Dard collé au joueur passait sous l'anneau
-  lames: { glyph: '✦', color: '#fff1db', base: { n: 2, dmg: 12, r: 1.95, spd: 3.35, crit: 0 } },
+  lames: { glyph: '✦', color: '#fff1db', base: { n: 1, dmg: 24, r: 1.5, cd: 0.9, crit: 0 } }, // phase 32 : frappes ciblées (n cibles, zone r autour de chacune)
   // longue · aléatoire + chaîne · lent et fort
   // phase 30 (Jimmy) : une seule cible au départ, les ricochets viennent des cartes (ligne chain, Projectiles, Orage)
   foudre: { glyph: 'ϟ', color: '#d8f4ff', base: { cd: 1.4, dmg: 34, chain: 0, crit: 0, stun: 0 } }, // chain = ricochets (cibles = chain + 1)
@@ -73,7 +73,7 @@ export function refreshStats(w: World): void {
     // tomes globaux
     if (k === 'foudre') out.chain += P.projAdd;
     else if ('n' in base) out.n += P.projAdd;
-    if ('r' in base && k !== 'lames') out.r *= P.sizeMul; // Lames : la taille agrandit la lame (rayon de frappe, tick.ts), pas l'orbite ; appliquée aux deux, les Lames explosaient en fin de run (22 % de fins au lieu de 15)
+    if ('r' in base) out.r *= P.sizeMul; // phase 32 : la taille agrandit aussi la zone de coupe des Lames (plus d'orbite)
     if ('speed' in base) out.speed *= P.projSpeedMul;
   }
   // synergies (phase 17)
@@ -85,7 +85,7 @@ export function refreshStats(w: World): void {
   }
   if (w.syn[Syn.Brasier]) s.aura.dmg *= 1 + SYN.brasier.dmg;
   if (w.syn[Syn.Tourbillon]) {
-    s.lames.spd *= 1 + SYN.tourbillon.spd;
+    s.lames.cd *= SYN.tourbillon.cd;
     s.lames.r *= 1 + SYN.tourbillon.r;
   }
   if (w.syn[Syn.Charge]) s.mines.r *= 1 + SYN.charge.r;
