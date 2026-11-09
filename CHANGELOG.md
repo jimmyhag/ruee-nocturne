@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.33.1 — 9 nov. 2026 (retour de Jimmy)
+
+### Modifié
+
+- **Prix des coffres de carte** : il ne monte plus qu'à chaque coffre acheté. Tant que tu n'en achètes pas, il reste fixe : ni le temps ni les objets portés ne le font plus monter. Premier coffre à 80 or, puis +60 % par coffre acheté (80, 128, 205, 328…).
+- **Équilibrage** (100 parties, victoire, avant → après) : nu 41 → 47 % (cible ≤ 40 %), maxé 31 → 38 %. Avec 40 or puis +35 %, le bot achetait 8 coffres par partie (49 % / 43 %) ; le prix ne monte plus avec le temps, ce qui rend les premiers coffres bon marché.
+
 ## 1.33.0 — 9 nov. 2026 (phase 38 « Classement et objets cumulables »)
 
 ### Ajouté

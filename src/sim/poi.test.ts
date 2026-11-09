@@ -2,6 +2,7 @@
 // respiration avant un boss.
 import { describe, expect, it } from 'vitest';
 import { BOON, BOON_KEYS, MAPCHEST, MAP, SHRINE, STEP } from './balance';
+import { gainItem } from './items';
 import { applyBoon, mapChestPrice, rollBoonChoices } from './poi';
 import { step } from './step';
 import { Ev, Mode } from './types';
@@ -72,6 +73,16 @@ describe('coffres de carte', () => {
     expect(w.mode).toBe(Mode.LevelUp); // choix d'objet
     expect(w.cards.every((k) => k.kind === 'i')).toBe(true);
     expect(mapChestPrice(w)).toBe(Math.round(MAPCHEST.price * (1 + MAPCHEST.growth)));
+  });
+  it('1.33.1 : sans achat, le prix reste fixe (temps, objets, monde) ; chaque achat le monte de MAPCHEST.growth', () => {
+    const w = new World(3);
+    calm(w);
+    expect(mapChestPrice(w)).toBe(MAPCHEST.price);
+    w.t = w.stageT = 1500;
+    for (const i of [0, 5, 9, 12]) gainItem(w, i);
+    expect(mapChestPrice(w)).toBe(MAPCHEST.price);
+    w.mapChestsOpened = 3;
+    expect(mapChestPrice(w)).toBe(Math.round(MAPCHEST.price * (1 + MAPCHEST.growth) ** 3));
   });
   it('sans assez d’or, le coffre ne s’ouvre pas ; sortir remet l’attente à zéro', () => {
     const w = new World(2);

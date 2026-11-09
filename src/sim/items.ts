@@ -141,8 +141,8 @@ export function itemPrice(w: World, i: number): number {
   return Math.round(base * bourseDiscount(w) * w.player.shopMul * carryMul(w)); // phase 23 : tome Or
 }
 /**
- * Phase 38 : prix × (1 + ITEM.priceGrowth × objets portés), marchand et coffres de carte. La Bourse n'est pas comptée :
- * elle reste un rabais.
+ * Phase 38 : prix du marchand × (1 + ITEM.priceGrowth × objets portés). La Bourse n'est pas comptée : elle reste un
+ * rabais. Les coffres de carte n'en dépendent plus (1.33.1).
  */
 export function carryMul(w: World): number {
   return 1 + ITEM.priceGrowth * (itemCount(w) - w.items[It.Bourse]);
