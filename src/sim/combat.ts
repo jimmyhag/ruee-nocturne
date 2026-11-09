@@ -18,8 +18,8 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   const P = w.player;
   let dealt = dmg * P.dmgMul * (e.elite || def.boss ? P.eliteDmgMul : 1); // tome Dégâts : élites et boss
   // phase 31 : Gant du bourreau (ennemi affaibli), Couronne du berserker (selon les PV manquants du héros)
-  if (w.items[It.Gant] && e.hp < e.max * ITEM.gant.below) dealt *= 1 + ITEM.gant.dmg;
-  if (w.items[It.Couronne]) dealt *= 1 + ITEM.couronne.dmg * Math.max(0, 1 - P.hp / P.maxHp);
+  if (w.items[It.Gant] && e.hp < e.max * ITEM.gant.below) dealt *= 1 + ITEM.gant.dmg * w.itemEff[It.Gant]; // phase 38 : × exemplaires
+  if (w.items[It.Couronne]) dealt *= 1 + ITEM.couronne.dmg * w.itemEff[It.Couronne] * Math.max(0, 1 - P.hp / P.maxHp);
   if (w.powerT[Pw.Rage] > 0) dealt *= POWER.dmgMul; // phase 35 : bonus Rage
   let crit = 0;
   if (src <= HitSrc.Meteores) {
@@ -61,12 +61,12 @@ export function killEnemy(w: World, i: number): void {
   const def = ENEMIES[e.type];
   w.kills++;
   if (w.player.killHeal > 0) w.player.hp = Math.min(w.player.maxHp, w.player.hp + w.player.killHeal); // phase 23 : tome Vitalité
-  if (w.items[It.Calice]) itemHeal(w, ITEM.calice.perKill); // phase 31 : Calice sanglant
+  if (w.items[It.Calice]) itemHeal(w, ITEM.calice.perKill * w.itemEff[It.Calice]); // phase 31 : Calice sanglant
   if (w.items[It.Collier]) {
     // phase 22 : Collier d'os, le kill rend de la recharge (réserve plafonnée, rechargée dans step) ; un boss beaucoup
     const P = w.player;
     const C = ITEM.collier;
-    const give = def.boss ? C.perBoss : Math.min(P.spellRefund, C.perKill);
+    const give = def.boss ? C.perBoss : Math.min(P.spellRefund, C.perKill * w.itemEff[It.Collier]); // phase 38 : × exemplaires
     if (!def.boss) P.spellRefund -= give;
     P.spellCd = Math.max(0, P.spellCd - give);
   }

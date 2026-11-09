@@ -9,7 +9,7 @@ import { PAL } from './render/palette';
 import { FEEL, HitStop } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
-import { Hud, flashCard, renderCards } from './ui/hud';
+import { Hud, flashCard, gearHtml, renderCards } from './ui/hud';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
 import { achName, achUnlock, itemName, synergyName } from './ui/cards';
 import { canGainItem } from './sim/items';
@@ -403,6 +403,7 @@ function startGame(variant?: number, daily = false): void {
   app = 'play';
   showOnly(null);
   $('hud').hidden = false;
+  $('gear').hidden = false;
   $('keys').hidden = input.isTouch;
   $('touch').hidden = !input.isTouch;
   hud.reset();
@@ -450,6 +451,7 @@ function toMenu(): void {
   if (pendingReconcile) void reconcileAccount(); // une synchronisation attendait la fin de la partie
   scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // après un défi du jour (Éclaireuse forcée)
   $('hud').hidden = true;
+  $('gear').hidden = true;
   $('keys').hidden = true;
   $('touch').hidden = true;
   updateBestLine();
@@ -622,6 +624,7 @@ function renderOverScreen(): void {
   $('oTime').textContent = fmtTime(world.t);
   $('oStage').textContent = o.won ? t('over.stages') : t('over.stage', { n: world.stage + 1 }); // phase 37
   $('oLvl').textContent = String(world.player.level);
+  $('oGear').innerHTML = gearHtml(world); // phase 38 : l'équipement de la partie
   $('oKills').textContent = String(world.kills);
   $('oBest').textContent = fmtTime(meta.bestTime);
   $('oGold').textContent = String(o.gold);

@@ -28,7 +28,7 @@ test('coffre : un choix d’objets passifs, l’objet rejoint le HUD', async ({ 
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   const items = await page.evaluate(() => [...(window as any).__game.world.itemOrder] as number[]);
   expect(items.length).toBe(1);
-  await expect(page.locator('#kit .item')).toHaveCount(1);
+  await expect(page.locator('#gear .git')).toHaveCount(1);
   await expect(page.locator('#banner')).toContainText('Objet'); // bannière « Objet : … » (perf-reviewer : elle se perdait)
   expect(key.length).toBeGreaterThan(2);
 });
@@ -77,7 +77,7 @@ test('marchand : on entre, on achète avec l’or de la partie, on relance, on p
   });
   expect(w.items).toBe(1);
   expect(w.spent).toBe(price);
-  await expect(page.locator('#kit .item')).toHaveCount(1);
+  await expect(page.locator('#gear .git')).toHaveCount(1);
 });
 
 test('migration : une sauvegarde avec des paliers de boutique récupère son or, une seule fois', async ({

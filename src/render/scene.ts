@@ -1641,7 +1641,7 @@ export class GameScene {
     }
     this.chestW.end();
 
-    // coffres de carte et sanctuaires (phase 18) : colonne de lumière dorée (abordable), grise (pas assez d'or ou 6 objets),
+    // coffres de carte et sanctuaires (phase 18) : colonne de lumière dorée (abordable), grise (pas assez d'or),
     // bleue (sanctuaire) ; anneau qui se remplit pendant l'ouverture ; runes qui s'allument avec la jauge du sanctuaire
     this.mapChestW.begin();
     this.holdW.begin();

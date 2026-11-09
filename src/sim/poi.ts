@@ -1,8 +1,8 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BOON, BOON_KEYS, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
-import { canGainItem } from './items';
+import { BOON, BOON_KEYS, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { bourseDiscount, canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card } from './types';
 import { refreshStats } from './weapons/defs';
@@ -159,11 +159,11 @@ function placeTotem(w: World, r: Rng, all: { x: number; z: number }[]): void {
 export function mapChestPrice(w: World): number {
   // le prix suit aussi l'or gagné, qui croît avec le temps (sinon un kit complet ouvre tout sans y penser)
   const base = MAPCHEST.price * Math.pow(1 + MAPCHEST.growth, w.mapChestsOpened) * (1 + w.t / MAPCHEST.timeScale);
-  return Math.round(base * (w.items[It.Bourse] ? 1 - ITEM.bourse.discount : 1));
+  return Math.round(base * bourseDiscount(w));
 }
 /**
- * Le coffre de carte peut-il être ouvert maintenant ? Il faut l'or ; avec 6 objets portés, il donne un bonus de
- * sanctuaire au lieu d'un objet (l'or garde un usage jusqu'à la fin de la partie).
+ * Le coffre de carte peut-il être ouvert maintenant ? Il faut l'or. Il donne un objet (phase 38 : sans limite, ils se
+ * cumulent) ; un bonus de sanctuaire seulement si aucun objet n'est possible (tous bannis, CLI d'ablation).
  */
 export function canOpenMapChest(w: World): boolean {
   return w.gold >= mapChestPrice(w);
@@ -191,7 +191,7 @@ export function tickPOI(w: World, dt: number): void {
       w.goldSpent += price;
       w.mapChestsOpened++;
       if (canGainItem(w)) w.itemPicks++;
-      else w.boonPicks++; // 6 objets portés : un bonus pour la partie
+      else w.boonPicks++; // aucun objet possible : un bonus pour la partie
       w.emit(Ev.MapChestOpen, c.x, 0.5, c.z, price);
     }
   }

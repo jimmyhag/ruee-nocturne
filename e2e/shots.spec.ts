@@ -276,6 +276,6 @@ test('phase 17 : coffre d’objets, échoppe du marchand, HUD avec objets et syn
   await page.waitForTimeout(100);
   await page.screenshot(shot('hud-objets', p));
   await page.evaluate(() => (window as any).__game.debug.speed(1));
-  await expect(page.locator('#kit .item')).toHaveCount(4);
+  await expect(page.locator('#gear .git')).toHaveCount(4);
   await expect(page.locator('#kit .syn')).toHaveCount(1);
 });

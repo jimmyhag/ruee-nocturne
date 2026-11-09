@@ -818,9 +818,9 @@ export const CHARACTERS: CharacterDef[] = [
 // phase 17 : la boutique par personnage (8 lignes × 8 paliers) est retirée, sur demande de Jimmy. La puissance hors
 // tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
 
-// objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun, uniques, au plus ITEM.max par run
+// objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun ; phase 38 : cumulables, sans limite
 export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne', 'croc', 'calice', 'mousse', 'souffle', 'pierre', 'de', 'gant', 'brume', 'sandales', 'amulette', 'ecorce', 'couronne'];
-/** Index fixes (drapeaux de w.items) : l'ordre suit ITEM_KEYS. */
+/** Index fixes (comptes de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
   Phenix = 0,
   Cape,
@@ -862,18 +862,23 @@ export const ITEM_RARITY: number[] = [
   1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 2,
 ];
 export const ITEM = {
-  max: 6, // objets par run
+  // phase 38 (demande de Jimmy) : plus de limite, un objet déjà pris peut revenir et se cumule. Les trois premiers
+  // exemplaires valent chacun un « premier », les suivants stackFalloff (règle de cumul dans items.ts, stackEff)
+  stackFull: 3,
+  stackFalloff: 0.5,
+  dupWeight: 0.8, // poids de tirage d'un objet déjà possédé (× celui de sa rareté) : de la variété avant tout
+  maxStack: 255, // w.items est un Uint8Array
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…
   luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance
-  chestGoldIfFull: 60, // coffre sans objet possible : sac d'or (× multiplicateurs d'or)
+  chestGoldIfFull: 60, // coffre sans objet possible (tous bannis, CLI d'ablation) : sac d'or (× multiplicateurs d'or)
   cape: { invul: 0.4, cdMul: 0.75 }, // phase 19 : après chaque sort, 0,4 s d'invulnérabilité ; recharge du sort −15 % (phase 22 : −25 %)
   lanterne: { magnetMul: 1.6 },
   coeur: { hp: 30, speedMul: 0.97 },
   talisman: { every: 25, targets: 5, frac: 0.5, bossFrac: 0.05, range: 14 }, // part des PV max retirée à chaque cible
-  sablier: { slow: 0.8 }, // élites et boss
+  sablier: { slow: 0.8, min: 0.5 }, // élites et boss (phase 38 : × slow par exemplaire, plancher min)
   epines: { mul: 3, period: 0.25 }, // dégâts renvoyés (× ceux du contact), appliqués toutes les 0,25 s
-  bottes: { jumpMul: 1.15, r: 3.2, kb: 9 },
+  bottes: { jumpMul: 1.15, r: 3.2, kb: 9 }, // cumul : le saut une seule fois, l'onde (recul) × exemplaires
   oeil: { eliteDmg: 0.25 },
   aimant: { heal: 0.15 }, // PV par gemme ramassée
   fer: { luck: 1 },
@@ -884,7 +889,7 @@ export const ITEM = {
   // phase 28
   patins: { perSpeed: 1.6, minMul: 1.15, r: 1.1, rehit: 0.35, kb: 6 }, // en glissade (≥ marche × 1,15) : dégâts = 1,6 × vitesse (u/s) aux ennemis traversés
   echarpe: { heal: 8, spell: 1 }, // vrille réussie : 8 PV et 1 s de recharge du sort
-  plume: { gravMul: 0.8 }, // en l'air avec l'élan d'une glissade
+  plume: { gravMul: 0.8, min: 0.55 }, // en l'air avec l'élan d'une glissade (phase 38 : cumul, plancher min)
   boussole: { radiusMul: 1.8 }, // découverte ; la carte montre aussi coffres et sanctuaires non découverts
   bouclier: { period: 20, invul: 0.6 }, // un coup annulé toutes les 20 s
   corne: { period: 25, r: 7, kb: 10, stun: 0.5 }, // onde qui repousse et étourdit (pas les boss)
