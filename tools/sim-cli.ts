@@ -6,6 +6,7 @@ import {
   CHARACTERS,
   ENEMIES,
   ITEM,
+  MAPCHEST,
   ITEM_KEYS,
   MAX_PASSIVES,
   MAX_WEAPONS,
@@ -63,6 +64,7 @@ if (args.has('elite-every')) ITEM.eliteItemEvery = +args.get('elite-every')!;
 if (args.has('stack-full')) ITEM.stackFull = +args.get('stack-full')!;
 if (args.has('falloff')) ITEM.stackFalloff = +args.get('falloff')!;
 if (args.has('price-growth')) ITEM.priceGrowth = +args.get('price-growth')!;
+if (args.has('chest-growth')) MAPCHEST.growth = +args.get('chest-growth')!; // 1.33.1 : hausse par coffre acheté
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
   ? (WEAPONS_ARG.split(',')
