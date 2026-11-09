@@ -2,6 +2,27 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.34.0 — 9 nov. 2026 (phase 39 « Monde infini »)
+
+### Ajouté
+
+- **Monde infini** : après la victoire au monde 3, un écran te laisse **continuer** ou **terminer** (clavier : Entrée ou 1 pour continuer, Échap ou 2 pour terminer).
+- **En monde infini** :
+  - on reste sur la carte du monde 3, sans chrono qui s'écoule ni prolongation ;
+  - des **boss** arrivent **toutes les 2:30** : 1, puis 1, puis 2, 2, 3, 3… jusqu'à 4 à la fois, plus solides à chaque vague, en cercle autour de toi.
+- **Repères** : le chrono affiche « Monde infini » et le temps tenu ; la puce indique « Boss dans 1:12 » ; une bannière annonce « Vague n : x boss ».
+- **Écran de fin** : il affiche le temps tenu et la vague atteinte. Le meilleur temps en monde infini est gardé.
+
+### Modifié
+
+- La puce d'objectif passe sous la barre de boss : elle cachait le nom du boss.
+- Au classement, une partie infinie compte comme les trois mondes, plus le temps total.
+
+### Technique
+
+- **ENDBAL**
+- La victoire, les stats et le score ne sont comptés qu'une fois, à la fin réelle de la partie. Le bonus d'or de fin n'est payé qu'une fois.
+
 ## 1.33.2 — 9 nov. 2026 (retour de Jimmy)
 
 ### Modifié
