@@ -17,6 +17,8 @@ interface HeroLook {
   model: HeroModelKey;
   /** seconde tenue : décalage de teinte (degrés) de la zone tenue de l'atlas */
   hue2: number;
+  /** phase 41 : tenue de maître, teinte visée (degrés, absolue) de la zone tenue ; or par défaut (MASTER_HUE) */
+  hue3?: number;
   scale?: number;
   float?: boolean;
   /** lueur propre (Feu follet, Revenante) */
@@ -219,6 +221,9 @@ function heroGeometry(src: THREE.BufferGeometry): THREE.BufferGeometry {
   return g;
 }
 
+/** Phase 41 : teinte de la tenue de maître (or), saturation relevée pour un rendu métal. */
+const MASTER_HUE = 42;
+const MASTER_SAT = 1.25;
 /** Zone « tenue » de l'atlas (tools/assets/heroes.ts : SLOT.outfit), en fractions de l'image. */
 const OUTFIT_ZONE = { x: 0, y: 0, w: 0.5, h: 0.5 };
 /** Dernier atlas teinté (un seul gardé : 4 Mo de canvas, libéré de la carte graphique quand le héros l'est). */
@@ -228,7 +233,7 @@ let tinted: { key: string; tex: THREE.Texture } | null = null;
  * peu saturées (métal, lin, noirs) bougent peu : le décalage suit la chroma, avec une transition douce (pas de franges
  * sur le JPEG). Le reste de l'atlas (peau, tête, cheveux) ne change pas. Calcul HSL direct sur les octets sRGB.
  */
-function outfitTexture(src: THREE.Texture, key: string, hue: number): THREE.Texture {
+function outfitTexture(src: THREE.Texture, key: string, hue: number, absolute = false): THREE.Texture {
   if (tinted?.key === key) return tinted.tex;
   const img = src.image as CanvasImageSource & { width: number; height: number };
   const c = document.createElement('canvas');
@@ -253,9 +258,13 @@ function outfitTexture(src: THREE.Texture, key: string, hue: number): THREE.Text
     const k = Math.min(1, Math.max(0, (chroma - 0.04) / 0.06)); // 0 sous 0,04 de chroma, 1 au-delà de 0,10
     if (k <= 0) continue;
     const l = (max + min) / 2;
-    const s = chroma / (1 - Math.abs(2 * l - 1));
+    let s = chroma / (1 - Math.abs(2 * l - 1));
     let h = max === r ? (g - b) / chroma + (g < b ? 6 : 0) : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4;
-    h = h / 6 + dh * k;
+    if (absolute) {
+      // tenue de maître : la teinte va vers `hue` (et non décalée), un peu plus saturée
+      h = (h / 6) * (1 - k) + dh * k;
+      s = Math.min(1, s * (1 + (MASTER_SAT - 1) * k));
+    } else h = h / 6 + dh * k;
     const q = l < 0.5 ? l * (1 + s) : l + s - l * s,
       p2 = 2 * l - q;
     for (let c = 0; c < 3; c++) {
@@ -333,7 +342,12 @@ export async function buildHero(key: CharacterKey, skin = 0): Promise<HeroModel>
   if (!src) throw new Error(`héros ${key} : pas de corps skinné`);
   const first: THREE.SkinnedMesh = src;
   const atlas = (first.material as THREE.MeshStandardMaterial).map;
-  const map = atlas && skin > 0 ? outfitTexture(atlas, look.model, look.hue2) : atlas;
+  const map =
+    atlas && skin === 2
+      ? outfitTexture(atlas, `${look.model}:2`, look.hue3 ?? MASTER_HUE, true) // phase 41 : tenue de maître
+      : atlas && skin > 0
+        ? outfitTexture(atlas, `${look.model}:1`, look.hue2)
+        : atlas;
   const toon = new THREE.MeshToonMaterial({ map, gradientMap: toonGradient() });
   if (look.emissive) toon.emissive.setHex(look.emissive);
   disposables.push(toon);

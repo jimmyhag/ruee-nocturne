@@ -632,7 +632,7 @@
   "lib.always": "Always in the pool",
   "chal.name": "{char} {tier}",
   "chal.title": "Challenges",
-  "chal.sig": "Defeat {n} enemies with {weapon} in one run",
+  "chal.sig": "Defeat {n} enemies with your starting weapon ({weapon}) in one run",
   "chal.air": "Defeat {n} enemies while airborne in one run",
   "chal.spell": "Defeat {n} enemies with your spell in one run",
   "chal.casts": "Cast your spell {n} times in one run",
@@ -644,6 +644,8 @@
   "chal.noHit": "Last {time} without being hit in one run",
   "chal.stage": "Reach world {n}",
   "chal.win": "Finish all three worlds",
-  "chal.outfit": "master outfit",
-  "chal.outfitLocked": "Challenge III"
+  "chal.outfit": "the master outfit",
+  "chal.outfitLocked": "Challenge III",
+  "outfit.master": "Master",
+  "chal.pays": "pays {what}"
 }

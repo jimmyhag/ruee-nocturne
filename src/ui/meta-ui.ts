@@ -5,7 +5,7 @@ import { ACHIEVEMENTS, closest, progress, unlockedCharacters, value } from '../m
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
 import type { CharacterKey } from '../sim/types';
-import { outfitOf, rerollState, runRerolls, slotState } from '../meta/shop';
+import { masterOutfit, outfitOf, rerollState, runRerolls, slotState } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
 import { ITEM_ICON, MISC_ICON, SPELL_ICON, WEAPON_ICON } from './icons';
@@ -52,7 +52,11 @@ export function renderCharacters(container: HTMLElement, m: Meta, info?: HTMLEle
     // phase 19 : le sort de classe, juste sous le nom
     const sk = SPELL_KEYS[(CHARACTERS.find((c) => c.key === k) ?? CHARACTERS[0]).spell];
     const spell = `<span class="spell">${SPELL_ICON[sk]} <b>${esc(spellName(sk))}</b> : ${esc(spellText(sk))}</span>`;
-    info.innerHTML = `<b>${esc(characterName(k))}</b> · ${esc(characterText(k))}<br />${spell}${trait ? `<br /><em>${esc(trait)}</em>` : ''}<div class="outfits">${renderOutfits(m, k)}</div>`;
+    // phase 41 : les 3 défis du personnage, avec leur barre et leur récompense
+    const chal = ACHIEVEMENTS.filter((a) => a.char === k)
+      .map((a) => bar(a, m))
+      .join('');
+    info.innerHTML = `<b>${esc(characterName(k))}</b> · ${esc(characterText(k))}<br />${spell}${trait ? `<br /><em>${esc(trait)}</em>` : ''}<div class="outfits">${renderOutfits(m, k)}</div><h3 class="h3 chaltitle">${esc(t('chal.title'))}</h3><div class="achs chal">${chal}</div>`;
   }
   // la carte choisie reste visible dans le défilement horizontal (téléphone)
   const sel = container.querySelector<HTMLElement>('.card.char.selected');
@@ -64,6 +68,7 @@ export function renderCharacters(container: HTMLElement, m: Meta, info?: HTMLEle
 export function renderOutfits(m: Meta, k: CharacterKey): string {
   const sel = outfitOf(m, k);
   const owned = m.outfits.includes(k);
+  const master = masterOutfit(m, k);
   const can = m.gold >= OUTFIT.price;
   const swatch = (i: number) => {
     const p = OUTFITS[k][i];
@@ -74,7 +79,9 @@ export function renderOutfits(m: Meta, k: CharacterKey): string {
     : `${esc(t(`outfit.${k}`))} · <span class="${can ? 'price' : 'price poor'}">${esc(t('gold', { n: OUTFIT.price }))}</span>`;
   return (
     `<button class="outfit${sel === 0 ? ' sel' : ''}" data-outfit="0" aria-pressed="${sel === 0}">${swatch(0)}${esc(t('outfit.classic'))}</button>` +
-    `<button class="outfit${sel === 1 ? ' sel' : ''}${owned ? '' : ' locked'}" data-outfit="1" aria-pressed="${sel === 1}">${swatch(1)}${alt}</button>`
+    `<button class="outfit${sel === 1 ? ' sel' : ''}${owned ? '' : ' locked'}" data-outfit="1" aria-pressed="${sel === 1}">${swatch(1)}${alt}</button>` +
+    // phase 41 : tenue de maître, gagnée au défi III (jamais en vente)
+    `<button class="outfit master${sel === 2 ? ' sel' : ''}${master ? '' : ' locked'}" data-outfit="2" aria-pressed="${sel === 2}" ${master ? '' : 'aria-disabled="true"'}>${swatch(2)}${esc(t('outfit.master'))}${master ? '' : ` · <span class="price poor">${esc(t('chal.outfitLocked'))}</span>`}</button>`
   );
 }
 
@@ -134,7 +141,9 @@ function bar(a: Achievement, m: Meta): string {
   const v = value(a, m);
   const txt = `${achValue(a, Math.min(v, a.goal))} / ${achValue(a, a.goal)}`;
   const done = m.achievements.includes(a.id);
-  const unlock = a.unlocks ? ` · <em>${esc(t('ach.unlocks', { what: achUnlock(a) }))}</em>` : '';
+  // phase 41 : un défi par personnage « rapporte » de l'or ; le reste « débloque »
+  const verb = a.unlocks?.gold ? 'chal.pays' : 'ach.unlocks';
+  const unlock = a.unlocks ? ` · <em>${esc(t(verb, { what: achUnlock(a) }))}</em>` : '';
   // phase 28 : icône de ce que le succès débloque (arme, sort du personnage) ou trophée
   const ch = a.unlocks?.character ? CHARACTERS.find((c) => c.key === a.unlocks!.character) : undefined;
   const ico = a.unlocks?.weapon

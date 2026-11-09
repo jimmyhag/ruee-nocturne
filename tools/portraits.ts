@@ -7,7 +7,8 @@ import { chromium } from '@playwright/test';
 import { CHARACTERS } from '../src/sim/balance';
 
 const PORT = +(process.argv[process.argv.indexOf('--port') + 1] || 4533);
-const OUTFIT = process.argv.includes('--outfit') ? 1 : 0; // --outfit : tenue alternative (portrait-<clé>-2.png)
+// --outfit : tenue alternative (portrait-<clé>-2.png) ; --master : tenue de maître, phase 41 (portrait-<clé>-3.png)
+const OUTFIT = process.argv.includes('--master') ? 2 : process.argv.includes('--outfit') ? 1 : 0;
 const OUT = 'docs/captures/phase-7';
 mkdirSync(OUT, { recursive: true });
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
@@ -35,10 +36,10 @@ try {
         g.setMeta({
           ...g.meta,
           character: key,
-          achievements: ['survie10', 'kills500', 'boss1', 'win', 'intouchable'],
+          achievements: ['survie10', 'kills500', 'boss1', 'win', 'intouchable', `c_${key}_3`],
           bought: ['veilleuse', 'braconnier', 'colporteur'],
           outfits: outfit ? [key] : [],
-          outfit: outfit ? { [key]: 1 } : {},
+          outfit: outfit ? { [key]: outfit } : {},
         });
         g.start(1);
       },
@@ -66,7 +67,7 @@ try {
       document.getElementById('perf')!.hidden = true;
     });
     await page.waitForTimeout(250);
-    await page.screenshot({ path: `${OUT}/portrait-${c.key}${OUTFIT ? '-2' : ''}.png` });
+    await page.screenshot({ path: `${OUT}/portrait-${c.key}${OUTFIT ? `-${OUTFIT + 1}` : ''}.png` });
     await page.evaluate(() => {
       (window as any).__game.debug.speed(1);
       document.getElementById('hud')!.hidden = false;

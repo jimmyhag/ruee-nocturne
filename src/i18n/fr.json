@@ -632,7 +632,7 @@
   "lib.always": "Toujours dans le tirage",
   "chal.name": "{char} {tier}",
   "chal.title": "Défis",
-  "chal.sig": "Vaincs {n} ennemis avec {weapon} en une partie",
+  "chal.sig": "Vaincs {n} ennemis avec ton arme de départ ({weapon}) en une partie",
   "chal.air": "Vaincs {n} ennemis en l'air en une partie",
   "chal.spell": "Vaincs {n} ennemis avec ton sort en une partie",
   "chal.casts": "Lance ton sort {n} fois en une partie",
@@ -644,6 +644,8 @@
   "chal.noHit": "Tiens {time} sans dégât en une partie",
   "chal.stage": "Atteins le monde {n}",
   "chal.win": "Termine les trois mondes",
-  "chal.outfit": "tenue de maître",
-  "chal.outfitLocked": "Défi III"
+  "chal.outfit": "la tenue de maître",
+  "chal.outfitLocked": "Défi III",
+  "outfit.master": "Maître",
+  "chal.pays": "rapporte {what}"
 }

@@ -52,7 +52,16 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buyCharacter, buyOutfit, buyReroll, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
+import {
+  buyCharacter,
+  buyOutfit,
+  buyReroll,
+  buySlot,
+  masterOutfit,
+  nextSlot,
+  outfitOf,
+  worldOptions,
+} from './meta/shop';
 import { buyUnlock, recordCodex, toggleItem } from './meta/library';
 import { addCharRun, runCharStats } from './meta/chars';
 import type { LibKind } from './meta/library';
@@ -906,6 +915,7 @@ $('charInfo').addEventListener('click', (e) => {
   const i = +btn.dataset.outfit!;
   const key = meta.character;
   audio.init();
+  if (i === 2 && !masterOutfit(meta, key)) return; // phase 41 : tenue de maître, seulement après le défi III
   if (i === 1 && !meta.outfits.includes(key)) {
     if (!buyOutfit(meta, key)) return;
     audio.chest();
