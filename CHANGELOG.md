@@ -2,6 +2,22 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.36.0 — 9 nov. 2026 (phase 41 « Défis par personnage »)
+
+### Ajouté
+
+- **3 défis par personnage**, à remplir en une partie avec lui, visibles sur sa fiche (barre de progression) :
+  - **défi I** : un exploit de signature (son arme, son sort, sa traînée, ses kills en l'air…), il rapporte **500 or** ;
+  - **défi II** : plus dur, il rapporte **1 500 or** ;
+  - **défi III** : terminer les trois mondes avec lui, il débloque sa **tenue de maître** (or sur nuit), gratuite.
+- L'écran de fin propose les défis du personnage joué parmi les objectifs les plus proches et annonce ceux qui tombent (« Bûcheron I : 500 or »).
+
+### Technique
+
+- La sim compte les ennemis tués par source (armes, traînée, sort), en l'air, les élites et les boss ; la méta garde par personnage ses meilleures valeurs en une partie (synchronisées avec le compte, règles Firestore : clé facultative).
+- Objectifs calés sur le bot nu (100 runs par personnage) : défi I tenu dans 28 à 56 % des parties, défi II dans 6 à 25 % ; le défi III suit le taux de victoire du personnage (0 % pour le Sapeur nu, le plus dur).
+- Héros : atlas teinté vers l'or pour la tenue de maître (cache par tenue). Portraits : `npm run portraits -- --master`.
+
 ## 1.35.0 — 9 nov. 2026 (phase 40 « Bibliothèque »)
 
 ### Ajouté
