@@ -166,7 +166,7 @@ describe('mondes (phase 37)', () => {
     for (let k = 1; k < mults.length; k++) for (let j = 0; j < 4; j++) expect(mults[k][j]).toBeGreaterThanOrEqual(mults[k - 1][j]);
     expect(mults[0]).toEqual([1, 1, 1, 1]); // à 0:00 pile, pas encore de renfort
     expect(mults[1][1]).toBeLessThan(2); // +30 s : encore jouable
-    expect(mults[4][1]).toBeGreaterThan(5); // +3 min : mortel
+    expect(mults[4][1]).toBeGreaterThan(4); // +3 min : mortel (PV ×4,75)
     expect(mults[4][3]).toBeLessThanOrEqual(STAGE.over.spdMax);
   });
   it('monde 3 : son boss tué à temps donne la victoire', () => {

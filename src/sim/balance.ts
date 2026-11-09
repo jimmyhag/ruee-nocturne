@@ -204,12 +204,13 @@ export const STAGE = {
   seedMul: 0x9e3779b1, // graine de la carte du monde k : (graine de départ + k · seedMul) >>> 0
   // prolongation : m = minutes après la fin du chrono. Multiplicateurs 1 + a·m + b·m² (jouable la première minute,
   // mortel vers +3 à +4 min pour une bonne build), vitesse plafonnée pour rester lisible. Mesuré avec le bot qui reste
-  // farmer (profil maxé) : avec 0,4/0,5 · 0,5/0,8 · 0,4/0,6, mort en p50 à +1:03 (p90 +1:37), trop sec
+  // farmer (profil maxé) : avec 0,4/0,5 · 0,5/0,8 · 0,4/0,6, mort en p50 à +1:03 (p90 +1:37), trop sec ; avec
+  // 0,25/0,3 · 0,3/0,45 · 0,25/0,35, p50 +1:18 (p90 +1:55)
   over: {
-    rate: [0.25, 0.3], // ×1,55 à +1 min, ×2,7 à +2, ×4,4 à +3
-    hp: [0.3, 0.45], // ×1,75 à +1, ×3,4 à +2, ×5,0 à +3
-    dmg: [0.25, 0.35], // ×1,6 à +1, ×2,9 à +2, ×4,9 à +3
-    spd: [0.15, 0.04], // ×1,2 à +1, ×1,5 à +2…
+    rate: [0.15, 0.25], // ×1,4 à +1 min, ×2,3 à +2, ×3,7 à +3
+    hp: [0.2, 0.35], // ×1,55 à +1, ×2,8 à +2, ×4,8 à +3
+    dmg: [0.15, 0.3], // ×1,45 à +1, ×2,5 à +2, ×4,2 à +3
+    spd: [0.12, 0.04], // ×1,16 à +1, ×1,4 à +2…
     spdMax: 1.8,
   },
 };

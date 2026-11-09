@@ -582,6 +582,33 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - aucune requête audio avant le premier geste, chargement après Jouer, partie jouable sans `/audio/` et curseurs gardés après rechargement couverts par e2e (PC et mobile) ;
   - bench et Lighthouse inchangés.
 
+### Phase 37 — Trois mondes (après la 1.31.3)
+- **Demande de Jimmy** : des niveaux à chrono. Avant la fin du chrono, on active un totem qui appelle le boss ; une fois le boss tué, on peut passer au monde suivant. Chrono à 0 avec le boss en vie : pas de passage. On peut rester farmer, mais les monstres deviennent de plus en plus forts et rapides, progressivement, jusqu'à la mort. Trois mondes ; un boss final à la fin du troisième, dans une phase suivante.
+- **Choix de Jimmy** (questions) : 10 min par monde ; boss final plus tard ; nouvelle carte et ambiance par monde.
+- **Décisions prises** :
+  - une carte tirée par le même générateur reste la carte V1 (décision de la phase 27), pas la « deuxième carte » V2 ;
+  - plus de boss à heure fixe ni de Faucheur à 20:00 : le totem et la prolongation les remplacent ;
+  - la difficulté suit un temps du monde décalé (`STAGE.offset` 0 / 5:00 / 9:00) ;
+  - les PV des boss sont fixés par monde (`bossHpAt` : anciens 5:00, 9:00, 10:00), pour que farmer rende le combat plus facile et que le risque vienne du chrono ;
+  - un boss tué après la fin du chrono ne rouvre rien, y compris au monde 3 (règle de Jimmy) ;
+  - la horde se calme (×0,6) pendant le combat de boss, sauf en prolongation ;
+  - le fondu au noir monte pendant la seconde passée dans le portail, pour masquer la reconstruction ;
+  - le totem et le portail passent par les écrivains des sanctuaires et des colonnes : aucun appel de dessin en plus.
+- **Équilibrage** (bot : totem à 6:00, 200 runs) :
+
+  | Profil | Monde 2 | Monde 3 | Victoire |
+  |---|---|---|---|
+  | Nu | 50 % | 45 % | 36 % |
+  | Maxé | 86 % | 46 % | 10 % |
+
+  - Avec le totem à 8:00 (maxé) : 75 / 37 / 1 % ; à 5:00 : 89 / 56 / 16 %. L'heure d'activation pèse autant que les constantes.
+  - Le profil nu ne meurt presque que dans le monde 1. Quatre armes peinent contre les boss et les Brutes du monde 3, une seule arme concentrée non. Le boss final fermera la fin.
+  - Prolongation (bot qui farme) : mort en p50 à +1:28.
+- **Porte** :
+  - reconstruction de carte identique à un monde neuf, totem, portail, prolongation, victoire et déterminisme sur trois mondes couverts par Vitest ;
+  - totem et portail au clavier et au doigt, chrono écoulé et ambiances couverts par e2e (captures lues) ;
+  - bench inchangé ; appels de dessin ≤ 40.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.

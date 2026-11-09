@@ -2,6 +2,51 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.32.0 — 9 nov. 2026 (phase 37 « Trois mondes »)
+
+### Ajouté
+
+- **Trois mondes** de 10 minutes chacun, chacun avec sa carte et son ambiance :
+  - **Nuit bleue** ;
+  - **Bois de braise**, à la brume ambrée ;
+  - **Marais blême**, vert pâle et violet.
+- **Le totem** de chaque monde :
+  - une pierre rouge avec une colonne de lumière, en losange rouge sur la minicarte ;
+  - une puce en haut de l'écran donne la direction et la distance ;
+  - rester 3 s dans son cercle, tant que le chrono tourne, appelle le boss du monde : le Gardien, puis l'Essaim-mère, puis le Colosse ;
+  - un rappel s'affiche à une minute de la fin.
+- **Le portail** :
+  - il s'ouvre si le boss tombe avant la fin du chrono ;
+  - rester 1 s dedans mène au monde suivant, avec ta build, tes objets et ton or ;
+  - tu peux aussi rester pour farmer.
+- **La prolongation** :
+  - le chrono passe en rouge et compte le dépassement ;
+  - les monstres se renforcent de minute en minute (plus nombreux, plus solides, plus forts, plus rapides) : jouable au début, mortel en une à deux minutes et demie ;
+  - si le boss n'est pas tombé à temps, le passage est fermé.
+- **La victoire** : battre le boss du monde 3 à temps. Un boss final s'y ajoutera.
+- **Écran de fin** : il affiche le monde atteint. Le menu garde le meilleur monde.
+- **Revenante** : son succès devient « Termine les trois mondes ».
+
+### Modifié
+
+- Plus de boss à 5, 10 et 15 minutes, ni de Faucheur à 20 minutes.
+- Chaque monde repart un peu plus bas qu'il ne finissait, puis monte plus haut que le précédent.
+- Les PV du boss d'un monde ne dépendent pas de l'heure à laquelle on l'appelle : farmer rend le combat plus facile, le risque, c'est le chrono.
+- Pendant le combat contre le boss, la horde se calme (apparitions ×0,6).
+- Le marchand passe deux fois par monde.
+
+### Technique
+
+- **Équilibrage** sur 200 parties par profil ; le bot active le totem à 6:00 :
+
+  | Profil         | Monde 2 | Monde 3 | Victoire |
+  | -------------- | ------- | ------- | -------- |
+  | Nu (1 arme)    | 50 %    | 45 %    | 36 %     |
+  | Maxé (4 armes) | 86 %    | 46 %    | 10 %     |
+
+- **Prolongation**, avec un bot qui reste farmer après le boss : mort à +1:28 en médiane (p90 +2:10, max +2:36).
+- **Changement de monde** : la carte est reconstruite dans la même partie, à l'identique d'une partie neuve de même graine (test). Le fondu au noir monte pendant la seconde passée dans le portail.
+
 ## 1.31.3 — 9 nov. 2026 (retour de Jimmy : glissade collée au sol)
 
 ### Modifié

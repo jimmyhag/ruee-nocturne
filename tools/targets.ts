@@ -12,7 +12,6 @@ export interface Target {
   get: (s: any) => number;
   fmt?: (v: number) => string;
 }
-const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const economy: Target = {
   name: 'or gardé p50 ≥ 0,5 emplacement n°2', // après les achats au marchand : l'emplacement n°2 (300) en ≤ 2 runs
   min: 0.5,
@@ -21,9 +20,10 @@ const economy: Target = {
   fmt: (v) => '×' + v.toFixed(1),
 };
 export const NAKED: Target[] = [
-  { name: 'survie p50 4–6 min', min: 240, max: 360, get: (s) => s.survival.p50, fmt: mmss }, // 1 arme, 2 tomes
-  // phase 17 : ≤ 3 → ≤ 8 % ; un kit de départ concentre toutes ses lignes sur une arme et, s'il passe le Gardien, peut aller loin
-  { name: 'fin atteinte ≤ 8 %', min: 0, max: 8, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 37 : trois mondes. Le profil nu meurt surtout dans le monde 1 ; un kit de départ qui en sort concentre tout sur
+  // une arme et va loin (mesuré : 36 % de victoires) ; le boss final (phase suivante) fermera la fin du monde 3
+  { name: 'monde 2 atteint ≤ 55 %', min: 0, max: 55, get: (s) => s.stage2Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'victoire ≤ 40 %', min: 0, max: 40, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'passent 3 min ≥ 40 %', min: 40, max: 100, get: (s) => s.aliveCurve[2], fmt: (v) => v + ' %' }, // l'arme n°2 (succès « Première nuit ») reste atteignable
   economy,
@@ -38,8 +38,18 @@ export const NAKED: Target[] = [
 export const MAXED: Target[] = [
   // phase 17 : 13–16 → 10–13 min et fin 3–12 → 1–12 % : la boutique (≈ +24 PV, dégâts ×1,17, recharge ×0,92, réanimation)
   // n'existe plus ; un kit complet ne gagne plus que par ses synergies. Mesuré sans rien changer d'autre : 5:45.
-  { name: 'survie p50 10–13 min', min: 600, max: 780, get: (s) => s.survival.p50, fmt: mmss },
-  { name: 'fin atteinte 1–12 %', min: 1, max: 12, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 37 : trois mondes (bot : totem à 6:00). Le kit complet sort presque toujours du monde 1 ; quatre armes
+  // éparpillent les dégâts et peinent contre les boss et les Brutes du monde 3 (mesuré : 86 / 46 / 10 %)
+  { name: 'monde 2 atteint ≥ 75 %', min: 75, max: 100, get: (s) => s.stage2Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'monde 3 atteint ≥ 35 %', min: 35, max: 100, get: (s) => s.stage3Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'victoire 3–20 %', min: 3, max: 20, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  {
+    name: 'morts en prolongation ≤ 20 %',
+    min: 0,
+    max: 20,
+    get: (s) => s.overDeathPct,
+    fmt: (v) => v.toFixed(0) + ' %',
+  },
   { name: 'morts <3 min < 10 %', min: 0, max: 10, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'kills@10 900–1600', min: 900, max: 1600, get: (s) => s.killsAt10p50 }, // phase 8 : spawn plus dense après 7:00
   // phase 17 : 24–32 → 32–42, les coffres ne donnent plus de cartes, les niveaux les portent toutes (XP ×0,45)
