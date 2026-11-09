@@ -2,6 +2,28 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.35.0 — 9 nov. 2026 (phase 40 « Bibliothèque »)
+
+### Ajouté
+
+- **Bibliothèque** (bouton du menu) : toutes les armes, tous les objets, tomes et synergies, en quatre onglets (touches 1 à 4 au clavier).
+  - Chaque fiche dit si l'entrée est **disponible**, **à acheter** (prix en or) ou **à débloquer** (le défi à remplir, avec sa barre).
+  - Elle compte aussi les parties jouées avec chaque arme, objet, tome et synergie (« Pris dans 3 parties », « Jamais obtenu »).
+- **Débloquer, puis acheter** : un défi rempli rend une arme ou un objet achetable ; l'or le débloque. Prix : objets communs 600, rares 1 500, épiques 4 000 ; armes 2 500.
+- **12 objets à débloquer** pour un nouveau joueur, chacun derrière un défi : Phénix (5 boss), Couronne (20 min), Calice (15 min), Croc (2 000 ennemis), Rune (Érudit), Gant (carte à 3 lignes), Boussole (Marathon), Sablier (10 parties), Collier (50 élites), Corne (10 coffres de carte), Bouclier (monde 2), Souffle (2:30 en monde infini). 6 défis nouveaux.
+- **Retirer du tirage** : un objet rare ou épique débloqué peut être retiré des coffres et du marchand, puis remis. Les communs restent toujours dans le tirage (retour de Jimmy).
+
+### Modifié
+
+- Les 5 armes à défi (Boomerang, Mines, Faux, Lance, Météores) s'achètent aussi une fois le défi rempli.
+- **Joueurs actuels** : rien n'est perdu. Une sauvegarde qui a déjà joué garde les 12 objets et les armes dont le défi était rempli.
+- Défi du jour : tout est disponible, rien n'est retiré (égalité entre joueurs).
+
+### Technique
+
+- **Équilibrage** (150 runs, profil nu = nouveau joueur sans les 12 objets) : victoire 43 % (46 % avec tous les objets), morts avant 3 min 20 %. Profil maxé inchangé (48 %).
+- Méta v5 (`unlocks`, `itemsOff`, `codex`), synchronisée avec le compte ; règles Firestore : clés facultatives et bornées, vérifiées dans l'émulateur (10 cas). La CLI gagne `--items start|all`.
+
 ## 1.34.1 — 9 nov. 2026 (monde infini, décisions déléguées par Jimmy)
 
 ### Modifié

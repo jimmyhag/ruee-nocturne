@@ -661,6 +661,19 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - Vitest couvre la vague 1, 1, 2, 2, 3, 3, l'absence de prolongation, les PV en hausse, la barre qui passe au suivant, le bonus d'or payé une fois et le déterminisme ;
   - l'e2e couvre victoire → Continuer → boss à 2:30 → mort → écran de fin, et victoire → Terminer, au clavier et au doigt, captures lues.
 
+### Phase 40 — Bibliothèque et déblocages (après la 1.34.1)
+- **Demande de Jimmy** : beaucoup plus de jouabilité ; des armes et des objets à débloquer par des défis, puis à acheter avec l'or ; une bibliothèque de tout ce qui existe. Ordre validé : Bibliothèque → défis par personnage → armes → objets → Nuits. Choix délégués (« fais ce que tu penses le mieux »).
+- **Décisions prises** :
+  - un défi rempli rend achetable, l'or débloque, pour les objets verrouillés comme pour les 5 armes à défi ;
+  - 12 des 32 objets sont verrouillés pour un nouveau joueur (les plus forts ou les plus complexes), chacun derrière un défi ; 6 défis nouveaux sur des compteurs déjà tenus, 6 anciens défis sans récompense en reçoivent une ;
+  - prix : objets 600 / 1 500 / 4 000 or selon la rareté, armes 2 500 (≈ 1 à 2 runs d'or quand le défi tombe, comme les emplacements) ;
+  - un joueur actuel (sauvegarde v4 qui a joué) ne perd rien : il reçoit les 12 objets et les armes dont le défi était rempli ;
+  - retirer du tirage : seulement les rares et les épiques ; les communs restent toujours (retour de Jimmy : « il faut des objets obligatoires ») ;
+  - défi du jour : tout disponible, rien retiré ;
+  - quatre onglets (armes, objets, tomes, synergies), pas encore de bestiaire.
+- **Équilibrage** (bot moyen, 150 runs) : profil nu (sans les 12 objets) victoire 43 %, morts < 3 min 20 % ; avec tous les objets 46 % ; profil maxé 48 % (inchangé).
+- **Porte** : Vitest couvre la migration, les états, l'achat, le retrait, les compteurs, la normalisation et l'absence d'un objet banni dans les tirages ; règles vérifiées dans l'émulateur ; e2e clavier et doigt (onglets, achat du Phénix, retrait de la Cape, effet sur `w.itemBan`, défi du jour), captures lues.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.
