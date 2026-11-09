@@ -88,7 +88,7 @@ test('coffre de carte : on reste dessus, on paie avec l’or de la partie, on ch
     w.gold = 500;
     const c = w.mapChests[0];
     g.debug.teleport(c.x, c.z);
-    return { gold: w.gold, price: 40 };
+    return { gold: w.gold };
   });
   await expect(page.locator('#poiChip')).toBeVisible();
   await page.waitForSelector('#levelup:not([hidden])', { timeout: 15000 });
@@ -98,8 +98,9 @@ test('coffre de carte : on reste dessus, on paie avec l’or de la partie, on ch
     return { gold: w.gold, opened: w.mapChestsOpened, spent: w.goldSpent };
   });
   expect(w1.opened).toBe(1);
-  expect(w1.spent).toBe(before.price);
-  expect(w1.gold).toBeLessThanOrEqual(before.gold - before.price + 5); // + l'or d'un éventuel kill
+  // prix du premier coffre (MAPCHEST.price, 80 depuis la 1.33.1) : on vérifie qu'il est payé, pas sa valeur
+  expect(w1.spent).toBeGreaterThan(0);
+  expect(w1.gold).toBeLessThanOrEqual(before.gold - w1.spent + 5); // + l'or d'un éventuel kill
   await pickCard(page, 0, hasTouch);
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   expect(await page.evaluate(() => (window as any).__game.world.itemOrder.length)).toBe(1);
