@@ -53,6 +53,10 @@ import {
   unlockedWeapons,
 } from './meta/achievements';
 import { buyCharacter, buyOutfit, buyReroll, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
+import { buyUnlock, recordCodex, toggleItem } from './meta/library';
+import type { LibKind } from './meta/library';
+import { LIB_TABS, renderLibrary } from './ui/library';
+import type { LibTab } from './ui/library';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './meta/daily';
 import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
@@ -68,7 +72,7 @@ import {
   slotName,
   slotsLine,
 } from './ui/meta-ui';
-import type { CharacterKey } from './sim/types';
+import type { CharacterKey, ItemKey } from './sim/types';
 import { installDebugHooks, debugEnabled } from './debug';
 import { Pwa } from './platform/pwa';
 
@@ -128,6 +132,7 @@ type AppMode =
   | 'over'
   | 'shop'
   | 'achievements'
+  | 'library'
   | 'settings'
   | 'account'
   | 'board'
@@ -144,6 +149,7 @@ const SCREENS = [
   'over',
   'shop',
   'achievements',
+  'library',
   'settings',
   'account',
   'board',
@@ -269,12 +275,15 @@ function vibrate(ms: number): void {
     /* non supporté */
   }
 }
-function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account' | 'board' | 'characters' | 'help'): void {
+function openScreen(
+  id: 'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help',
+): void {
   if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings')
     backTo = app === 'settings' ? 'menu' : app;
   app = id;
   if (id === 'shop') renderShopScreen();
   else if (id === 'achievements') renderAchievements($('achList'), meta);
+  else if (id === 'library') renderLibraryScreen();
   else if (id === 'account') openAccount();
   else if (id === 'board') {
     showOnly(id);
@@ -291,6 +300,12 @@ function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account' | 'boar
     $('settingsMsg').textContent = '';
   }
   showOnly(id);
+}
+// phase 40 : Bibliothèque (onglet gardé d'une ouverture à l'autre)
+let libTab: LibTab = 'w';
+function renderLibraryScreen(): void {
+  $('libGold').textContent = t('gold', { n: Math.round(meta.gold) });
+  renderLibrary($('libTabs'), $('libList'), meta, libTab);
 }
 function renderShopScreen(): void {
   // phase 17 : plus de boutique par personnage ; la feuille ne garde que les emplacements (communs à tous)
@@ -324,6 +339,7 @@ function applyLang(): void {
   else if (app === 'levelup') openLevelUp();
   else if (app === 'shop') renderShopScreen();
   else if (app === 'achievements') renderAchievements($('achList'), meta);
+  else if (app === 'library') renderLibraryScreen();
 }
 /** Après tout remplacement de la méta (import, effacement, IndexedDB, tests) : applique la langue si elle change. */
 function syncLang(): void {
@@ -706,6 +722,7 @@ function gameOver(won = false): void {
   st.mapChests += world.mapChestsOpened;
   st.bestStage = Math.max(st.bestStage, won ? 4 : world.stage + 1); // phase 37
   if (world.endless) st.endlessBest = Math.max(st.endlessBest, Math.floor(world.endlessT)); // phase 39
+  recordCodex(meta, world); // phase 40 : parties avec chaque arme, objet, tome, synergie (Bibliothèque)
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -772,6 +789,54 @@ $('dailyBtn').onclick = () => startGame(undefined, true);
 $('shopBtn').onclick = () => openScreen('shop');
 $('overShopBtn').onclick = () => openScreen('shop');
 $('achBtn').onclick = () => openScreen('achievements');
+$('libBtn').onclick = () => openScreen('library');
+$('libBackBtn').onclick = closeScreen;
+$('libTabs').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-tab]') as HTMLElement | null;
+  if (!b) return;
+  libTab = b.dataset.tab as LibTab;
+  renderLibraryScreen();
+});
+// phase 40 : achat d'une arme ou d'un objet débloqué, retrait d'un objet du tirage
+$('libList').addEventListener('click', (e) => {
+  const target = e.target as HTMLElement;
+  const buy = target.closest('[data-unlock]') as HTMLButtonElement | null;
+  const tog = target.closest('[data-toggle]') as HTMLButtonElement | null;
+  audio.init();
+  if (buy && !buy.disabled) {
+    const [kind, key] = buy.dataset.unlock!.split(':') as [LibKind, string];
+    if (!buyUnlock(meta, kind, key)) return;
+    audio.chest();
+  } else if (tog) {
+    if (!toggleItem(meta, tog.dataset.toggle as ItemKey)) {
+      $('libList').querySelector('.note')?.classList.add('warn'); // minimum atteint : la ligne du compte le dit
+      return;
+    }
+    audio.select('s');
+  } else return;
+  saveMeta(meta);
+  renderLibraryScreen();
+  updateBestLine();
+  // le focus clavier reste sur la fiche touchée (le rendu a remplacé le bouton)
+  if (!input.isTouch) {
+    const sel = buy
+      ? `[data-unlock="${buy.dataset.unlock}"], [data-toggle="${buy.dataset.unlock!.slice(2)}"]`
+      : `[data-toggle="${tog!.dataset.toggle}"]`;
+    ($('libList').querySelector(sel) as HTMLElement | null)?.focus({ preventScroll: true });
+  }
+});
+// onglets au clavier (1 à 4) et Échap pour fermer
+addEventListener('keydown', (e) => {
+  if (app !== 'library' || e.repeat) return;
+  const n = e.code.startsWith('Digit') ? +e.code.slice(5) : e.code.startsWith('Numpad') ? +e.code.slice(6) : 0;
+  if (n >= 1 && n <= LIB_TABS.length) {
+    libTab = LIB_TABS[n - 1];
+    renderLibraryScreen();
+  } else if (e.code === 'Escape') {
+    e.preventDefault();
+    closeScreen();
+  }
+});
 $('settingsBtn').onclick = () => openScreen('settings');
 $('accountBtn').onclick = () => openScreen('account');
 $('accountBackBtn').onclick = closeScreen;
@@ -1246,6 +1311,7 @@ function applyCloud(uid: string, cloud: CloudDoc): void {
   scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // l'aperçu du menu n'est pas dans applyMeta
   if (app === 'shop') renderShopScreen();
   else if (app === 'achievements') renderAchievements($('achList'), meta);
+  else if (app === 'library') renderLibraryScreen();
 }
 async function pushNow(uid: string): Promise<void> {
   if (!account) return;
