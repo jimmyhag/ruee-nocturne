@@ -21,6 +21,7 @@ import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
 import { ACHIEVEMENTS } from '../src/meta/achievements';
 import { enforceAllowed, makeBot, pickAllowed } from './bots';
+import { startEndless } from '../src/sim/stages';
 import { PROFILES, REF_PRICE, checkTargets } from './targets';
 
 const args = new Map<string, string>();
@@ -31,6 +32,7 @@ const BOT = args.get('bot') ?? 'average';
 const SEED = +(args.get('seed') ?? 42);
 const UNTIL = +(args.get('until') ?? 2400); // phase 37 : trois mondes de 10 min, plus la prolongation
 const OUT = args.get('out');
+const ENDLESS_ON = args.has('endless'); // phase 39 : continuer en monde infini après la victoire
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
 // --character eclaireuse|bucheron|sorciere : personnage de départ (défaut : Éclaireuse = référence de l'équilibrage)
 const CHARACTER = (args.get('character') ?? 'eclaireuse') as CharacterKey;
@@ -95,6 +97,9 @@ interface RunResult {
   level: number;
   reachedEnd: boolean; // phase 37 : victoire (boss du monde 3 tué à temps)
   stage: number; // phase 37 : monde atteint (1..3)
+  endless: boolean; // phase 39 : la partie a continué en monde infini
+  endlessT: number;
+  endlessWave: number;
   overT: number; // s de prolongation tenues dans le dernier monde (0 : mort avant la fin du chrono)
   totemAt: number[]; // chrono du monde (s) à l'activation de chaque totem
   bossFight: number[]; // s entre l'appel et la mort de chaque boss de totem
@@ -261,6 +266,8 @@ function runOnce(seed: number): RunResult {
         last.set(en.id, rec);
       }
     }
+    // phase 39 : --endless, le bot continue en monde infini après la victoire
+    if (w.mode === Mode.Won && ENDLESS_ON) startEndless(w);
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
   }
   return {
@@ -268,7 +275,10 @@ function runOnce(seed: number): RunResult {
     time: w.t,
     kills: w.kills,
     level: w.player.level,
-    reachedEnd: w.mode === Mode.Won,
+    reachedEnd: w.mode === Mode.Won || w.endless,
+    endless: w.endless,
+    endlessT: w.endlessT,
+    endlessWave: w.endlessWave,
     stage: w.stage + 1,
     overT: w.overT,
     totemAt,
@@ -558,6 +568,18 @@ lines.push(
 lines.push(
   `mondes      monde 2 atteint ${summary.stage2Pct.toFixed(0)} % · monde 3 ${summary.stage3Pct.toFixed(0)} % · victoire ${summary.reachedEndPct.toFixed(0)} % · totem p50 à ${mmss(summary.totemP50)} · boss tués ${summary.bossWinPct.join('/')} % en p50 ${summary.bossFightP50.toFixed(0)} s (p90 ${summary.bossFightP90.toFixed(0)} s) · morts en prolongation ${summary.overDeathPct.toFixed(0)} % après p50 ${summary.overP50.toFixed(0)} s (p90 ${summary.overP90.toFixed(0)} s)`,
 );
+// phase 39 : monde infini (--endless), sur les parties gagnées seulement
+if (ENDLESS_ON) {
+  const inf = results.filter((r) => r.endless);
+  const tq = inf.map((r) => r.endlessT);
+  const wq = inf.map((r) => r.endlessWave);
+  const waves = [0, 1, 2, 3, 4, 5, 6, 8].map(
+    (k) => `≥${k} ${inf.length ? Math.round((100 * inf.filter((r) => r.endlessWave >= k).length) / inf.length) : 0} %`,
+  );
+  lines.push(
+    `infini      ${inf.length} parties · tenu p10 ${mmss(pct(tq, 10))} p50 ${mmss(pct(tq, 50))} p90 ${mmss(pct(tq, 90))} · vagues p50 ${pct(wq, 50)} · ${waves.join(' · ')}`,
+  );
+}
 lines.push(
   `morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`,
 );
