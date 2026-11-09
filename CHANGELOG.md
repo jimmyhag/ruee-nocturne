@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.33.2 — 9 nov. 2026 (retour de Jimmy)
+
+### Modifié
+
+- **Prix des coffres de carte** : le premier coûte **20 or**, puis le prix **double** à chaque coffre acheté (20, 40, 80, 160, 320…). Il ne monte toujours qu'à l'achat.
+- Équilibrage (100 parties, victoire) : nu 46 %, maxé 49 % (1.33.1 : 47 % / 38 %).
+
 ## 1.33.1 — 9 nov. 2026 (retour de Jimmy)
 
 ### Modifié
