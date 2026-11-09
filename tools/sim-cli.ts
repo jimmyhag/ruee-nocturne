@@ -26,8 +26,13 @@ import { startEndless } from '../src/sim/stages';
 import { PROFILES, REF_PRICE, checkTargets } from './targets';
 
 const args = new Map<string, string>();
-for (let i = 2; i < process.argv.length; i += 2)
-  args.set(process.argv[i].replace(/^--/, ''), process.argv[i + 1] ?? '1');
+// 1.34.1 : une option sans valeur (--endless) n'avale plus l'option suivante
+for (let i = 2; i < process.argv.length; i++) {
+  const v = process.argv[i + 1];
+  const flag = v === undefined || v.startsWith('--');
+  args.set(process.argv[i].replace(/^--/, ''), flag ? '1' : v);
+  if (!flag) i++;
+}
 const RUNS = +(args.get('runs') ?? 50);
 const BOT = args.get('bot') ?? 'average';
 const SEED = +(args.get('seed') ?? 42);
