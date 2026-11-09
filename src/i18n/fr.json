@@ -629,5 +629,21 @@
   "lib.never": "Jamais obtenu",
   "lib.pool": "{n} objets dans le tirage. Les communs y restent toujours ; tu peux retirer les rares et les épiques.",
   "lib.recipe": "{tome} + {weapon}",
-  "lib.always": "Toujours dans le tirage"
+  "lib.always": "Toujours dans le tirage",
+  "chal.name": "{char} {tier}",
+  "chal.title": "Défis",
+  "chal.sig": "Vaincs {n} ennemis avec {weapon} en une partie",
+  "chal.air": "Vaincs {n} ennemis en l'air en une partie",
+  "chal.spell": "Vaincs {n} ennemis avec ton sort en une partie",
+  "chal.casts": "Lance ton sort {n} fois en une partie",
+  "chal.fire": "Brûle {n} ennemis avec ta traînée en une partie",
+  "chal.spent": "Dépense {n} or en une partie",
+  "chal.chests": "Ouvre {n} coffres de carte en une partie",
+  "chal.elites": "Vaincs {n} élites en une partie",
+  "chal.bosses": "Vaincs {n} boss en une partie",
+  "chal.noHit": "Tiens {time} sans dégât en une partie",
+  "chal.stage": "Atteins le monde {n}",
+  "chal.win": "Termine les trois mondes",
+  "chal.outfit": "tenue de maître",
+  "chal.outfitLocked": "Défi III"
 }

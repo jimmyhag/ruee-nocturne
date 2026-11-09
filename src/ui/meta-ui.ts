@@ -1,7 +1,7 @@
 // Écrans de méta en DOM natif : personnages, boutique, succès, réglages, progression de l'écran de mort.
 // Rendus à l'ouverture d'un écran (jamais par frame) : innerHTML est acceptable ici. Textes : src/i18n via cards.ts.
 import { CHARACTERS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS, SPELL_KEYS } from '../sim/balance';
-import { ACHIEVEMENTS, closest, progress, unlockedCharacters } from '../meta/achievements';
+import { ACHIEVEMENTS, closest, progress, unlockedCharacters, value } from '../meta/achievements';
 import type { Achievement } from '../meta/achievements';
 import type { Meta } from '../meta/save';
 import type { CharacterKey } from '../sim/types';
@@ -102,7 +102,7 @@ export function renderSlots(container: HTMLElement, m: Meta): void {
     const p = a ? progress(a, m) : 1;
     const achDone = !a || m.achievements.includes(a.id);
     const cond = a
-      ? `<span class="cond">${esc(achName(a))}${achDone ? ' ✓' : ` · ${esc(achValue(a, Math.min(a.get(m.stats), a.goal)))} / ${esc(achValue(a, a.goal))}`}</span>${achDone ? '' : `<div class="bar"><i style="width:${(p * 100).toFixed(0)}%"></i></div>`}`
+      ? `<span class="cond">${esc(achName(a))}${achDone ? ' ✓' : ` · ${esc(achValue(a, Math.min(value(a, m), a.goal)))} / ${esc(achValue(a, a.goal))}`}</span>${achDone ? '' : `<div class="bar"><i style="width:${(p * 100).toFixed(0)}%"></i></div>`}`
       : '';
     const right =
       st === 'owned'
@@ -131,7 +131,7 @@ export function renderRerolls(container: HTMLElement, note: HTMLElement, m: Meta
 
 function bar(a: Achievement, m: Meta): string {
   const p = progress(a, m);
-  const v = a.get(m.stats);
+  const v = value(a, m);
   const txt = `${achValue(a, Math.min(v, a.goal))} / ${achValue(a, a.goal)}`;
   const done = m.achievements.includes(a.id);
   const unlock = a.unlocks ? ` · <em>${esc(t('ach.unlocks', { what: achUnlock(a) }))}</em>` : '';
@@ -151,15 +151,16 @@ function bar(a: Achievement, m: Meta): string {
 
 /** Tous les succès, obtenus en bas. */
 export function renderAchievements(container: HTMLElement, m: Meta): void {
-  const sorted = [...ACHIEVEMENTS].sort(
+  // phase 41 : les défis par personnage vivent sur la fiche du personnage
+  const sorted = ACHIEVEMENTS.filter((a) => !a.char).sort(
     (a, b) => Number(m.achievements.includes(a.id)) - Number(m.achievements.includes(b.id)),
   );
   container.innerHTML = sorted.map((a) => bar(a, m)).join('');
 }
 
 /** Écran de mort : les n succès les plus proches. */
-export function renderProgress(container: HTMLElement, m: Meta, n = 3): void {
-  container.innerHTML = closest(m, n)
+export function renderProgress(container: HTMLElement, m: Meta, n = 3, char?: CharacterKey): void {
+  container.innerHTML = closest(m, n, char)
     .map((a) => bar(a, m))
     .join('');
 }

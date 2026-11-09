@@ -50,6 +50,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   }
   w.emit(Ev.Hit, e.x, e.y, e.z, dealt, src + crit, ux, uz); // x2 : source, +16 si critique (phase 23)
   if (e.hp <= 0) {
+    w.srcKills[src]++; // phase 41 : défis par personnage
     killEnemy(w, i);
     return true;
   }
@@ -60,6 +61,9 @@ export function killEnemy(w: World, i: number): void {
   const e = w.enemies[i];
   const def = ENEMIES[e.type];
   w.kills++;
+  if (!w.player.onGround) w.airKills++; // phase 41
+  if (def.boss) w.bossKills++;
+  else if (e.elite) w.eliteKills++;
   if (w.player.killHeal > 0) w.player.hp = Math.min(w.player.maxHp, w.player.hp + w.player.killHeal); // phase 23 : tome Vitalité
   if (w.items[It.Calice]) itemHeal(w, ITEM.calice.perKill * w.itemEff[It.Calice]); // phase 31 : Calice sanglant
   if (w.items[It.Collier]) {

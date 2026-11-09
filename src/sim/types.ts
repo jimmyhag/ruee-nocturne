@@ -142,6 +142,7 @@ export const enum HitSrc {
   Spell, // phase 19 : sort de classe
   Patins, // phase 28 : Patins de braise (glissade)
   Horn, // phase 28 : Corne de guerre
+  Count, // phase 41 : nombre de sources (taille de w.srcKills)
 }
 
 export const enum Ev {

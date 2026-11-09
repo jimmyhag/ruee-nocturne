@@ -3,7 +3,7 @@
 import { ITEM_KEYS, ITEM_RARITY, SYNERGIES, TOME_KEYS } from '../sim/balance';
 import type { ItemKey } from '../sim/types';
 import { WEAPON_KEYS } from '../sim/weapons/defs';
-import { progress } from '../meta/achievements';
+import { progress, value } from '../meta/achievements';
 import { activeItems, entryState, mandatory, unlockAch, unlockPrice } from '../meta/library';
 import type { EntryState, LibKind } from '../meta/library';
 import type { Meta } from '../meta/save';
@@ -42,7 +42,7 @@ function lockable(m: Meta, kind: LibKind, key: string, ico: string, name: string
   let body: string;
   if (st === 'locked') {
     const a = unlockAch(kind, key)!;
-    const v = Math.min(a.get(m.stats), a.goal);
+    const v = Math.min(value(a, m), a.goal);
     body = `<p class="cond">${MISC_ICON.lock}<b>${esc(achName(a))}</b> · ${esc(achText(a))} <span>${esc(`${achValue(a, v)} / ${achValue(a, a.goal)}`)}</span></p>
       <div class="bar"><i style="width:${(progress(a, m) * 100).toFixed(0)}%"></i></div>`;
   } else if (st === 'buyable' || st === 'poor') {
