@@ -67,6 +67,15 @@ for (const k of NO_ITEM)
     console.error(`--no-item : « ${k} » inconnu. Valeurs : ${ITEM_KEYS.join(', ')}`);
     process.exit(2);
   }
+// phase 40 : --items start (défaut du profil nu : sans les 12 objets que la Bibliothèque verrouille pour un nouveau
+// joueur) ou all (défaut du profil maxé)
+const ITEMS_ARG = args.get('items') ?? (PROFILE === 'maxed' ? 'all' : 'start');
+if (ITEMS_ARG !== 'all' && ITEMS_ARG !== 'start') {
+  console.error(`--items : « ${ITEMS_ARG} » inconnu. Valeurs : all, start`);
+  process.exit(2);
+}
+const LOCKED_ITEMS =
+  ITEMS_ARG === 'start' ? ACHIEVEMENTS.flatMap((a) => (a.unlocks?.item ? [a.unlocks.item] : [])) : [];
 // phase 38 : réglage du cumul et des coffres d'élite sans toucher balance.ts (essais d'équilibrage)
 if (args.has('elite-every')) ITEM.eliteItemEvery = +args.get('elite-every')!;
 if (args.has('stack-full')) ITEM.stackFull = +args.get('stack-full')!;
@@ -153,6 +162,7 @@ function runOnce(seed: number): RunResult {
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   // ablation : un objet exclu n'est jamais tiré (coffres et marchand)
   for (const k of NO_ITEM) w.itemBan[ITEM_KEYS.indexOf(k as never)] = 1;
+  for (const k of LOCKED_ITEMS) w.itemBan[ITEM_KEYS.indexOf(k)] = 1; // phase 40
   let bought = 0;
   startRun(w);
   const bot = makeBot(BOT, seed * 7 + 1);
@@ -572,7 +582,7 @@ for (let m = 1; m < summary.aliveCurve.length; m++)
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
