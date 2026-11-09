@@ -45,34 +45,37 @@ function challenge(char: CharacterKey, tier: number, kind: ChallengeKind, goal: 
     unlocks: tier === 3 ? { outfit: char } : { gold: CHAR_CHALLENGE.gold[tier - 1] },
   };
 }
-/** Phase 41 : 3 défis par personnage (signature, plus dur, victoire), en une partie avec lui. */
+/**
+ * Phase 41 : 3 défis par personnage (signature, plus dur, victoire), en une partie avec lui. Objectifs calés sur le bot
+ * nu (100 runs par personnage) : défi I tenu dans 25 à 60 % des parties, défi II dans 5 à 25 %.
+ */
 export const CHAR_CHALLENGES: Achievement[] = [
   challenge('eclaireuse', 1, 'sig', 500),
-  challenge('eclaireuse', 2, 'casts', 40),
+  challenge('eclaireuse', 2, 'casts', 12),
   challenge('eclaireuse', 3, 'win', 1),
-  challenge('bucheron', 1, 'sig', 600),
+  challenge('bucheron', 1, 'sig', 800),
   challenge('bucheron', 2, 'noHit', 180),
   challenge('bucheron', 3, 'win', 1),
-  challenge('sorciere', 1, 'sig', 500),
-  challenge('sorciere', 2, 'spell', 100),
+  challenge('sorciere', 1, 'sig', 1000),
+  challenge('sorciere', 2, 'spell', 40),
   challenge('sorciere', 3, 'win', 1),
-  challenge('veilleuse', 1, 'sig', 800),
+  challenge('veilleuse', 1, 'sig', 400),
   challenge('veilleuse', 2, 'stage', 3),
   challenge('veilleuse', 3, 'win', 1),
-  challenge('braconnier', 1, 'sig', 500),
-  challenge('braconnier', 2, 'elites', 20),
+  challenge('braconnier', 1, 'sig', 900),
+  challenge('braconnier', 2, 'elites', 25),
   challenge('braconnier', 3, 'win', 1),
-  challenge('sapeur', 1, 'sig', 400),
-  challenge('sapeur', 2, 'bosses', 3),
+  challenge('sapeur', 1, 'sig', 450),
+  challenge('sapeur', 2, 'stage', 2),
   challenge('sapeur', 3, 'win', 1),
-  challenge('feufollet', 1, 'fire', 300),
-  challenge('feufollet', 2, 'noHit', 180),
+  challenge('feufollet', 1, 'fire', 25),
+  challenge('feufollet', 2, 'noHit', 210),
   challenge('feufollet', 3, 'win', 1),
   challenge('revenante', 1, 'air', 50),
-  challenge('revenante', 2, 'air', 200),
+  challenge('revenante', 2, 'air', 300),
   challenge('revenante', 3, 'win', 1),
-  challenge('colporteur', 1, 'spent', 2000),
-  challenge('colporteur', 2, 'chests', 6),
+  challenge('colporteur', 1, 'spent', 1000),
+  challenge('colporteur', 2, 'chests', 7),
   challenge('colporteur', 3, 'win', 1),
 ];
 
