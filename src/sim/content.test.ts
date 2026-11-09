@@ -21,7 +21,7 @@ import {
 import { dropChest, hitEnemy } from './combat';
 import { rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
-import { startRun, step } from './step';
+import { step } from './step';
 import { Ev, Mode, ProjKind } from './types';
 import type { Input } from './types';
 import { WEAPON_KEYS } from './weapons/defs';
@@ -158,9 +158,8 @@ describe('élites, coffres, or', () => {
   it('le spawner pose une élite après 2:00 puis toutes les 40 s', () => {
     const w = new World(39);
     god(w);
-    w.t = SPAWN.eliteAfter - 1;
+    w.stageT = SPAWN.eliteAfter - 1; // phase 37 : les élites suivent le chrono du monde
     w.nextWave = 1e9;
-    w.nextBoss = 1e9;
     let elites = 0;
     for (let f = 0; f < 60 * 90; f++) {
       step(w, still, STEP);
@@ -193,28 +192,7 @@ describe('élites, coffres, or', () => {
 });
 
 describe('boss et Faucheur', () => {
-  it('Gardien à 5:00, Essaim-mère à 10:00, Colosse à 15:00, Faucheur à 20:00', () => {
-    // on saute à 0,5 s avant chaque échéance (72 000 steps sous coverage dépassaient le délai en CI)
-    const w = new World(42);
-    god(w);
-    startRun(w);
-    const seen: number[] = [];
-    const at: number[] = [];
-    for (const target of [SPAWN.bossPeriod, SPAWN.bossPeriod * 2, SPAWN.bossPeriod * 3, SPAWN.reaperAt]) {
-      w.t = target - 0.5;
-      for (let i = 0; i < w.enemyCount; i++) if (!ENEMIES[w.enemies[i].type].boss) hitEnemy(w, i, 1e9, 0, 0, 0);
-      for (let f = 0; f < 60; f++) {
-        step(w, still, STEP);
-        for (let i = 0; i < w.eventCount; i++)
-          if (w.events[i].type === Ev.BossSpawn) {
-            seen.push(w.events[i].x2);
-            at.push(Math.round(w.t));
-          }
-      }
-    }
-    expect(seen).toEqual([BOSS_TYPE, SWARM_TYPE, COLOSSUS_TYPE, REAPER_TYPE]);
-    expect(at).toEqual([300, 600, 900, 1200]);
-  });
+  // phase 37 : les boss viennent du totem de chaque monde (stages.test.ts) ; le Faucheur reste défini pour le boss final
   it('le Gardien rugit puis charge en ligne ; l’Essaim-mère pond des Dards ; le Colosse pose des cercles qui explosent', () => {
     const w = new World(43);
     god(w);
@@ -259,7 +237,7 @@ describe('boss et Faucheur', () => {
     expect(blasts).toBe(BOSS.zoneN);
     expect(hurt).toBeGreaterThanOrEqual(1); // le premier cercle est sous le joueur immobile
   });
-  it('le Faucheur rattrape un joueur qui fuit en ligne droite, et sa mort donne la victoire', () => {
+  it('le Faucheur rattrape un joueur qui fuit en ligne droite', () => {
     const w = new World(46);
     w.weapons = {};
     w.nextWave = 1e9;
@@ -270,12 +248,7 @@ describe('boss et Faucheur', () => {
       hurt += count(w, Ev.PlayerHurt);
     }
     expect(hurt).toBeGreaterThan(0);
-    w.player.hp = w.player.maxHp = 1e9;
-    hitEnemy(w, i, 1e12, 0, 0, 0);
-    expect(w.mode).toBe(Mode.Won);
-    expect(count(w, Ev.Victory)).toBe(1);
-    step(w, still, STEP); // un monde gagné ne bouge plus
-    expect(w.mode).toBe(Mode.Won);
+    expect(i).toBeGreaterThanOrEqual(0);
   });
 });
 

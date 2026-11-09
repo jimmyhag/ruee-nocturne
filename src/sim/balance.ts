@@ -169,8 +169,37 @@ export const SHRINE = {
 };
 export const BOON_KEYS: BoonKey[] = ['hp', 'dmg', 'speed', 'cd', 'magnet', 'gold', 'spell'];
 export const BOON = { hp: 12, dmg: 0.08, speed: 0.06, cd: 0.06, magnet: 0.25, gold: 0.2, spell: 0.12 }; // spell : phase 22, recharge du sort
-// respiration avant un boss (phase 18) : bannière d'annonce, puis le spawn redescend le temps de se placer
-export const BOSS_WARN = { lead: 15, lull: 10, lullMul: 0.6 };
+// phase 37 (Jimmy) : trois mondes de 10 min. Un totem appelle le boss du monde ; boss tué avant la fin du chrono → portail
+// vers le monde suivant. Chrono à 0 : les monstres se renforcent de minute en minute (prolongation), il faut partir.
+export const STAGE = {
+  count: 3,
+  dur: 600, // s : chrono d'un monde (choix de Jimmy)
+  // temps de difficulté au départ de chaque monde (diffT = temps du monde + offset) : chaque monde repart un peu plus bas
+  // qu'il ne finissait (respiration à l'arrivée) et monte plus haut que le précédent ; le monde 3 finit au niveau de
+  // l'ancienne fin de partie (20:00)
+  offset: [0, 330, 600],
+  bosses: [3, 6, 7], // Gardien, Essaim-mère, Colosse (types ; BOSSES dans l'ordre)
+  totemR: 3, // cercle du totem
+  totemCharge: 3, // s à rester dedans pour l'activer
+  totemDecay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
+  totemFrom: [45, 75], // u du départ : loin, mais à une minute de marche
+  totemPad: 5, // u libres autour (le combat de boss s'y joue)
+  bossDist: 9, // u : le boss sort de terre à côté du totem
+  warnLeft: 60, // s restantes : rappel si le totem n'est pas activé
+  portalR: 2.4,
+  portalHold: 1, // s dedans pour passer (une traversée par mégarde ne compte pas)
+  eliteFirst: [120, 40, 40], // s du monde : première élite (monde 1 : comme avant, ensuite tout de suite)
+  seedMul: 0x9e3779b1, // graine de la carte du monde k : (graine de départ + k · seedMul) >>> 0
+  // prolongation : m = minutes après la fin du chrono. Multiplicateurs 1 + a·m + b·m² (jouable la première minute,
+  // mortel vers +3 à +4 min pour une bonne build), vitesse plafonnée pour rester lisible
+  over: {
+    rate: [0.4, 0.5], // ×1,9 à +1 min, ×3,8 à +2, ×6,7 à +3
+    hp: [0.5, 0.8], // ×2,3 à +1, ×5,2 à +2, ×9,7 à +3
+    dmg: [0.4, 0.6], // ×2,0 à +1, ×4,2 à +2, ×7,6 à +3
+    spd: [0.2, 0.05], // ×1,25 à +1, ×1,6 à +2…
+    spdMax: 1.8,
+  },
+};
 
 // zones de terrain (PLAN §3.4) : lacs qui ralentissent, bois denses qui canalisent
 export const ZONES = {
@@ -324,9 +353,7 @@ export const SPAWN = {
   waveCount: (t: number) => 16 + Math.floor(t / 30), // 18 à 1:00, 36 à 10:00
   waveDardAfter: 420, // avant 7:00 l'anneau est en Spectres : un anneau de Dards à 4:00 coûtait 15 points de survie
   waveDist: 19,
-  bossPeriod: 300, // boss à 5:00, 10:00, 15:00 (PLAN §2.3) ; à 2:30 il tuait 70 % des runs du bot
-  bossDist: 26,
-  reaperAt: 1200, // Faucheur à 20:00 : fin de run forcée (PLAN §2.3)
+  // phase 37 : plus de boss à heure fixe ni de Faucheur à 20:00 (le totem de chaque monde appelle son boss, STAGE)
   initial: 8,
   boredomAfter: 4, // s sans coup donné ni reçu → compensation
   boredomMul: 2,
@@ -872,7 +899,7 @@ export const REROLL_SHOP = [500, 1500, 4000];
 
 // marchand (phase 17, PLAN §3.6) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
 export const MERCHANT = {
-  times: [150, 390, 630, 870], // 2:30, 6:30, 10:30, 14:30
+  times: [150, 420], // phase 37 : dans chaque monde, à 2:30 et 7:00 (six visites sur une partie complète)
   distMin: 10,
   distMax: 14,
   stay: 45, // s avant de repartir

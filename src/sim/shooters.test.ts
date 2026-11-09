@@ -21,7 +21,7 @@ function quiet(): World {
   w.solid.fill(0);
   w.near.fill(0);
   w.lakes = [];
-  w.nextWave = w.nextElite = w.nextBoss = w.nextEruption = 1e9;
+  w.nextWave = w.nextElite = w.nextEruption = 1e9;
   w.spawnAcc = -1e9;
   w.player.hp = w.player.maxHp = 1e6;
   return w;

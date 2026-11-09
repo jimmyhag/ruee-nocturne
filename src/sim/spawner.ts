@@ -1,4 +1,4 @@
-import { ARCHER, ARCHER_TYPE, BOSS_TYPE, BOSS_WARN, BOSSES, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, ARCHER_TYPE, BOSS_TYPE, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -8,7 +8,8 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   const e = w.allocEnemy();
   if (!e) return -1;
   const def = ENEMIES[type];
-  let scale = SPAWN.hpScale(w.t) * (def.boss ? 1 + w.bossCount * 0.8 : 1);
+  // phase 37 : difficulté au temps du monde (diffT) et renfort de prolongation (over*, 1 tant que le chrono tourne)
+  let scale = SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * 0.8 : 1);
   if (elite) scale *= ELITE.hpMul;
   e.type = type;
   e.elite = elite;
@@ -25,8 +26,8 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.lanceBits = 0;
   e.lastPatins = -9;
   e.face = 0;
-  e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.t);
-  e.dmgMul = SPAWN.dmgScale(w.t);
+  e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.diffT) * w.overSpd;
+  e.dmgMul = SPAWN.dmgScale(w.diffT) * w.overDmg;
   e.bob = w.rng.range(0, TAU);
   e.state = 0;
   // plongées et premiers tirs désynchronisés (phase 16 : un tireur qui arrive ne tire pas tout de suite)
@@ -53,20 +54,15 @@ export function respawnNear(w: World, i: number): void {
 }
 
 export function tickSpawner(w: World, dt: number): void {
-  const t = w.t;
-  let rate = SPAWN.rate(t);
-  // phase 18 : respiration avant un boss (annonce BOSS_WARN.lead s avant, spawn adouci les BOSS_WARN.lull dernières s)
-  if (w.nextBoss <= SPAWN.bossPeriod * BOSSES.length) {
-    const left = w.nextBoss - t;
-    if (left <= BOSS_WARN.lead && w.bossWarned !== w.nextBoss) {
-      w.bossWarned = w.nextBoss;
-      w.emit(Ev.BossWarn, w.player.x, 0, w.player.z, w.bossCount + 1, BOSSES[Math.min(w.bossCount, BOSSES.length - 1)]);
-    }
-    if (left <= BOSS_WARN.lull) rate *= BOSS_WARN.lullMul;
-  }
+  // phase 37 : la difficulté suit le temps du monde (diffT) ; élites et vagues suivent le chrono du monde (stageT) ;
+  // plus de boss à heure fixe (le totem appelle le boss du monde, stages.ts)
+  const t = w.diffT,
+    st = w.stageT,
+    now = w.t;
+  let rate = SPAWN.rate(t) * w.overRate;
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
-  if (t - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < t) w.boredomUntil = t + SPAWN.boredomFor;
-  if (w.boredomUntil > t) rate *= SPAWN.boredomMul;
+  if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
+  if (w.boredomUntil > now) rate *= SPAWN.boredomMul;
 
   w.spawnAcc += dt * rate;
   while (w.spawnAcc >= 1) {
@@ -80,36 +76,16 @@ export function tickSpawner(w: World, dt: number): void {
     }
   }
   // élite : variante dorée d'un type de masse, lâche un coffre
-  if (t >= w.nextElite) {
+  if (st >= w.nextElite) {
     w.nextElite += SPAWN.elitePeriod;
     const type = SPAWN.pick(t, w.rng.next());
     // jamais un Cracheur ni un Sorcier élite (ils fuient et le coffre serait hors d'atteinte) ; l'Archer élite tire en éventail
     spawnEnemy(w, type === CRACHEUR_TYPE || type === SORCIER_TYPE ? ELITE_TYPE : type, w.rng.range(0, TAU), SPAWN.ringMin, true);
   }
-  if (t >= w.nextWave) {
+  if (st >= w.nextWave) {
     w.nextWave += SPAWN.wavePeriod;
-    const n = SPAWN.waveCount(t);
+    const n = Math.round(SPAWN.waveCount(t) * Math.min(3, w.overRate));
     for (let i = 0; i < n && w.enemyCount < CAPS.enemies; i++) spawnEnemy(w, t > SPAWN.waveDardAfter ? 1 : 0, (i / n) * TAU, SPAWN.waveDist);
     w.emit(Ev.Wave, w.player.x, 0, w.player.z, n);
-  }
-  if (t >= w.nextBoss && w.nextBoss <= SPAWN.bossPeriod * BOSSES.length) {
-    w.nextBoss += SPAWN.bossPeriod;
-    const type = BOSSES[Math.min(w.bossCount, BOSSES.length - 1)];
-    if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0); // un boss a toujours sa place
-    const i = spawnEnemy(w, type, w.rng.range(0, TAU), SPAWN.bossDist);
-    if (i >= 0) {
-      w.bossIndex = i;
-      w.bossCount++;
-      w.emit(Ev.BossSpawn, w.enemies[i].x, 2, w.enemies[i].z, w.bossCount, type);
-    }
-  }
-  if (t >= SPAWN.reaperAt && !w.reaperSpawned) {
-    w.reaperSpawned = true;
-    if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0);
-    const i = spawnEnemy(w, REAPER_TYPE, w.rng.range(0, TAU), SPAWN.bossDist);
-    if (i >= 0) {
-      w.bossIndex = i;
-      w.emit(Ev.BossSpawn, w.enemies[i].x, 2, w.enemies[i].z, w.bossCount + 1, REAPER_TYPE);
-    }
   }
 }

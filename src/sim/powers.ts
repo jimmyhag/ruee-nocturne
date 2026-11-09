@@ -86,8 +86,9 @@ export function tickPowers(w: World, dt: number): void {
     }
   }
   // bonus de carte
-  if (w.t >= w.powerNext) {
-    w.powerNext = w.t + w.rng.range(POWER.mapEvery[0], POWER.mapEvery[1]);
+  if (w.stageT >= w.powerNext) {
+    // phase 37 : au chrono du monde (remis à zéro à chaque monde)
+    w.powerNext = w.stageT + w.rng.range(POWER.mapEvery[0], POWER.mapEvery[1]);
     if (w.powerCount < CAPS.powers) dropOnMap(w);
   }
   // durée de vie et ramassage

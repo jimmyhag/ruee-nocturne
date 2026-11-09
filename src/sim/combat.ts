@@ -1,4 +1,5 @@
-import { CRIT, ELITE, ENEMIES, GOLD, ITEM, It, POWER, REAPER_TYPE, TRAIT, XP } from './balance';
+import { CRIT, ELITE, ENEMIES, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
+import { stageBossDown } from './stages';
 import { WEAPON_KEYS } from './weapons/defs';
 import { Ev, HitSrc, Mode, Pw, Trait } from './types';
 import { powerOnKill } from './powers';
@@ -82,10 +83,7 @@ export function killEnemy(w: World, i: number): void {
     for (let g = 0; g < w.gemCount; g++) w.gems[g].mag = true;
     dropChest(w, e.x, e.z, true);
     w.emit(Ev.BossKill, e.x, e.y, e.z, e.type);
-    if (e.type === REAPER_TYPE) {
-      w.mode = Mode.Won;
-      w.emit(Ev.Victory, e.x, e.y, e.z, w.t);
-    }
+    if (i === w.bossIndex) stageBossDown(w, e.x, e.z); // phase 37 : boss du totem → portail, ou victoire au monde 3
   } else {
     if (e.elite) dropChest(w, e.x, e.z, false);
     w.emit(Ev.Kill, e.x, e.y, e.z, e.type, e.elite ? 1 : 0);

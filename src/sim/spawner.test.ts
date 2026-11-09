@@ -1,6 +1,6 @@
 // Spawner : densité intégrée, vagues, boss, compensation d'ennui, replacement (sim-testing §1).
 import { describe, expect, it } from 'vitest';
-import { ARCHER_TYPE, BOSS_TYPE, CAPS, CRACHEUR_TYPE, SORCIER_TYPE, SPAWN, STEP } from './balance';
+import { ARCHER_TYPE, CAPS, CRACHEUR_TYPE, SORCIER_TYPE, SPAWN, STEP } from './balance';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
 import { startRun, step } from './step';
 import { Ev } from './types';
@@ -14,6 +14,8 @@ function runSpawner(w: World, seconds: number, onStep?: (w: World) => void): voi
   const n = Math.round(seconds / STEP);
   for (let f = 0; f < n; f++) {
     w.t += STEP;
+    w.stageT += STEP; // phase 37 : chrono du monde et temps de difficulté (monde 1)
+    w.diffT = w.stageT;
     w.lastAction = w.t; // pas d'ennui : on mesure la courbe nominale
     w.clearEvents();
     tickSpawner(w, STEP);
@@ -44,17 +46,14 @@ describe('spawner', () => {
     expect(wave).toBe(SPAWN.waveCount(60));
     expect(w.nextWave).toBe(2 * SPAWN.wavePeriod);
   });
-  it('boss à 5:00 : un Gardien, bossIndex renseigné, événement BossSpawn', () => {
+  it('phase 37 : plus de boss à heure fixe (le totem l’appelle)', () => {
     const w = new World(3);
     let bossEv = 0;
-    runSpawner(w, 300.5, (w) => {
+    runSpawner(w, 610, (w) => {
       for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.BossSpawn) bossEv++;
     });
-    expect(bossEv).toBe(1);
-    expect(w.bossCount).toBe(1);
-    expect(w.bossIndex).toBeGreaterThanOrEqual(0);
-    expect(w.enemies[w.bossIndex].type).toBe(BOSS_TYPE);
-    expect(w.enemies[w.bossIndex].hp).toBeGreaterThan(900); // ×hpScale(300)
+    expect(bossEv).toBe(0);
+    expect(w.bossIndex).toBe(-1);
   });
   it('ne dépasse jamais la capacité du pool', () => {
     const w = new World(4);

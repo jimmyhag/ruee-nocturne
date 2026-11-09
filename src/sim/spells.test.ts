@@ -21,7 +21,7 @@ const make = (character: CharacterKey, seed = 1, keepWeapons = false) => {
   w.player.need = 1e9;
   if (!keepWeapons) w.weapons = {};
   w.enemyCount = 0;
-  w.nextElite = w.nextWave = w.nextBoss = 1e9;
+  w.nextElite = w.nextWave = 1e9;
   w.spawnAcc = -1e9;
   return w;
 };

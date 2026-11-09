@@ -152,7 +152,7 @@ describe('marchand', () => {
     const w = new World(seed);
     god(w);
     w.weapons = {};
-    w.t = MERCHANT.times[0] - STEP / 2;
+    w.stageT = MERCHANT.times[0] - STEP / 2; // phase 37 : chrono du monde
     step(w, still, STEP);
     return w;
   };
@@ -163,7 +163,7 @@ describe('marchand', () => {
     const d = Math.hypot(w.merchant.x - w.player.x, w.merchant.z - w.player.z);
     expect(d).toBeGreaterThan(MERCHANT.distMin - 2);
     expect(d).toBeLessThan(MERCHANT.distMax + 2);
-    w.t = w.merchant.until;
+    w.stageT = w.merchant.until;
     step(w, still, STEP);
     expect(w.merchant.active).toBe(false);
     expect(count(w, Ev.MerchantLeave)).toBe(1);
@@ -219,19 +219,19 @@ describe('marchand', () => {
       Math.round(MERCHANT.price[ITEM_RARITY[It.Coeur]] * (1 + 2 * MERCHANT.growth)),
     );
   });
-  it('quatre visites par run au plus', () => {
+  it('phase 37 : MERCHANT.times.length visites par monde au plus', () => {
     const w = new World(13);
     god(w);
     w.weapons = {};
     let visits = 0;
     for (const t of MERCHANT.times) {
-      w.t = t - STEP / 2;
+      w.stageT = t - STEP / 2;
       step(w, still, STEP);
       visits += count(w, Ev.MerchantArrive);
-      w.t = w.merchant.until;
+      w.stageT = w.merchant.until;
       step(w, still, STEP);
     }
-    w.t = 1190;
+    w.stageT = 590;
     step(w, still, STEP);
     visits += count(w, Ev.MerchantArrive);
     expect(visits).toBe(MERCHANT.times.length);
@@ -407,7 +407,7 @@ describe('objets de la phase 31 : vol de vie, régénération, pourcentages', ()
   const fresh = () => {
     const w = new World(5);
     startRun(w);
-    w.nextWave = w.nextElite = w.nextBoss = w.nextEruption = 1e9;
+    w.nextWave = w.nextElite = w.nextEruption = 1e9;
     for (const k of Object.keys(w.weapons)) delete w.weapons[k as keyof typeof w.weapons];
     return w;
   };

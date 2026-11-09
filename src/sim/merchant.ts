@@ -32,7 +32,8 @@ const out2 = new Float64Array(2);
 /** Apparition, départ, entrée du joueur. Appelé à chaque pas de jeu (Mode.Play). */
 export function tickMerchant(w: World): void {
   const M = w.merchant;
-  if (!M.active && M.next < MERCHANT.times.length && w.t >= MERCHANT.times[M.next]) {
+  // phase 37 : aux heures MERCHANT.times de chaque monde (chrono du monde)
+  if (!M.active && M.next < MERCHANT.times.length && w.stageT >= MERCHANT.times[M.next]) {
     M.next++;
     // place libre près du joueur : quelques essais autour de lui, repoussée hors des obstacles
     const P = w.player;
@@ -45,7 +46,7 @@ export function tickMerchant(w: World): void {
       if (!w.nearObstacle(M.x, M.z) || k === MERCHANT.placeTries - 1) break;
     }
     M.active = true;
-    M.until = w.t + MERCHANT.stay;
+    M.until = w.stageT + MERCHANT.stay;
     M.visit++;
     M.rolled = false;
     M.inside = false;
@@ -53,7 +54,7 @@ export function tickMerchant(w: World): void {
     w.emit(Ev.MerchantArrive, M.x, 0, M.z, MERCHANT.stay);
   }
   if (!M.active) return;
-  if (w.t >= M.until) {
+  if (w.stageT >= M.until) {
     M.active = false;
     w.emit(Ev.MerchantLeave, M.x, 0, M.z);
     return;
