@@ -140,9 +140,12 @@ export function itemPrice(w: World, i: number): number {
   const base = MERCHANT.price[ITEM_RARITY[i]] * (1 + MERCHANT.growth * w.merchant.visit);
   return Math.round(base * bourseDiscount(w) * w.player.shopMul * carryMul(w)); // phase 23 : tome Or
 }
-/** Phase 38 : prix × (1 + ITEM.priceGrowth × objets portés), marchand et coffres de carte. */
+/**
+ * Phase 38 : prix × (1 + ITEM.priceGrowth × objets portés), marchand et coffres de carte. La Bourse n'est pas comptée :
+ * elle reste un rabais.
+ */
 export function carryMul(w: World): number {
-  return 1 + ITEM.priceGrowth * itemCount(w);
+  return 1 + ITEM.priceGrowth * (itemCount(w) - w.items[It.Bourse]);
 }
 /** Rabais de la Bourse (phase 38 : se multiplie à chaque exemplaire). */
 export function bourseDiscount(w: World): number {

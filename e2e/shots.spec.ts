@@ -116,11 +116,14 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   await page.screenshot(shot('levelup-feel', p));
   await pickUntilPlay(page); // parité clavier : touche 1 = carte 1 (plusieurs niveaux ou un coffre peuvent être en attente)
 
-  // boss : saut à 4:59,5 puis la boucle réelle fait apparaître le Gardien (bannière, son, shake passent par
-  // handleEvents, pas par warp) ; ramené à 6 u devant le joueur
-  await page.evaluate(() => (window as any).__game.debug.warp(299.5 - (window as any).__game.world.t));
+  // boss : depuis la phase 37, il vient du totem. Le héros est posé dans son cercle et la boucle réelle charge le
+  // totem (3 s) puis fait sortir le Gardien (bannière, son, shake passent par handleEvents) ; ramené à 6 u
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.teleport(g.world.totem.x, g.world.totem.z);
+  });
   await pickUntilPlay(page);
-  await page.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 8000 });
+  await page.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 15_000 });
   await page.evaluate(() => (window as any).__game.debug.pullBoss(6));
   await page.waitForTimeout(400);
   await expect(page.locator('#banner')).toHaveClass(/on/);

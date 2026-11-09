@@ -2,6 +2,45 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.33.0 — 9 nov. 2026 (phase 38 « Classement et objets cumulables »)
+
+### Ajouté
+
+- **Classement en ligne** (bouton « Classement » du menu), pour les joueurs connectés :
+  - trois onglets : **meilleure partie** (le monde d'abord, puis le temps), **plus longue survie**, **plus de kills** ;
+  - **tous les temps** ou **cette semaine** (remise à zéro le lundi) ;
+  - le top 50, avec le pseudo et le personnage ; ta ligne est surlignée, et ton meilleur score rappelé si tu n'es pas dans le top ;
+  - un **pseudo** à choisir dans Compte (le prénom du compte Google est proposé) ; sans pseudo, rien n'est publié ;
+  - tes meilleurs scores partent à la fin de chaque partie (ou au retour du réseau) ;
+  - sans compte, l'écran invite à se connecter et aucune requête ne part.
+- **Barre d'équipement** en bas de l'écran :
+  - les icônes des armes avec leur niveau, puis celles des objets sur une pastille de leur rareté, avec « ×2 », « ×3 »… ;
+  - sur téléphone, elle tient à côté des boutons Saut, Sort et Glisse (à l'opposé en mode gaucher) ; au-delà de la place, les plus anciens objets se regroupent en « +n » ;
+  - l'écran de fin rappelle l'équipement de la partie.
+
+### Modifié
+
+- **Plus de limite d'objets** (6 avant) : un objet déjà pris peut revenir dans un coffre ou chez le marchand, la carte indique « Objet ×2 », et ses effets se **cumulent**. Les trois premiers exemplaires comptent en entier, les suivants à moitié.
+- Cas particuliers du cumul :
+  - les réductions (recharge de la Cape et de la Rune, rabais de la Bourse, dégâts subis de la Brume) se multiplient, dans les planchers existants ;
+  - Talisman, Corne et Bouclier frappent plus souvent ;
+  - Phénix : une réanimation par exemplaire plein ;
+  - Fer à cheval : une offre de plus par exemplaire chez le marchand, deux au plus ;
+  - Bottes : le saut une seule fois, l'onde d'atterrissage se cumule ;
+  - Sablier et Plume ont un plancher ; la Boussole s'arrête à deux.
+- Un coffre d'élite sur **ELITE** ouvre un choix d'objet ; les autres donnent un sac d'or (sans limite, une partie en comptait près de 28).
+- En haut à gauche, il ne reste que le niveau, les PV, les tomes et les synergies.
+
+### Corrigé
+
+- Le **Sablier fêlé** ne ralentissait plus rien dès qu'on en avait deux.
+
+### Technique
+
+- **BALANCE**
+- Règles Firestore : `scores/{uid}` et `weeks/{semaine}/scores/{uid}`, lecture réservée aux connectés (100 lignes au plus par requête), écriture du seul propriétaire, clés fermées, valeurs bornées, scores qui ne peuvent que monter ; vérifiées dans l'émulateur (27 cas). Le pseudo rejoint la progression synchronisée.
+- Supprimer son compte retire aussi ses lignes du classement.
+
 ## 1.32.0 — 9 nov. 2026 (phase 37 « Trois mondes »)
 
 ### Ajouté

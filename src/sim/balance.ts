@@ -870,9 +870,9 @@ export const ITEM = {
   maxStack: 255, // w.items est un Uint8Array
   // sans plafond, les ≈ 16 coffres d'élite d'une partie donnaient 28 objets : un coffre d'élite sur `eliteItemEvery`
   // ouvre un choix d'objet, les autres un sac d'or (chestGoldIfFull) ; coffres de boss, de carte et marchand inchangés
-  eliteItemEvery: 1,
+  eliteItemEvery: 4,
   // …et les objets à acheter (marchand, coffres de carte) coûtent plus cher à chaque objet porté : × (1 + k · objets)
-  priceGrowth: 0,
+  priceGrowth: 0.2,
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…
   luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance

@@ -4,6 +4,7 @@ import { CHEST, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, STEP, SYN, SYNERGIES
 import { dropChest, hitEnemy } from './combat';
 import { canGainItem, gainItem, itemCount, itemPrice, merchantOffers, rollItemChoices, shieldAbsorb, stackEff } from './items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, canAffordAny, rerollCost } from './merchant';
+import { mapChestPrice } from './poi';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
 import { cardSynergy, synergyCount, updateSynergies } from './synergies';
@@ -88,6 +89,33 @@ describe('objets passifs', () => {
     gainItem(w, It.Bourse);
     gainItem(w, It.Bourse);
     expect(itemPrice(w, It.Coeur)).toBe(Math.round((p0 / w.player.shopMul) * (1 - ITEM.bourse.discount) ** 2 * w.player.shopMul));
+  });
+  it('les prix (marchand, coffres de carte) montent avec les objets portés, sauf la Bourse', () => {
+    const w = new World(1);
+    const p0 = itemPrice(w, It.Coeur),
+      c0 = mapChestPrice(w);
+    gainItem(w, It.Pierre);
+    gainItem(w, It.De);
+    expect(itemPrice(w, It.Coeur)).toBe(Math.round(p0 * (1 + 2 * ITEM.priceGrowth)));
+    expect(mapChestPrice(w)).toBe(Math.round(c0 * (1 + 2 * ITEM.priceGrowth)));
+    const p1 = itemPrice(w, It.Coeur);
+    gainItem(w, It.Bourse);
+    expect(itemPrice(w, It.Coeur)).toBeLessThan(p1);
+  });
+  it('coffres d’élite : un sur ITEM.eliteItemEvery ouvre un choix d’objet, les autres donnent de l’or', () => {
+    const w = new World(4);
+    god(w);
+    let picks = 0;
+    for (let k = 0; k < ITEM.eliteItemEvery * 2; k++) {
+      const g = w.gold;
+      dropChest(w, w.player.x, w.player.z + 0.5, false);
+      step(w, still, STEP);
+      if (w.mode === Mode.LevelUp) {
+        picks++;
+        step(w, { ...still, pick: 0 }, STEP);
+      } else expect(w.gold).toBeGreaterThan(g + ITEM.chestGoldIfFull * 0.9);
+    }
+    expect(picks).toBe(2);
   });
   it('un plafond de comptage : 255 exemplaires au plus (Uint8Array), sans débordement', () => {
     const w = new World(1);
