@@ -18,3 +18,5 @@ README.md
 .claude/**/*.md
 .firebaserc
 lighthouse/
+# généré par npm run audio
+src/platform/sfx.json

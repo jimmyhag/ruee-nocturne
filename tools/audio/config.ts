@@ -100,7 +100,6 @@ export const SOUNDS: Record<string, SoundDef> = {
   shield: { src: 'oculus', files: oc('METLImpt_MetalHitSurface', [1, 2]), level: 'impact', max: 0.4 },
   thud: { src: 'kimpact', files: ki('impact_wood_heavy', [0, 1]), level: 'impact', max: 0.4 },
   // interface
-  click: { src: 'oculus', files: oc('UIClick_MagicalConfirm', [1]), level: 'ui', max: 0.6 },
   pick: { src: 'oculus', files: oc('UIClick_CasualMusicalConfirm', [1]), level: 'ui', max: 0.6 },
   pickNew: { src: 'oculus', files: oc('UIClick_MagicalOpen', [1]), level: 'ui', max: 0.8 },
   error: { src: 'oculus', files: oc('UIAlert_WoodError', [1]), level: 'ui', max: 0.6 },

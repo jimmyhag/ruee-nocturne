@@ -86,6 +86,8 @@
   "settings.sound.on": "Son : activé",
   "settings.sound.off": "Son : coupé",
   "settings.vibrate.on": "Vibrations : activées",
+  "settings.sfxVol": "Effets",
+  "settings.musicVol": "Musique",
   "settings.vibrate.off": "Vibrations : coupées",
   "settings.fx.full": "Effets : complets",
   "settings.fx.reduced": "Effets : réduits",

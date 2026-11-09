@@ -87,6 +87,18 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: { cacheName: 'models', expiration: { maxEntries: 16 } },
           },
+          // phase 36 : la planche de bruitages (chargée entière par fetch) reste en cache : sons enregistrés hors ligne.
+          // Les musiques sont lues en flux (requêtes partielles, 206) : non mises en cache, hors ligne le jeu se tait.
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/audio/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'audio',
+              expiration: { maxEntries: 8 },
+              cacheableResponse: { statuses: [200] },
+              rangeRequests: true,
+            },
+          },
         ],
       },
     }),

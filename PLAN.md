@@ -325,6 +325,26 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
 - SFX en montée de hauteur sur les combos (ramassage, kills en rafale).
 - Musique : 3 couches (nappe, rythme, intensité) mixées selon la densité d'ennemis. Formats : `.ogg` + `.m4a` (Safari).
 - Sources CC0 (Kenney, freesound filtré CC0) ou synthèse procédurale. Liste des crédits dans `CREDITS.md`.
+- **Phase 36 (1.31.0)** : sons enregistrés.
+  - Les bruitages viennent de Kenney (CC0) et de l'Oculus Audio Pack 01 (CC BY 4.0, crédit dans `CREDITS.md` et À propos).
+  - `npm run audio` (`tools/audio/`, ffmpeg) traite chaque son : mono, silence de tête coupé, longueur max, niveau moyen ramené à la cible de sa catégorie, crête ≤ −1 dBFS.
+  - Il réunit les sons dans une planche `public/audio/sfx.mp3` (56 kb/s, ≤ 450 Ko, décodée une fois, environ 11 Mo de PCM en mémoire) décrite par `src/platform/sfx.json`.
+  - Chaque son a 1 à 5 variantes et une hauteur tirée dans ±6 % (sauf la gamme des gemmes et les cartes).
+  - Les kills d'une même rafale sont fusionnés en un son plus fort (35 ms).
+  - Une voix volée s'éteint en 5 ms, sans clic.
+  - Les oscillateurs restent le repli tant que la planche n'est pas décodée.
+- **Musique (phase 36)** : un morceau en flux (`<audio>` → bus musique), MP3 seul (lu partout, Safari compris). Les 3 couches adaptatives restent une idée.
+  - Partie : « Dangerous Voyage », sous une ambiance de forêt la nuit.
+  - Menu : « Creppy Piano 1 ».
+  - Les deux morceaux viennent de HoliznaCC0 (CC0).
+  - Fondu enchaîné entre les morceaux.
+  - En pause, choix de carte, marchand, grande carte et fin de partie : musique baissée et étouffée (passe-bas).
+  - En arrière-plan : contexte suspendu, musique en pause.
+- **Chargement** : rien n'est téléchargé avant le premier geste (`pointerup` ou touche : au doigt, `pointerdown` n'active pas la page).
+  - Rien n'est précaché.
+  - La planche de bruitages est mise en cache au premier chargement (CacheFirst).
+  - La musique, lue en flux (réponses partielles 206), n'est jamais mise en cache : hors ligne, la partie se joue sans musique.
+- **Réglages** : curseurs Effets et Musique, gardés sur l'appareil.
 
 ### 4.7 Sauvegarde
 - Méta en IndexedDB (`idb-keyval`), versionnée avec migrations. Export/import JSON depuis les réglages.
@@ -534,6 +554,21 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - ramassage au clavier et au doigt, pastille, bannière et gel couverts par e2e ;
   - cibles d'équilibrage tenues (nu 4–6 min, maxé 10–13 min, 9 personnages à ± 3 min) ;
   - budget d'appels inchangé.
+
+### Phase 36 — Son propre (après la 1.30.2)
+- **Demande de Jimmy** : des bruitages bien plus propres pour les projectiles et toutes les armes, et une musique de fond propre « qui fait vraiment jeu vidéo » ; il proposait de passer par une IA comme Suno.
+- **Décisions prises** :
+  - pas de Suno : pas d'accès depuis la session, et l'usage commercial exige un abonnement payant. Un morceau généré par Jimmy s'intègre en changeant une ligne de `tools/audio/config.ts` puis `npm run audio` ;
+  - banques libres accessibles par git (Kenney CC0, Oculus Audio Pack CC BY 4.0, HoliznaCC0 CC0) : kenney.nl, opengameart et freesound ne sont pas joignables depuis l'environnement ;
+  - une seule planche de bruitages plutôt qu'un fichier par son : une requête, un décodage. La musique est lue en flux pour ne pas garder 2 Mo de PCM décodé en mémoire sur mobile ;
+  - choix des sons et des morceaux à l'aveugle (je ne peux pas écouter) : sur le nom, la banque, la durée et les mesures de niveau. Jimmy juge à l'oreille, et chaque son se remplace dans `config.ts` ;
+  - chaque arme a son son : Orbe, Lames, Foudre, Boomerang, Mines, Faux, Lance (avant : le son de l'Orbe), Météores (annonce) ;
+  - musique jamais disponible hors ligne (lue en flux, réponses partielles non mises en cache) ; les bruitages le sont après la première partie ;
+  - la musique se coupe quand l'appli passe en arrière-plan, et n'est pas étouffée sur les écrans du menu (on y règle son curseur).
+- **Porte** :
+  - manifeste, budgets de taille et absence de chevauchement couverts par Vitest ;
+  - aucune requête audio avant le premier geste, chargement après Jouer, partie jouable sans `/audio/` et curseurs gardés après rechargement couverts par e2e (PC et mobile) ;
+  - bench et Lighthouse inchangés.
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.

@@ -2,6 +2,42 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.31.0 — 9 nov. 2026 (phase 36 « Son propre »)
+
+### Ajouté
+
+- **Bruitages enregistrés** à la place des sons synthétisés. Chaque arme a son son :
+  - **Orbe** : souffle ;
+  - **Lames** : tranche au couteau ;
+  - **Foudre** : zap ;
+  - **Boomerang** : swoosh ;
+  - **Mines** : coup sourd ;
+  - **Faux** : coup d'épée ;
+  - **Lance** : estoc métallique ;
+  - **Météores** : sifflement à l'annonce.
+- Les autres bruitages :
+  - coups mats et os brisés sur les squelettes ;
+  - impacts réverbérés sur le boss ;
+  - coup de poing quand le héros est touché ;
+  - pas sur l'herbe à la réception, étoffe au saut et à la glisse ;
+  - pièces, jingles de niveau, de coffre, de victoire et de défaite ;
+  - un son par bonus au sol ;
+  - les attaques ennemies sont plus graves que les sons du héros.
+- Chaque son a plusieurs variantes et une hauteur qui varie un peu : rien ne se répète à l'identique. Tous les sons sont ramenés au même niveau par catégorie, rien ne claque plus fort que le reste.
+- **Musique de fond** :
+  - en partie, « Dangerous Voyage », sous une ambiance de forêt la nuit ;
+  - au menu, « Creppy Piano 1 » ;
+  - fondu enchaîné entre les deux ;
+  - en pause, au choix de carte et chez le marchand, la musique baisse et s'étouffe ;
+  - elle se coupe quand l'appli passe en arrière-plan.
+- **Réglages** : curseurs Effets et Musique (0 à 100 %), gardés sur l'appareil.
+
+### Technique
+
+- `npm run audio` (`tools/audio/`, ffmpeg) produit la planche de bruitages `public/audio/sfx.mp3` (92 sons, 399 Ko) et les musiques (1,75 Mo, 1,62 Mo, ambiance 0,36 Mo). Rien n'est téléchargé avant le premier geste. Les bruitages sont mis en cache pour jouer hors ligne ; la musique est lue en flux (sans réseau, pas de musique).
+- Sans réseau, le jeu garde ses sons synthétisés.
+- Crédits : Kenney (CC0), Oculus Audio Pack 01 (CC BY 4.0), HoliznaCC0 (CC0), dans `CREDITS.md` et la page À propos.
+
 ## 1.30.2 — 8 nov. 2026 (retour de Jimmy sur la glisse)
 
 ### Corrigé

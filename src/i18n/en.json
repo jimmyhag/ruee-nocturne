@@ -86,6 +86,8 @@
   "settings.sound.on": "Sound: on",
   "settings.sound.off": "Sound: off",
   "settings.vibrate.on": "Vibration: on",
+  "settings.sfxVol": "Effects",
+  "settings.musicVol": "Music",
   "settings.vibrate.off": "Vibration: off",
   "settings.fx.full": "Effects: full",
   "settings.fx.reduced": "Effects: reduced",
