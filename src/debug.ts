@@ -29,6 +29,8 @@ export interface DebugHost {
   /** À appeler après un saut dans la sim : resynchronise le HUD et l'écran de niveau. */
   afterSimJump(): void;
   audioVoices(): number;
+  /** Phase 36 : état du son (planche décodée, musique en cours, gains des bus). */
+  audioState(): { samples: boolean; music: string; sfx: number; musicGain: number };
   /** Méta (phase 4) : lecture et remplacement (tests « nouveau joueur », export/import). */
   getMeta(): unknown;
   setMeta(m: unknown): void;
@@ -236,6 +238,9 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     },
     get audioVoices() {
       return host.audioVoices();
+    },
+    get audio() {
+      return host.audioState();
     },
     get meta() {
       return host.getMeta();

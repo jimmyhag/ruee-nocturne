@@ -32,6 +32,8 @@ export interface MetaSettings {
   lefty: boolean;
   lang: LangSetting; // 'auto' : langue du navigateur (phase 5)
   quality: QualitySetting; // phase 9 : 'auto' = net avec repli automatique si l'appareil ne suit pas, 'net', 'pixel'
+  sfxVol: number; // phase 36 : volume des effets (0–1)
+  musicVol: number; // phase 36 : volume de la musique (0–1)
 }
 export interface Meta {
   version: 4; // 3 (phase 10) : progression remise à zéro, emplacements ; 4 (phase 17) : boutique par personnage retirée, or rendu
@@ -96,7 +98,7 @@ export const DEFAULT_META: Meta = {
   slots: { ...SLOTS_START, rerolls: 0 },
   seenReset: true,
   seenHelp: false,
-  settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto' },
+  settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto', sfxVol: 1, musicVol: 0.7 },
 };
 
 /** Réglages normalisés seuls (conservés par la remise à zéro et la migration). */
@@ -107,6 +109,8 @@ function normalizeSettings(se: Record<string, unknown>): MetaSettings {
     lefty: bool(se.lefty, false),
     lang: LANG_SETTINGS.includes(se.lang as LangSetting) ? (se.lang as LangSetting) : 'auto',
     quality: QUALITY_SETTINGS.includes(se.quality as QualitySetting) ? (se.quality as QualitySetting) : 'auto',
+    sfxVol: Math.max(0, Math.min(1, num(se.sfxVol, 1))),
+    musicVol: Math.max(0, Math.min(1, num(se.musicVol, 0.7))),
   };
 }
 

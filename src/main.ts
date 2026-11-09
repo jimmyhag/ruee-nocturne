@@ -154,6 +154,7 @@ let world: World | null = null;
 let meta: Meta = metaAtStart;
 let hurtT = 0;
 let timestopOn = false; // phase 35 : Temps figé affiché
+let duckOn = false; // phase 36 : musique atténuée (pause, cartes, marchand, fin de partie)
 const hitStop = new HitStop(); // borné : voir render/feel.ts
 // « réduction des effets » : réglage du joueur, sinon prefers-reduced-motion (skill game-feel §9)
 const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -229,6 +230,9 @@ function applySettings(): void {
   $('setVibrateBtn').textContent = t(meta.settings.vibrate ? 'settings.vibrate.on' : 'settings.vibrate.off');
   $('setLeftyBtn').textContent = t(meta.settings.lefty ? 'settings.lefty.yes' : 'settings.lefty.no');
   $('setLangBtn').textContent = t('settings.lang.' + meta.settings.lang);
+  ($('sfxVol') as HTMLInputElement).value = String(Math.round(meta.settings.sfxVol * 100));
+  ($('musicVol') as HTMLInputElement).value = String(Math.round(meta.settings.musicVol * 100));
+  audio.setVolumes(meta.settings.sfxVol, meta.settings.musicVol);
   for (const [id, v] of [
     ['hudSmallBtn', 0.85],
     ['hudNormalBtn', 1],
@@ -377,6 +381,7 @@ function startGame(variant?: number, daily = false): void {
   const S = scene;
   S.setCharacter(daily ? 'eclaireuse' : meta.character, daily ? 0 : outfitOf(meta, meta.character));
   audio.init();
+  audio.setMusic('game'); // phase 36 : musique de partie et ambiance de nuit
   dailyRun = daily;
   runStats.dards = runStats.elites = runStats.bosses = 0;
   runStats.won = false;
@@ -414,6 +419,7 @@ function toMenu(): void {
   world = null;
   scene?.marks.clear(); // phase 35 : les icônes des bonus ne restent pas sur le menu
   showOnly('menu');
+  audio.setMusic('menu'); // phase 36
   if (pendingReconcile) void reconcileAccount(); // une synchronisation attendait la fin de la partie
   scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // après un défi du jour (Éclaireuse forcée)
   $('hud').hidden = true;
@@ -650,7 +656,8 @@ function gameOver(won = false): void {
   renderOverScreen();
   S.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) S.shake = 0.5;
-  if (!won) audio.death();
+  if (won) audio.victory();
+  else audio.death();
   setTimeout(() => {
     if (app !== 'over') return;
     showOnly('over');
@@ -749,6 +756,19 @@ $('rerollList').addEventListener('click', (e) => {
   }
 });
 // réglages
+// phase 36 : curseurs Effets et Musique (appliqués en direct, sauvegardés au relâcher)
+for (const id of ['sfxVol', 'musicVol'] as const) {
+  const el = $(id) as HTMLInputElement;
+  el.oninput = () => {
+    meta.settings[id] = Number(el.value) / 100;
+    audio.init();
+    audio.setVolumes(meta.settings.sfxVol, meta.settings.musicVol);
+  };
+  el.onchange = () => {
+    saveMeta(meta);
+    if (id === 'sfxVol') audio.select('w'); // un aperçu du niveau des effets
+  };
+}
 $('setSoundBtn').onclick = () => {
   meta.muted = !meta.muted;
   audio.setMuted(meta.muted);
@@ -929,6 +949,7 @@ addEventListener('keydown', (e) => {
 $('perfBtn').onclick = () => setPerf(!perfOn);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseGame();
+  audio.background(document.hidden); // phase 36 : pas de musique quand l'appli passe en arrière-plan
 });
 $('version').textContent = `v${VERSION}`;
 
@@ -1422,7 +1443,7 @@ function handleEvents(w: World, now: number): void {
           S.particles.burst(e.x, e.y, e.z, PAL.gold, (n * 0.5 * fx) | 0, PT.elite.speed, PT.elite.up);
           if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         } else S.particles.burst(e.x, e.y, e.z, PAL.enemy[e.v | 0], (PT.kill.n * fx) | 0, PT.kill.speed, PT.kill.up);
-        audio.kill(false, now);
+        audio.kill(false, now, e.x2 === 1);
         hitStop.request(FEEL.hitStop.kill.duration, FEEL.hitStop.kill.scale);
         break;
       case Ev.BossKill:
@@ -1438,7 +1459,9 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.Shoot:
         S.particles.burst(e.x, e.y, e.z, PAL.proj, PT.shoot.n, PT.shoot.speed, PT.shoot.up, false);
-        audio.shoot();
+        if (e.x2 === 1)
+          audio.lance(); // phase 36 : la Lance a son estoc
+        else audio.shoot();
         break;
       case Ev.Throw:
         audio.throwSound();
@@ -1460,6 +1483,7 @@ function handleEvents(w: World, now: number): void {
       case Ev.Land:
         S.onLand(w.player.sliding, Math.sqrt(w.player.vx * w.player.vx + w.player.vz * w.player.vz));
         S.particles.burst(e.x, 0.2, e.z, PAL.dust, PT.land.n, PT.land.speed, PT.land.up);
+        if (e.v > 0.25) audio.land(); // phase 36 : pas sur l'herbe (pas pour un simple pas de relief)
         break;
       // phase 27 : glissade, envol, vrille
       case Ev.SlideStart:
@@ -1481,7 +1505,7 @@ function handleEvents(w: World, now: number): void {
         S.blade(e.x, e.z, e.v, e.x2, e.z2);
         S.particles.burst(e.x, 0.9, e.z, FEEL.blade.sparkColor, (FEEL.blade.sparks * fx) | 0, 4, 2);
         if (!bladeSnd) {
-          audio.throwSound();
+          audio.blade();
           bladeSnd = true;
         }
         break;
@@ -1508,11 +1532,11 @@ function handleEvents(w: World, now: number): void {
             1,
           );
         }
-        audio.throwSound();
+        audio.scythe();
         break;
       }
       case Ev.MeteorWarn:
-        audio.spit();
+        audio.meteorWarn();
         break;
       case Ev.MeteorHit:
         S.particles.burst(e.x, 0.3, e.z, 0xff9a5a, (18 * fx) | 0, 7, 7);
@@ -1527,7 +1551,7 @@ function handleEvents(w: World, now: number): void {
       case Ev.ShieldBlock:
         S.particles.ring(e.x, 1, e.z, 0x7fd8ff, (20 * fx) | 0, 4, 2);
         S.dmg.text(e.x, 2.2, e.z, t('banner.shield'), 'gold');
-        audio.chest();
+        audio.shield();
         break;
       // phase 35 : bonus au sol
       case Ev.PowerDrop:
@@ -1789,6 +1813,13 @@ function frame(nowMs: number): void {
     if (pick >= 0) merchantAct(pick);
   }
 
+  // phase 36 : musique plus basse et étouffée hors du jeu actif (écrite au changement)
+  // pause, choix de carte, marchand, carte, fin : pas les écrans du menu (on y règle le curseur Musique à vrai niveau)
+  const duckNow = app === 'pause' || app === 'levelup' || app === 'merchant' || app === 'map' || app === 'over';
+  if (duckNow !== duckOn) {
+    duckOn = duckNow;
+    audio.duck(duckNow);
+  }
   if (world && app !== 'menu' && scene) {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
     scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
@@ -1843,6 +1874,19 @@ function applyMeta(): void {
   syncLang();
   refreshAccount();
 }
+// phase 36 : le son (planche de bruitages, musique du menu) démarre au premier geste, jamais avant
+// pointerup, pas pointerdown : au doigt, seul le relâchement compte comme activation (spec HTML, Chrome Android, iOS)
+function firstGesture(e: Event): void {
+  removeEventListener('pointerup', firstGesture, true);
+  removeEventListener('keydown', firstGesture, true);
+  audio.init();
+  // un geste sur Jouer lance la musique de partie juste après : ne pas télécharger celle du menu pour rien
+  const t = e.target as Element | null;
+  if (t?.closest?.('#playBtn, #dailyBtn')) return;
+  audio.setMusic(app === 'play' || app === 'levelup' || app === 'merchant' ? 'game' : 'menu'); // aide, réglages… : le menu
+}
+addEventListener('pointerup', firstGesture, true);
+addEventListener('keydown', firstGesture, true);
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
@@ -1900,6 +1944,7 @@ const debugRt = installDebugHooks({
     if (world.mode === Mode.LevelUp) openLevelUp();
   },
   audioVoices: () => audio.voiceCount,
+  audioState: () => audio.state,
   getMeta: () => meta,
   setMeta(m) {
     meta = normalizeMeta(m);

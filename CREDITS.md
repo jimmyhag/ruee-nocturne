@@ -2,7 +2,7 @@
 
 Ruée Nocturne est un jeu de **Jimmy Haggege**. Le code a été écrit avec [Claude Code](https://claude.com/claude-code) (Anthropic), phase par phase, à partir du plan de conception `PLAN.md`.
 
-Depuis la phase 20 (1.15.0), les armes et une partie du décor sont des modèles 3D KayKit (voir plus bas), depuis la phase 25 (1.20.0) les neuf personnages sont des modèles Quaternius texturés (versions gratuites, CC0), et depuis la phase 26 (1.21.0) les ennemis aussi (morts-vivants construits avec le même kit). Le reste est produit par le code : les effets et les ouvrages sont des primitives low-poly générées au lancement, et les sons sont synthétisés par Web Audio. Il n'y a ni sprite ni fichier audio tiers.
+Depuis la phase 20 (1.15.0), les armes et une partie du décor sont des modèles 3D KayKit (voir plus bas), depuis la phase 25 (1.20.0) les neuf personnages sont des modèles Quaternius texturés (versions gratuites, CC0), et depuis la phase 26 (1.21.0) les ennemis aussi (morts-vivants construits avec le même kit). Depuis la phase 36 (1.31.0), les bruitages et la musique sont des enregistrements sous licence libre (voir « Sons et musique »). Le reste est produit par le code : les effets et les ouvrages sont des primitives low-poly générées au lancement, et des sons synthétisés par Web Audio prennent le relais tant que les fichiers audio ne sont pas chargés. Il n'y a pas de sprite.
 
 ## Modèles 3D
 
@@ -18,6 +18,18 @@ Depuis la phase 20 (1.15.0), les armes et une partie du décor sont des modèles
 
 Le crédit n'est pas exigé par la licence CC0 ; il est donné quand même. Les fichiers de `public/models/` sont produits par `npm run assets` (`tools/assets/`) : animations utiles seulement, accessoires choisis, compression meshopt. quaternius.com n'est pas joignable depuis l'environnement de build : les personnages viennent du dépôt public [godot-3d-player-controller-v2](https://github.com/kirbycope/godot-3d-player-controller-v2) (fichiers Quaternius inchangés, licences CC0 jointes), les objets tenus du miroir [quaternius-showcase](https://github.com/trebeljahr/quaternius-showcase). Les packs d'origine ne sont pas dans le dépôt.
 
+## Sons et musique
+
+| Source                                                                                                                                                            | Auteur                      | Licence                                                       | Ce qui en vient                                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Impact Sounds](https://kenney.nl/assets/impact-sounds), [RPG Audio](https://kenney.nl/assets/rpg-audio), [Digital Audio](https://kenney.nl/assets/digital-audio) | [Kenney](https://kenney.nl) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | coups, coups reçus, pas, lames, pièces, foudre                                                                                                                   |
+| Oculus Audio Pack 01                                                                                                                                              | Oculus VR, LLC              | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)     | souffles des armes, os brisés, impacts du boss, créatures, sorts, ramassages, jingles de niveau, de coffre, de victoire et de défaite, ambiance de forêt la nuit |
+| [Background Music](https://freemusicarchive.org/music/holiznacc0/background-music/)                                                                               | HoliznaCC0                  | CC0 1.0                                                       | musique de partie (« Dangerous Voyage ») et du menu (« Creppy Piano 1 »)                                                                                         |
+
+Crédit exigé par la licence CC BY 4.0 : **« Oculus Audio Pack 01 » by Oculus VR, LLC (https://developers.meta.com/vr/downloads/package/oculus-audio-pack-1/), licensed under CC BY 4.0.** Modifications : fichiers renommés selon la convention UCS par Meta ([Meta-open-sound](https://github.com/facebookincubator/Meta-open-sound)), puis, pour ce jeu, convertis en mono, raccourcis, accélérés ou ralentis pour certains, niveaux ajustés et réunis dans une planche MP3.
+
+Les fichiers de `public/audio/` sont produits par `npm run audio` (`tools/audio/`, ffmpeg) : la liste des sons retenus est dans `tools/audio/config.ts`. kenney.nl et le Free Music Archive ne sont pas joignables depuis l'environnement de build : les sons Kenney viennent des miroirs publics [Boyquotes](https://github.com/Boyquotes) (fichiers inchangés, licence CC0 jointe), la musique du dépôt [phonograph_albumm_holiznacc0](https://github.com/C-C-Minetest-Server/phonograph_albumm_holiznacc0) (licence CC0 jointe). Les packs d'origine ne sont pas dans le dépôt.
+
 ## Bibliothèques
 
 | Composant                                                                          | Licence    | Rôle                                        |
@@ -28,7 +40,7 @@ Le crédit n'est pas exigé par la licence CC0 ; il est donné quand même. Les 
 | [Workbox](https://developer.chrome.com/docs/workbox)                               | MIT        | précache et mise à jour de l'app            |
 | [vite-plugin-singlefile](https://github.com/richardtallent/vite-plugin-singlefile) | MIT        | build en un seul fichier (artefact de test) |
 
-Outils de développement : [glTF Transform](https://gltf-transform.dev/) (MIT) et [meshoptimizer](https://github.com/zeux/meshoptimizer) (MIT) pour le pipeline de modèles, TypeScript, Vitest, Playwright, ESLint, Prettier, Lighthouse, GitHub Actions, Firebase Hosting.
+Outils de développement : [glTF Transform](https://gltf-transform.dev/) (MIT) et [meshoptimizer](https://github.com/zeux/meshoptimizer) (MIT) pour le pipeline de modèles, [FFmpeg](https://ffmpeg.org/) (LGPL/GPL, outil système, rien n'est livré avec le jeu) pour le pipeline audio, TypeScript, Vitest, Playwright, ESLint, Prettier, Lighthouse, GitHub Actions, Firebase Hosting.
 
 ## Polices
 

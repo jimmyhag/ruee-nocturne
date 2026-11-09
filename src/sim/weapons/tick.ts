@@ -299,7 +299,7 @@ export function tickWeapons(w: World, dt: number): void {
           p.hit0 = salvo; // une lance n'a pas de liste d'ennemis touchés : hit0 = salve, hit1 = bit de la lance
           p.hit1 = 1 << i;
         }
-        w.emit(Ev.Shoot, P.x + Math.sin(a0) * 0.6, P.y + 1, P.z + Math.cos(a0) * 0.6, s.n);
+        w.emit(Ev.Shoot, P.x + Math.sin(a0) * 0.6, P.y + 1, P.z + Math.cos(a0) * 0.6, s.n, 1); // x2 = 1 : Lance (son)
       } else S.lanceT = LANCE.retry;
     }
   }

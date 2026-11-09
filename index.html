@@ -1629,6 +1629,23 @@
         background: var(--gold);
       }
       /* ---------- réglages et compte ---------- */
+      /* phase 36 : curseurs Effets et Musique */
+      .settings .vols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 16px;
+        margin: 8px 0;
+      }
+      .settings .vols label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 14px;
+      }
+      .settings .vols input[type='range'] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
       .settings {
         display: grid;
         gap: 10px;
@@ -2191,6 +2208,17 @@
             ><button class="ghost" id="setQualityBtn">Rendu : auto</button
             ><button class="ghost" id="setLeftyBtn">Gaucher : non</button
             ><button class="ghost" id="setLangBtn">Langue : auto</button>
+          </div>
+          <!-- phase 36 : volumes séparés des effets et de la musique -->
+          <div class="vols">
+            <label
+              ><span data-i18n="settings.sfxVol">Effets</span>
+              <input type="range" id="sfxVol" min="0" max="100" step="5" value="100"
+            /></label>
+            <label
+              ><span data-i18n="settings.musicVol">Musique</span>
+              <input type="range" id="musicVol" min="0" max="100" step="5" value="70"
+            /></label>
           </div>
           <div class="btnrow">
             <span class="note" data-i18n="settings.hud">Taille du HUD</span
