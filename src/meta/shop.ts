@@ -4,6 +4,7 @@ import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, OUTFIT, REROLL_SHOP, RUN_REROLL,
 import type { CharacterKey } from '../sim/types';
 import type { WorldOptions } from '../sim/types';
 import type { Meta } from './save';
+import { bannedItems } from './library';
 
 /** Prix d'un personnage en or (0 : pas en vente, il se débloque par un succès). */
 export function characterPrice(key: CharacterKey): number {
@@ -79,7 +80,8 @@ export const runRerolls = (m: Meta): number => RUN_REROLL.base + m.slots.rerolls
 
 /**
  * Options de monde issues de la méta (personnage choisi, armes débloquées, emplacements).
- * `daily` : égalité entre joueurs — Éclaireuse, toutes les armes, tous les emplacements (même pool de cartes pour tous).
+ * `daily` : égalité entre joueurs — Éclaireuse, toutes les armes, tous les objets, tous les emplacements (même pool de
+ * cartes pour tous).
  */
 export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily = false): WorldOptions {
   return {
@@ -89,5 +91,6 @@ export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily 
       ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES }
       : { weapons: m.slots.weapons, passives: m.slots.passives }, // défi du jour : égalité
     rerolls: daily ? RUN_REROLL.base : runRerolls(m), // phase 31 : relances de cartes
+    bannedItems: daily ? undefined : bannedItems(m), // phase 40 : objets verrouillés ou retirés du tirage
   };
 }

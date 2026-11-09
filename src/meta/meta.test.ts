@@ -1,6 +1,7 @@
 // Méta (phase 4) : migrations, export/import, succès, achats à l'or, défi du jour. Aucun DOM : tout est pur.
 import { describe, expect, it } from 'vitest';
-import { MAX_PASSIVES, MAX_WEAPONS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS } from '../sim/balance';
+import { MAX_PASSIVES, MAX_WEAPONS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS, UNLOCK } from '../sim/balance';
+import { buyUnlock, entryState } from './library';
 import {
   ACHIEVEMENTS,
   checkAchievements,
@@ -41,7 +42,7 @@ describe('sauvegarde', () => {
       fxChosen: true,
     };
     const m = normalizeMeta(v1);
-    expect(m.version).toBe(4);
+    expect(m.version).toBe(5);
     expect(m.bestTime).toBe(0);
     expect(m.runs).toBe(0);
     expect(m.muted).toBe(true);
@@ -68,7 +69,7 @@ describe('sauvegarde', () => {
     expect(old.settings.hudScale).toBe(1.2);
     expect(old.seenReset).toBe(false);
     expect(normalizeMeta({ version: 2 }).seenReset).toBe(true); // sauvegarde vierge : rien à annoncer
-    expect(importMeta(exportMeta(old))!.version).toBe(4);
+    expect(importMeta(exportMeta(old))!.version).toBe(5);
   });
   it('borne et nettoie un import douteux (paliers trop hauts, personnage inconnu, valeurs non numériques)', () => {
     const m = normalizeMeta({
@@ -130,8 +131,8 @@ describe('mondes (phase 37)', () => {
 });
 
 describe('succès', () => {
-  it('17 succès (phase 28), identifiants uniques, « survie3 » débloque le défi du jour au premier run de 3 min', () => {
-    expect(ACHIEVEMENTS.length).toBe(17);
+  it('23 succès (phase 40), identifiants uniques, « survie3 » débloque le défi du jour au premier run de 3 min', () => {
+    expect(ACHIEVEMENTS.length).toBe(23);
     expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(ACHIEVEMENTS.length);
     const m = fresh();
     expect(dailyUnlocked(m)).toBe(false);
@@ -150,10 +151,14 @@ describe('succès', () => {
     m.stats.dards = 100;
     checkAchievements(m);
     expect(unlockedCharacters(m)).toEqual(['eclaireuse', 'sorciere', 'bucheron']);
+    // phase 40 : le succès rend l'arme achetable, l'or la débloque
+    expect(unlockedWeapons(m)).toEqual(['orbe', 'aura', 'lames', 'foudre']);
+    m.gold = UNLOCK.weapon;
+    expect(buyUnlock(m, 'w', 'boomerang')).toBe(true);
     expect(unlockedWeapons(m)).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang']);
     m.stats.elites = 10;
     checkAchievements(m);
-    expect(unlockedWeapons(m)).toContain('mines');
+    expect(entryState(m, 'w', 'mines')).toBe('poor');
   });
   it('les plus proches et « il te manquait … »', () => {
     const m = fresh();
@@ -180,7 +185,7 @@ describe('retrait de la boutique par personnage (phase 17)', () => {
       slots: { weapons: 2, passives: 3 },
     };
     const m = normalizeMeta(v3);
-    expect(m.version).toBe(4);
+    expect(m.version).toBe(5);
     expect(m.gold).toBe(50 + 200 + 260 + 338 + 200 + 200);
     expect('shops' in m).toBe(false);
     expect(m.bought).toEqual(['veilleuse']); // déblocages, emplacements gardés
@@ -324,7 +329,10 @@ describe('phase 28 : succès de glisse et d’exploration', () => {
     m.stats.tricksBest = 5;
     m.stats.mapChests = 50;
     checkAchievements(m);
+    m.gold = 3 * UNLOCK.weapon;
+    for (const k of ['faux', 'lance', 'meteores']) expect(buyUnlock(m, 'w', k)).toBe(true);
     expect(unlockedWeapons(m)).toEqual(expect.arrayContaining(['faux', 'lance', 'meteores']));
+    expect(m.gold).toBe(0);
   });
   it('une sauvegarde d’avant la phase 28 garde ses compteurs et part de 0 pour les nouveaux', () => {
     const old = JSON.parse(JSON.stringify(DEFAULT_META));

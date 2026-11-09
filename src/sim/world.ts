@@ -283,6 +283,7 @@ export class World {
         this.tomes[tk] = names.length;
       }
     if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
+    if (opts?.bannedItems) for (const k of opts.bannedItems) this.itemBan[ITEM_KEYS.indexOf(k)] = 1; // phase 40
     if (opts?.rerolls !== undefined) this.rerolls = Math.max(0, opts.rerolls | 0);
     if (opts?.slots) {
       this.maxWeapons = Math.max(

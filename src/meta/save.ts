@@ -2,9 +2,9 @@
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { cleanPseudo } from './board';
 import { get, set } from 'idb-keyval';
-import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, REROLL_SHOP, SLOTS_START } from '../sim/balance';
-import { ACHIEVEMENT_IDS } from './achievements';
-import type { CharacterKey } from '../sim/types';
+import { CHARACTERS, ITEM_KEYS, MAX_PASSIVES, MAX_WEAPONS, REROLL_SHOP, SLOTS_START, UNLOCK } from '../sim/balance';
+import { ACHIEVEMENTS, ACHIEVEMENT_IDS, UNLOCKABLE } from './achievements';
+import type { CharacterKey, ItemKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
 import type { LangSetting } from '../i18n';
 
@@ -39,7 +39,7 @@ export interface MetaSettings {
   musicVol: number; // phase 36 : volume de la musique (0–1)
 }
 export interface Meta {
-  version: 4; // 3 (phase 10) : progression remise à zéro, emplacements ; 4 (phase 17) : boutique par personnage retirée, or rendu
+  version: 5; // 3 (phase 10) : progression remise à zéro, emplacements ; 4 (phase 17) : boutique par personnage retirée, or rendu ; 5 (phase 40) : Bibliothèque
   bestTime: number;
   bestKills: number;
   runs: number;
@@ -57,6 +57,9 @@ export interface Meta {
   outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
   slots: { weapons: number; passives: number; rerolls: number }; // phase 31 : `rerolls` = relances achetées (rangées ici : les règles Firestore bornent les clés de progress) ; emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
+  unlocks: string[]; // phase 40 : armes et objets achetés dans la Bibliothèque ('w:faux', 'i:phenix')
+  itemsOff: ItemKey[]; // phase 40 : objets retirés du tirage par le joueur
+  codex: Record<string, number>; // phase 40 : parties jouées avec chaque entrée ('w:orbe', 'i:croc', 't:degats', 's:orage')
   pseudo: string; // phase 38 : nom affiché dans le classement en ligne ('' = aucun, rien n'est publié) ; synchronisé
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   seenHelp: boolean; // aide « Comment jouer » déjà vue au premier lancement (phase 14 ; propre à l'appareil)
@@ -67,7 +70,7 @@ export type QualitySetting = 'auto' | 'net' | 'pixel';
 export const QUALITY_SETTINGS: readonly QualitySetting[] = ['auto', 'net', 'pixel'];
 const KEY = 'ruee-meta';
 export const DEFAULT_META: Meta = {
-  version: 4,
+  version: 5,
   bestTime: 0,
   bestKills: 0,
   runs: 0,
@@ -102,6 +105,9 @@ export const DEFAULT_META: Meta = {
   outfit: {},
   daily: { date: '', times: [] },
   slots: { ...SLOTS_START, rerolls: 0 },
+  unlocks: [],
+  itemsOff: [],
+  codex: {},
   pseudo: '',
   seenReset: true,
   seenHelp: false,
@@ -189,8 +195,11 @@ export function normalizeMeta(raw: unknown): Meta {
   const totalKills = Math.max(0, num(r.totalKills));
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
+  const achievements = Array.isArray(r.achievements)
+    ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
+    : [];
   return {
-    version: 4,
+    version: 5,
     bestTime,
     bestKills: Math.max(0, num(r.bestKills)),
     runs,
@@ -219,9 +228,7 @@ export function normalizeMeta(raw: unknown): Meta {
       bestStage: Math.max(0, Math.min(4, num(st.bestStage) | 0)),
       endlessBest: Math.max(0, num(st.endlessBest) | 0),
     },
-    achievements: Array.isArray(r.achievements)
-      ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
-      : [],
+    achievements,
     bought: Array.isArray(r.bought) ? r.bought.filter((k): k is CharacterKey => isKey(k) && k !== 'eclaireuse') : [],
     character,
     outfits: Array.isArray(r.outfits) ? r.outfits.filter(isKey) : [],
@@ -235,6 +242,11 @@ export function normalizeMeta(raw: unknown): Meta {
             .slice(0, 10)
         : [],
     },
+    unlocks: normalizeUnlocks(r, runs, achievements),
+    itemsOff: Array.isArray(r.itemsOff)
+      ? [...new Set(r.itemsOff.filter((k): k is ItemKey => ITEM_KEYS.includes(k as ItemKey)))]
+      : [],
+    codex: normalizeCodex(r.codex),
     pseudo: cleanPseudo(r.pseudo),
     settings: normalizeSettings(se),
     slots: {
@@ -245,6 +257,39 @@ export function normalizeMeta(raw: unknown): Meta {
     seenReset: bool(r.seenReset, true),
     seenHelp: bool(r.seenHelp, false),
   };
+}
+
+/**
+ * Achats de la Bibliothèque (phase 40), filtrés sur les clés connues. Une sauvegarde d'avant la phase 40 (version < 5)
+ * qui a déjà joué ne perd rien : elle reçoit tous les objets désormais verrouillés et les armes dont le succès était
+ * obtenu (elles étaient données par le succès seul).
+ */
+function normalizeUnlocks(r: Record<string, unknown>, runs: number, achievements: string[]): string[] {
+  const out = new Set(
+    Array.isArray(r.unlocks) ? r.unlocks.filter((k): k is string => typeof k === 'string' && UNLOCKABLE.has(k)) : [],
+  );
+  if (num(r.version) < 5 && runs > 0)
+    for (const a of ACHIEVEMENTS) {
+      if (a.unlocks?.item) out.add(`i:${a.unlocks.item}`);
+      if (a.unlocks?.weapon && achievements.includes(a.id)) out.add(`w:${a.unlocks.weapon}`);
+    }
+  return [...out];
+}
+const CODEX_KEY = /^[wits]:[a-z]{1,16}$/;
+/** Compteurs de la Bibliothèque : clés de forme connue, entiers bornés, 160 entrées au plus (règles Firestore). */
+function normalizeCodex(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  let n = 0;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!CODEX_KEY.test(k) || n >= 160) continue;
+    const c = Math.min(UNLOCK.codexMax, Math.max(0, Math.floor(num(v))));
+    if (c > 0) {
+      out[k] = c;
+      n++;
+    }
+  }
+  return out;
 }
 
 /**

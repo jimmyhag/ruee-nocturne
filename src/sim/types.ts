@@ -284,6 +284,7 @@ export interface WorldOptions {
   unlocked?: WeaponKey[]; // armes proposables ; undefined = toutes
   slots?: { weapons: number; passives: number }; // emplacements débloqués (phase 10) ; undefined = plafonds max
   rerolls?: number; // phase 31 : relances de cartes pour la partie ; undefined = RUN_REROLL.base
+  bannedItems?: ItemKey[]; // phase 40 : objets jamais proposés (verrouillés ou retirés du tirage) ; undefined = aucun
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouvement' | 'savoir' | 'chance' | 'or';
