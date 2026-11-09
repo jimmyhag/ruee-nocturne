@@ -153,8 +153,9 @@ export const MAPCHEST = {
   r: 1.2, // rester dans ce rayon…
   hold: 0.6, // …ce temps (s) pour ouvrir : on n'ouvre rien par accident, même règle au clavier et au doigt
   price: 40, // or, premier coffre…
-  growth: 0.35, // …+35 % par coffre ouvert…
-  timeScale: 250, // …et × (1 + t / 250) : ×2 à 4:10, ×3 à 8:20 (l'or gagné croît avec le temps ; /400 : 23 % de l'or dépensé en maxé)
+  // …+35 % par coffre acheté, et rien d'autre (1.33.1, demande de Jimmy : tant qu'on n'achète pas, le prix ne bouge pas ;
+  // avant, il montait aussi avec le temps et, en 1.33.0, avec les objets portés)
+  growth: 0.35,
   placeShare: 0.3, // part des coffres posés dans les lieux construits…
   glideShare: 0.25, // …au pied des rampes et au fond des combes (phase 27) ; campements en plus ; le reste sur les hauteurs
 };
@@ -871,7 +872,7 @@ export const ITEM = {
   // sans plafond, les ≈ 16 coffres d'élite d'une partie donnaient 28 objets : un coffre d'élite sur `eliteItemEvery`
   // ouvre un choix d'objet, les autres un sac d'or (chestGoldIfFull) ; coffres de boss, de carte et marchand inchangés
   eliteItemEvery: 4,
-  // …et les objets à acheter (marchand, coffres de carte) coûtent plus cher à chaque objet porté : × (1 + k · objets)
+  // …et le marchand vend plus cher à chaque objet porté : × (1 + k · objets) (1.33.1 : plus les coffres de carte)
   priceGrowth: 0.2,
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…

@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.33.1 — 9 nov. 2026 (retour de Jimmy)
+
+### Modifié
+
+- **Prix des coffres de carte** : il ne monte plus qu'à chaque coffre acheté (+35 % par coffre). Tant que tu n'en achètes pas, il reste fixe : ni le temps ni les objets portés ne le font plus monter.
+- Équilibrage : mesure en cours (200 parties par profil).
+
 ## 1.33.0 — 9 nov. 2026 (phase 38 « Classement et objets cumulables »)
 
 ### Ajouté

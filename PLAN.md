@@ -227,7 +227,7 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 Décision prise : les synergies sont des bonus de stats ou des règles simples plutôt que de nouveaux comportements d'arme (brûlure, rebond, rotation au dash) : même lisibilité, aucun nouvel objet de pool dans la boucle chaude, réglables par la CLI.
 
 **Points d'intérêt (phase 18)** : posés avec la carte sur les sommets et dans les lieux construits, signalés de loin par une **colonne de lumière** (pas de minicarte, choix de Jimmy).
-- **Coffres de carte (20)** : on reste 0,6 s dessus pour l'ouvrir (même règle au clavier et au doigt). Prix en or de la partie : 40, puis +35 % à chaque coffre ouvert ; la puce « Coffre · prix » dit si l'or manque. Le coffre donne un choix d'objet parmi 3. Les coffres d'élite et de boss restent gratuits.
+- **Coffres de carte (20)** : on reste 0,6 s dessus pour l'ouvrir (même règle au clavier et au doigt). Prix en or de la partie : 40, puis +35 % à chaque coffre acheté, et seulement à l'achat (1.33.1, demande de Jimmy : ni le temps ni les objets portés ne le font monter) ; la puce « Coffre · prix » dit si l'or manque. Le coffre donne un choix d'objet parmi 3. Les coffres d'élite et de boss restent gratuits.
 - **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie parmi 3 : +12 PV max, +8 % de dégâts, +6 % de vitesse, −6 % de recharge, +25 % de collecte, +20 % d'or, −12 % de recharge du sort (sanctuaire de l'arcane, phase 22). Un usage chacun.
 - **Respiration avant un boss** : bannière « … approche » 15 s avant, spawn à 60 % les 10 dernières secondes.
 
@@ -618,7 +618,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - le pseudo rejoint la progression synchronisée ; les scores en attente (hors ligne, sans pseudo) sont liés au compte qui a joué et oubliés à la déconnexion ;
   - supprimer le compte efface ses lignes de tous les temps et de la semaine en cours ; celles des semaines passées restent en base, sans être affichées (PRIVACY.md) ;
   - cumul : trois exemplaires pleins, puis 50 % ; un objet possédé revient avec un poids ×0,8 ;
-  - sans plafond, une partie nue récoltait 28 objets (4,3 avant) et gagnait à 53 %. Deux leviers, mesurés : un coffre d'élite sur quatre ouvre un choix d'objet (les autres : un sac d'or), et les prix du marchand et des coffres de carte montent de 20 % par objet porté (sauf la Bourse). La règle de cumul, elle, ne pèse presque pas : c'est le nombre d'objets qui compte ;
+  - sans plafond, une partie nue récoltait 28 objets (4,3 avant) et gagnait à 53 %. Deux leviers, mesurés : un coffre d'élite sur quatre ouvre un choix d'objet (les autres : un sac d'or), et les prix du marchand montent de 20 % par objet porté (sauf la Bourse ; les coffres de carte aussi en 1.33.0, plus depuis la 1.33.1 : leur prix ne monte qu'à l'achat). La règle de cumul, elle, ne pèse presque pas : c'est le nombre d'objets qui compte ;
   - la barre d'équipement est du DOM (aucun appel de dessin), reconstruite au changement d'équipement seulement ; 2 rangées sur PC, 3 au doigt (la place à côté des boutons est étroite), puis « +n ».
 - **Équilibrage** (bot moyen, 200 runs, seed 42 ; avant → après) :
 

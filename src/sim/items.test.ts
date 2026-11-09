@@ -90,14 +90,14 @@ describe('objets passifs', () => {
     gainItem(w, It.Bourse);
     expect(itemPrice(w, It.Coeur)).toBe(Math.round((p0 / w.player.shopMul) * (1 - ITEM.bourse.discount) ** 2 * w.player.shopMul));
   });
-  it('les prix (marchand, coffres de carte) montent avec les objets portés, sauf la Bourse', () => {
+  it('les prix du marchand montent avec les objets portés, sauf la Bourse ; pas ceux des coffres de carte', () => {
     const w = new World(1);
     const p0 = itemPrice(w, It.Coeur),
       c0 = mapChestPrice(w);
     gainItem(w, It.Pierre);
     gainItem(w, It.De);
     expect(itemPrice(w, It.Coeur)).toBe(Math.round(p0 * (1 + 2 * ITEM.priceGrowth)));
-    expect(mapChestPrice(w)).toBe(Math.round(c0 * (1 + 2 * ITEM.priceGrowth)));
+    expect(mapChestPrice(w)).toBe(c0); // 1.33.1 : le coffre ne monte qu'à l'achat
     const p1 = itemPrice(w, It.Coeur);
     gainItem(w, It.Bourse);
     expect(itemPrice(w, It.Coeur)).toBeLessThan(p1);
