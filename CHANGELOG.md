@@ -2,6 +2,18 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.34.1 — 9 nov. 2026 (monde infini, décisions déléguées par Jimmy)
+
+### Modifié
+
+- **Le marchand revient en monde infini** : il passe à 1:15, puis toutes les 2:30, entre deux vagues de boss.
+- **Les monstres normaux se renforcent deux fois moins vite** en monde infini : leurs PV font ×1,6 à 10 min et ×4 à 30 min (×2 et ×7 avant).
+
+### Technique
+
+- **Équilibrage** (150 runs, parties gagnées qui continuent) : profil nu, temps tenu médian 10:05 et 4 vagues (6:25 et 2 vagues avant) ; profil maxé, 3:09 et 1 vague (2:55). Le profil maxé meurt à la horde quelle que soit la montée : c'est son kit à quatre armes qui le limite, pas la rampe.
+- La CLI de simulation gagne `--ramp` (échelle de la montée en monde infini). Une option sans valeur (`--endless`) n'avale plus l'option suivante.
+
 ## 1.34.0 — 9 nov. 2026 (phase 39 « Monde infini »)
 
 ### Ajouté

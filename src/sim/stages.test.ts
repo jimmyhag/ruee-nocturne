@@ -247,16 +247,16 @@ describe('monde infini (phase 39)', () => {
     }
     expect(sizes).toEqual([1, 1, 2, 2, 3, 3]);
     expect(w.nextEndlessBoss).toBeCloseTo(ENDLESS.period * 7, 6);
-    // pas de prolongation : seulement la rampe douce du monde infini (×2 environ à 10 min, ×7 à 30)
+    // pas de prolongation : seulement la rampe douce du monde infini (1.34.1 : PV ×1,6 à 10 min, ×4 à 30)
     expect(w.timeUp).toBe(false);
     expect(w.overT).toBe(0);
     w.endlessT = 600;
     run(w, 0.05);
-    expect(w.overHp).toBeGreaterThan(1.5);
-    expect(w.overHp).toBeLessThan(3);
+    expect(w.overHp).toBeGreaterThan(1.3);
+    expect(w.overHp).toBeLessThan(2);
     w.endlessT = 1800;
     run(w, 0.05);
-    expect(w.overHp).toBeGreaterThan(5);
+    expect(w.overHp).toBeGreaterThan(3);
     expect(w.overSpd).toBeLessThanOrEqual(ENDLESS.ramp.spdMax);
     expect(w.mode).toBe(Mode.Play); // tuer des boss ne rouvre ni portail ni victoire
     expect(w.portal.open).toBe(false);
@@ -303,6 +303,23 @@ describe('monde infini (phase 39)', () => {
     expect(bosses(w).length).toBeLessThanOrEqual(ENDLESS.maxAlive);
     expect(bosses(w).length).toBe(ENDLESS.maxAlive);
     expect(w.endlessAlive).toBe(ENDLESS.maxAlive);
+  });
+  it('le marchand repasse en monde infini à 1:15, puis entre chaque vague de boss (1.34.1)', () => {
+    const w = won(35);
+    w.merchant.active = false;
+    startEndless(w);
+    const visit = w.merchant.visit;
+    w.endlessT = ENDLESS.merchantAt - 0.05;
+    expect(run(w, 0.1, still, Ev.MerchantArrive)).toBe(1);
+    expect(w.merchant.visit).toBe(visit + 1);
+    w.merchant.active = false; // parti
+    w.endlessT = ENDLESS.merchantAt + ENDLESS.period - 0.05;
+    expect(run(w, 0.1, still, Ev.MerchantArrive)).toBe(1);
+    // encore là à l'heure suivante : la visite est sautée, pas reportée
+    w.endlessT = ENDLESS.merchantAt + 2 * ENDLESS.period - 0.05;
+    expect(run(w, 0.1, still, Ev.MerchantArrive)).toBe(0);
+    w.merchant.active = false;
+    expect(run(w, 1, still, Ev.MerchantArrive)).toBe(0);
   });
   it('déterministe en monde infini', () => {
     const play = () => {
