@@ -49,7 +49,9 @@ export function withProgress(local: Meta, raw: unknown): Meta {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return normalizeMeta({
     ...r,
-    version: 4,
+    // sans version, la progression est v3 au moins par construction (pas de remise à zéro) ; une v4 venue d'un ancien
+    // client passe par la migration de la phase 40
+    version: typeof r.version === 'number' && r.version >= 3 ? r.version : 4,
     muted: local.muted,
     reducedFx: local.reducedFx,
     fxChosen: local.fxChosen,

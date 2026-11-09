@@ -53,7 +53,8 @@ describe('clés dérivées du contenu', () => {
   for (const s of SYNERGIES) need.push(`syn.${s.key}.name`, `syn.${s.key}.text`);
   for (const a of ACHIEVEMENTS) {
     need.push(`ach.${a.id}.name`, `ach.${a.id}.text`);
-    if (a.unlocks) need.push(`ach.${a.id}.unlock`);
+    // phase 40 : une arme ou un objet prend son nom (achUnlock) ; le reste a son texte
+    if (a.unlocks && !a.unlocks.weapon && !a.unlocks.item) need.push(`ach.${a.id}.unlock`);
   }
   for (const e of ENEMIES) need.push(`enemy.${e.key}`);
   need.push('banner.boss.default');

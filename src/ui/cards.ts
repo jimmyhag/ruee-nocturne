@@ -89,7 +89,13 @@ export const synergyText = (i: number): string => t(`syn.${SYNERGIES[i].key}.tex
 export const achName = (a: Achievement): string => t(`ach.${a.id}.name`);
 /** Le texte « Vaincs 2 000 ennemis » prend l'objectif en paramètre quand il est grand (format du nombre). */
 export const achText = (a: Achievement): string => t(`ach.${a.id}.text`, { n: a.goal });
-export const achUnlock = (a: Achievement): string => t(`ach.${a.id}.unlock`);
+/** Ce que le succès débloque ; phase 40 : une arme ou un objet devient achetable dans la Bibliothèque. */
+export const achUnlock = (a: Achievement): string =>
+  a.unlocks?.item
+    ? t('lib.toBuy', { what: itemName(a.unlocks.item) })
+    : a.unlocks?.weapon
+      ? t('lib.toBuy', { what: weaponName(a.unlocks.weapon) })
+      : t(`ach.${a.id}.unlock`);
 
 /** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
 const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop']);

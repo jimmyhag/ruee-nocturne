@@ -20,8 +20,9 @@ service cloud.firestore {
         && request.resource.data.updatedAt is number
         && p() is map
         && p().keys().hasOnly(['version', 'bestTime', 'bestKills', 'runs', 'totalKills', 'gold', 'goldEarned',
-             'shops', 'stats', 'achievements', 'bought', 'character', 'outfits', 'outfit', 'daily', 'slots', 'pseudo'])
-        && p().achievements is list && p().achievements.size() <= 64
+             'shops', 'stats', 'achievements', 'bought', 'character', 'outfits', 'outfit', 'daily', 'slots', 'pseudo',
+             'unlocks', 'itemsOff', 'codex'])
+        && p().achievements is list && p().achievements.size() <= 128
         && p().bought is list && p().bought.size() <= 16
         && p().outfits is list && p().outfits.size() <= 16
         // `shops` (boutique par personnage) a quitté la progression en phase 17 : facultative, sinon toute sauvegarde
@@ -31,7 +32,11 @@ service cloud.firestore {
         && p().stats is map && p().stats.size() <= 32
         && p().daily is map && p().daily.times is list && p().daily.times.size() <= 10
         && p().character is string && p().character.size() <= 32
-        && (!('pseudo' in p()) || (p().pseudo is string && p().pseudo.size() <= 16));
+        && (!('pseudo' in p()) || (p().pseudo is string && p().pseudo.size() <= 16))
+        // phase 40 (Bibliothèque) : facultatives, une sauvegarde d'un ancien client ne les a pas
+        && (!('unlocks' in p()) || (p().unlocks is list && p().unlocks.size() <= 64))
+        && (!('itemsOff' in p()) || (p().itemsOff is list && p().itemsOff.size() <= 64))
+        && (!('codex' in p()) || (p().codex is map && p().codex.size() <= 160));
     }
     // Classement (phase 38, décision de Jimmy) : un document par joueur, ses meilleurs scores (src/meta/board.ts).
     // Lisible par les seuls joueurs connectés, 100 lignes au plus par requête ; chacun n'écrit que le sien, avec des

@@ -8,7 +8,7 @@ import type { CharacterKey } from '../sim/types';
 import { outfitOf, rerollState, runRerolls, slotState } from '../meta/shop';
 import { OUTFITS, hex } from '../render/outfits';
 import { fmtTime, t } from '../i18n';
-import { MISC_ICON, SPELL_ICON, WEAPON_ICON } from './icons';
+import { ITEM_ICON, MISC_ICON, SPELL_ICON, WEAPON_ICON } from './icons';
 import {
   achName,
   achText,
@@ -139,9 +139,11 @@ function bar(a: Achievement, m: Meta): string {
   const ch = a.unlocks?.character ? CHARACTERS.find((c) => c.key === a.unlocks!.character) : undefined;
   const ico = a.unlocks?.weapon
     ? WEAPON_ICON[a.unlocks.weapon]
-    : ch
-      ? SPELL_ICON[SPELL_KEYS[ch.spell]]
-      : MISC_ICON.trophy;
+    : a.unlocks?.item
+      ? ITEM_ICON[a.unlocks.item] // phase 40
+      : ch
+        ? SPELL_ICON[SPELL_KEYS[ch.spell]]
+        : MISC_ICON.trophy;
   return `<div class="ach${done ? ' done' : ''}"><div class="achtop"><b>${ico}${esc(achName(a))}</b><span>${done ? esc(t('ach.done')) : txt}</span></div>
     <p>${esc(achText(a))}${unlock}</p>
     <div class="bar"><i style="width:${(p * 100).toFixed(0)}%"></i></div></div>`;

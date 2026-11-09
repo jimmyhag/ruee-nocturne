@@ -285,6 +285,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       return host.getMeta();
     },
     setMeta: (m: unknown) => host.setMeta(m),
+    itemKeys: ITEM_KEYS, // phase 40 : index de w.itemBan / w.items
     fakeAccount: (uid: string, rows: unknown[]) => host.fakeAccount(uid, rows),
     get scene() {
       return host.scene;

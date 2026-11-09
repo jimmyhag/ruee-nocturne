@@ -4,7 +4,7 @@
 
 ## Sans compte : ce que le jeu enregistre, et où
 
-- Ta progression (record, or, boutique, succès, personnages, tenues, emplacements, meilleurs temps du défi du jour) et tes réglages (son, vibrations, taille du HUD, gaucher, langue, rendu) sont enregistrés **uniquement sur ton appareil**, dans le stockage du navigateur (IndexedDB, avec un repli localStorage).
+- Ta progression (record, or, boutique, succès, personnages, tenues, emplacements, Bibliothèque, meilleurs temps du défi du jour) et tes réglages (son, vibrations, taille du HUD, gaucher, langue, rendu) sont enregistrés **uniquement sur ton appareil**, dans le stockage du navigateur (IndexedDB, avec un repli localStorage).
 - Tu peux voir exactement ce qui est enregistré avec **Réglages → Exporter la sauvegarde** : c'est un fichier JSON lisible. **Tout effacer** supprime ces données ; désinstaller l'app ou vider les données du site aussi.
 - Le jeu ne lit rien d'autre sur ton appareil : ni contacts, ni position, ni photos, ni presse-papiers.
 - Aucune requête ne part vers un service de compte tant que tu n'ouvres pas le panneau Compte (un test automatisé le vérifie à chaque version).
@@ -16,7 +16,7 @@ Le panneau **Compte** du menu propose une connexion avec Google ou avec une adre
 Ce qui est enregistré avec un compte :
 
 - l'identifiant du compte et l'adresse e-mail (et, pour Google, l'identifiant Google du compte) ; le mot de passe n'est jamais stocké en clair ni connu du jeu ;
-- ta **progression** : record, or, boutique, succès, personnages achetés, tenues, emplacements, compteurs cumulés (vaincus, boss…), personnage choisi, meilleurs temps du défi du jour, pseudo du classement ; et la date de la dernière synchronisation.
+- ta **progression** : record, or, boutique, succès, personnages achetés, tenues, emplacements, compteurs cumulés (vaincus, boss…), personnage choisi, meilleurs temps du défi du jour, pseudo du classement, et depuis la version 1.35.0 ta **Bibliothèque** (armes et objets débloqués, objets retirés du tirage, nombre de parties avec chaque arme, objet, tome et synergie) ; et la date de la dernière synchronisation.
 
 Ce qui n'est **jamais** enregistré en ligne : tes réglages (son, effets, vibrations, HUD, gaucher, langue, rendu), ton nom (seul le pseudo que tu choisis est publié), ta position, le contenu de tes parties.
 

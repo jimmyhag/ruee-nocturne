@@ -1789,14 +1789,16 @@
         font-size: 12.5px;
         color: var(--muted);
       }
-      .shoprow .buy {
+      .shoprow .buy,
+      .lib .buy {
         white-space: nowrap;
         background: var(--gold);
         color: var(--ink);
         border-color: transparent;
         font-weight: 800;
       }
-      .shoprow .buy:disabled {
+      .shoprow .buy:disabled,
+      .lib .buy:disabled {
         background: var(--ink-3);
         color: var(--muted);
         cursor: default;
@@ -1864,6 +1866,63 @@
       }
       .ach.done .bar i {
         background: var(--gold);
+      }
+      /* ---------- bibliothèque (phase 40) ---------- */
+      .libtabs .ghost {
+        padding: 8px 12px;
+        min-height: 40px;
+      }
+      .libtabs .cnt {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+      }
+      .lib.buyable,
+      .lib.poor {
+        border-color: var(--gold);
+      }
+      .lib.locked > p,
+      .lib.locked .achtop b,
+      .lib.off > p,
+      .lib.off .achtop b {
+        opacity: 0.6;
+      }
+      .lib .achtop b {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .lib .achtop b svg.ico {
+        width: 26px;
+        height: 26px;
+        flex: none;
+      }
+      .lib .cond {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .lib .cond svg.ico {
+        width: 16px;
+        height: 16px;
+      }
+      .lib .cond span {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+      }
+      .lib .seen {
+        margin: 0;
+      }
+      .lib .buy,
+      .lib .toggle {
+        margin-top: 4px;
+        min-height: 40px;
+        padding: 6px 14px;
+      }
+      .lib .toggle[aria-pressed='false'] {
+        border-color: var(--accent);
       }
       /* ---------- réglages et compte ---------- */
       /* phase 36 : curseurs Effets et Musique */
@@ -2172,6 +2231,12 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg
             ><span data-i18n="menu.achievements">Succès</span></button
+          ><button class="btn-icon" id="libBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z" />
+              <path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3" />
+              <path d="M9 7.5h6M9 11h4" /></svg
+            ><span data-i18n="menu.library">Bibliothèque</span></button
           ><button class="btn-icon" id="boardBtn">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 21V12h5v9M9.5 21V7h5v14M15 21v-6h5v6" /></svg
@@ -2460,6 +2525,19 @@
           </button>
         </header>
         <div class="achs" id="achList"></div>
+      </div>
+    </section>
+    <section id="library" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="lib.title">Bibliothèque</h2>
+          <p class="gold sub" id="libGold"></p>
+          <button class="btn-icon close" id="libBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <div class="btnrow libtabs" id="libTabs" role="group"></div>
+        <div class="achs" id="libList"></div>
       </div>
     </section>
 
