@@ -152,11 +152,11 @@ export const MAPCHEST = {
   fromStart: 32, // aucun dans la clairière de départ
   r: 1.2, // rester dans ce rayon…
   hold: 0.6, // …ce temps (s) pour ouvrir : on n'ouvre rien par accident, même règle au clavier et au doigt
-  // 1.33.1 (demande de Jimmy) : le prix ne monte qu'à chaque coffre acheté ; tant qu'on n'achète pas, il ne bouge pas
-  // (avant : × temps, et en 1.33.0 × objets portés). Sans hausse au temps, 40 or puis +35 % donnaient 8 coffres par
-  // partie nue et 49 % de victoires ; 80 puis +60 % : 4,8 coffres, 47 % (120 puis +50 % : 4,7 coffres, 49 %)
-  price: 80, // or, premier coffre : 80, 128, 205, 328, 524…
-  growth: 0.6, // +60 % par coffre acheté
+  // 1.33.1 (demande de Jimmy) : le prix ne monte qu'à chaque coffre acheté ; tant qu'on n'achète pas, il ne bouge pas.
+  // 1.33.2 (demande de Jimmy) : premier coffre à 20 or, puis ×2 par coffre acheté. 100 runs : ×2 donne 46 % de victoires
+  // nues et 49 % maxées (5 et 7,5 coffres par partie) ; +80 % : 59 % / 42 % (le bon marché du début pèse plus)
+  price: 20, // or, premier coffre : 20, 40, 80, 160, 320, 640…
+  growth: 1, // ×2 par coffre acheté
   placeShare: 0.3, // part des coffres posés dans les lieux construits…
   glideShare: 0.25, // …au pied des rampes et au fond des combes (phase 27) ; campements en plus ; le reste sur les hauteurs
 };
