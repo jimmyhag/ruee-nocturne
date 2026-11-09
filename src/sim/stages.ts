@@ -188,6 +188,7 @@ export function endlessBosses(k: number): number {
  */
 export function startEndless(w: World): void {
   if (w.mode !== Mode.Won || w.endless) return;
+  w.clearEvents(); // les événements du pas de la victoire ont déjà été traités (relecture perf : double comptage)
   w.endless = true;
   w.endlessT = 0;
   w.endlessWave = 0;
@@ -200,19 +201,32 @@ export function startEndless(w: World): void {
   w.emit(Ev.EndlessStart, w.player.x, 0, w.player.z);
 }
 
+/**
+ * La barre de boss suit un boss vivant : à la mort du sien, elle passe au suivant. Appelé juste après la compaction des
+ * ennemis (step.ts), pour qu'aucune image ne montre la barre cachée entre deux boss. Balayage rare : un boss vient de tomber.
+ */
+export function retargetBoss(w: World): void {
+  if (!w.endless || w.bossIndex >= 0 || w.endlessAlive <= 0) return;
+  for (let i = 0; i < w.enemyCount; i++) {
+    const e = w.enemies[i];
+    if (e.alive && ENEMIES[e.type].boss) {
+      w.bossIndex = i;
+      return;
+    }
+  }
+  w.endlessAlive = 0; // plus aucun en vie (compte resynchronisé)
+}
+
 function tickEndless(w: World, dt: number): void {
   w.endlessT += dt;
-  // la barre de boss suit un boss vivant : à la mort du sien, elle passe au suivant (balayage rare : un boss vient de tomber)
-  if (w.bossIndex < 0 && w.endlessAlive > 0) {
-    for (let i = 0; i < w.enemyCount; i++) {
-      const e = w.enemies[i];
-      if (e.alive && ENEMIES[e.type].boss) {
-        w.bossIndex = i;
-        break;
-      }
-    }
-    if (w.bossIndex < 0) w.endlessAlive = 0; // plus aucun en vie (compte resynchronisé)
-  }
+  // montée lente des monstres normaux (multiplicateurs de la prolongation, avec la rampe douce du monde infini)
+  const m = w.endlessT / 60,
+    R = ENDLESS.ramp;
+  w.overRate = poly(R.rate, m);
+  w.overHp = poly(R.hp, m);
+  w.overDmg = poly(R.dmg, m);
+  w.overSpd = Math.min(R.spdMax, poly(R.spd, m));
+  retargetBoss(w);
   if (w.endlessT >= w.nextEndlessBoss) {
     w.nextEndlessBoss += ENDLESS.period;
     summonEndlessWave(w);
@@ -225,8 +239,9 @@ export function summonEndlessWave(w: World): void {
   const n = endlessBosses(k),
     P = w.player;
   for (let j = 0; j < n; j++) {
+    if (w.endlessAlive >= ENDLESS.maxAlive) break; // trop de boss en vie : le reste de la vague attend
     const type = STAGE.bosses[(k + j) % STAGE.bosses.length];
-    if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0); // un boss a toujours sa place
+    if (w.enemyCount >= CAPS.enemies) freeNonBoss(w); // un boss a toujours sa place, jamais à la place d'un autre boss
     const a = (j / n) * Math.PI * 2 + k;
     const i = spawnEnemy(w, type, a, ENDLESS.dist);
     if (i < 0) continue;
@@ -242,4 +257,13 @@ export function summonEndlessWave(w: World): void {
     w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type);
   }
   w.emit(Ev.EndlessWave, P.x, 0, P.z, k + 1, n);
+}
+
+/** Pool plein : retire le premier ennemi qui n'est pas un boss (un boss d'une vague précédente reste en jeu). */
+function freeNonBoss(w: World): void {
+  for (let i = 0; i < w.enemyCount; i++)
+    if (!ENEMIES[w.enemies[i].type].boss) {
+      w.freeEnemy(i);
+      return;
+    }
 }

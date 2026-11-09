@@ -1,7 +1,7 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STEP, WEAPON_LINES } from './sim/balance';
+import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STAGE, STEP, WEAPON_LINES } from './sim/balance';
 import { dropPower } from './sim/powers';
 import { dropChest, hitEnemy } from './sim/combat';
 import { nextStage, stageBossDown } from './sim/stages';
@@ -152,7 +152,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     win(): void {
       const world = w();
       if (!world || world.mode !== Mode.Play) return;
-      while (world.stage < 2) nextStage(world);
+      while (world.stage < STAGE.count - 1) nextStage(world);
       host.afterStage();
       world.totem.state = 1;
       stageBossDown(world, world.player.x, world.player.z);

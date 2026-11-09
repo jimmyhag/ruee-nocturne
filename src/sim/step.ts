@@ -10,7 +10,7 @@ import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { tickStage } from './stages';
+import { tickStage, retargetBoss } from './stages';
 import { Ev, HitSrc, HurtSrc, Mode, Pw, ShotKind, Spell, Trait } from './types';
 import { tickPowers } from './powers';
 import type { Input } from './types';
@@ -64,6 +64,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickProjectiles(w, dt);
   tickRideItems(w, dt); // phase 28 : Patins de braise, Corne de guerre
   compactEnemies(w);
+  retargetBoss(w); // phase 39 : la barre passe tout de suite au boss suivant (monde infini)
   tickGems(w, dt);
   tickChests(w, dt);
   tickPowers(w, dt); // phase 35 : bonus au sol

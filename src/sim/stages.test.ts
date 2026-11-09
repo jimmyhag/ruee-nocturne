@@ -247,8 +247,17 @@ describe('monde infini (phase 39)', () => {
     }
     expect(sizes).toEqual([1, 1, 2, 2, 3, 3]);
     expect(w.nextEndlessBoss).toBeCloseTo(ENDLESS.period * 7, 6);
-    expect([w.overRate, w.overHp, w.overDmg, w.overSpd]).toEqual([1, 1, 1, 1]);
+    // pas de prolongation : seulement la rampe douce du monde infini (×2 environ à 10 min, ×7 à 30)
     expect(w.timeUp).toBe(false);
+    expect(w.overT).toBe(0);
+    w.endlessT = 600;
+    run(w, 0.05);
+    expect(w.overHp).toBeGreaterThan(1.5);
+    expect(w.overHp).toBeLessThan(3);
+    w.endlessT = 1800;
+    run(w, 0.05);
+    expect(w.overHp).toBeGreaterThan(5);
+    expect(w.overSpd).toBeLessThanOrEqual(ENDLESS.ramp.spdMax);
     expect(w.mode).toBe(Mode.Play); // tuer des boss ne rouvre ni portail ni victoire
     expect(w.portal.open).toBe(false);
   });
@@ -283,6 +292,17 @@ describe('monde infini (phase 39)', () => {
     expect(w.mode).toBe(Mode.Dead);
     expect(w.gold - g).toBeGreaterThanOrEqual((w.t - t0 - STEP) * GOLD.perSecond * w.player.goldMul - 1e-6);
     expect(w.gold - g).toBeLessThan((w.t - t0) * GOLD.perSecond * w.player.goldMul + 50); // + l'or d'un kill du pas
+  });
+  it('au plus ENDLESS.maxAlive boss en vie ; startEndless oublie les événements du pas de la victoire', () => {
+    const w = won(35);
+    w.emit(Ev.BossKill, 0, 0, 0, 3); // événement du pas de la victoire, déjà traité par le jeu
+    startEndless(w);
+    expect(count(w, Ev.BossKill)).toBe(0);
+    expect(count(w, Ev.EndlessStart)).toBe(1);
+    for (let k = 0; k < 8; k++) nextWave(w); // personne ne tue les boss : la place manque vite
+    expect(bosses(w).length).toBeLessThanOrEqual(ENDLESS.maxAlive);
+    expect(bosses(w).length).toBe(ENDLESS.maxAlive);
+    expect(w.endlessAlive).toBe(ENDLESS.maxAlive);
   });
   it('déterministe en monde infini', () => {
     const play = () => {
