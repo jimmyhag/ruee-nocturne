@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { CAPS, ENEMIES, HAZARDS, POWER, SPAWN, STAGE } from './balance';
+import { CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, POWER, SPAWN, STAGE } from './balance';
 import { spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
@@ -30,6 +30,10 @@ export function tickStage(w: World, dt: number): void {
   w.diffT = w.stageT + STAGE.offset[w.stage];
   const T = w.totem,
     P = w.player;
+  if (w.endless) {
+    tickEndless(w, dt); // phase 39 : ni prolongation, ni totem, ni portail
+    return;
+  }
   const over = w.stageT - STAGE.dur;
   if (over > 0) {
     w.overT = over;
@@ -99,6 +103,9 @@ export function stageBossDown(w: World, x: number, z: number): void {
   if (w.stage >= STAGE.count - 1) {
     T.state = 2;
     w.mode = Mode.Won;
+    // bonus de fin (secondes survécues / 10) ; phase 39 : la mort en monde infini ne repaie que le temps d'après
+    w.gold += (w.t - w.goldBonusT) * GOLD.perSecond * w.player.goldMul;
+    w.goldBonusT = w.t;
     w.emit(Ev.Victory, x, 1, z, w.t);
     return;
   }
@@ -166,4 +173,73 @@ export function nextStage(w: World): void {
   }
   startRun(w); // ennemis de départ, comme au premier monde
   w.emit(Ev.StageStart, 0, 0, 0, w.stage + 1);
+}
+
+// ---- phase 39 : monde infini ----
+
+/** Nombre de boss de la vague k (0, 1, 2…) : 1, 1, 2, 2, 3, 3… au plus ENDLESS.maxBosses. */
+export function endlessBosses(k: number): number {
+  return Math.min(ENDLESS.maxBosses, 1 + Math.floor(k / 2));
+}
+
+/**
+ * Après la victoire, le joueur continue (écran de victoire) : la partie reprend sur la carte du monde 3, sans chrono
+ * (pas de prolongation) ; une vague de boss toutes les ENDLESS.period s.
+ */
+export function startEndless(w: World): void {
+  if (w.mode !== Mode.Won || w.endless) return;
+  w.endless = true;
+  w.endlessT = 0;
+  w.endlessWave = 0;
+  w.nextEndlessBoss = ENDLESS.period;
+  w.endlessAlive = 0;
+  w.overT = 0;
+  w.overRate = w.overHp = w.overDmg = w.overSpd = 1;
+  w.portal.open = false;
+  w.mode = Mode.Play;
+  w.emit(Ev.EndlessStart, w.player.x, 0, w.player.z);
+}
+
+function tickEndless(w: World, dt: number): void {
+  w.endlessT += dt;
+  // la barre de boss suit un boss vivant : à la mort du sien, elle passe au suivant (balayage rare : un boss vient de tomber)
+  if (w.bossIndex < 0 && w.endlessAlive > 0) {
+    for (let i = 0; i < w.enemyCount; i++) {
+      const e = w.enemies[i];
+      if (e.alive && ENEMIES[e.type].boss) {
+        w.bossIndex = i;
+        break;
+      }
+    }
+    if (w.bossIndex < 0) w.endlessAlive = 0; // plus aucun en vie (compte resynchronisé)
+  }
+  if (w.endlessT >= w.nextEndlessBoss) {
+    w.nextEndlessBoss += ENDLESS.period;
+    summonEndlessWave(w);
+  }
+}
+
+/** Vague de boss du monde infini : autour du joueur, PV de la règle du totem × (1 + hpPerWave · vague). */
+export function summonEndlessWave(w: World): void {
+  const k = w.endlessWave++;
+  const n = endlessBosses(k),
+    P = w.player;
+  for (let j = 0; j < n; j++) {
+    const type = STAGE.bosses[(k + j) % STAGE.bosses.length];
+    if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0); // un boss a toujours sa place
+    const a = (j / n) * Math.PI * 2 + k;
+    const i = spawnEnemy(w, type, a, ENDLESS.dist);
+    if (i < 0) continue;
+    const e = w.enemies[i];
+    e.hp = e.max =
+      ENEMIES[type].hp *
+      SPAWN.hpScale(w.diffT) *
+      (1 + w.bossCount * STAGE.bossHpPerBoss) *
+      (1 + ENDLESS.hpPerWave * k);
+    w.bossIndex = i;
+    w.bossCount++;
+    w.endlessAlive++;
+    w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type);
+  }
+  w.emit(Ev.EndlessWave, P.x, 0, P.z, k + 1, n);
 }

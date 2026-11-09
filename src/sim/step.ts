@@ -74,7 +74,7 @@ export function step(w: World, input: Input, dt: number): void {
   // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
   if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
-    w.gold += w.t * GOLD.perSecond * w.player.goldMul;
+    // bonus d'or de la victoire : payé par stageBossDown (phase 39)
   } else if (w.player.hp <= 0 && w.player.revives > 0) {
     // réanimation (boutique) : une seconde chance, puis on sort de la masse
     const P = w.player;
@@ -85,7 +85,7 @@ export function step(w: World, input: Input, dt: number): void {
   } else if (w.player.hp <= 0) {
     w.player.hp = 0;
     w.mode = Mode.Dead;
-    w.gold += w.t * GOLD.perSecond * w.player.goldMul; // bonus de fin : secondes survécues / 10
+    w.gold += (w.t - w.goldBonusT) * GOLD.perSecond * w.player.goldMul; // bonus de fin : secondes survécues / 10
     w.emit(Ev.Death, w.player.x, 1, w.player.z, w.t);
   } else if ((w.mode as Mode) === Mode.Play && (w.itemPicks > 0 || w.boonPicks > 0 || w.pending > 0)) {
     nextChoice(w); // objets des coffres d'abord, puis bonus de sanctuaire, puis montées de niveau

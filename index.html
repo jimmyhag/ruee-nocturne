@@ -404,6 +404,15 @@
           font-size: 12px;
         }
       }
+      /* phase 39 : barre de boss affichée → la puce d'objectif passe dessous (elle cachait le nom du boss) */
+      #hud:has(#bossbar:not([hidden])) #goalChip {
+        top: calc(env(safe-area-inset-top, 0px) + 118px);
+      }
+      @media (max-width: 480px) {
+        #hud:has(#bossbar:not([hidden])) #goalChip {
+          top: calc(env(safe-area-inset-top, 0px) + 108px);
+        }
+      }
       .hright {
         display: flex;
         justify-content: flex-end;
@@ -2376,6 +2385,24 @@
         </p>
         <p class="mapexplored" id="mapExplored"></p>
         <div class="btnrow"><button class="big" id="mapClose" data-i18n="map.close">Fermer</button></div>
+      </div>
+    </section>
+
+    <!-- phase 39 : victoire au monde 3, puis monde infini au choix (clavier : 1 ou Entrée continuer, 2 ou Échap terminer) -->
+    <section id="victory" class="screen" hidden>
+      <div class="panel">
+        <h2 class="h2 win" data-i18n="victory.title">Victoire !</h2>
+        <div class="stats">
+          <div><b id="vTime">0:00</b><span data-i18n="over.time">Temps</span></div>
+          <div><b id="vKills">0</b><span data-i18n="over.kills">Vaincus</span></div>
+        </div>
+        <p class="note" data-i18n="victory.text">
+          Les trois mondes sont tombés. Tu peux rester : des boss arrivent toutes les 2:30, de plus en plus nombreux.
+        </p>
+        <div class="btnrow">
+          <button class="big" id="vContinue" data-i18n="victory.continue">Continuer (monde infini)</button>
+        </div>
+        <div class="btnrow"><button class="ghost" id="vEnd" data-i18n="victory.end">Terminer</button></div>
       </div>
     </section>
 

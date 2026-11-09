@@ -207,6 +207,8 @@ export const enum Ev {
   PortalOpen, // phase 37 : boss du totem tué à temps, portail en (x,z), v = monde suivant (1..)
   StageStart, // phase 37 : arrivée dans un nouveau monde (nouvelle carte), v = monde (1..)
   TimeUp, // phase 37 : fin du chrono du monde, v = monde (1..), x2 = 1 si le portail est ouvert
+  EndlessStart, // phase 39 : le joueur continue en monde infini
+  EndlessWave, // phase 39 : vague de boss du monde infini, v = numéro (1..), x2 = nombre de boss
 }
 
 export interface GameEvent {

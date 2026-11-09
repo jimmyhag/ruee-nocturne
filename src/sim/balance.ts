@@ -217,6 +217,16 @@ export const STAGE = {
   },
 };
 
+// phase 39 (demande de Jimmy) : monde infini après la victoire. On reste sur la carte du monde 3 ; la difficulté continue de
+// monter doucement (diffT, pas de prolongation) et des boss arrivent toutes les `period` s : 1, 1, 2, 2, 3, 3… (maxBosses
+// au plus), types tournant parmi STAGE.bosses, PV ×(1 + hpPerWave · vague) en plus de la règle des boss du totem
+export const ENDLESS = {
+  period: 150, // s : 2:30 (choix de Jimmy)
+  maxBosses: 4,
+  hpPerWave: 0.25,
+  dist: 12, // u du joueur, répartis en cercle
+};
+
 // zones de terrain (PLAN §3.4) : lacs qui ralentissent, bois denses qui canalisent
 export const ZONES = {
   lakes: 3,
