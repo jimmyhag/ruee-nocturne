@@ -41,8 +41,15 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 - Montée de niveau = pause + 3 choix + reprise immédiate. Le choix doit être **un vrai dilemme** (jamais 3 cartes de stats pures).
 - Vague d'encerclement chaque minute : un pic de tension lisible (bannière, son, changement de densité).
 
-### 2.3 Boucle run (15–20 min) — « ma build prend forme »
-- Arc fixe : boss à 5:00, 10:00, 15:00 ; **Faucheur** à 20:00 (fin de run forcée, mort héroïque ou victoire si tué).
+### 2.3 Boucle run (15–20 min ; phase 37 : trois mondes de 10 min) — « ma build prend forme »
+- ~~Arc fixe : boss à 5:00, 10:00, 15:00 ; **Faucheur** à 20:00 (fin de run forcée, mort héroïque ou victoire si tué).~~
+- **Phase 37 (Jimmy) : trois mondes**, chacun avec sa carte, son ambiance et un chrono de 10 min (`STAGE`, `src/sim/stages.ts`).
+  - Un **totem** (losange rouge sur la minicarte, colonne de lumière rouge) s'active en restant 3 s dans son cercle tant que le chrono tourne. Il appelle le boss du monde : Gardien, Essaim-mère, puis Colosse.
+  - Le boss tué avant 0:00 ouvre un **portail**. Rester 1 s dedans mène au monde suivant : nouvelle carte, build gardée. On peut aussi rester pour farmer.
+  - À 0:00, la **prolongation** commence. Les monstres se renforcent de minute en minute : apparitions, PV, dégâts, vitesse plafonnée. C'est jouable au début, mortel vers +3 à +4 min.
+  - Un boss encore vivant (ou jamais appelé) à 0:00 ferme le passage.
+  - Le boss du monde 3 tué à temps donne la victoire. Le **boss final** viendra dans une phase suivante.
+  - Plus de boss à heure fixe ni de Faucheur. La difficulté suit le temps du monde décalé : `diffT = chrono + STAGE.offset`, donc chaque monde repart un peu plus bas qu'il ne finissait.
 - Les armes **évoluent** (arme niveau max + passif associé → arme évoluée, visuellement spectaculaire). C'est le moment « wow » qui fait rester.
 - Coffres lâchés par les élites : un **objet passif** au choix parmi 3 (deux pour un coffre de boss), §3.6. Un marchand passe quatre fois par run et vend d'autres objets contre l'or de la partie ; les synergies tome + arme donnent un objectif de build (phase 17).
 
@@ -99,10 +106,10 @@ Dégâts (dégâts, élites et boss, recul, dégâts critiques) · Cadence (rech
 | **Archer** (phase 16, dès 1:30) | Garde 10–13 u, flèche rapide en ligne droite arrêtée par les obstacles ; l'élite tire une volée de trois | Ligne de visée fine 0,5 s, direction figée : un pas de côté, un dash ou un muret |
 | **Sorcier** (phase 16, dès 4:00) | Garde 12–15 u, boule de feu en cloche qui retombe là où était le joueur (passe au-dessus des murs) | Cercle rouge qui se remplit pendant le vol (1,1 s) |
 | Élite | Variante dorée d'un type de masse ou de l'Archer, ×6 PV, lâche un coffre | Aura dorée |
-| **Gardien** (5:00) | Boss charge en ligne ; **onde de choc** toutes les 6 s (3 s en phase 2) qui s'étend à 9 u/s jusqu'à 14 u : se saute (phase 11) | Recul + rugissement ; anneau rouge qui grandit |
-| **Essaim-mère** (10:00) | Boss qui pond des Dards | Pulsation |
-| **Colosse** (15:00) | Boss zones au sol | Cercles rouges 1 s |
-| **Faucheur** (20:00) | Fin de run, quasi-invincible | Musique coupée |
+| **Gardien** (totem du monde 1 ; 5:00 avant la phase 37) | Boss charge en ligne ; **onde de choc** toutes les 6 s (3 s en phase 2) qui s'étend à 9 u/s jusqu'à 14 u : se saute (phase 11) | Recul + rugissement ; anneau rouge qui grandit |
+| **Essaim-mère** (totem du monde 2) | Boss qui pond des Dards | Pulsation |
+| **Colosse** (totem du monde 3) | Boss zones au sol | Cercles rouges 1 s |
+| **Faucheur** (20:00 jusqu'à la phase 37 ; gardé pour le boss final) | Fin de run, quasi-invincible | Musique coupée |
 | **Éruptions** (dès 2:30, phase 11) | Le sol : une fissure suit le joueur (7 u/s, plus vite qu'il ne marche) pendant 0,8 s puis un pic blesse et projette qui est **au sol** ; toutes les 9 s, 4 s à 15:00 | Cercle rouge qui se remplit, sous les pieds |
 
 ### 3.4 Terrain
