@@ -218,6 +218,24 @@ export class MapView {
       ctx.arc(this.X(p.x), this.Z(p.z), r * 1.1, 0, Math.PI * 2);
       ctx.fill();
     }
+    // phase 37 : totem du monde (losange rouge, toujours visible : c'est l'objectif), portail ouvert en cyan
+    const T = w.totem;
+    if (T.state !== 3 || w.portal.open) {
+      const x = this.X(T.x),
+        z = this.Z(T.z),
+        a = r * 2.2;
+      ctx.fillStyle = w.portal.open ? '#5fd3ff' : T.state === 1 ? '#ff8a5e' : '#ff4d5e';
+      ctx.strokeStyle = '#0c0f1a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, z - a);
+      ctx.lineTo(x + a, z);
+      ctx.lineTo(x, z + a);
+      ctx.lineTo(x - a, z);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
     ctx.fillStyle = '#ff4d5e';
     for (let i = 0; i < w.enemyCount; i++) {
       const e = w.enemies[i];

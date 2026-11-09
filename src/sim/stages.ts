@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { CAPS, HAZARDS, POWER, SPAWN, STAGE } from './balance';
+import { CAPS, ENEMIES, HAZARDS, POWER, SPAWN, STAGE } from './balance';
 import { spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
@@ -78,6 +78,8 @@ export function summonStageBoss(w: World): void {
   if (i < 0) return;
   const a = Math.atan2(T.x - P.x, T.z - P.z);
   const e = w.enemies[i];
+  // PV fixés par monde (STAGE.bossHpAt), pas à l'heure de l'appel ; renfort de prolongation compris
+  e.hp = e.max = ENEMIES[type].hp * SPAWN.hpScale(STAGE.bossHpAt[w.stage]) * w.overHp * (1 + w.bossCount * 0.8);
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;

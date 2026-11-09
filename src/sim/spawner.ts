@@ -1,4 +1,4 @@
-import { ARCHER, ARCHER_TYPE, BOSS_TYPE, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, ARCHER_TYPE, BOSS_TYPE, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -59,7 +59,7 @@ export function tickSpawner(w: World, dt: number): void {
   const t = w.diffT,
     st = w.stageT,
     now = w.t;
-  let rate = SPAWN.rate(t) * w.overRate;
+  let rate = SPAWN.rate(t) * w.overRate * (w.bossIndex >= 0 ? STAGE.bossRate : 1);
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
   if (w.boredomUntil > now) rate *= SPAWN.boredomMul;

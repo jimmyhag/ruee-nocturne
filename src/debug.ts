@@ -3,7 +3,8 @@
 import type { GameScene } from './render/scene';
 import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STEP, WEAPON_LINES } from './sim/balance';
 import { dropPower } from './sim/powers';
-import { dropChest } from './sim/combat';
+import { dropChest, hitEnemy } from './sim/combat';
+import { nextStage } from './sim/stages';
 import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
 import { refreshStats } from './sim/weapons/defs';
@@ -28,6 +29,8 @@ export interface DebugHost {
   readonly mapSeed: number;
   /** À appeler après un saut dans la sim : resynchronise le HUD et l'écran de niveau. */
   afterSimJump(): void;
+  /** Phase 37 : un monde a été changé hors d'un pas de jeu (décor, ambiance, bannière). */
+  afterStage(): void;
   audioVoices(): number;
   /** Phase 36 : état du son (planche décodée, musique en cours, gains des bus). */
   audioState(): { samples: boolean; music: string; sfx: number; musicGain: number };
@@ -129,6 +132,23 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       world.player.x = world.player.px = x;
       world.player.z = world.player.pz = z;
       host.scene?.snapCamera(world);
+    },
+    /** Phase 37 : met le chrono du monde à `s` secondes (avant la fin : 590 ; prolongation : 600 + n). */
+    stageTime(s: number): void {
+      const world = w();
+      if (world) world.stageT = s;
+    },
+    /** Phase 37 : tue le boss du monde (portail si le chrono tourne, victoire au monde 3). */
+    killBoss(): void {
+      const world = w();
+      if (world && world.bossIndex >= 0) hitEnemy(world, world.bossIndex, 1e12, 0, 0, 0);
+    },
+    /** Phase 37 : passe directement au monde suivant (captures des ambiances), comme par le portail. */
+    nextStage(): void {
+      const world = w();
+      if (!world || world.stage >= 2) return;
+      nextStage(world);
+      host.afterStage();
     },
     /** Pose un coffre sous le joueur (phase 17 : un objet à choisir ; boss : deux). */
     chest(boss = false): void {

@@ -176,15 +176,20 @@ export const STAGE = {
   dur: 600, // s : chrono d'un monde (choix de Jimmy)
   // temps de difficulté au départ de chaque monde (diffT = temps du monde + offset) : chaque monde repart un peu plus bas
   // qu'il ne finissait (respiration à l'arrivée) et monte plus haut que le précédent ; le monde 3 finit au niveau de
-  // l'ancienne fin de partie (20:00)
-  offset: [0, 330, 600],
+  // l'ancienne 17:00 (mesuré : [0, 330, 600], le monde 3 allait jusqu'à l'ancien 20:00 et personne n'en sortait)
+  offset: [0, 300, 540],
   bosses: [3, 6, 7], // Gardien, Essaim-mère, Colosse (types ; BOSSES dans l'ordre)
+  // PV du boss du monde : ceux des anciens boss à 5:00, 10:00, 15:00 (hpScale à ce temps), quelle que soit l'heure
+  // d'activation. Farmer plus longtemps rend donc le boss relativement plus facile ; le risque, c'est le chrono.
+  // Mesuré : PV au temps de l'appel (8:00 → ×1,6), 32 % des runs maxés mouraient au boss du monde 1
+  bossHpAt: [300, 540, 600],
   totemR: 3, // cercle du totem
   totemCharge: 3, // s à rester dedans pour l'activer
   totemDecay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
   totemFrom: [45, 75], // u du départ : loin, mais à une minute de marche
   totemPad: 5, // u libres autour (le combat de boss s'y joue)
   bossDist: 9, // u : le boss sort de terre à côté du totem
+  bossRate: 0.6, // apparitions ×0,6 tant que le boss du monde est en vie (le combat se joue contre lui, pas la horde)
   warnLeft: 60, // s restantes : rappel si le totem n'est pas activé
   portalR: 2.4,
   portalHold: 1, // s dedans pour passer (une traversée par mégarde ne compte pas)

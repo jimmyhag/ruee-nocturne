@@ -117,6 +117,18 @@ describe('sauvegarde', () => {
   });
 });
 
+describe('mondes (phase 37)', () => {
+  it('meilleur monde atteint : 0 par défaut, gardé par l’export, borné à 0..4', () => {
+    const m = fresh();
+    expect(m.stats.bestStage).toBe(0);
+    m.stats.bestStage = 3;
+    expect(importMeta(exportMeta(m))!.stats.bestStage).toBe(3);
+    expect(normalizeMeta({ ...m, stats: { ...m.stats, bestStage: 9 } }).stats.bestStage).toBe(4);
+    expect(normalizeMeta({ ...m, stats: { ...m.stats, bestStage: -2 } }).stats.bestStage).toBe(0);
+    expect(normalizeMeta({ ...m, stats: { ...m.stats, bestStage: 'x' } }).stats.bestStage).toBe(0);
+  });
+});
+
 describe('succès', () => {
   it('17 succès (phase 28), identifiants uniques, « survie3 » débloque le défi du jour au premier run de 3 min', () => {
     expect(ACHIEVEMENTS.length).toBe(17);

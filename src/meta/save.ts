@@ -25,6 +25,7 @@ export interface MetaStats {
   slideDist: number; // u glissés, cumulés
   tricksBest: number; // vrilles réussies en un run (meilleur)
   mapChests: number; // coffres de carte ouverts, cumulés
+  bestStage: number; // phase 37 : meilleur monde atteint (1..3 ; 4 = les trois mondes terminés)
 }
 export interface MetaSettings {
   vibrate: boolean;
@@ -88,6 +89,7 @@ export const DEFAULT_META: Meta = {
     slideDist: 0,
     tricksBest: 0,
     mapChests: 0,
+    bestStage: 0,
   },
   achievements: [],
   bought: [],
@@ -209,6 +211,7 @@ export function normalizeMeta(raw: unknown): Meta {
       slideDist: Math.max(0, num(st.slideDist)),
       tricksBest: Math.max(0, num(st.tricksBest) | 0),
       mapChests: Math.max(0, num(st.mapChests) | 0),
+      bestStage: Math.max(0, Math.min(4, num(st.bestStage) | 0)),
     },
     achievements: Array.isArray(r.achievements)
       ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))

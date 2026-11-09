@@ -2,6 +2,7 @@ import { ENEMIES, ITEM_KEYS, ITEM_RARITY, MAPCHEST, POWER, POWER_KEYS, SHRINE, S
 import { PAL } from '../render/palette';
 import { canGainItem } from '../sim/items';
 import { mapChestPrice } from '../sim/poi';
+import { stageLeft } from '../sim/stages';
 import { spellCooldown } from '../sim/spells';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
@@ -33,8 +34,11 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 export type FlashKind = 'hurt' | 'gold';
 
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
+/** Phase 37 : textes de la puce d'objectif, par sorte (1 totem, 2 boss, 3 portail, 4 fermé). */
+const GOAL_KEYS = ['', 'goal.totem', 'goal.boss', 'goal.portal', 'goal.locked'];
+
 export class Hud {
-  private cache: Record<string, string | number | boolean> = {};
+  private cache: Record<string, string | number | boolean | undefined> = {};
   /** Noms de boss précalculés dans la langue courante : aucune chaîne construite par frame. */
   private bossNames: string[] = [];
   private els = {
@@ -53,6 +57,12 @@ export class Hud {
     bossname: $('bossname'),
     bossfill: $('bossfill'),
     kit: $('kit'),
+    timeBox: $('timeBox'),
+    stageLbl: $('stageLbl'),
+    goalChip: $('goalChip'),
+    goalArrow: $('goalArrow'),
+    goalText: $('goalText'),
+    goalDist: $('goalDist'),
     merchantChip: $('merchantChip'),
     merchantArrow: $('merchantArrow'),
     merchantDist: $('merchantDist'),
@@ -130,6 +140,39 @@ export class Hud {
       this.els[k].textContent = v;
     }
   }
+  /**
+   * Phase 37 : puce d'objectif du monde, sous le chrono. Totem à activer ou portail ouvert : flèche et distance ;
+   * boss appelé : « Tue le boss » ; chrono écoulé sans passage : le message d'alerte. Chaînes construites au changement.
+   */
+  private goal(w: World): void {
+    const T = w.totem,
+      P = w.player;
+    // 0 rien, 1 totem, 2 boss, 3 portail, 4 fermé
+    const kind = w.portal.open ? 3 : T.state === 0 ? 1 : T.state === 1 ? 2 : T.state === 3 ? 4 : 0;
+    if (this.cache.goal !== kind) {
+      this.cache.goal = kind;
+      this.cache.gDeg = this.cache.gDist = undefined;
+      const el = this.els.goalChip;
+      el.hidden = kind === 0;
+      el.className = 'goal g' + kind;
+      this.els.goalText.textContent = kind === 0 ? '' : t(GOAL_KEYS[kind]);
+      this.els.goalArrow.hidden = kind !== 1 && kind !== 3;
+      this.els.goalDist.hidden = kind !== 1 && kind !== 3;
+    }
+    if (kind !== 1 && kind !== 3) return;
+    const dx = T.x - P.x,
+      dz = T.z - P.z,
+      deg = Math.round((Math.atan2(dx, -dz) * 180) / Math.PI / 5) * 5,
+      d = Math.round(Math.sqrt(dx * dx + dz * dz));
+    if (this.cache.gDeg !== deg) {
+      this.cache.gDeg = deg;
+      this.els.goalArrow.style.transform = `rotate(${deg}deg)`;
+    }
+    if (this.cache.gDist !== d) {
+      this.cache.gDist = d;
+      this.els.goalDist.textContent = d + ' m';
+    }
+  }
   private width(k: keyof typeof this.els, f: number): void {
     const v = Math.round(Math.max(0, Math.min(1, f)) * 200) / 2 + '%';
     if (this.cache[k] !== v) {
@@ -166,7 +209,7 @@ export class Hud {
       }
       // la chaîne n'est construite que si la distance ou les secondes changent (zéro allocation par frame)
       const md = Math.round(Math.sqrt(dx * dx + dz * dz)),
-        ms = Math.ceil(M.until - w.t);
+        ms = Math.ceil(M.until - w.stageT); // phase 37 : le marchand suit le chrono du monde
       if (this.cache.mDist !== md || this.cache.mSecs !== ms) {
         this.cache.mDist = md;
         this.cache.mSecs = ms;
@@ -246,7 +289,22 @@ export class Hud {
     this.width('hpghost', P.hp / P.maxHp);
     this.text('hptxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
     this.text('lvl', String(P.level));
-    this.text('time', fmtTime(w.t));
+    // phase 37 : « Monde 2 », chrono qui descend ; après 0:00, le dépassement en rouge (+0:45)
+    if (this.cache.stage !== w.stage) {
+      this.cache.stage = w.stage;
+      this.els.stageLbl.textContent = t('hud.stage', { n: w.stage + 1 });
+    }
+    const over = w.overT > 0;
+    if (this.cache.over !== over) {
+      this.cache.over = over;
+      this.els.timeBox.classList.toggle('over', over);
+    }
+    const secs = over ? Math.floor(w.overT) : Math.ceil(stageLeft(w));
+    if (this.cache.secs !== secs) {
+      this.cache.secs = secs;
+      this.els.time.textContent = over ? '+' + fmtTime(secs) : fmtTime(secs);
+    }
+    this.goal(w);
     this.text('kills', String(w.kills));
     // or de la partie : la chaîne n'est construite que quand le montant affiché change ; petit « pop » à chaque gain
     const gold = Math.floor(w.gold);
