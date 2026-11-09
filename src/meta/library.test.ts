@@ -1,12 +1,21 @@
 // Bibliothèque (phase 40) : déblocage par succès puis achat à l'or, retrait du tirage, migration des anciennes
 // sauvegardes, compteurs, et objets bannis réellement absents des tirages de la sim.
 import { describe, expect, it } from 'vitest';
-import { ITEM_KEYS, UNLOCK } from '../sim/balance';
+import { ITEM_KEYS, ITEM_RARITY, UNLOCK } from '../sim/balance';
 import { rollItemChoices } from '../sim/items';
 import type { Card, ItemKey } from '../sim/types';
 import { World } from '../sim/world';
 import { ACHIEVEMENTS, UNLOCKABLE, checkAchievements, unlockedWeapons } from './achievements';
-import { activeItems, bannedItems, buyUnlock, entryState, recordCodex, toggleItem, unlockPrice } from './library';
+import {
+  activeItems,
+  bannedItems,
+  buyUnlock,
+  entryState,
+  mandatory,
+  recordCodex,
+  toggleItem,
+  unlockPrice,
+} from './library';
 import { DEFAULT_META, normalizeMeta } from './save';
 import { worldOptions } from './shop';
 import { withProgress } from './sync';
@@ -46,15 +55,18 @@ describe('Bibliothèque (phase 40)', () => {
     expect(unlockPrice('w', 'faux')).toBe(UNLOCK.weapon);
   });
 
-  it('retirer du tirage : seulement un objet possédé, jamais sous le minimum ; le remettre est toujours permis', () => {
+  it('retirer du tirage : seulement un rare ou un épique possédé ; les communs restent toujours (retour de Jimmy)', () => {
     const m = fresh();
     expect(toggleItem(m, 'phenix')).toBe(false); // verrouillé
+    expect(toggleItem(m, 'lanterne')).toBe(false); // commun : obligatoire
+    expect(mandatory('lanterne')).toBe(true);
     const owned = ITEM_KEYS.filter((k) => entryState(m, 'i', k) === 'owned');
     let off = 0;
     for (const k of owned) if (toggleItem(m, k)) off++;
-    expect(off).toBe(owned.length - UNLOCK.minActive);
-    expect(activeItems(m)).toBe(UNLOCK.minActive);
-    expect(bannedItems(m).length).toBe(ITEM_KEYS.length - UNLOCK.minActive);
+    const commons = owned.filter((k) => ITEM_RARITY[ITEM_KEYS.indexOf(k)] === 0).length;
+    expect(commons).toBe(14);
+    expect(off).toBe(owned.length - commons);
+    expect(activeItems(m)).toBe(commons);
     const back = m.itemsOff[0];
     expect(toggleItem(m, back)).toBe(true);
     expect(m.itemsOff).not.toContain(back);
@@ -62,8 +74,8 @@ describe('Bibliothèque (phase 40)', () => {
 
   it('options de monde : objets bannis transmis ; le défi du jour garde tout', () => {
     const m = fresh();
-    m.itemsOff.push('lanterne');
-    expect(worldOptions(m, unlockedWeapons(m)).bannedItems).toContain('lanterne');
+    m.itemsOff.push('cape');
+    expect(worldOptions(m, unlockedWeapons(m)).bannedItems).toContain('cape');
     expect(worldOptions(m, unlockedWeapons(m)).bannedItems).toContain('phenix');
     expect(worldOptions(m, unlockedWeapons(m), true).bannedItems).toBeUndefined();
   });
@@ -104,11 +116,11 @@ describe('Bibliothèque (phase 40)', () => {
     const m = normalizeMeta({
       version: 5,
       unlocks: ['i:phenix', 'i:dragon', 'w:orbe', 'w:faux', 12, 'i:phenix'],
-      itemsOff: ['lanterne', 'lanterne', 'dragon', 3],
+      itemsOff: ['cape', 'cape', 'lanterne', 'dragon', 3],
       codex: { 'w:orbe': 4.7, 'i:croc': -2, 'x:y': 9, 'i:BAD': 1, 't:degats': 1e12 },
     });
     expect(m.unlocks).toEqual(['i:phenix', 'w:faux']);
-    expect(m.itemsOff).toEqual(['lanterne']);
+    expect(m.itemsOff).toEqual(['cape']); // un commun ne peut pas être retiré
     expect(m.codex).toEqual({ 'w:orbe': 4, 't:degats': UNLOCK.codexMax });
     expect([...UNLOCKABLE.keys()].length).toBe(17); // 12 objets + 5 armes
   });

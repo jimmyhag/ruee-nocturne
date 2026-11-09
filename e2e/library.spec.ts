@@ -55,28 +55,30 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
   }
   await expect(page.locator('#libGold')).toHaveText(/1\D?000 or/);
   await expect(page.locator('#libList [data-toggle="phenix"]')).toBeVisible();
-  // retirer la Lanterne du tirage
-  const tog = page.locator('#libList [data-toggle="lanterne"]');
+  // un commun reste toujours dans le tirage ; retirer la Cape (rare)
+  await expect(page.locator('#libList [data-toggle="lanterne"]')).toHaveCount(0);
+  const tog = page.locator('#libList [data-toggle="cape"]');
   if (hasTouch) await tog.tap();
   else {
     await tog.focus();
     await page.keyboard.press('Enter');
   }
-  await expect(page.locator('#libList [data-toggle="lanterne"]')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#libList .note')).toContainText('20 objets'); // +Phénix −Lanterne
+  await expect(page.locator('#libList [data-toggle="cape"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#libList .note')).toContainText('20 objets'); // +Phénix −Cape
   const meta = await page.evaluate(() => (window as any).__game.meta);
   expect(meta.unlocks).toContain('i:phenix');
-  expect(meta.itemsOff).toEqual(['lanterne']);
+  expect(meta.itemsOff).toEqual(['cape']);
 
   // Échap ferme au clavier ; le bouton × au doigt
   if (hasTouch) await page.locator('#libBackBtn').tap();
   else await page.keyboard.press('Escape');
   await expect(page.locator('#library')).toBeHidden();
 
-  // la partie : Lanterne et objets verrouillés hors tirage, Phénix dedans
+  // la partie : Cape et objets verrouillés hors tirage, Phénix et Lanterne dedans
   await page.evaluate(() => (window as any).__game.start(1));
   await page.waitForFunction(() => (window as any).__game.app === 'play');
-  expect(await ITEM(page, 'lanterne')).toBe(1);
+  expect(await ITEM(page, 'cape')).toBe(1);
+  expect(await ITEM(page, 'lanterne')).toBe(0);
   expect(await ITEM(page, 'couronne')).toBe(1);
   expect(await ITEM(page, 'phenix')).toBe(0);
   expect(errors).toEqual([]);
@@ -91,7 +93,7 @@ test('défi du jour : aucun objet hors tirage', async ({ page }) => {
       runs: 2,
       achievements: ['survie3'],
       stats: { bestTime: 200 },
-      itemsOff: ['lanterne'],
+      itemsOff: ['cape'],
     }),
   );
   await page.locator('#dailyBtn').click();

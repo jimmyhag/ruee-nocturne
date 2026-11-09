@@ -2,7 +2,16 @@
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { cleanPseudo } from './board';
 import { get, set } from 'idb-keyval';
-import { CHARACTERS, ITEM_KEYS, MAX_PASSIVES, MAX_WEAPONS, REROLL_SHOP, SLOTS_START, UNLOCK } from '../sim/balance';
+import {
+  CHARACTERS,
+  ITEM_KEYS,
+  ITEM_RARITY,
+  MAX_PASSIVES,
+  MAX_WEAPONS,
+  REROLL_SHOP,
+  SLOTS_START,
+  UNLOCK,
+} from '../sim/balance';
 import { ACHIEVEMENTS, ACHIEVEMENT_IDS, UNLOCKABLE } from './achievements';
 import type { CharacterKey, ItemKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -244,7 +253,13 @@ export function normalizeMeta(raw: unknown): Meta {
     },
     unlocks: normalizeUnlocks(r, runs, achievements),
     itemsOff: Array.isArray(r.itemsOff)
-      ? [...new Set(r.itemsOff.filter((k): k is ItemKey => ITEM_KEYS.includes(k as ItemKey)))]
+      ? [
+          ...new Set(
+            r.itemsOff.filter(
+              (k): k is ItemKey => ITEM_KEYS.includes(k as ItemKey) && ITEM_RARITY[ITEM_KEYS.indexOf(k as ItemKey)] > 0,
+            ),
+          ),
+        ]
       : [],
     codex: normalizeCodex(r.codex),
     pseudo: cleanPseudo(r.pseudo),

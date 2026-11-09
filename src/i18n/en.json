@@ -627,6 +627,7 @@
   "lib.runs_one": "Taken in {n} run",
   "lib.runs_other": "Taken in {n} runs",
   "lib.never": "Never found",
-  "lib.pool": "{n} items in the pool (at least {min})",
-  "lib.recipe": "{tome} + {weapon}"
+  "lib.pool": "{n} items in the pool. Common items always stay; you can remove rare and epic ones.",
+  "lib.recipe": "{tome} + {weapon}",
+  "lib.always": "Always in the pool"
 }

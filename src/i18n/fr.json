@@ -627,6 +627,7 @@
   "lib.runs_one": "Pris dans {n} partie",
   "lib.runs_other": "Pris dans {n} parties",
   "lib.never": "Jamais obtenu",
-  "lib.pool": "{n} objets dans le tirage (au moins {min})",
-  "lib.recipe": "{tome} + {weapon}"
+  "lib.pool": "{n} objets dans le tirage. Les communs y restent toujours ; tu peux retirer les rares et les épiques.",
+  "lib.recipe": "{tome} + {weapon}",
+  "lib.always": "Toujours dans le tirage"
 }

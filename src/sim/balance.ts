@@ -813,8 +813,9 @@ type CharacterKeyDef =
 export const OUTFIT = { price: 400 };
 // phase 40 : Bibliothèque. Une arme ou un objet verrouillé se débloque par un succès, puis s'achète (prix par rareté
 // pour les objets : commun, rare, épique) ; ≈ 1–2 runs d'or au moment où le succès tombe, comme les emplacements.
-// minActive : objets qu'on ne peut pas retirer du tirage en dessous (les coffres doivent rester variés).
-export const UNLOCK = { item: [600, 1500, 4000], weapon: 2500, minActive: 12, codexMax: 1e6 };
+// Retirer du tirage (retour de Jimmy : « pas tous, il faut des objets obligatoires ») : seuls les rares et les épiques ;
+// les communs restent toujours dans le tirage (14 possédés au départ, les coffres restent variés).
+export const UNLOCK = { item: [600, 1500, 4000], weapon: 2500, codexMax: 1e6 };
 
 export const CHARACTERS: CharacterDef[] = [
   // l'Éclaireuse est exactement le joueur de la phase 3 (6,2 u/s, dash 0,2 s) : la porte de phase 3 reste mesurée telle quelle

@@ -91,7 +91,7 @@ test('migration : une sauvegarde avec des paliers de boutique récupère son or,
     (window as any).__game.setMeta({ version: 3, gold: 40, shops: { eclaireuse: [1], bucheron: [0, 2] } }),
   );
   let meta = await page.evaluate(() => (window as any).__game.meta);
-  expect(meta.version).toBe(4);
+  expect(meta.version).toBe(5); // phase 40 : Bibliothèque
   expect(meta.gold).toBe(40 + 200 + 200 + 260);
   expect(meta.shops).toBeUndefined();
   await page.locator('#shopBtn').click();

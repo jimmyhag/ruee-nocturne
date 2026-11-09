@@ -1,9 +1,10 @@
 // Bibliothèque (phase 40) : toutes les armes, objets, tomes et synergies, avec ce qu'on possède et ce qu'on peut
 // débloquer (succès, puis achat à l'or). Rendu à l'ouverture et après chaque action (jamais par frame) : innerHTML.
-import { ITEM_KEYS, ITEM_RARITY, SYNERGIES, TOME_KEYS, UNLOCK } from '../sim/balance';
+import { ITEM_KEYS, ITEM_RARITY, SYNERGIES, TOME_KEYS } from '../sim/balance';
+import type { ItemKey } from '../sim/types';
 import { WEAPON_KEYS } from '../sim/weapons/defs';
 import { progress } from '../meta/achievements';
-import { activeItems, entryState, unlockAch, unlockPrice } from '../meta/library';
+import { activeItems, entryState, mandatory, unlockAch, unlockPrice } from '../meta/library';
 import type { EntryState, LibKind } from '../meta/library';
 import type { Meta } from '../meta/save';
 import { t } from '../i18n';
@@ -48,7 +49,8 @@ function lockable(m: Meta, kind: LibKind, key: string, ico: string, name: string
     body = `<button class="ghost buy" data-unlock="${kind}:${key}" ${st === 'buyable' ? '' : 'disabled'}>${esc(t('lib.buy', { n: unlockPrice(kind, key) }))}</button>`;
   } else {
     body = seen(m, `${kind}:${key}`);
-    if (kind === 'i')
+    if (kind === 'i' && mandatory(key as ItemKey)) body += `<p class="seen">${esc(t('lib.always'))}</p>`;
+    else if (kind === 'i')
       body += `<button class="ghost toggle" data-toggle="${key}" aria-pressed="${off ? 'false' : 'true'}">${esc(off ? t('lib.putBack') : t('lib.remove'))}</button>`;
   }
   return `<div class="ach lib ${off ? 'off' : st}"><div class="achtop"><b>${ico}${esc(name)}${badge}</b><span>${esc(label)}</span></div>
@@ -77,7 +79,7 @@ export function renderLibrary(tabs: HTMLElement, list: HTMLElement, m: Meta, tab
   if (tab === 'w')
     for (const k of WEAPON_KEYS) html += lockable(m, 'w', k, WEAPON_ICON[k], weaponName(k), t(`weapon.${k}.text`), 0);
   else if (tab === 'i') {
-    html += `<p class="note">${esc(t('lib.pool', { n: activeItems(m), min: UNLOCK.minActive }))}</p>`;
+    html += `<p class="note">${esc(t('lib.pool', { n: activeItems(m) }))}</p>`;
     // possédés d'abord, puis à acheter, puis à débloquer ; ordre du jeu à l'intérieur
     const order: Record<EntryState, number> = { owned: 0, buyable: 1, poor: 1, locked: 2 };
     const keys = [...ITEM_KEYS].sort((a, b) => order[entryState(m, 'i', a)] - order[entryState(m, 'i', b)]);

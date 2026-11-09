@@ -46,18 +46,19 @@ export function activeItems(m: Meta): number {
   return n;
 }
 
-/**
- * Retire un objet possédé du tirage, ou l'y remet. Refusé (false) s'il n'est pas possédé, ou s'il ne resterait que
- * UNLOCK.minActive objets dans le tirage.
- */
+/** Objet commun : toujours dans le tirage, on ne peut pas le retirer (retour de Jimmy). */
+export function mandatory(key: ItemKey): boolean {
+  return ITEM_RARITY[ITEM_KEYS.indexOf(key)] === 0;
+}
+
+/** Retire un objet rare ou épique possédé du tirage, ou l'y remet. Refusé (false) s'il n'est pas possédé ou s'il est commun. */
 export function toggleItem(m: Meta, key: ItemKey): boolean {
-  if (entryState(m, 'i', key) !== 'owned') return false;
+  if (entryState(m, 'i', key) !== 'owned' || mandatory(key)) return false;
   const at = m.itemsOff.indexOf(key);
   if (at >= 0) {
     m.itemsOff.splice(at, 1);
     return true;
   }
-  if (activeItems(m) <= UNLOCK.minActive) return false;
   m.itemsOff.push(key);
   return true;
 }
