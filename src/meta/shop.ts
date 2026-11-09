@@ -22,8 +22,12 @@ export function buyCharacter(m: Meta, key: CharacterKey): boolean {
 
 /** Tenue choisie pour un personnage : 0 (classique) tant que l'alternative n'est pas achetée. */
 export function outfitOf(m: Meta, key: CharacterKey): number {
-  return m.outfits.includes(key) ? (m.outfit[key] ?? 0) : 0;
+  const o = m.outfit[key] ?? 0;
+  if (o === 2) return masterOutfit(m, key) ? 2 : 0; // phase 41 : tenue de maître (défi III)
+  return o === 1 && m.outfits.includes(key) ? 1 : 0;
 }
+/** Phase 41 : la tenue de maître est à toi quand le défi III du personnage est obtenu. */
+export const masterOutfit = (m: Meta, key: CharacterKey): boolean => m.achievements.includes(`c_${key}_3`);
 
 /** Achète la tenue alternative d'un personnage si l'or suffit, et la choisit. Retourne true si l'achat a eu lieu. */
 export function buyOutfit(m: Meta, key: CharacterKey): boolean {

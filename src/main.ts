@@ -52,8 +52,18 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './meta/achievements';
-import { buyCharacter, buyOutfit, buyReroll, buySlot, nextSlot, outfitOf, worldOptions } from './meta/shop';
+import {
+  buyCharacter,
+  buyOutfit,
+  buyReroll,
+  buySlot,
+  masterOutfit,
+  nextSlot,
+  outfitOf,
+  worldOptions,
+} from './meta/shop';
 import { buyUnlock, recordCodex, toggleItem } from './meta/library';
+import { addCharRun, runCharStats } from './meta/chars';
 import type { LibKind } from './meta/library';
 import { LIB_TABS, renderLibrary } from './ui/library';
 import type { LibTab } from './ui/library';
@@ -657,7 +667,7 @@ function renderOverScreen(): void {
         list: o.fresh.map((a) => achName(a) + (a.unlocks ? ` (${achUnlock(a)})` : '')).join(', '),
       })
     : '';
-  renderProgress($('oProgress'), meta, 3);
+  renderProgress($('oProgress'), meta, 3, dailyRun ? 'eclaireuse' : meta.character); // phase 41 : défis du personnage joué
   $('oTime').textContent = fmtTime(world.t);
   $('oStage').textContent = world.endless // phase 39 : monde infini
     ? t('over.endless', { time: fmtTime(world.endlessT), n: world.endlessWave })
@@ -723,6 +733,8 @@ function gameOver(won = false): void {
   st.bestStage = Math.max(st.bestStage, won ? 4 : world.stage + 1); // phase 37
   if (world.endless) st.endlessBest = Math.max(st.endlessBest, Math.floor(world.endlessT)); // phase 39
   recordCodex(meta, world); // phase 40 : parties avec chaque arme, objet, tome, synergie (Bibliothèque)
+  const played = dailyRun ? 'eclaireuse' : meta.character; // défi du jour : toujours l'Éclaireuse
+  addCharRun(meta.chars, played, runCharStats(played, world, won)); // phase 41 : défis par personnage
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -903,6 +915,7 @@ $('charInfo').addEventListener('click', (e) => {
   const i = +btn.dataset.outfit!;
   const key = meta.character;
   audio.init();
+  if (i === 2 && !masterOutfit(meta, key)) return; // phase 41 : tenue de maître, seulement après le défi III
   if (i === 1 && !meta.outfits.includes(key)) {
     if (!buyOutfit(meta, key)) return;
     audio.chest();

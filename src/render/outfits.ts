@@ -1,5 +1,6 @@
 // Tenues des personnages (phase 7) : palettes, sans import de three (lues aussi par l'UI du menu pour les pastilles).
-// Index 0 : tenue classique, toujours possédée ; 1 : tenue alternative, achetée en or (OUTFIT.price, balance.ts).
+// Index 0 : tenue classique, toujours possédée ; 1 : tenue alternative, achetée en or (OUTFIT.price, balance.ts) ;
+// 2 : tenue de maître (phase 41), or et nuit, gagnée au défi III du personnage.
 import type { CharacterKey } from '../sim/types';
 import { PAL } from './palette';
 
@@ -10,7 +11,7 @@ export interface Palette {
   skin: number;
 }
 const PAPER = PAL.paper;
-export const OUTFITS: Record<CharacterKey, Palette[]> = {
+const BASE: Record<CharacterKey, Palette[]> = {
   eclaireuse: [
     { p1: PAL.accent, p2: 0x3d2b52, p3: PAL.hp, skin: PAPER },
     { p1: 0x2fb3a0, p2: 0x1c3a44, p3: PAL.gold, skin: PAPER },
@@ -48,5 +49,10 @@ export const OUTFITS: Record<CharacterKey, Palette[]> = {
     { p1: 0x3a6a4a, p2: 0x2a3a2a, p3: 0x8a2a2a, skin: PAPER },
   ],
 };
+/** Tenue de maître : or sur nuit, avec le liseré (p3) de la tenue classique. */
+const master = (p: Palette): Palette => ({ p1: PAL.gold, p2: 0x231a10, p3: p.p3, skin: p.skin });
+export const OUTFITS = Object.fromEntries(
+  Object.entries(BASE).map(([k, pals]) => [k, [...pals, master(pals[0])]]),
+) as Record<CharacterKey, Palette[]>;
 /** Couleur CSS `#rrggbb` d'un entier (pastilles du menu). */
 export const hex = (c: number): string => `#${c.toString(16).padStart(6, '0')}`;

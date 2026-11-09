@@ -811,6 +811,8 @@ type CharacterKeyDef =
   | 'colporteur';
 // tenue alternative d'un personnage (phase 7) : prix en or, cosmétique uniquement
 export const OUTFIT = { price: 400 };
+// phase 41 : défis par personnage. Or versé une fois au défi I et au défi II ; le défi III donne la tenue de maître.
+export const CHAR_CHALLENGE = { gold: [500, 1500] };
 // phase 40 : Bibliothèque. Une arme ou un objet verrouillé se débloque par un succès, puis s'achète (prix par rareté
 // pour les objets : commun, rare, épique) ; ≈ 1–2 runs d'or au moment où le succès tombe, comme les emplacements.
 // Retirer du tirage (retour de Jimmy : « pas tous, il faut des objets obligatoires ») : seuls les rares et les épiques ;

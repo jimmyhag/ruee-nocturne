@@ -21,6 +21,8 @@ import type { CharacterKey, Input, WeaponKey } from '../src/sim/types';
 import { WEAPON_KEYS } from '../src/sim/weapons/defs';
 import { World } from '../src/sim/world';
 import { ACHIEVEMENTS } from '../src/meta/achievements';
+import { runCharStats } from '../src/meta/chars';
+import { DEFAULT_META } from '../src/meta/save';
 import { enforceAllowed, makeBot, pickAllowed } from './bots';
 import { startEndless } from '../src/sim/stages';
 import { PROFILES, REF_PRICE, checkTargets } from './targets';
@@ -42,6 +44,7 @@ const ENDLESS_ON = args.has('endless'); // phase 39 : continuer en monde infini 
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
 // --character eclaireuse|bucheron|sorciere : personnage de départ (défaut : Éclaireuse = référence de l'équilibrage)
 const CHARACTER = (args.get('character') ?? 'eclaireuse') as CharacterKey;
+const charChal = ACHIEVEMENTS.filter((x) => x.char === CHARACTER); // phase 41
 if (!CHARACTERS.some((c) => c.key === CHARACTER)) {
   console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : ${CHARACTERS.map((c) => c.key).join(', ')}`);
   process.exit(2);
@@ -119,6 +122,7 @@ interface RunResult {
   reachedEnd: boolean; // phase 37 : victoire (boss du monde 3 tué à temps)
   stage: number; // phase 37 : monde atteint (1..3)
   endless: boolean; // phase 39 : la partie a continué en monde infini
+  chal: number[]; // phase 41 : valeur de chacun des 3 défis du personnage dans cette partie
   endlessT: number;
   endlessWave: number;
   overT: number; // s de prolongation tenues dans le dernier monde (0 : mort avant la fin du chrono)
@@ -298,6 +302,7 @@ function runOnce(seed: number): RunResult {
     kills: w.kills,
     level: w.player.level,
     reachedEnd: w.mode === Mode.Won || w.endless,
+    chal: charChal.map((a) => a.get(DEFAULT_META.stats, runCharStats(CHARACTER, w, w.mode === Mode.Won || w.endless))),
     endless: w.endless,
     endlessT: w.endlessT,
     endlessWave: w.endlessWave,
@@ -589,6 +594,21 @@ lines.push(
 );
 lines.push(
   `mondes      monde 2 atteint ${summary.stage2Pct.toFixed(0)} % · monde 3 ${summary.stage3Pct.toFixed(0)} % · victoire ${summary.reachedEndPct.toFixed(0)} % · totem p50 à ${mmss(summary.totemP50)} · boss tués ${summary.bossWinPct.join('/')} % en p50 ${summary.bossFightP50.toFixed(0)} s (p90 ${summary.bossFightP90.toFixed(0)} s) · morts en prolongation ${summary.overDeathPct.toFixed(0)} % après p50 ${summary.overP50.toFixed(0)} s (p90 ${summary.overP90.toFixed(0)} s)`,
+);
+// phase 41 : défis du personnage, en une partie (part des runs qui les remplissent)
+lines.push(
+  `défis       ${charChal
+    .map(
+      (a, i) =>
+        `${a.id} ≥${a.goal} : ${Math.round((100 * results.filter((r) => r.chal[i] >= a.goal).length) / results.length)} % (p50 ${pct(
+          results.map((r) => r.chal[i]),
+          50,
+        )}, p90 ${pct(
+          results.map((r) => r.chal[i]),
+          90,
+        )})`,
+    )
+    .join(' · ')}`,
 );
 // phase 39 : monde infini (--endless), sur les parties gagnées seulement
 if (ENDLESS_ON) {

@@ -52,6 +52,10 @@ describe('clés dérivées du contenu', () => {
   for (const k of ITEM_KEYS) need.push(`item.${k}.name`, `item.${k}.text`);
   for (const s of SYNERGIES) need.push(`syn.${s.key}.name`, `syn.${s.key}.text`);
   for (const a of ACHIEVEMENTS) {
+    if (a.char) {
+      need.push('chal.name', `chal.${a.kind}`, 'chal.outfit'); // phase 41 : gabarits des défis par personnage
+      continue;
+    }
     need.push(`ach.${a.id}.name`, `ach.${a.id}.text`);
     // phase 40 : une arme ou un objet prend son nom (achUnlock) ; le reste a son texte
     if (a.unlocks && !a.unlocks.weapon && !a.unlocks.item) need.push(`ach.${a.id}.unlock`);

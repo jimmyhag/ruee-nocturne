@@ -86,16 +86,30 @@ export const ITEM_GLYPH: Record<ItemKey, string> = {
 export const RARITY_COLOR = ['#9aa4c2', '#5fd3ff', '#ffd166'];
 export const synergyName = (i: number): string => t(`syn.${SYNERGIES[i].key}.name`);
 export const synergyText = (i: number): string => t(`syn.${SYNERGIES[i].key}.text`);
-export const achName = (a: Achievement): string => t(`ach.${a.id}.name`);
+const TIER = ['I', 'II', 'III'];
+/** Phase 41 : un défi par personnage s'appelle « Bûcheron II » ; son texte vient d'un gabarit (chal.<kind>). */
+export const achName = (a: Achievement): string =>
+  a.char ? t('chal.name', { char: characterName(a.char), tier: TIER[(a.tier ?? 1) - 1] }) : t(`ach.${a.id}.name`);
 /** Le texte « Vaincs 2 000 ennemis » prend l'objectif en paramètre quand il est grand (format du nombre). */
-export const achText = (a: Achievement): string => t(`ach.${a.id}.text`, { n: a.goal });
+export const achText = (a: Achievement): string =>
+  a.char
+    ? t(`chal.${a.kind}`, {
+        n: a.goal,
+        weapon: weaponName(CHARACTERS.find((c) => c.key === a.char)?.weapon ?? 'orbe'),
+        time: fmtTime(a.goal),
+      })
+    : t(`ach.${a.id}.text`, { n: a.goal });
 /** Ce que le succès débloque ; phase 40 : une arme ou un objet devient achetable dans la Bibliothèque. */
 export const achUnlock = (a: Achievement): string =>
   a.unlocks?.item
     ? t('lib.toBuy', { what: itemName(a.unlocks.item) })
     : a.unlocks?.weapon
       ? t('lib.toBuy', { what: weaponName(a.unlocks.weapon) })
-      : t(`ach.${a.id}.unlock`);
+      : a.unlocks?.gold
+        ? t('gold', { n: a.unlocks.gold }) // phase 41 : récompense en or
+        : a.unlocks?.outfit
+          ? t('chal.outfit')
+          : t(`ach.${a.id}.unlock`);
 
 /** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
 const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop']);

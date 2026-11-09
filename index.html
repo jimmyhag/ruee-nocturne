@@ -1648,9 +1648,22 @@
       /* tenues (phase 7) : deux pastilles sous la ligne d'information */
       .outfits {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         justify-content: center;
         margin-top: 8px;
+      }
+      .outfit.master.sel {
+        border-color: var(--gold);
+        background: rgba(255, 209, 102, 0.14);
+      }
+      /* phase 41 : défis du personnage sous ses tenues */
+      .charinfo .chaltitle {
+        margin: 12px 0 6px;
+        text-align: left;
+      }
+      .charinfo .chal .ach p {
+        margin: 2px 0 6px;
       }
       .outfit,
       .shopchar {
@@ -2354,7 +2367,7 @@
             <p>Lames niveau 2, Trèfle et Bourse dès le départ, +15 PV</p>
           </button>
         </div>
-        <p class="note charinfo" id="charInfo"><b>Éclaireuse</b> · +15 % de vitesse, dash plus court</p>
+        <div class="note charinfo" id="charInfo"><b>Éclaireuse</b> · +15 % de vitesse, dash plus court</div>
       </div>
     </section>
 

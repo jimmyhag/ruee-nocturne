@@ -13,6 +13,8 @@ import {
   UNLOCK,
 } from '../sim/balance';
 import { ACHIEVEMENTS, ACHIEVEMENT_IDS, UNLOCKABLE } from './achievements';
+import { normalizeChars } from './chars';
+import type { CharStats } from './chars';
 import type { CharacterKey, ItemKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
 import type { LangSetting } from '../i18n';
@@ -68,6 +70,7 @@ export interface Meta {
   slots: { weapons: number; passives: number; rerolls: number }; // phase 31 : `rerolls` = relances achetées (rangées ici : les règles Firestore bornent les clés de progress) ; emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
   unlocks: string[]; // phase 40 : armes et objets achetés dans la Bibliothèque ('w:faux', 'i:phenix')
   itemsOff: ItemKey[]; // phase 40 : objets retirés du tirage par le joueur
+  chars: Partial<Record<CharacterKey, CharStats>>; // phase 41 : stats par personnage (défis par personnage)
   codex: Record<string, number>; // phase 40 : parties jouées avec chaque entrée ('w:orbe', 'i:croc', 't:degats', 's:orage')
   pseudo: string; // phase 38 : nom affiché dans le classement en ligne ('' = aucun, rien n'est publié) ; synchronisé
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
@@ -117,6 +120,7 @@ export const DEFAULT_META: Meta = {
   unlocks: [],
   itemsOff: [],
   codex: {},
+  chars: {},
   pseudo: '',
   seenReset: true,
   seenHelp: false,
@@ -200,7 +204,8 @@ export function normalizeMeta(raw: unknown): Meta {
   const character = isKey(r.character) ? r.character : 'eclaireuse';
   const outfitSel: Partial<Record<CharacterKey, number>> = {};
   if (r.outfit && typeof r.outfit === 'object')
-    for (const [k, v] of Object.entries(r.outfit as Record<string, unknown>)) if (isKey(k) && v === 1) outfitSel[k] = 1;
+    for (const [k, v] of Object.entries(r.outfit as Record<string, unknown>))
+      if (isKey(k) && (v === 1 || v === 2)) outfitSel[k] = v; // phase 41 : 2 = tenue de maître
   const totalKills = Math.max(0, num(r.totalKills));
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
@@ -262,6 +267,7 @@ export function normalizeMeta(raw: unknown): Meta {
         ]
       : [],
     codex: normalizeCodex(r.codex),
+    chars: normalizeChars(r.chars),
     pseudo: cleanPseudo(r.pseudo),
     settings: normalizeSettings(se),
     slots: {

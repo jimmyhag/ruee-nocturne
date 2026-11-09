@@ -674,6 +674,16 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Équilibrage** (bot moyen, 150 runs) : profil nu (sans les 12 objets) victoire 43 %, morts < 3 min 20 % ; avec tous les objets 46 % ; profil maxé 48 % (inchangé).
 - **Porte** : Vitest couvre la migration, les états, l'achat, le retrait, les compteurs, la normalisation et l'absence d'un objet banni dans les tirages ; règles vérifiées dans l'émulateur ; e2e clavier et doigt (onglets, achat du Phénix, retrait de la Cape, effet sur `w.itemBan`, défi du jour), captures lues.
 
+### Phase 41 — Défis par personnage (après la 1.35.0)
+- **Feuille de route de Jimmy** (9 nov.) : après la Bibliothèque, des défis par personnage ; choix délégués (« Vas-y go »).
+- **Décisions prises** :
+  - 3 défis par personnage, en une partie avec lui : signature (500 or), plus dur (1 500 or), victoire (tenue de maître, gratuite : c'est le trophée) ;
+  - les défis vivent dans ACHIEVEMENTS (champ `char`) et lisent `meta.chars` (meilleures valeurs par personnage) : les phases 42 et 43 pourront y accrocher une arme ou un objet à acheter ;
+  - textes par gabarit (« Bûcheron II », `chal.<kind>`) ; l'écran Succès garde les 23 succès communs, la fiche du personnage montre ses défis ;
+  - le défi du jour compte pour l'Éclaireuse ; les joueurs actuels partent de zéro sur ces défis (aucun compteur par personnage avant).
+- **Calage** (bot nu, 100 runs par personnage) : défi I 28–56 %, défi II 6–25 % ; défi III = victoire (Éclaireuse 42 %, Feu follet 39 %, Braconnier 34 %, Revenante 26 %, Sorcière 22 %, Bûcheron 11 %, Colporteur 9 %, Veilleuse 6 %, Sapeur 0 %).
+- **Porte** : Vitest (compteurs, stats par personnage, défis du bon personnage, or versé une fois, tenue de maître) ; e2e clavier et doigt (fiche, tenue verrouillée puis choisie, défi en fin de partie) ; portraits en tenue de maître lus ; relecture perf approuvée.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.

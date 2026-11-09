@@ -11,7 +11,7 @@ import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Ev, Mode, ProjKind, ShotKind, Spell, Trait, HurtSrc } from './types';
+import { Ev, Mode, ProjKind, ShotKind, Spell, Trait, HurtSrc, HitSrc } from './types';
 import type {
   Card,
   Chest,
@@ -231,6 +231,11 @@ export class World {
   merchant: MerchantState = makeMerchant();
   offers: Card[] = []; // offres du marchand (w.cards garde les cartes de niveau et de coffre)
   goldSpent = 0; // or dépensé au marchand (CLI)
+  // phase 41 : compteurs de la partie pour les défis par personnage (src/meta/chars.ts)
+  readonly srcKills = new Uint32Array(HitSrc.Count); // ennemis tués par source (armes 0..8, feu, sort…)
+  airKills = 0; // ennemis tués pendant que le joueur est en l'air
+  eliteKills = 0;
+  bossKills = 0;
 
   constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
