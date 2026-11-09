@@ -647,7 +647,15 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - la victoire, les stats et le score sont comptés une seule fois, à la fin réelle (« Terminer » ou la mort) ; le bonus d'or de fin n'est payé qu'une fois (`goldBonusT`) ;
   - au classement, une partie infinie compte comme « monde 4 » plus le temps total ;
   - la puce d'objectif passe sous la barre de boss (elle cachait son nom).
-- **Équilibrage** : __ENDBAL__
+- **Équilibrage** : (bot moyen, 100 runs, parties gagnées qui continuent, `--endless`) :
+
+  | Profil | Temps tenu p10 / p50 / p90 | Vagues p50 |
+  |---|---|---|
+  | Nu | 2:33 / 6:25 / 12:41 | 2 |
+  | Maxé | 1:13 / 2:38 / 5:08 | 1 |
+
+  - Sans la rampe des monstres normaux, le profil nu ne mourait plus : p50 14:40, p90 79 min, 38 % passaient 8 vagues.
+  - Le profil maxé meurt à la horde (Brutes 45 %, feu 20 %), pas aux boss. C'est la faiblesse connue des kits à quatre armes : à reprendre avec Jimmy (boss final, ou rééquilibrage des Brutes tardives).
 - **Porte** :
   - Vitest couvre la vague 1, 1, 2, 2, 3, 3, l'absence de prolongation, les PV en hausse, la barre qui passe au suivant, le bonus d'or payé une fois et le déterminisme ;
   - l'e2e couvre victoire → Continuer → boss à 2:30 → mort → écran de fin, et victoire → Terminer, au clavier et au doigt, captures lues.
