@@ -138,7 +138,11 @@ function taken(out: Card[], i: number): boolean {
 /** Prix d'un objet chez le marchand à la visite courante. */
 export function itemPrice(w: World, i: number): number {
   const base = MERCHANT.price[ITEM_RARITY[i]] * (1 + MERCHANT.growth * w.merchant.visit);
-  return Math.round(base * bourseDiscount(w) * w.player.shopMul); // phase 23 : tome Or
+  return Math.round(base * bourseDiscount(w) * w.player.shopMul * carryMul(w)); // phase 23 : tome Or
+}
+/** Phase 38 : prix × (1 + ITEM.priceGrowth × objets portés), marchand et coffres de carte. */
+export function carryMul(w: World): number {
+  return 1 + ITEM.priceGrowth * itemCount(w);
 }
 /** Rabais de la Bourse (phase 38 : se multiplie à chaque exemplaire). */
 export function bourseDiscount(w: World): number {
@@ -151,7 +155,7 @@ export function chestOffers(w: World): number {
 }
 /** Nombre d'objets proposés par le marchand (Fer à cheval : un de plus par exemplaire, au plus deux). */
 export function merchantOffers(w: World): number {
-  return ITEM.offers + Math.min(2, w.items[It.Fer]); // phase 38 : une offre par exemplaire, deux de plus au plus
+  return ITEM.offers + Math.min(ITEM.fer.maxExtraOffers, w.items[It.Fer]); // phase 38 : une offre par exemplaire, deux de plus au plus
 }
 
 export const itemIndex = (key: ItemKey): number => ITEM_KEYS.indexOf(key);

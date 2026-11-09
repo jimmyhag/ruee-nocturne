@@ -195,7 +195,7 @@ export class World {
   // phase 17 : objets passifs (par index de ITEM_KEYS), synergies, marchand. Phase 38 : nombre d'exemplaires (cumul)
   readonly items = new Uint8Array(ITEM_KEYS.length);
   /** Valeur cumulée de chaque objet (stackEff de son compte, 0 sans l'objet) : ce que lit la boucle de jeu. */
-  readonly itemEff = new Float32Array(ITEM_KEYS.length);
+  readonly itemEff = new Float64Array(ITEM_KEYS.length);
   /** Objets exclus des tirages (sim d'ablation de la CLI) : jamais proposés, sans effet. */
   readonly itemBan = new Uint8Array(ITEM_KEYS.length);
   itemOrder: number[] = []; // ordre d'obtention (HUD)
@@ -573,7 +573,7 @@ export function discover(w: World, dt: number): void {
   if (w.seenT > 0) return;
   w.seenT = DISCOVER.period;
   const C = DISCOVER.cell,
-    R = DISCOVER.radius * (w.items[It.Boussole] ? ITEM.boussole.radiusMul ** Math.min(2, w.itemEff[It.Boussole]) : 1), // phase 28 : Boussole (phase 38 : cumul borné à 2)
+    R = DISCOVER.radius * (w.items[It.Boussole] ? ITEM.boussole.radiusMul ** Math.min(ITEM.boussole.maxStack, w.itemEff[It.Boussole]) : 1), // phase 28 : Boussole (phase 38 : cumul borné à 2)
     P = w.player;
   const i0 = Math.max(0, Math.floor((P.x - R + WORLD_HALF) / C)),
     i1 = Math.min(SEEN_N - 1, Math.floor((P.x + R + WORLD_HALF) / C)),

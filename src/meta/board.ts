@@ -12,7 +12,8 @@ export const BOARD = {
   killsMax: 200000,
   stageMul: 10000, // best = monde × 10 000 + temps (s) : d'abord le monde, puis le temps
   top: 50, // lignes affichées
-  pendingKey: 'ruee-score', // score en attente d'envoi (hors ligne)
+  pendingKey: 'ruee-score', // scores en attente d'envoi (hors ligne, sans pseudo), liés au compte qui a joué
+  pendingMax: 5,
 };
 
 export type BoardView = 'best' | 'time' | 'kills';

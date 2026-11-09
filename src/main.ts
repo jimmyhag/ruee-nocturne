@@ -205,6 +205,15 @@ function resize(): void {
   sizeDpr = dpr;
   scene?.resize(w, h);
   if (scene) scene.menuWide = w > 900 && w > h; // cadrage de l'accueil (phase 14)
+  refitGear();
+}
+/** Phase 38 : la barre d'équipement se remet en rangées après un changement de taille ou de mode d'entrée (regroupé). */
+let gearTimer = 0;
+function refitGear(): void {
+  clearTimeout(gearTimer);
+  gearTimer = window.setTimeout(() => {
+    if (world && app !== 'menu' && app !== 'over') hud.kit(world);
+  }, 200);
 }
 addEventListener('resize', resize);
 addEventListener('orientationchange', resize);
@@ -997,6 +1006,7 @@ input.onTouchDetected = () => {
   if (app !== 'menu') {
     $('touch').hidden = false;
     $('keys').hidden = true;
+    refitGear(); // la barre passe à côté des boutons tactiles
   }
 };
 // onglet perf : F3 au clavier, bouton « Perf » de l'écran de pause au doigt (parité clavier/tactile)
@@ -1126,6 +1136,7 @@ function onAuthChange(u: AccountUser | null): void {
   }
   refreshAccount();
   fillPseudo(u);
+  if (!u) savePending([]); // déconnexion : les parties en attente ne partiront pas sous un autre compte
   if (u) void reconcileAccount();
   if (u) void flushScores();
   if (app === 'board') void refreshBoard();
@@ -1309,20 +1320,21 @@ async function refreshBoard(): Promise<void> {
   renderBoard(boardState);
 }
 interface PendingScore {
+  uid: string; // compte qui a joué : jamais publié sous un autre compte connecté ensuite sur l'appareil
   run: RunScore;
   at: number;
 }
 function loadPending(): PendingScore[] {
   try {
     const raw = JSON.parse(localStorage.getItem(BOARD.pendingKey) ?? '[]') as unknown;
-    return Array.isArray(raw) ? (raw as PendingScore[]).slice(-5) : [];
+    return Array.isArray(raw) ? (raw as PendingScore[]).slice(-BOARD.pendingMax) : [];
   } catch {
     return [];
   }
 }
 function savePending(list: PendingScore[]): void {
   try {
-    if (list.length) localStorage.setItem(BOARD.pendingKey, JSON.stringify(list.slice(-5)));
+    if (list.length) localStorage.setItem(BOARD.pendingKey, JSON.stringify(list.slice(-BOARD.pendingMax)));
     else localStorage.removeItem(BOARD.pendingKey);
   } catch {
     /* stockage bloqué : la partie ne sera pas publiée */
@@ -1330,8 +1342,9 @@ function savePending(list: PendingScore[]): void {
 }
 /** Fin de partie d'un joueur connecté (ou dont la session est connue) : le score attend son envoi. */
 function queueScore(run: RunScore): void {
-  if (!account?.user && !sessionKnown()) return; // sans compte, rien n'est gardé pour le classement
-  savePending([...loadPending(), { run, at: Date.now() }]);
+  const uid = account?.user?.uid;
+  if (!uid) return; // sans compte connecté, rien n'est gardé pour le classement
+  savePending([...loadPending(), { uid, run, at: Date.now() }]);
   void flushScores();
 }
 let flushing = false;
@@ -1340,6 +1353,7 @@ async function flushScores(): Promise<void> {
   if (flushing || !account || !u || !meta.pseudo || !navigator.onLine) return;
   flushing = true;
   try {
+    savePending(loadPending().filter((p) => p.uid === u.uid)); // parties d'un autre compte : oubliées
     let list = loadPending();
     while (list.length) {
       await account.submitScore(u.uid, meta.pseudo, list[0].run, list[0].at);

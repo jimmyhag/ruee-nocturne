@@ -2,7 +2,7 @@
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
 import { BOON, BOON_KEYS, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
-import { bourseDiscount, canGainItem } from './items';
+import { bourseDiscount, canGainItem, carryMul } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card } from './types';
 import { refreshStats } from './weapons/defs';
@@ -159,7 +159,7 @@ function placeTotem(w: World, r: Rng, all: { x: number; z: number }[]): void {
 export function mapChestPrice(w: World): number {
   // le prix suit aussi l'or gagné, qui croît avec le temps (sinon un kit complet ouvre tout sans y penser)
   const base = MAPCHEST.price * Math.pow(1 + MAPCHEST.growth, w.mapChestsOpened) * (1 + w.t / MAPCHEST.timeScale);
-  return Math.round(base * bourseDiscount(w));
+  return Math.round(base * bourseDiscount(w) * carryMul(w));
 }
 /**
  * Le coffre de carte peut-il être ouvert maintenant ? Il faut l'or. Il donne un objet (phase 38 : sans limite, ils se

@@ -871,6 +871,8 @@ export const ITEM = {
   // sans plafond, les ≈ 16 coffres d'élite d'une partie donnaient 28 objets : un coffre d'élite sur `eliteItemEvery`
   // ouvre un choix d'objet, les autres un sac d'or (chestGoldIfFull) ; coffres de boss, de carte et marchand inchangés
   eliteItemEvery: 1,
+  // …et les objets à acheter (marchand, coffres de carte) coûtent plus cher à chaque objet porté : × (1 + k · objets)
+  priceGrowth: 0,
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…
   luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance
@@ -884,7 +886,7 @@ export const ITEM = {
   bottes: { jumpMul: 1.15, r: 3.2, kb: 9 }, // cumul : le saut une seule fois, l'onde (recul) × exemplaires
   oeil: { eliteDmg: 0.25 },
   aimant: { heal: 0.15 }, // PV par gemme ramassée
-  fer: { luck: 1 },
+  fer: { luck: 1, maxExtraOffers: 2 }, // phase 38 : une offre de plus par exemplaire, au plus maxExtraOffers
   bourse: { goldMul: 0.4, discount: 0.15 },
   rune: { cdMul: 0.7 }, // phase 22 : Rune de rappel, recharge du sort −30 %
   // phase 22 : Collier d'os, chaque kill rend 0,1 s de recharge (au plus 1 s par seconde, réserve de 1 s), un boss 4 s
@@ -893,7 +895,7 @@ export const ITEM = {
   patins: { perSpeed: 1.6, minMul: 1.15, r: 1.1, rehit: 0.35, kb: 6 }, // en glissade (≥ marche × 1,15) : dégâts = 1,6 × vitesse (u/s) aux ennemis traversés
   echarpe: { heal: 8, spell: 1 }, // vrille réussie : 8 PV et 1 s de recharge du sort
   plume: { gravMul: 0.8, min: 0.55 }, // en l'air avec l'élan d'une glissade (phase 38 : cumul, plancher min)
-  boussole: { radiusMul: 1.8 }, // découverte ; la carte montre aussi coffres et sanctuaires non découverts
+  boussole: { radiusMul: 1.8, maxStack: 2 }, // découverte (phase 38 : cumul borné à maxStack) ; la carte montre aussi coffres et sanctuaires non découverts
   bouclier: { period: 20, invul: 0.6 }, // un coup annulé toutes les 20 s
   corne: { period: 25, r: 7, kb: 10, stun: 0.5 }, // onde qui repousse et étourdit (pas les boss)
   // phase 31 (demande de Jimmy : vol de vie, régénération, pourcentages). Les soins des objets (vol de vie, kills)

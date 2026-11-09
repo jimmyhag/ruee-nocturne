@@ -62,6 +62,7 @@ for (const k of NO_ITEM)
 if (args.has('elite-every')) ITEM.eliteItemEvery = +args.get('elite-every')!;
 if (args.has('stack-full')) ITEM.stackFull = +args.get('stack-full')!;
 if (args.has('falloff')) ITEM.stackFalloff = +args.get('falloff')!;
+if (args.has('price-growth')) ITEM.priceGrowth = +args.get('price-growth')!;
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
   ? (WEAPONS_ARG.split(',')

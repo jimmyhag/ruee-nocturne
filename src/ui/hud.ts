@@ -487,11 +487,14 @@ function fitGear(el: HTMLElement, w: World): void {
   if (!first || el.hidden) return; // caché (menu) : mesuré au prochain affichage (fixed : pas d'offsetParent)
   const row = first.offsetHeight + 3,
     rows = Number(getComputedStyle(el).getPropertyValue('--rows')) || 2;
-  let hide = 0;
-  while (el.scrollHeight > row * rows + 2 && hide < w.itemOrder.length) {
-    hide += hide === 0 ? 2 : 1; // la pastille « +n » prend une place
-    el.innerHTML = gearHtml(w, Math.min(hide, w.itemOrder.length));
-  }
+  if (el.scrollHeight <= row * rows + 2) return;
+  // estimation en une mesure (pastilles par rangée × rangées, moins le séparateur et la pastille « +n »), puis
+  // ajustement fin : en pratique zéro ou une réécriture de plus (relecture perf : plus un reflow par objet masqué)
+  const perRow = Math.max(1, Math.floor((el.clientWidth + 3) / (first.offsetWidth + 3)));
+  const cells = el.childElementCount - 1; // le séparateur est étroit
+  let hide = Math.min(w.itemOrder.length, Math.max(2, cells - perRow * rows + 2));
+  el.innerHTML = gearHtml(w, hide);
+  while (el.scrollHeight > row * rows + 2 && hide < w.itemOrder.length) el.innerHTML = gearHtml(w, ++hide);
 }
 
 /**
