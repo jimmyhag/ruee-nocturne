@@ -98,11 +98,12 @@ export const SLIDE = {
   endMul: 0.85, // sous marche × 0,85, la glissade s'arrête
   cd: 0.4, // s avant la glissade suivante
   airControl: 0.3, // part de la vitesse de marche que l'entrée ajoute en l'air après un saut glissé
-  // 1.31.2 (Jimmy) : envol seulement sur une vraie crête, la pente (dans le sens du déplacement) chute d'au moins 0,15
-  // d'un pas à l'autre : bord de plateau, bosse, tremplin, haut de rampe. Avant, le seuil était une accélération sur un
-  // pas : chaque arête de la grille de hauteurs (2 u) faisait décoller de quelques cm, 30 % du temps de glisse en l'air,
-  // un appui de saut sur trois perdu et la glissade reprise à la réception
+  // 1.31.3 (Jimmy) : la glissade reste collée au sol dans les collines, les pentes et sur les crêtes (on saute quand on
+  // veut, comme sur le plat) ; seul le bord d'un tremplin fait décoller : la pente y chute d'au moins 0,15 d'un pas à
+  // l'autre, à moins de kickLip u du bord, en allant dans le sens du tremplin. Avant (1.31.2 : toute crête ; avant :
+  // chaque arête de la grille de 2 u), les petits décollages mangeaient les appuis de saut et cassaient les pistes
   launchSlope: 0.15,
+  kickLip: 2.5,
   launchMin: 1.2, // …à au moins marche × 1,2 (la marche en descente plafonne à 1,15)
   launchPop: 2.5, // u/s vers le haut à l'envol
   // 1.30.1 (Jimmy) : plus de vrille. Glisse au bon moment de la réception : appui dans les 0,25 s avant de toucher le

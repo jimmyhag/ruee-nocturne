@@ -2,6 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.31.3 — 9 nov. 2026 (retour de Jimmy : glissade collée au sol)
+
+### Modifié
+
+- **La glissade reste collée au sol** dans les collines, les pentes et les dénivelés, et aussi sur les bosses, les bords de plateau et les hauts de rampe. Tu sautes quand tu veux, comme sur le plat.
+  - Seul le bord d'un tremplin fait encore décoller.
+  - Mesure sur 12 cartes : en glissade sur le relief, aucun appui de saut perdu (0 sur 426, contre 3,7 % en 1.31.2) et aucun petit saut.
+- **Pistes chronométrées faisables en glissant** : sur 60 pistes de 15 cartes, en glissant tout droit vers l'arrivée, 55 sont gagnées (14 en 1.31.2).
+  - Les petits décollages faisaient perdre l'élan : 36 % du temps en l'air, et la pente n'accélère pas en l'air.
+
 ## 1.31.2 — 9 nov. 2026 (retour de Jimmy : glissade sur les pentes)
 
 ### Corrigé

@@ -1,4 +1,4 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
@@ -141,6 +141,22 @@ function perfectSlide(w: World, hx: number, hz: number, walk: number, ix: number
     P.spellCd -= ITEM.echarpe.spell;
   }
   w.emit(Ev.Trick, P.x, 0, P.z, v0);
+}
+
+/** 1.31.3 : (x, z) au bord d'un tremplin, en le descendant dans son sens : le seul endroit où une glissade décolle. */
+function atKickerLip(w: World, x: number, z: number, vx: number, vz: number): boolean {
+  for (let i = 0; i < w.kickers.length; i++) {
+    const k = w.kickers[i];
+    if (vx * k.dx + vz * k.dz <= 0) continue;
+    const lx = k.x + k.dx * TERRAIN.kickLen,
+      lz = k.z + k.dz * TERRAIN.kickLen;
+    const dx = x - lx,
+      dz = z - lz;
+    const along = dx * k.dx + dz * k.dz,
+      lat = Math.abs(-dx * k.dz + dz * k.dx);
+    if (along > -SLIDE.kickLip && along < SLIDE.kickLip && lat < TERRAIN.kickHalf + 1) return true;
+  }
+  return false;
 }
 
 function stepPlayer(w: World, input: Input, dt: number): void {
@@ -296,8 +312,8 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     else {
       const h2 = P.vx * P.vx + P.vz * P.vz;
       const fast = P.sliding || h2 > (walk * SLIDE.launchMin) ** 2;
-      // chute de la pente dans le sens du déplacement (gv / vitesse = pente parcourue)
-      if (fast && h2 > 1e-6 && (gv - P.gv) / Math.sqrt(h2) < -SLIDE.launchSlope) {
+      // chute de la pente dans le sens du déplacement (gv / vitesse = pente parcourue), au bord d'un tremplin seulement
+      if (fast && h2 > 1e-6 && (gv - P.gv) / Math.sqrt(h2) < -SLIDE.launchSlope && atKickerLip(w, P.x, P.z, P.vx, P.vz)) {
         P.onGround = false;
         P.vy = Math.max(0, P.gv) + SLIDE.launchPop; // la montée qu'avait le sol (sommet d'une rampe) et un petit bond
         P.y = -dg;

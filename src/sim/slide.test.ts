@@ -138,25 +138,30 @@ describe('glissade (phase 27)', () => {
     };
     expect(jumpDist(true)).toBeGreaterThan(jumpDist(false) * 1.2);
   });
-  it('envol : une glissade qui passe le bord d’un plateau décolle', () => {
+  it('1.31.3 : une glissade qui passe le bord d’un plateau reste collée au sol et file dans la pente', () => {
     // plateau à 6 u pour x < 0, flanc de pente 0,5 jusqu'au sol (x = 12)
     const w = lab((x) => (x < 0 ? 6 : Math.max(0, 6 - 0.5 * x)), -3, 0);
     run(w, { ...still, mx: 1 }, 0.1);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
     let launches = 0,
-      air = 0;
-    for (let f = 0; f < 240; f++) {
-      step(w, { ...still, mx: 1, slide: true }, STEP);
+      air = 0,
+      top = 0;
+    for (let f = 0; f < 120; f++) {
+      step(w, { ...still, mx: 1 }, STEP);
       launches += count(w, Ev.Launch);
-      if (!w.player.onGround) air += STEP;
+      if (!w.player.onGround) air++;
+      top = Math.max(top, speed(w));
     }
-    expect(launches).toBeGreaterThanOrEqual(1);
-    expect(air).toBeGreaterThan(0.25); // un vrai décollage (un saut sur place : 0,73 s)
+    expect(launches).toBe(0);
+    expect(air).toBe(0);
+    expect(top).toBeGreaterThan(w.player.speed * 2); // la pente lance la glissade
   });
   it('phase 28 : un tremplin fait décoller une glissade (vol nettement plus long qu’un simple bord)', () => {
     const K = TERRAIN.kickLen,
       KH = TERRAIN.kickH;
     // descente de 0,2 jusqu'au pied (x = 0), tremplin à x ∈ [0, K], puis chute à 0,54 : on arrive lancé
     const w = lab((x) => (x < 0 ? -0.2 * x : x < K ? (KH * x) / K : Math.max(0, KH - 0.54 * (x - K))), -30, 0);
+    w.kickers.push({ x: 0, z: 0, dx: 1, dz: 0 }); // 1.31.3 : seul le bord d'un tremplin fait décoller
     run(w, { ...still, mx: 1 }, 0.2);
     step(w, { ...still, mx: 1, slide: true }, STEP);
     let launches = 0,
@@ -444,13 +449,15 @@ describe('1.31.2 : glisse et saut sur le relief (retour de Jimmy)', () => {
       expect(w.player.sliding, `réception debout (appui à ${at} pas)`).toBe(false);
     }
   });
-  it('juste après l’envol d’une crête, un appui de saut compte encore comme saut glissé', () => {
-    // plateau puis flanc de pente 0,5 : vraie crête
-    const w = lab((x) => (x < 0 ? 6 : Math.max(0, 6 - 0.5 * x)), -3, 0);
-    run(w, { ...still, mx: 1 }, 0.1);
+  it('juste après l’envol d’un tremplin, un appui de saut compte encore comme saut glissé', () => {
+    const K = TERRAIN.kickLen,
+      KH = TERRAIN.kickH;
+    const w = lab((x) => (x < 0 ? -0.2 * x : x < K ? (KH * x) / K : Math.max(0, KH - 0.54 * (x - K))), -30, 0);
+    w.kickers.push({ x: 0, z: 0, dx: 1, dz: 0 });
+    run(w, { ...still, mx: 1 }, 0.2);
     step(w, { ...still, mx: 1, slide: true }, STEP);
     let f = 0;
-    while (w.player.onGround && f++ < 120) step(w, { ...still, mx: 1 }, STEP);
+    while (w.player.onGround && f++ < 400) step(w, { ...still, mx: 1 }, STEP);
     expect(w.player.onGround).toBe(false); // envol
     run(w, { ...still, mx: 1 }, SLIDE.coyote / 2);
     step(w, { ...still, mx: 1, jump: true }, STEP);
