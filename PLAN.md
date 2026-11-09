@@ -333,6 +333,11 @@ Un onglet **perf** (touche F3) affiche frame time, draw calls, nombre d'entités
   - Les kills d'une même rafale sont fusionnés en un son plus fort (35 ms).
   - Une voix volée s'éteint en 5 ms, sans clic.
   - Les oscillateurs restent le repli tant que la planche n'est pas décodée.
+  - **1.31.1 (trop dense)** : en fin de partie, on passe de 22 à 10 sons par seconde, avec au plus 8 sons en même temps.
+    - Chaque son a un écart minimal entre deux lectures (`MIN_GAP`).
+    - Les sons secondaires se taisent au-delà de 4 voix actives, les kills au-delà de 7.
+    - Un son qu'on n'a pas entendu depuis 0,8 s passe quand même.
+    - Coups : au plus 4 par seconde.
 - **Musique (phase 36)** : un morceau en flux (`<audio>` → bus musique), MP3 seul (lu partout, Safari compris). Les 3 couches adaptatives restent une idée.
   - Partie : « Dangerous Voyage », sous une ambiance de forêt la nuit.
   - Menu : « Creppy Piano 1 ».

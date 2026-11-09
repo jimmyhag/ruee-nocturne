@@ -76,7 +76,7 @@ test('réglages : curseurs Effets et Musique, appliqués et gardés après recha
   await page.locator('#musicVol').dispatchEvent('change');
   await page.locator('#sfxVol').dispatchEvent('change');
   const s = await audioState(page);
-  expect(s.sfx).toBeCloseTo(0.5 * 0.4, 3);
+  expect(s.sfx).toBeCloseTo(0.42 * 0.4, 3);
   expect(s.musicGain).toBe(0);
   await page.reload();
   await page.waitForFunction(() => (window as any).__game?.ready === true);

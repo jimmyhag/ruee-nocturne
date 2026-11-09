@@ -2,6 +2,29 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.31.1 — 9 nov. 2026 (retour de Jimmy : « trop d'effets »)
+
+### Modifié
+
+- **Bruitages moins denses**. Mesure sur 6 parties de 10 min jouées par le bot, en fin de partie (8–10 min) :
+
+  |                              | 1.31.0 | 1.31.1 |
+  | ---------------------------- | ------ | ------ |
+  | sons par seconde             | 22     | 10     |
+  | sons en même temps (moyenne) | 6,9    | 3,2    |
+  | sons en même temps (pointe)  | 24     | 8      |
+
+- **Coups, kills et gemmes plus espacés** :
+  - coups : au plus 4 par seconde, au lieu de 12 ;
+  - pas de son de coup juste après un kill ;
+  - les kills d'une même rafale font un seul son ;
+  - la montée de hauteur des gemmes est gardée.
+- **Plafond de sons simultanés** :
+  - chaque arme et chaque attaque ennemie a un écart minimal entre deux lectures ;
+  - les petits sons se taisent quand 4 sons jouent déjà ;
+  - un son qu'on n'a pas entendu depuis 0,8 s passe quand même : aucune arme ne devient muette.
+- **Plus discret** : effets −1,5 dB, annonce des météores plus discrète.
+
 ## 1.31.0 — 9 nov. 2026 (phase 36 « Son propre »)
 
 ### Ajouté

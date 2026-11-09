@@ -11,11 +11,37 @@ const POWER_SFX: readonly SfxKey[] = ['powerAimant', 'powerOr', 'powerVitesse', 
 type TrackKey = keyof typeof SFX.tracks;
 const AUDIO_URL = (file: string) => `${import.meta.env.BASE_URL}audio/${file}`;
 /** Volumes des bus à plein réglage (−6, −8, −12 dB) ; les curseurs Effets et Musique les multiplient. */
-const BUS = { sfx: 0.5, ui: 0.4, music: 0.25 };
+const BUS = { sfx: 0.42, ui: 0.4, music: 0.25 }; // 1.31.1 : effets −1,5 dB
 
 /** Priorité d'une voix (skill game-feel §7) : joueur touché > niveau > boss > kill > hit > ramassage. */
 const PRIO = { hurt: 6, levelUp: 5, boss: 4, kill: 3, move: 3, hit: 2, pickup: 1, shoot: 0, ui: 5 } as const;
 const MAX_VOICES = 24;
+/**
+ * 1.31.1 : sons secondaires (tirs, coups, ramassage : priorité < kill) refusés au-delà de 4 voix actives, kills et
+ * mouvements au-delà de 7. Les sons enregistrés durent 0,2 à 0,6 s : sans ce plafond, une mêlée en empilait 15 à 20.
+ */
+const BUSY_MINOR = 4;
+const BUSY_MID = 7;
+const HEARD_EVERY = 0.8;
+/** 1.31.1 : écart minimal (s) entre deux lectures d'un même son ; une rafale d'armes ne fait plus un mur de bruit. */
+const MIN_GAP: Partial<Record<SfxKey, number>> = {
+  orb: 0.2,
+  lance: 0.18,
+  blade: 0.28,
+  bolt: 0.25,
+  throw: 0.3,
+  blast: 0.35,
+  scythe: 0.25,
+  arrow: 0.45,
+  cast: 0.6,
+  spit: 0.45,
+  thud: 0.4,
+  dive: 0.6,
+  eruption: 0.35,
+  land: 0.2,
+  jump: 0.15,
+  meteorWarn: 0.8,
+};
 const HIT_VARIANTS: { f: number; type: OscillatorType }[] = [
   { f: 190, type: 'square' },
   { f: 230, type: 'triangle' },
@@ -59,6 +85,7 @@ export class AudioBus {
   private gemCombo = 0;
   private hitAcc = 0;
   private lastHitSound = 0;
+  private lastPlay: Partial<Record<SfxKey, number>> = {}; // dernière lecture de chaque son (currentTime)
   private killAcc = 0; // kills fusionnés dans le même son (rafale d'aura ou de météore)
   private lastKillSound = 0;
   private musicFailed = false; // navigateur sans MediaElementSource : on n'essaie plus
@@ -254,18 +281,23 @@ export class AudioBus {
   }
 
   /** Prend une voix du pool : libre, sinon la moins prioritaire si `prio` est supérieure ; -1 si refusé. */
-  private voice(prio: number): number {
+  private voice(prio: number, ignoreBusy = false): number {
     const c = this.ctx!;
     let slot = -1,
-      worst = -1;
+      worst = -1,
+      busy = 0;
     for (let i = 0; i < MAX_VOICES; i++) {
       const v = this.slots[i];
       if (v.end <= c.currentTime) {
-        slot = i;
-        break;
+        if (slot < 0) slot = i;
+        continue;
       }
+      busy++;
       if (worst < 0 || v.prio < this.slots[worst].prio) worst = i;
     }
+    // 1.31.1 : mix aéré, les sons secondaires se taisent quand il y a déjà du monde
+    if (!ignoreBusy && prio < PRIO.kill && busy >= BUSY_MINOR) return -1;
+    if (!ignoreBusy && prio <= PRIO.kill && busy >= BUSY_MID) return -1;
     if (slot < 0) {
       if (this.slots[worst].prio >= prio) return -1;
       slot = worst;
@@ -286,8 +318,14 @@ export class AudioBus {
   private sample(key: SfxKey, bus: GainNode, vol: number, prio: number, rate = 1, delay = 0, jitter = 0.06): boolean {
     if (!this.ctx || !this.buf) return false;
     if (this.muted) return true;
-    const slot = this.voice(prio);
+    const gap = MIN_GAP[key],
+      last = this.lastPlay[key],
+      since = last === undefined ? 1e9 : this.ctx.currentTime - last;
+    if (gap !== undefined && since < gap) return true;
+    // aucune arme muette : un son pas entendu depuis 0,8 s passe même dans une mêlée chargée
+    const slot = this.voice(prio, since > HEARD_EVERY);
     if (slot < 0) return true;
+    this.lastPlay[key] = this.ctx.currentTime;
     const vars = SFX.sounds[key];
     const seg = vars[(Math.random() * vars.length) | 0];
     const start = seg[0],
@@ -364,17 +402,18 @@ export class AudioBus {
   }
   /** Phase 36 : météore annoncé (sifflement qui tombe). */
   meteorWarn(): void {
-    if (this.sample('meteorWarn', this.sfx, 0.6, PRIO.shoot)) return;
+    if (this.sample('meteorWarn', this.sfx, 0.4, PRIO.shoot)) return;
     this.spit();
   }
   /** Coup porté : variantes, hauteur ±6 %, volume selon dégâts. Au-delà de 12/s, un seul son plus fort. */
   hit(dmg: number, now: number): void {
     this.hitAcc += dmg;
-    if (now - this.lastHitSound < 0.08) return;
+    // 1.31.1 : au plus ~4 coups par seconde (avant 12) et pas juste après un kill, qui couvre déjà le coup
+    if (now - this.lastHitSound < 0.22 || (now - this.lastKillSound < 0.08 && now >= this.lastKillSound)) return;
     this.lastHitSound = now;
     const v = Math.min(0.25, 0.08 + this.hitAcc / 400);
     this.hitAcc = 0;
-    if (this.sample('hit', this.sfx, v * 3.2, PRIO.hit)) return;
+    if (this.sample('hit', this.sfx, v * 2.4, PRIO.hit)) return;
     const h = HIT_VARIANTS[(Math.random() * HIT_VARIANTS.length) | 0];
     this.tone(this.sfx, h.f * (0.92 + Math.random() * 0.16), 0.07, h.type, v, -120, PRIO.hit);
   }
@@ -388,9 +427,9 @@ export class AudioBus {
     // une rafale (aura, météore : 30 kills dans le même pas) donne un seul son plus fort, pas 24 voix identiques ;
     // une élite passe toujours
     this.killAcc++;
-    if (elite || now - this.lastKillSound >= 0.035 || now < this.lastKillSound) {
+    if (elite || now - this.lastKillSound >= 0.16 || now < this.lastKillSound) {
       this.lastKillSound = now;
-      const vol = elite ? 1 : Math.min(1, 0.6 + this.killAcc * 0.1);
+      const vol = elite ? 1 : Math.min(0.9, 0.5 + this.killAcc * 0.08);
       this.killAcc = 0;
       if (!this.sample(elite ? 'killElite' : 'kill', this.sfx, vol, PRIO.kill))
         this.tone(this.sfx, 130 + Math.random() * 30, 0.12, 'square', 0.18, -80, PRIO.kill);
@@ -410,11 +449,11 @@ export class AudioBus {
   }
   /** Ramassage : +1 demi-ton par gemme enchaînée (< 400 ms), reset après 14. */
   pickup(now: number): void {
-    if (now - this.lastGem < 0.05) return;
+    if (now - this.lastGem < 0.1) return;
     this.gemCombo = now - this.lastGem < 0.4 ? Math.min(this.gemCombo + 1, 14) : 0;
     this.lastGem = now;
     const semi = Math.pow(1.0595, this.gemCombo);
-    if (this.sample('gem', this.sfx, 0.45, PRIO.pickup, semi, 0, 0)) return; // gamme exacte : pas de hauteur aléatoire
+    if (this.sample('gem', this.sfx, 0.38, PRIO.pickup, semi, 0, 0)) return; // gamme exacte : pas de hauteur aléatoire
     this.tone(this.sfx, 660 * semi, 0.07, 'triangle', 0.16, 0, PRIO.pickup);
   }
   /** Niveau : stinger au maillet. */
