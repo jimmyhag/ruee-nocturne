@@ -40,6 +40,9 @@ import {
 } from './meta/sync';
 import type { CloudDoc, SyncRecord } from './meta/sync';
 import { errorKey, initialAccountView, renderAccount } from './ui/account';
+import { initialBoardState, renderBoard, viewOf } from './ui/board';
+import { BOARD, cleanPseudo, isoWeek, suggestPseudo } from './meta/board';
+import type { RunScore } from './meta/board';
 import type { Account, AccountUser } from './platform/account'; // type seulement : firebase reste dans son chunk
 import {
   checkAchievements,
@@ -126,6 +129,7 @@ type AppMode =
   | 'achievements'
   | 'settings'
   | 'account'
+  | 'board'
   | 'characters'
   | 'help'
   | 'merchant'
@@ -140,6 +144,7 @@ const SCREENS = [
   'achievements',
   'settings',
   'account',
+  'board',
   'characters',
   'help',
   'map',
@@ -252,14 +257,18 @@ function vibrate(ms: number): void {
     /* non supporté */
   }
 }
-function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account' | 'characters' | 'help'): void {
+function openScreen(id: 'shop' | 'achievements' | 'settings' | 'account' | 'board' | 'characters' | 'help'): void {
   if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings')
     backTo = app === 'settings' ? 'menu' : app;
   app = id;
   if (id === 'shop') renderShopScreen();
   else if (id === 'achievements') renderAchievements($('achList'), meta);
   else if (id === 'account') openAccount();
-  else if (id === 'characters') {
+  else if (id === 'board') {
+    showOnly(id);
+    void openBoard();
+    return;
+  } else if (id === 'characters') {
     showOnly(id); // la feuille doit être visible avant le rendu : la rangée se recentre sur la carte choisie (téléphone)
     renderCharacters($('chars'), meta, $('charInfo'));
     return;
@@ -685,6 +694,13 @@ function gameOver(won = false): void {
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
   saveMeta(meta);
   lastOver = { won, rec, gold, dailyRank, miss: missingTime(meta, world.t), fresh };
+  // phase 38 : classement en ligne (joueurs connectés) ; personnage de la partie (défi du jour : l'Éclaireuse)
+  queueScore({
+    stage: won ? 4 : world.stage + 1,
+    time: Math.floor(world.t),
+    kills: world.kills,
+    char: dailyRun ? 'eclaireuse' : meta.character,
+  });
   renderOverScreen();
   S.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) S.shake = 0.5;
@@ -706,6 +722,24 @@ $('achBtn').onclick = () => openScreen('achievements');
 $('settingsBtn').onclick = () => openScreen('settings');
 $('accountBtn').onclick = () => openScreen('account');
 $('accountBackBtn').onclick = closeScreen;
+$('boardBtn').onclick = () => openScreen('board');
+$('boardBackBtn').onclick = closeScreen;
+$('boardAccountBtn').onclick = () => openScreen('account');
+$('boardPseudoBtn').onclick = () => openScreen('account');
+$('boardTabs').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-view]') as HTMLElement | null;
+  if (!b) return;
+  boardState.view = viewOf(b.dataset.view, boardState.view);
+  void refreshBoard();
+});
+$('boardAll').onclick = () => {
+  boardState.week = false;
+  void refreshBoard();
+};
+$('boardWeek').onclick = () => {
+  boardState.week = true;
+  void refreshBoard();
+};
 $('charsBtn').onclick = () => openScreen('characters');
 $('charactersBackBtn').onclick = closeScreen;
 $('helpBtn').onclick = () => openScreen('help');
@@ -1091,7 +1125,10 @@ function onAuthChange(u: AccountUser | null): void {
     /* stockage bloqué */
   }
   refreshAccount();
+  fillPseudo(u);
   if (u) void reconcileAccount();
+  if (u) void flushScores();
+  if (app === 'board') void refreshBoard();
 }
 
 /** Compare local et nuage et applique la décision (src/meta/sync.ts) ; attend le menu si une partie est en cours. */
@@ -1217,7 +1254,125 @@ document.addEventListener('visibilitychange', () => {
 });
 addEventListener('online', () => {
   if (account?.user) void reconcileAccount();
+  void flushScores(); // phase 38 : parties terminées hors ligne
 });
+
+// ---------- classement en ligne (phase 38, décision de Jimmy) : joueurs connectés seulement ----------
+// Sans compte connu, l'écran invite à se connecter et Firebase n'est pas chargé (règle 8 de CLAUDE.md).
+const boardState = initialBoardState();
+let boardSeq = 0; // dernière requête : une réponse plus ancienne (onglet changé entre-temps) est ignorée
+function sessionKnown(): boolean {
+  try {
+    return localStorage.getItem(SYNC.accountKey) === '1' || sessionStorage.getItem(SYNC.redirectKey) === '1';
+  } catch {
+    return false;
+  }
+}
+async function openBoard(): Promise<void> {
+  boardState.rows = [];
+  boardState.mine = null;
+  if (!account && !sessionKnown()) {
+    boardState.status = accountUnavailable ? 'unavailable' : 'out';
+    renderBoard(boardState);
+    return;
+  }
+  boardState.status = 'loading';
+  renderBoard(boardState);
+  const acc = await loadAccount();
+  if (!acc) {
+    boardState.status = accountUnavailable ? 'unavailable' : 'out';
+    renderBoard(boardState);
+    return;
+  }
+  if (acc.ready) await refreshBoard(); // sinon onAuthChange s'en charge à la restauration de la session
+}
+async function refreshBoard(): Promise<void> {
+  if (app !== 'board') return;
+  const u = account?.user;
+  if (!account || !u) boardState.status = accountUnavailable ? 'unavailable' : 'out';
+  else if (!meta.pseudo) boardState.status = 'nopseudo';
+  else boardState.status = 'loading';
+  renderBoard(boardState);
+  if (boardState.status !== 'loading' || !account || !u) return;
+  const seq = ++boardSeq;
+  try {
+    const r = await account.fetchBoard(u.uid, boardState.view, boardState.week ? isoWeek(Date.now()) : null);
+    if (seq !== boardSeq) return;
+    boardState.uid = u.uid;
+    boardState.rows = r.rows;
+    boardState.mine = r.mine;
+    boardState.status = 'ready';
+  } catch {
+    if (seq !== boardSeq) return;
+    boardState.status = 'error';
+  }
+  renderBoard(boardState);
+}
+interface PendingScore {
+  run: RunScore;
+  at: number;
+}
+function loadPending(): PendingScore[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BOARD.pendingKey) ?? '[]') as unknown;
+    return Array.isArray(raw) ? (raw as PendingScore[]).slice(-5) : [];
+  } catch {
+    return [];
+  }
+}
+function savePending(list: PendingScore[]): void {
+  try {
+    if (list.length) localStorage.setItem(BOARD.pendingKey, JSON.stringify(list.slice(-5)));
+    else localStorage.removeItem(BOARD.pendingKey);
+  } catch {
+    /* stockage bloqué : la partie ne sera pas publiée */
+  }
+}
+/** Fin de partie d'un joueur connecté (ou dont la session est connue) : le score attend son envoi. */
+function queueScore(run: RunScore): void {
+  if (!account?.user && !sessionKnown()) return; // sans compte, rien n'est gardé pour le classement
+  savePending([...loadPending(), { run, at: Date.now() }]);
+  void flushScores();
+}
+let flushing = false;
+async function flushScores(): Promise<void> {
+  const u = account?.user;
+  if (flushing || !account || !u || !meta.pseudo || !navigator.onLine) return;
+  flushing = true;
+  try {
+    let list = loadPending();
+    while (list.length) {
+      await account.submitScore(u.uid, meta.pseudo, list[0].run, list[0].at);
+      list = loadPending().slice(1);
+      savePending(list);
+    }
+  } catch {
+    /* réseau ou règles : on réessaiera au retour du réseau ou à la prochaine partie */
+  } finally {
+    flushing = false;
+  }
+}
+/** Pseudo du panneau Compte : celui de la progression, sinon une proposition tirée du compte (prénom Google). */
+function fillPseudo(u: AccountUser | null): void {
+  const el = $('accPseudo') as HTMLInputElement;
+  if (u && document.activeElement !== el) el.value = meta.pseudo || suggestPseudo(u.name, u.email);
+}
+$('accPseudoForm').onsubmit = (e) => {
+  e.preventDefault();
+  const name = cleanPseudo(($('accPseudo') as HTMLInputElement).value);
+  if (!name) {
+    accountMessage(t('account.pseudo.invalid'), true);
+    return;
+  }
+  ($('accPseudo') as HTMLInputElement).value = name;
+  const renamed = name !== meta.pseudo;
+  meta.pseudo = name;
+  saveMeta(meta); // synchronisé avec la progression
+  accountMessage(t('account.pseudo.saved', { name }));
+  const u = account?.user;
+  if (renamed && account && u && navigator.onLine) account.renameScores(u.uid, name).catch(() => undefined); // la prochaine partie le refera
+  void flushScores();
+};
 
 // boutons du panneau
 async function withBusy(run: () => Promise<void>): Promise<void> {
@@ -2021,6 +2176,30 @@ const debugRt = installDebugHooks({
     meta = normalizeMeta(m);
     saveMeta(meta);
     applyMeta();
+  },
+  fakeAccount(uid, rows) {
+    const sent: unknown[] = [];
+    const user: AccountUser = { uid, email: 'test@example.com', name: 'Testeur Fictif', provider: 'password' };
+    const fake = {
+      user,
+      ready: true,
+      onChange: null,
+      fetchBoard: () => Promise.resolve({ rows, mine: null }),
+      submitScore: (_uid: string, name: string, run: RunScore) => {
+        sent.push({ name, ...run });
+        return Promise.resolve();
+      },
+      renameScores: () => Promise.resolve(),
+      readSave: () => Promise.resolve(null),
+      writeSave: () => Promise.resolve(),
+    };
+    account = fake as unknown as Account;
+    accountUnavailable = false;
+    accView.status = 'in';
+    accView.email = user.email;
+    refreshAccount();
+    fillPseudo(user);
+    return { sent };
   },
 });
 

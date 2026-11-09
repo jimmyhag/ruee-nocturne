@@ -200,6 +200,7 @@ export class World {
   readonly itemBan = new Uint8Array(ITEM_KEYS.length);
   itemOrder: number[] = []; // ordre d'obtention (HUD)
   itemPicks = 0; // choix d'objet en attente (coffres)
+  eliteChests = 0; // phase 38 : coffres d'élite ramassés (un sur ITEM.eliteItemEvery donne un objet)
   // phase 18 : points d'intérêt (src/sim/poi.ts)
   readonly mapChests: MapChest[] = [];
   readonly shrines: Shrine[] = [];

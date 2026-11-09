@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import {
   CHARACTERS,
   ENEMIES,
+  ITEM,
   ITEM_KEYS,
   MAX_PASSIVES,
   MAX_WEAPONS,
@@ -57,6 +58,10 @@ for (const k of NO_ITEM)
     console.error(`--no-item : « ${k} » inconnu. Valeurs : ${ITEM_KEYS.join(', ')}`);
     process.exit(2);
   }
+// phase 38 : réglage du cumul et des coffres d'élite sans toucher balance.ts (essais d'équilibrage)
+if (args.has('elite-every')) ITEM.eliteItemEvery = +args.get('elite-every')!;
+if (args.has('stack-full')) ITEM.stackFull = +args.get('stack-full')!;
+if (args.has('falloff')) ITEM.stackFalloff = +args.get('falloff')!;
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
   ? (WEAPONS_ARG.split(',')

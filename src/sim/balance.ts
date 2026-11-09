@@ -868,6 +868,9 @@ export const ITEM = {
   stackFalloff: 0.5,
   dupWeight: 0.8, // poids de tirage d'un objet déjà possédé (× celui de sa rareté) : de la variété avant tout
   maxStack: 255, // w.items est un Uint8Array
+  // sans plafond, les ≈ 16 coffres d'élite d'une partie donnaient 28 objets : un coffre d'élite sur `eliteItemEvery`
+  // ouvre un choix d'objet, les autres un sac d'or (chestGoldIfFull) ; coffres de boss, de carte et marchand inchangés
+  eliteItemEvery: 1,
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…
   luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance

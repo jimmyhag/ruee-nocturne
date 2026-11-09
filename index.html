@@ -1097,6 +1097,60 @@
         display: inline-flex;
         align-items: center;
       }
+      /* phase 38 : classement */
+      ol.board {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .brow {
+        display: grid;
+        grid-template-columns: 34px 1fr auto;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: var(--radius);
+        background: var(--glass-2);
+        border: 1px solid var(--line-2);
+      }
+      .brow.me {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+      }
+      .brow .rank {
+        font-family: var(--f-display);
+        font-weight: 400;
+        color: var(--gold);
+        text-align: center;
+      }
+      .brow .who {
+        display: grid;
+        min-width: 0;
+      }
+      .brow .name {
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .brow small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .brow .val {
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+      #boardTabs .ghost,
+      #boardLive .btnrow .ghost {
+        padding: 8px 12px;
+        min-height: 40px;
+      }
+      #accPseudo {
+        flex: 1 1 160px;
+      }
       .btnrow {
         display: flex;
         flex-wrap: wrap;
@@ -2109,6 +2163,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg
             ><span data-i18n="menu.achievements">Succès</span></button
+          ><button class="btn-icon" id="boardBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 21V12h5v9M9.5 21V7h5v14M15 21v-6h5v6" /></svg
+            ><span data-i18n="menu.board">Classement</span></button
           ><button class="btn-icon" id="accountBtn">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
@@ -2438,6 +2496,48 @@
     </section>
 
     <!-- phase 13 : compte facultatif (Google ou e-mail), progression synchronisée ; Firebase chargé à l'ouverture seulement -->
+    <!-- phase 38 : classement en ligne, réservé aux joueurs connectés (src/ui/board.ts) -->
+    <section id="board" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="board.title">Classement</h2>
+          <button class="btn-icon close" id="boardBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <div class="settings">
+          <div class="settings" id="boardInvite">
+            <p class="note" id="boardInviteText">Connecte-toi pour voir le classement et y figurer.</p>
+            <div class="btnrow">
+              <button class="ghost" id="boardAccountBtn" data-i18n="board.toAccount">Se connecter</button>
+            </div>
+          </div>
+          <div class="settings" id="boardPseudo" hidden>
+            <p class="note" data-i18n="board.pickPseudo">
+              Choisis un pseudo dans Compte pour apparaître au classement.
+            </p>
+            <div class="btnrow">
+              <button class="ghost" id="boardPseudoBtn" data-i18n="board.toPseudo">Choisir un pseudo</button>
+            </div>
+          </div>
+          <div class="settings" id="boardLive" hidden>
+            <div class="btnrow" id="boardTabs" role="group">
+              <button class="ghost" data-view="best" data-i18n="board.tab.best">Meilleure partie</button
+              ><button class="ghost" data-view="time" data-i18n="board.tab.time">Plus longue survie</button
+              ><button class="ghost" data-view="kills" data-i18n="board.tab.kills">Plus de kills</button>
+            </div>
+            <div class="btnrow" role="group">
+              <button class="ghost" id="boardAll" data-i18n="board.all">Tous les temps</button
+              ><button class="ghost" id="boardWeek" data-i18n="board.week">Cette semaine</button>
+            </div>
+            <p class="note" id="boardMsg"></p>
+            <ol class="board" id="boardList"></ol>
+            <p class="note" id="boardMine"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="account" class="screen" hidden>
       <div class="panel">
         <header class="sheet-head">
@@ -2448,8 +2548,9 @@
         </header>
         <div class="settings">
           <p class="note" data-i18n="account.intro">
-            Un compte garde ta progression (record, or, boutique, succès) et la retrouve sur un autre appareil. Tes
-            réglages restent sur cet appareil. C'est facultatif : sans compte, tout reste ici.
+            Un compte garde ta progression (record, or, boutique, succès) et la retrouve sur un autre appareil ; avec un
+            pseudo, tes meilleurs scores entrent au classement (visible des seuls joueurs connectés). Tes réglages
+            restent sur cet appareil. C'est facultatif : sans compte, tout reste ici.
           </p>
           <p class="note accstatus" id="accStatus"></p>
           <div class="settings" id="accSignedOut" hidden>
@@ -2494,6 +2595,23 @@
           </div>
           <div class="settings" id="accSignedIn" hidden>
             <p class="note" id="accSync"></p>
+            <!-- phase 38 : pseudo du classement (synchronisé avec la progression) -->
+            <form class="settings" id="accPseudoForm" novalidate>
+              <label class="note" for="accPseudo" data-i18n="account.pseudo.label">Pseudo au classement</label>
+              <div class="btnrow">
+                <input
+                  id="accPseudo"
+                  type="text"
+                  maxlength="16"
+                  autocomplete="nickname"
+                  spellcheck="false"
+                  placeholder="2 à 16 lettres ou chiffres"
+                  data-i18n-attr="placeholder:account.pseudo.placeholder"
+                /><button class="ghost" id="accPseudoBtn" type="submit" data-i18n="account.pseudo.save">
+                  Enregistrer
+                </button>
+              </div>
+            </form>
             <div class="btnrow">
               <button class="ghost" id="accSignOutBtn" data-i18n="account.signOut">Se déconnecter</button
               ><button class="ghost" id="accDeleteBtn" data-i18n="account.delete">

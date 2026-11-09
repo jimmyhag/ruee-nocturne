@@ -286,7 +286,8 @@ export function tickChests(w: World, dt: number): void {
       // bannis, phase 38) : un sac d'or à la place
       const goldMul = w.player.goldMul * w.player.chestGoldMul * (c.boss ? GOLD.eliteMul : 1);
       const n = c.boss ? CHEST.bossPicks : 1;
-      if (canGainItem(w)) w.itemPicks += n;
+      const item = c.boss || w.eliteChests++ % ITEM.eliteItemEvery === 0; // phase 38 : un coffre d'élite sur N
+      if (item && canGainItem(w)) w.itemPicks += n;
       else w.gold += ITEM.chestGoldIfFull * n * goldMul;
       w.gold += CHEST.gold * goldMul;
       w.emit(Ev.Chest, c.x, 0.5, c.z, n);
