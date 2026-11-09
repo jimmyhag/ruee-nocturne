@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.32.1 — 9 nov. 2026 (correctif)
+
+### Corrigé
+
+- **« Sauvegarde refusée par le serveur »** avec un compte : depuis la 1.12.0, la progression ne contient plus l'ancienne boutique par personnage, mais les règles Firestore l'exigeaient encore ; toute synchronisation était refusée. La règle la rend facultative (vérifié dans l'émulateur Firestore) et un test empêche qu'une règle exige à nouveau un champ absent.
+- Test e2e « game feel » : le boss sort du totem depuis la 1.32.0 (il attendait un boss à 5:00).
+
 ## 1.32.0 — 9 nov. 2026 (phase 37 « Trois mondes »)
 
 ### Ajouté
