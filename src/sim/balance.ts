@@ -98,7 +98,11 @@ export const SLIDE = {
   endMul: 0.85, // sous marche × 0,85, la glissade s'arrête
   cd: 0.4, // s avant la glissade suivante
   airControl: 0.3, // part de la vitesse de marche que l'entrée ajoute en l'air après un saut glissé
-  launchAcc: 0.8, // envol : le sol « tombe » (accélération verticale) plus vite que 0,8 × gravité
+  // 1.31.2 (Jimmy) : envol seulement sur une vraie crête, la pente (dans le sens du déplacement) chute d'au moins 0,15
+  // d'un pas à l'autre : bord de plateau, bosse, tremplin, haut de rampe. Avant, le seuil était une accélération sur un
+  // pas : chaque arête de la grille de hauteurs (2 u) faisait décoller de quelques cm, 30 % du temps de glisse en l'air,
+  // un appui de saut sur trois perdu et la glissade reprise à la réception
+  launchSlope: 0.15,
   launchMin: 1.2, // …à au moins marche × 1,2 (la marche en descente plafonne à 1,15)
   launchPop: 2.5, // u/s vers le haut à l'envol
   // 1.30.1 (Jimmy) : plus de vrille. Glisse au bon moment de la réception : appui dans les 0,25 s avant de toucher le
@@ -110,6 +114,10 @@ export const SLIDE = {
   reaperMul: 1.1, // le Faucheur va toujours au moins 1,1 × la vitesse lissée du joueur (il rattrape toujours)
   startInput: 0.3, // entrée minimale (0–1) pour lancer une glissade
   spdSmooth: 2, // lissage de la vitesse du joueur lue par le Faucheur (1/s : ≈ 0,5 s)
+  // 1.31.2 : tolérance du saut. Juste après un envol (pas un saut), l'appui compte encore comme saut glissé ; en l'air,
+  // un appui fait juste avant de toucher le sol saute à la réception
+  coyote: 0.12,
+  jumpBuf: 0.15,
   teleport: 3, // u : un saut de sol plus grand en un pas est un déplacement forcé (test, réapparition), sans physique
 };
 

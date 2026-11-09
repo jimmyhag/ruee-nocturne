@@ -2,6 +2,22 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.31.2 — 9 nov. 2026 (retour de Jimmy : glissade sur les pentes)
+
+### Corrigé
+
+- **Glissade sur le relief** :
+  - **Plus de petits décollages** : sur les pentes et les dénivelés, la glissade décollait de quelques centimètres à chaque cassure du sol.
+    - Mesure sur 12 cartes : 30 % du temps de glisse en l'air, un appui de saut sur trois perdu (29 %).
+    - À la réception, la glissade reprenait : on restait en glissade.
+    - Le corps allongé se mettait à plat, et la partie côté montée entrait dans le relief.
+  - La glissade ne décolle plus que sur une vraie crête : bord de plateau, bosse, tremplin, haut de rampe.
+- **Saut plus tolérant** :
+  - juste après un décollage, un appui de saut compte encore pendant 0,12 s : c'est un saut depuis la glisse, avec réception debout ;
+  - en l'air, un appui fait juste avant de toucher le sol (0,15 s) saute dès la réception.
+  - Mesure sur 12 cartes : appuis perdus pendant une glissade sur le relief, de 29 % à 3,7 %. Ceux qui restent sont faits en plein vol au-dessus d'une crête, où on ne peut pas sauter.
+- **Rendu** : pendant un court décollage depuis une glissade, le corps suit la pente au lieu de se mettre à plat.
+
 ## 1.31.1 — 9 nov. 2026 (retour de Jimmy : « trop d'effets »)
 
 ### Modifié

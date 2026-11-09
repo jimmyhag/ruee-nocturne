@@ -168,9 +168,14 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   if (P.elanT > 0) P.elanT -= dt;
   if (P.slideCd > 0) P.slideCd -= dt;
   const walk = P.speed * (P.elanT > 0 ? SLIDE.elanMul : 1) * (w.powerT[Pw.Vitesse] > 0 ? POWER.speedMul : 1); // phase 35 : Élan
-  if (input.jump && P.onGround) {
+  // 1.31.2 : un appui en l'air est gardé SLIDE.jumpBuf s (saut dès la réception) ; juste après un envol, il compte encore
+  if (P.jumpBuf > 0) P.jumpBuf -= dt;
+  if (P.coyote > 0) P.coyote -= dt;
+  const coyote = !P.onGround && P.coyote > 0;
+  if (input.jump && !P.onGround && !coyote) P.jumpBuf = SLIDE.jumpBuf;
+  if ((input.jump || P.jumpBuf > 0) && (P.onGround || coyote)) {
     let vy = PLAYER.jumpVel * P.jumpMul; // phase 17 : Bottes de saut
-    if (P.sliding) {
+    if (P.sliding || coyote) {
       // saut glissé : l'élan part avec le joueur ; sur une rampe qui monte, la montée du sol s'ajoute au saut
       vy += Math.max(0, P.gv);
       P.sliding = false;
@@ -183,6 +188,8 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     P.airT = 0;
     P.slideBuf = 0;
     P.landGrace = 0;
+    P.jumpBuf = 0;
+    P.coyote = 0;
     w.emit(Ev.Jump, P.x, P.y, P.z);
   }
   if (input.spell && P.spellCd <= 0) castSpell(w, P.dirX, P.dirZ); // phase 19 : sort de classe (ancien dash)
@@ -287,13 +294,16 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     const gv = dg / dt;
     if (!P.onGround) P.y -= dg;
     else {
-      const fast = P.sliding || P.vx * P.vx + P.vz * P.vz > (walk * SLIDE.launchMin) ** 2;
-      if (fast && (gv - P.gv) / dt < -PLAYER.gravity * SLIDE.launchAcc) {
+      const h2 = P.vx * P.vx + P.vz * P.vz;
+      const fast = P.sliding || h2 > (walk * SLIDE.launchMin) ** 2;
+      // chute de la pente dans le sens du déplacement (gv / vitesse = pente parcourue)
+      if (fast && h2 > 1e-6 && (gv - P.gv) / Math.sqrt(h2) < -SLIDE.launchSlope) {
         P.onGround = false;
         P.vy = Math.max(0, P.gv) + SLIDE.launchPop; // la montée qu'avait le sol (sommet d'une rampe) et un petit bond
         P.y = -dg;
         P.airT = 0;
         P.slideBuf = 0;
+        P.coyote = SLIDE.coyote; // 1.31.2 : sauter juste après la crête reste un saut glissé
         P.slideJump = false; // envol : on décolle en glisse, la réception continue la glissade
         if (P.sliding) {
           P.sliding = false;

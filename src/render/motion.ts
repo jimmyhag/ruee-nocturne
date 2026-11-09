@@ -147,6 +147,10 @@ export class MotionState {
         pT = -Math.atan(s.slopeAlong) * M.slopeK;
         rT += Math.atan(s.slopeLat) * M.slopeK;
       }
+    } else if (s.airMom && !s.slideJump && s.height < M.airHigh) {
+      // 1.31.2 : envol au ras du sol (bosse, crête) : le corps allongé garde la pente, sinon il entre dans le relief
+      pT = -Math.atan(s.slopeAlong) * M.slopeK;
+      rT = Math.atan(s.slopeLat) * M.slopeK;
     }
     this.pitch += (pT - this.pitch) * k;
     this.roll += (rT - this.roll) * k;

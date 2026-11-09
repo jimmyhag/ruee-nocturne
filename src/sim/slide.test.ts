@@ -390,3 +390,88 @@ describe('pistes chronométrées (phase 28)', () => {
     expect(w.races[0].state).toBe(0); // loin du départ : réarmée
   });
 });
+
+describe('1.31.2 : glisse et saut sur le relief (retour de Jimmy)', () => {
+  // relief en plans nets comme la carte : bosses arrondies faites de pans de 4 u, la pente change de 0,1 à chaque arête
+  // (pentes 0,25 → −0,25), sous le seuil d'une vraie crête ; avant 1.31.2, chaque arête faisait décoller la glissade
+  const SLOPES = [0.25, 0.15, 0.05, -0.05, -0.15, -0.25];
+  const bump = (x: number) => {
+    const p = ((x % 24) + 24) % 24; // une bosse tous les 24 u
+    let h = 0;
+    for (let i = 0; i < 6; i++) h += SLOPES[i] * Math.max(0, Math.min(4, p - i * 4));
+    return h;
+  };
+  const rolling = (x: number, z: number) => bump(x) + bump(z * 0.7 + 5) * 0.5;
+  /** Glisse sur le vallonnement depuis (x, 0) dans la direction (mx, mz). */
+  const slideOn = (x: number, mx: number, mz: number) => {
+    const w = lab(rolling, x, 0);
+    run(w, { ...still, mx, mz }, 0.3);
+    step(w, { ...still, mx, mz, slide: true }, STEP);
+    expect(w.player.sliding).toBe(true);
+    return w;
+  };
+  it('pas d’envol sur les arêtes d’un vallonnement : la glissade reste au sol', () => {
+    for (const [x, mx, mz] of [
+      [-20, 1, 0],
+      [10, -1, 0],
+      [0, 0.6, 0.8],
+    ]) {
+      const w = slideOn(x, mx, mz);
+      let air = 0,
+        launches = 0,
+        frames = 0;
+      for (let f = 0; f < 90 && w.player.sliding; f++, frames++) {
+        step(w, { ...still, mx, mz }, STEP);
+        launches += count(w, Ev.Launch);
+        if (!w.player.onGround) air++;
+      }
+      expect(launches).toBe(0);
+      expect(air / Math.max(1, frames)).toBeLessThan(0.05);
+    }
+  });
+  it('un appui de saut pendant une glissade sur le relief est toujours pris, et la réception se fait debout', () => {
+    for (let at = 1; at < 60; at++) {
+      const w = slideOn(8, 1, 0); // juste avant le sommet d'une bosse : on passe ses arêtes lancé
+      run(w, { ...still, mx: 1 }, at * STEP);
+      if (!w.player.sliding && w.player.onGround) continue; // glissade finie (en l'air, sliding est faux : on teste)
+      let jumps = 0;
+      step(w, { ...still, mx: 1, jump: true }, STEP);
+      jumps += count(w, Ev.Jump);
+      jumps += run(w, { ...still, mx: 1 }, SLIDE.jumpBuf, Ev.Jump);
+      expect(jumps, `appui à ${at} pas`).toBe(1);
+      let f = 0;
+      while (!w.player.onGround && f++ < 200) step(w, { ...still, mx: 1 }, STEP);
+      expect(w.player.sliding, `réception debout (appui à ${at} pas)`).toBe(false);
+    }
+  });
+  it('juste après l’envol d’une crête, un appui de saut compte encore comme saut glissé', () => {
+    // plateau puis flanc de pente 0,5 : vraie crête
+    const w = lab((x) => (x < 0 ? 6 : Math.max(0, 6 - 0.5 * x)), -3, 0);
+    run(w, { ...still, mx: 1 }, 0.1);
+    step(w, { ...still, mx: 1, slide: true }, STEP);
+    let f = 0;
+    while (w.player.onGround && f++ < 120) step(w, { ...still, mx: 1 }, STEP);
+    expect(w.player.onGround).toBe(false); // envol
+    run(w, { ...still, mx: 1 }, SLIDE.coyote / 2);
+    step(w, { ...still, mx: 1, jump: true }, STEP);
+    expect(count(w, Ev.Jump)).toBe(1);
+    expect(w.player.slideJump).toBe(true);
+    expect(w.player.vy).toBeGreaterThan(PLAYER.jumpVel * 0.9);
+    f = 0;
+    while (!w.player.onGround && f++ < 300) step(w, { ...still, mx: 1 }, STEP);
+    expect(w.player.sliding).toBe(false); // saut glissé : réception debout
+  });
+  it('un appui de saut juste avant de toucher le sol saute dès la réception ; trop tôt, il se perd', () => {
+    const jumpAfter = (before: number) => {
+      const w = lab(() => 0);
+      step(w, { ...still, jump: true }, STEP);
+      // temps de vol d'un saut sur place : 2 · v / g
+      const flight = (2 * PLAYER.jumpVel * w.player.jumpMul) / PLAYER.gravity;
+      run(w, still, flight - before);
+      step(w, { ...still, jump: true }, STEP);
+      return count(w, Ev.Jump) + run(w, still, 0.3, Ev.Jump);
+    };
+    expect(jumpAfter(SLIDE.jumpBuf * 0.5)).toBe(1);
+    expect(jumpAfter(SLIDE.jumpBuf + 0.15)).toBe(0);
+  });
+});

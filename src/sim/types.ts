@@ -418,6 +418,8 @@ export interface Player {
   slideJump: boolean; // 1.24.1 : cet élan vient d'un saut (la glissade est annulée : réception debout), pas d'un envol
   airT: number; // temps passé en l'air
   slideBuf: number; // 1.30.1 : s restantes d'un appui de glisse fait en l'air (il servira à la réception)
+  jumpBuf: number; // 1.31.2 : s restantes d'un appui de saut fait en l'air (sauté dès la réception)
+  coyote: number; // 1.31.2 : s restantes après un envol pendant lesquelles un appui de saut compte encore (saut glissé)
   landGrace: number; // 1.30.1 : s restantes après une réception pendant lesquelles un appui de glisse est parfait
   landMx: number; // élan horizontal au moment de la réception
   landMz: number;

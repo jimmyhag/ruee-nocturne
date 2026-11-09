@@ -1265,7 +1265,7 @@ export class GameScene {
     mi.height = py;
     mi.speed = Math.sqrt(P.vx * P.vx + P.vz * P.vz);
     mi.face = this.face;
-    if (P.sliding) {
+    if (P.sliding || (P.airMom && !P.slideJump)) {
       this.terrain.gyGrad(px, pz);
       const sf = Math.sin(this.face),
         cf = Math.cos(this.face);
