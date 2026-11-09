@@ -6,7 +6,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import { CHARACTERS } from '../src/sim/balance';
 
-const PORT = +(process.argv[process.argv.indexOf('--port') + 1] || 4533);
+const PORT = process.argv.includes('--port') ? +process.argv[process.argv.indexOf('--port') + 1] : 4533;
 // --outfit : tenue alternative (portrait-<clé>-2.png) ; --master : tenue de maître, phase 41 (portrait-<clé>-3.png)
 const OUTFIT = process.argv.includes('--master') ? 2 : process.argv.includes('--outfit') ? 1 : 0;
 const OUT = 'docs/captures/phase-7';
