@@ -24,7 +24,9 @@ service cloud.firestore {
         && p().achievements is list && p().achievements.size() <= 64
         && p().bought is list && p().bought.size() <= 16
         && p().outfits is list && p().outfits.size() <= 16
-        && p().shops is map && p().shops.size() <= 16
+        // `shops` (boutique par personnage) a quitté la progression en phase 17 : facultative, sinon toute sauvegarde
+        // sans elle était refusée (« Sauvegarde refusée par le serveur », retour de Jimmy, 1.32.1)
+        && (!('shops' in p()) || (p().shops is map && p().shops.size() <= 16))
         && p().outfit is map && p().outfit.size() <= 16
         && p().stats is map && p().stats.size() <= 32
         && p().daily is map && p().daily.times is list && p().daily.times.size() <= 10

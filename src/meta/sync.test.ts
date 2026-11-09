@@ -155,4 +155,9 @@ describe('firestore.rules', () => {
     for (const k of PROGRESS_KEYS) expect(rules, k).toContain(`'${k}'`);
     for (const k of DEVICE_KEYS) expect(rules, k).not.toContain(`'${k}'`);
   });
+  it('n’exige aucune clé absente de la progression (une règle `p().x is …` sur un champ absent refuse tout)', () => {
+    const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+    for (const [, k] of rules.matchAll(/p\(\)\.(\w+) is /g))
+      if (!(PROGRESS_KEYS as string[]).includes(k)) expect(rules, k).toContain(`!('${k}' in p())`);
+  });
 });
