@@ -346,7 +346,8 @@ export type ItemKey =
 /**
  * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.
  * Phase 17, kind 'i' : objet passif (coffre ou marchand) ; lv = rareté (0 commun, 1 rare, 2 épique), n = lv + 1 (cadre),
- * s0 = prix chez le marchand (0 dans un coffre), s1 = 1 si déjà vendu.
+ * s0 = prix chez le marchand (0 dans un coffre), s1 = 1 si déjà vendu, s2 = exemplaires après l'avoir pris (phase 38 :
+ * 1 pour un nouvel objet, 2 et plus pour un cumul).
  */
 export interface Card {
   kind: 'w' | 't' | 'heal' | 'i' | 'b'; // 'b' : bonus de sanctuaire (phase 18)

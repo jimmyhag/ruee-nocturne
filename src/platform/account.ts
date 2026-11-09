@@ -22,10 +22,23 @@ import {
   signOut,
 } from 'firebase/auth';
 import type { Auth, User } from 'firebase/auth';
-import { deleteDoc, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore/lite';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  limit,
+  orderBy,
+  query,
+  setDoc,
+} from 'firebase/firestore/lite';
 import type { Firestore } from 'firebase/firestore/lite';
 import { SYNC, fromCloudDoc } from '../meta/sync';
 import type { CloudDoc } from '../meta/sync';
+import { BOARD, isoWeek, mergeScore, readScore } from '../meta/board';
+import type { BoardRow, BoardView, RunScore, ScoreDoc } from '../meta/board';
 
 export interface FirebaseConfig {
   apiKey: string;
@@ -95,13 +108,14 @@ export type Provider = 'google' | 'password' | 'other';
 export interface AccountUser {
   uid: string;
   email: string | null;
+  name: string | null; // phase 38 : nom du compte (Google), pour proposer un pseudo
   provider: Provider;
 }
 function toUser(u: User | null): AccountUser | null {
   if (!u) return null;
   const ids = u.providerData.map((p) => p.providerId);
   const provider: Provider = ids.includes('google.com') ? 'google' : ids.includes('password') ? 'password' : 'other';
-  return { uid: u.uid, email: u.email, provider };
+  return { uid: u.uid, email: u.email, name: u.displayName, provider };
 }
 const code = (e: unknown): string =>
   e && typeof e === 'object' && typeof (e as { code?: unknown }).code === 'string' ? (e as { code: string }).code : '';
@@ -175,6 +189,7 @@ export class Account {
     if (!u) return;
     const ref = doc(this.db, 'saves', u.uid);
     try {
+      await this.deleteScores(u.uid); // phase 38 : le classement oublie le joueur
       await deleteDoc(ref);
       await deleteUser(u);
     } catch (e) {
@@ -194,5 +209,53 @@ export class Account {
   }
   async writeSave(uid: string, d: CloudDoc): Promise<void> {
     await setDoc(doc(this.db, 'saves', uid), d);
+  }
+
+  // ---- phase 38 : classement en ligne (src/meta/board.ts), réservé aux joueurs connectés ----
+  private scoreRef(uid: string, week: string | null) {
+    return week ? doc(this.db, 'weeks', week, 'scores', uid) : doc(this.db, 'scores', uid);
+  }
+  /**
+   * Publie une partie sous le pseudo `name` : fusion avec les meilleurs scores du joueur (tous les temps et semaine en
+   * cours), écrite seulement si quelque chose change. `at` : fin de la partie (la semaine est celle de la partie).
+   */
+  async submitScore(uid: string, name: string, run: RunScore, at: number): Promise<void> {
+    for (const week of [null, isoWeek(at)]) {
+      const ref = this.scoreRef(uid, week);
+      const snap = await getDoc(ref);
+      const next = mergeScore(snap.exists() ? readScore(snap.data()) : null, run, name, Date.now());
+      if (next) await setDoc(ref, next);
+    }
+  }
+  /** Top BOARD.top d'une vue (tous les temps, ou la semaine `week`), et le document du joueur. */
+  async fetchBoard(
+    uid: string,
+    view: BoardView,
+    week: string | null,
+  ): Promise<{ rows: BoardRow[]; mine: ScoreDoc | null }> {
+    const col = week ? collection(this.db, 'weeks', week, 'scores') : collection(this.db, 'scores');
+    const [list, me] = await Promise.all([
+      getDocs(query(col, orderBy(view, 'desc'), limit(BOARD.top))),
+      getDoc(this.scoreRef(uid, week)),
+    ]);
+    const rows: BoardRow[] = [];
+    for (const d of list.docs) {
+      const s = readScore(d.data());
+      if (s) rows.push({ uid: d.id, name: s.name, char: s.char, value: s[view] });
+    }
+    return { rows, mine: me.exists() ? readScore(me.data()) : null };
+  }
+  /** Nouveau pseudo : appliqué aux documents existants seulement (aucun score n'est créé). */
+  async renameScores(uid: string, name: string): Promise<void> {
+    for (const week of [null, isoWeek(Date.now())]) {
+      const ref = this.scoreRef(uid, week);
+      const snap = await getDoc(ref);
+      const prev = snap.exists() ? readScore(snap.data()) : null;
+      if (prev && prev.name !== name) await setDoc(ref, { ...prev, name, at: Date.now() });
+    }
+  }
+  /** Retire le joueur du classement (tous les temps et semaine en cours) : suppression du compte. */
+  async deleteScores(uid: string): Promise<void> {
+    await Promise.all([deleteDoc(this.scoreRef(uid, null)), deleteDoc(this.scoreRef(uid, isoWeek(Date.now())))]);
   }
 }

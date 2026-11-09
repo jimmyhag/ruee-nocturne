@@ -192,12 +192,15 @@ export class World {
   readonly near = new Uint8Array(this.solidN * this.solidN);
   readonly flow = new FlowField(); // phase 16 : les ennemis au sol contournent les ouvrages
   shooters = 0; // phase 16 : tireurs vivants (Archer, Cracheur, Sorcier), compté à chaque pas
-  // phase 17 : objets passifs (drapeaux par index de ITEM_KEYS), synergies, marchand
+  // phase 17 : objets passifs (par index de ITEM_KEYS), synergies, marchand. Phase 38 : nombre d'exemplaires (cumul)
   readonly items = new Uint8Array(ITEM_KEYS.length);
+  /** Valeur cumulée de chaque objet (stackEff de son compte, 0 sans l'objet) : ce que lit la boucle de jeu. */
+  readonly itemEff = new Float64Array(ITEM_KEYS.length);
   /** Objets exclus des tirages (sim d'ablation de la CLI) : jamais proposés, sans effet. */
   readonly itemBan = new Uint8Array(ITEM_KEYS.length);
   itemOrder: number[] = []; // ordre d'obtention (HUD)
   itemPicks = 0; // choix d'objet en attente (coffres)
+  eliteChests = 0; // phase 38 : coffres d'élite ramassés (un sur ITEM.eliteItemEvery donne un objet)
   // phase 18 : points d'intérêt (src/sim/poi.ts)
   readonly mapChests: MapChest[] = [];
   readonly shrines: Shrine[] = [];
@@ -570,7 +573,7 @@ export function discover(w: World, dt: number): void {
   if (w.seenT > 0) return;
   w.seenT = DISCOVER.period;
   const C = DISCOVER.cell,
-    R = DISCOVER.radius * (w.items[It.Boussole] ? ITEM.boussole.radiusMul : 1), // phase 28 : Boussole
+    R = DISCOVER.radius * (w.items[It.Boussole] ? ITEM.boussole.radiusMul ** Math.min(ITEM.boussole.maxStack, w.itemEff[It.Boussole]) : 1), // phase 28 : Boussole (phase 38 : cumul borné à 2)
     P = w.player;
   const i0 = Math.max(0, Math.floor((P.x - R + WORLD_HALF) / C)),
     i1 = Math.min(SEEN_N - 1, Math.floor((P.x + R + WORLD_HALF) / C)),

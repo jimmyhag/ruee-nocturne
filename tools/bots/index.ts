@@ -23,7 +23,7 @@ import {
   VOLANT_TYPE,
   WEAPON_LINES,
 } from '../../src/sim/balance';
-import { canGainItem } from '../../src/sim/items';
+import { canGainItem, stackEff } from '../../src/sim/items';
 import { MERCHANT_LEAVE, canAffordAny } from '../../src/sim/merchant';
 import { cardSynergy } from '../../src/sim/synergies';
 
@@ -46,7 +46,7 @@ export function shopPick(w: World): number {
   for (let i = 0; i < w.offers.length; i++) {
     const c = w.offers[i];
     if (c.kind !== 'i' || c.s1 === 1 || w.gold < c.s0) continue;
-    const v = ITEM_VALUE[c.key as ItemKey];
+    const v = itemValue(c);
     if (v > bv) {
       bv = v;
       best = i;
@@ -107,6 +107,16 @@ const ITEM_VALUE: Record<ItemKey, number> = {
   couronne: 22,
 };
 
+/**
+ * Valeur d'une carte d'objet (phase 38) : un doublon vaut ce qu'il ajoute selon la règle de cumul (stackEff), un peu
+ * moins qu'un objet neuf de même note (un joueur moyen varie). `s2` : exemplaires après l'avoir pris.
+ */
+function itemValue(c: Card): number {
+  const v = ITEM_VALUE[c.key as ItemKey];
+  const n = Math.max(1, c.s2);
+  return n === 1 ? v : v * (stackEff(n) - stackEff(n - 1)) * 0.9;
+}
+
 /** Valeur d'une ligne de stat pour le bot (phase 12) : gain relatif approximatif, +1 projectile pèse lourd. */
 const LINE_VALUE: Record<string, number> = {
   // armes
@@ -159,7 +169,7 @@ function lineValue(c: Card, s: number): number {
 /** Valeur d'une carte pour un bot : somme de ses lignes (phase 12) ; nouvelle arme et soin valorisés par règle simple. */
 function cardValue(w: World, c: Card): number {
   if (c.kind === 'heal') return w.player.hp / w.player.maxHp < 0.4 ? 100 : 5;
-  if (c.kind === 'i') return ITEM_VALUE[c.key as ItemKey];
+  if (c.kind === 'i') return itemValue(c);
   if (c.kind === 'b') return BOON_VALUE[c.key as BoonKey];
   let v = lineValue(c, c.s0) + lineValue(c, c.s1) + lineValue(c, c.s2);
   if (c.kind === 'w' && c.lv === 1) v += 18; // une arme de plus : une base entière

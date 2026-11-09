@@ -626,6 +626,106 @@
         background: var(--accent);
         width: 0;
       }
+      /* phase 38 : barre d'équipement en bas. PC : centrée sur la ligne des rappels de touches, sans les toucher
+         (≈ 430 px à gauche) ; téléphone : entre le bord et les boutons Glisse/Sort/Saut (≈ 244 px + marge), à l'opposé
+         en gaucher. --rows rangées au plus (hud.ts, fitGear), qui montent ; jamais cliquable (le joystick passe dessous) */
+      .gear {
+        --gi: 26px;
+        --rows: 2;
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+        width: max-content;
+        max-width: max(220px, calc(100vw - 880px));
+        display: flex;
+        flex-wrap: wrap-reverse;
+        justify-content: center;
+        align-items: center;
+        gap: 3px;
+        pointer-events: none;
+      }
+      @media (max-width: 1100px) {
+        .gear {
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 52px);
+          max-width: calc(100vw - 32px);
+        }
+      }
+      #touch:not([hidden]) ~ .gear {
+        --gi: 22px;
+        --rows: 3;
+        left: max(12px, env(safe-area-inset-left, 0px));
+        right: calc(max(16px, env(safe-area-inset-right, 0px)) + 256px);
+        transform: none;
+        width: auto;
+        max-width: none;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+        justify-content: flex-start;
+      }
+      body.lefty #touch:not([hidden]) ~ .gear {
+        left: calc(max(16px, env(safe-area-inset-left, 0px)) + 256px);
+        right: max(12px, env(safe-area-inset-right, 0px));
+        justify-content: flex-end;
+      }
+      .gi {
+        position: relative;
+        width: var(--gi);
+        height: var(--gi);
+        display: grid;
+        place-items: center;
+        border-radius: 6px;
+        background: #0f1628c7;
+        border: 1px solid var(--ink-3);
+        flex: none;
+      }
+      .gi svg.ico {
+        width: calc(var(--gi) - 6px);
+        height: calc(var(--gi) - 6px);
+        margin: 0;
+        vertical-align: 0;
+      }
+      .gi.git {
+        border: 1.5px solid var(--r);
+        border-radius: 50%;
+      }
+      .gi b {
+        position: absolute;
+        right: -3px;
+        bottom: -4px;
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 900;
+        padding: 1px 2px;
+        border-radius: 4px;
+        background: var(--ink);
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+      .gi.git b {
+        color: var(--gold);
+      }
+      .gi.gmore {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--muted);
+      }
+      .gsep {
+        width: 1px;
+        height: calc(var(--gi) - 6px);
+        margin: 0 3px;
+        background: var(--ink-3);
+        flex: none;
+      }
+      /* écran de fin : la même rangée, dans la feuille */
+      .gear.static {
+        position: static;
+        transform: none;
+        width: auto;
+        max-width: none;
+        margin: 4px 0 8px;
+        flex-wrap: wrap;
+        zoom: 1;
+      }
       #touch {
         position: fixed;
         inset: 0;
@@ -996,6 +1096,60 @@
         text-decoration: none;
         display: inline-flex;
         align-items: center;
+      }
+      /* phase 38 : classement */
+      ol.board {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .brow {
+        display: grid;
+        grid-template-columns: 34px 1fr auto;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: var(--radius);
+        background: var(--glass-2);
+        border: 1px solid var(--line-2);
+      }
+      .brow.me {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+      }
+      .brow .rank {
+        font-family: var(--f-display);
+        font-weight: 400;
+        color: var(--gold);
+        text-align: center;
+      }
+      .brow .who {
+        display: grid;
+        min-width: 0;
+      }
+      .brow .name {
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .brow small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .brow .val {
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+      #boardTabs .ghost,
+      #boardLive .btnrow .ghost {
+        padding: 8px 12px;
+        min-height: 40px;
+      }
+      #accPseudo {
+        flex: 1 1 160px;
       }
       .btnrow {
         display: flex;
@@ -1801,6 +1955,7 @@
       /* pas sur #touch : le joystick flottant se place en coordonnées écran, un zoom le décalerait sous le doigt */
       #hud,
       .keys,
+      .gear,
       .tbtns {
         zoom: var(--hud-scale, 1);
       }
@@ -1974,6 +2129,8 @@
         </button>
       </div>
     </div>
+    <!-- phase 38 : barre d'équipement (armes, objets ×n), après #touch : sa place suit le mode d'entrée (CSS) -->
+    <div class="gear" id="gear" hidden aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
 
     <!-- phase 14 : écran-titre immersif. La clairière 3D occupe l'écran ; le logo en haut, Jouer et la barre d'icônes en
          bas ; personnages, boutique, succès, compte et réglages s'ouvrent dans des feuilles -->
@@ -2006,6 +2163,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg
             ><span data-i18n="menu.achievements">Succès</span></button
+          ><button class="btn-icon" id="boardBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 21V12h5v9M9.5 21V7h5v14M15 21v-6h5v6" /></svg
+            ><span data-i18n="menu.board">Classement</span></button
           ><button class="btn-icon" id="accountBtn">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
@@ -2229,6 +2390,7 @@
           <div><b id="oGold">0</b><span data-i18n="over.gold">Or</span></div>
           <div><b id="oBest">0:00</b><span data-i18n="over.best">Record</span></div>
         </div>
+        <div class="gear static" id="oGear" aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
         <p class="note" id="oMsg"></p>
         <p class="note slotline" id="oNext" hidden></p>
         <p class="unlocked" id="oUnlocked" hidden></p>
@@ -2334,6 +2496,48 @@
     </section>
 
     <!-- phase 13 : compte facultatif (Google ou e-mail), progression synchronisée ; Firebase chargé à l'ouverture seulement -->
+    <!-- phase 38 : classement en ligne, réservé aux joueurs connectés (src/ui/board.ts) -->
+    <section id="board" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="board.title">Classement</h2>
+          <button class="btn-icon close" id="boardBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <div class="settings">
+          <div class="settings" id="boardInvite">
+            <p class="note" id="boardInviteText">Connecte-toi pour voir le classement et y figurer.</p>
+            <div class="btnrow">
+              <button class="ghost" id="boardAccountBtn" data-i18n="board.toAccount">Se connecter</button>
+            </div>
+          </div>
+          <div class="settings" id="boardPseudo" hidden>
+            <p class="note" data-i18n="board.pickPseudo">
+              Choisis un pseudo dans Compte pour apparaître au classement.
+            </p>
+            <div class="btnrow">
+              <button class="ghost" id="boardPseudoBtn" data-i18n="board.toPseudo">Choisir un pseudo</button>
+            </div>
+          </div>
+          <div class="settings" id="boardLive" hidden>
+            <div class="btnrow" id="boardTabs" role="group">
+              <button class="ghost" data-view="best" data-i18n="board.tab.best">Meilleure partie</button
+              ><button class="ghost" data-view="time" data-i18n="board.tab.time">Plus longue survie</button
+              ><button class="ghost" data-view="kills" data-i18n="board.tab.kills">Plus de kills</button>
+            </div>
+            <div class="btnrow" role="group">
+              <button class="ghost" id="boardAll" data-i18n="board.all">Tous les temps</button
+              ><button class="ghost" id="boardWeek" data-i18n="board.week">Cette semaine</button>
+            </div>
+            <p class="note" id="boardMsg"></p>
+            <ol class="board" id="boardList"></ol>
+            <p class="note" id="boardMine"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="account" class="screen" hidden>
       <div class="panel">
         <header class="sheet-head">
@@ -2344,8 +2548,9 @@
         </header>
         <div class="settings">
           <p class="note" data-i18n="account.intro">
-            Un compte garde ta progression (record, or, boutique, succès) et la retrouve sur un autre appareil. Tes
-            réglages restent sur cet appareil. C'est facultatif : sans compte, tout reste ici.
+            Un compte garde ta progression (record, or, boutique, succès) et la retrouve sur un autre appareil ; avec un
+            pseudo, tes meilleurs scores entrent au classement (visible des seuls joueurs connectés). Tes réglages
+            restent sur cet appareil. C'est facultatif : sans compte, tout reste ici.
           </p>
           <p class="note accstatus" id="accStatus"></p>
           <div class="settings" id="accSignedOut" hidden>
@@ -2390,6 +2595,23 @@
           </div>
           <div class="settings" id="accSignedIn" hidden>
             <p class="note" id="accSync"></p>
+            <!-- phase 38 : pseudo du classement (synchronisé avec la progression) -->
+            <form class="settings" id="accPseudoForm" novalidate>
+              <label class="note" for="accPseudo" data-i18n="account.pseudo.label">Pseudo au classement</label>
+              <div class="btnrow">
+                <input
+                  id="accPseudo"
+                  type="text"
+                  maxlength="16"
+                  autocomplete="nickname"
+                  spellcheck="false"
+                  placeholder="2 à 16 lettres ou chiffres"
+                  data-i18n-attr="placeholder:account.pseudo.placeholder"
+                /><button class="ghost" id="accPseudoBtn" type="submit" data-i18n="account.pseudo.save">
+                  Enregistrer
+                </button>
+              </div>
+            </form>
             <div class="btnrow">
               <button class="ghost" id="accSignOutBtn" data-i18n="account.signOut">Se déconnecter</button
               ><button class="ghost" id="accDeleteBtn" data-i18n="account.delete">

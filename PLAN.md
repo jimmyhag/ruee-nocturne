@@ -23,7 +23,7 @@
 
 **Plateformes** : Chrome/Edge/Firefox desktop, Chrome Android, Safari iOS (PWA). Cible de performance : 60 fps sur un Android milieu de gamme de 2021 (type Pixel 4a / Galaxy A52).
 
-**Hors périmètre V1** : multijoueur, serveur de jeu, achats, classement en ligne, store natif (Capacitor envisageable en V2). Les **comptes** (Google, e-mail / mot de passe) sont entrés en phase 13 à la demande de Jimmy : facultatifs, ils ne servent qu'à retrouver sa progression.
+**Hors périmètre V1** : multijoueur, serveur de jeu, achats, store natif (Capacitor envisageable en V2). Les **comptes** (Google, e-mail / mot de passe) sont entrés en phase 13 à la demande de Jimmy : facultatifs, ils servent à retrouver sa progression et, depuis la phase 38 (décision de Jimmy), à figurer au **classement en ligne** sous un pseudo (meilleure partie, plus longue survie, plus de kills ; tous les temps et semaine ; visible des seuls joueurs connectés). Sans serveur de jeu, les scores sont envoyés par le client et seulement bornés par les règles Firestore.
 
 ---
 
@@ -163,7 +163,7 @@ Phase 19 : chaque personnage a aussi un **sort de classe** sur le bouton de l'an
 ### 3.6 Objets passifs, marchand et synergies (phase 17)
 Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plus complexe et plus stratégique ». Constantes : `ITEM`, `MERCHANT`, `SYN`, `SYNERGIES` dans `balance.ts` ; code : `src/sim/items.ts`, `merchant.ts`, `synergies.ts`.
 
-**Objets passifs** : une règle de jeu chacun, uniques (un exemplaire par run), 6 au plus, icônes sous les armes dans le HUD. Rareté (commun, rare, épique) : poids de tirage 1 / 0,55 / 0,2, décalés par la Chance.
+**Objets passifs** : une règle de jeu chacun ; rareté (commun, rare, épique) : poids de tirage 1 / 0,55 / 0,2, décalés par la Chance. **Phase 38** (demande de Jimmy) : **plus de limite**, un objet déjà pris peut revenir (poids × 0,8, carte « ×2 », « ×3 »…) et **se cumule**. Règle de cumul (`ITEM.stackFull`, `stackFalloff`, `stackEff` dans `items.ts`) : les trois premiers exemplaires valent chacun un premier, les suivants la moitié. Les effets chiffrés s'ajoutent (PV, dégâts, chance, soins, Épines, Patins, Calice…), les réductions se multiplient (recharge de la Cape et de la Rune, rabais de la Bourse, dégâts subis de la Brume) dans les planchers existants ; Talisman, Corne et Bouclier frappent plus souvent ; Phénix : une réanimation par premier exemplaire entier ; Fer à cheval : une offre de plus par exemplaire (deux au plus) ; Bottes : le saut une fois, l'onde se cumule ; Sablier et Plume : multiplicatifs, avec plancher ; Boussole : bornée à deux. Icônes et nombre d'exemplaires dans la barre d'équipement en bas de l'écran.
 
 | Objet | Effet | Rareté |
 |---|---|---|
@@ -204,7 +204,7 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 
 **Relances (phase 31)** : à une montée de niveau (pas un coffre ni un sanctuaire), « Relancer » (bouton, touche R) tire d'autres cartes que celles vues. Une relance par partie, plus 3 à acheter dans la boutique (500 / 1 500 / 4 000 or, `REROLL_SHOP`), rangées dans `meta.slots.rerolls` ; défi du jour : une.
 
-**Coffres** : choix d'un objet parmi 3 (4 avec le Colporteur), deux choix pour un coffre de boss ; 6 objets portés ou plus rien à obtenir → un sac d'or.
+**Coffres** : choix d'un objet parmi 3 (4 avec le Colporteur), deux choix pour un coffre de boss ; plus rien à obtenir (tous bannis, CLI d'ablation) → un sac d'or.
 
 **Marchand** : une échoppe s'installe à 10–14 u du joueur à 2:30, 6:30, 10:30 et 14:30, hors obstacle, et reste 45 s (flèche au bord de l'écran, distance, secondes restantes). Y entrer met la partie en pause : 3 objets (4 avec le Fer à cheval) à 70 / 140 / 240 or selon la rareté, +25 % par visite ; relancer coûte 40 or, puis 80, 120… ; on paie avec l'or de la partie, ce qui reste est gardé à la fin. Clavier : 1–4 acheter, R relancer, Échap partir ; boutons tactiles équivalents. On n'y rentre de nouveau qu'après en être sorti.
 
@@ -227,7 +227,7 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 Décision prise : les synergies sont des bonus de stats ou des règles simples plutôt que de nouveaux comportements d'arme (brûlure, rebond, rotation au dash) : même lisibilité, aucun nouvel objet de pool dans la boucle chaude, réglables par la CLI.
 
 **Points d'intérêt (phase 18)** : posés avec la carte sur les sommets et dans les lieux construits, signalés de loin par une **colonne de lumière** (pas de minicarte, choix de Jimmy).
-- **Coffres de carte (20)** : on reste 0,6 s dessus pour l'ouvrir (même règle au clavier et au doigt). Prix en or de la partie : 40, puis +35 % à chaque coffre ouvert ; la puce « Coffre · prix » dit si l'or manque ou si les 6 objets sont portés. Le coffre donne un choix d'objet parmi 3. Les coffres d'élite et de boss restent gratuits.
+- **Coffres de carte (20)** : on reste 0,6 s dessus pour l'ouvrir (même règle au clavier et au doigt). Prix en or de la partie : 40, puis +35 % à chaque coffre ouvert ; la puce « Coffre · prix » dit si l'or manque. Le coffre donne un choix d'objet parmi 3. Les coffres d'élite et de boss restent gratuits.
 - **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie parmi 3 : +12 PV max, +8 % de dégâts, +6 % de vitesse, −6 % de recharge, +25 % de collecte, +20 % d'or, −12 % de recharge du sort (sanctuaire de l'arcane, phase 22). Un usage chacun.
 - **Respiration avant un boss** : bannière « … approche » 15 s avant, spawn à 60 % les 10 dernières secondes.
 
@@ -609,6 +609,28 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - totem et portail au clavier et au doigt, chrono écoulé et ambiances couverts par e2e (captures lues) ;
   - bench inchangé ; appels de dessin ≤ 40.
 
+### Phase 38 — Classement en ligne, objets cumulables, barre d'équipement (après la 1.32.0)
+- **Demande de Jimmy** : un classement des joueurs connectés (le plus loin, le plus longtemps, le plus de kills) ; plus de limite d'objets, un objet qui revient se cumule (×2, ×3) ; les icônes des objets et des armes en bas de l'écran, compactes.
+- **Choix de Jimmy** (questions) : pseudo choisi (prérempli avec le prénom du compte) ; classement visible des seuls connectés ; trois vues (meilleure partie, plus longue survie, plus de kills) et « cette semaine » en plus de « tous les temps ».
+- **Décisions prises** :
+  - un document par joueur et par période (`scores/{uid}`, `weeks/{AAAA-Snn}/scores/{uid}`), chaque champ gardant son meilleur ; chaque vue trie sur un seul champ (index automatiques de Firestore, rien à déployer) ;
+  - règles Firestore fermées et bornées, scores qui ne peuvent que monter ; pas de serveur de jeu, donc un client modifié peut tricher dans les bornes (assumé, PLAN §1) ; règles vérifiées dans l'émulateur (27 cas) ;
+  - le pseudo rejoint la progression synchronisée ; les scores en attente (hors ligne, sans pseudo) sont liés au compte qui a joué et oubliés à la déconnexion ;
+  - supprimer le compte efface ses lignes de tous les temps et de la semaine en cours ; celles des semaines passées restent en base, sans être affichées (PRIVACY.md) ;
+  - cumul : trois exemplaires pleins, puis 50 % ; un objet possédé revient avec un poids ×0,8 ;
+  - sans plafond, une partie nue récoltait 28 objets (4,3 avant) et gagnait à 53 %. Deux leviers, mesurés : un coffre d'élite sur quatre ouvre un choix d'objet (les autres : un sac d'or), et les prix du marchand et des coffres de carte montent de 20 % par objet porté (sauf la Bourse). La règle de cumul, elle, ne pèse presque pas : c'est le nombre d'objets qui compte ;
+  - la barre d'équipement est du DOM (aucun appel de dessin), reconstruite au changement d'équipement seulement ; 2 rangées sur PC, 3 au doigt (la place à côté des boutons est étroite), puis « +n ».
+- **Équilibrage** (bot moyen, 200 runs, seed 42 ; avant → après) :
+
+  | Profil | Monde 2 | Monde 3 | Victoire | Objets par partie |
+  |---|---|---|---|---|
+  | Nu | 50 → 44 % | 45 → 42 % | 36 → 41 % | 4,3 → 12,5 (9 différents) |
+  | Maxé | 86 → 81 % | 46 → 55 % | 10 → 31 % | 6 → 20 (15 différents) |
+
+  - Essais (100 runs, nu) : sans levier 53 % de victoires et 28 objets ; un coffre d'élite sur 2 : 48 % ; sur 3 : 42 % ; sur 4 : 44 % ; plus le prix +20 % par objet : 37 %. Cumul plus sévère (2 pleins, 40 %) : sans effet mesurable.
+  - Maxé : 31–35 % quel que soit le levier (élite 1 sur 6, prix +30 %). Le kit à quatre armes, faible contre les boss jusqu'ici, profite plus des objets ; décision à prendre avec Jimmy (cible maxée, ou boss final).
+- **Porte** : objets (cumul pour les 32, tirages, prix, coffres d'élite, Sablier ×2) et classement (pseudo, score, fusion, semaine ISO, textes des règles) couverts par Vitest ; barre (clavier, doigt, gaucher, rangées, « +n », écran de fin) et classement (sans compte : zéro requête ; compte factice : onglets, semaine, ligne surlignée, score envoyé) couverts par e2e, captures lues ; bench inchangé ; relecture perf : 2 constantes déplacées, file des scores liée au compte.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.
@@ -619,10 +641,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Quêtes par personnage**, par exemple « 50 kills en l'air avec la Revenante », qui débloquent objets ou armes.
 - **Événements de carte** : élite « recherchée » qui fuit avec un coffre, horde annoncée d'une direction, pluie de météores sur une zone.
 - **Écran de fin détaillé** : dégâts par arme, cause de la mort, trajet sur la carte.
-- Sur décision de Jimmy (V2) : classement en ligne du défi du jour (des scores quitteraient l'appareil), deuxième carte.
+- Sur décision de Jimmy (V2) : classement en ligne du défi du jour (le classement général existe depuis la phase 38), deuxième carte.
 
 ### V2 (hors périmètre, à ne pas commencer)
-Deuxième carte, Capacitor pour les stores, classement en ligne, mode coop local (les skins passent en phase 7).
+Deuxième carte, Capacitor pour les stores, mode coop local (les skins passent en phase 7 ; le classement en ligne en phase 38).
 
 ---
 

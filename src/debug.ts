@@ -37,6 +37,11 @@ export interface DebugHost {
   /** Méta (phase 4) : lecture et remplacement (tests « nouveau joueur », export/import). */
   getMeta(): unknown;
   setMeta(m: unknown): void;
+  /**
+   * Phase 38 : compte factice pour l'écran Classement (Firebase n'est pas joignable en preview). `rows` : lignes
+   * renvoyées par fetchBoard ; les scores envoyés sont rangés dans `sent` (lecture par les tests).
+   */
+  fakeAccount(uid: string, rows: unknown[]): { sent: unknown[] };
 }
 
 export function debugEnabled(): boolean {
@@ -266,6 +271,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       return host.getMeta();
     },
     setMeta: (m: unknown) => host.setMeta(m),
+    fakeAccount: (uid: string, rows: unknown[]) => host.fakeAccount(uid, rows),
     get scene() {
       return host.scene;
     },

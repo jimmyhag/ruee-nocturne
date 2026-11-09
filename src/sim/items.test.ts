@@ -1,9 +1,10 @@
 // Phase 17 : objets passifs, marchand et synergies tome + arme.
 import { describe, expect, it } from 'vitest';
-import { CHEST, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, STEP, SYN, SYNERGIES, Syn } from './balance';
+import { CHEST, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, STEP, SYN, SYNERGIES, Syn, TOME_CAPS } from './balance';
 import { dropChest, hitEnemy } from './combat';
-import { canGainItem, gainItem, itemCount, itemPrice, merchantOffers, rollItemChoices } from './items';
+import { canGainItem, gainItem, itemCount, itemPrice, merchantOffers, rollItemChoices, shieldAbsorb, stackEff } from './items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, canAffordAny, rerollCost } from './merchant';
+import { mapChestPrice } from './poi';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
 import { cardSynergy, synergyCount, updateSynergies } from './synergies';
@@ -31,14 +32,15 @@ describe('objets passifs', () => {
     expect(ITEM_KEYS.indexOf('corne')).toBe(It.Corne); // indices existants inchangés
     expect(ITEM_KEYS.indexOf('couronne')).toBe(It.Couronne);
   });
-  it('les effets immédiats modifient le joueur une seule fois (un objet est unique)', () => {
+  it('les effets immédiats s’appliquent à chaque exemplaire (phase 38 : cumul, plus de limite)', () => {
     const w = new World(1);
     const P = w.player;
     const base = { hp: P.maxHp, speed: P.speed, magnet: P.magnet, cd: P.spellCdMul, luck: P.luck, gold: P.goldMul };
     gainItem(w, It.Coeur);
     gainItem(w, It.Coeur);
-    expect(P.maxHp).toBe(base.hp + ITEM.coeur.hp);
-    expect(P.speed).toBeCloseTo(base.speed * ITEM.coeur.speedMul, 6);
+    expect(w.items[It.Coeur]).toBe(2);
+    expect(P.maxHp).toBe(base.hp + 2 * ITEM.coeur.hp);
+    expect(P.speed).toBeCloseTo(base.speed * ITEM.coeur.speedMul ** 2, 6);
     gainItem(w, It.Lanterne);
     expect(P.magnet).toBeCloseTo(base.magnet * ITEM.lanterne.magnetMul, 6);
     gainItem(w, It.Cape);
@@ -49,9 +51,77 @@ describe('objets passifs', () => {
     expect(P.goldMul).toBeCloseTo(base.gold + ITEM.bourse.goldMul, 6);
     gainItem(w, It.Phenix);
     expect(P.revives).toBe(1);
-    expect(itemCount(w)).toBe(6);
-    expect(w.itemOrder).toEqual([It.Coeur, It.Lanterne, It.Cape, It.Fer, It.Bourse, It.Phenix]);
-    expect(canGainItem(w)).toBe(false); // ITEM.max
+    expect(itemCount(w)).toBe(7);
+    expect(w.itemOrder).toEqual([It.Coeur, It.Lanterne, It.Cape, It.Fer, It.Bourse, It.Phenix]); // une place par objet
+    for (let i = 0; i < ITEM_KEYS.length; i++) gainItem(w, i);
+    expect(itemCount(w)).toBe(39);
+    expect(canGainItem(w)).toBe(true); // plus de plafond
+  });
+  it('règle de cumul : trois exemplaires pleins, puis chacun à moitié ; w.itemEff suit', () => {
+    expect([0, 1, 2, 3, 4, 5, 7].map(stackEff)).toEqual([0, 1, 2, 3, 3.5, 4, 5]);
+    const w = new World(1);
+    const P = w.player;
+    const dmg = P.dmgMul;
+    for (let k = 1; k <= 5; k++) {
+      gainItem(w, It.Pierre);
+      expect(w.itemEff[It.Pierre]).toBe(stackEff(k));
+      expect(P.dmgMul).toBeCloseTo(dmg + ITEM.pierre.dmg * stackEff(k), 9);
+    }
+    // Phénix : une réanimation par exemplaire plein, puis une tous les deux
+    for (let k = 0; k < 5; k++) gainItem(w, It.Phenix);
+    expect(P.revives).toBe(4);
+    // Cape et Rune : les réductions se multiplient, sous le plancher de recharge
+    for (let k = 0; k < 8; k++) gainItem(w, It.Rune);
+    expect(P.spellCdMul).toBeCloseTo(TOME_CAPS.spellCdMin, 9);
+    // Bottes : le saut une seule fois
+    const jump = P.jumpMul;
+    gainItem(w, It.Bottes);
+    gainItem(w, It.Bottes);
+    expect(P.jumpMul).toBeCloseTo(jump * ITEM.bottes.jumpMul, 9);
+    // Fer : une offre de plus chez le marchand par exemplaire, deux au plus
+    gainItem(w, It.Fer);
+    expect(merchantOffers(w)).toBe(ITEM.offers + 1);
+    gainItem(w, It.Fer);
+    gainItem(w, It.Fer);
+    expect(merchantOffers(w)).toBe(ITEM.offers + 2);
+    // Bourse : le rabais se multiplie
+    const p0 = itemPrice(w, It.Coeur);
+    gainItem(w, It.Bourse);
+    gainItem(w, It.Bourse);
+    expect(itemPrice(w, It.Coeur)).toBe(Math.round((p0 / w.player.shopMul) * (1 - ITEM.bourse.discount) ** 2 * w.player.shopMul));
+  });
+  it('les prix (marchand, coffres de carte) montent avec les objets portés, sauf la Bourse', () => {
+    const w = new World(1);
+    const p0 = itemPrice(w, It.Coeur),
+      c0 = mapChestPrice(w);
+    gainItem(w, It.Pierre);
+    gainItem(w, It.De);
+    expect(itemPrice(w, It.Coeur)).toBe(Math.round(p0 * (1 + 2 * ITEM.priceGrowth)));
+    expect(mapChestPrice(w)).toBe(Math.round(c0 * (1 + 2 * ITEM.priceGrowth)));
+    const p1 = itemPrice(w, It.Coeur);
+    gainItem(w, It.Bourse);
+    expect(itemPrice(w, It.Coeur)).toBeLessThan(p1);
+  });
+  it('coffres d’élite : un sur ITEM.eliteItemEvery ouvre un choix d’objet, les autres donnent de l’or', () => {
+    const w = new World(4);
+    god(w);
+    let picks = 0;
+    for (let k = 0; k < ITEM.eliteItemEvery * 2; k++) {
+      const g = w.gold;
+      dropChest(w, w.player.x, w.player.z + 0.5, false);
+      step(w, still, STEP);
+      if (w.mode === Mode.LevelUp) {
+        picks++;
+        step(w, { ...still, pick: 0 }, STEP);
+      } else expect(w.gold).toBeGreaterThan(g + ITEM.chestGoldIfFull * 0.9);
+    }
+    expect(picks).toBe(2);
+  });
+  it('un plafond de comptage : 255 exemplaires au plus (Uint8Array), sans débordement', () => {
+    const w = new World(1);
+    for (let k = 0; k < 300; k++) gainItem(w, It.Amulette);
+    expect(w.items[It.Amulette]).toBe(ITEM.maxStack);
+    expect(w.itemOrder).toEqual([It.Amulette]);
   });
   it('les effets survivent aux montées de niveau (les tomes s’ajoutent, ne réinitialisent pas)', () => {
     const w = new World(2);
@@ -60,21 +130,26 @@ describe('objets passifs', () => {
     refreshStats(w);
     expect(w.player.eliteDmgMul).toBe(elite);
   });
-  it('tirage pondéré : jamais un objet possédé, jamais deux fois le même, la Chance fait monter la rareté', () => {
+  it('tirage pondéré : un objet possédé peut revenir (×2), jamais deux fois le même, la Chance fait monter la rareté', () => {
     const w = new World(3);
     gainItem(w, It.Talisman);
     const out: Card[] = [];
-    let rare = 0;
+    let rare = 0,
+      again = 0;
     for (let k = 0; k < 400; k++) {
       rollItemChoices(w, 3, false, out);
       expect(out.length).toBe(3);
       expect(new Set(out.map((c) => c.key)).size).toBe(3);
       for (const c of out) {
         expect(c.kind).toBe('i');
-        expect(c.key).not.toBe('talisman');
+        expect(c.s2).toBe(c.key === 'talisman' ? 2 : 1); // exemplaires après l'avoir pris
+        if (c.key === 'talisman') again++;
         if (c.lv >= 1) rare++;
       }
     }
+    // un parmi 32, poids ×ITEM.dupWeight : présent, mais pas plus qu'un objet neuf de même rareté
+    expect(again).toBeGreaterThan(5);
+    expect(again).toBeLessThan(400 * 3 * 0.1);
     w.player.luck = 6;
     let lucky = 0;
     for (let k = 0; k < 400; k++) {
@@ -83,10 +158,11 @@ describe('objets passifs', () => {
     }
     expect(lucky).toBeGreaterThan(rare);
   });
-  it('coffre plein (6 objets) : un sac d’or à la place du choix', () => {
+  it('aucun objet possible (tous bannis, CLI d’ablation) : un sac d’or à la place du choix', () => {
     const w = new World(4);
     god(w);
-    for (let i = 0; i < ITEM.max; i++) gainItem(w, i);
+    w.itemBan.fill(1);
+    expect(canGainItem(w)).toBe(false);
     const g = w.gold;
     dropChest(w, w.player.x, w.player.z + 0.5, false);
     step(w, still, STEP);
@@ -502,5 +578,48 @@ describe('objets de la phase 31 : vol de vie, régénération, pourcentages', ()
       w.player.hp = w.player.maxHp * 0.5;
     }, 0.9);
     expect(half).toBeCloseTo(base * (1 + ITEM.couronne.dmg * 0.5), 3);
+  });
+  it('phase 38 : chaque objet s’empile ; les effets continus suivent la règle de cumul (Mousse, Sablier, Bouclier)', () => {
+    for (let i = 0; i < ITEM_KEYS.length; i++) {
+      const w = fresh();
+      gainItem(w, i);
+      gainItem(w, i);
+      expect(w.items[i], ITEM_KEYS[i]).toBe(2);
+      expect(w.itemEff[i], ITEM_KEYS[i]).toBe(2);
+      for (let f = 0; f < 30; f++) step(w, still, STEP); // la boucle tourne avec un doublon de chaque objet
+      expect(Number.isFinite(w.player.hp), ITEM_KEYS[i]).toBe(true);
+    }
+    // Mousse ×2 : deux fois la régénération
+    const w = fresh();
+    const P = w.player;
+    P.hp = P.maxHp * 0.5;
+    gainItem(w, It.Mousse);
+    gainItem(w, It.Mousse);
+    for (let i = 0; i < 60; i++) step(w, still, STEP);
+    expect(P.hp).toBeCloseTo(P.maxHp * (0.5 + 2 * ITEM.mousse.pct) + P.regen, 1);
+    // Sablier ×2 : une élite avance moins vite qu'avec un seul (il ne marchait plus qu'à un exemplaire pile)
+    const walk = (n: number) => {
+      const v = fresh();
+      v.enemyCount = 0;
+      v.player.hp = v.player.maxHp = 1e9;
+      for (let k = 0; k < n; k++) gainItem(v, It.Sablier);
+      const e = v.enemies[spawnEnemy(v, 0, 0, 0)];
+      e.elite = true;
+      e.x = e.px = 12;
+      e.z = e.pz = 0;
+      for (let f = 0; f < 30; f++) step(v, still, STEP);
+      return 12 - e.x;
+    };
+    const d0 = walk(0),
+      d1 = walk(1),
+      d2 = walk(2);
+    expect(d1).toBeLessThan(d0 * 0.9);
+    expect(d2).toBeLessThan(d1 * 0.9);
+    // Bouclier ×2 : recharge deux fois plus courte
+    const b = fresh();
+    gainItem(b, It.Bouclier);
+    gainItem(b, It.Bouclier);
+    expect(shieldAbsorb(b, 5)).toBe(true);
+    expect(b.shieldT).toBeCloseTo(ITEM.bouclier.period / 2, 6);
   });
 });

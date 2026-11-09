@@ -57,6 +57,7 @@ export class Hud {
     bossname: $('bossname'),
     bossfill: $('bossfill'),
     kit: $('kit'),
+    gear: $('gear'),
     timeBox: $('timeBox'),
     stageLbl: $('stageLbl'),
     goalChip: $('goalChip'),
@@ -263,9 +264,9 @@ export class Hud {
       }
     }
     if (kind === 1) {
-      // l'état (prix, pas assez d'or, 6 objets) ne change que rarement : la chaîne n'est reconstruite qu'à ce moment
+      // l'état (prix, pas assez d'or, aucun objet possible) ne change que rarement : la chaîne n'est reconstruite qu'à ce moment
       const price = mapChestPrice(w),
-        full = !canGainItem(w), // 6 objets : le coffre donne un bonus (phase 18)
+        full = !canGainItem(w), // aucun objet possible (tous bannis) : le coffre donne un bonus (phase 18)
         poor = w.gold < price,
         key = price * 4 + (full ? 1 : 0) + (poor ? 2 : 0);
       if (this.cache.poiKey !== key || this.cache.poiOn !== kind) {
@@ -423,19 +424,11 @@ export class Hud {
     this.els.spellKey.textContent = spellName(sk);
     this.els.btnSpell.setAttribute('aria-label', spellName(sk));
     const parts: string[] = [];
-    // phase 28 : icône dessinée devant chaque arme et tome
-    for (const k in w.weapons)
-      parts.push(
-        `<span>${WEAPON_ICON[k as WeaponKey]}${weaponName(k as WeaponKey)} ${w.weapons[k as WeaponKey]}</span>`,
-      );
+    // phase 38 : armes et objets dans la barre d'équipement en bas de l'écran ; en haut, les tomes et les synergies
+    fitGear(this.els.gear, w);
     for (const k in w.tomes)
       parts.push(
         `<span style="color:var(--muted)">${TOME_ICON[k as TomeKey]}${tomeName(k as TomeKey)} ${w.tomes[k as TomeKey]}</span>`,
-      );
-    // phase 17 : objets passifs (glyphes à la couleur de leur rareté) et synergies actives
-    for (const i of w.itemOrder)
-      parts.push(
-        `<span class="item" title="${itemName(ITEM_KEYS[i])}" aria-label="${itemName(ITEM_KEYS[i])}" style="border-color:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_ICON[ITEM_KEYS[i]]}</span>`,
       );
     for (let i = 0; i < w.syn.length; i++)
       if (w.syn[i]) parts.push(`<span class="syn" title="${synergyText(i)}">✦ ${synergyName(i)}</span>`);
@@ -456,6 +449,52 @@ export class Hud {
   showPerf(on: boolean): void {
     this.els.perf.hidden = !on;
   }
+}
+
+/**
+ * Barre d'équipement (phase 38) : armes (icône + niveau), un séparateur, objets (icône sur pastille de rareté, « ×n »
+ * à partir de deux exemplaires). `hide` : nombre des plus anciens objets regroupés en « +n ». Reconstruite au changement
+ * d'équipement seulement (kit), jamais par image.
+ */
+export function gearHtml(w: World, hide = 0): string {
+  let s = '';
+  for (const k in w.weapons) {
+    const name = weaponName(k as WeaponKey),
+      lv = w.weapons[k as WeaponKey];
+    s += `<span class="gi gw" title="${name} ${lv}" aria-label="${name} ${lv}">${WEAPON_ICON[k as WeaponKey]}<b>${lv}</b></span>`;
+  }
+  const order = w.itemOrder;
+  if (order.length === 0) return s;
+  s += '<i class="gsep"></i>';
+  if (hide > 0) s += `<span class="gi gmore">+${hide}</span>`;
+  for (let k = hide; k < order.length; k++) {
+    const i = order[k],
+      key = ITEM_KEYS[i],
+      n = w.items[i],
+      name = itemName(key) + (n > 1 ? ` ×${n}` : '');
+    s += `<span class="gi git" title="${name}" aria-label="${name}" style="--r:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_ICON[key]}${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
+  }
+  return s;
+}
+
+/**
+ * Remplit la barre d'équipement sur `--rows` rangées au plus (CSS : 2 sur PC, 3 au doigt, où la place à côté des
+ * boutons est étroite) : au-delà, les plus anciens objets passent dans « +n ».
+ */
+function fitGear(el: HTMLElement, w: World): void {
+  el.innerHTML = gearHtml(w);
+  const first = el.firstElementChild as HTMLElement | null;
+  if (!first || el.hidden) return; // caché (menu) : mesuré au prochain affichage (fixed : pas d'offsetParent)
+  const row = first.offsetHeight + 3,
+    rows = Number(getComputedStyle(el).getPropertyValue('--rows')) || 2;
+  if (el.scrollHeight <= row * rows + 2) return;
+  // estimation en une mesure (pastilles par rangée × rangées, moins le séparateur et la pastille « +n »), puis
+  // ajustement fin : en pratique zéro ou une réécriture de plus (relecture perf : plus un reflow par objet masqué)
+  const perRow = Math.max(1, Math.floor((el.clientWidth + 3) / (first.offsetWidth + 3)));
+  const cells = el.childElementCount - 1; // le séparateur est étroit
+  let hide = Math.min(w.itemOrder.length, Math.max(2, cells - perRow * rows + 2));
+  el.innerHTML = gearHtml(w, hide);
+  while (el.scrollHeight > row * rows + 2 && hide < w.itemOrder.length) el.innerHTML = gearHtml(w, ++hide);
 }
 
 /**
@@ -483,7 +522,7 @@ export function renderCards(
         glyph = ITEM_GLYPH[c.key as ItemKey];
         icon = ITEM_ICON[c.key as ItemKey];
         color = RARITY_COLOR[c.lv];
-        badge = `<span class="badge new item">${t('card.item')}</span>`;
+        badge = `<span class="badge new item">${c.s2 > 1 ? t('card.itemStack', { n: c.s2 }) : t('card.item')}</span>`; // phase 38 : cumul
         if (shop) {
           const sold = c.s1 === 1;
           off = sold || shop.full || shop.gold < c.s0;

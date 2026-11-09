@@ -28,8 +28,8 @@ test('Faux, Lance et Météores frappent, avec leurs effets à l’écran', asyn
   );
   await page.screenshot({ path: `shots/${info.project.name}-armes28.png` });
   await page.waitForFunction(() => (window as any).__game.world.kills > 5, null, { timeout: 10000 });
-  // le kit du HUD montre les icônes des armes
-  expect(await page.locator('#kit svg.ico').count()).toBeGreaterThanOrEqual(3);
+  // la barre d'équipement montre les icônes des armes
+  expect(await page.locator('#gear .gw svg.ico').count()).toBeGreaterThanOrEqual(3); // phase 38 : barre du bas
   expect(errors).toEqual([]);
 });
 

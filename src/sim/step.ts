@@ -104,11 +104,16 @@ function landingShockwave(w: World): void {
       d2 = dx * dx + dz * dz;
     if (d2 > B.r * B.r || d2 < 1e-6) continue;
     const d = Math.sqrt(d2),
-      k = B.kb * ENEMIES[e.type].kbMul * (1 - d / B.r);
+      k = B.kb * w.itemEff[It.Bottes] * ENEMIES[e.type].kbMul * (1 - d / B.r); // phase 38 : recul × exemplaires
     e.kx += (dx / d) * k;
     e.kz += (dz / d) * k;
   }
   w.emit(Ev.Shockwave, P.x, 0, P.z, B.r);
+}
+
+/** Plume (phase 28) : gravité réduite en l'air avec l'élan d'une glissade ; phase 38 : × gravMul par exemplaire, plancher. */
+function plumeGrav(w: World): number {
+  return Math.max(ITEM.plume.min, ITEM.plume.gravMul ** w.itemEff[It.Plume]);
 }
 
 /**
@@ -139,8 +144,8 @@ function perfectSlide(w: World, hx: number, hz: number, walk: number, ix: number
   w.tricks++;
   if (w.items[It.Echarpe]) {
     // phase 28 : Écharpe du vent
-    P.hp = Math.min(P.maxHp, P.hp + ITEM.echarpe.heal);
-    P.spellCd -= ITEM.echarpe.spell;
+    P.hp = Math.min(P.maxHp, P.hp + ITEM.echarpe.heal * w.itemEff[It.Echarpe]); // phase 38 : × exemplaires
+    P.spellCd -= ITEM.echarpe.spell * w.itemEff[It.Echarpe];
   }
   w.emit(Ev.Trick, P.x, 0, P.z, v0);
 }
@@ -339,7 +344,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.gPrev = g;
   const ground = 0; // y = hauteur au-dessus du sol local (le relief est ajouté par le rendu)
   if (!P.onGround) {
-    P.vy -= PLAYER.gravity * (P.airMom && w.items[It.Plume] ? ITEM.plume.gravMul : 1) * dt; // phase 28 : Plume
+    P.vy -= PLAYER.gravity * (P.airMom && w.items[It.Plume] ? plumeGrav(w) : 1) * dt; // phase 28 : Plume
     P.y += P.vy * dt;
     P.airT += dt;
     if (P.y <= ground) {
@@ -381,8 +386,8 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   P.spd += (vNow - P.spd) * Math.min(1, dt * SLIDE.spdSmooth);
   // phase 31 : Mousse de troll (part des PV max par seconde), Second souffle (bien plus sous un seuil de PV)
   let regen = P.regen;
-  if (w.items[It.Mousse]) regen += P.maxHp * ITEM.mousse.pct;
-  if (w.items[It.Souffle] && P.hp < P.maxHp * ITEM.souffle.below) regen += P.maxHp * ITEM.souffle.pct;
+  regen += P.maxHp * ITEM.mousse.pct * w.itemEff[It.Mousse]; // phase 38 : × exemplaires (0 sans l'objet)
+  if (w.items[It.Souffle] && P.hp < P.maxHp * ITEM.souffle.below) regen += P.maxHp * ITEM.souffle.pct * w.itemEff[It.Souffle];
   P.hp = Math.min(P.maxHp, P.hp + regen * dt);
   healTick(w, dt);
   P.walk += l * dt * 12;
@@ -411,7 +416,8 @@ function stepEnemies(w: World, dt: number): void {
   const airborne = P.y >= PLAYER.airborneSafeY;
   let shooters = 0;
   // Épines (phase 17) : le renvoi de dégâts tombe toutes les ITEM.epines.period s, pas à chaque pas (moins de chiffres)
-  const sablier = w.items[It.Sablier] === 1; // Sablier fêlé : élites et boss ralentis
+  const sablier = w.items[It.Sablier] > 0; // Sablier fêlé : élites et boss ralentis (phase 38 : > 0, il se cumule)
+  const slow = Math.max(ITEM.sablier.min, ITEM.sablier.slow ** w.itemEff[It.Sablier]);
   const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé
   let thorns = false;
   if (w.items[It.Epines]) {
@@ -470,8 +476,8 @@ function stepEnemies(w: World, dt: number): void {
     }
     // phase 17 : Sablier fêlé, élites et boss ralentis
     if (sablier && (e.elite || def.boss)) {
-      mv[0] *= ITEM.sablier.slow;
-      mv[1] *= ITEM.sablier.slow;
+      mv[0] *= slow;
+      mv[1] *= slow;
     }
     // phase 19 : ralenti par un sort (Voile ; boss dans un Collet ou un Éclat)
     if (e.slowT > 0) {
@@ -545,7 +551,7 @@ function stepEnemies(w: World, dt: number): void {
         hurt += dmg;
         w.lastHurt = HurtSrc.Contact;
         // phase 17 : Épines, le contact est renvoyé (par paquets, toutes les ITEM.epines.period s)
-        if (thorns) hitEnemy(w, i, def.dmg * e.dmgMul * ITEM.epines.period * ITEM.epines.mul, 0, P.x, P.z, HitSrc.Thorns);
+        if (thorns) hitEnemy(w, i, def.dmg * e.dmgMul * ITEM.epines.period * ITEM.epines.mul * w.itemEff[It.Epines], 0, P.x, P.z, HitSrc.Thorns);
       }
     }
   }

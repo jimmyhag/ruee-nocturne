@@ -19,6 +19,7 @@ import {
   ZONES,
 } from './balance';
 import { dropChest, hitEnemy } from './combat';
+import { itemCount } from './items';
 import { rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
 import { step } from './step';
@@ -186,7 +187,7 @@ describe('élites, coffres, or', () => {
       expect(w.mode).toBe(Mode.LevelUp);
       step(w, { ...still, pick: 0 }, STEP);
     }
-    expect(w.itemOrder.length).toBe(1 + CHEST.bossPicks);
+    expect(itemCount(w)).toBe(1 + CHEST.bossPicks); // phase 38 : un doublon s'empile (itemOrder : une place par objet)
     expect(w.mode).toBe(Mode.Play);
   });
 });

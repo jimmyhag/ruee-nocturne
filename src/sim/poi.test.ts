@@ -1,8 +1,7 @@
 // Phase 18 : coffres de carte (payés avec l'or de la partie, prix croissant), sanctuaires (bonus permanent), annonce et
 // respiration avant un boss.
 import { describe, expect, it } from 'vitest';
-import { BOON, BOON_KEYS, ITEM, MAPCHEST, MAP, SHRINE, STEP } from './balance';
-import { gainItem } from './items';
+import { BOON, BOON_KEYS, MAPCHEST, MAP, SHRINE, STEP } from './balance';
 import { applyBoon, mapChestPrice, rollBoonChoices } from './poi';
 import { step } from './step';
 import { Ev, Mode } from './types';
@@ -93,10 +92,10 @@ describe('coffres de carte', () => {
     step(w2, still, STEP);
     expect(c2.hold).toBe(0);
   });
-  it('avec 6 objets portés, le coffre de carte donne un choix de bonus (l’or garde un usage)', () => {
+  it('aucun objet possible (tous bannis) : le coffre de carte donne un choix de bonus (l’or garde un usage)', () => {
     const w = new World(6);
     calm(w);
-    for (let i = 0; i < ITEM.max; i++) gainItem(w, i);
+    w.itemBan.fill(1);
     const c = w.mapChests[0];
     go(w, c.x, c.z);
     w.gold = 1000;

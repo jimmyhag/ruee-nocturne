@@ -1,5 +1,6 @@
 rules_version = '2';
-// Règles Firestore (phase 13) : un document de progression par compte, lisible et modifiable par son seul propriétaire.
+// Règles Firestore (phase 13) : un document de progression par compte, lisible et modifiable par son seul propriétaire ;
+// phase 38 : le classement (scores, weeks), lisible par les joueurs connectés.
 // Les clés de `progress` sont celles de PROGRESS_KEYS (src/meta/sync.ts) : un test Vitest vérifie qu'elles correspondent.
 // Le client ne fait jamais confiance au document (normalizeMeta à la lecture) ; ici on borne la forme et les tailles.
 service cloud.firestore {
@@ -19,7 +20,7 @@ service cloud.firestore {
         && request.resource.data.updatedAt is number
         && p() is map
         && p().keys().hasOnly(['version', 'bestTime', 'bestKills', 'runs', 'totalKills', 'gold', 'goldEarned',
-             'shops', 'stats', 'achievements', 'bought', 'character', 'outfits', 'outfit', 'daily', 'slots'])
+             'shops', 'stats', 'achievements', 'bought', 'character', 'outfits', 'outfit', 'daily', 'slots', 'pseudo'])
         && p().achievements is list && p().achievements.size() <= 64
         && p().bought is list && p().bought.size() <= 16
         && p().outfits is list && p().outfits.size() <= 16
@@ -29,7 +30,38 @@ service cloud.firestore {
         && p().outfit is map && p().outfit.size() <= 16
         && p().stats is map && p().stats.size() <= 32
         && p().daily is map && p().daily.times is list && p().daily.times.size() <= 10
-        && p().character is string && p().character.size() <= 32;
+        && p().character is string && p().character.size() <= 32
+        && (!('pseudo' in p()) || (p().pseudo is string && p().pseudo.size() <= 16));
+    }
+    // Classement (phase 38, décision de Jimmy) : un document par joueur, ses meilleurs scores (src/meta/board.ts).
+    // Lisible par les seuls joueurs connectés, 100 lignes au plus par requête ; chacun n'écrit que le sien, avec des
+    // clés fermées, des valeurs bornées (BOARD) et des scores qui ne peuvent que monter. Un client modifié peut
+    // toujours tricher dans ces bornes : pas de serveur de jeu (PLAN §1).
+    function scoreOk(uid) {
+      let d = request.resource.data;
+      return request.auth != null && request.auth.uid == uid
+        && d.keys().hasOnly(['name', 'char', 'best', 'time', 'kills', 'at'])
+        && d.keys().hasAll(['name', 'char', 'best', 'time', 'kills', 'at'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 16
+        && d.char is string && d.char.size() <= 32
+        && d.best is int && d.best >= 0 && d.best <= 47200
+        && d.time is int && d.time >= 0 && d.time <= 7200
+        && d.kills is int && d.kills >= 0 && d.kills <= 200000
+        && d.at is number
+        && (resource == null
+          || (d.best >= resource.data.best && d.time >= resource.data.time && d.kills >= resource.data.kills));
+    }
+    match /scores/{uid} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && request.query.limit <= 100;
+      allow create, update: if scoreOk(uid);
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+    match /weeks/{week}/scores/{uid} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && request.query.limit <= 100;
+      allow create, update: if week.matches('^[0-9]{4}-W[0-9]{2}$') && scoreOk(uid);
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
     match /{document=**} {
       allow read, write: if false;

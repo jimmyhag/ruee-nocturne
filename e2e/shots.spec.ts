@@ -120,6 +120,7 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
   // totem (3 s) puis fait sortir le Gardien (bannière, son, shake passent par handleEvents) ; ramené à 6 u
   await page.evaluate(() => {
     const g = (window as any).__game;
+    g.world.player.need = 1e9; // la montée de niveau forcée a remis le seuil : une autre figerait la charge du totem
     g.debug.teleport(g.world.totem.x, g.world.totem.z);
   });
   await pickUntilPlay(page);

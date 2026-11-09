@@ -1,5 +1,6 @@
 // Sauvegarde méta : IndexedDB via idb-keyval, repli localStorage, jamais bloquante.
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
+import { cleanPseudo } from './board';
 import { get, set } from 'idb-keyval';
 import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, REROLL_SHOP, SLOTS_START } from '../sim/balance';
 import { ACHIEVEMENT_IDS } from './achievements';
@@ -55,6 +56,7 @@ export interface Meta {
   outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
   daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
   slots: { weapons: number; passives: number; rerolls: number }; // phase 31 : `rerolls` = relances achetées (rangées ici : les règles Firestore bornent les clés de progress) ; emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
+  pseudo: string; // phase 38 : nom affiché dans le classement en ligne ('' = aucun, rien n'est publié) ; synchronisé
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   seenHelp: boolean; // aide « Comment jouer » déjà vue au premier lancement (phase 14 ; propre à l'appareil)
   settings: MetaSettings;
@@ -98,6 +100,7 @@ export const DEFAULT_META: Meta = {
   outfit: {},
   daily: { date: '', times: [] },
   slots: { ...SLOTS_START, rerolls: 0 },
+  pseudo: '',
   seenReset: true,
   seenHelp: false,
   settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto', sfxVol: 1, musicVol: 0.7 },
@@ -229,6 +232,7 @@ export function normalizeMeta(raw: unknown): Meta {
             .slice(0, 10)
         : [],
     },
+    pseudo: cleanPseudo(r.pseudo),
     settings: normalizeSettings(se),
     slots: {
       weapons: Math.max(SLOTS_START.weapons, Math.min(MAX_WEAPONS, num(sl.weapons, SLOTS_START.weapons) | 0)),

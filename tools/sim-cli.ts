@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import {
   CHARACTERS,
   ENEMIES,
+  ITEM,
   ITEM_KEYS,
   MAX_PASSIVES,
   MAX_WEAPONS,
@@ -57,6 +58,11 @@ for (const k of NO_ITEM)
     console.error(`--no-item : « ${k} » inconnu. Valeurs : ${ITEM_KEYS.join(', ')}`);
     process.exit(2);
   }
+// phase 38 : réglage du cumul et des coffres d'élite sans toucher balance.ts (essais d'équilibrage)
+if (args.has('elite-every')) ITEM.eliteItemEvery = +args.get('elite-every')!;
+if (args.has('stack-full')) ITEM.stackFull = +args.get('stack-full')!;
+if (args.has('falloff')) ITEM.stackFalloff = +args.get('falloff')!;
+if (args.has('price-growth')) ITEM.priceGrowth = +args.get('price-growth')!;
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
   ? (WEAPONS_ARG.split(',')
@@ -105,6 +111,8 @@ interface RunResult {
   gold: number; // or gardé en fin de run (après les achats au marchand)
   goldSpent: number; // phase 17 : or dépensé au marchand
   items: string[]; // phase 17 : objets obtenus (coffres et marchand), dans l'ordre
+  itemN: number; // phase 38 : exemplaires compris
+  topStack: number; // phase 38 : plus gros cumul d'un même objet
   bought: number; // dont achetés au marchand
   synergies: string[]; // synergies actives en fin de run
   mapChests: number; // phase 18 : coffres de carte ouverts
@@ -278,6 +286,8 @@ function runOnce(seed: number): RunResult {
     gold: Math.round(w.gold),
     goldSpent: Math.round(w.goldSpent),
     items: w.itemOrder.map((i) => ITEM_KEYS[i]),
+    itemN: w.items.reduce((a, n) => a + n, 0),
+    topStack: w.items.reduce((a, n) => Math.max(a, n), 0),
     bought,
     synergies: SYNERGIES.filter((_, i) => w.syn[i]).map((s) => s.key),
     mapChests: w.mapChestsOpened,
@@ -400,7 +410,12 @@ const summary = {
     50,
   ),
   // phase 17 : objets par run, part achetée, objets vus sur l'ensemble des runs, synergies
-  itemsPerRun: +(results.reduce((a, r) => a + r.items.length, 0) / RUNS).toFixed(2),
+  itemsPerRun: +(results.reduce((a, r) => a + r.itemN, 0) / RUNS).toFixed(2),
+  distinctPerRun: +(results.reduce((a, r) => a + r.items.length, 0) / RUNS).toFixed(2),
+  topStackP90: pct(
+    results.map((r) => r.topStack),
+    90,
+  ),
   boughtPerRun: +(results.reduce((a, r) => a + r.bought, 0) / RUNS).toFixed(2),
   itemPct: Object.fromEntries(
     ITEM_KEYS.filter((k) => !NO_ITEM.has(k)).map((k) => [
@@ -547,7 +562,9 @@ lines.push(
   `or          gardé p50 ${summary.goldP50} (×${(summary.goldP50 / REF_PRICE).toFixed(1)} emplacement n°2) · dépensé au marchand p50 ${summary.goldSpentP50}`,
 );
 lines.push(
-  `objets      ${summary.itemsPerRun} par run (${summary.boughtPerRun} achetés) · ${Object.entries(summary.itemPct)
+  `objets      ${summary.itemsPerRun} par run (${summary.distinctPerRun} différents, plus gros cumul p90 ×${summary.topStackP90}, ${summary.boughtPerRun} achetés) · ${Object.entries(
+    summary.itemPct,
+  )
     .map(([k, v]) => `${k} ${v} %`)
     .join(' · ')}`,
 );

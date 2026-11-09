@@ -259,7 +259,7 @@ export function tickGems(w: World, dt: number): void {
     }
     if (d < XP.pickupRadius) {
       P.xp += g.v * P.xpMul; // tome Savoir
-      if (w.items[It.Aimant]) P.hp = Math.min(P.maxHp, P.hp + ITEM.aimant.heal); // phase 17 : Aimant d'âme
+      if (w.items[It.Aimant]) P.hp = Math.min(P.maxHp, P.hp + ITEM.aimant.heal * w.itemEff[It.Aimant]); // phase 17 : Aimant d'âme
       w.emit(Ev.Pickup, g.x, 0.4, g.z, g.v);
       w.freeGem(i);
     }
@@ -282,11 +282,12 @@ export function tickChests(w: World, dt: number): void {
     const dx = P.x - c.x,
       dz = P.z - c.z;
     if (dx * dx + dz * dz < CHEST.pickupR * CHEST.pickupR) {
-      // phase 17 : un coffre ouvre un choix d'objet passif (un coffre de boss : deux) ; plus de place ou plus d'objet à
-      // trouver : un sac d'or à la place
+      // phase 17 : un coffre ouvre un choix d'objet passif (un coffre de boss : deux) ; aucun objet possible (tous
+      // bannis, phase 38) : un sac d'or à la place
       const goldMul = w.player.goldMul * w.player.chestGoldMul * (c.boss ? GOLD.eliteMul : 1);
       const n = c.boss ? CHEST.bossPicks : 1;
-      if (canGainItem(w)) w.itemPicks += n;
+      const item = c.boss || w.eliteChests++ % ITEM.eliteItemEvery === 0; // phase 38 : un coffre d'élite sur N
+      if (item && canGainItem(w)) w.itemPicks += n;
       else w.gold += ITEM.chestGoldIfFull * n * goldMul;
       w.gold += CHEST.gold * goldMul;
       w.emit(Ev.Chest, c.x, 0.5, c.z, n);
