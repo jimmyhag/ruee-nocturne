@@ -16,7 +16,7 @@ Le panneau **Compte** du menu propose une connexion avec Google ou avec une adre
 Ce qui est enregistré avec un compte :
 
 - l'identifiant du compte et l'adresse e-mail (et, pour Google, l'identifiant Google du compte) ; le mot de passe n'est jamais stocké en clair ni connu du jeu ;
-- ta **progression** : record, or, boutique, succès, personnages achetés, tenues, emplacements, compteurs cumulés (vaincus, boss…), personnage choisi, meilleurs temps du défi du jour, pseudo du classement, et depuis la version 1.35.0 ta **Bibliothèque** (armes et objets débloqués, objets retirés du tirage, nombre de parties avec chaque arme, objet, tome et synergie) ; et la date de la dernière synchronisation.
+- ta **progression** : record, or, boutique, succès, personnages achetés, tenues, emplacements, compteurs cumulés (vaincus, boss…), personnage choisi, meilleurs temps du défi du jour, pseudo du classement, et depuis la version 1.35.0 ta **Bibliothèque** (armes et objets débloqués, objets retirés du tirage, nombre de parties avec chaque arme, objet, tome et synergie), et depuis la version 1.36.0 tes **défis par personnage** (meilleurs résultats en une partie avec chaque personnage) ; et la date de la dernière synchronisation.
 
 Ce qui n'est **jamais** enregistré en ligne : tes réglages (son, effets, vibrations, HUD, gaucher, langue, rendu), ton nom (seul le pseudo que tu choisis est publié), ta position, le contenu de tes parties.
 
