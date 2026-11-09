@@ -1,4 +1,4 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STEP } from './sim/balance';
+import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STAGE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell } from './sim/types';
 import { POWER_ICON } from './ui/icons';
@@ -11,7 +11,7 @@ import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, renderCards } from './ui/hud';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, enemyName, itemName, synergyName } from './ui/cards';
+import { achName, achUnlock, itemName, synergyName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll } from './sim/progression';
@@ -154,6 +154,7 @@ let world: World | null = null;
 let meta: Meta = metaAtStart;
 let hurtT = 0;
 let timestopOn = false; // phase 35 : Temps figé affiché
+let portalFade = 0; // phase 37 : opacité du fondu pilotée par le portail
 let duckOn = false; // phase 36 : musique atténuée (pause, cartes, marchand, fin de partie)
 const hitStop = new HitStop(); // borné : voir render/feel.ts
 // « réduction des effets » : réglage du joueur, sinon prefers-reduced-motion (skill game-feel §9)
@@ -392,6 +393,7 @@ function startGame(variant?: number, daily = false): void {
     S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
     decorSeed = mapSeed;
   }
+  S.setStage(0); // phase 37 : ambiance du premier monde
   mapView.prepare(world); // fond de la minicarte construit ici, pas dans la première image de jeu
   // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
   // `variant` (debug/tests) remplace l'horloge ; le défi du jour utilise la seed de la date : même run pour tous
@@ -413,6 +415,31 @@ function startGame(variant?: number, daily = false): void {
   applyFx();
   $('update').hidden = true; // jamais de bannière de mise à jour en jeu
   last = performance.now();
+}
+/**
+ * Phase 37 : arrivée dans un nouveau monde (la sim a déjà construit la carte). Fondu au noir, décor et minicarte
+ * reconstruits pendant le fondu, ambiance du monde, bannière avec son nom.
+ */
+const stageFade = $('stageFade');
+function onStageStart(n: number): void {
+  if (!world || !scene) return;
+  const S = scene;
+  const fade = stageFade;
+  portalFade = 0;
+  fade.style.transition = 'none';
+  fade.style.opacity = '1';
+  void fade.offsetWidth; // le noir est posé avant la reconstruction
+  S.buildDecor(world);
+  decorSeed = world.seed;
+  S.setStage(world.stage);
+  mapView.prepare(world);
+  S.dmg.clear();
+  S.snapCamera(world);
+  fade.style.transition = 'opacity 0.8s ease-out';
+  fade.style.opacity = '0';
+  hud.banner(t('banner.stage', { n, name: t('stage.name.' + n) }));
+  audio.whoosh();
+  audio.levelUp();
 }
 function toMenu(): void {
   app = 'menu';
@@ -593,6 +620,7 @@ function renderOverScreen(): void {
     : '';
   renderProgress($('oProgress'), meta, 3);
   $('oTime').textContent = fmtTime(world.t);
+  $('oStage').textContent = o.won ? t('over.stages') : t('over.stage', { n: world.stage + 1 }); // phase 37
   $('oLvl').textContent = String(world.player.level);
   $('oKills').textContent = String(world.kills);
   $('oBest').textContent = fmtTime(meta.bestTime);
@@ -648,6 +676,7 @@ function gameOver(won = false): void {
   st.slideDist += world.slideDist; // phase 28
   st.tricksBest = Math.max(st.tricksBest, world.tricks);
   st.mapChests += world.mapChestsOpened;
+  st.bestStage = Math.max(st.bestStage, won ? 4 : world.stage + 1); // phase 37
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -1634,8 +1663,34 @@ function handleEvents(w: World, now: number): void {
         hud.banner(t('banner.shrine'));
         break;
       case Ev.BossWarn:
-        hud.banner(t('banner.bossWarn', { name: enemyName(e.x2) }));
+        // phase 37 : plus qu'une minute pour activer le totem
+        hud.banner(t('banner.bossWarn'));
         audio.bossWarn();
+        break;
+      case Ev.TotemOn:
+        // phase 37 : le totem s'éveille, le boss du monde arrive
+        S.particles.ring(e.x, 0.3, e.z, PAL.hp, (40 * fx) | 0, 6, 8);
+        S.particles.burst(e.x, 1.5, e.z, PAL.hp, (24 * fx) | 0, 4, 10, false);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+        audio.shrine();
+        break;
+      case Ev.PortalOpen:
+        S.particles.ring(e.x, 0.3, e.z, PAL.xp, (50 * fx) | 0, 6, 9);
+        S.particles.burst(e.x, 1.2, e.z, PAL.xp, (30 * fx) | 0, 4, 9, false);
+        hud.banner(t('banner.portal', { n: e.v }));
+        hud.flash('gold');
+        audio.evolve();
+        vibrate(60);
+        break;
+      case Ev.StageStart:
+        onStageStart(e.v);
+        break;
+      case Ev.TimeUp:
+        hud.banner(t(e.x2 === 1 ? 'banner.timeUpOpen' : 'banner.timeUp'));
+        hud.flash('hurt');
+        audio.bossWarn();
+        vibrate(120);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         break;
       case Ev.MerchantLeave:
         break;
@@ -1793,6 +1848,16 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);
+    // phase 37 : le noir monte pendant la seconde passée dans le portail ; quand la carte se reconstruit (StageStart),
+    // l'écran est déjà noir et le gel de la reconstruction ne se voit pas
+    if (world.portal.open) {
+      const f = Math.min(1, world.portal.charge / STAGE.portalHold);
+      if (Math.abs(f - portalFade) > 0.02 || (f === 0 && portalFade !== 0)) {
+        portalFade = f;
+        stageFade.style.transition = 'opacity 0.1s linear';
+        stageFade.style.opacity = String(f);
+      }
+    } else if (portalFade !== 0) portalFade = 0;
     const frozenNow = world.powerT[Pw.Gel] > 0; // phase 35 : voile bleuté du Temps figé (classe CSS, écrite au changement)
     if (frozenNow !== timestopOn) {
       timestopOn = frozenNow;
@@ -1937,6 +2002,9 @@ const debugRt = installDebugHooks({
   },
   get mapSeed() {
     return decorSeed;
+  },
+  afterStage() {
+    if (world) onStageStart(world.stage + 1);
   },
   afterSimJump() {
     if (!world) return;

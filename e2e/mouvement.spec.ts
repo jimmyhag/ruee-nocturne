@@ -86,8 +86,10 @@ test('une éruption blesse au sol et se saute à mi-télégraphe', async ({ page
   const arm = () =>
     page.evaluate(() => {
       const w = (window as any).__game.world;
+      // phase 37 : les dégâts suivent le temps du monde (diffT, recalculé depuis stageT à chaque pas)
       w.t = Math.max(w.t, 200);
-      w.nextEruption = w.t + 0.05;
+      w.stageT = Math.max(w.stageT, 200);
+      w.nextEruption = w.stageT + 0.05;
     });
   const waitShot = (kind: number, maxLife: number) =>
     page.waitForFunction(

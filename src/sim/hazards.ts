@@ -14,8 +14,9 @@ export function eruptionPeriod(t: number): number {
 
 /** Déclenche une éruption sous le joueur quand le minuteur tombe : cercle fixe (télégraphe), pic au même endroit. */
 export function tickEruptions(w: World): void {
-  if (w.t < w.nextEruption) return;
-  w.nextEruption = w.t + eruptionPeriod(w.t);
+  // phase 37 : minuteur au chrono du monde, cadence et dégâts au temps de difficulté (+ prolongation)
+  if (w.stageT < w.nextEruption) return;
+  w.nextEruption = w.stageT + eruptionPeriod(w.diffT);
   const s = w.allocShot();
   if (!s) return;
   const E = HAZARDS.eruption;
@@ -26,7 +27,7 @@ export function tickEruptions(w: World): void {
   s.z = s.pz = P.z;
   s.vx = s.vz = 0;
   s.life = E.telegraph;
-  s.dmg = E.dmg * SPAWN.dmgScale(w.t);
+  s.dmg = E.dmg * SPAWN.dmgScale(w.diffT) * w.overDmg;
   s.hit = false;
   w.emit(Ev.Telegraph, s.x, 0, s.z, E.r, E.telegraph);
 }

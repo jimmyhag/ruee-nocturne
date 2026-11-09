@@ -27,7 +27,7 @@ for (let i = 2; i < process.argv.length; i += 2)
 const RUNS = +(args.get('runs') ?? 50);
 const BOT = args.get('bot') ?? 'average';
 const SEED = +(args.get('seed') ?? 42);
-const UNTIL = +(args.get('until') ?? 1200);
+const UNTIL = +(args.get('until') ?? 2400); // phase 37 : trois mondes de 10 min, plus la prolongation
 const OUT = args.get('out');
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
 // --character eclaireuse|bucheron|sorciere : personnage de départ (défaut : Éclaireuse = référence de l'équilibrage)
@@ -84,7 +84,11 @@ interface RunResult {
   time: number;
   kills: number;
   level: number;
-  reachedEnd: boolean;
+  reachedEnd: boolean; // phase 37 : victoire (boss du monde 3 tué à temps)
+  stage: number; // phase 37 : monde atteint (1..3)
+  overT: number; // s de prolongation tenues dans le dernier monde (0 : mort avant la fin du chrono)
+  totemAt: number[]; // chrono du monde (s) à l'activation de chaque totem
+  bossFight: number[]; // s entre l'appel et la mort de chaque boss de totem
   killsAt10: number;
   levelAt10: number;
   weapons: Record<string, number>;
@@ -132,6 +136,9 @@ function runOnce(seed: number): RunResult {
     cardsTaken = 0,
     linesTaken = 0;
   let lastHurtType = 'inconnu';
+  const totemAt: number[] = [],
+    bossFight: number[] = [];
+  let summonedAt = -1;
   let eruptions = 0,
     eruptionHits = 0;
   // phase 11 : les dangers (éruption, anneau, charge, crachat, zone) sont nommés ; le contact garde l'ennemi le plus proche
@@ -176,6 +183,14 @@ function runOnce(seed: number): RunResult {
     if (inp.pick >= 0) enforceAllowed(w, ALLOWED);
     for (let i = 0; i < w.eventCount; i++) {
       const e = w.events[i];
+      if (e.type === Ev.TotemOn) {
+        totemAt.push(w.stageT);
+        summonedAt = w.t;
+      }
+      if ((e.type === Ev.PortalOpen || e.type === Ev.Victory) && summonedAt >= 0) {
+        bossFight.push(w.t - summonedAt);
+        summonedAt = -1;
+      }
       if (e.type === Ev.Eruption) eruptions++;
       if (e.type === Ev.PlayerHurt && w.lastHurt === HurtSrc.Eruption) eruptionHits++;
       if (e.type === Ev.PlayerHurt && frame % 15 === 0) {
@@ -235,14 +250,18 @@ function runOnce(seed: number): RunResult {
         last.set(en.id, rec);
       }
     }
-    if (w.mode === Mode.Dead) break;
+    if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
   }
   return {
     seed,
     time: w.t,
     kills: w.kills,
     level: w.player.level,
-    reachedEnd: w.mode !== Mode.Dead,
+    reachedEnd: w.mode === Mode.Won,
+    stage: w.stage + 1,
+    overT: w.overT,
+    totemAt,
+    bossFight,
     killsAt10,
     levelAt10,
     weapons: { ...w.weapons } as Record<string, number>,
@@ -340,6 +359,36 @@ const summary = {
     mean: times.reduce((a, b) => a + b, 0) / RUNS,
   },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
+  // phase 37 : mondes atteints, victoires, prolongation, totems
+  stage2Pct: (100 * results.filter((r) => r.stage >= 2).length) / RUNS,
+  stage3Pct: (100 * results.filter((r) => r.stage >= 3).length) / RUNS,
+  overP50: pct(
+    results.filter((r) => !r.reachedEnd && r.overT > 0).map((r) => r.overT),
+    50,
+  ),
+  overP90: pct(
+    results.filter((r) => !r.reachedEnd && r.overT > 0).map((r) => r.overT),
+    90,
+  ),
+  overDeathPct: (100 * results.filter((r) => !r.reachedEnd && r.overT > 0).length) / RUNS,
+  totemP50: pct(
+    results.flatMap((r) => r.totemAt),
+    50,
+  ),
+  bossFightP50: pct(
+    results.flatMap((r) => r.bossFight),
+    50,
+  ),
+  bossFightP90: pct(
+    results.flatMap((r) => r.bossFight),
+    90,
+  ),
+  bossWinPct: [0, 1, 2].map((k) =>
+    Math.round(
+      (100 * results.filter((r) => r.bossFight.length > k).length) /
+        Math.max(1, results.filter((r) => r.totemAt.length > k).length),
+    ),
+  ),
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
   // économie : or gardé médian par run (après le marchand), or dépensé au marchand
   goldP50: pct(
@@ -487,6 +536,9 @@ lines.push(
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
+);
+lines.push(
+  `mondes      monde 2 atteint ${summary.stage2Pct.toFixed(0)} % · monde 3 ${summary.stage3Pct.toFixed(0)} % · victoire ${summary.reachedEndPct.toFixed(0)} % · totem p50 à ${mmss(summary.totemP50)} · boss tués ${summary.bossWinPct.join('/')} % en p50 ${summary.bossFightP50.toFixed(0)} s (p90 ${summary.bossFightP90.toFixed(0)} s) · morts en prolongation ${summary.overDeathPct.toFixed(0)} % après p50 ${summary.overP50.toFixed(0)} s (p90 ${summary.overP90.toFixed(0)} s)`,
 );
 lines.push(
   `morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`,

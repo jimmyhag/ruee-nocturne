@@ -1,7 +1,7 @@
 // Phase 18 : coffres de carte (payés avec l'or de la partie, prix croissant), sanctuaires (bonus permanent), annonce et
 // respiration avant un boss.
 import { describe, expect, it } from 'vitest';
-import { BOON, BOON_KEYS, BOSS_WARN, ITEM, MAPCHEST, MAP, SHRINE, SPAWN, STEP } from './balance';
+import { BOON, BOON_KEYS, ITEM, MAPCHEST, MAP, SHRINE, STEP } from './balance';
 import { gainItem } from './items';
 import { applyBoon, mapChestPrice, rollBoonChoices } from './poi';
 import { step } from './step';
@@ -20,7 +20,7 @@ const calm = (w: World) => {
   w.player.need = 1e9;
   w.weapons = {};
   w.enemyCount = 0;
-  w.nextElite = w.nextWave = w.nextBoss = 1e9;
+  w.nextElite = w.nextWave = 1e9;
 };
 const go = (w: World, x: number, z: number) => {
   w.player.x = w.player.px = x;
@@ -156,23 +156,3 @@ describe('sanctuaires', () => {
   });
 });
 
-describe('respiration avant un boss', () => {
-  it('annonce BOSS_WARN.lead s avant le boss, une fois ; le spawn est adouci les dernières secondes', () => {
-    const w = new World(5);
-    w.player.maxHp = w.player.hp = 1e9;
-    w.player.need = 1e9;
-    w.t = SPAWN.bossPeriod - BOSS_WARN.lead - 1;
-    let warns = 0,
-      at = 0;
-    while (w.t < SPAWN.bossPeriod + 1) {
-      step(w, still, STEP);
-      if (count(w, Ev.BossWarn)) {
-        warns++;
-        at = w.t;
-      }
-    }
-    expect(warns).toBe(1);
-    expect(SPAWN.bossPeriod - at).toBeGreaterThan(BOSS_WARN.lead - 0.1);
-    expect(SPAWN.bossPeriod - at).toBeLessThanOrEqual(BOSS_WARN.lead + 0.1);
-  });
-});

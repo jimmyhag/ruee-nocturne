@@ -20,7 +20,7 @@ function count(w: World, type: Ev): number {
 function worldAt(t: number): World {
   const w = new World(11);
   startRun(w);
-  w.t = t;
+  w.t = w.stageT = w.diffT = t; // phase 37 : minuteur au chrono du monde (monde 1 : diffT = stageT)
   w.nextEruption = t;
   w.player.maxHp = w.player.hp = 1000;
   return w;

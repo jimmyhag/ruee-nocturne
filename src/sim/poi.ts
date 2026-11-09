@@ -1,7 +1,7 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BOON, BOON_KEYS, ITEM, It, MAPCHEST, RACE, SHRINE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BOON, BOON_KEYS, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card } from './types';
@@ -120,6 +120,39 @@ export function buildPOI(w: World, r: Rng): void {
     w.mapChests.push({ x, z, open: false, hold: 0 }),
   );
   high(SHRINE.count, SHRINE.spacing, SHRINE.fromStart, (x, z) => w.shrines.push({ x, z, used: false, charge: 0 }));
+  placeTotem(w, r, all);
+}
+
+/**
+ * Phase 37 : le totem du monde, tiré en dernier (les autres points d'intérêt d'une graine ne bougent pas). Sur du plat
+ * dégagé (le combat de boss s'y joue), à STAGE.totemFrom u du départ, loin des autres points d'intérêt.
+ */
+function placeTotem(w: World, r: Rng, all: { x: number; z: number }[]): void {
+  const T = w.totem;
+  T.charge = 0;
+  T.state = 0;
+  let fx = 0,
+    fz = STAGE.totemFrom[0];
+  for (let t = 0; t < STAGE.totemTries; t++) {
+    const a = r.range(0, Math.PI * 2),
+      d = r.range(STAGE.totemFrom[0], STAGE.totemFrom[1]);
+    const x = Math.sin(a) * d,
+      z = Math.cos(a) * d;
+    if (!free(w, x, z, STAGE.totemPad)) continue;
+    fx = x;
+    fz = z;
+    // plat : peu d'écart de hauteur sur le cercle du combat
+    const h = w.heightAt(x, z);
+    let flat = true;
+    for (let k = 0; k < 8 && flat; k++) {
+      const b = (k / 8) * Math.PI * 2;
+      if (Math.abs(w.heightAt(x + Math.sin(b) * STAGE.totemPad, z + Math.cos(b) * STAGE.totemPad) - h) > STAGE.totemFlat) flat = false;
+    }
+    if (!flat || !spaced(all, x, z, STAGE.totemSpacing)) continue;
+    break;
+  }
+  T.x = fx;
+  T.z = fz;
 }
 
 /** Prix du prochain coffre de carte (la Bourse du colporteur le baisse aussi). */

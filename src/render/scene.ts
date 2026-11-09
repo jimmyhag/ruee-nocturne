@@ -15,6 +15,7 @@ import {
   METEOR,
   REAPER_TYPE,
   SHRINE,
+  STAGE,
   SPELL,
   STEP,
   SWARM_TYPE,
@@ -515,18 +516,23 @@ export class GameScene {
     this.holdW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.82, 1, 32).rotateX(-Math.PI / 2), additive(0xffffff, 0.85), 4),
     );
+    // phase 37 : + le totem du monde (une pierre de plus), + 4 anneaux (totem, portail)
     this.shrineW = new InstanceWriter(
-      makeInstanced(shrineGeometry(), toonMaterial({ vertexColors: true }), SHRINE.count),
+      makeInstanced(shrineGeometry(), toonMaterial({ vertexColors: true }), SHRINE.count + 1),
     );
     this.shrineGlowW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2), additive(0xffffff, 0.7), SHRINE.count),
+      makeInstanced(
+        new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2),
+        additive(0xffffff, 0.7),
+        SHRINE.count + 4,
+      ),
     );
     // colonne de lumière : cylindre ouvert, additif, 16 u de haut, visible au-dessus des arbres
     this.beamW = new InstanceWriter(
       makeInstanced(
         new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
         additive(0xffffff, 0.22),
-        MAPCHEST.count + SHRINE.count, // phase 27 : 30 coffres et 14 sanctuaires
+        MAPCHEST.count + SHRINE.count + 1, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem
       ),
     );
     this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
@@ -1193,19 +1199,68 @@ export class GameScene {
     if (this.motion.shouldLand(sliding, speed)) this.heroAnim?.trigger(HeroAnim.Land, 2);
   }
 
-  /** Cycle de lumière lié au temps de run : crépuscule 0:00 → nuit 8:00 → aube 20:00 (le temps se lit sans chrono). */
-  private lightCycle(t: number): void {
-    const L = PAL.light;
-    let a: LightKey, b: LightKey, f: number;
-    if (t < 480) {
-      a = L.dusk;
-      b = L.night;
-      f = t / 480;
-    } else {
-      a = L.night;
-      b = L.dawn;
-      f = Math.min(1, (t - 480) / 720);
+  /**
+   * Phase 37 : totem du monde (pierre de sanctuaire rouge, plus haute, anneau qui se remplit, colonne rouge visible de
+   * loin) puis, boss tué à temps, portail (trois anneaux debout qui respirent, colonne cyan). Dans les écrivains des
+   * sanctuaires et des colonnes : aucun appel de dessin en plus.
+   */
+  private drawTotem(w: World, px: number, pz: number, now: number): void {
+    const T = w.totem;
+    const g = this.gy(T.x, T.z);
+    const near = (T.x - px) ** 2 + (T.z - pz) ** 2 < POI_DRAW2;
+    if (w.portal.open) {
+      if (near)
+        for (let k = 0; k < 3; k++) {
+          const r = STAGE.portalR * (0.55 + k * 0.25) * (1 + Math.sin(now * 3 + k * 2) * 0.06);
+          this.cPoi.copy(this.cBeamBlue).multiplyScalar(0.7 + Math.sin(now * 4 + k) * 0.3);
+          this.shrineGlowW.put(T.x, g + STAGE.portalR * 1.15, T.z, now * (0.6 + k * 0.3), r, this.cPoi, Math.PI / 2, 0);
+        }
+      this.beamW.put(T.x, g, T.z, 0, 2.2, this.cBeamBlue, 0, 0, 1.1, 2.2);
+      return;
     }
+    const locked = T.state === 3,
+      fought = T.state === 1;
+    const f = T.state === 0 ? T.charge / STAGE.totemCharge : 1;
+    if (near) {
+      this.tilt(T.x, T.z);
+      this.cPoi.setHex(locked ? 0x6a6470 : fought ? 0xff6a5a : 0xff9a8a);
+      this.shrineW.put(T.x, g - 0.05, T.z, 0.3, STAGE.totemR * 0.6, this.cPoi, this.tRx, this.tRz, STAGE.totemR * 0.95);
+      if (!locked) {
+        this.cPoi.setHex(PAL.hp).multiplyScalar(0.4 + f * 1.2 + Math.sin(now * 3) * 0.1);
+        this.shrineGlowW.put(
+          T.x,
+          g + 0.12,
+          T.z,
+          now * 0.6,
+          STAGE.totemR * (1 + f * 0.1),
+          this.cPoi,
+          this.tRx,
+          this.tRz,
+        );
+      }
+    }
+    if (!locked && !fought) {
+      this.cPoi.setHex(PAL.hp);
+      this.beamW.put(T.x, g, T.z, 0, 1.6 + f, this.cPoi, 0, 0, 1.3, 1.6 + f);
+    }
+  }
+
+  /** Phase 37 : ambiance du monde `i` (lumières du cycle et teinte du sol). */
+  private stageIdx = 0;
+  setStage(i: number): void {
+    this.stageIdx = Math.max(0, Math.min(PAL.stages.length - 1, i));
+    this.groundMat.color.setHex(PAL.stages[this.stageIdx].tint);
+  }
+
+  /**
+   * Cycle de lumière lié au chrono du monde : crépuscule 0:00 → nuit à 8:00 (l'heure du totem se lit sans chrono),
+   * dans les couleurs du monde (phase 37 ; avant : crépuscule → nuit 8:00 → aube 20:00 sur toute la partie).
+   */
+  private lightCycle(t: number): void {
+    const L = PAL.stages[this.stageIdx];
+    const a: LightKey = L.dusk,
+      b: LightKey = L.night,
+      f = Math.min(1, t / 480);
     this.cFog.copy(this.lightA.setHex(a.fog)).lerp(this.lightB.setHex(b.fog), f);
     this.cSky.copy(this.lightA.setHex(a.sky)).lerp(this.lightB.setHex(b.sky), f);
     this.cGround.copy(this.lightA.setHex(a.ground)).lerp(this.lightB.setHex(b.ground), f);
@@ -1217,7 +1272,7 @@ export class GameScene {
     this.hemi.intensity = lerp(a.hemi, b.hemi, f);
     this.sun.color.copy(this.cSun);
     this.sun.intensity = lerp(a.sunI, b.sunI, f);
-    this.night = Math.min(1, t < 480 ? t / 300 : Math.max(0, 1 - (t - 480) / 720) * 1.2);
+    this.night = Math.min(1, t / 300);
   }
 
   /** Dessine le monde interpolé entre le step précédent et le courant (alpha ∈ [0,1]). */
@@ -1228,7 +1283,7 @@ export class GameScene {
       pz = lerp(P.pz, P.z, alpha),
       py = lerp(P.py, P.y, alpha);
     const gp = this.gy(px, pz); // phase 18 : sol local sous le joueur (la sim donne y au-dessus du sol)
-    this.lightCycle(w.t);
+    this.lightCycle(w.stageT);
     this.fireflies.update(px, pz, now, this.night);
     this.particles.billboardRx = this.bolts.billboardRx = -Math.atan2(
       this.camPos.y - this.camLook.y,
@@ -1632,6 +1687,7 @@ export class GameScene {
       }
       if (!sr.used) this.beamW.put(sr.x, g, sr.z, 0, 1 + f * 0.6, this.cBeamBlue, 0, 0, 1, 1 + f * 0.6);
     }
+    this.drawTotem(w, px, pz, now);
     this.mapChestW.end();
     this.holdW.end();
     this.shrineW.end();
@@ -1642,7 +1698,7 @@ export class GameScene {
     const MR = w.merchant;
     this.stall.visible = this.stallRing.visible = MR.active;
     if (MR.active) {
-      const left = MR.until - w.t;
+      const left = MR.until - w.stageT; // phase 37 : le marchand suit le chrono du monde
       const pop = Math.min(1, (MERCHANT.stay - left) / 0.4, left / 0.4);
       const sg = this.gy(MR.x, MR.z);
       this.stall.position.set(MR.x, sg, MR.z);

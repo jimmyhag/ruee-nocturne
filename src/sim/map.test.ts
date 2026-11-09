@@ -219,7 +219,7 @@ describe('marche autour des ouvrages (champ de flux)', () => {
     const i = spawnEnemy(w, 0, Math.PI, 9); // plein sud, derrière le fond du U
     const e = w.enemies[i];
     e.spd = 1;
-    w.nextWave = w.nextElite = w.nextBoss = w.nextEruption = 1e9;
+    w.nextWave = w.nextElite = w.nextEruption = 1e9;
     w.spawnAcc = -1e9;
     let reached = false;
     for (let k = 0; k < 60 * 12 && !reached; k++) {
@@ -234,7 +234,7 @@ describe('marche autour des ouvrages (champ de flux)', () => {
     const w = uWorld();
     const i = spawnEnemy(w, 0, Math.PI, 9);
     const e = w.enemies[i];
-    w.nextWave = w.nextElite = w.nextBoss = w.nextEruption = 1e9;
+    w.nextWave = w.nextElite = w.nextEruption = 1e9;
     w.spawnAcc = -1e9;
     (w.flow as unknown as { steer: () => void }).steer = () => {}; // désactive : out garde la direction directe
     for (let k = 0; k < 60 * 6; k++) step(w, still, STEP);
@@ -243,7 +243,7 @@ describe('marche autour des ouvrages (champ de flux)', () => {
   it('le joueur franchit un muret d’un saut, pas en marchant', () => {
     const w = uWorld();
     w.player.z = w.player.pz = -2.5; // dans le U, face au fond
-    w.nextWave = w.nextElite = w.nextBoss = w.nextEruption = 1e9;
+    w.nextWave = w.nextElite = w.nextEruption = 1e9;
     w.spawnAcc = -1e9;
     for (let k = 0; k < 60; k++) step(w, input(0, -1), STEP);
     expect(w.player.z).toBeGreaterThan(-4); // bloqué

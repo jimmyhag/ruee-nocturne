@@ -42,4 +42,25 @@ export const PAL = {
     night: { fog: 0x0f1628, sky: 0x8aa2e6, ground: 0x141c36, hemi: 0.9, sun: 0xa8bdff, sunI: 0.65 },
     dawn: { fog: 0x3b3f66, sky: 0xffe4c2, ground: 0x2a2d4e, hemi: 1.0, sun: 0xffc89a, sunI: 0.9 },
   },
+  // phase 37 : ambiance de chaque monde, du crépuscule (0:00) à la nuit (fin du chrono), et teinte du sol (multipliée)
+  stages: [
+    {
+      // Nuit bleue (celle d'avant la phase 37)
+      dusk: { fog: 0x182341, sky: 0xffcfa6, ground: 0x24305a, hemi: 1.0, sun: 0xffd6a8, sunI: 0.95 },
+      night: { fog: 0x0f1628, sky: 0x8aa2e6, ground: 0x141c36, hemi: 0.9, sun: 0xa8bdff, sunI: 0.65 },
+      tint: 0xffffff,
+    },
+    {
+      // Bois de braise : brume ambrée, lune rousse
+      dusk: { fog: 0x33221c, sky: 0xffc08a, ground: 0x44301f, hemi: 1.1, sun: 0xffb070, sunI: 1.05 },
+      night: { fog: 0x241812, sky: 0xe8a478, ground: 0x2e1d14, hemi: 1.0, sun: 0xffa060, sunI: 0.85 },
+      tint: 0xffe2c4,
+    },
+    {
+      // Marais blême : vert pâle et violet
+      dusk: { fog: 0x18262a, sky: 0xc6f2d6, ground: 0x2a2244, hemi: 1.0, sun: 0xd6ffe0, sunI: 0.9 },
+      night: { fog: 0x0f1a1c, sky: 0x96d6b8, ground: 0x1c1632, hemi: 0.9, sun: 0xbaa8ff, sunI: 0.7 },
+      tint: 0xc8ecd8,
+    },
+  ],
 };

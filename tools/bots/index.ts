@@ -2,6 +2,10 @@ import { slopeAlong } from '../../src/sim/terrain';
 
 /** Phase 27 : variante du bot qui glisse dans les descentes (mesure, pas la référence d'équilibrage). */
 const BOT_SLIDE = typeof process !== 'undefined' && process.env?.BOT_SLIDE === '1';
+// phase 37 : chrono du monde (s) auquel le bot va activer le totem (6:00 par défaut : mesuré, 8:00 noie la build multi-armes du profil maxé dans la horde) ; BOT_FARM=1 : il reste après le
+// boss au lieu de prendre le portail (mesure de la prolongation)
+const BOT_TOTEM_AT = Number((typeof process !== 'undefined' && process.env?.BOT_TOTEM_AT) || 360);
+const BOT_FARM = typeof process !== 'undefined' && process.env?.BOT_FARM === '1';
 import type { BoonKey, Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { ShotKind, Spell } from '../../src/sim/types';
@@ -13,6 +17,7 @@ import {
   MAPCHEST,
   MERCHANT,
   SHRINE,
+  STAGE,
   STEP,
   TOMES,
   VOLANT_TYPE,
@@ -470,6 +475,23 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
             out.mx += (bx / l) * k;
             out.mz += (bz / l) * k;
           }
+        }
+      }
+      // phase 37 : à l'heure prévue, le totem (on reste dans le cercle tant que personne ne colle), puis le portail
+      const T = w.totem;
+      const goTotem = T.state === 0 && w.stageT >= BOT_TOTEM_AT;
+      const goPortal = w.portal.open && !BOT_FARM;
+      if (goTotem || goPortal) {
+        const tx = T.x - P.x,
+          tz = T.z - P.z,
+          td = tx * tx + tz * tz;
+        const inR = (goTotem ? STAGE.totemR : STAGE.portalR) * 0.6;
+        if (td < inR * inR && (goPortal || close < 4)) stay = true;
+        else {
+          const l = Math.sqrt(td) || 1,
+            k = n > 0 ? pullFleeing * 3 : pullFree * 3;
+          out.mx += (tx / l) * k;
+          out.mz += (tz / l) * k;
         }
       }
       if (stay) {

@@ -10,6 +10,7 @@ import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
+import { tickStage } from './stages';
 import { Ev, HitSrc, HurtSrc, Mode, Pw, ShotKind, Spell, Trait } from './types';
 import { tickPowers } from './powers';
 import type { Input } from './types';
@@ -47,6 +48,7 @@ export function step(w: World, input: Input, dt: number): void {
   }
   w.t += dt;
   stepPlayer(w, input, dt);
+  tickStage(w, dt); // phase 37 : chrono du monde, prolongation, totem, portail (peut changer de carte)
   // phase 35 : Temps figé, plus d'apparitions, de tirs ennemis ni de dangers (les ennemis restent touchables)
   const frozen = w.powerT[Pw.Gel] > 0;
   if (!frozen) tickSpawner(w, dt);

@@ -81,11 +81,28 @@ export class World {
   // spawner
   spawnAcc = 0;
   nextWave = SPAWN.wavePeriod;
-  nextBoss = SPAWN.bossPeriod;
   nextElite = SPAWN.eliteAfter;
   bossCount = 0;
   bossIndex = -1; // index de l'ennemi boss vivant, -1 sinon
-  reaperSpawned = false;
+  /**
+   * Phase 37 : monde en cours (0 à STAGE.count − 1), son chrono (stageT), le temps de difficulté (diffT = stageT + offset
+   * du monde, lu par le spawner) et la prolongation (overT, s après la fin du chrono). `t` reste le temps total.
+   */
+  stage = 0;
+  stageT = 0;
+  diffT = 0;
+  overT = 0;
+  startSeed = 0; // graine de carte du premier monde (celle des suivants en dérive)
+  /** Totem du monde : 0 prêt, 1 boss appelé, 2 boss vaincu à temps (portail ouvert), 3 fermé (chrono écoulé). */
+  totem = { x: 0, z: 0, charge: 0, state: 0 };
+  portal = { open: false, charge: 0 };
+  stageWarned = false; // rappel « 1:00 » envoyé
+  timeUp = false; // fin du chrono annoncée
+  // multiplicateurs de prolongation, recalculés à chaque pas (1 tant que le chrono tourne)
+  overRate = 1;
+  overHp = 1;
+  overDmg = 1;
+  overSpd = 1;
   nextId = 1;
   lastAction = 0; // dernier coup donné ou reçu
   nextEruption = HAZARDS.eruption.after; // phase 11 : prochaine éruption (temps de jeu)
@@ -197,7 +214,6 @@ export class World {
   shrinesUsed = 0;
   boonPicks = 0; // choix de bonus de sanctuaire en attente
   readonly boons = new Uint8Array(BOON_KEYS.length); // bonus pris (CLI, HUD)
-  bossWarned = 0; // échéance du dernier boss annoncé (BOSS_WARN)
   readonly syn = new Uint8Array(SYNERGIES.length);
   talismanKills = 0;
   readonly talismanMarks = new Int32Array(ITEM.talisman.targets);
@@ -276,12 +292,48 @@ export class World {
     for (let i = 0; i < CAPS.chests; i++) this.chests.push({ alive: false, x: 0, z: 0, age: 0, boss: false });
     for (let i = 0; i < CAPS.powers; i++) this.powers.push({ alive: false, x: 0, z: 0, kind: 0, age: 0 });
     for (let i = 0; i < CAPS.events; i++) this.events.push({ type: Ev.Hit, x: 0, y: 0, z: 0, x2: 0, y2: 0, z2: 0, v: 0 });
-    const r = new Rng(this.seed ^ 0x9e3779b9);
+    this.startSeed = seed;
+    this.buildMapFor(seed);
+  }
+
+  /**
+   * Construit la carte de la graine `seed` (phase 37 : aussi au passage d'un monde, dans le même World). Tout l'état de
+   * carte est d'abord vidé : la carte obtenue est exactement celle d'un World neuf de même graine (test map/stages).
+   */
+  buildMapFor(seed: number): void {
+    this.seed = seed;
+    this.obstacles = [];
+    this.treeCount = this.rockEnd = this.stoneEnd = 0;
+    this.propKinds = new Uint8Array(0);
+    this.decor = [];
+    this.yards = [];
+    this.camps = [];
+    this.walls = [];
+    this.places = [];
+    this.stoneCenters = [];
+    this.lakes = [];
+    this.woods = [];
+    this.plateaus = [];
+    this.ramps = [];
+    this.combes = [];
+    this.pistes = [];
+    this.kickers = [];
+    this.races = [];
+    this.obstacleGrid.clear();
+    this.wallGrid.clear();
+    this.height.fill(0);
+    this.seen.fill(0);
+    this.seenCount = 0;
+    this.seenT = 0;
+    this.mapChests.length = 0;
+    this.shrines.length = 0;
+    this.flow.ready = false;
+    const r = new Rng(seed ^ 0x9e3779b9);
     buildZones(this, r);
     buildTerrain(this, r); // phase 27 : le relief d'abord (plateaux, rampes, combes)…
     buildMap(this, r); // …puis les lieux construits, seulement sur le plat
     settlePlaces(this); // posés exactement à plat
-    buildPOI(this, r); // coffres et sanctuaires (sommets, pieds de rampes, combes)
+    buildPOI(this, r); // coffres et sanctuaires (sommets, pieds de rampes, combes), puis le totem du monde
   }
 
   // ---------- événements ----------

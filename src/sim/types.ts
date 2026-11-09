@@ -183,7 +183,7 @@ export const enum Ev {
   Shockwave, // phase 17 : onde d'atterrissage des Bottes de saut en (x,z), v = rayon
   MapChestOpen, // phase 18 : coffre de carte ouvert en (x,z), v = prix payé
   ShrineDone, // phase 18 : sanctuaire chargé en (x,z) → choix d'un bonus
-  BossWarn, // phase 18 : un boss arrive dans BOSS_WARN.lead s, v = index du boss (1..)
+  BossWarn, // phase 37 : plus qu'une minute pour activer le totem, en (x,z) = totem, v = monde (1..), x2 = type du boss
   SlideStart, // phase 27 : glissade lancée en (x,z), v = vitesse
   SlideEnd, // phase 27 : fin de glissade
   Launch, // phase 27 : envol sur une crête ou saut glissé, v = vitesse horizontale
@@ -203,6 +203,10 @@ export const enum Ev {
   PowerDrop, // phase 35 : bonus posé au sol en (x,z), v = Pw
   PowerUp, // phase 35 : bonus ramassé en (x,z), v = Pw, x2 = durée de l'effet (0 : instantané)
   PowerEnd, // phase 35 : effet d'un bonus terminé, v = Pw
+  TotemOn, // phase 37 : totem activé en (x,z), v = monde (1..)
+  PortalOpen, // phase 37 : boss du totem tué à temps, portail en (x,z), v = monde suivant (1..)
+  StageStart, // phase 37 : arrivée dans un nouveau monde (nouvelle carte), v = monde (1..)
+  TimeUp, // phase 37 : fin du chrono du monde, v = monde (1..), x2 = 1 si le portail est ouvert
 }
 
 export interface GameEvent {

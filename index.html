@@ -323,12 +323,86 @@
       body.timestop #vignette {
         background: radial-gradient(ellipse at center, #9fe8ff1a 35%, #5fb8ffb0 115%);
       }
+      #stageFade {
+        position: fixed;
+        inset: 0;
+        background: #05070d;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 40;
+      }
       .time {
         font-family: var(--f-display);
         font-size: 34px;
         line-height: 1;
         text-shadow: 0 3px 0 var(--ink);
         font-variant-numeric: tabular-nums;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      /* phase 37 : monde en cours au-dessus du chrono ; dépassement en rouge qui bat */
+      .time small {
+        font-family: var(--f-body);
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        text-shadow: none;
+        margin-bottom: 2px;
+      }
+      .time.over #time {
+        color: var(--hp);
+        animation: overbeat 1s ease-in-out infinite;
+      }
+      @keyframes overbeat {
+        50% {
+          transform: scale(1.08);
+        }
+      }
+      #goalChip {
+        position: absolute;
+        left: 50%;
+        top: calc(env(safe-area-inset-top, 0px) + 74px);
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--glass);
+        border: 1px solid var(--hp);
+        color: var(--paper);
+        font-weight: 800;
+        font-size: 13px;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      #goalChip.g3 {
+        border-color: var(--xp);
+      }
+      #goalChip.g4 {
+        color: var(--hp);
+      }
+      #goalArrow {
+        display: inline-block;
+        color: var(--hp);
+        font-size: 16px;
+        transition: transform 0.15s;
+      }
+      #goalChip.g3 #goalArrow {
+        color: var(--xp);
+      }
+      #goalDist {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      @media (max-width: 480px) {
+        #goalChip {
+          top: calc(env(safe-area-inset-top, 0px) + 64px);
+          font-size: 12px;
+        }
       }
       .hright {
         display: flex;
@@ -1203,7 +1277,7 @@
       #merchantChip {
         position: absolute;
         left: 50%;
-        top: calc(env(safe-area-inset-top, 0px) + 74px);
+        top: calc(env(safe-area-inset-top, 0px) + 106px); /* phase 37 : sous la puce d'objectif */
         transform: translateX(-50%);
         display: flex;
         align-items: center;
@@ -1274,7 +1348,7 @@
           left: auto;
           right: 12px;
           transform: none;
-          top: calc(env(safe-area-inset-top, 0px) + 70px);
+          top: calc(env(safe-area-inset-top, 0px) + 98px);
           font-size: 12px;
         }
       }
@@ -1322,7 +1396,7 @@
       /* ---------- écran de mort ---------- */
       .stats {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr); /* phase 37 : + monde atteint */
         gap: 8px;
         width: 100%;
       }
@@ -1822,6 +1896,8 @@
     <canvas id="c" aria-label="Zone de jeu" data-i18n-attr="aria-label:a11y.canvas"></canvas>
     <div id="vignette" hidden></div>
     <div id="flash"></div>
+    <!-- phase 37 : fondu au noir pendant le passage d'un monde à l'autre -->
+    <div id="stageFade"></div>
 
     <div id="hud" hidden>
       <div class="xpbar"><i id="xpfill"></i><b id="xpsweep"></b></div>
@@ -1835,7 +1911,8 @@
           <!-- phase 35 : bonus au sol actifs (icône + durée restante), remplis par Hud -->
           <div class="powers" id="powers"></div>
         </div>
-        <div class="time" id="time">0:00</div>
+        <!-- phase 37 : monde en cours et chrono qui descend (dépassement en rouge) -->
+        <div class="time" id="timeBox"><small id="stageLbl">Monde 1</small><span id="time">10:00</span></div>
         <div class="hright">
           <div class="goldc" id="goldBox" aria-label="Or de la partie" data-i18n-attr="aria-label:hud.gold">
             <i class="coin"></i><span id="goldN">0</span>
@@ -1852,6 +1929,10 @@
         aria-label="Ouvrir la carte"
         data-i18n-attr="aria-label:map.open"
       ></canvas>
+      <!-- phase 37 : objectif du monde (totem, boss, portail), flèche et distance -->
+      <div id="goalChip" class="goal" hidden>
+        <span id="goalArrow">▲</span><span id="goalText"></span><span id="goalDist"></span>
+      </div>
       <div id="merchantChip" hidden>
         <span id="merchantArrow">▲</span><span data-i18n="merchant.chip">Marchand</span><span id="merchantDist"></span>
       </div>
@@ -2026,7 +2107,7 @@
               <span class="glyph" style="background: var(--ink-3)">🔒</span>
               <h3>Revenante</h3>
             </div>
-            <span class="badge">Vaincs le Faucheur</span>
+            <span class="badge">Termine les trois mondes</span>
             <p>Foudre et Halo dès le départ, −55 % PV, un peu plus lente</p>
           </button>
           <button class="card char locked" data-char="colporteur">
@@ -2051,8 +2132,8 @@
           </button>
         </header>
         <p class="tag" data-i18n="menu.tag">
-          La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter et tenir le plus
-          longtemps possible.
+          La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter et traverser les
+          trois mondes.
         </p>
         <dl class="ctrl">
           <dt><span class="cap" data-i18n="menu.keys.move">ZQSD</span> <span class="cap">↑↓←→</span></dt>
@@ -2063,6 +2144,11 @@
           <dd data-i18n="menu.ctrl.spell">Sort de ta classe (chaque personnage a le sien)</dd>
           <dt><span class="cap">1 2 3</span></dt>
           <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
+          <dt><span class="cap">10:00</span></dt>
+          <dd data-i18n="menu.ctrl.worlds">
+            Avant la fin du chrono, active le totem (losange rouge sur la carte) et tue son boss : le portail mène au
+            monde suivant. Chrono écoulé, la horde ne fait que grossir.
+          </dd>
         </dl>
         <div class="btnrow"><button class="big" id="helpPlayBtn" data-i18n="menu.play">Jouer</button></div>
       </div>
@@ -2136,6 +2222,7 @@
       <div class="panel">
         <h2 class="h2 dead" id="oTitle">La horde t'a eu</h2>
         <div class="stats">
+          <div><b id="oStage">Monde 1</b><span data-i18n="over.world">Monde</span></div>
           <div><b id="oTime">0:00</b><span data-i18n="over.time">Temps</span></div>
           <div><b id="oLvl">1</b><span data-i18n="over.level">Niveau</span></div>
           <div><b id="oKills">0</b><span data-i18n="over.kills">Vaincus</span></div>
