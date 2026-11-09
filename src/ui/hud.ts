@@ -35,7 +35,7 @@ export type FlashKind = 'hurt' | 'gold';
 
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
 /** Phase 37 : textes de la puce d'objectif, par sorte (1 totem, 2 boss, 3 portail, 4 fermé). */
-const GOAL_KEYS = ['', 'goal.totem', 'goal.boss', 'goal.portal', 'goal.locked'];
+const GOAL_KEYS = ['', 'goal.totem', 'goal.boss', 'goal.portal', 'goal.locked', 'goal.nextBoss'];
 
 export class Hud {
   private cache: Record<string, string | number | boolean | undefined> = {};
@@ -148,17 +148,25 @@ export class Hud {
   private goal(w: World): void {
     const T = w.totem,
       P = w.player;
-    // 0 rien, 1 totem, 2 boss, 3 portail, 4 fermé
-    const kind = w.portal.open ? 3 : T.state === 0 ? 1 : T.state === 1 ? 2 : T.state === 3 ? 4 : 0;
+    // 0 rien, 1 totem, 2 boss, 3 portail, 4 fermé, 5 monde infini : prochaine vague de boss (phase 39)
+    const kind = w.endless ? 5 : w.portal.open ? 3 : T.state === 0 ? 1 : T.state === 1 ? 2 : T.state === 3 ? 4 : 0;
     if (this.cache.goal !== kind) {
       this.cache.goal = kind;
       this.cache.gDeg = this.cache.gDist = undefined;
       const el = this.els.goalChip;
       el.hidden = kind === 0;
       el.className = 'goal g' + kind;
-      this.els.goalText.textContent = kind === 0 ? '' : t(GOAL_KEYS[kind]);
+      this.els.goalText.textContent = kind === 0 || kind === 5 ? '' : t(GOAL_KEYS[kind]);
       this.els.goalArrow.hidden = kind !== 1 && kind !== 3;
       this.els.goalDist.hidden = kind !== 1 && kind !== 3;
+    }
+    if (kind === 5) {
+      const s = Math.max(0, Math.ceil(w.nextEndlessBoss - w.endlessT));
+      if (this.cache.gNext !== s) {
+        this.cache.gNext = s;
+        this.els.goalText.textContent = t('goal.nextBoss', { time: fmtTime(s) });
+      }
+      return;
     }
     if (kind !== 1 && kind !== 3) return;
     const dx = T.x - P.x,
@@ -291,16 +299,18 @@ export class Hud {
     this.text('hptxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
     this.text('lvl', String(P.level));
     // phase 37 : « Monde 2 », chrono qui descend ; après 0:00, le dépassement en rouge (+0:45)
-    if (this.cache.stage !== w.stage) {
-      this.cache.stage = w.stage;
-      this.els.stageLbl.textContent = t('hud.stage', { n: w.stage + 1 });
+    const stageKey = w.endless ? -1 : w.stage;
+    if (this.cache.stage !== stageKey) {
+      this.cache.stage = stageKey;
+      this.els.stageLbl.textContent = w.endless ? t('hud.endless') : t('hud.stage', { n: w.stage + 1 }); // phase 39
     }
-    const over = w.overT > 0;
+    const over = !w.endless && w.overT > 0;
     if (this.cache.over !== over) {
       this.cache.over = over;
       this.els.timeBox.classList.toggle('over', over);
     }
-    const secs = over ? Math.floor(w.overT) : Math.ceil(stageLeft(w));
+    // phase 39 : en monde infini, le temps tenu compte vers le haut
+    const secs = w.endless ? Math.floor(w.endlessT) : over ? Math.floor(w.overT) : Math.ceil(stageLeft(w));
     if (this.cache.secs !== secs) {
       this.cache.secs = secs;
       this.els.time.textContent = over ? '+' + fmtTime(secs) : fmtTime(secs);

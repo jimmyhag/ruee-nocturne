@@ -10,7 +10,7 @@ import { gradAt } from './terrain';
 import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
-import { tickStage } from './stages';
+import { tickStage, retargetBoss } from './stages';
 import { Ev, HitSrc, HurtSrc, Mode, Pw, ShotKind, Spell, Trait } from './types';
 import { tickPowers } from './powers';
 import type { Input } from './types';
@@ -64,6 +64,7 @@ export function step(w: World, input: Input, dt: number): void {
   tickProjectiles(w, dt);
   tickRideItems(w, dt); // phase 28 : Patins de braise, Corne de guerre
   compactEnemies(w);
+  retargetBoss(w); // phase 39 : la barre passe tout de suite au boss suivant (monde infini)
   tickGems(w, dt);
   tickChests(w, dt);
   tickPowers(w, dt); // phase 35 : bonus au sol
@@ -74,7 +75,7 @@ export function step(w: World, input: Input, dt: number): void {
   // défi « Intouchable » : plus longue période sans dégât (hurtAt est posé là où PlayerHurt est émis)
   if (w.t - w.hurtAt > w.noHitBest) w.noHitBest = w.t - w.hurtAt;
   if ((w.mode as Mode) === Mode.Won) {
-    w.gold += w.t * GOLD.perSecond * w.player.goldMul;
+    // bonus d'or de la victoire : payé par stageBossDown (phase 39)
   } else if (w.player.hp <= 0 && w.player.revives > 0) {
     // réanimation (boutique) : une seconde chance, puis on sort de la masse
     const P = w.player;
@@ -85,7 +86,7 @@ export function step(w: World, input: Input, dt: number): void {
   } else if (w.player.hp <= 0) {
     w.player.hp = 0;
     w.mode = Mode.Dead;
-    w.gold += w.t * GOLD.perSecond * w.player.goldMul; // bonus de fin : secondes survécues / 10
+    w.gold += (w.t - w.goldBonusT) * GOLD.perSecond * w.player.goldMul; // bonus de fin : secondes survécues / 10
     w.emit(Ev.Death, w.player.x, 1, w.player.z, w.t);
   } else if ((w.mode as Mode) === Mode.Play && (w.itemPicks > 0 || w.boonPicks > 0 || w.pending > 0)) {
     nextChoice(w); // objets des coffres d'abord, puis bonus de sanctuaire, puis montées de niveau

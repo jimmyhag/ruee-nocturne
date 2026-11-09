@@ -631,6 +631,35 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - Maxé : 31–35 % quel que soit le levier (élite 1 sur 6, prix +30 %). Le kit à quatre armes, faible contre les boss jusqu'ici, profite plus des objets ; décision à prendre avec Jimmy (cible maxée, ou boss final).
 - **Porte** : objets (cumul pour les 32, tirages, prix, coffres d'élite, Sablier ×2) et classement (pseudo, score, fusion, semaine ISO, textes des règles) couverts par Vitest ; barre (clavier, doigt, gaucher, rangées, « +n », écran de fin) et classement (sans compte : zéro requête ; compte factice : onglets, semaine, ligne surlignée, score envoyé) couverts par e2e, captures lues ; bench inchangé ; relecture perf : 2 constantes déplacées, file des scores liée au compte.
 
+### Phase 39 — Monde infini (après la 1.33.2)
+- **Demande de Jimmy** : une fois les trois mondes finis, on peut rester ; des boss arrivent toutes les 2:30, un ou deux, de plus en plus.
+- **Choix de Jimmy** (questions) :
+  - à la victoire, un choix à l'écran : « Continuer (monde infini) » ou « Terminer » ;
+  - des monstres qui montent lentement, comme pendant un monde ;
+  - des boss par vague : 1, 1, 2, 2, 3, 3…, 4 au plus.
+- **Décisions prises** :
+  - on reste sur la carte du monde 3 ;
+  - la difficulté suit le temps du monde, qui continue : pas de prolongation ;
+  - les boss tournent entre le Gardien, l'Essaim-mère et le Colosse, et sortent en cercle autour du joueur ;
+  - leurs PV suivent la règle des boss du totem × (1 + `ENDLESS.hpPerWave` · vague) ;
+  - la barre de boss passe au boss suivant ;
+  - le marchand ne revient pas (ses passages suivent le chrono d'un monde) ;
+  - la victoire, les stats et le score sont comptés une seule fois, à la fin réelle (« Terminer » ou la mort) ; le bonus d'or de fin n'est payé qu'une fois (`goldBonusT`) ;
+  - au classement, une partie infinie compte comme « monde 4 » plus le temps total ;
+  - la puce d'objectif passe sous la barre de boss (elle cachait son nom).
+- **Équilibrage** : (bot moyen, 100 runs, parties gagnées qui continuent, `--endless`) :
+
+  | Profil | Temps tenu p10 / p50 / p90 | Vagues p50 |
+  |---|---|---|
+  | Nu | 2:33 / 6:25 / 12:41 | 2 |
+  | Maxé | 1:13 / 2:38 / 5:08 | 1 |
+
+  - Sans la rampe des monstres normaux, le profil nu ne mourait plus : p50 14:40, p90 79 min, 38 % passaient 8 vagues.
+  - Le profil maxé meurt à la horde (Brutes 45 %, feu 20 %), pas aux boss. C'est la faiblesse connue des kits à quatre armes : à reprendre avec Jimmy (boss final, ou rééquilibrage des Brutes tardives).
+- **Porte** :
+  - Vitest couvre la vague 1, 1, 2, 2, 3, 3, l'absence de prolongation, les PV en hausse, la barre qui passe au suivant, le bonus d'or payé une fois et le déterminisme ;
+  - l'e2e couvre victoire → Continuer → boss à 2:30 → mort → écran de fin, et victoire → Terminer, au clavier et au doigt, captures lues.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.

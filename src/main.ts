@@ -15,6 +15,7 @@ import { achName, achUnlock, itemName, synergyName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll } from './sim/progression';
+import { startEndless } from './sim/stages';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -130,6 +131,7 @@ type AppMode =
   | 'settings'
   | 'account'
   | 'board'
+  | 'victory'
   | 'characters'
   | 'help'
   | 'merchant'
@@ -145,6 +147,7 @@ const SCREENS = [
   'settings',
   'account',
   'board',
+  'victory',
   'characters',
   'help',
   'map',
@@ -640,13 +643,17 @@ function renderOverScreen(): void {
     : '';
   renderProgress($('oProgress'), meta, 3);
   $('oTime').textContent = fmtTime(world.t);
-  $('oStage').textContent = o.won ? t('over.stages') : t('over.stage', { n: world.stage + 1 }); // phase 37
+  $('oStage').textContent = world.endless // phase 39 : monde infini
+    ? t('over.endless', { time: fmtTime(world.endlessT), n: world.endlessWave })
+    : o.won
+      ? t('over.stages')
+      : t('over.stage', { n: world.stage + 1 }); // phase 37
   $('oLvl').textContent = String(world.player.level);
   $('oGear').innerHTML = gearHtml(world); // phase 38 : l'équipement de la partie
   $('oKills').textContent = String(world.kills);
   $('oBest').textContent = fmtTime(meta.bestTime);
   $('oGold').textContent = String(o.gold);
-  $('oTitle').textContent = t(o.won ? 'over.win' : 'over.dead');
+  $('oTitle').textContent = t(world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : 'over.dead');
   $('oTitle').classList.toggle('win', o.won);
   // seul HTML autorisé : le <span class="newrec"> écrit ici ; tout texte traduit passe par esc()
   const ns = nextSlot(meta);
@@ -698,6 +705,7 @@ function gameOver(won = false): void {
   st.tricksBest = Math.max(st.tricksBest, world.tricks);
   st.mapChests += world.mapChestsOpened;
   st.bestStage = Math.max(st.bestStage, won ? 4 : world.stage + 1); // phase 37
+  if (world.endless) st.endlessBest = Math.max(st.endlessBest, Math.floor(world.endlessT)); // phase 39
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
@@ -713,7 +721,7 @@ function gameOver(won = false): void {
   renderOverScreen();
   S.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) S.shake = 0.5;
-  if (won) audio.victory();
+  if (won && !world.endless) audio.victory();
   else audio.death();
   setTimeout(() => {
     if (app !== 'over') return;
@@ -721,6 +729,42 @@ function gameOver(won = false): void {
     showUpdateBanner();
   }, 700);
 }
+
+// ---------- phase 39 : victoire, puis monde infini au choix ----------
+/** Le boss du monde 3 est tombé à temps : « Victoire ! », continuer en monde infini ou terminer (stats comptées à la fin). */
+function openVictory(): void {
+  if (!world || app === 'victory' || app === 'over') return;
+  app = 'victory';
+  $('vTime').textContent = fmtTime(world.t);
+  $('vKills').textContent = String(world.kills);
+  showOnly('victory');
+  scene?.particles.burst(world.player.x, 1, world.player.z, PAL.gold, 40, 8, 8);
+  audio.victory();
+  vibrate(120);
+  if (!input.isTouch) ($('vContinue') as HTMLElement).focus({ preventScroll: true });
+}
+function victoryContinue(): void {
+  if (!world || app !== 'victory') return;
+  startEndless(world);
+  handleEvents(world, performance.now() / 1000); // bannière « Monde infini »
+  app = 'play';
+  showOnly(null);
+  last = performance.now();
+}
+function victoryEnd(): void {
+  if (!world || app !== 'victory') return;
+  gameOver(true);
+}
+$('vContinue').onclick = () => victoryContinue();
+$('vEnd').onclick = () => victoryEnd();
+addEventListener('keydown', (e) => {
+  if (app !== 'victory' || e.repeat) return;
+  if (e.code === 'Digit1' || e.code === 'Numpad1') victoryContinue();
+  else if (e.code === 'Digit2' || e.code === 'Numpad2' || e.code === 'Escape') {
+    e.preventDefault();
+    victoryEnd();
+  }
+});
 
 // ---------- boutons ----------
 $('playBtn').onclick = () => startGame();
@@ -1001,6 +1045,7 @@ addEventListener('keydown', (e) => {
 input.onConfirm = () => {
   if (app === 'menu') startGame();
   else if (app === 'over') startGame();
+  else if (app === 'victory') victoryContinue(); // phase 39 : Entrée = continuer en monde infini
 };
 input.onTouchDetected = () => {
   if (app !== 'menu') {
@@ -1857,6 +1902,15 @@ function handleEvents(w: World, now: number): void {
       case Ev.StageStart:
         onStageStart(e.v);
         break;
+      case Ev.EndlessStart:
+        hud.banner(t('banner.endless'));
+        hud.flash('gold');
+        break;
+      case Ev.EndlessWave:
+        hud.banner(t('banner.endlessWave', { n: e.v, count: e.x2 }));
+        audio.bossWarn();
+        vibrate(80);
+        break;
       case Ev.TimeUp:
         hud.banner(t(e.x2 === 1 ? 'banner.timeUpOpen' : 'banner.timeUp'));
         hud.flash('hurt');
@@ -2014,8 +2068,9 @@ function frame(nowMs: number): void {
     }
     if (n === 4) acc = 0; // on ne rattrape pas : évite la spirale de la mort
     if (debugRt) debugRt.onFrame(world); // mode stress (debug uniquement) ; null en prod
-    if (world.mode === Mode.Dead) gameOver();
-    else if (world.mode === Mode.Won) gameOver(true);
+    if (world.mode === Mode.Dead)
+      gameOver(world.endless); // phase 39 : la victoire est acquise si l'on est en monde infini
+    else if (world.mode === Mode.Won) openVictory();
     else if (world.mode === Mode.LevelUp) openLevelUp();
     else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
@@ -2052,7 +2107,8 @@ function frame(nowMs: number): void {
 
   // phase 36 : musique plus basse et étouffée hors du jeu actif (écrite au changement)
   // pause, choix de carte, marchand, carte, fin : pas les écrans du menu (on y règle le curseur Musique à vrai niveau)
-  const duckNow = app === 'pause' || app === 'levelup' || app === 'merchant' || app === 'map' || app === 'over';
+  const duckNow =
+    app === 'pause' || app === 'levelup' || app === 'merchant' || app === 'map' || app === 'over' || app === 'victory';
   if (duckNow !== duckOn) {
     duckOn = duckNow;
     audio.duck(duckNow);

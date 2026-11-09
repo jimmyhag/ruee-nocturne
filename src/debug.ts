@@ -1,10 +1,10 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STEP, WEAPON_LINES } from './sim/balance';
+import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STAGE, STEP, WEAPON_LINES } from './sim/balance';
 import { dropPower } from './sim/powers';
 import { dropChest, hitEnemy } from './sim/combat';
-import { nextStage } from './sim/stages';
+import { nextStage, stageBossDown } from './sim/stages';
 import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
 import { refreshStats } from './sim/weapons/defs';
@@ -147,6 +147,20 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     killBoss(): void {
       const world = w();
       if (world && world.bossIndex >= 0) hitEnemy(world, world.bossIndex, 1e12, 0, 0, 0);
+    },
+    /** Phase 39 : victoire immédiate (monde 3, boss du totem tué à temps) : ouvre l'écran de victoire. */
+    win(): void {
+      const world = w();
+      if (!world || world.mode !== Mode.Play) return;
+      while (world.stage < STAGE.count - 1) nextStage(world);
+      host.afterStage();
+      world.totem.state = 1;
+      stageBossDown(world, world.player.x, world.player.z);
+    },
+    /** Phase 39 : temps passé en monde infini (la prochaine vague sort à `nextEndlessBoss`). */
+    endlessTime(s: number): void {
+      const world = w();
+      if (world && world.endless) world.endlessT = s;
     },
     /** Phase 37 : passe directement au monde suivant (captures des ambiances), comme par le portail. */
     nextStage(): void {

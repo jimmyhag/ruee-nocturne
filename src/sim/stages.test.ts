@@ -1,8 +1,8 @@
 // Phase 37 : trois mondes (chrono, totem, boss, portail, prolongation, victoire), carte reconstruite à l'identique.
 import { describe, expect, it } from 'vitest';
-import { STAGE, STEP } from './balance';
+import { ENDLESS, ENEMIES, GOLD, STAGE, STEP } from './balance';
 import { hitEnemy } from './combat';
-import { nextStage, stageSeed } from './stages';
+import { endlessBosses, nextStage, stageSeed, startEndless } from './stages';
 import { startRun, step } from './step';
 import { Ev, Mode } from './types';
 import type { Input } from './types';
@@ -192,6 +192,126 @@ describe('mondes (phase 37)', () => {
         if (s < 2) nextStage(w);
       }
       return [w.stage, w.seed, w.t, w.kills, w.enemyCount, w.player.x, w.player.z, w.player.level, w.rng.next()];
+    };
+    expect(play()).toEqual(play());
+  });
+});
+
+describe('monde infini (phase 39)', () => {
+  /** Victoire au monde 3 (boss du totem tué à temps), joueur invincible. */
+  function won(seed: number): World {
+    const w = lab(seed);
+    nextStage(w);
+    nextStage(w);
+    w.player.hp = w.player.maxHp = 1e9;
+    w.nextWave = w.nextElite = w.nextEruption = 1e9;
+    summon(w);
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    expect(w.mode).toBe(Mode.Won);
+    return w;
+  }
+  /** Saute à la veille de la prochaine vague puis la laisse sortir ; renvoie le nombre d'annonces EndlessWave. */
+  function nextWave(w: World): number {
+    w.endlessT = w.nextEndlessBoss - 0.05;
+    return run(w, 0.1, still, Ev.EndlessWave);
+  }
+  const bosses = (w: World) => {
+    const out: number[] = [];
+    for (let i = 0; i < w.enemyCount; i++) if (w.enemies[i].alive && ENEMIES[w.enemies[i].type].boss) out.push(i);
+    return out;
+  };
+  const killBosses = (w: World) => {
+    for (const i of bosses(w)) hitEnemy(w, i, 1e12, 0, 0, 0);
+    step(w, still, STEP);
+  };
+  it('1, 1, 2, 2, 3, 3, 4, 4, 4 boss par vague', () => {
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8].map(endlessBosses)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 4]);
+  });
+  it('continuer après la victoire : même carte, plus de prolongation, une vague de boss toutes les 2:30', () => {
+    const w = won(31);
+    const seed = w.seed;
+    startEndless(w);
+    expect(w.mode).toBe(Mode.Play);
+    expect(w.endless).toBe(true);
+    expect(count(w, Ev.EndlessStart)).toBe(1);
+    expect(w.seed).toBe(seed);
+    expect(w.nextEndlessBoss).toBe(ENDLESS.period);
+    run(w, 1);
+    expect(bosses(w)).toHaveLength(0); // pas avant 2:30
+    w.stageT = STAGE.dur + 200; // bien au-delà du chrono : pas de prolongation en monde infini
+    const sizes: number[] = [];
+    for (let k = 0; k < 6; k++) {
+      expect(nextWave(w), `vague ${k + 1}`).toBe(1);
+      sizes.push(bosses(w).length);
+      killBosses(w);
+    }
+    expect(sizes).toEqual([1, 1, 2, 2, 3, 3]);
+    expect(w.nextEndlessBoss).toBeCloseTo(ENDLESS.period * 7, 6);
+    // pas de prolongation : seulement la rampe douce du monde infini (×2 environ à 10 min, ×7 à 30)
+    expect(w.timeUp).toBe(false);
+    expect(w.overT).toBe(0);
+    w.endlessT = 600;
+    run(w, 0.05);
+    expect(w.overHp).toBeGreaterThan(1.5);
+    expect(w.overHp).toBeLessThan(3);
+    w.endlessT = 1800;
+    run(w, 0.05);
+    expect(w.overHp).toBeGreaterThan(5);
+    expect(w.overSpd).toBeLessThanOrEqual(ENDLESS.ramp.spdMax);
+    expect(w.mode).toBe(Mode.Play); // tuer des boss ne rouvre ni portail ni victoire
+    expect(w.portal.open).toBe(false);
+  });
+  it('PV des boss en hausse de vague en vague ; la barre passe au boss suivant', () => {
+    const w = won(32);
+    startEndless(w);
+    const ratio: number[] = [];
+    for (let k = 0; k < 3; k++) {
+      nextWave(w);
+      const i = w.bossIndex;
+      ratio.push(w.enemies[i].max / ENEMIES[w.enemies[i].type].hp);
+      if (k < 2) killBosses(w);
+    }
+    expect(ratio[1]).toBeGreaterThan(ratio[0]);
+    expect(ratio[2]).toBeGreaterThan(ratio[1]);
+    expect(bosses(w)).toHaveLength(2);
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    run(w, 0.1);
+    expect(bosses(w)).toHaveLength(1);
+    expect(w.bossIndex).toBe(bosses(w)[0]);
+  });
+  it('le bonus d’or de fin n’est payé qu’une fois (victoire puis mort en monde infini)', () => {
+    const w = won(33);
+    expect(w.goldBonusT).toBeCloseTo(w.t, 6);
+    const t0 = w.goldBonusT;
+    startEndless(w);
+    run(w, 2);
+    w.player.hp = -1e12;
+    w.player.revives = 0;
+    const g = w.gold;
+    step(w, still, STEP);
+    expect(w.mode).toBe(Mode.Dead);
+    expect(w.gold - g).toBeGreaterThanOrEqual((w.t - t0 - STEP) * GOLD.perSecond * w.player.goldMul - 1e-6);
+    expect(w.gold - g).toBeLessThan((w.t - t0) * GOLD.perSecond * w.player.goldMul + 50); // + l'or d'un kill du pas
+  });
+  it('au plus ENDLESS.maxAlive boss en vie ; startEndless oublie les événements du pas de la victoire', () => {
+    const w = won(35);
+    w.emit(Ev.BossKill, 0, 0, 0, 3); // événement du pas de la victoire, déjà traité par le jeu
+    startEndless(w);
+    expect(count(w, Ev.BossKill)).toBe(0);
+    expect(count(w, Ev.EndlessStart)).toBe(1);
+    for (let k = 0; k < 8; k++) nextWave(w); // personne ne tue les boss : la place manque vite
+    expect(bosses(w).length).toBeLessThanOrEqual(ENDLESS.maxAlive);
+    expect(bosses(w).length).toBe(ENDLESS.maxAlive);
+    expect(w.endlessAlive).toBe(ENDLESS.maxAlive);
+  });
+  it('déterministe en monde infini', () => {
+    const play = () => {
+      const w = won(34);
+      startEndless(w);
+      run(w, 20, { ...still, mx: 0.6, mz: -0.4 });
+      nextWave(w);
+      run(w, 10, { ...still, mx: -0.5, mz: 0.2 });
+      return [w.t, w.kills, w.endlessWave, w.bossCount, w.enemyCount, w.player.x, w.rng.next()];
     };
     expect(play()).toEqual(play());
   });

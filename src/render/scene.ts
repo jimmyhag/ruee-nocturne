@@ -8,6 +8,7 @@ import {
   ARCHER,
   ARCHER_TYPE,
   CRACHEUR_TYPE,
+  ENDLESS,
   SORCIER_TYPE,
   HAZARDS,
   MAPCHEST,
@@ -115,7 +116,8 @@ const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la t
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
 const ENEMY_STRIDE = 0.42; // tours de marche par unité de vitesse (Spectre 2,7 u/s : ≈ 1,1 pas par seconde)
 const CHEST_ELITE = new THREE.Color(0xffd98a); // coffre d'élite : même modèle que celui de carte, teinté d'or
-const ENEMY_CAPS = [450, 450, 120, 2, 120, 60, 2, 2, 1, 40, 24]; // phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24)
+// phase 16 : Archer, Sorcier (SPAWN.maxShooters = 24) ; phase 39 : boss (types 3, 6, 7) jusqu'à ENDLESS.maxAlive en monde infini
+const ENEMY_CAPS = [450, 450, 120, ENDLESS.maxAlive, 120, 60, ENDLESS.maxAlive, ENDLESS.maxAlive, 1, 40, 24];
 
 interface Ghost {
   x: number;

@@ -96,6 +96,13 @@ export class World {
   /** Totem du monde : 0 prêt, 1 boss appelé, 2 boss vaincu à temps (portail ouvert), 3 fermé (chrono écoulé). */
   totem = { x: 0, z: 0, charge: 0, state: 0 };
   portal = { open: false, charge: 0 };
+  // phase 39 : monde infini (après la victoire, au choix du joueur)
+  endless = false;
+  endlessT = 0; // s passées dans le monde infini
+  endlessWave = 0; // vagues de boss déjà sorties
+  nextEndlessBoss = 0; // endlessT de la prochaine vague
+  endlessAlive = 0; // boss du monde infini en vie (la barre passe au suivant)
+  goldBonusT = 0; // temps déjà payé par le bonus d'or de fin (victoire puis mort en monde infini : une seule fois)
   stageWarned = false; // rappel « 1:00 » envoyé
   timeUp = false; // fin du chrono annoncée
   // multiplicateurs de prolongation, recalculés à chaque pas (1 tant que le chrono tourne)
