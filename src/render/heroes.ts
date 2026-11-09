@@ -262,7 +262,9 @@ function outfitTexture(src: THREE.Texture, key: string, hue: number, absolute = 
     let h = max === r ? (g - b) / chroma + (g < b ? 6 : 0) : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4;
     if (absolute) {
       // tenue de maître : la teinte va vers `hue` (et non décalée), un peu plus saturée
-      h = (h / 6) * (1 - k) + dh * k;
+      let dd = dh - h / 6; // arc le plus court vers la teinte visée (pas de détour par le vert ou le bleu)
+      dd -= Math.round(dd);
+      h = h / 6 + dd * k;
       s = Math.min(1, s * (1 + (MASTER_SAT - 1) * k));
     } else h = h / 6 + dh * k;
     const q = l < 0.5 ? l * (1 + s) : l + s - l * s,

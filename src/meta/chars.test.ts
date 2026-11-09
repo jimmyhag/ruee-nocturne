@@ -25,6 +25,9 @@ describe('défis par personnage (phase 41)', () => {
     }
   });
 
+  it('au plus 16 sources de coup : le drapeau critique (+16, & 15) du rendu en dépend', () => {
+    expect(HitSrc.Count).toBeLessThanOrEqual(16);
+  });
   it('la sim compte les ennemis tués par source, en l’air, les élites et les boss', () => {
     const w = new World(5);
     const kill = (type: number, src: HitSrc, elite = false) => {
