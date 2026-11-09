@@ -247,16 +247,16 @@ describe('monde infini (phase 39)', () => {
     }
     expect(sizes).toEqual([1, 1, 2, 2, 3, 3]);
     expect(w.nextEndlessBoss).toBeCloseTo(ENDLESS.period * 7, 6);
-    // pas de prolongation : seulement la rampe douce du monde infini (×2 environ à 10 min, ×7 à 30)
+    // pas de prolongation : seulement la rampe douce du monde infini (1.34.1 : PV ×1,6 à 10 min, ×4 à 30)
     expect(w.timeUp).toBe(false);
     expect(w.overT).toBe(0);
     w.endlessT = 600;
     run(w, 0.05);
-    expect(w.overHp).toBeGreaterThan(1.5);
-    expect(w.overHp).toBeLessThan(3);
+    expect(w.overHp).toBeGreaterThan(1.3);
+    expect(w.overHp).toBeLessThan(2);
     w.endlessT = 1800;
     run(w, 0.05);
-    expect(w.overHp).toBeGreaterThan(5);
+    expect(w.overHp).toBeGreaterThan(3);
     expect(w.overSpd).toBeLessThanOrEqual(ENDLESS.ramp.spdMax);
     expect(w.mode).toBe(Mode.Play); // tuer des boss ne rouvre ni portail ni victoire
     expect(w.portal.open).toBe(false);

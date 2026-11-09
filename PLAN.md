@@ -643,7 +643,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - les boss tournent entre le Gardien, l'Essaim-mère et le Colosse, et sortent en cercle autour du joueur ;
   - leurs PV suivent la règle des boss du totem × (1 + `ENDLESS.hpPerWave` · vague) ;
   - la barre de boss passe au boss suivant ;
-  - le marchand ne revient pas (ses passages suivent le chrono d'un monde) ;
+  - le marchand ne revenait pas ; depuis la 1.34.1 (décision déléguée par Jimmy), il passe à 1:15 puis toutes les 2:30, entre deux vagues ;
   - la victoire, les stats et le score sont comptés une seule fois, à la fin réelle (« Terminer » ou la mort) ; le bonus d'or de fin n'est payé qu'une fois (`goldBonusT`) ;
   - au classement, une partie infinie compte comme « monde 4 » plus le temps total ;
   - la puce d'objectif passe sous la barre de boss (elle cachait son nom).
@@ -656,6 +656,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 
   - Sans la rampe des monstres normaux, le profil nu ne mourait plus : p50 14:40, p90 79 min, 38 % passaient 8 vagues.
   - Le profil maxé meurt à la horde (Brutes 45 %, feu 20 %), pas aux boss. C'est la faiblesse connue des kits à quatre armes : à reprendre avec Jimmy (boss final, ou rééquilibrage des Brutes tardives).
+  - 1.34.1 (Jimmy : « fais ce que tu penses le mieux ») : rampe ÷2 et marchand entre les vagues. 150 runs : nu p10 2:47, p50 10:05, p90 19:17 (bornée par `--until`), 4 vagues ; maxé 1:19 / 3:09 / 6:32, 1 vague. Rampe ÷4 : nu 12:51, maxé 3:30. Le maxé ne dépend presque pas de la rampe.
 - **Porte** :
   - Vitest couvre la vague 1, 1, 2, 2, 3, 3, l'absence de prolongation, les PV en hausse, la barre qui passe au suivant, le bonus d'or payé une fois et le déterminisme ;
   - l'e2e couvre victoire → Continuer → boss à 2:30 → mort → écran de fin, et victoire → Terminer, au clavier et au doigt, captures lues.
