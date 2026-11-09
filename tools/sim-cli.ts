@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
   CHARACTERS,
+  ENDLESS,
   ENEMIES,
   ITEM,
   MAPCHEST,
@@ -68,6 +69,12 @@ if (args.has('falloff')) ITEM.stackFalloff = +args.get('falloff')!;
 if (args.has('price-growth')) ITEM.priceGrowth = +args.get('price-growth')!;
 if (args.has('chest-growth')) MAPCHEST.growth = +args.get('chest-growth')!;
 if (args.has('chest-price')) MAPCHEST.price = +args.get('chest-price')!; // prix du premier coffre // 1.33.1 : hausse par coffre acheté
+if (args.has('ramp')) {
+  // 1.34.1 : échelle de la montée des monstres en monde infini (1 = balance.ts)
+  const k = +args.get('ramp')!,
+    R = ENDLESS.ramp;
+  for (const c of [R.rate, R.hp, R.dmg, R.spd]) for (let i = 0; i < c.length; i++) c[i] *= k;
+}
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
   ? (WEAPONS_ARG.split(',')

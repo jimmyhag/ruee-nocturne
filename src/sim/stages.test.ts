@@ -304,6 +304,23 @@ describe('monde infini (phase 39)', () => {
     expect(bosses(w).length).toBe(ENDLESS.maxAlive);
     expect(w.endlessAlive).toBe(ENDLESS.maxAlive);
   });
+  it('le marchand repasse en monde infini à 1:15, puis entre chaque vague de boss (1.34.1)', () => {
+    const w = won(35);
+    w.merchant.active = false;
+    startEndless(w);
+    const visit = w.merchant.visit;
+    w.endlessT = ENDLESS.merchantAt - 0.05;
+    expect(run(w, 0.1, still, Ev.MerchantArrive)).toBe(1);
+    expect(w.merchant.visit).toBe(visit + 1);
+    w.merchant.active = false; // parti
+    w.endlessT = ENDLESS.merchantAt + ENDLESS.period - 0.05;
+    expect(run(w, 0.1, still, Ev.MerchantArrive)).toBe(1);
+    // encore là à l'heure suivante : la visite est sautée, pas reportée
+    w.endlessT = ENDLESS.merchantAt + 2 * ENDLESS.period - 0.05;
+    expect(run(w, 0.1, still, Ev.MerchantArrive)).toBe(0);
+    w.merchant.active = false;
+    expect(run(w, 1, still, Ev.MerchantArrive)).toBe(0);
+  });
   it('déterministe en monde infini', () => {
     const play = () => {
       const w = won(34);

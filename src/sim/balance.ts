@@ -230,6 +230,7 @@ export const ENDLESS = {
   ramp: { rate: [0.04, 0.001], hp: [0.08, 0.004], dmg: [0.06, 0.003], spd: [0.02, 0], spdMax: 1.5 },
   maxAlive: 6, // boss vivants au plus (au-delà, la vague attend) ; le rendu a la même capacité par type de boss
   dist: 12, // u du joueur, répartis en cercle
+  merchantAt: 75, // 1.34.1 : le marchand repasse à 1:15, puis toutes les ENDLESS.period s (entre deux vagues de boss)
 };
 
 // zones de terrain (PLAN §3.4) : lacs qui ralentissent, bois denses qui canalisent

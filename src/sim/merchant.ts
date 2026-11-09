@@ -1,7 +1,7 @@
 // Marchand (phase 17, PLAN §3.6) : une échoppe s'installe près du joueur aux heures MERCHANT.times et reste
 // MERCHANT.stay s. Y entrer met la partie en pause (Mode.Merchant) : objets en vente (w.offers, kind 'i'), relance, départ.
 // On paie avec l'or de la partie ; ce qui n'est pas dépensé reste acquis à la fin du run.
-import { MERCHANT } from './balance';
+import { ENDLESS, MERCHANT } from './balance';
 import { canGainItem, gainItem, itemIndex, merchantOffers, rollItemChoices } from './items';
 import { Ev, Mode } from './types';
 import type { ItemKey } from './types';
@@ -21,9 +21,10 @@ export interface MerchantState {
   rolled: boolean; // offres tirées pour cette visite
   inside: boolean; // le joueur est dans l'échoppe (il doit en sortir pour la rouvrir)
   rerolls: number;
+  endlessNext: number; // 1.34.1 : endlessT de la prochaine visite en monde infini
 }
 export function makeMerchant(): MerchantState {
-  return { active: false, x: 0, z: 0, until: 0, visit: -1, next: 0, rolled: false, inside: false, rerolls: 0 };
+  return { active: false, x: 0, z: 0, until: 0, visit: -1, next: 0, rolled: false, inside: false, rerolls: 0, endlessNext: ENDLESS.merchantAt };
 }
 
 const TAU = Math.PI * 2;
@@ -32,26 +33,16 @@ const out2 = new Float64Array(2);
 /** Apparition, départ, entrée du joueur. Appelé à chaque pas de jeu (Mode.Play). */
 export function tickMerchant(w: World): void {
   const M = w.merchant;
-  // phase 37 : aux heures MERCHANT.times de chaque monde (chrono du monde)
-  if (!M.active && M.next < MERCHANT.times.length && w.stageT >= MERCHANT.times[M.next]) {
-    M.next++;
-    // place libre près du joueur : quelques essais autour de lui, repoussée hors des obstacles
-    const P = w.player;
-    for (let k = 0; k < MERCHANT.placeTries; k++) {
-      const a = w.rng.range(0, TAU),
-        d = w.rng.range(MERCHANT.distMin, MERCHANT.distMax);
-      w.resolveObstacles(P.x + Math.sin(a) * d, P.z + Math.cos(a) * d, MERCHANT.r + MERCHANT.placeMargin, out2, 0);
-      M.x = out2[0];
-      M.z = out2[1];
-      if (!w.nearObstacle(M.x, M.z) || k === MERCHANT.placeTries - 1) break;
+  // phase 37 : aux heures MERCHANT.times de chaque monde (chrono du monde) ; 1.34.1 : en monde infini, entre deux vagues
+  // de boss (ENDLESS.merchantAt après chaque vague, sur le chrono du monde infini)
+  if (w.endless) {
+    if (w.endlessT >= M.endlessNext) {
+      M.endlessNext += ENDLESS.period;
+      if (!M.active) arrive(w); // encore là (rare) : on saute cette visite
     }
-    M.active = true;
-    M.until = w.stageT + MERCHANT.stay;
-    M.visit++;
-    M.rolled = false;
-    M.inside = false;
-    M.rerolls = 0;
-    w.emit(Ev.MerchantArrive, M.x, 0, M.z, MERCHANT.stay);
+  } else if (!M.active && M.next < MERCHANT.times.length && w.stageT >= MERCHANT.times[M.next]) {
+    M.next++;
+    arrive(w);
   }
   if (!M.active) return;
   if (w.stageT >= M.until) {
@@ -70,6 +61,28 @@ export function tickMerchant(w: World): void {
     }
     w.mode = Mode.Merchant;
   } else if (!inside) M.inside = false;
+}
+
+/** L'échoppe s'installe à une place libre près du joueur. */
+function arrive(w: World): void {
+  const M = w.merchant;
+  // place libre près du joueur : quelques essais autour de lui, repoussée hors des obstacles
+    const P = w.player;
+    for (let k = 0; k < MERCHANT.placeTries; k++) {
+      const a = w.rng.range(0, TAU),
+        d = w.rng.range(MERCHANT.distMin, MERCHANT.distMax);
+      w.resolveObstacles(P.x + Math.sin(a) * d, P.z + Math.cos(a) * d, MERCHANT.r + MERCHANT.placeMargin, out2, 0);
+      M.x = out2[0];
+      M.z = out2[1];
+      if (!w.nearObstacle(M.x, M.z) || k === MERCHANT.placeTries - 1) break;
+    }
+    M.active = true;
+    M.until = w.stageT + MERCHANT.stay;
+    M.visit++;
+    M.rolled = false;
+    M.inside = false;
+    M.rerolls = 0;
+  w.emit(Ev.MerchantArrive, M.x, 0, M.z, MERCHANT.stay);
 }
 
 /** Entrée pendant l'échoppe : achat, relance ou départ. */
