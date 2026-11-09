@@ -133,7 +133,7 @@ function placeTotem(w: World, r: Rng, all: { x: number; z: number }[]): void {
   T.state = 0;
   let fx = 0,
     fz = STAGE.totemFrom[0];
-  for (let t = 0; t < 4000; t++) {
+  for (let t = 0; t < STAGE.totemTries; t++) {
     const a = r.range(0, Math.PI * 2),
       d = r.range(STAGE.totemFrom[0], STAGE.totemFrom[1]);
     const x = Math.sin(a) * d,
@@ -146,9 +146,9 @@ function placeTotem(w: World, r: Rng, all: { x: number; z: number }[]): void {
     let flat = true;
     for (let k = 0; k < 8 && flat; k++) {
       const b = (k / 8) * Math.PI * 2;
-      if (Math.abs(w.heightAt(x + Math.sin(b) * STAGE.totemPad, z + Math.cos(b) * STAGE.totemPad) - h) > 0.6) flat = false;
+      if (Math.abs(w.heightAt(x + Math.sin(b) * STAGE.totemPad, z + Math.cos(b) * STAGE.totemPad) - h) > STAGE.totemFlat) flat = false;
     }
-    if (!flat || !spaced(all, x, z, 12)) continue;
+    if (!flat || !spaced(all, x, z, STAGE.totemSpacing)) continue;
     break;
   }
   T.x = fx;

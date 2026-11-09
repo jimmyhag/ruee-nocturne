@@ -9,7 +9,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   if (!e) return -1;
   const def = ENEMIES[type];
   // phase 37 : difficulté au temps du monde (diffT) et renfort de prolongation (over*, 1 tant que le chrono tourne)
-  let scale = SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * 0.8 : 1);
+  let scale = SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * STAGE.bossHpPerBoss : 1);
   if (elite) scale *= ELITE.hpMul;
   e.type = type;
   e.elite = elite;
@@ -59,7 +59,8 @@ export function tickSpawner(w: World, dt: number): void {
   const t = w.diffT,
     st = w.stageT,
     now = w.t;
-  let rate = SPAWN.rate(t) * w.overRate * (w.bossIndex >= 0 ? STAGE.bossRate : 1);
+  // boss du monde en vie : la horde se calme (pas en prolongation : elle ne doit pas amortir le renfort)
+  let rate = SPAWN.rate(t) * w.overRate * (w.bossIndex >= 0 && w.overT === 0 ? STAGE.bossRate : 1);
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
   if (w.boredomUntil > now) rate *= SPAWN.boredomMul;
@@ -84,7 +85,7 @@ export function tickSpawner(w: World, dt: number): void {
   }
   if (st >= w.nextWave) {
     w.nextWave += SPAWN.wavePeriod;
-    const n = Math.round(SPAWN.waveCount(t) * Math.min(3, w.overRate));
+    const n = Math.round(SPAWN.waveCount(t) * Math.min(STAGE.overWaveCap, w.overRate));
     for (let i = 0; i < n && w.enemyCount < CAPS.enemies; i++) spawnEnemy(w, t > SPAWN.waveDardAfter ? 1 : 0, (i / n) * TAU, SPAWN.waveDist);
     w.emit(Ev.Wave, w.player.x, 0, w.player.z, n);
   }

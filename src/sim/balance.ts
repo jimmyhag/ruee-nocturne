@@ -176,7 +176,8 @@ export const STAGE = {
   dur: 600, // s : chrono d'un monde (choix de Jimmy)
   // temps de difficulté au départ de chaque monde (diffT = temps du monde + offset) : chaque monde repart un peu plus bas
   // qu'il ne finissait (respiration à l'arrivée) et monte plus haut que le précédent ; le monde 3 finit au niveau de
-  // l'ancienne 17:00 (mesuré : [0, 330, 600], le monde 3 allait jusqu'à l'ancien 20:00 et personne n'en sortait)
+  // l'ancienne 19:00 (mesuré : [0, 330, 600] allait jusqu'à l'ancien 20:00 et le profil maxé n'en sortait pas ;
+  // [0, 240, 420] laissait passer tout profil nu qui survivait au monde 1)
   offset: [0, 300, 540],
   bosses: [3, 6, 7], // Gardien, Essaim-mère, Colosse (types ; BOSSES dans l'ordre)
   // PV du boss du monde : ceux des anciens boss à 5:00, 10:00, 15:00 (hpScale à ce temps), quelle que soit l'heure
@@ -194,14 +195,21 @@ export const STAGE = {
   portalR: 2.4,
   portalHold: 1, // s dedans pour passer (une traversée par mégarde ne compte pas)
   eliteFirst: [120, 40, 40], // s du monde : première élite (monde 1 : comme avant, ensuite tout de suite)
+  eruptionGrace: 20, // s sans éruption à l'arrivée dans un monde
+  bossHpPerBoss: 0.8, // PV des boss ×(1 + 0,8 par boss déjà appelé), comme les anciens boss à heure fixe
+  overWaveCap: 3, // en prolongation, les vagues grossissent au plus ×3 (au-delà, le pool d'ennemis est plein)
+  totemTries: 4000, // tirages pour placer le totem
+  totemFlat: 0.6, // u d'écart de hauteur toléré sur le cercle du combat
+  totemSpacing: 12, // u au moins des autres points d'intérêt
   seedMul: 0x9e3779b1, // graine de la carte du monde k : (graine de départ + k · seedMul) >>> 0
   // prolongation : m = minutes après la fin du chrono. Multiplicateurs 1 + a·m + b·m² (jouable la première minute,
-  // mortel vers +3 à +4 min pour une bonne build), vitesse plafonnée pour rester lisible
+  // mortel vers +3 à +4 min pour une bonne build), vitesse plafonnée pour rester lisible. Mesuré avec le bot qui reste
+  // farmer (profil maxé) : avec 0,4/0,5 · 0,5/0,8 · 0,4/0,6, mort en p50 à +1:03 (p90 +1:37), trop sec
   over: {
-    rate: [0.4, 0.5], // ×1,9 à +1 min, ×3,8 à +2, ×6,7 à +3
-    hp: [0.5, 0.8], // ×2,3 à +1, ×5,2 à +2, ×9,7 à +3
-    dmg: [0.4, 0.6], // ×2,0 à +1, ×4,2 à +2, ×7,6 à +3
-    spd: [0.2, 0.05], // ×1,25 à +1, ×1,6 à +2…
+    rate: [0.25, 0.3], // ×1,55 à +1 min, ×2,7 à +2, ×4,4 à +3
+    hp: [0.3, 0.45], // ×1,75 à +1, ×3,4 à +2, ×5,0 à +3
+    dmg: [0.25, 0.35], // ×1,6 à +1, ×2,9 à +2, ×4,9 à +3
+    spd: [0.15, 0.04], // ×1,2 à +1, ×1,5 à +2…
     spdMax: 1.8,
   },
 };

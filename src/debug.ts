@@ -168,7 +168,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       M.active = true;
       M.x = world.player.x;
       M.z = world.player.z - dist;
-      M.until = world.t + MERCHANT.stay;
+      M.until = world.stageT + MERCHANT.stay; // phase 37 : le marchand suit le chrono du monde
       M.visit++;
       M.rolled = M.inside = false;
       M.rerolls = 0;

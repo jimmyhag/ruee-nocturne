@@ -1,4 +1,4 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STEP } from './sim/balance';
+import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STAGE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell } from './sim/types';
 import { POWER_ICON } from './ui/icons';
@@ -154,6 +154,7 @@ let world: World | null = null;
 let meta: Meta = metaAtStart;
 let hurtT = 0;
 let timestopOn = false; // phase 35 : Temps figé affiché
+let portalFade = 0; // phase 37 : opacité du fondu pilotée par le portail
 let duckOn = false; // phase 36 : musique atténuée (pause, cartes, marchand, fin de partie)
 const hitStop = new HitStop(); // borné : voir render/feel.ts
 // « réduction des effets » : réglage du joueur, sinon prefers-reduced-motion (skill game-feel §9)
@@ -419,10 +420,12 @@ function startGame(variant?: number, daily = false): void {
  * Phase 37 : arrivée dans un nouveau monde (la sim a déjà construit la carte). Fondu au noir, décor et minicarte
  * reconstruits pendant le fondu, ambiance du monde, bannière avec son nom.
  */
+const stageFade = $('stageFade');
 function onStageStart(n: number): void {
   if (!world || !scene) return;
   const S = scene;
-  const fade = $('stageFade');
+  const fade = stageFade;
+  portalFade = 0;
   fade.style.transition = 'none';
   fade.style.opacity = '1';
   void fade.offsetWidth; // le noir est posé avant la reconstruction
@@ -1845,6 +1848,16 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
     hud.update(world, hurtT, now, realDt);
+    // phase 37 : le noir monte pendant la seconde passée dans le portail ; quand la carte se reconstruit (StageStart),
+    // l'écran est déjà noir et le gel de la reconstruction ne se voit pas
+    if (world.portal.open) {
+      const f = Math.min(1, world.portal.charge / STAGE.portalHold);
+      if (Math.abs(f - portalFade) > 0.02 || (f === 0 && portalFade !== 0)) {
+        portalFade = f;
+        stageFade.style.transition = 'opacity 0.1s linear';
+        stageFade.style.opacity = String(f);
+      }
+    } else if (portalFade !== 0) portalFade = 0;
     const frozenNow = world.powerT[Pw.Gel] > 0; // phase 35 : voile bleuté du Temps figé (classe CSS, écrite au changement)
     if (frozenNow !== timestopOn) {
       timestopOn = frozenNow;

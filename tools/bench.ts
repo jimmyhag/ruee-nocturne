@@ -8,7 +8,7 @@ import { refreshStats } from '../src/sim/weapons/defs';
 
 const w = new World(1);
 startRun(w);
-w.t = 400; // mi-partie : armes dangereuses, ennemis costauds
+w.t = w.stageT = w.diffT = 400; // mi-partie : armes dangereuses, ennemis costauds (phase 37 : la difficulté suit diffT)
 w.weapons = { orbe: 5, aura: 3, boomerang: 3, mines: 3 }; // 4 armes (max) dont les deux de phase 3
 // cas le plus chargé : Orbe à +5 projectiles et +3 perforations, tome Projectiles à +3 (8 tirs transperçants par salve)
 w.wmods.orbe[2] = 5;

@@ -9,6 +9,7 @@ import { CAPS, ENEMIES, HAZARDS, POWER, SPAWN, STAGE } from './balance';
 import { spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
+import { startRun } from './step';
 import type { World } from './world';
 
 /** Graine de la carte du monde `k` (déterministe : le défi du jour donne les mêmes trois cartes à tout le monde). */
@@ -79,7 +80,8 @@ export function summonStageBoss(w: World): void {
   const a = Math.atan2(T.x - P.x, T.z - P.z);
   const e = w.enemies[i];
   // PV fixés par monde (STAGE.bossHpAt), pas à l'heure de l'appel ; renfort de prolongation compris
-  e.hp = e.max = ENEMIES[type].hp * SPAWN.hpScale(STAGE.bossHpAt[w.stage]) * w.overHp * (1 + w.bossCount * 0.8);
+  e.hp = e.max =
+    ENEMIES[type].hp * SPAWN.hpScale(STAGE.bossHpAt[w.stage]) * w.overHp * (1 + w.bossCount * STAGE.bossHpPerBoss);
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;
@@ -121,6 +123,10 @@ export function nextStage(w: World): void {
   w.projCount = 0;
   w.shotCount = 0;
   w.powerCount = 0;
+  // ce qui vise des coordonnées de l'ancienne carte : météores annoncés, sorts qui durent (Collet, Bourse)
+  w.wstate.metN = 0;
+  P.spellT = 0;
+  w.sstate.pending = w.sstate.bondPending = false;
   w.stage++;
   w.stageT = 0;
   w.diffT = STAGE.offset[w.stage];
@@ -137,7 +143,7 @@ export function nextStage(w: World): void {
   w.nextWave = SPAWN.wavePeriod;
   w.nextElite = STAGE.eliteFirst[w.stage];
   // éruptions : à leur heure de difficulté, mais jamais dans les 20 premières secondes d'un monde
-  w.nextEruption = Math.max(20, HAZARDS.eruption.after - STAGE.offset[w.stage]);
+  w.nextEruption = Math.max(STAGE.eruptionGrace, HAZARDS.eruption.after - STAGE.offset[w.stage]);
   w.powerNext = POWER.mapFirst;
   w.buildMapFor(stageSeed(w.startSeed, w.stage)); // remet aussi le totem à zéro (placeTotem)
   // le joueur repart du centre de la nouvelle carte, debout
@@ -158,6 +164,6 @@ export function nextStage(w: World): void {
     c.x = Math.sin(i * 1.3) * 3;
     c.z = 3 + Math.cos(i * 1.3) * 1.5;
   }
-  for (let i = 0; i < SPAWN.initial; i++) spawnEnemy(w, 0, w.rng.range(0, Math.PI * 2), w.rng.range(14, 20));
+  startRun(w); // ennemis de départ, comme au premier monde
   w.emit(Ev.StageStart, 0, 0, 0, w.stage + 1);
 }

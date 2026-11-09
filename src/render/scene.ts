@@ -1253,7 +1253,7 @@ export class GameScene {
   }
 
   /**
-   * Cycle de lumière lié au chrono du monde : crépuscule 0:00 → nuit à la fin du chrono (le temps se lit sans chrono),
+   * Cycle de lumière lié au chrono du monde : crépuscule 0:00 → nuit à 8:00 (l'heure du totem se lit sans chrono),
    * dans les couleurs du monde (phase 37 ; avant : crépuscule → nuit 8:00 → aube 20:00 sur toute la partie).
    */
   private lightCycle(t: number): void {

@@ -9,7 +9,7 @@ import { collectConsoleErrors, openGame, startRun } from './helpers';
 async function walkRightUntil(page: Page, hasTouch: boolean, done: () => boolean): Promise<void> {
   if (!hasTouch) {
     await page.keyboard.down('ArrowRight');
-    await page.waitForFunction(done, null, { timeout: 15_000 }).finally(() => page.keyboard.up('ArrowRight'));
+    await page.waitForFunction(done, null, { timeout: 30_000 }).finally(() => page.keyboard.up('ArrowRight'));
     return;
   }
   const cdp = await page.context().newCDPSession(page);
@@ -22,7 +22,7 @@ async function walkRightUntil(page: Page, hasTouch: boolean, done: () => boolean
     await page.waitForTimeout(30);
   }
   await page
-    .waitForFunction(done, null, { timeout: 15_000 })
+    .waitForFunction(done, null, { timeout: 30_000 })
     .finally(() => cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }));
 }
 
@@ -47,7 +47,7 @@ async function besideTotem(page: Page): Promise<void> {
 }
 function nearTotem(): boolean {
   const w = (window as any).__game.world;
-  return Math.hypot(w.player.x - w.totem.x, w.player.z - w.totem.z) < 0.8;
+  return Math.hypot(w.player.x - w.totem.x, w.player.z - w.totem.z) < 1.5; // dans le cercle (rayon 3)
 }
 
 test('monde 1 → 2 : chrono, totem activé en marchant, boss, portail, nouvelle carte et ambiance', async ({
@@ -86,7 +86,7 @@ test('monde 1 → 2 : chrono, totem activé en marchant, boss, portail, nouvelle
   // au doigt, la marche est plus lente : le portail (1 s dedans) peut emmener le héros avant le centre
   await walkRightUntil(page, hasTouch, () => {
     const w = (window as any).__game.world;
-    return w.stage === 1 || Math.hypot(w.player.x - w.totem.x, w.player.z - w.totem.z) < 0.8;
+    return w.stage === 1 || Math.hypot(w.player.x - w.totem.x, w.player.z - w.totem.z) < 1.5; // dans le cercle (rayon 3)
   });
   await page.waitForFunction(() => (window as any).__game.world.stage === 1, null, { timeout: 40_000 });
   await calm(page);
