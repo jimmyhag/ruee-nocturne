@@ -12,6 +12,7 @@ async function calmWin(page: Page): Promise<void> {
     w.player.need = 1e9;
     w.powerNext = w.nextWave = w.nextElite = w.nextEruption = 1e9;
     w.merchant.next = 99;
+    w.merchant.endlessNext = 1e9; // 1.34.1 : le marchand repasse aussi en monde infini
     g.debug.win();
   });
   await expect(page.locator('#victory')).toBeVisible({ timeout: 10_000 });
