@@ -22,7 +22,8 @@
     "sim": "tsx tools/sim-cli.ts",
     "bench": "node --expose-gc --import tsx tools/bench.ts",
     "prepare": "simple-git-hooks",
-    "assets": "tsx tools/assets/build.ts"
+    "assets": "tsx tools/assets/build.ts",
+    "audio": "tsx tools/audio/build.ts"
   },
   "dependencies": {
     "firebase": "^13.2.0",
