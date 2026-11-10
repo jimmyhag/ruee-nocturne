@@ -58,6 +58,14 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Les InstanceWriter du décor reçoivent la géométrie et le matériau du modèle une fois chargé (couleur d'instance blanche) : même nombre d'appels qu'avant. Décor dense (arbres, lanternes, cimetières) : seules les instances à moins de `PROP_DRAW` u sont écrites, re-triées tous les 4 u de déplacement.
 - Toujours un **repli procédural** : rien ne doit attendre un fichier pour être jouable.
 
+### Décor stylisé (phase 44 : Quaternius « Ultimate Stylized Nature », CC0)
+- **Pipeline** : `npm run assets -- --nature` (`tools/assets/nature.ts`, modèles et plafonds dans `NATURE` de `config.ts`). Les FBX se lisent en Node avec le `FBXLoader` de three ; dans tout le pack, l'axe **y de la géométrie** est la hauteur (ignorer la rotation du nœud).
+- Un arbre = écorce simplifiée (meshopt, drapeau `Prune` pour retirer les rameaux isolés) + cartes de feuilles échantillonnées par points les plus éloignés et agrandies + un cœur opaque sombre par houppier. Plafond : 800 triangles.
+- **Un seul matériau** pour tout le décor : toon, `vertexColors`, `alphaTest 0.5`, deux faces, atlas 1024². Les parties sans texture visent un texel blanc opaque de l'atlas.
+- `COLOR_0` est un VEC4 : `a = 1` marque ce que le monde teinte (feuilles, herbe). `loadNature` sépare couleur et masque (`toFloat` retire l'attribut à 4 composantes, sinon l'alpha de sommet découperait l'écorce) ; `tintedNature` rend une géométrie teintée par monde (`PAL.stages[i].decor`).
+- Normales des feuilles « en boule » autour du houppier : ombrage doux, pas de papillotement carte par carte.
+- Le semis (herbe, fleurs, buissons) vient d'une grille hachée autour du joueur (`scatter`), refait tous les 4 u, sans allocation ; `TerrainView.bareAt` l'écarte de la terre, des pistes et des lacs.
+
 ### Foule animée (phase 21 : morphs instanciés)
 - Pas de squelette par instance : poses cuites au chargement (`mixer.setTime` → `SkinnedMesh.getVertexPosition` / `applyBoneTransform` avec un Vector4 de w = 0 pour les normales) en `morphAttributes.position` et `normal` **absolues** (`morphTargetsRelative = false`).
 - `InstancedMesh.morphTexture` : une ligne par instance = [poids de base, poids des poses]. Pour des poses absolues, le poids de base est **0** et les poids somment à 1. Allouer la DataTexture à **pleine capacité** soi-même (`setMorphAt` l'alloue sur `count`, même piège que les couleurs) et écrire dans `image.data` (`src/render/pose.ts`), `needsUpdate` une fois par frame et par type.
@@ -66,8 +74,15 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Un jumeau peut partager `instanceMatrix` et `morphTexture` avec le maillage principal : il suffit de recopier `count`.
 
 ## Terrain
-- Sol : `PlaneGeometry` avec `CanvasTexture` en damier bruité, `NearestFilter`, `RepeatWrapping`. Décor (arbres, rochers, lanternes) en `InstancedMesh` statique généré par seed, grille spatiale pour les collisions.
+- Sol : maillage en relief (fenêtre mobile, `terrain.ts`), `MeshLambertMaterial` à couleurs par sommet. Phase 44 : **deux textures** par monde (tapis `a`, terre `b`, `public/models/ground-*.jpg`) mélangées dans `onBeforeCompile` par l'attribut `blend.x` ; `blend.y` efface la texture (pistes). La frontière est découpée par le grain du tapis. La couleur de sommet ne porte que l'ombrage cuit et de grandes taches claires et sombres.
+- Tant que les textures chargent (ou hors ligne), la texture dessinée (`groundTexture`) sert de repli pour les deux.
+- Décor (arbres, rochers, lanternes) en `InstancedMesh` généré par seed, grille spatiale pour les collisions.
 - Lac : plan légèrement surélevé, matériau additif animé par `uv.offset`.
+
+## Lumière et brume (phase 44)
+- Les intensités de three sont physiques : une lumière de 1 éclaire une surface blanche à 1/π. Hémisphère ≈ 2 et soleil ≈ 2,4 donnent une texture à sa vraie couleur ; en dessous, tout est sombre.
+- Brume **linéaire** (`THREE.Fog`, 30 → 115 u) : la caméra est à ≈ 16 u du joueur, une brume exponentielle voilait tout l'écran.
+- Couleurs et intensités par monde dans `PAL.stages` (`dusk` → `night`), interpolées par `lightCycle`.
 
 ## Post-traitement
 - Mobile : aucun. Vignette et flash de dégâts en **CSS** par-dessus le canvas (gratuit).
