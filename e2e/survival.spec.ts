@@ -17,15 +17,13 @@ test('boss de survie à 3:00 : préavis, barre de boss, le tuer n’ouvre pas le
     g.debug.stageTime(169);
   });
   await expect(page.locator('#banner')).toContainText(/boss de survie arrive/i, { timeout: 10_000 });
+  await page.evaluate(() => (window as any).__game.debug.stageTime(179.5)); // la sim tourne lentement sous SwiftShader
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 1, null, { timeout: 15_000 });
   await expect(page.locator('#bossbar')).toBeVisible();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `shots/${info.project.name}-boss-survie.png` });
   // le tuer : coffre de boss, mais pas de portail
-  await page.evaluate(() => {
-    const w = (window as any).__game.world;
-    for (let i = 0; i < w.enemyCount; i++) if (w.enemies[i].alive && w.enemies[i].max > 1000) w.enemies[i].hp = 1;
-  });
+  await page.evaluate(() => (window as any).__game.debug.killBoss()); // la barre suit le boss de survie
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 0, null, { timeout: 20_000 });
   const r = await page.evaluate(() => {
     const w = (window as any).__game.world;
