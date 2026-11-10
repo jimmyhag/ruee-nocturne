@@ -79,6 +79,11 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Décor (arbres, rochers, lanternes) en `InstancedMesh` généré par seed, grille spatiale pour les collisions.
 - Lac : plan légèrement surélevé, matériau additif animé par `uv.offset`.
 
+## Matériaux toon habillés (phase 44 B)
+- Tout matériau toon passe par `stylize()` (`toon.ts`) ou `toonMaterial()` : la rampe (`toonGradient`, RGBA) est lue en couleur, l'ombre tire vers le bleu-violet. Un `MeshToonMaterial` créé à la main ne lit que le canal rouge (ombres grises).
+- Liseré de lumière : `stylize(mat, couleur, force)`, terme de Fresnel au cube ajouté avant `opaque_fragment`. Héros : chaud, 0,75. Ennemis : couleur du type, 0,4 (boss ×1,5). Au-delà, les petits modèles vus de loin deviennent des aplats fluo ; sur un modèle clair (crâne du Volant), force 0.
+- Un seul programme pour tous (liseré noir = aucun) ; la couleur est un uniforme par matériau (`userData.rim`).
+
 ## Lumière et brume (phase 44)
 - Les intensités de three sont physiques : une lumière de 1 éclaire une surface blanche à 1/π. Hémisphère ≈ 2 et soleil ≈ 2,4 donnent une texture à sa vraie couleur ; en dessous, tout est sombre.
 - Brume **linéaire** (`THREE.Fog`, 30 → 115 u) : la caméra est à ≈ 16 u du joueur, une brume exponentielle voilait tout l'écran.
