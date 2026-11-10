@@ -93,7 +93,8 @@ test('Temps figé : ennemis immobiles, voile bleuté, puis tout repart', async (
   for (let i = 0; i < a.length; i++) expect(Math.abs(b[i] - a[i])).toBeLessThan(0.05);
   await page.screenshot({ path: `shots/${info.project.name}-bonus-gel.png` });
   // fin de l'effet (4 s) : le voile disparaît et les ennemis avancent de nouveau
-  await page.waitForFunction(() => (window as any).__game.world.powerT[3] === 0, null, { timeout: 6000 });
+  // 4 s de temps de jeu : en rendu logiciel et en résolution native, le jeu tourne à un tiers de l'horloge (≈ 13 s)
+  await page.waitForFunction(() => (window as any).__game.world.powerT[3] === 0, null, { timeout: 25_000 });
   await expect(page.locator('body')).not.toHaveClass(/timestop/);
   const c = await pos();
   // on attend le déplacement au lieu d'un délai fixe : en rendu logiciel le temps de jeu avance bien moins vite que
