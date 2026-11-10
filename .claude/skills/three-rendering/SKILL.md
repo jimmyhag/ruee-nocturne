@@ -60,8 +60,8 @@ mesh.frustumCulled = false;                                // la boîte engloban
 
 ### Décor stylisé (phase 44 : Quaternius « Ultimate Stylized Nature », CC0)
 - **Pipeline** : `npm run assets -- --nature` (`tools/assets/nature.ts`, modèles et plafonds dans `NATURE` de `config.ts`). Les FBX se lisent en Node avec le `FBXLoader` de three ; dans tout le pack, l'axe **y de la géométrie** est la hauteur (ignorer la rotation du nœud).
-- Un arbre = écorce simplifiée (meshopt, drapeau `Prune` pour retirer les rameaux isolés) + cartes de feuilles échantillonnées par points les plus éloignés et agrandies + un cœur opaque sombre par houppier. Plafond : 800 triangles.
-- **Un seul matériau** pour tout le décor : toon, `vertexColors`, `alphaTest 0.5`, deux faces, atlas 1024². Les parties sans texture visent un texel blanc opaque de l'atlas.
+- Un arbre = écorce simplifiée (meshopt, drapeau `Prune` pour retirer les rameaux isolés) + cartes de feuilles échantillonnées par points les plus éloignés et agrandies + un cœur opaque sombre par houppier. Plafond : 600 triangles.
+- **Un seul matériau** pour tout le décor : toon, `vertexColors`, `alphaTest 0.5`, UNE face (cartes tournées vers l'extérieur ; herbe et fleurs ont leur matériau à deux faces), atlas 1024². Les parties sans texture visent un texel blanc opaque de l'atlas.
 - `COLOR_0` est un VEC4 : `a = 1` marque ce que le monde teinte (feuilles, herbe). `loadNature` sépare couleur et masque (`toFloat` retire l'attribut à 4 composantes, sinon l'alpha de sommet découperait l'écorce) ; `tintedNature` rend une géométrie teintée par monde (`PAL.stages[i].decor`).
 - Normales des feuilles « en boule » autour du houppier : ombrage doux, pas de papillotement carte par carte.
 - Le semis (herbe, fleurs, buissons) vient d'une grille hachée autour du joueur (`scatter`), refait tous les 4 u, sans allocation ; `TerrainView.bareAt` l'écarte de la terre, des pistes et des lacs.

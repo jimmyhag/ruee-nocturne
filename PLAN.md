@@ -749,7 +749,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - **C, interface (1.43.0)** : icônes illustrées (game-icons.net, CC BY 3.0, crédit obligatoire), cadres de rareté, menus et HUD.
 - **Ne change pas** : simulation, équilibrage, collisions, sauvegardes ; le rendu « pixel » de secours ; le repli procédural sans fichiers.
 - **Décisions de la livraison A** :
-  - les arbres du pack (3 000 à 12 000 triangles) sont ramenés à ≤ 800 : cartes de feuilles échantillonnées et agrandies, cœur opaque par houppier, écorce cuite par sommet ;
+  - les arbres du pack (3 000 à 12 000 triangles) sont ramenés à ≤ 600 : cartes de feuilles échantillonnées et agrandies, cœur opaque par houppier, écorce cuite par sommet ;
   - les feuilles sont un masque blanc teinté par sommet : chaque monde colore ses arbres sans texture en plus ;
   - le semis d'herbe, de fleurs et de buissons est tiré d'une grille autour du joueur (rendu seul, sans collision) ;
   - 3 familles d'instances en plus (herbe, fleurs, buissons), 1 en moins quand le décor est chargé (herbe procédurale).

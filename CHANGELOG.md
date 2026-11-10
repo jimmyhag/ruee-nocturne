@@ -23,10 +23,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 ### Technique
 
 - Pipeline : `tools/assets/nature.ts` (lecture des FBX par le chargeur de three, troncs simplifiés, feuillage allégé, un atlas) et `tools/assets/ground.ts` (textures réduites et étalonnées). `npm run assets -- --nature` ne reconstruit que ce lot.
-- `public/models/nature.glb` : 26 modèles, 364 Ko. Six textures de sol de 22 à 44 Ko. Rien n'entre dans le précache.
+- `public/models/nature.glb` : 26 modèles, 331 Ko, arbres à 600 triangles au plus. Six textures de sol de 22 à 44 Ko. Rien n'entre dans le précache.
 - Sol : un matériau à deux textures mélangées par un poids par sommet (`TerrainView`), frontière découpée par le grain de la texture.
 - Sans les fichiers (hors ligne au premier lancement), le décor et le sol d'avant restent le repli.
-- Mesures (PC 1280×720, monde 1) : 27 à 31 appels de rendu (budget 40), 74 000 à 86 000 triangles (budget 250 000).
+- Mesures à 400 ennemis, au point le plus chargé du décor : sur mobile 36 appels de rendu et 113 000 triangles en rendu « pixel », 39 appels et 213 000 triangles en rendu net (budgets : 40 appels, 150 000 et 250 000 triangles).
+- En rendu « pixel » (secours des téléphones lents), le semis se réduit à l'herbe, moins dense.
+- Feuillage des arbres dessiné d'un seul côté, herbe sans découpe : mesuré en rendu logiciel, c'est le feuillage qui coûtait le plus.
+- CI : limite de durée portée de 60 à 90 minutes (56 minutes en 1.40.0) ; trois tests navigateur attendent un état au lieu d'un délai fixe (reprise, bord de carte, Temps figé).
+- Non mesuré ici : la fluidité sur un vrai téléphone.
 
 ## 1.40.0 — 10 nov. 2026 (demande de Jimmy : changer les touches sur PC)
 
