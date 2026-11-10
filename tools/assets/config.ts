@@ -386,6 +386,8 @@ export interface NatureSpec {
   cores?: number;
   core?: number;
   coreDetail?: number;
+  /** brins gardés dans une touffe d'herbe (0 : tous) */
+  blades?: number;
   /** triangles visés pour le feuillage en maillage (branches de sapin, fleurs) */
   mesh?: number;
   /** la partie pleine prend aussi la teinte du monde (arbres morts : bois gris du marais) */
@@ -403,20 +405,20 @@ export const NATURE = {
   dir: 'ultimate-stylized-nature/sources',
   atlas: 1024,
   models: {
-    leafy_a: { file: 'NormalTree_1', kind: 'tree', solid: 220, cards: 150, cores: 5, tris: 800 },
-    leafy_b: { file: 'NormalTree_5', kind: 'tree', solid: 160, cards: 110, cores: 4, tris: 800 },
-    leafy_c: { file: 'NormalTree_3', kind: 'tree', solid: 220, cards: 150, cores: 5, tris: 800 },
-    birch_a: { file: 'BirchTree_4', kind: 'tree', solid: 200, cards: 140, cores: 5, tris: 800 },
-    birch_b: { file: 'BirchTree_1', kind: 'tree', solid: 200, cards: 140, cores: 5, tris: 800 },
-    maple_a: { file: 'MapleTree_1', kind: 'tree', solid: 240, cards: 150, cores: 5, tris: 800 },
-    maple_b: { file: 'MapleTree_4', kind: 'tree', solid: 160, cards: 120, cores: 4, tris: 800 },
-    maple_c: { file: 'MapleTree_5', kind: 'tree', solid: 240, cards: 150, cores: 5, tris: 800 },
-    pine_a: { file: 'PineTree_1', kind: 'tree', solid: 160, mesh: 480, tris: 800 },
-    pine_b: { file: 'PineTree_5', kind: 'tree', solid: 80, mesh: 520, tris: 800 },
-    pine_c: { file: 'PineTree_2', kind: 'tree', solid: 160, mesh: 480, tris: 800 },
-    dead_a: { file: 'DeadTree_1', kind: 'tree', solid: 600, tintSolid: true, tris: 800 },
-    dead_b: { file: 'DeadTree_6', kind: 'tree', solid: 600, tintSolid: true, tris: 800 },
-    dead_c: { file: 'DeadTree_3', kind: 'tree', solid: 600, tintSolid: true, tris: 800 },
+    leafy_a: { file: 'NormalTree_1', kind: 'tree', solid: 180, cards: 105, grow: 2.6, cores: 5, tris: 600 },
+    leafy_b: { file: 'NormalTree_5', kind: 'tree', solid: 140, cards: 90, grow: 2.6, cores: 4, tris: 600 },
+    leafy_c: { file: 'NormalTree_3', kind: 'tree', solid: 180, cards: 105, grow: 2.6, cores: 5, tris: 600 },
+    birch_a: { file: 'BirchTree_4', kind: 'tree', solid: 160, cards: 100, grow: 2.6, cores: 5, tris: 600 },
+    birch_b: { file: 'BirchTree_1', kind: 'tree', solid: 160, cards: 100, grow: 2.6, cores: 5, tris: 600 },
+    maple_a: { file: 'MapleTree_1', kind: 'tree', solid: 190, cards: 105, grow: 2.4, cores: 5, tris: 600 },
+    maple_b: { file: 'MapleTree_4', kind: 'tree', solid: 140, cards: 90, grow: 2.4, cores: 4, tris: 600 },
+    maple_c: { file: 'MapleTree_5', kind: 'tree', solid: 190, cards: 105, grow: 2.4, cores: 5, tris: 600 },
+    pine_a: { file: 'PineTree_1', kind: 'tree', solid: 120, mesh: 400, tris: 600 },
+    pine_b: { file: 'PineTree_5', kind: 'tree', solid: 80, mesh: 420, tris: 600 },
+    pine_c: { file: 'PineTree_2', kind: 'tree', solid: 120, mesh: 400, tris: 600 },
+    dead_a: { file: 'DeadTree_1', kind: 'tree', solid: 480, tintSolid: true, tris: 600 },
+    dead_b: { file: 'DeadTree_6', kind: 'tree', solid: 480, tintSolid: true, tris: 600 },
+    dead_c: { file: 'DeadTree_3', kind: 'tree', solid: 480, tintSolid: true, tris: 600 },
     bush: { file: 'Bush', kind: 'prop', cards: 70, cores: 1, core: 1.6, coreDetail: 1, tris: 400 },
     bush_flowers: {
       file: 'Bush_Flowers',
@@ -428,7 +430,7 @@ export const NATURE = {
       mesh: 80,
       tris: 400,
     },
-    grass: { file: 'Grass_Small', kind: 'prop', tris: 80 },
+    grass: { file: 'Grass_Small', kind: 'prop', blades: 6, tris: 40 },
     grass_tall: { file: 'Grass_Large', kind: 'prop', tris: 120 },
     flowers_a: { file: 'Flower_2_Clump', kind: 'prop', mesh: 140, tris: 200 },
     flowers_b: { file: 'Flower_1_Clump', kind: 'prop', mesh: 160, tris: 200 },

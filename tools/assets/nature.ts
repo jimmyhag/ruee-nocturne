@@ -3,7 +3,7 @@
 // 3 000 à 12 000 triangles par arbre, des écorces en PNG 4K. Ici :
 // - tronc et branches : sommets soudés, simplifiés (meshopt), couleur d'écorce cuite par sommet (plus de texture) ;
 // - feuillage en cartes (un quad par bouquet de feuilles) : une partie des cartes gardée (échantillonnage par points
-//   les plus éloignés), agrandie pour garder le volume, un seul côté (matériau à deux faces), normales « en boule »
+//   les plus éloignés), agrandie pour garder le volume, un seul côté tourné vers l'extérieur, normales « en boule »
 //   autour du houppier pour un ombrage doux, et un cœur opaque sombre par houppier (la ramure se lit pleine) ;
 // - feuillage en maillage (sapins, fleurs) : faces en double retirées, simplifié avec ses UV ;
 // - un atlas 1024² : feuilles en masque blanc (la couleur vient des sommets : chaque monde teinte ses arbres),
@@ -502,6 +502,7 @@ function addMesh(b: Builder, tris: Tri[], target: number, cell: Cell, size: numb
   const cx = (min[0] + max[0]) / 2,
     cz = (min[2] + max[2]) / 2,
     h = Math.max(1e-6, max[1] - min[1]);
+  const first = b.idx.length;
   const map = new Map<number, number>();
   for (let t = 0; t < idx.length; t++) {
     const v = idx[t];
@@ -516,11 +517,57 @@ function addMesh(b: Builder, tris: Tri[], target: number, cell: Cell, size: numb
     }
     b.idx.push(id);
   }
+  // face avant du côté des normales (vers le haut et l'extérieur) : le matériau des arbres est à une face, la caméra
+  // regarde d'en haut ; une face tournée vers le sol ou vers le tronc n'est pas dessinée
+  for (let t = first; t < b.idx.length; t += 3) {
+    const [i0, i1, i2] = [b.idx[t], b.idx[t + 1], b.idx[t + 2]];
+    const P = (i: number) => new THREE.Vector3(b.pos[i * 3], b.pos[i * 3 + 1], b.pos[i * 3 + 2]);
+    const N = (i: number) => new THREE.Vector3(b.nor[i * 3], b.nor[i * 3 + 1], b.nor[i * 3 + 2]);
+    const face = P(i1)
+      .sub(P(i0))
+      .cross(P(i2).sub(P(i0)));
+    if (face.dot(N(i0).add(N(i1)).add(N(i2))) < 0) {
+      b.idx[t + 1] = i2;
+      b.idx[t + 2] = i1;
+    }
+  }
 }
 
 /** Touffe d'herbe : brins à deux faces, dégradé du pied (sombre) à la pointe (claire), teinte du monde. */
-function addGrass(b: Builder, tris: Tri[], white: number[], size: number): void {
-  const list = dedupeFaces(tris, size * 2e-4);
+function addGrass(b: Builder, tris: Tri[], white: number[], size: number, blades = 0): void {
+  let list = dedupeFaces(tris, size * 2e-4);
+  if (blades > 0) {
+    // touffe allégée : un brin sur deux environ (composantes connexes), élargis pour garder le volume. Une touffe
+    // est dessinée des centaines de fois : c'est le nombre de triangles par touffe qui compte.
+    const w = weldTris(list, size * 2e-4);
+    const step = Math.max(1, w.nComp / blades);
+    const keep = new Set<number>();
+    for (let k = 0; k < blades && Math.floor(k * step) < w.nComp; k++) keep.add(Math.floor(k * step));
+    const widen = Math.min(1.5, Math.sqrt(w.nComp / Math.max(1, keep.size)));
+    const cx = new Map<number, number[]>();
+    list.forEach((t, i) => {
+      const c = cx.get(w.comp[i]) ?? [0, 0, 0];
+      for (let k = 0; k < 3; k++) {
+        c[0] += t.p[k * 3];
+        c[1] += t.p[k * 3 + 2];
+        c[2]++;
+      }
+      cx.set(w.comp[i], c);
+    });
+    list = list
+      .filter((_, i) => keep.has(w.comp[i]))
+      .map((t) => {
+        const c = cx.get(w.comp[list.indexOf(t)])!;
+        const ox = c[0] / c[2],
+          oz = c[1] / c[2];
+        const p = t.p.slice();
+        for (let k = 0; k < 3; k++) {
+          p[k * 3] = ox + (p[k * 3] - ox) * widen;
+          p[k * 3 + 2] = oz + (p[k * 3 + 2] - oz) * widen;
+        }
+        return { p, uv: t.uv };
+      });
+  }
   const { min, max } = bounds(list);
   const h = Math.max(1e-6, max[1] - min[1]);
   for (const t of list) {
@@ -643,7 +690,7 @@ export async function buildNature(doc: Document, sources: string, log = false): 
         addSolid(b, tris, spec.solid ?? 200, base, white, size, /^Rock/.test(name), !!spec.tintSolid);
       } else if (r.kind === 'cards') addCards(b, tris, spec, r.cell!, white, size);
       else if (r.kind === 'mesh') addMesh(b, tris, spec.mesh ?? 300, r.cell!, size, r.cell === 'pine');
-      else addGrass(b, tris, white, size);
+      else addGrass(b, tris, white, size, spec.blades);
     }
     // repère final : pied au sol (y = 0), hauteur 1, axe du tronc en (0, 0) (centre des sommets pleins les plus bas)
     const h = bb.max[1] - bb.min[1];

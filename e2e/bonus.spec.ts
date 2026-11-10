@@ -96,7 +96,21 @@ test('Temps figé : ennemis immobiles, voile bleuté, puis tout repart', async (
   await page.waitForFunction(() => (window as any).__game.world.powerT[3] === 0, null, { timeout: 6000 });
   await expect(page.locator('body')).not.toHaveClass(/timestop/);
   const c = await pos();
-  await page.waitForTimeout(600);
+  // on attend le déplacement au lieu d'un délai fixe : en rendu logiciel le temps de jeu avance bien moins vite que
+  // l'horloge (0,19 à 0,24 u en 600 ms depuis le décor de la phase 44). Des ennemis restés figés font échouer ceci.
+  await page
+    .waitForFunction(
+      (c0) => {
+        const w = (window as any).__game.world;
+        let moved = 0;
+        for (let i = 0; i < w.enemyCount && i * 2 + 1 < c0.length; i++)
+          moved = Math.max(moved, Math.abs(w.enemies[i].x - c0[i * 2]), Math.abs(w.enemies[i].z - c0[i * 2 + 1]));
+        return moved > 0.3;
+      },
+      c,
+      { timeout: 6000 },
+    )
+    .catch(() => undefined);
   const d = await pos();
   let moved = 0;
   for (let i = 0; i < c.length; i++) moved = Math.max(moved, Math.abs(d[i] - c[i]));

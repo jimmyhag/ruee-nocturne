@@ -235,6 +235,8 @@ export class GameScene {
   natureReady = false; // lu par les tests e2e
   private nature: NatureSet | null = null;
   private natureMat: THREE.MeshToonMaterial | null = null;
+  private flowerMat: THREE.MeshToonMaterial | null = null;
+  private grassMat: THREE.MeshToonMaterial | null = null;
   private natureStage = -1; // monde dont les arbres et le semis sont posés
   private grassW: InstanceWriter;
   private flowerW: InstanceWriter;
@@ -991,11 +993,28 @@ export class GameScene {
   private applyNature(n: NatureSet): void {
     this.nature = n;
     if (n.map) n.map.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+    // Trois matériaux, aucun appel de rendu en plus (chaque famille d'instances est déjà un appel) :
+    // - arbres et buissons : feuilles découpées, UNE face (cartes tournées vers l'extérieur du houppier, caméra en
+    //   haut) : les cartes du côté opposé ne sont plus rastérisées. Mesuré en rendu logiciel : le feuillage à deux
+    //   faces coûtait à lui seul près d'un tiers du temps d'image ;
+    // - fleurs : découpées, deux faces (peu d'instances, petites) ;
+    // - herbe : brins pleins, deux faces, ni texture ni découpe (pas de `discard` : rejet précoce en profondeur).
     this.natureMat = new THREE.MeshToonMaterial({
       map: n.map,
       vertexColors: true,
       gradientMap: toonGradient(),
       alphaTest: 0.5,
+    });
+    this.flowerMat = new THREE.MeshToonMaterial({
+      map: n.map,
+      vertexColors: true,
+      gradientMap: toonGradient(),
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+    });
+    this.grassMat = new THREE.MeshToonMaterial({
+      vertexColors: true,
+      gradientMap: toonGradient(),
       side: THREE.DoubleSide,
     });
     this.natureReady = true;
@@ -1010,14 +1029,14 @@ export class GameScene {
     if (!n || !this.natureMat || this.natureStage === this.stageIdx) return;
     this.natureStage = this.stageIdx;
     const D = PAL.stages[this.stageIdx].decor;
-    const put = (wr: InstanceWriter, key: string, h: number, tint: number) => {
+    const put = (wr: InstanceWriter, key: string, h: number, tint: number, mat = this.natureMat!) => {
       wr.mesh.geometry.dispose();
       wr.mesh.geometry = tintedNature(n.models[key as NatureKey], h, this.cLeaf.setHex(tint));
-      wr.mesh.material = this.natureMat!;
+      wr.mesh.material = mat;
     };
     for (let k = 0; k < 4; k++) put(this.propTreeW[k], D.trees[k][0], TREE_H, D.trees[k][1]);
-    put(this.grassW, 'grass', 0.8, D.grass);
-    put(this.flowerW, D.flowers[0], 0.6, 0xffffff);
+    put(this.grassW, 'grass', 0.8, D.grass, this.grassMat!);
+    put(this.flowerW, D.flowers[0], 0.6, 0xffffff, this.flowerMat!);
     put(this.bushW, D.bush[0], 0.95, D.bush[1]);
     this.propX = this.propZ = 1e9;
   }
