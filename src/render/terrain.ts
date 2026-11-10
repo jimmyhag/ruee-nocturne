@@ -30,6 +30,23 @@ function segDist(x: number, z: number, ax: number, az: number, bx: number, bz: n
   t = t < 0 ? 0 : t > 1 ? 1 : t;
   return Math.hypot(x - (ax + ux * t), z - (az + uz * t));
 }
+/** Bruit de valeur lissé, 0..1, déterministe pour une graine (taches du sol : construction seulement). */
+function noise2(x: number, z: number, seed: number): number {
+  const xi = Math.floor(x),
+    zi = Math.floor(z);
+  const fx = x - xi,
+    fz = z - zi;
+  const h = (a: number, b: number) => {
+    let n = (a * 374761393 + b * 668265263 + seed * 1442695041) | 0;
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+  };
+  const u = fx * fx * (3 - 2 * fx),
+    v = fz * fz * (3 - 2 * fz);
+  const a = h(xi, zi) + (h(xi + 1, zi) - h(xi, zi)) * u,
+    b = h(xi, zi + 1) + (h(xi + 1, zi + 1) - h(xi, zi + 1)) * u;
+  return a + (b - a) * v;
+}
 export class TerrainView {
   /** Hauteurs aux sommets du sol (N × N), échantillonnées une fois sur la sim. */
   readonly grid = new Float32Array(N * N);
@@ -79,6 +96,14 @@ export class TerrainView {
   /** Normales et couleurs de toute la carte (calculées une fois par carte) ; la fenêtre de sol y puise. */
   private nrm = new Float32Array(N * N * 3);
   private col = new Float32Array(N * N * 3);
+  /** Phase 44 : par sommet, part de terre (x) et part de couleur unie sans texture (y : pistes). */
+  private mix = new Float32Array(N * N * 2);
+  /** Part de sol sans herbe en (x, z) (terre, piste) : le semis d'herbe et de fleurs l'évite. Aucune allocation. */
+  bareAt(x: number, z: number): number {
+    const i = Math.max(0, Math.min(N - 1, Math.round((x + WORLD_HALF) / CELL))),
+      j = Math.max(0, Math.min(N - 1, Math.round((z + WORLD_HALF) / CELL)));
+    return this.mix[(j * N + i) * 2] + this.mix[(j * N + i) * 2 + 1];
+  }
   private winGeo: THREE.BufferGeometry | null = null;
   private winI = -1e9; // nœud du coin de la fenêtre (−1e9 : à remplir)
   private winJ = -1e9;
@@ -91,6 +116,7 @@ export class TerrainView {
     const G = this.grid,
       nrm = this.nrm,
       col = this.col,
+      mix = this.mix,
       L = sunDir;
     for (let j = 0; j < N; j++)
       for (let i = 0; i < N; i++) G[j * N + i] = w.heightAt(-WORLD_HALF + i * CELL, -WORLD_HALF + j * CELL);
@@ -117,19 +143,33 @@ export class TerrainView {
             4 * h) /
           (CELL * CELL);
         const edge = Math.max(-0.35, Math.min(0.3, -lap * 1.6));
-        const k = Math.max(0.6 + 0.3 * bank, Math.min(1.6, 1 + 2.2 * lit + edge)); // un flanc à l'ombre reste de la terre
-        const gr = 0.6 + 0.6 * t,
-          gg = 0.68 + 0.5 * t,
-          gb = 0.86 + 0.12 * t;
-        const br = 1.32 + 0.18 * t,
-          bg = 1.0 + 0.12 * t,
-          bb = 0.78 + 0.08 * t;
-        let r = (gr + (br - gr) * bank) * k,
-          gC = (gg + (bg - gg) * bank) * k,
-          bC = (gb + (bb - gb) * bank) * k;
-        // phase 28 : grandes pistes en neige tassée (claire, bleutée) bordée d'un liseré sombre ; tremplins en bois clair
+        const k = Math.max(0.66 + 0.2 * bank, Math.min(1.38, 1 + 1.7 * lit + edge)); // un flanc à l'ombre reste lisible
+        // phase 44 : le sol est texturé (tapis du monde et terre, mélangés par `mix`). La couleur de sommet ne porte
+        // plus que l'ombrage cuit, de grandes taches claires et sombres (le motif répété ne se voit plus) et un
+        // léger réchauffement sur les hauteurs.
         const x = -WORLD_HALF + i * CELL,
           z = -WORLD_HALF + j * CELL;
+        const macro = noise2(x * 0.045, z * 0.045, w.seed);
+        const sh = k * (0.88 + 0.24 * macro);
+        let r = sh * (1 + 0.07 * t + 0.08 * (macro - 0.5)),
+          gC = sh,
+          bC = sh * (1 - 0.07 * t - 0.1 * (macro - 0.5));
+        // terre : flancs, sous-bois, rives des lacs, lieux construits, et quelques plaques au hasard
+        let dirt = bank;
+        for (const o of w.woods) {
+          const d = Math.hypot(x - o.x, z - o.z);
+          dirt = Math.max(dirt, 0.9 * smooth(o.r + 1, o.r - 5, d));
+        }
+        for (const o of w.lakes) {
+          const d = Math.hypot(x - o.x, z - o.z);
+          dirt = Math.max(dirt, smooth(o.r + 3.5, o.r + 0.5, d));
+        }
+        for (const o of w.places) {
+          const d = Math.hypot(x - o.x, z - o.z);
+          dirt = Math.max(dirt, 0.85 * smooth(o.r + 1, o.r - 2.5, d));
+        }
+        dirt = Math.max(dirt, 0.8 * smooth(0.64, 0.82, noise2(x * 0.085 + 31.7, z * 0.085 + 17.3, w.seed)));
+        // phase 28 : grandes pistes en neige tassée (claire, bleutée) bordée d'un liseré sombre ; tremplins en bois clair
         let pist = 0,
           rim = 0;
         for (const p of w.pistes) {
@@ -142,21 +182,37 @@ export class TerrainView {
           pist = Math.max(pist, smooth(TERRAIN.kickHalf + 0.6, TERRAIN.kickHalf - 1, d));
         }
         if (pist > 0 || rim > 0) {
-          // la texture d'herbe est verte et les couleurs de sommets sont linéaires (herbe ≈ 0,045 / 0,11 / 0,08) : pour
-          // lire « neige tassée » gris-bleu à l'écran (≈ 0,38 / 0,5 / 0,56 linéaire), la couleur compense fortement
+          // sur la piste la texture s'efface (mix.y) : la couleur de sommet donne directement la neige tassée
           const kk = 0.75 + 0.35 * k;
-          r += (8.5 * kk - r) * pist * 0.9;
-          gC += (4.6 * kk - gC) * pist * 0.9;
-          bC += (7 * kk - bC) * pist * 0.9;
-          const dk = 1 - rim * 0.35;
+          r += (0.33 * kk - r) * pist * 0.9;
+          gC += (0.5 * kk - gC) * pist * 0.9;
+          bC += (0.68 * kk - bC) * pist * 0.9;
+          const dk = 1 - rim * 0.3;
           r *= dk;
           gC *= dk;
           bC *= dk;
         }
+        mix[g * 2] = dirt * (1 - pist);
+        mix[g * 2 + 1] = pist * 0.9;
         col[g * 3] = r;
         col[g * 3 + 1] = gC;
         col[g * 3 + 2] = bC;
       }
+    // pied des arbres isolés : une plaque de terre (les sous-bois sont déjà en terre)
+    for (let t = 0; t < w.treeCount; t++) {
+      const o = w.obstacles[t];
+      const R = o.r + 2.2;
+      const i0 = Math.max(0, Math.ceil((o.x - R + WORLD_HALF) / CELL)),
+        i1 = Math.min(N - 1, Math.floor((o.x + R + WORLD_HALF) / CELL)),
+        j0 = Math.max(0, Math.ceil((o.z - R + WORLD_HALF) / CELL)),
+        j1 = Math.min(N - 1, Math.floor((o.z + R + WORLD_HALF) / CELL));
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+          const d = Math.hypot(-WORLD_HALF + i * CELL - o.x, -WORLD_HALF + j * CELL - o.z);
+          const g = (j * N + i) * 2;
+          mix[g] = Math.max(mix[g], 0.7 * smooth(R, o.r * 0.5, d) * (1 - mix[g + 1]));
+        }
+    }
     // fenêtre : tableaux alloués une fois, remplis à chaque recalage
     if (!this.winGeo) {
       const M = WIN + 1,
@@ -165,6 +221,7 @@ export class TerrainView {
       geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(M * M * 3), 3));
       geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(M * M * 2), 2));
       geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(M * M * 3), 3));
+      geo.setAttribute('blend', new THREE.BufferAttribute(new Float32Array(M * M * 2), 2));
       geo.setIndex(new THREE.BufferAttribute(new Uint16Array(WIN * WIN * 6), 1));
       geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), WIN * CELL);
       this.winGeo = geo;
@@ -195,7 +252,9 @@ export class TerrainView {
     const pos = geo.attributes.position as THREE.BufferAttribute,
       nor = geo.attributes.normal as THREE.BufferAttribute,
       uv = geo.attributes.uv as THREE.BufferAttribute,
-      col = geo.attributes.color as THREE.BufferAttribute;
+      col = geo.attributes.color as THREE.BufferAttribute,
+      ble = geo.attributes.blend as THREE.BufferAttribute;
+    const B = ble.array as Float32Array;
     const P = pos.array as Float32Array,
       Nn = nor.array as Float32Array,
       U = uv.array as Float32Array,
@@ -215,6 +274,8 @@ export class TerrainView {
         Cc[v * 3] = this.col[g * 3];
         Cc[v * 3 + 1] = this.col[g * 3 + 1];
         Cc[v * 3 + 2] = this.col[g * 3 + 2];
+        B[v * 2] = this.mix[g * 2];
+        B[v * 2 + 1] = this.mix[g * 2 + 1];
         U[v * 2] = (px + WORLD_HALF) / (2 * WORLD_HALF);
         U[v * 2 + 1] = 1 - (pz + WORLD_HALF) / (2 * WORLD_HALF);
       }
@@ -241,7 +302,7 @@ export class TerrainView {
           idx[n++] = v + M + 1;
         }
       }
-    pos.needsUpdate = nor.needsUpdate = uv.needsUpdate = col.needsUpdate = true;
+    pos.needsUpdate = nor.needsUpdate = uv.needsUpdate = col.needsUpdate = ble.needsUpdate = true;
     geo.index!.needsUpdate = true;
   }
 }

@@ -85,7 +85,7 @@ export default defineConfig({
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/models/'),
             handler: 'CacheFirst',
-            options: { cacheName: 'models', expiration: { maxEntries: 16 } },
+            options: { cacheName: 'models', expiration: { maxEntries: 28 } }, // phase 44 : + décor stylisé et six textures de sol
           },
           // phase 36 : la planche de bruitages (chargée entière par fetch) reste en cache : sons enregistrés hors ligne.
           // Les musiques sont lues en flux (requêtes partielles, 206) : non mises en cache, hors ligne le jeu se tait.

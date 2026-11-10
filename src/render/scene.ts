@@ -29,11 +29,11 @@ import {
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { loadProps } from './models';
+import { loadGroundTexture, loadNature, loadProps, tintedNature } from './models';
 import { enemyOutlineMaterial, loadEnemyModels } from './enemyModels';
 import type { BakedEnemy } from './enemyModels';
 import { writeLoopPose, writeOncePose } from './pose';
-import type { PropGeometry, PropKey } from './models';
+import type { NatureKey, NatureSet, PropGeometry, PropKey } from './models';
 import { Mode, ProjKind, Pw, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey, Enemy } from '../sim/types';
 import type { World } from '../sim/world';
@@ -107,6 +107,11 @@ const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
+// phase 44 : semis d'herbe, de fleurs et de buissons autour du joueur (décor stylisé), tiré d'une grille de cases
+const SCATTER = { cell: 2, draw: 27, grass: 360, flowers: 64, bushes: 40 };
+const TREE_H = 4.7; // hauteur des arbres stylisés avant l'échelle de chaque arbre (≈ ×0,75)
+const GROUND_TILE = 7; // unités monde par répétition des textures de sol (phase 44)
+const FOG = { near: 30, far: 115 }; // phase 44 : brume au loin seulement (la caméra est à ≈ 16 u du joueur)
 const ELITE_RINGS = 48; // anneaux dorés des élites à l'écran, au plus
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
 const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
@@ -224,6 +229,24 @@ export class GameScene {
   private beamW: InstanceWriter;
   // phase 20 : objets KayKit (CC0) ; arbres et lanternes dessinés autour du joueur seulement (≈ 300 triangles chacun)
   propsReady = false; // lu par les tests e2e
+  // phase 44 : décor stylisé (nature.glb) : arbres teintés par monde, rochers, semis d'herbe, de fleurs et de buissons
+  natureReady = false; // lu par les tests e2e
+  private nature: NatureSet | null = null;
+  private natureMat: THREE.MeshToonMaterial | null = null;
+  private natureStage = -1; // monde dont les arbres et le semis sont posés
+  private grassW: InstanceWriter;
+  private flowerW: InstanceWriter;
+  private bushW: InstanceWriter;
+  private rocksMesh: THREE.InstancedMesh | null = null; // rochers de la carte (géométrie échangée au chargement)
+  private treeProc: THREE.Object3D[] = []; // arbres procéduraux (repli)
+  private grassProc: THREE.Object3D | null = null; // herbe procédurale (repli)
+  private cLeaf = new THREE.Color();
+  private haloMat: THREE.MeshBasicMaterial | null = null;
+  private scatterSeed = 0;
+  // textures de sol par monde (phase 44) : [tapis, terre], null tant qu'elles chargent (repli : texture dessinée)
+  private groundSet: ([THREE.Texture, THREE.Texture] | null)[] = [null, null, null];
+  private groundAsked = [false, false, false];
+  private groundMap2 = { value: null as THREE.Texture | null };
   private propTreeW: InstanceWriter[] = []; // sapin orange, sapin jaune, arbre mort, arbre mort moyen
   private propLampW: InstanceWriter;
   private decorProc: THREE.Object3D[] = []; // décor procédural remplacé quand les objets sont chargés
@@ -298,7 +321,7 @@ export class GameScene {
   // lumière (cycle crépuscule → nuit → aube)
   private hemi: THREE.HemisphereLight;
   private sun: THREE.DirectionalLight;
-  private fog: THREE.FogExp2;
+  private fog: THREE.Fog;
   private cFog = new THREE.Color();
   private cSky = new THREE.Color();
   private cGround = new THREE.Color();
@@ -329,21 +352,42 @@ export class GameScene {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1);
     this.scene.background = new THREE.Color(PAL.fog);
-    this.fog = new THREE.FogExp2(PAL.fog, 0.034); // phase 9 : brume exponentielle (≈ 26 % à 16 u, 89 % à 44 u), plus douce
+    // phase 44 : brume linéaire, au loin seulement. L'ancienne brume exponentielle voilait déjà 26 % de l'image à la
+    // distance du joueur (16 u) : tout l'écran tirait vers le bleu nuit.
+    this.fog = new THREE.Fog(PAL.fog, FOG.near, FOG.far);
     this.scene.fog = this.fog;
-    this.hemi = new THREE.HemisphereLight(0xffd9c2, 0x3a2f55, 0.9);
+    this.hemi = new THREE.HemisphereLight(0xffd9c2, 0x3a2f55, 2.0); // couleurs et intensités : lightCycle (PAL.stages)
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight(0xffe2b8, 1.0); // phase 15 : un peu plus fort, les trois tons du toon se lisent
+    this.sun = new THREE.DirectionalLight(0xffe2b8, 2.4);
     this.sun.position.set(-8, 14, 6);
     this.scene.add(this.sun);
     // phase 9 : lumière de contre bleutée, à l'opposé du soleil : détache les silhouettes du sol (aucun appel en plus)
-    const rim = new THREE.DirectionalLight(0x9db4ff, 0.3);
+    const rim = new THREE.DirectionalLight(0x9db4ff, 0.8);
     rim.position.set(8, 6, -10);
     this.scene.add(rim);
 
     // sol
     // phase 18 : le sol est un maillage en relief construit avec le décor (buildDecor), couleurs par sommet
     this.groundMat = new THREE.MeshLambertMaterial({ map: this.groundTex(true), vertexColors: true });
+    // phase 44 : deux textures (tapis du monde, terre) mélangées par le poids `blend.x` du sommet ; la frontière est
+    // découpée par le grain du tapis (pas un fondu mou) ; `blend.y` efface la texture (pistes : couleur de sommet)
+    this.groundMap2.value = this.groundMat.map;
+    this.groundMat.onBeforeCompile = (sh) => {
+      sh.uniforms.map2 = this.groundMap2;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec2 blend;\nvarying vec2 vBlend;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBlend = blend;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform sampler2D map2;\nvarying vec2 vBlend;')
+        .replace(
+          '#include <map_fragment>',
+          `vec4 ta = texture2D( map, vMapUv );
+          vec4 tb = texture2D( map2, vMapUv * 0.83 );
+          float tn = texture2D( map, vMapUv * 0.61 + 0.37 ).g;
+          float gw = smoothstep( 0.4, 0.6, vBlend.x + ( ta.g - tn ) / max( ta.g + tn, 0.04 ) * 0.9 );
+          diffuseColor.rgb *= mix( mix( ta.rgb, tb.rgb, gw ), vec3( 1.0 ), vBlend.y );`,
+        );
+    };
 
     // joueur : modèle du personnage (torse fusionné, jambes animées, pièces lumineuses, halo au sol)
     this.model = buildCharacter(this.modelKey, this.modelSkin);
@@ -420,12 +464,21 @@ export class GameScene {
       this.propTreeW.push(new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), 64)));
     this.propLampW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), LAMP_NEAR));
     this.propGraveW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), GRAVE_NEAR));
-    for (const pw of [...this.propTreeW, this.propLampW, this.propGraveW]) this.scene.add(pw.mesh);
+    this.grassW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), SCATTER.grass));
+    this.flowerW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), SCATTER.flowers));
+    this.bushW = new InstanceWriter(makeInstanced(new THREE.BufferGeometry(), lam(0xffffff), SCATTER.bushes));
+    for (const pw of [...this.propTreeW, this.propLampW, this.propGraveW, this.grassW, this.flowerW, this.bushW])
+      this.scene.add(pw.mesh);
+    loadNature()
+      .then((n) => this.applyNature(n))
+      .catch((e: unknown) => console.warn('décor stylisé indisponible, repli', e));
     loadProps()
       .then((p) => this.applyProps(p))
       .catch((e: unknown) => console.warn('modèles du décor indisponibles, repli procédural', e)); // hors ligne aussi
+    // phase 44 : cristaux à facettes (nuances cuites par face : sommet clair, base sombre, un éclat) au lieu d'un
+    // octaèdre uni qui se lisait comme un carré plat ; toujours sans éclairage (lisibles la nuit), un seul appel
     this.gemW = new InstanceWriter(
-      makeInstanced(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 900),
+      makeInstanced(crystalGeometry(0.2, 0.36), new THREE.MeshBasicMaterial({ vertexColors: true }), 900),
     );
     this.scene.add(
       this.shadowW.mesh,
@@ -557,6 +610,7 @@ export class GameScene {
     this.stall.visible = this.stallRing.visible = false;
     this.scene.add(this.stall, this.stallRing);
 
+    this.setStage(0); // phase 44 : sol et décor du premier monde dès l'accueil (le menu rend la scène)
     this.particles = new Particles(this.scene);
     this.fireflies = new Fireflies(this.scene);
     this.bolts = new Bolts(this.scene);
@@ -600,14 +654,18 @@ export class GameScene {
     this.treeData = new Float32Array(nTrees * 6);
     this.lampData = new Float32Array(DECOR.lamps * 3);
     const rounds = makeInstanced(roundTreeGeometry(), vc(), treeCap);
-    const rocks = makeInstanced(new THREE.DodecahedronGeometry(0.8, 0), lam(PAL.rock), DECOR.rocks);
+    // rocher posé au sol (origine au pied, comme le modèle stylisé qui le remplace : mêmes matrices)
+    const rocks = makeInstanced(
+      new THREE.DodecahedronGeometry(0.8, 0).translate(0, 0.3, 0),
+      lam(PAL.rock),
+      DECOR.rocks,
+    );
     const posts = makeInstanced(lampPostGeometry(), vc(), DECOR.lamps);
     const lamps = makeInstanced(lampHeadGeometry(), new THREE.MeshBasicMaterial({ color: PAL.lantern }), DECOR.lamps); // phase 15 : lumière chaude des lanternes
-    const halos = makeInstanced(
-      new THREE.CircleGeometry(2.4, 18).rotateX(-Math.PI / 2),
-      additive(PAL.lantern, 0.12),
-      DECOR.lamps,
-    );
+    // phase 44 : le halo des lanternes ne se voit que la nuit (opacité réglée par lightCycle) ; de jour, un disque
+    // clair sur l'herbe se lisait comme une tache
+    this.haloMat = additive(PAL.lantern, 0.02);
+    const halos = makeInstanced(new THREE.CircleGeometry(2.4, 18).rotateX(-Math.PI / 2), this.haloMat, DECOR.lamps);
     const grass = makeInstanced(grassGeometry(), vc(), GRASS);
     // ombres des arbres et des menhirs (phase 9 : +1 appel ; phase 16 : les menhirs partagent le mesh)
     const nStones = w.stoneEnd - w.rockEnd;
@@ -656,7 +714,7 @@ export class GameScene {
     for (let i = 0; i < nRocks; i++) {
       const o = w.obstacles[nTrees + i];
       const s = o.r / 0.75;
-      d.position.set(o.x, gy(o.x, o.z) + 0.3 * s, o.z);
+      d.position.set(o.x, gy(o.x, o.z) - 0.05, o.z);
       d.rotation.set(0, (i * 1.7) % TAU, 0);
       d.scale.setScalar(s);
       d.updateMatrix();
@@ -719,8 +777,11 @@ export class GameScene {
     rocks.count = nRocks;
     posts.count = lamps.count = halos.count = DECOR.lamps;
     grass.count = ng;
-    this.decorProc = [firs, rounds, posts, lamps];
-    for (const m of this.decorProc) m.visible = !this.propsReady;
+    this.decorProc = [posts, lamps];
+    this.treeProc = [firs, rounds];
+    this.grassProc = grass;
+    this.rocksMesh = rocks;
+    this.scatterSeed = w.seed | 0;
     this.propX = this.propZ = 1e9;
     for (const m of [treeShadows, firs, rounds, rocks, posts, lamps, halos, grass]) {
       m.instanceMatrix.needsUpdate = true;
@@ -728,6 +789,8 @@ export class GameScene {
       this.scene.add(m);
       this.decorObjs.push(m);
     }
+    this.dressRocks();
+    this.syncProc();
     // ouvrages (phase 16) : murets, troncs, menhirs ; phase 27 : clôtures, tombes, tonneaux, caisses, citrouilles ; une
     // géométrie statique par tuile de sol (écartée hors champ), un appel de rendu par tuile visible
     const worksMat = vc();
@@ -873,7 +936,9 @@ export class GameScene {
     swap(this.bombW, norm(p.bomb, 0.8, 'y'), mat(p.bomb));
     this.cMine = MINE_IDLE;
     const trees: PropKey[] = ['tree_pine', 'tree_pine_y', 'tree_dead', 'tree_dead_m'];
-    for (let k = 0; k < 4; k++) swap(this.propTreeW[k], norm(p[trees[k]], k < 2 ? 4.6 : 4.0, 'y'), mat(p[trees[k]]));
+    // phase 44 : les arbres stylisés (nature.glb) passent devant ; ceux-ci restent le repli s'il ne charge pas
+    if (!this.natureReady)
+      for (let k = 0; k < 4; k++) swap(this.propTreeW[k], norm(p[trees[k]], k < 2 ? 4.6 : 4.0, 'y'), mat(p[trees[k]]));
     swap(this.propLampW, norm(p.lantern, 2.4, 'y'), mat(p.lantern));
     // petit cimetière : stèle, tombe et citrouille fusionnées (même texture Halloween ⇒ un appel)
     const at = (g: THREE.BufferGeometry, x: number, z: number, ry: number) => g.rotateY(ry).translate(x, 0, z);
@@ -911,8 +976,58 @@ export class GameScene {
     this.cChest = CHEST_ELITE;
     this.cBladeCol = this.cBoomCol = WHITE;
     this.propsReady = true;
-    for (const m of this.decorProc) m.visible = false;
+    this.syncProc();
     this.propX = this.propZ = 1e9;
+  }
+  /** Décor procédural de repli : caché dès que les modèles qui le remplacent sont là. */
+  private syncProc(): void {
+    for (const m of this.treeProc) m.visible = !this.propsReady && !this.natureReady;
+    for (const m of this.decorProc) m.visible = !this.propsReady;
+    if (this.grassProc) this.grassProc.visible = !this.natureReady;
+  }
+  /** Phase 44 : décor stylisé chargé. Un seul matériau (atlas, feuilles découpées, deux faces) pour tous les modèles. */
+  private applyNature(n: NatureSet): void {
+    this.nature = n;
+    if (n.map) n.map.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+    this.natureMat = new THREE.MeshToonMaterial({
+      map: n.map,
+      vertexColors: true,
+      gradientMap: toonGradient(),
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+    });
+    this.natureReady = true;
+    this.natureStage = -1;
+    this.dressStage();
+    this.dressRocks();
+    this.syncProc();
+  }
+  /** Arbres et semis du monde courant : géométries teintées aux couleurs du monde (une fois par changement de monde). */
+  private dressStage(): void {
+    const n = this.nature;
+    if (!n || !this.natureMat || this.natureStage === this.stageIdx) return;
+    this.natureStage = this.stageIdx;
+    const D = PAL.stages[this.stageIdx].decor;
+    const put = (wr: InstanceWriter, key: string, h: number, tint: number) => {
+      wr.mesh.geometry.dispose();
+      wr.mesh.geometry = tintedNature(n.models[key as NatureKey], h, this.cLeaf.setHex(tint));
+      wr.mesh.material = this.natureMat!;
+    };
+    for (let k = 0; k < 4; k++) put(this.propTreeW[k], D.trees[k][0], TREE_H, D.trees[k][1]);
+    put(this.grassW, 'grass', 0.8, D.grass);
+    put(this.flowerW, D.flowers[0], 0.6, 0xffffff);
+    put(this.bushW, D.bush[0], 0.95, D.bush[1]);
+    this.propX = this.propZ = 1e9;
+  }
+  /** Rochers de la carte : modèle stylisé à la place du dodécaèdre (mêmes matrices, pied au sol). */
+  private dressRocks(): void {
+    const n = this.nature,
+      m = this.rocksMesh;
+    if (!n || !m || !this.natureMat || m.material === this.natureMat) return;
+    m.geometry.dispose();
+    (m.material as THREE.Material).dispose();
+    m.geometry = tintedNature(n.models.rock_b, 1.7, WHITE);
+    m.material = this.natureMat;
   }
   /** État des modèles d'ennemis, affiché dans l'onglet perf : chargement, prêt (durée), ou erreur. */
   enemyStatus = 'chargement';
@@ -1078,21 +1193,64 @@ export class GameScene {
     }
     for (const wr of this.propTreeW) wr.end();
     this.propLampW.begin();
-    const L = this.lampData;
-    for (let i = 0; i < L.length; i += 3) {
-      const dx = L[i] - px,
-        dz = L[i + 2] - pz;
-      if (dx * dx + dz * dz < r2) this.propLampW.put(L[i], L[i + 1], L[i + 2], i * 0.7, 1, WHITE);
+    this.propGraveW.begin();
+    if (this.propsReady) {
+      const L = this.lampData;
+      for (let i = 0; i < L.length; i += 3) {
+        const dx = L[i] - px,
+          dz = L[i + 2] - pz;
+        if (dx * dx + dz * dz < r2) this.propLampW.put(L[i], L[i + 1], L[i + 2], i * 0.7, 1, WHITE);
+      }
+      const G = this.graveData;
+      for (let i = 0; i < G.length; i += 4) {
+        const dx = G[i] - px,
+          dz = G[i + 2] - pz;
+        if (dx * dx + dz * dz < r2) this.propGraveW.put(G[i], G[i + 1], G[i + 2], G[i + 3], 1, WHITE);
+      }
     }
     this.propLampW.end();
-    this.propGraveW.begin();
-    const G = this.graveData;
-    for (let i = 0; i < G.length; i += 4) {
-      const dx = G[i] - px,
-        dz = G[i + 2] - pz;
-      if (dx * dx + dz * dz < r2) this.propGraveW.put(G[i], G[i + 1], G[i + 2], G[i + 3], 1, WHITE);
-    }
     this.propGraveW.end();
+    if (this.natureReady) this.scatter(px, pz);
+  }
+  /**
+   * Phase 44 : semis autour du joueur. Une grille de cases de SCATTER.cell u ; chaque case tire (hachage de ses
+   * coordonnées et de la graine de la carte : toujours le même semis au même endroit) une touffe d'herbe, parfois des
+   * fleurs, un buisson en lisière de terre. Rien sur la terre nue, les pistes, les lacs. Aucune allocation.
+   */
+  private scatter(px: number, pz: number): void {
+    const C = SCATTER.cell,
+      R = SCATTER.draw,
+      R2 = R * R,
+      lim = WORLD_HALF - 1.5;
+    this.grassW.begin();
+    this.flowerW.begin();
+    this.bushW.begin();
+    const i0 = Math.floor((px - R) / C),
+      i1 = Math.ceil((px + R) / C),
+      j0 = Math.floor((pz - R) / C),
+      j1 = Math.ceil((pz + R) / C);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(this.scatterSeed, 1442695041)) | 0;
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        h ^= h >>> 16;
+        const x = (i + (h & 1023) / 1023) * C,
+          z = (j + ((h >>> 10) & 1023) / 1023) * C;
+        const dx = x - px,
+          dz = z - pz;
+        if (dx * dx + dz * dz > R2 || x > lim || x < -lim || z > lim || z < -lim) continue;
+        const pick = (h >>> 20) / 4095,
+          bare = this.terrain.bareAt(x, z);
+        const ry = pick * 61,
+          sc = 0.8 + ((h >>> 5) & 31) / 62;
+        if (bare > 0.2 && bare < 0.6 && pick > 0.86) this.bushW.put(x, this.gy(x, z) - 0.06, z, ry, sc, WHITE);
+        else if (bare > 0.3) continue;
+        else if (pick < 0.6) this.grassW.put(x, this.gy(x, z) - 0.03, z, ry, sc, WHITE);
+        else if (pick < 0.68) this.flowerW.put(x, this.gy(x, z) - 0.02, z, ry, sc, WHITE);
+      }
+    this.grassW.end();
+    this.flowerW.end();
+    this.bushW.end();
   }
 
   resize(wpx: number, hpx: number): void {
@@ -1135,8 +1293,7 @@ export class GameScene {
       const b = this.enemyBaked[t];
       if (b && this.enemyMorph[t]) this.enemyW[t].mesh.geometry = level > 0 ? b.geo.net : b.geo.pixel;
     }
-    this.groundMat.map = this.groundTex(level > 0);
-    this.groundMat.needsUpdate = true;
+    this.applyGround();
     this.renderer.domElement.classList.toggle('pixel', level === 0);
   }
   private groundTex(net: boolean): THREE.Texture {
@@ -1248,11 +1405,35 @@ export class GameScene {
     }
   }
 
-  /** Phase 37 : ambiance du monde `i` (lumières du cycle et teinte du sol). */
+  /** Phase 37 : ambiance du monde `i` (lumières du cycle et teinte du sol) ; phase 44 : textures du sol et décor. */
   private stageIdx = 0;
   setStage(i: number): void {
-    this.stageIdx = Math.max(0, Math.min(PAL.stages.length - 1, i));
-    this.groundMat.color.setHex(PAL.stages[this.stageIdx].tint);
+    const st = (this.stageIdx = Math.max(0, Math.min(PAL.stages.length - 1, i)));
+    this.groundMat.color.setHex(PAL.stages[st].tint);
+    this.applyGround();
+    if (!this.groundAsked[st]) {
+      this.groundAsked[st] = true;
+      Promise.all([loadGroundTexture(st, 'a'), loadGroundTexture(st, 'b')]).then(
+        ([a, b]) => {
+          a.repeat.set((WORLD_HALF * 2) / GROUND_TILE, (WORLD_HALF * 2) / GROUND_TILE);
+          this.groundSet[st] = [a, b];
+          if (this.stageIdx === st) this.applyGround();
+        },
+        (e: unknown) => {
+          this.groundAsked[st] = false; // nouvel essai au prochain passage dans ce monde
+          console.warn('textures de sol indisponibles, repli', e);
+        },
+      );
+    }
+    this.dressStage();
+  }
+  /** Textures du sol du monde courant (ou la texture dessinée tant qu'elles chargent). */
+  private applyGround(): void {
+    const set = this.groundSet[this.stageIdx],
+      proc = this.groundTex(this.qualityLevel > 0);
+    this.groundMat.map = set ? set[0] : proc;
+    this.groundMap2.value = set ? set[1] : proc;
+    this.groundMat.needsUpdate = true;
   }
 
   /**
@@ -1276,6 +1457,7 @@ export class GameScene {
     this.sun.color.copy(this.cSun);
     this.sun.intensity = lerp(a.sunI, b.sunI, f);
     this.night = Math.min(1, t / 300);
+    if (this.haloMat) this.haloMat.opacity = 0.015 + 0.11 * f;
   }
 
   /** Dessine le monde interpolé entre le step précédent et le courant (alpha ∈ [0,1]). */
@@ -1630,7 +1812,8 @@ export class GameScene {
     this.zoneFillW.end();
 
     // phase 20 : arbres et lanternes KayKit autour du joueur (tri refait tous les 4 u de déplacement)
-    if (this.propsReady && (px - this.propX) ** 2 + (pz - this.propZ) ** 2 > 16) this.sortNearDecor(px, pz);
+    if ((this.propsReady || this.natureReady) && (px - this.propX) ** 2 + (pz - this.propZ) ** 2 > 16)
+      this.sortNearDecor(px, pz);
 
     // coffres : flottent et tournent ; coffre de boss plus gros
     this.chestW.begin();
@@ -2034,7 +2217,8 @@ export class GameScene {
   renderIdle(now: number, dt: number): void {
     this.lightCycle(0);
     this.fireflies.update(0, 0, now, 0.6);
-    if (this.propsReady && this.propX * this.propX + this.propZ * this.propZ > 16) this.sortNearDecor(0, 0); // menu : clairière
+    if ((this.propsReady || this.natureReady) && this.propX * this.propX + this.propZ * this.propZ > 16)
+      this.sortNearDecor(0, 0); // menu : clairière
     this.player.visible = true;
     this.player.position.set(0, 0, 0);
     this.player.scale.set(1, 1, 1);
@@ -2092,6 +2276,32 @@ export class GameScene {
       level: this.qualityLevel,
     };
   }
+}
+
+/** Cristal à 6 pans, deux pointes : nuance cuite par face (haut clair, bas sombre, un pan en éclat). */
+function crystalGeometry(r: number, h: number): THREE.BufferGeometry {
+  const P: number[] = [],
+    C: number[] = [];
+  const N = 6;
+  const tri = (a: number[], b: number[], c: number[], k: number) => {
+    P.push(...a, ...b, ...c);
+    for (let i = 0; i < 3; i++) C.push(k, k, k);
+  };
+  for (let i = 0; i < N; i++) {
+    const a0 = (i / N) * TAU,
+      a1 = ((i + 1) / N) * TAU;
+    const p0 = [Math.cos(a0) * r, 0, Math.sin(a0) * r],
+      p1 = [Math.cos(a1) * r, 0, Math.sin(a1) * r];
+    // pans du haut : dégradé autour du cristal, un pan presque blanc ; pans du bas plus sombres
+    const up = i === 1 ? 1.6 : 0.78 + 0.32 * Math.abs(Math.sin(a0 * 0.5 + 0.6));
+    tri(p1, p0, [0, h, 0], up);
+    tri(p0, p1, [0, -h * 0.6, 0], up * 0.55);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(C), 3));
+  g.computeVertexNormals();
+  return g;
 }
 
 function groundTexture(net: boolean): THREE.Texture {

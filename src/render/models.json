@@ -1,5 +1,5 @@
 {
-  "source": "KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : Quaternius (quaternius.com), CC0",
+  "source": "KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : Quaternius (quaternius.com), CC0 ; décor : Quaternius, Ultimate Stylized Nature (quaternius.com), CC0 ; sol : Poly Haven (polyhaven.com), CC0",
   "heroes": {
     "eclaireuse": {
       "file": "hero-eclaireuse.glb",
@@ -291,5 +291,45 @@
         }
       }
     }
+  },
+  "nature": {
+    "file": "nature.glb",
+    "bytes": 372520,
+    "nodes": {
+      "leafy_a": 615,
+      "leafy_b": 459,
+      "leafy_c": 616,
+      "birch_a": 568,
+      "birch_b": 570,
+      "maple_a": 638,
+      "maple_b": 479,
+      "maple_c": 636,
+      "pine_a": 640,
+      "pine_b": 600,
+      "pine_c": 638,
+      "dead_a": 600,
+      "dead_b": 600,
+      "dead_c": 600,
+      "bush": 220,
+      "bush_flowers": 298,
+      "grass": 58,
+      "grass_tall": 108,
+      "flowers_a": 136,
+      "flowers_b": 154,
+      "flowers_c": 136,
+      "plant": 200,
+      "rock_a": 90,
+      "rock_b": 90,
+      "rock_c": 120,
+      "rocks": 200
+    }
+  },
+  "ground": {
+    "ground-1-a.jpg": 26602,
+    "ground-1-b.jpg": 26900,
+    "ground-2-a.jpg": 45435,
+    "ground-2-b.jpg": 36229,
+    "ground-3-a.jpg": 33587,
+    "ground-3-b.jpg": 22446
   }
 }

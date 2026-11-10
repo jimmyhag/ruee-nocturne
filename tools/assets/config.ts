@@ -359,4 +359,118 @@ export const ENEMY_LODS = { hi: 1800, mid: 330, lo: 110 } as const;
 /** Budgets de téléchargement (porte de phase 20). */
 // un joueur ne télécharge que son héros et props.glb (vite.config.ts : cache à l'usage, pas de précache)
 // phase 25 : héros texturés (atlas JPEG) : 700 ko par héros, 7 Mo au total (un joueur ne charge que son héros)
-export const BUDGET = { heroBytes: 700_000, enemyBytes: 750_000, totalBytes: 7_500_000 }; // phase 26 : ennemis texturés
+export const BUDGET = {
+  heroBytes: 700_000,
+  enemyBytes: 750_000,
+  natureBytes: 900_000, // phase 44 : décor stylisé (19 modèles et leur atlas)
+  totalBytes: 8_400_000,
+}; // phase 26 : ennemis texturés
+
+/**
+ * Phase 44 : décor stylisé, Quaternius « Ultimate Stylized Nature » (CC0, quaternius.com). Le site est injoignable
+ * depuis l'environnement de build : les FBX et textures viennent d'un dépôt public qui redistribue le pack tel quel.
+ * Chaque modèle est allégé par tools/assets/nature.ts (voir son en-tête) et réuni dans public/models/nature.glb.
+ */
+export interface NatureSpec {
+  /** fichier FBX du pack, sans extension */
+  file: string;
+  /** arbre : origine au pied du tronc ; objet : origine au centre de l'emprise */
+  kind: 'tree' | 'prop';
+  /** triangles visés pour la partie pleine (tronc, rocher) */
+  solid?: number;
+  /** cartes de feuilles gardées, agrandissement maximal, facteur de taille des feuilles */
+  cards?: number;
+  grow?: number;
+  leaf?: number;
+  /** cœurs opaques du houppier (0 : aucun), taille relative, finesse de l'icosaèdre */
+  cores?: number;
+  core?: number;
+  coreDetail?: number;
+  /** triangles visés pour le feuillage en maillage (branches de sapin, fleurs) */
+  mesh?: number;
+  /** la partie pleine prend aussi la teinte du monde (arbres morts : bois gris du marais) */
+  tintSolid?: boolean;
+  /** couleur de la partie pleine (sRGB 0..1) à la place de la moyenne de la texture du pack */
+  color?: number[];
+  /** plafond de triangles, vérifié par le script et par les tests */
+  tris: number;
+}
+/** Pierre claire : la texture de roche du pack, vert sombre, se perd sur l'herbe vue d'en haut. */
+const STONE = [0.7, 0.7, 0.66];
+export const NATURE = {
+  source: 'Quaternius, Ultimate Stylized Nature (quaternius.com), CC0',
+  repo: 'https://github.com/walterpalladino/godot-quaternius-ultimate-stylized-nature',
+  dir: 'ultimate-stylized-nature/sources',
+  atlas: 1024,
+  models: {
+    leafy_a: { file: 'NormalTree_1', kind: 'tree', solid: 220, cards: 150, cores: 5, tris: 800 },
+    leafy_b: { file: 'NormalTree_5', kind: 'tree', solid: 160, cards: 110, cores: 4, tris: 800 },
+    leafy_c: { file: 'NormalTree_3', kind: 'tree', solid: 220, cards: 150, cores: 5, tris: 800 },
+    birch_a: { file: 'BirchTree_4', kind: 'tree', solid: 200, cards: 140, cores: 5, tris: 800 },
+    birch_b: { file: 'BirchTree_1', kind: 'tree', solid: 200, cards: 140, cores: 5, tris: 800 },
+    maple_a: { file: 'MapleTree_1', kind: 'tree', solid: 240, cards: 150, cores: 5, tris: 800 },
+    maple_b: { file: 'MapleTree_4', kind: 'tree', solid: 160, cards: 120, cores: 4, tris: 800 },
+    maple_c: { file: 'MapleTree_5', kind: 'tree', solid: 240, cards: 150, cores: 5, tris: 800 },
+    pine_a: { file: 'PineTree_1', kind: 'tree', solid: 160, mesh: 480, tris: 800 },
+    pine_b: { file: 'PineTree_5', kind: 'tree', solid: 80, mesh: 520, tris: 800 },
+    pine_c: { file: 'PineTree_2', kind: 'tree', solid: 160, mesh: 480, tris: 800 },
+    dead_a: { file: 'DeadTree_1', kind: 'tree', solid: 600, tintSolid: true, tris: 800 },
+    dead_b: { file: 'DeadTree_6', kind: 'tree', solid: 600, tintSolid: true, tris: 800 },
+    dead_c: { file: 'DeadTree_3', kind: 'tree', solid: 600, tintSolid: true, tris: 800 },
+    bush: { file: 'Bush', kind: 'prop', cards: 70, cores: 1, core: 1.6, coreDetail: 1, tris: 400 },
+    bush_flowers: {
+      file: 'Bush_Flowers',
+      kind: 'prop',
+      cards: 70,
+      cores: 1,
+      core: 1.6,
+      coreDetail: 1,
+      mesh: 80,
+      tris: 400,
+    },
+    grass: { file: 'Grass_Small', kind: 'prop', tris: 80 },
+    grass_tall: { file: 'Grass_Large', kind: 'prop', tris: 120 },
+    flowers_a: { file: 'Flower_2_Clump', kind: 'prop', mesh: 140, tris: 200 },
+    flowers_b: { file: 'Flower_1_Clump', kind: 'prop', mesh: 160, tris: 200 },
+    flowers_c: { file: 'Flower_4_Clump', kind: 'prop', mesh: 140, tris: 200 },
+    plant: { file: 'Plant_1', kind: 'prop', mesh: 200, tris: 260 },
+    rock_a: { file: 'Rock_1', kind: 'prop', solid: 90, color: STONE, tris: 120 },
+    rock_b: { file: 'Rock_2', kind: 'prop', solid: 90, color: STONE, tris: 120 },
+    rock_c: { file: 'Rock_4', kind: 'prop', solid: 110, color: STONE, tris: 140 },
+    rocks: { file: 'Rock_5', kind: 'prop', solid: 200, color: STONE, tris: 240 },
+  } as Record<string, NatureSpec>,
+};
+
+/**
+ * Phase 44 : textures de sol, Poly Haven (polyhaven.com, CC0). Par monde : `a` le tapis (herbe, feuilles, lande),
+ * `b` la terre. `tint` : teinte visée (sRGB 0..1) ; `mix` : part de la teinte (le reste garde la couleur de la photo) ;
+ * `contrast` : part du grain de la photo gardée.
+ */
+export interface GroundSpec {
+  id: string;
+  tint: [number, number, number];
+  mix: number;
+  contrast: number;
+  blur?: number;
+}
+export const GROUND = {
+  source: 'Poly Haven (polyhaven.com), CC0',
+  size: 512,
+  worlds: [
+    {
+      // clairière : herbe verte, terre brune
+      a: { id: 'forrest_ground_01', tint: [0.36, 0.6, 0.24], mix: 0.85, contrast: 0.6, blur: 0.9 },
+      b: { id: 'dirt_floor', tint: [0.58, 0.43, 0.29], mix: 0.6, contrast: 1.2 },
+    },
+    {
+      // bois de braise : herbe dorée, tapis de feuilles mortes
+      a: { id: 'leafy_grass', tint: [0.66, 0.56, 0.22], mix: 0.75, contrast: 0.9 },
+      b: { id: 'dry_decay_leaves', tint: [0.66, 0.36, 0.18], mix: 0.45, contrast: 1.0 },
+    },
+    {
+      // marais blême : mousse pâle, vase sombre
+      a: { id: 'aerial_grass_rock', tint: [0.42, 0.56, 0.5], mix: 0.8, contrast: 0.8 },
+      b: { id: 'brown_mud_03', tint: [0.45, 0.39, 0.47], mix: 0.8, contrast: 0.45, blur: 1.2 },
+    },
+  ] as { a: GroundSpec; b: GroundSpec }[],
+};

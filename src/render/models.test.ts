@@ -4,18 +4,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS } from '../sim/balance';
-import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_CLIPS, HEROES, PROPS } from '../../tools/assets/config';
+import { BUDGET, ENEMY_LODS, ENEMY_MODELS, GROUND, HERO_CLIPS, HEROES, NATURE, PROPS } from '../../tools/assets/config';
 import { ENEMIES } from '../sim/balance';
 import { ENEMY_LOOKS } from './enemyModels';
 import { CLIP_NAMES, HERO_LOOKS } from './heroes';
 import MANIFEST from './models.json';
 import { modelUrl } from './models';
+import { PAL } from './palette';
 
 const DIR = path.resolve(import.meta.dirname, '../../public/models');
 
 describe('modèles (phases 20, 21, 25, 26)', () => {
   it('chaque fichier du manifeste a une URL versionnée par sa taille (sinon le cache garde l’ancien)', () => {
-    const files = [MANIFEST.props, MANIFEST.enemies, ...Object.values(MANIFEST.heroes)];
+    const files = [
+      MANIFEST.props,
+      MANIFEST.enemies,
+      MANIFEST.nature,
+      ...Object.values(MANIFEST.heroes),
+      ...Object.entries(MANIFEST.ground).map(([file, bytes]) => ({ file, bytes })),
+    ];
     for (const f of files) {
       expect(modelUrl(f.file)).toMatch(new RegExp(`/models/${f.file}\\?v=${f.bytes}$`));
       expect(f.bytes).toBe(fs.statSync(path.join('public/models', f.file)).size);
@@ -57,7 +64,7 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
     }
     const props = fs.statSync(path.join(DIR, MANIFEST.props.file)).size;
     expect(props).toBe(MANIFEST.props.bytes);
-    total += props + MANIFEST.enemies.bytes;
+    total += props + MANIFEST.enemies.bytes + MANIFEST.nature.bytes;
     expect(total).toBeLessThanOrEqual(BUDGET.totalBytes);
   });
   it('tous les objets sont dans props.glb, sous leur plafond de triangles', () => {
@@ -97,6 +104,28 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
     expect(bytes).toBe(MANIFEST.enemies.bytes);
     expect(bytes).toBeLessThanOrEqual(BUDGET.enemyBytes);
   });
+  it('phase 44 : décor stylisé (nature.glb) complet, sous ses plafonds, et textures de sol des trois mondes', () => {
+    for (const [key, spec] of Object.entries(NATURE.models)) {
+      const t = (MANIFEST.nature.nodes as Record<string, number>)[key];
+      expect(t, key).toBeGreaterThan(0);
+      expect(t, key).toBeLessThanOrEqual(spec.tris);
+    }
+    expect(fs.statSync(path.join(DIR, MANIFEST.nature.file)).size).toBe(MANIFEST.nature.bytes);
+    expect(MANIFEST.nature.bytes).toBeLessThanOrEqual(BUDGET.natureBytes);
+    // chaque monde nomme des modèles qui existent (arbres, buisson, fleurs)
+    for (const st of PAL.stages) {
+      const keys = [...st.decor.trees.map((t) => t[0]), st.decor.bush[0], ...st.decor.flowers];
+      for (const k of keys) expect((MANIFEST.nature.nodes as Record<string, number>)[k], k).toBeGreaterThan(0);
+      expect(st.decor.trees.length).toBe(4);
+    }
+    // deux textures par monde, légères (chargées après le menu, hors précache)
+    expect(Object.keys(MANIFEST.ground).length).toBe(GROUND.worlds.length * 2);
+    expect(PAL.stages.length).toBe(GROUND.worlds.length);
+    for (const [file, bytes] of Object.entries(MANIFEST.ground)) {
+      expect(fs.statSync(path.join(DIR, file)).size, file).toBe(bytes);
+      expect(bytes, file).toBeLessThanOrEqual(120_000);
+    }
+  });
   it('les crédits CC0 sont portés par le manifeste et CREDITS.md', () => {
     expect(MANIFEST.source).toMatch(/KayKit.*Kay Lousberg.*CC0/);
     expect(MANIFEST.source).toMatch(/Quaternius.*CC0/);
@@ -104,5 +133,9 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
     expect(credits).toMatch(/KayKit/);
     expect(credits).toMatch(/Kay Lousberg/);
     expect(credits).toMatch(/Quaternius/);
+    expect(MANIFEST.source).toMatch(/Stylized Nature.*CC0/);
+    expect(MANIFEST.source).toMatch(/Poly Haven.*CC0/);
+    expect(credits).toMatch(/Stylized Nature/);
+    expect(credits).toMatch(/Poly Haven/);
   });
 });

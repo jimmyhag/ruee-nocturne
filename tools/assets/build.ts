@@ -4,6 +4,8 @@
 //                              hors dépôt, si absents ; clones partiels : seuls les fichiers utilisés sont téléchargés)
 //   KAYKIT_DIR=… QUATERNIUS_DIR=… npm run assets   (sources déjà clonées ailleurs)
 //   npm run assets -- --heroes [--only clé,clé] [--out dossier]   (héros seulement, manifeste intact : essais)
+//   npm run assets -- --nature   (phase 44 : décor stylisé seulement ; le manifeste garde le reste tel quel)
+//   NATURE_DIR=… : dossier « sources » du pack Ultimate Stylized Nature déjà cloné
 // Héros : tête, tenue, coiffures et objets tenus fusionnés, atlas JPEG, clips UAL, simplification, compression meshopt
 // (décodeur fourni par three/examples). Objets : un seul fichier, un nœud par objet, transformations cuites.
 import { execFileSync } from 'node:child_process';
@@ -14,8 +16,21 @@ import type { Node } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, flatten, mergeDocuments, meshopt, prune, resample, unpartition, weld } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
-import { BUDGET, ENEMY_LODS, ENEMY_MODELS, HERO_CLIPS, HEROES, PACKS, PROPS, QUATERNIUS } from './config';
+import {
+  BUDGET,
+  ENEMY_LODS,
+  ENEMY_MODELS,
+  GROUND,
+  HERO_CLIPS,
+  HEROES,
+  NATURE,
+  PACKS,
+  PROPS,
+  QUATERNIUS,
+} from './config';
+import { buildGround } from './ground';
 import { addBody, assemble, buildHero, copyClip, finish } from './heroes';
+import { buildNature, NATURE_TEXTURES } from './nature';
 import type { PackKey } from './config';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
@@ -23,6 +38,7 @@ const CACHE = process.env.KAYKIT_DIR ?? path.join(ROOT, '.cache/kaykit');
 const QCACHE = process.env.QUATERNIUS_DIR ?? path.join(ROOT, '.cache/quaternius');
 const ARGS = process.argv.slice(2);
 const HEROES_ONLY = ARGS.includes('--heroes');
+const NATURE_ONLY = ARGS.includes('--nature');
 const OUT = ARGS.includes('--out') ? path.resolve(ARGS[ARGS.indexOf('--out') + 1]) : path.join(ROOT, 'public/models');
 const MANIFEST = path.join(ROOT, 'src/render/models.json');
 
@@ -190,6 +206,39 @@ async function buildEnemies(
   return { bin: await io.writeBinary(out), models };
 }
 
+/** Dossier « sources » du pack de décor stylisé (clone partiel : FBX retenus et textures de l'atlas seulement). */
+function natureDir(): string {
+  if (process.env.NATURE_DIR) return process.env.NATURE_DIR;
+  const repo = path.join(QCACHE, 'nature');
+  if (!fs.existsSync(path.join(repo, '.git'))) {
+    fs.mkdirSync(QCACHE, { recursive: true });
+    console.log(`clone ${NATURE.repo} (partiel)…`);
+    execFileSync('git', ['clone', '--depth', '1', '--filter=blob:none', '--no-checkout', NATURE.repo, repo], {
+      stdio: 'inherit',
+    });
+    execFileSync('git', ['-C', repo, 'config', 'gc.auto', '0']);
+  }
+  const need = [
+    ...new Set(Object.values(NATURE.models).map((m) => `FBX/${m.file}.fbx`)),
+    ...NATURE_TEXTURES.map((t) => `Textures/${t}`),
+  ]
+    .map((f) => path.join(NATURE.dir, f))
+    .filter((f) => !fs.existsSync(path.join(repo, f)));
+  if (need.length) execFileSync('git', ['-C', repo, 'checkout', 'HEAD', '--', ...need], { stdio: 'inherit' });
+  return path.join(repo, NATURE.dir);
+}
+
+/** Phase 44 : nature.glb (un nœud par modèle, un matériau, un atlas), compressé comme les autres objets. */
+async function buildNatureFile(io: NodeIO): Promise<{ bin: Uint8Array; nodes: Record<string, number> }> {
+  const doc = new Document();
+  doc.createBuffer();
+  const scene = doc.createScene('nature');
+  doc.getRoot().setDefaultScene(scene);
+  const { nodes } = await buildNature(doc, natureDir(), true);
+  await doc.transform(unpartition(), prune(), dedup(), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  return { bin: await io.writeBinary(doc), nodes };
+}
+
 function tris(doc: Document): number {
   let n = 0;
   for (const m of doc.getRoot().listMeshes())
@@ -209,6 +258,8 @@ async function main(): Promise<void> {
     source: string;
     heroes: Record<string, { file: string; bytes: number; tris: number; anims: string[] }>;
     props: { file: string; bytes: number; nodes: Record<string, number> };
+    nature: { file: string; bytes: number; nodes: Record<string, number> };
+    ground: Record<string, number>;
     enemies: {
       file: string;
       bytes: number;
@@ -216,12 +267,39 @@ async function main(): Promise<void> {
       models: Record<string, { anims: string[]; tris: Record<string, number> }>;
     };
   } = {
-    source: `KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : ${QUATERNIUS.source}`,
+    source: `KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : ${QUATERNIUS.source} ; décor : ${NATURE.source} ; sol : ${GROUND.source}`,
     heroes: {},
     props: { file: '', bytes: 0, nodes: {} },
+    nature: { file: '', bytes: 0, nodes: {} },
+    ground: {},
     enemies: { file: '', bytes: 0, lods: ENEMY_LODS, models: {} },
   };
   let total = 0;
+
+  // --- décor stylisé (phase 44) ---
+  const writeNature = async (): Promise<number> => {
+    const nat = await buildNatureFile(io);
+    fs.writeFileSync(path.join(OUT, 'nature.glb'), nat.bin);
+    if (nat.bin.byteLength > BUDGET.natureBytes)
+      throw new Error(`nature.glb : ${nat.bin.byteLength} o > ${BUDGET.natureBytes}`);
+    manifest.nature = { file: 'nature.glb', bytes: nat.bin.byteLength, nodes: nat.nodes };
+    manifest.ground = await buildGround(path.join(ROOT, '.cache/polyhaven'), OUT);
+    console.log(
+      `${'nature.glb'.padEnd(26)} ${(nat.bin.byteLength / 1024).toFixed(0).padStart(5)} Ko  ${Object.keys(nat.nodes).length} modèles`,
+    );
+    return nat.bin.byteLength;
+  };
+  if (NATURE_ONLY) {
+    // le reste du manifeste (héros, objets, ennemis) est repris tel quel
+    const old = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) as typeof manifest;
+    await writeNature();
+    old.nature = manifest.nature;
+    old.ground = manifest.ground;
+    old.source = manifest.source;
+    fs.writeFileSync(MANIFEST, JSON.stringify(old, null, 2) + '\n');
+    execFileSync('npx', ['prettier', '--write', MANIFEST], { cwd: ROOT, stdio: 'ignore' });
+    return;
+  }
 
   // --- héros (phase 25 : Quaternius HD) ---
   fetchFiles('kit', [...QUATERNIUS.licenses]);
@@ -300,6 +378,8 @@ async function main(): Promise<void> {
   total += en.bin.byteLength;
   manifest.enemies = { file: 'enemies.glb', bytes: en.bin.byteLength, lods: ENEMY_LODS, models: en.models };
   console.log(`${'enemies.glb'.padEnd(26)} ${(en.bin.byteLength / 1024).toFixed(0).padStart(5)} Ko`);
+
+  total += await writeNature();
 
   if (total > BUDGET.totalBytes) throw new Error(`total ${total} o > ${BUDGET.totalBytes}`);
   fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n');
