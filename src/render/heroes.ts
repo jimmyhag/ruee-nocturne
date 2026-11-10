@@ -10,7 +10,9 @@ import { PAL } from './palette';
 import type { CharacterModel } from './characters';
 import { MANIFEST, loadGLTF } from './models';
 import type { HeroModelKey } from './models';
-import { OUTLINE, toonGradient } from './toon';
+import { OUTLINE, stylize, toonGradient } from './toon';
+
+const HERO_RIM = 0xffe2b0;
 
 interface HeroLook {
   /** clé du fichier dans le manifeste (= clé du personnage) */
@@ -350,7 +352,8 @@ export async function buildHero(key: CharacterKey, skin = 0): Promise<HeroModel>
       : atlas && skin > 0
         ? outfitTexture(atlas, `${look.model}:1`, look.hue2)
         : atlas;
-  const toon = new THREE.MeshToonMaterial({ map, gradientMap: toonGradient() });
+  // phase 44 B : liseré chaud (lumière de lanterne) sur le bord de la silhouette
+  const toon = stylize(new THREE.MeshToonMaterial({ map, gradientMap: toonGradient() }), HERO_RIM, 0.75);
   if (look.emissive) toon.emissive.setHex(look.emissive);
   disposables.push(toon);
   const geo = heroGeometry(first.geometry);

@@ -753,6 +753,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - les feuilles sont un masque blanc teinté par sommet : chaque monde colore ses arbres sans texture en plus ;
   - le semis d'herbe, de fleurs et de buissons est tiré d'une grille autour du joueur (rendu seul, sans collision) ;
   - 3 familles d'instances en plus (herbe, fleurs, buissons), 1 en moins quand le décor est chargé (herbe procédurale).
+- **Décisions des livraisons B et C**, réunies dans la 1.42.0 (une seule validation complète, la suite e2e prend plus d'une heure) :
+  - rendu des personnages par le matériau, pas par de nouveaux modèles : rampe toon en couleur (ombres froides) et liseré de lumière, pour tous les matériaux toon (`stylize`) ;
+  - les icônes du jeu sont gardées (dessinées en couleur) et mises dans des médaillons de rareté ; les pictogrammes monochromes de game-icons.net ne sont pas utilisés, donc aucun crédit CC BY à ajouter ;
+  - menus refaits en CSS seul, sans changer la structure ni les classes.
 - **Porte de la livraison A** :
   - Vitest : manifeste (26 modèles sous leurs plafonds, six textures, crédits) ;
   - e2e complet sur les deux projets, budgets d'appels et de triangles tenus ;

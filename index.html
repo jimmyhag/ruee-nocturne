@@ -2157,6 +2157,147 @@
           animation: none !important;
         }
       }
+      /* ---------- phase 44 C : habillage « fantasy » ----------
+         Demande de Jimmy : des menus beaucoup plus propres. Même structure, mêmes classes ; seuls les habits changent :
+         panneaux à double liseré doré, cartes à dégradé et bord de rareté, icônes dans un médaillon cerclé (or, bleu
+         rare, or lumineux épique), boutons à reflet, barres à relief. Tout est en CSS : aucune image, aucune requête. */
+      :root {
+        --frame: rgba(246, 196, 83, 0.55);
+        --frame-dim: rgba(246, 196, 83, 0.22);
+      }
+      .panel {
+        position: relative;
+        border: 1px solid var(--frame);
+        background:
+          radial-gradient(120% 70% at 50% 0%, rgba(255, 209, 102, 0.11), transparent 62%),
+          linear-gradient(180deg, rgba(34, 45, 80, 0.97), rgba(15, 22, 40, 0.97));
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.65),
+          inset 0 1px 0 rgba(255, 236, 180, 0.28),
+          0 24px 60px rgba(0, 0, 0, 0.5);
+      }
+      .panel::before {
+        content: '';
+        position: absolute;
+        inset: 5px;
+        border-radius: calc(var(--radius-l) - 5px);
+        border: 1px solid var(--frame-dim);
+        pointer-events: none;
+      }
+      .panel h2 {
+        text-shadow:
+          0 2px 0 rgba(0, 0, 0, 0.5),
+          0 0 26px rgba(255, 209, 102, 0.25);
+      }
+      .title {
+        background: linear-gradient(180deg, #fff6dc 30%, #ffd166 78%, #e9a23b);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        text-shadow: none;
+        filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.5)) drop-shadow(0 0 30px rgba(255, 179, 71, 0.3));
+      }
+      .card {
+        border-color: var(--frame-dim);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          0 6px 16px rgba(0, 0, 0, 0.28);
+      }
+      .card.rare {
+        background: linear-gradient(180deg, rgba(95, 211, 255, 0.16), rgba(255, 255, 255, 0.03) 70%);
+      }
+      .card.epic {
+        background: linear-gradient(180deg, rgba(255, 209, 102, 0.2), rgba(255, 255, 255, 0.03) 70%);
+      }
+      /* médaillon : l'icône dans un disque cerclé, la couleur du cercle dit la rareté */
+      .glyph {
+        --ring: #c9a24a;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        box-shadow:
+          0 0 0 2px var(--ink),
+          0 0 0 4px var(--ring),
+          inset 0 -7px 10px rgba(0, 0, 0, 0.28),
+          inset 0 3px 5px rgba(255, 255, 255, 0.4);
+        margin: 4px;
+      }
+      .glyph svg.ico {
+        width: 34px;
+        height: 34px;
+      }
+      .card.rare .glyph {
+        --ring: var(--xp);
+      }
+      .card.epic .glyph {
+        --ring: var(--gold);
+        box-shadow:
+          0 0 0 2px var(--ink),
+          0 0 0 4px var(--ring),
+          0 0 16px rgba(255, 209, 102, 0.55),
+          inset 0 -7px 10px rgba(0, 0, 0, 0.28),
+          inset 0 3px 5px rgba(255, 255, 255, 0.4);
+      }
+      .ghost {
+        border-color: var(--frame-dim);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      }
+      /* boutons de l'accueil : posés sur la scène claire, ils gardent un fond sombre opaque (lisibles sur l'herbe) */
+      .btn-icon {
+        border-color: var(--frame-dim);
+        background: linear-gradient(180deg, rgba(42, 54, 94, 0.94), rgba(18, 26, 48, 0.94));
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.12),
+          0 3px 10px rgba(0, 0, 0, 0.3);
+      }
+      /* textes de l'accueil posés sur le ciel clair : une ombre les détache */
+      .best,
+      #menu .note {
+        text-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.75),
+          0 0 10px rgba(0, 0, 0, 0.45);
+      }
+      .ghost.selected {
+        background: linear-gradient(180deg, rgba(255, 179, 71, 0.3), rgba(255, 179, 71, 0.1));
+      }
+      button.big {
+        border-color: #8a5d14;
+        background: linear-gradient(180deg, #fff0b8, #ffd166 45%, #f0a93a);
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.6),
+          0 4px 0 #9a6a1c,
+          0 10px 26px rgba(255, 209, 102, 0.32);
+      }
+      button.big:active {
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.6),
+          0 1px 0 #9a6a1c;
+      }
+      /* fiches de la bibliothèque et des succès : icône en pastille cerclée */
+      .ach {
+        border-color: var(--frame-dim);
+      }
+      .ach .achtop b > svg.ico {
+        width: 26px;
+        height: 26px;
+        padding: 4px;
+        margin-right: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.09);
+        box-shadow: 0 0 0 2px rgba(201, 162, 74, 0.6);
+        vertical-align: middle;
+      }
+      /* barres : reflet en haut, comme un tube plein */
+      .xpbar i,
+      .bar i {
+        background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 55%);
+      }
+      .hpbar i {
+        background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 55%);
+      }
     </style>
   </head>
   <body>

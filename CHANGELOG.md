@@ -2,6 +2,28 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.42.0 — 10 nov. 2026 (demande de Jimmy : refonte visuelle, 2e livraison : personnages et menus)
+
+### Modifié
+
+- **Personnages et ennemis plus lisibles.**
+  - Un liseré de lumière borde les silhouettes : chaud sur le héros, de la couleur de son type sur chaque ennemi, plus fort sur les boss.
+  - Les ombres tirent vers le bleu au lieu du gris, sur les personnages comme sur le décor.
+  - Les contours sont plus fins.
+  - Les ennemis ont des couleurs plus franches : on reconnaît leur type de loin.
+- **Menus refaits.**
+  - Panneaux à double liseré doré, titre de l'accueil en dégradé d'or, bouton « Jouer » à reflet.
+  - Cartes de niveau, coffres et marchand : l'icône est dans un médaillon cerclé, le cercle et le fond de la carte disent la rareté (or, bleu rare, or lumineux épique).
+  - Bibliothèque et succès : icônes en pastilles cerclées.
+  - Barres de vie et d'XP à reflet.
+
+### Technique
+
+- `stylize()` (`src/render/toon.ts`) habille tous les matériaux toon : rampe lue en couleur, liseré par uniforme. Un seul programme de plus, aucun appel de rendu en plus.
+- L'habillage des menus est entièrement en CSS : aucune image, aucune requête, mêmes classes et même structure (les tests ne changent pas).
+- Les icônes restent celles du jeu (dessinées en couleur) : les remplacer par des pictogrammes monochromes d'un pack libre aurait fait perdre la couleur ; elles sont maintenant mises en valeur par les médaillons.
+- Non refait : les modèles 3D eux-mêmes (héros, ennemis, armes tenues) et les effets des armes.
+
 ## 1.41.0 — 10 nov. 2026 (demande de Jimmy : refonte visuelle, 1re livraison : le monde)
 
 ### Ajouté

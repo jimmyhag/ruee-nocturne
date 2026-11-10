@@ -61,7 +61,7 @@ import { setDetail } from './parts';
 import { TerrainView } from './terrain';
 import { borderGeometry } from './border';
 import { Base, MotionState } from './motion';
-import { OUTLINE, toonGradient, toonMaterial } from './toon';
+import { OUTLINE, stylize, toonGradient, toonMaterial } from './toon';
 import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, SLASH_ARC } from './textures';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -118,7 +118,8 @@ const ELITE_RINGS = 48; // anneaux dorés des élites à l'écran, au plus
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
 const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (hors de la vue)
-const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
+const ENEMY_TINT_KEEP = 0.6; // part de blanc froid dans la teinte d'un mort-vivant (phase 44 B : 0,72 → 0,6, couleurs un peu plus franches par type)
+const ENEMY_RIM = 0.4; // force du liseré de lumière des ennemis (couleur du type)
 const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
 const ENEMY_STRIDE = 0.42; // tours de marche par unité de vitesse (Spectre 2,7 u/s : ≈ 1,1 pas par seconde)
@@ -900,7 +901,7 @@ export class GameScene {
     const mat = (g: PropGeometry) => {
       let m = mats.get(g.map);
       if (!m) {
-        m = new THREE.MeshToonMaterial({ map: g.map, gradientMap: toonGradient() });
+        m = stylize(new THREE.MeshToonMaterial({ map: g.map, gradientMap: toonGradient() }));
         mats.set(g.map, m);
       }
       return m;
@@ -999,24 +1000,30 @@ export class GameScene {
     //   faces coûtait à lui seul près d'un tiers du temps d'image ;
     // - fleurs : découpées, deux faces (peu d'instances, petites) ;
     // - herbe : brins pleins, deux faces, ni texture ni découpe (pas de `discard` : rejet précoce en profondeur).
-    this.natureMat = new THREE.MeshToonMaterial({
-      map: n.map,
-      vertexColors: true,
-      gradientMap: toonGradient(),
-      alphaTest: 0.5,
-    });
-    this.flowerMat = new THREE.MeshToonMaterial({
-      map: n.map,
-      vertexColors: true,
-      gradientMap: toonGradient(),
-      alphaTest: 0.5,
-      side: THREE.DoubleSide,
-    });
-    this.grassMat = new THREE.MeshToonMaterial({
-      vertexColors: true,
-      gradientMap: toonGradient(),
-      side: THREE.DoubleSide,
-    });
+    this.natureMat = stylize(
+      new THREE.MeshToonMaterial({
+        map: n.map,
+        vertexColors: true,
+        gradientMap: toonGradient(),
+        alphaTest: 0.5,
+      }),
+    );
+    this.flowerMat = stylize(
+      new THREE.MeshToonMaterial({
+        map: n.map,
+        vertexColors: true,
+        gradientMap: toonGradient(),
+        alphaTest: 0.5,
+        side: THREE.DoubleSide,
+      }),
+    );
+    this.grassMat = stylize(
+      new THREE.MeshToonMaterial({
+        vertexColors: true,
+        gradientMap: toonGradient(),
+        side: THREE.DoubleSide,
+      }),
+    );
     this.natureReady = true;
     this.natureStage = -1;
     this.dressStage();
@@ -1106,7 +1113,11 @@ export class GameScene {
         g.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, -(bb.min.z + bb.max.z) / 2)
           .scale(k, k, k)
           .rotateX(-0.6); // face levée vers la caméra (vue 3/4 haute) : orbites et dents lisibles de loin
-        const m = new THREE.MeshToonMaterial({ map: p.skull.map, gradientMap: toonGradient() });
+        const m = stylize(
+          new THREE.MeshToonMaterial({ map: p.skull.map, gradientMap: toonGradient() }),
+          PAL.enemy[t],
+          0, // crâne clair : un liseré le blanchit entièrement (orbites et dents perdues)
+        );
         probes.add(new THREE.InstancedMesh(g, m, 1));
         todo.push(() => {
           mesh.geometry.dispose();
@@ -1116,7 +1127,12 @@ export class GameScene {
         continue;
       }
       const geo = this.qualityLevel > 0 ? b.geo.net : b.geo.pixel;
-      const mat = new THREE.MeshToonMaterial({ map: b.map, vertexColors: true, gradientMap: toonGradient() });
+      // phase 44 B : liseré de la couleur du type (plus fort sur les boss) : la silhouette se lit sur l'herbe claire
+      const mat = stylize(
+        new THREE.MeshToonMaterial({ map: b.map, vertexColors: true, gradientMap: toonGradient() }),
+        PAL.enemy[t],
+        b.boss ? ENEMY_RIM * 1.5 : ENEMY_RIM,
+      );
       const len = 1 + b.loop + b.action,
         cap = mesh.instanceMatrix.count;
       const data = new Float32Array(len * cap);
