@@ -104,6 +104,11 @@ export class World {
   endlessAlive = 0; // boss du monde infini en vie (la barre passe au suivant)
   goldBonusT = 0; // temps déjà payé par le bonus d'or de fin (victoire puis mort en monde infini : une seule fois)
   stageWarned = false; // rappel « 1:00 » envoyé
+  // phase 42 : boss de survie (STAGE.survival) ; le boss du totem est suivi par son id (stable au swap-remove du pool)
+  survivalNext = 0; // indice du prochain boss de survie du monde
+  survivalWarned = false; // préavis du prochain envoyé
+  survivalAlive = 0; // boss de survie en vie (la barre passe au suivant)
+  totemBossId = -1; // id de l'ennemi boss du totem, -1 sinon
   timeUp = false; // fin du chrono annoncée
   // multiplicateurs de prolongation, recalculés à chaque pas (1 tant que le chrono tourne)
   overRate = 1;

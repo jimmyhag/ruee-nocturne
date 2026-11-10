@@ -199,6 +199,10 @@ export const STAGE = {
   eliteFirst: [120, 40, 40], // s du monde : première élite (monde 1 : comme avant, ensuite tout de suite)
   eruptionGrace: 20, // s sans éruption à l'arrivée dans un monde
   bossHpPerBoss: 0.8, // PV des boss ×(1 + 0,8 par boss déjà appelé), comme les anciens boss à heure fixe
+  // phase 42 (demande de Jimmy) : boss de survie à heure fixe dans chaque monde, avant le boss du totem. Ils arrivent
+  // seuls, en cercle autour du joueur ; PV = fraction de ceux du boss du totem du même monde ; ils n'ouvrent rien et ne
+  // renforcent pas les boss suivants (bossCount inchangé). Préavis `warn` s avant.
+  survival: { at: [180, 420], hp: [0.4, 0.65], dist: 12, warn: 10 },
   overWaveCap: 3, // en prolongation, les vagues grossissent au plus ×3 (au-delà, le pool d'ennemis est plein)
   totemTries: 4000, // tirages pour placer le totem
   totemFlat: 0.6, // u d'écart de hauteur toléré sur le cercle du combat
@@ -950,7 +954,7 @@ export const REROLL_SHOP = [500, 1500, 4000];
 
 // marchand (phase 17, PLAN §3.6) : échoppe qui s'installe près du joueur, payée avec l'or de la partie
 export const MERCHANT = {
-  times: [150, 420], // phase 37 : dans chaque monde, à 2:30 et 7:00 (six visites sur une partie complète)
+  times: [150, 450], // phase 37 : dans chaque monde, à 2:30 et 7:00 (six visites) ; phase 42 : 7:30, après le boss de survie de 7:00
   distMin: 10,
   distMax: 14,
   stay: 45, // s avant de repartir

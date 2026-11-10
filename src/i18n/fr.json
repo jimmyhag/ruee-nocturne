@@ -648,5 +648,7 @@
   "chal.outfitLocked": "Défi III",
   "outfit.master": "Maître",
   "chal.pays": "rapporte {what}",
-  "menu.accountPending": "Compte · à synchroniser"
+  "menu.accountPending": "Compte · à synchroniser",
+  "banner.survivalSoon": "Un boss de survie arrive !",
+  "banner.survival": "Boss de survie · {name}"
 }

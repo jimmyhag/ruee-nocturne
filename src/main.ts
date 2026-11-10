@@ -1987,6 +1987,13 @@ function handleEvents(w: World, now: number): void {
         audio.shrine();
         hud.banner(t('banner.shrine'));
         break;
+      case Ev.SurvivalWarn:
+        // phase 42 : un boss de survie arrive dans quelques secondes
+        hud.banner(t('banner.survivalSoon'));
+        audio.roar();
+        vibrate(40);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite * 0.6);
+        break;
       case Ev.BossWarn:
         // phase 37 : plus qu'une minute pour activer le totem
         hud.banner(t('banner.bossWarn'));
@@ -2055,7 +2062,8 @@ function handleEvents(w: World, now: number): void {
         vibrate(80);
         {
           const k = 'banner.boss.' + ENEMIES[e.x2 | 0].key; // événement rare : la concaténation est acceptable
-          hud.banner(t(has(k) ? k : 'banner.boss.default'));
+          const name = t(has(k) ? k : 'banner.boss.default');
+          hud.banner(e.y2 === 1 ? t('banner.survival', { name }) : name); // phase 42 : boss de survie
         }
         audio.boss();
         if (!reduced) S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);

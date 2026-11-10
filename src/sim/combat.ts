@@ -88,7 +88,10 @@ export function killEnemy(w: World, i: number): void {
     dropChest(w, e.x, e.z, true);
     w.emit(Ev.BossKill, e.x, e.y, e.z, e.type);
     if (w.endless) w.endlessAlive = Math.max(0, w.endlessAlive - 1); // phase 39 : la barre passe au boss suivant
-    else if (i === w.bossIndex) stageBossDown(w, e.x, e.z); // phase 37 : boss du totem → portail, ou victoire au monde 3
+    else if (e.id === w.totemBossId) {
+      w.totemBossId = -1;
+      stageBossDown(w, e.x, e.z); // phase 37 : boss du totem → portail, ou victoire au monde 3
+    } else w.survivalAlive = Math.max(0, w.survivalAlive - 1); // phase 42 : boss de survie (n'ouvre rien)
   } else {
     if (e.elite) dropChest(w, e.x, e.z, false);
     w.emit(Ev.Kill, e.x, e.y, e.z, e.type, e.elite ? 1 : 0);

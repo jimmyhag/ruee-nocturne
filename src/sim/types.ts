@@ -185,6 +185,7 @@ export const enum Ev {
   MapChestOpen, // phase 18 : coffre de carte ouvert en (x,z), v = prix payé
   ShrineDone, // phase 18 : sanctuaire chargé en (x,z) → choix d'un bonus
   BossWarn, // phase 37 : plus qu'une minute pour activer le totem, en (x,z) = totem, v = monde (1..), x2 = type du boss
+  SurvivalWarn, // phase 42 : un boss de survie arrive dans STAGE.survival.warn s ; v = type du boss
   SlideStart, // phase 27 : glissade lancée en (x,z), v = vitesse
   SlideEnd, // phase 27 : fin de glissade
   Launch, // phase 27 : envol sur une crête ou saut glissé, v = vitesse horizontale
