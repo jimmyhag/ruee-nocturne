@@ -30,12 +30,13 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Lumière : `HemisphereLight` (ciel chaud / sol violet) + une `DirectionalLight`. **Pas de shadow map**. Ombres = disques `CircleGeometry` noirs semi-transparents (`depthWrite: false`).
 - `scene.fog = new THREE.Fog(couleur du fond, near, far)` pour masquer les spawns et donner de la profondeur. Fond = couleur du fog.
 - Effets additifs (traînées, halos) : `MeshBasicMaterial({ transparent, blending: AdditiveBlending, depthWrite: false })`.
-- Palette : tokens dans `src/render/palette.ts`, dérivés de l'UI (`--ink`, `--accent`, etc.). Un ennemi = une couleur franche et une silhouette distincte.
+- Palette : tokens dans `src/render/palette.ts`, dérivés de l'UI (`--ink`, `--accent`, etc.) : nuit bleue depuis la phase 14 (`ink #0f1628`, `fog #182341`, accent lanterne `#ffb347`) ; les deux sources doivent rester identiques. Un ennemi = une couleur franche et une silhouette distincte. Le menu rend la scène en continu derrière l'accueil (`renderIdle`, cadrage `menuWide`) : zéro allocation là aussi.
 
-## Look pixelisé
-- `renderer.setPixelRatio(1)` et `renderer.setSize(w / s, h / s, false)` avec `s` tel que la hauteur interne ≈ 360–420 px ; CSS `image-rendering: pixelated` sur le canvas.
-- Cela donne 3–5× moins de fragments à shader : c'est **la** optimisation mobile principale.
-- Les objets de moins de ~3 px internes sont invisibles : dimensionner projectiles, gemmes et particules en conséquence (rayon ≥ 0,35 unité monde à la distance de caméra standard).
+## Résolution et qualité (phase 9 : rendu net par défaut)
+- Trois niveaux dans `GameScene.setQuality` : 2 = net (CSS × DPR ≤ 2, ≤ 1600 px de haut), 1 = net ×0,75, 0 = pixel (≈ 380 px de haut, `#c.pixel` → `image-rendering: pixelated`, texture de sol au plus proche voisin). Réglage `settings.quality` auto | net | pixel ; en auto, `main.ts` descend d'un niveau quand le p95 des intervalles de frame dépasse 24 ms pendant trois fenêtres de 2 s (jamais de remontée en cours de run).
+- Le renderer est créé une fois avec `antialias: true` (MSAA, quasi gratuit sur GPU à tuiles). Pas de post-traitement.
+- Le niveau pixel reste **l'optimisation mobile de secours** (3–5× moins de fragments) : tout ce qui est dessiné doit rester lisible dans les deux modes (rayon ≥ 0,35 u à la distance de caméra standard).
+- Finitions nettes : ombres douces (plan à texture radiale `textures.ts`, instancé pour les ennemis et les arbres), particules rondes orientées caméra (`billboardRx`), brume `FogExp2`, lumière de contre, `setDetail(12 | 7)` pour les primitives sans `seg` (personnages, boss ; les ennemis de masse gardent 5 segments).
 
 ## Caméra
 - Perspective 50°, vue 3/4 haute : position `(px, 12.5·k, pz + 10.5·k)` avec `k = 1.35` en portrait, `1` en paysage.
@@ -44,8 +45,25 @@ mesh.frustumCulled = false;                                // la boîte engloban
 
 ## Géométrie et modèles
 - V1 : primitives (box, cone, icosa, octa) composées en `Group`, puis fusionnées avec `BufferGeometryUtils.mergeGeometries` pour l'instancing (une géométrie par personnage/ennemi).
-- Si des modèles arrivent : glTF via `GLTFLoader`, ≤ 600 triangles par ennemi, ≤ 2000 pour le joueur, textures ≤ 256² en palette plate. Les charger une fois, extraire la géométrie, instancier.
+- Modèles glTF (voir plus bas) : ≤ 600 triangles par instance de décor nombreuse, ≤ 2000 pour un objet unique à l'écran ; héros KayKit ≈ 4,5 k triangles (un seul à l'écran). Les charger une fois, extraire la géométrie, instancier.
 - Animation : pas de skinning sur les ennemis (trop cher instancié). Hop sinusoïdal, rotation, squash & stretch via la matrice d'instance.
+
+### Modèles glTF (phase 20 : KayKit CC0)
+- **Pipeline** : `npm run assets` (`tools/assets/config.ts` choisit modèles, animations, accessoires et plafonds de triangles ; `build.ts` produit `public/models/*.glb` et `src/render/models.json`). Ne jamais commiter les packs sources.
+- gltf-transform : jeter les **samplers et channels** d'une animation avant l'animation elle-même, sinon `prune` garde leurs accessors (un héros pesait 2 Mo) ; retirer les pistes égales à la pose de repos ; `unpartition()` pour un seul buffer.
+- Héros skinnés : exporter avec `meshopt({ quantizationVolume: 'scene' })`. En quantification par maillage, chaque partie a son propre repère et la fusion en une `SkinnedMesh` n'affiche plus que la tête.
+- Objets statiques : **déquantifier** (`toFloat` dans `src/render/models.ts`) avant `applyMatrix4` : un Int16 normalisé est borné à [-1, 1] et le modèle s'aplatit.
+- Fusion skinnée (`mergeSkinned`) : mêmes attributs partout (UV ajoutés si absents, `skinIndex` en Uint16) ; un maillage émissif à part (yeux de la Revenante) plutôt qu'un attribut manquant qui casse tout.
+- Contour par coque inversée sur un modèle à arêtes vives : normales **lissées** pour l'extrusion + `polygonOffset`, sinon des traits noirs traversent le visage.
+- Les InstanceWriter du décor reçoivent la géométrie et le matériau du modèle une fois chargé (couleur d'instance blanche) : même nombre d'appels qu'avant. Décor dense (arbres, lanternes, cimetières) : seules les instances à moins de `PROP_DRAW` u sont écrites, re-triées tous les 4 u de déplacement.
+- Toujours un **repli procédural** : rien ne doit attendre un fichier pour être jouable.
+
+### Foule animée (phase 21 : morphs instanciés)
+- Pas de squelette par instance : poses cuites au chargement (`mixer.setTime` → `SkinnedMesh.getVertexPosition` / `applyBoneTransform` avec un Vector4 de w = 0 pour les normales) en `morphAttributes.position` et `normal` **absolues** (`morphTargetsRelative = false`).
+- `InstancedMesh.morphTexture` : une ligne par instance = [poids de base, poids des poses]. Pour des poses absolues, le poids de base est **0** et les poids somment à 1. Allouer la DataTexture à **pleine capacité** soi-même (`setMorphAt` l'alloue sur `count`, même piège que les couleurs) et écrire dans `image.data` (`src/render/pose.ts`), `needsUpdate` une fois par frame et par type.
+- Simplification : meshopt `simplifyWithAttributes` en mode **Permissive**. Le mode normal bloque à ≈ 1 500 triangles sur les modèles KayKit, qui ont presque un sommet par triangle à cause des coutures d'UV et de normales.
+- Contour d'une géométrie morphée : pousser APRÈS `#include <morphtarget_vertex>` (le chunk multiplie `transformed` par le poids de base, 0) et recalculer la normale morphée. `objectNormal` n'existe pas dans un MeshBasicMaterial non skinné.
+- Un jumeau peut partager `instanceMatrix` et `morphTexture` avec le maillage principal : il suffit de recopier `count`.
 
 ## Terrain
 - Sol : `PlaneGeometry` avec `CanvasTexture` en damier bruité, `NearestFilter`, `RepeatWrapping`. Décor (arbres, rochers, lanternes) en `InstancedMesh` statique généré par seed, grille spatiale pour les collisions.

@@ -19,6 +19,9 @@ export const FEEL = {
     boss: 0.6,
     evolve: 0.5,
   },
+  // 1.37.1 : reprise après une pause (menu, niveau, coffre, marchand) : le temps repart à 35 % et revient à 100 % en
+  // 0,5 s (temps réel injecté, le pas de sim reste fixe), le temps de reprendre ses repères
+  resume: { ease: 0.5, from: 0.35 },
   camera: {
     zoomOutAt15min: 0.08, // zoom-out progressif de 8 % de 0 à 15 min (le pouvoir se voit)
     bossPullback: 0.1, // recul de 10 % pendant un boss
@@ -35,6 +38,7 @@ export const FEEL = {
   particles: {
     cap: 500,
     hit: { n: 5, speed: 3.5, up: 3 },
+    crit: { n: 6, speed: 5, up: 4 }, // phase 23 : gerbe dorée d'un coup critique
     kill: { n: 7, speed: 5, up: 7 },
     elite: { n: 50, speed: 8, up: 9 },
     land: { n: 6, speed: 1.5, up: 3 },
@@ -42,12 +46,45 @@ export const FEEL = {
     levelUp: { n: 30, speed: 5, up: 6 },
   },
   trail: {
+    hurtBlink: 1.5, // s après un coup pendant lesquelles l'invulnérabilité fait clignoter le joueur (pas celle d'un sort)
+    whirlEvery: 1 / 60, // s entre deux salves de particules du Tourbillon (débit indépendant de l'écran)
     projGhosts: 4, // fantômes à t − j·28 ms
     projGhostDt: 0.028,
     dashGhosts: 6, // silhouettes du joueur
     dashGhostEvery: 0.03, // s entre deux silhouettes
     dashGhostLife: 0.3,
     bladeGhosts: 3,
+  },
+  // phase 30 : effets d'armes stylisés (rendu seulement)
+  bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
+  // phase 35 : bonus au sol (cristal ×scale, flottement, apparition, clignotement avant de disparaître)
+  power: { scale: 2.6, lift: 0.9, bob: 0.18, pop: 0.18, blinkHz: 7, iconLift: 0.9 },
+  glow: {
+    orbCore: 0.8, // u : cœur de l'Orbe…
+    orbHalo: 2.1, // …et son halo
+    orbTrail: 1.4, // premier fantôme de traînée (décroît)
+    fireCore: 0.95, // boule de feu du Sorcier
+    fireHalo: 2.4,
+    meteorCore: 1.1, // météore qui tombe
+    meteorHalo: 2.6,
+    meteorFall: 14, // u : hauteur de départ de la chute (pendant l'annonce)
+    lanceTip: 1.5, // pointe lumineuse de la Lance
+    mineHalo: 1.5, // pouls des mines armées
+    boomTrail: 1.2, // traînée du boomerang
+    powerHalo: 2.8, // phase 35 : halo d'un bonus au sol
+    rageHalo: 2.8, // halo rouge du héros pendant la Rage
+  },
+  slash: { life: 0.2, sweep: 0.5, max: 8 }, // Faux : durée de l'arc (s), balayage (rad) pendant sa vie, arcs en même temps
+  // phase 32 : coup des Lames sur une cible (l'épée tourne autour de la cible en traçant un croissant)
+  blade: {
+    life: 0.22,
+    sweep: 2.6,
+    max: 32,
+    swordAt: 0.75,
+    swordScale: 0.6,
+    fade: 2.2,
+    sparks: 5,
+    sparkColor: 0xbfe8ff,
   },
   damageNumbers: {
     rise: 1.8, // u/s

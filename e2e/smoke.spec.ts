@@ -8,9 +8,16 @@ test('la page charge, une partie démarre, le rendu tient le budget', async ({ p
   await expect(page.locator('canvas#c')).toBeVisible();
   await expect(page.locator('#playBtn')).toBeVisible();
 
+  // rendu « pixel » : la boucle est testée à résolution réduite (SwiftShader à la résolution native tourne à 8 fps)
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+  });
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
-  await page.waitForTimeout(5000);
+  // la boucle avance : 3 s de temps de jeu, quel que soit le rythme de la machine (runner de CI à 2 cœurs, SwiftShader)
+  await page.waitForFunction(() => (window as any).__game.world.t > 3, null, { timeout: 30_000 });
+  await page.waitForTimeout(500); // une fenêtre de mesure du rendu
 
   const state = await page.evaluate(() => {
     const g = (window as any).__game;
@@ -55,6 +62,14 @@ test('le service worker est enregistré et la page se recharge hors ligne', asyn
   await context.route('**/*', (route) => route.abort('internetdisconnected'));
   await page.reload();
   await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await expect(page.locator('#playBtn')).toBeVisible();
+  // phase 13 : le panneau Compte s'ouvre hors ligne (chunk précaché ou import() qui échoue proprement) et se ferme
+  await page.locator('#accountBtn').click();
+  await expect(page.locator('#account')).toBeVisible();
+  await expect(page.locator('#accStatus')).toContainText(/indisponibles|not available|Connexion|Connecting/, {
+    timeout: 10_000,
+  });
+  await page.locator('#accountBackBtn').click();
   await expect(page.locator('#playBtn')).toBeVisible();
   await context.unroute('**/*');
 });

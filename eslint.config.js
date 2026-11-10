@@ -17,6 +17,7 @@ export default tseslint.config(
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
+      'lighthouse/**',
     ],
   },
   js.configs.recommended,
@@ -25,6 +26,13 @@ export default tseslint.config(
     rules: {
       // les pools et la boucle chaude utilisent volontairement des variables préfixées _
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    // scripts Node en .mjs (Lighthouse) : globals de Node
+    files: ['tools/**/*.mjs'],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly', fetch: 'readonly', setTimeout: 'readonly' },
     },
   },
   {

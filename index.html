@@ -2,32 +2,85 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-    <meta name="theme-color" content="#1c1226" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1628" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Ruée" />
-    <title>Ruée Nocturne</title>
+    <meta name="apple-mobile-web-app-title" content="Swarmageddon" />
+    <title>Swarmageddon</title>
+    <meta
+      name="description"
+      content="Survivor 3D : la nuit tombe sur la clairière, tes armes tirent toutes seules, tiens 20 minutes. Jouable hors ligne sur téléphone et PC, en français et en anglais."
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Rubik:wght@400;600;800&display=swap"
-    />
+    <!-- Polices auto-hébergées (SIL OFL, voir CREDITS.md) : rien de bloquant venant d'une autre origine, et elles sont précachées -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/lilita-one-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/rubik-latin.woff2" />
+    <script>
+      // Évite d'afficher le menu en français puis de le traduire (décalage de mise en page) : si la langue effective
+      // n'est pas le français, le menu reste invisible jusqu'au script principal (quelques dizaines de ms).
+      (function () {
+        try {
+          var m = JSON.parse(localStorage.getItem('ruee-meta') || 'null');
+          var s = m && m.settings && m.settings.lang;
+          var l = s === 'fr' || s === 'en' ? s : /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
+          if (l !== 'fr') {
+            document.documentElement.classList.add('lang-pending');
+            // garde-fou : si le script principal ne s'exécute pas, le menu (en français) réapparaît
+            setTimeout(function () {
+              document.documentElement.classList.remove('lang-pending');
+            }, 1500);
+          }
+        } catch (e) {
+          /* stockage bloqué : français */
+        }
+      })();
+    </script>
     <style>
+      html.lang-pending #menu {
+        visibility: hidden;
+      }
+      @font-face {
+        font-family: 'Lilita One';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url(/fonts/lilita-one-latin.woff2) format('woff2');
+        unicode-range:
+          U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+          U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Rubik';
+        font-style: normal;
+        font-weight: 300 900; /* police variable : un seul fichier pour 400, 600 et 800 */
+        font-display: swap;
+        src: url(/fonts/rubik-latin.woff2) format('woff2');
+        unicode-range:
+          U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+          U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
       :root {
-        --ink: #1c1226;
-        --ink-2: #2b1d3a;
-        --ink-3: #3d2b52;
-        --paper: #fff1db;
-        --muted: #c7b3cf;
-        --accent: #ff8a3d;
-        --hp: #ff5470;
-        --xp: #59d8ff;
-        --gold: #ffcc4d;
+        /* phase 14 : nuit bleue profonde, lanternes chaudes ; mêmes valeurs dans src/render/palette.ts */
+        --ink: #0f1628;
+        --ink-2: #141c33;
+        --ink-3: #2a3657;
+        --paper: #f3ecdc;
+        --muted: #9aa4c2;
+        --accent: #ffb347;
+        --accent-dim: rgba(255, 179, 71, 0.16);
+        --hp: #ff5d73;
+        --xp: #5fd3ff;
+        --gold: #ffd166;
+        --glass: rgba(20, 28, 51, 0.9);
+        --glass-2: rgba(255, 255, 255, 0.06);
+        --line: rgba(255, 255, 255, 0.09);
+        --line-2: rgba(255, 255, 255, 0.14);
+        --scrim: rgba(15, 22, 40, 0.72);
+        --radius: 14px;
+        --radius-l: 20px;
         --f-display: 'Lilita One', 'Arial Black', Impact, sans-serif;
         --f-body: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
         color-scheme: dark;
@@ -63,12 +116,23 @@
       #c {
         position: fixed;
         inset: 0;
+        touch-action: none; /* remplace user-scalable=no du viewport : ni pincement ni double-tap sur le jeu */
         width: 100%;
         height: 100%;
         display: block;
+        background: var(--ink);
+      }
+      /* rendu « pixel » (réglage ou repli automatique, phase 9) : l'image basse résolution est agrandie sans lissage */
+      #c.pixel {
         image-rendering: pixelated;
         image-rendering: crisp-edges;
-        background: var(--ink);
+      }
+      /* vignette douce par-dessus le jeu (phase 9) : un dégradé CSS, zéro coût GPU notable */
+      #vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(15, 22, 40, 0.4) 100%);
       }
       #flash {
         position: fixed;
@@ -174,7 +238,7 @@
         position: absolute;
         inset: 0 auto 0 0;
         width: 100%;
-        background: #fff1db88;
+        background: #f3ecdc88;
         transition: width 0.4s ease-out;
       }
       .hpbar span {
@@ -195,11 +259,77 @@
       .kit span {
         font-size: 11px;
         font-weight: 600;
-        background: #1c1226b3;
+        background: #0f1628b3;
         border: 1px solid var(--ink-3);
         padding: 1px 6px;
         border-radius: 4px;
         white-space: nowrap;
+      }
+      /* phase 35 : bonus actifs, une pastille par effet (icône + barre de durée) */
+      .powers {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .powers .pw {
+        position: relative;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: #0f1628cc;
+        border: 2px solid var(--pc, #fff);
+        box-shadow: 0 0 10px var(--pc, #fff);
+        overflow: hidden;
+      }
+      .powers .pw svg.ico {
+        width: 22px;
+        height: 22px;
+        margin: 2px;
+      }
+      .powers .pw i {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 4px;
+        width: 100%;
+        background: var(--pc, #fff);
+      }
+      .powers .pw.pop {
+        animation: pwpop 0.35s ease-out;
+      }
+      @keyframes pwpop {
+        from {
+          transform: scale(1.5);
+        }
+      }
+      /* icône d'un bonus au sol, au-dessus de son cristal (projetée par PowerMarks) */
+      #dmg .pmark {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 34px;
+        height: 34px;
+        padding: 3px;
+        border-radius: 50%;
+        background: #0f1628b3;
+        box-shadow: 0 0 12px #fff8;
+        will-change: transform;
+      }
+      #dmg .pmark svg.ico {
+        width: 28px;
+        height: 28px;
+      }
+      /* phase 35 : Temps figé, voile bleuté par-dessus le jeu (CSS, gratuit côté GPU) */
+      body.timestop #vignette {
+        background: radial-gradient(ellipse at center, #9fe8ff1a 35%, #5fb8ffb0 115%);
+      }
+      #stageFade {
+        position: fixed;
+        inset: 0;
+        background: #05070d;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 40;
       }
       .time {
         font-family: var(--f-display);
@@ -207,6 +337,81 @@
         line-height: 1;
         text-shadow: 0 3px 0 var(--ink);
         font-variant-numeric: tabular-nums;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      /* phase 37 : monde en cours au-dessus du chrono ; dépassement en rouge qui bat */
+      .time small {
+        font-family: var(--f-body);
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        text-shadow: none;
+        margin-bottom: 2px;
+      }
+      .time.over #time {
+        color: var(--hp);
+        animation: overbeat 1s ease-in-out infinite;
+      }
+      @keyframes overbeat {
+        50% {
+          transform: scale(1.08);
+        }
+      }
+      #goalChip {
+        position: absolute;
+        left: 50%;
+        top: calc(env(safe-area-inset-top, 0px) + 74px);
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--glass);
+        border: 1px solid var(--hp);
+        color: var(--paper);
+        font-weight: 800;
+        font-size: 13px;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      #goalChip.g3 {
+        border-color: var(--xp);
+      }
+      #goalChip.g4 {
+        color: var(--hp);
+      }
+      #goalArrow {
+        display: inline-block;
+        color: var(--hp);
+        font-size: 16px;
+        transition: transform 0.15s;
+      }
+      #goalChip.g3 #goalArrow {
+        color: var(--xp);
+      }
+      #goalDist {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      @media (max-width: 480px) {
+        #goalChip {
+          top: calc(env(safe-area-inset-top, 0px) + 64px);
+          font-size: 12px;
+        }
+      }
+      /* phase 39 : barre de boss affichée → la puce d'objectif passe dessous (elle cachait le nom du boss) */
+      #hud:has(#bossbar:not([hidden])) #goalChip {
+        top: calc(env(safe-area-inset-top, 0px) + 118px);
+      }
+      @media (max-width: 480px) {
+        #hud:has(#bossbar:not([hidden])) #goalChip {
+          top: calc(env(safe-area-inset-top, 0px) + 108px);
+        }
       }
       .hright {
         display: flex;
@@ -224,6 +429,28 @@
       .kills.pop {
         transform: scale(1.25);
       }
+      /* or de la partie (ce qui reste à la fin est gardé, ce qui est dépensé au marchand part) */
+      .goldc {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--f-display);
+        font-size: 20px;
+        color: var(--gold);
+        text-shadow: 0 2px 0 var(--ink);
+        font-variant-numeric: tabular-nums;
+        transition: transform 0.15s;
+      }
+      .goldc.pop {
+        transform: scale(1.18);
+      }
+      .goldc .coin {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #fff3c4, var(--gold) 55%, #b07a1c);
+        box-shadow: 0 1px 0 var(--ink);
+      }
       .kills small {
         font-family: var(--f-body);
         font-size: 11px;
@@ -238,7 +465,7 @@
         height: 38px;
         border-radius: 10px;
         border: 2px solid var(--ink-3);
-        background: #1c1226bf;
+        background: #0f1628bf;
         font-family: var(--f-display);
         font-size: 15px;
       }
@@ -270,6 +497,7 @@
         background: var(--hp);
       }
       #perf {
+        pointer-events: none; /* simple affichage : les gestes passent à l'écran dessous */
         position: fixed;
         left: max(16px, env(safe-area-inset-left, 0px));
         top: 50%;
@@ -277,7 +505,7 @@
         font:
           12px/1.5 ui-monospace,
           monospace;
-        background: #1c1226d9;
+        background: #0f1628d9;
         border: 1px solid var(--ink-3);
         padding: 8px 10px;
         border-radius: 8px;
@@ -336,6 +564,24 @@
         color: var(--gold);
         font-size: 21px;
       }
+      /* phase 23 : coup critique, plus gros, doré, contour sombre ; jamais fusionné avec les autres chiffres */
+      #dmg span.crit {
+        color: var(--gold);
+        font-size: 26px;
+        -webkit-text-stroke: 1px var(--ink);
+      }
+      /* 1.30.1 : glisse parfaite (glisse au bon moment de la réception) */
+      #dmg span.trick {
+        color: var(--accent);
+        font-size: 28px;
+        -webkit-text-stroke: 1px var(--ink);
+      }
+      /* phase 31 : PV rendus par les objets (vol de vie, Calice), un chiffre par seconde */
+      #dmg span.heal {
+        color: #7ee0a1;
+        font-size: 20px;
+        -webkit-text-stroke: 1px var(--ink);
+      }
       #banner {
         position: fixed;
         left: 0;
@@ -366,14 +612,14 @@
         gap: 8px;
         pointer-events: none;
       }
-      .keys span {
+      .keys > span {
         position: relative;
         overflow: hidden;
         font-size: 12px;
         font-weight: 600;
         padding: 4px 9px;
         border-radius: 6px;
-        background: #1c1226bf;
+        background: #0f1628bf;
         border: 1px solid var(--ink-3);
       }
       .keys b {
@@ -389,6 +635,134 @@
         background: var(--accent);
         width: 0;
       }
+      /* phase 38 : barre d'équipement en bas. PC : centrée sur la ligne des rappels de touches, sans les toucher
+         (≈ 430 px à gauche) ; téléphone : entre le bord et les boutons Glisse/Sort/Saut (≈ 244 px + marge), à l'opposé
+         en gaucher. --rows rangées au plus (hud.ts, fitGear), qui montent ; jamais cliquable (le joystick passe dessous) */
+      .gear {
+        --gi: 26px;
+        --rows: 2;
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+        width: max-content;
+        max-width: max(220px, calc(100vw - 880px));
+        display: flex;
+        flex-wrap: wrap-reverse;
+        justify-content: center;
+        align-items: center;
+        gap: 3px;
+        pointer-events: none;
+      }
+      @media (max-width: 1100px) {
+        .gear {
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 52px);
+          max-width: calc(100vw - 32px);
+        }
+      }
+      #touch:not([hidden]) ~ .gear {
+        --gi: 22px;
+        --rows: 3;
+        left: max(12px, env(safe-area-inset-left, 0px));
+        right: calc(max(16px, env(safe-area-inset-right, 0px)) + 256px);
+        transform: none;
+        width: auto;
+        max-width: none;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+        justify-content: flex-start;
+      }
+      body.lefty #touch:not([hidden]) ~ .gear {
+        left: calc(max(16px, env(safe-area-inset-left, 0px)) + 256px);
+        right: max(12px, env(safe-area-inset-right, 0px));
+        justify-content: flex-end;
+      }
+      .gi {
+        position: relative;
+        width: var(--gi);
+        height: var(--gi);
+        display: grid;
+        place-items: center;
+        border-radius: 6px;
+        background: #0f1628c7;
+        border: 1px solid var(--ink-3);
+        flex: none;
+      }
+      .gi svg.ico {
+        width: calc(var(--gi) - 6px);
+        height: calc(var(--gi) - 6px);
+        margin: 0;
+        vertical-align: 0;
+      }
+      .gi.git {
+        border: 1.5px solid var(--r);
+        border-radius: 50%;
+      }
+      .gi b {
+        position: absolute;
+        right: -3px;
+        bottom: -4px;
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 900;
+        padding: 1px 2px;
+        border-radius: 4px;
+        background: var(--ink);
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+      /* 1.40.0 : touches du clavier configurables (réglages) */
+      .keygrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+        margin: 8px 0;
+      }
+      .keygrid label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--paper);
+      }
+      .keygrid button {
+        min-width: 64px;
+        padding: 6px 10px;
+        font-variant-numeric: tabular-nums;
+      }
+      .keygrid button.listening {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      /* phase 43 : niveau d'arme ou cumul d'objet au plafond */
+      .gi b.max {
+        color: var(--accent);
+      }
+      .gi.git b {
+        color: var(--gold);
+      }
+      .gi.gmore {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--muted);
+      }
+      .gsep {
+        width: 1px;
+        height: calc(var(--gi) - 6px);
+        margin: 0 3px;
+        background: var(--ink-3);
+        flex: none;
+      }
+      /* écran de fin : la même rangée, dans la feuille */
+      .gear.static {
+        position: static;
+        transform: none;
+        width: auto;
+        max-width: none;
+        margin: 4px 0 8px;
+        flex-wrap: wrap;
+        zoom: 1;
+      }
       #touch {
         position: fixed;
         inset: 0;
@@ -400,8 +774,8 @@
         height: 120px;
         margin: -60px 0 0 -60px;
         border-radius: 50%;
-        border: 3px solid #fff1db59;
-        background: #1c122659;
+        border: 3px solid #f3ecdc59;
+        background: #0f162859;
         opacity: 0;
         transition: opacity 0.15s;
       }
@@ -436,12 +810,56 @@
         touch-action: none;
         box-shadow: 0 4px 0 var(--ink);
       }
-      #btnDash {
-        width: 66px;
-        height: 66px;
-        font-size: 15px;
+      #btnSpell {
+        width: 70px;
+        height: 70px;
+        padding: 0;
         color: var(--ink);
         background: conic-gradient(var(--accent) calc(var(--cd, 1) * 360deg), var(--ink-3) 0);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+      #btnSpell b {
+        font-size: 24px;
+      }
+      /* phase 22 : recharges de 6 à 18 s, les secondes restantes à la place du symbole */
+      #btnSpell.cooling b {
+        font-size: 22px;
+        color: var(--text);
+        text-shadow: 0 2px 0 var(--ink);
+      }
+      #btnSpell.cooling {
+        color: var(--muted);
+      }
+      #spellSec {
+        font-style: normal;
+        margin-left: 4px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      #btnSpell small {
+        font-size: 10px;
+        margin-top: 2px;
+        max-width: 64px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      /* phase 27 : glisse au doigt, verrouillée d'un appui (allumée tant que la glissade dure) */
+      #btnSlide {
+        width: 62px;
+        height: 62px;
+        padding: 0;
+        font-size: 11px;
+        color: var(--text);
+        background: var(--ink-3);
+      }
+      #btnSlide.on {
+        color: var(--ink);
+        background: var(--accent);
       }
       #btnJump {
         width: 84px;
@@ -455,60 +873,194 @@
         transform: translateY(3px);
         box-shadow: 0 1px 0 var(--ink);
       }
+      /* ---------- écrans (phase 14 : écran-titre immersif, feuilles, boutons) ---------- */
       .screen {
         position: fixed;
         inset: 0;
-        display: grid;
-        place-items: center;
+        /* flex + margin auto sur la feuille : centrée quand elle tient, défilable depuis le haut quand elle dépasse */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         overflow-y: auto;
-        background: #1c1226b8;
-        padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
-        padding-left: max(16px, env(safe-area-inset-left, 0px));
-        padding-right: max(16px, env(safe-area-inset-right, 0px));
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        background: var(--scrim);
+        padding-top: calc(env(safe-area-inset-top, 0px) + 18px);
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+        padding-left: max(14px, env(safe-area-inset-left, 0px));
+        padding-right: max(14px, env(safe-area-inset-right, 0px));
         touch-action: pan-y;
       }
+      /* feuille : panneau sombre à bord fin ; `.panel` reste le nom utilisé par le HTML et les tests */
       .panel {
-        width: min(560px, 100%);
+        width: min(600px, 100%);
+        margin: auto;
+        flex-shrink: 0;
+        box-sizing: border-box;
         display: grid;
-        gap: 18px;
+        gap: 16px;
         justify-items: center;
         text-align: center;
+        padding: 18px 18px 20px;
+        border-radius: var(--radius-l);
+        border: 1px solid var(--line);
+        background: var(--glass);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      }
+      .sheet-head {
+        display: grid;
+        grid-template-columns: 44px 1fr 44px;
+        align-items: center;
+        width: 100%;
+        gap: 8px;
+      }
+      .sheet-head .h2 {
+        grid-column: 2;
+        font-size: clamp(26px, 6vw, 34px);
+        text-shadow: none;
+      }
+      .sheet-head .close {
+        grid-column: 3;
+        justify-self: end;
+      }
+      .sheet-head .sub {
+        grid-column: 2;
+        margin: -8px 0 0;
+      }
+      /* ---------- accueil ---------- */
+      #menu {
+        background: transparent;
+        overflow: hidden;
+        justify-content: space-between;
+        align-items: stretch;
+        /* un léger dégradé en haut et en bas : le logo et les boutons lisibles sur la clairière, le centre libre */
+        background:
+          linear-gradient(to bottom, rgba(15, 22, 40, 0.75), rgba(15, 22, 40, 0) 32%),
+          linear-gradient(to top, rgba(15, 22, 40, 0.88), rgba(15, 22, 40, 0) 46%);
+      }
+      .home-top,
+      .home-bottom {
+        display: grid;
+        gap: 10px;
+        justify-items: center;
+        text-align: center;
+      }
+      .home-top {
+        padding-top: 6px;
+      }
+      .home-bottom {
+        gap: 14px;
+        padding-bottom: 4px;
       }
       .title {
         margin: 0;
         font-family: var(--f-display);
         font-weight: 400;
-        font-size: clamp(46px, 13vw, 92px);
-        line-height: 0.9;
+        font-size: clamp(38px, 11vw, 84px);
+        line-height: 0.92;
+        letter-spacing: 0.01em;
         color: var(--paper);
         text-shadow:
-          4px 4px 0 var(--accent),
-          8px 8px 0 var(--hp),
-          12px 12px 0 var(--ink);
+          0 4px 0 rgba(0, 0, 0, 0.45),
+          0 0 42px rgba(255, 179, 71, 0.28);
         text-wrap: balance;
-        transform: rotate(-3deg);
+      }
+      .best {
+        font-size: 14px;
+        color: var(--paper);
+        opacity: 0.85;
+        font-variant-numeric: tabular-nums;
+      }
+      .playrow {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+      }
+      /* barre d'icônes : rangée en bas sur téléphone, colonne à gauche sur grand écran */
+      .menubar {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .btn-icon {
+        display: grid;
+        justify-items: center;
+        gap: 4px;
+        min-width: 72px;
+        max-width: 150px;
+        padding: 8px 10px 7px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: var(--glass);
+        color: var(--paper);
+        font: 600 11px/1.1 var(--f-body);
+        letter-spacing: 0.01em;
+        transition:
+          border-color 0.12s,
+          background 0.12s,
+          transform 0.08s;
+      }
+      .btn-icon svg {
+        width: 24px;
+        height: 24px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .btn-icon span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .btn-icon:hover,
+      .btn-icon:focus-visible {
+        border-color: var(--accent);
+        background: var(--glass-2);
+      }
+      .btn-icon:active {
+        transform: translateY(2px);
+      }
+      .btn-icon.close {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 22px;
+        line-height: 1;
+        display: grid;
+        place-items: center;
+      }
+      .foot {
+        font-size: 11px;
+        opacity: 0.7;
+      }
+      .foot a {
+        color: inherit;
       }
       .tag {
         margin: 6px 0 0;
         max-width: 36ch;
         color: var(--muted);
-        font-size: 16px;
+        font-size: 15px;
         line-height: 1.45;
         text-wrap: balance;
       }
+      /* aide (touches), déplacée dans sa feuille */
       .ctrl {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 8px 14px;
+        gap: 10px 14px;
         align-items: center;
         text-align: left;
-        background: #2b1d3ad9;
-        border: 2px solid var(--ink-3);
-        border-radius: 14px;
-        padding: 14px 16px;
         width: 100%;
-        max-width: 420px;
+        max-width: 440px;
         box-sizing: border-box;
         margin: 0;
       }
@@ -525,41 +1077,122 @@
         font-size: 12px;
         font-weight: 800;
         padding: 3px 7px;
-        border-radius: 5px;
+        border-radius: 6px;
         background: var(--paper);
         color: var(--ink);
         box-shadow: 0 2px 0 var(--muted);
         white-space: nowrap;
       }
-      .big {
+      /* ---------- boutons ---------- */
+      button.big {
         font-family: var(--f-display);
-        font-size: 26px;
+        font-size: 25px;
         letter-spacing: 0.03em;
-        padding: 12px 44px;
-        border-radius: 14px;
-        border: 3px solid var(--ink);
-        background: var(--gold);
+        padding: 13px 46px;
+        min-height: 56px;
+        border-radius: var(--radius);
+        border: 1px solid rgba(0, 0, 0, 0.35);
+        background: linear-gradient(to bottom, #ffe08a, var(--gold));
         color: var(--ink);
         box-shadow:
-          0 6px 0 var(--ink),
-          0 6px 0 3px var(--accent);
+          0 4px 0 #b8862f,
+          0 10px 24px rgba(255, 209, 102, 0.28);
+        transition: transform 0.08s;
       }
-      .big:active {
-        transform: translateY(4px);
-        box-shadow: 0 2px 0 var(--ink);
+      button.big:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 #b8862f;
+      }
+      button.big:disabled {
+        opacity: 0.7;
+        cursor: default;
       }
       .ghost {
         font-weight: 600;
-        padding: 10px 18px;
-        border-radius: 10px;
-        border: 2px solid var(--ink-3);
-        background: var(--ink-2);
+        font-size: 14px;
+        padding: 10px 16px;
+        min-height: 44px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line-2);
+        background: var(--glass-2);
+        color: var(--paper);
+        transition:
+          border-color 0.12s,
+          background 0.12s;
+      }
+      .ghost:hover,
+      .ghost:focus-visible {
+        border-color: var(--accent);
+      }
+      .ghost.selected {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+      }
+      a.ghost {
+        color: inherit;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+      }
+      /* phase 38 : classement */
+      ol.board {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .brow {
+        display: grid;
+        grid-template-columns: 34px 1fr auto;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: var(--radius);
+        background: var(--glass-2);
+        border: 1px solid var(--line-2);
+      }
+      .brow.me {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+      }
+      .brow .rank {
+        font-family: var(--f-display);
+        font-weight: 400;
+        color: var(--gold);
+        text-align: center;
+      }
+      .brow .who {
+        display: grid;
+        min-width: 0;
+      }
+      .brow .name {
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .brow small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .brow .val {
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+      #boardTabs .ghost,
+      #boardLive .btnrow .ghost {
+        padding: 8px 12px;
+        min-height: 40px;
+      }
+      #accPseudo {
+        flex: 1 1 160px;
       }
       .btnrow {
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 10px;
+        gap: 8px;
       }
       .note {
         margin: 0;
@@ -570,9 +1203,9 @@
         margin: 0;
         font-family: var(--f-display);
         font-weight: 400;
-        font-size: clamp(34px, 9vw, 54px);
+        font-size: clamp(32px, 8vw, 48px);
         line-height: 1;
-        text-shadow: 3px 3px 0 var(--ink);
+        text-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
       }
       .h2.lv {
         color: var(--xp);
@@ -580,21 +1213,27 @@
       .h2.dead {
         color: var(--hp);
       }
+      .h2.dead.win {
+        color: var(--gold);
+      }
+      /* ---------- cartes ---------- */
       .cards {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 12px;
+        gap: 10px;
         width: 100%;
       }
       .card {
         display: grid;
         gap: 8px;
+        align-content: start; /* les rangées ne s'étirent pas quand la carte voisine est plus haute (badges) */
         justify-items: start;
         text-align: left;
         padding: 14px;
-        border-radius: 14px;
-        border: 3px solid var(--ink-3);
-        background: var(--ink-2);
+        border-radius: var(--radius);
+        border: 1px solid var(--line-2);
+        background: var(--glass-2);
+        color: var(--paper);
         transition:
           transform 0.1s,
           border-color 0.1s;
@@ -630,7 +1269,7 @@
         }
         100% {
           border-color: var(--gold);
-          background: var(--ink-2);
+          background: var(--glass-2);
           transform: scale(1);
         }
       }
@@ -672,6 +1311,267 @@
         background: var(--gold);
         color: var(--ink);
       }
+      .badges {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      /* rareté d'une carte (phase 12) : 2 lignes = rare (bleu), 3 lignes = épique (or, lueur) */
+      .card.rare {
+        border-color: var(--xp);
+      }
+      .card.epic {
+        border-color: var(--gold);
+        box-shadow:
+          0 0 0 1px rgba(255, 209, 102, 0.35),
+          0 0 24px rgba(255, 209, 102, 0.3);
+      }
+      .badge.rare {
+        background: var(--xp);
+        color: var(--ink);
+      }
+      .badge.epic {
+        background: var(--gold);
+        color: var(--ink);
+      }
+      /* phase 17 : synergie complétée par la carte, prix chez le marchand, carte hors de portée */
+      .badge.syn {
+        background: var(--accent);
+        color: var(--ink);
+      }
+      .card .synline {
+        margin-top: 6px;
+        color: var(--accent);
+        font-size: 0.86em;
+      }
+      .badge.price {
+        background: var(--gold);
+        color: var(--ink);
+      }
+      .badge.price.off {
+        background: var(--ink-3);
+        color: var(--muted);
+      }
+      .card.off {
+        opacity: 0.55;
+      }
+      .kit .item {
+        font-weight: 900;
+        padding: 1px 2px;
+        border-width: 1.5px;
+      }
+      /* phase 28 : icônes dessinées (src/ui/icons.ts) */
+      svg.ico {
+        display: inline-block;
+        width: 1.25em;
+        height: 1.25em;
+        vertical-align: -0.28em;
+        flex: none;
+      }
+      .glyph svg.ico {
+        width: 32px;
+        height: 32px;
+        vertical-align: 0;
+      }
+      .kit span svg.ico {
+        margin-right: 3px;
+      }
+      .kit .item svg.ico {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+      }
+      #spellGlyph svg.ico {
+        width: 1.3em;
+        height: 1.3em;
+      }
+      .achtop b svg.ico {
+        margin-right: 6px;
+      }
+      .kit .syn {
+        color: var(--accent);
+      }
+      /* repère du marchand : flèche vers l'échoppe et compte à rebours, sous le HUD du haut */
+      /* phase 27 : minicarte (nord en haut), un appui ouvre la grande carte */
+      #minimap {
+        position: absolute;
+        right: max(16px, env(safe-area-inset-right, 0px));
+        top: calc(env(safe-area-inset-top, 0px) + 62px);
+        width: 96px;
+        height: 96px;
+        border-radius: 14px;
+        border: 2px solid var(--ink-3);
+        box-shadow: 0 3px 0 var(--ink);
+        pointer-events: auto;
+        cursor: pointer;
+        opacity: 0.92;
+      }
+      @media (min-width: 900px) {
+        #minimap {
+          width: 140px;
+          height: 140px;
+        }
+      }
+      .mappanel {
+        align-items: center;
+      }
+      #bigmap {
+        width: min(84vw, 62vh);
+        height: min(84vw, 62vh);
+        border-radius: 14px;
+        border: 2px solid var(--ink-3);
+        display: block;
+        margin: 4px auto 10px;
+      }
+      .maplegend {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 14px;
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .maplegend > span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .lg {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .lg.you {
+        background: #f3ecdc;
+      }
+      .lg.chest {
+        background: #ffd45a;
+        border-radius: 2px;
+      }
+      .lg.shrine {
+        background: #7fd8ff;
+      }
+      .lg.merchant {
+        background: #ff9f43;
+      }
+      .lg.boss {
+        background: #ff4d5e;
+      }
+      .mapexplored {
+        margin: 8px 0 4px;
+        font-family: var(--f-display);
+        color: var(--paper);
+      }
+      #merchantChip {
+        position: absolute;
+        left: 50%;
+        top: calc(env(safe-area-inset-top, 0px) + 106px); /* phase 37 : sous la puce d'objectif */
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--glass);
+        border: 1px solid var(--accent);
+        color: var(--paper);
+        font-weight: 800;
+        font-size: 13px;
+        pointer-events: none;
+      }
+      #merchantChip[hidden] {
+        display: none;
+      }
+      #poiChip {
+        position: fixed; /* #hud ne couvre que le haut de l'écran : la puce se place par rapport à la fenêtre */
+        left: 50%;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 14px;
+        border-radius: 12px;
+        background: var(--glass);
+        border: 1px solid var(--gold);
+        color: var(--paper);
+        font-weight: 800;
+        font-size: 13px;
+        pointer-events: none;
+      }
+      #poiChip[hidden] {
+        display: none;
+      }
+      #poiChip.poor {
+        border-color: var(--ink-3);
+        color: var(--muted);
+      }
+      #poiChip.shrine {
+        border-color: var(--xp);
+      }
+      /* phase 28 : piste chronométrée */
+      #poiChip.race {
+        border-color: var(--gold);
+      }
+      #poiBar {
+        width: 120px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--ink-3);
+        overflow: hidden;
+      }
+      #poiFill {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--gold);
+      }
+      #poiChip.shrine #poiFill {
+        background: var(--xp);
+      }
+      /* téléphone : le kit (armes, tomes) occupe la colonne de gauche ; la pastille passe à droite, sous les kills */
+      @media (max-width: 480px) {
+        #merchantChip {
+          left: auto;
+          right: 12px;
+          transform: none;
+          top: calc(env(safe-area-inset-top, 0px) + 98px);
+          font-size: 12px;
+        }
+      }
+      #merchantArrow {
+        display: inline-block;
+        color: var(--accent);
+        font-size: 16px;
+        transition: transform 0.15s;
+      }
+      #levelup .mrow,
+      #merchant .mrow {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      .card .lines {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 3px;
+        font-size: 13.5px;
+        line-height: 1.3;
+        color: var(--paper);
+        font-weight: 700;
+      }
+      .card .lines li::before {
+        content: '▸ ';
+        color: var(--muted);
+      }
       .card p {
         margin: 0;
         font-size: 13.5px;
@@ -684,16 +1584,17 @@
         color: var(--muted);
         margin-left: auto;
       }
+      /* ---------- écran de mort ---------- */
       .stats {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(6, 1fr); /* phase 37 : + monde atteint */
         gap: 8px;
         width: 100%;
       }
       .stats div {
-        background: var(--ink-2);
-        border: 2px solid var(--ink-3);
-        border-radius: 12px;
+        background: var(--glass-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
         padding: 10px 6px;
         display: grid;
         gap: 2px;
@@ -714,26 +1615,515 @@
         color: var(--gold);
         font-weight: 800;
       }
+      /* ---------- personnages (feuille dédiée depuis la phase 14) ---------- */
+      .chars {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        width: 100%;
+      }
+      .card.char {
+        padding: 10px;
+        gap: 6px;
+        animation: none;
+      }
+      .card.char h3 {
+        font-size: 16px;
+      }
+      .card.char p {
+        font-size: 12px;
+      }
+      .card.char.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+        background: var(--accent-dim);
+      }
+      .card.char.locked {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .card.char.locked:hover {
+        transform: none;
+        border-color: var(--line-2);
+      }
+      /* achat en or (phase 6) : un faux bouton dans la carte verrouillée ; gris tant que l'or manque */
+      .buychar {
+        display: inline-block;
+        font-weight: 800;
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        color: var(--ink);
+        background: var(--gold);
+        cursor: pointer;
+      }
+      .buychar.poor {
+        color: var(--muted);
+        background: var(--ink-3);
+        cursor: default;
+      }
+      .charinfo {
+        min-height: 2.6em; /* deux lignes réservées : pas de décalage quand le passif apparaît */
+        line-height: 1.3;
+      }
+      .charinfo .spell {
+        color: var(--gold);
+      }
+      .charinfo em {
+        color: var(--gold);
+        font-style: normal;
+      }
+      /* tenues (phase 7) : deux pastilles sous la ligne d'information */
+      .outfits {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 8px;
+      }
+      .outfit.master.sel {
+        border-color: var(--gold);
+        background: rgba(255, 209, 102, 0.14);
+      }
+      /* phase 41 : défis du personnage sous ses tenues */
+      .charinfo .chaltitle {
+        margin: 12px 0 6px;
+        text-align: left;
+      }
+      .charinfo .chal .ach p {
+        margin: 2px 0 6px;
+      }
+      .outfit,
+      .shopchar {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font: 700 13px var(--f-body);
+        color: var(--paper);
+        background: var(--glass-2);
+        border: 1px solid var(--line-2);
+        border-radius: 999px;
+        padding: 4px 10px 4px 5px;
+        min-height: 34px;
+        cursor: pointer;
+      }
+      .outfit i,
+      .shopchar i {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid rgba(0, 0, 0, 0.35);
+        flex: none;
+      }
+      .outfit.sel,
+      .shopchar.sel {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+      }
+      .outfit.locked {
+        opacity: 0.85;
+      }
+      .outfit .price {
+        color: var(--gold);
+      }
+      .outfit .price.poor {
+        color: var(--muted);
+      }
+      /* ---------- boutique ---------- */
+      .gold {
+        font-family: var(--f-display);
+        font-size: 22px;
+        color: var(--gold);
+      }
+      .shop {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+      }
+      .h3 {
+        margin: 6px 0 0;
+        font-family: var(--f-display);
+        font-weight: 400;
+        font-size: 17px;
+        color: var(--gold);
+        width: 100%;
+        text-align: left;
+      }
+      .slotrow .bar {
+        margin-top: 4px;
+        width: 160px;
+        max-width: 100%;
+      }
+      .slotrow .cond {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .slotrow.owned {
+        opacity: 0.7;
+      }
+      .slotrow.later {
+        opacity: 0.55;
+      }
+      .slotline {
+        color: var(--gold);
+        font-weight: 700;
+      }
+      .resetnote {
+        background: var(--glass);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 8px 12px;
+        max-width: 420px;
+      }
+      /* boutique par personnage (phase 8) : rangée de pastilles, défilement horizontal sur téléphone */
+      .shopchars {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        padding: 2px 2px 6px;
+        scrollbar-width: none;
+      }
+      .shopchars::-webkit-scrollbar {
+        display: none;
+      }
+      .shopchar {
+        flex: none;
+        scroll-snap-align: center;
+        min-height: 32px;
+      }
+      .shopchar i {
+        width: 18px;
+        height: 18px;
+      }
+      .shopchar b {
+        font-size: 11px;
+        background: var(--ink);
+        color: var(--gold);
+        border-radius: 999px;
+        padding: 0 6px;
+      }
+      .shopchar.locked {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .shoprow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: left;
+        background: var(--glass-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+      }
+      .shoprow h3 {
+        margin: 0;
+        font-family: var(--f-display);
+        font-weight: 400;
+        font-size: 17px;
+      }
+      .shoprow p {
+        margin: 2px 0 4px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .shoprow .buy,
+      .lib .buy {
+        white-space: nowrap;
+        background: var(--gold);
+        color: var(--ink);
+        border-color: transparent;
+        font-weight: 800;
+      }
+      .shoprow .buy:disabled,
+      .lib .buy:disabled {
+        background: var(--ink-3);
+        color: var(--muted);
+        cursor: default;
+      }
+      .pips {
+        display: flex;
+        gap: 4px;
+      }
+      .pips i {
+        width: 14px;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--ink-3);
+      }
+      .pips i.on {
+        background: var(--gold);
+      }
+      /* ---------- succès ---------- */
+      .achs {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        text-align: left;
+      }
+      .ach {
+        background: var(--glass-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 8px 12px;
+      }
+      .ach.done {
+        border-color: var(--gold);
+      }
+      .achtop {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+      }
+      .achtop span {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .ach p {
+        margin: 2px 0 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ach em {
+        color: var(--gold);
+        font-style: normal;
+      }
+      .bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--ink-3);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--xp);
+        transition: width 0.4s ease-out;
+      }
+      .ach.done .bar i {
+        background: var(--gold);
+      }
+      /* ---------- bibliothèque (phase 40) ---------- */
+      .libtabs .ghost {
+        padding: 8px 12px;
+        min-height: 40px;
+      }
+      .libtabs .cnt {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+      }
+      .lib.buyable,
+      .lib.poor {
+        border-color: var(--gold);
+      }
+      .lib.locked > p,
+      .lib.locked .achtop b,
+      .lib.off > p,
+      .lib.off .achtop b {
+        opacity: 0.6;
+      }
+      .lib .achtop b {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .lib .achtop b svg.ico {
+        width: 26px;
+        height: 26px;
+        flex: none;
+      }
+      .lib .cond {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .lib .cond svg.ico {
+        width: 16px;
+        height: 16px;
+      }
+      .lib .cond span {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+      }
+      .lib .seen {
+        margin: 0;
+      }
+      .lib .buy,
+      .lib .toggle {
+        margin-top: 4px;
+        min-height: 40px;
+        padding: 6px 14px;
+      }
+      .lib .toggle[aria-pressed='false'] {
+        border-color: var(--accent);
+      }
+      /* ---------- réglages et compte ---------- */
+      /* phase 36 : curseurs Effets et Musique */
+      .settings .vols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 16px;
+        margin: 8px 0;
+      }
+      .settings .vols label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 14px;
+      }
+      .settings .vols input[type='range'] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+      .settings {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+      }
+      .settings .btnrow > .note {
+        width: 100%;
+        margin-bottom: -2px;
+      }
+      .settings textarea {
+        width: 100%;
+        min-height: 72px;
+        box-sizing: border-box;
+        font:
+          12px/1.4 ui-monospace,
+          monospace;
+        background: var(--ink);
+        color: var(--paper);
+        border: 1px solid var(--line-2);
+        border-radius: var(--radius);
+        padding: 8px;
+      }
+      /* phase 13 : champs du compte ; 16 px minimum, sinon iOS zoome au focus */
+      .settings input {
+        width: 100%;
+        box-sizing: border-box;
+        font: 16px/1.3 var(--f-body, system-ui, sans-serif);
+        background: var(--ink);
+        color: var(--paper);
+        border: 1px solid var(--line-2);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+      }
+      .settings input:focus,
+      .settings textarea:focus {
+        outline: none;
+        border-color: var(--gold);
+      }
+      .accstatus:empty {
+        display: none;
+      }
+      #accMsg.error {
+        color: var(--accent);
+      }
+      .unlocked {
+        font-family: var(--f-display);
+        font-size: 20px;
+        color: var(--gold);
+      }
+      /* grand écran paysage : logo et boutons à gauche, le personnage 3D occupe la droite */
+      @media (min-width: 900px) and (orientation: landscape) {
+        #menu {
+          padding-left: max(56px, env(safe-area-inset-left, 0px));
+          padding-top: calc(env(safe-area-inset-top, 0px) + 40px);
+          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 36px);
+          background: linear-gradient(
+            to right,
+            rgba(15, 22, 40, 0.82),
+            rgba(15, 22, 40, 0.45) 40%,
+            rgba(15, 22, 40, 0) 62%
+          );
+        }
+        .home-top,
+        .home-bottom {
+          justify-items: start;
+          text-align: left;
+          max-width: 460px;
+        }
+        .title {
+          font-size: 92px;
+        }
+        .playrow {
+          justify-content: flex-start;
+        }
+        .menubar {
+          justify-content: flex-start;
+        }
+      }
+      /* pas sur #touch : le joystick flottant se place en coordonnées écran, un zoom le décalerait sous le doigt */
+      #hud,
+      .keys,
+      .gear,
+      .tbtns {
+        zoom: var(--hud-scale, 1);
+      }
+      body.lefty .tbtns {
+        right: auto;
+        left: max(16px, env(safe-area-inset-left, 0px));
+        flex-direction: row-reverse;
+      }
+      @media (max-width: 480px) {
+        /* téléphone : une rangée qui défile au doigt, à crans, trois cartes visibles */
+        .chars {
+          display: flex;
+          align-items: flex-start;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          touch-action: pan-x pan-y;
+          gap: 6px;
+          padding-bottom: 4px;
+          scrollbar-width: none;
+        }
+        .chars::-webkit-scrollbar {
+          display: none;
+        }
+        .card.char {
+          flex: 0 0 calc((100% - 12px) / 3);
+          scroll-snap-align: start;
+        }
+        .card.char h3 {
+          font-size: 13px;
+        }
+        .card.char p {
+          display: none;
+        }
+      }
       @media (max-width: 480px) {
         #banner {
           top: 42%; /* en portrait le HUD (kit sur plusieurs lignes) et la barre de boss descendent : la bannière ne doit pas les recouvrir */
         }
         #perf {
           font-size: 13px;
-          background: #1c1226f2;
+          background: #0f1628f2;
           top: auto;
           bottom: calc(env(safe-area-inset-bottom, 0px) + 120px);
           transform: none;
         }
         .stats {
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(3, 1fr);
         }
         .time {
           font-size: 22px;
           padding-top: 6px;
         }
-        .kills {
+        .kills,
+        .goldc {
           font-size: 16px;
+        }
+        .goldc .coin {
+          width: 11px;
+          height: 11px;
         }
         .kills small {
           display: none;
@@ -762,76 +2152,281 @@
           transition: none !important;
           animation: none !important;
         }
-        .title {
-          transform: none;
-        }
       }
     </style>
   </head>
   <body>
-    <canvas id="c" aria-label="Zone de jeu"></canvas>
+    <!-- Textes : attribut data-i18n (clé du contenu) et data-i18n-attr (attribut:clé;…) ; le français du HTML sert de secours -->
+    <canvas id="c" aria-label="Zone de jeu" data-i18n-attr="aria-label:a11y.canvas"></canvas>
+    <div id="vignette" hidden></div>
     <div id="flash"></div>
+    <!-- phase 37 : fondu au noir pendant le passage d'un monde à l'autre -->
+    <div id="stageFade"></div>
 
     <div id="hud" hidden>
       <div class="xpbar"><i id="xpfill"></i><b id="xpsweep"></b></div>
       <div class="hrow">
         <div class="hleft">
           <div class="lvhp">
-            <span class="lvl">Niv <span id="lvl">1</span></span>
+            <span class="lvl"><span data-i18n="hud.level">Niv</span> <span id="lvl">1</span></span>
             <div class="hpbar"><em id="hpghost"></em><i id="hpfill"></i><span id="hptxt">100</span></div>
           </div>
           <div class="kit" id="kit"></div>
+          <!-- phase 35 : bonus au sol actifs (icône + durée restante), remplis par Hud -->
+          <div class="powers" id="powers"></div>
         </div>
-        <div class="time" id="time">0:00</div>
+        <!-- phase 37 : monde en cours et chrono qui descend (dépassement en rouge) -->
+        <div class="time" id="timeBox"><small id="stageLbl">Monde 1</small><span id="time">10:00</span></div>
         <div class="hright">
-          <div class="kills" id="killsBox"><span id="kills">0</span> <small>vaincus</small></div>
-          <button id="pauseBtn" aria-label="Pause">II</button>
+          <div class="goldc" id="goldBox" aria-label="Or de la partie" data-i18n-attr="aria-label:hud.gold">
+            <i class="coin"></i><span id="goldN">0</span>
+          </div>
+          <div class="kills" id="killsBox"><span id="kills">0</span> <small data-i18n="hud.kills">vaincus</small></div>
+          <button id="pauseBtn" aria-label="Pause" data-i18n-attr="aria-label:hud.pause">II</button>
         </div>
       </div>
+      <canvas
+        id="minimap"
+        width="140"
+        height="140"
+        role="button"
+        aria-label="Ouvrir la carte"
+        data-i18n-attr="aria-label:map.open"
+      ></canvas>
+      <!-- phase 37 : objectif du monde (totem, boss, portail), flèche et distance -->
+      <div id="goalChip" class="goal" hidden>
+        <span id="goalArrow">▲</span><span id="goalText"></span><span id="goalDist"></span>
+      </div>
+      <div id="merchantChip" hidden>
+        <span id="merchantArrow">▲</span><span data-i18n="merchant.chip">Marchand</span><span id="merchantDist"></span>
+      </div>
+      <!-- phase 18 : coffre de carte ou sanctuaire tout proche (prix, jauge) -->
+      <div id="poiChip" hidden>
+        <span id="poiText"></span><i id="poiBar"><b id="poiFill"></b></i>
+      </div>
       <div id="bossbar" hidden>
-        <span>LE GARDIEN</span>
+        <span id="bossname">LE GARDIEN</span>
         <div><i id="bossfill"></i></div>
       </div>
     </div>
     <div id="perf" hidden></div>
     <div class="keys" id="keys" hidden>
-      <span><b>Espace</b>Saut</span><span><b>Maj</b>Dash<i id="dashbar"></i></span><span><b>F3</b>Perf</span>
+      <span><b data-key="jump">Espace</b><span data-i18n="keys.jump">Saut</span></span
+      ><span><b data-key="slide">C</b><span data-i18n="keys.slide">Glisse</span></span
+      ><span
+        ><b data-key="spell">Maj</b><span id="spellKey" data-i18n="keys.spell">Sort</span><em id="spellSec"></em
+        ><i id="spellbar"></i></span
+      ><span><b data-key="map">M</b><span data-i18n="keys.map">Carte</span></span
+      ><span><b>F3</b><span data-i18n="keys.perf">Perf</span></span>
     </div>
     <div id="dmg" aria-hidden="true"></div>
     <div id="banner"></div>
-    <div id="update" hidden><span>Nouvelle version disponible</span><button id="updateBtn">Recharger</button></div>
+    <div id="update" hidden>
+      <span data-i18n="update.new">Nouvelle version disponible</span
+      ><button id="updateBtn" data-i18n="update.reload">Recharger</button>
+    </div>
 
     <div id="touch" hidden>
       <div id="stick"><div id="knob"></div></div>
       <div class="tbtns">
-        <button id="btnDash" aria-label="Dash">DASH</button><button id="btnJump" aria-label="Sauter">SAUT</button>
+        <button id="btnSlide" aria-label="Glisser" data-i18n="touch.slide" data-i18n-attr="aria-label:touch.slideAria">
+          GLISSE</button
+        ><button id="btnSpell" aria-label="Sort de classe" data-i18n-attr="aria-label:touch.spellAria">
+          <b id="spellGlyph">✦</b><small id="spellName" data-i18n="touch.spell">SORT</small></button
+        ><button id="btnJump" aria-label="Sauter" data-i18n="touch.jump" data-i18n-attr="aria-label:touch.jumpAria">
+          SAUT
+        </button>
       </div>
     </div>
+    <!-- phase 38 : barre d'équipement (armes, objets ×n), après #touch : sa place suit le mode d'entrée (CSS) -->
+    <div class="gear" id="gear" hidden aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
 
-    <section id="menu" class="screen">
-      <div class="panel">
-        <div>
-          <h1 class="title">Ruée<br />Nocturne</h1>
-          <p class="tag">
-            La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter et tenir le plus
-            longtemps possible.
-          </p>
+    <!-- phase 14 : écran-titre immersif. La clairière 3D occupe l'écran ; le logo en haut, Jouer et la barre d'icônes en
+         bas ; personnages, boutique, succès, compte et réglages s'ouvrent dans des feuilles -->
+    <section id="menu" class="screen home">
+      <div class="home-top">
+        <h1 class="title">Swarmageddon</h1>
+        <p class="note best" id="bestLine" data-i18n="menu.noRecord">Aucun record pour l'instant</p>
+        <p class="note slotline" id="slotLine">1 arme · 2 améliorations</p>
+        <p class="note resetnote" id="resetNote" data-i18n="menu.resetNote" hidden>
+          Nouvelle progression : tout le monde repart de zéro. Tes réglages sont conservés.
+        </p>
+      </div>
+      <div class="home-bottom">
+        <div class="playrow">
+          <button class="big" id="playBtn" data-i18n="menu.play">Jouer</button
+          ><button class="ghost" id="dailyBtn" hidden data-i18n="menu.daily">Défi du jour</button>
         </div>
+        <nav class="menubar" id="menuBar" aria-label="Menu">
+          <button class="btn-icon" id="charsBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg
+            ><span data-i18n="menu.characters">Personnage</span></button
+          ><button class="btn-icon" id="shopBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 8h12l1 13H5z" />
+              <path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg
+            ><span id="shopLabel" data-i18n="menu.shop">Boutique</span></button
+          ><button class="btn-icon" id="achBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg
+            ><span data-i18n="menu.achievements">Succès</span></button
+          ><button class="btn-icon" id="libBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z" />
+              <path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3" />
+              <path d="M9 7.5h6M9 11h4" /></svg
+            ><span data-i18n="menu.library">Bibliothèque</span></button
+          ><button class="btn-icon" id="boardBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 21V12h5v9M9.5 21V7h5v14M15 21v-6h5v6" /></svg
+            ><span data-i18n="menu.board">Classement</span></button
+          ><button class="btn-icon" id="accountBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="10" r="3.2" />
+              <path d="M6 19c1.2-2.6 3.4-4 6-4s4.8 1.4 6 4" /></svg
+            ><span id="accountLabel" data-i18n="menu.account">Compte</span></button
+          ><button class="btn-icon" id="settingsBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+              /></svg
+            ><span data-i18n="menu.settings">Réglages</span>
+          </button>
+        </nav>
+        <button class="ghost" id="installBtn" hidden data-i18n="menu.install">Installer l'app</button>
+        <p class="note" id="iosHint" hidden data-i18n="menu.iosHint">
+          Sur iPhone : Partager, puis « Sur l'écran d'accueil »
+        </p>
+        <p class="note foot">
+          <span id="version"></span> · <a href="/a-propos.html" id="aboutLink" data-i18n="menu.about">À propos</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="characters" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="menu.characters">Personnage</h2>
+          <button
+            class="btn-icon close"
+            id="charactersBackBtn"
+            aria-label="Fermer"
+            data-i18n-attr="aria-label:menu.close"
+          >
+            ×
+          </button>
+        </header>
+        <!-- Cartes de personnages : état d'un profil vierge, rendu tel quel avant le script (aucun décalage de mise en
+             page au chargement) ; src/ui/meta-ui.ts les remplace dès que la méta est lue -->
+        <div class="chars" id="chars">
+          <button class="card char selected" data-char="eclaireuse">
+            <div class="top">
+              <span class="glyph" style="background: var(--accent)">✦</span>
+              <h3>Éclaireuse</h3>
+            </div>
+            <p>+15 % de vitesse, dash plus court</p>
+          </button>
+          <button class="card char locked" data-char="bucheron" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Bûcheron</h3>
+            </div>
+            <span class="badge">Survis 10 minutes</span>
+            <p>+30 PV, Lames niveau 2 à portée +20 %</p>
+          </button>
+          <button class="card char locked" data-char="sorciere" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Vieille sorcière</h3>
+            </div>
+            <span class="badge">Vaincs 500 ennemis en tout</span>
+            <p>Foudre dès le départ, −30 % PV</p>
+          </button>
+          <button class="card char locked" data-char="veilleuse">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Veilleuse</h3>
+            </div>
+            <span class="buychar poor" data-buy="veilleuse" role="button">800 or pour débloquer</span>
+            <p>Halo brûlant dès le départ, +20 PV</p>
+          </button>
+          <button class="card char locked" data-char="braconnier">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Braconnier</h3>
+            </div>
+            <span class="buychar poor" data-buy="braconnier" role="button">1 200 or pour débloquer</span>
+            <p>Boomerang niveau 2 dès le départ, +10 PV</p>
+          </button>
+          <button class="card char locked" data-char="sapeur" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Sapeur</h3>
+            </div>
+            <span class="badge">Vaincs un boss</span>
+            <p>Mines dès le départ, −20 % PV, un peu plus lent</p>
+          </button>
+          <button class="card char locked" data-char="feufollet" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Feu follet</h3>
+            </div>
+            <span class="badge">Survis 4 minutes d'affilée sans dégât en un run</span>
+            <p>+30 % de vitesse, −50 % PV</p>
+          </button>
+          <button class="card char locked" data-char="revenante" aria-disabled="true">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Revenante</h3>
+            </div>
+            <span class="badge">Termine les trois mondes</span>
+            <p>Foudre et Halo dès le départ, −55 % PV, un peu plus lente</p>
+          </button>
+          <button class="card char locked" data-char="colporteur">
+            <div class="top">
+              <span class="glyph" style="background: var(--ink-3)">🔒</span>
+              <h3>Colporteur</h3>
+            </div>
+            <span class="buychar poor" data-buy="colporteur" role="button">2 000 or pour débloquer</span>
+            <p>Lames niveau 2, Trèfle et Bourse dès le départ, +15 PV</p>
+          </button>
+        </div>
+        <div class="note charinfo" id="charInfo"><b>Éclaireuse</b> · +15 % de vitesse, dash plus court</div>
+      </div>
+    </section>
+
+    <section id="help" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="help.title">Comment jouer</h2>
+          <button class="btn-icon close" id="helpBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <p class="tag" data-i18n="menu.tag">
+          La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter et traverser les
+          trois mondes.
+        </p>
         <dl class="ctrl">
-          <dt><span class="cap">ZQSD</span> <span class="cap">↑↓←→</span></dt>
-          <dd>Se déplacer (joystick sous le pouce sur mobile, stick gauche à la manette)</dd>
-          <dt><span class="cap">Espace</span></dt>
-          <dd>Sauter par-dessus la horde</dd>
-          <dt><span class="cap">Maj</span></dt>
-          <dd>Dash, invincible pendant l'élan</dd>
+          <dt><span class="cap" data-key="move">ZQSD</span> <span class="cap">↑↓←→</span></dt>
+          <dd data-i18n="menu.ctrl.move">Se déplacer (joystick sous le pouce sur mobile, stick gauche à la manette)</dd>
+          <dt><span class="cap" data-key="jump">Espace</span></dt>
+          <dd data-i18n="menu.ctrl.jump">Sauter par-dessus la horde</dd>
+          <dt><span class="cap" data-key="spell">Maj</span></dt>
+          <dd data-i18n="menu.ctrl.spell">Sort de ta classe (chaque personnage a le sien)</dd>
           <dt><span class="cap">1 2 3</span></dt>
-          <dd>Choisir une amélioration à chaque niveau</dd>
+          <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
+          <dt><span class="cap">10:00</span></dt>
+          <dd data-i18n="menu.ctrl.worlds">
+            Avant la fin du chrono, active le totem (losange rouge sur la carte) et tue son boss : le portail mène au
+            monde suivant. Chrono écoulé, la horde ne fait que grossir.
+          </dd>
         </dl>
-        <button class="big" id="playBtn">Jouer</button>
-        <p class="note" id="bestLine">Aucun record pour l'instant</p>
-        <button class="ghost" id="installBtn" hidden>Installer l'app</button>
-        <p class="note" id="iosHint" hidden>Sur iPhone : Partager, puis « Sur l'écran d'accueil »</p>
-        <p class="note" id="version"></p>
+        <div class="btnrow"><button class="big" id="helpPlayBtn" data-i18n="menu.play">Jouer</button></div>
       </div>
     </section>
 
@@ -839,42 +2434,375 @@
       <div class="panel">
         <div>
           <h2 class="h2 lv" id="luTitle">Niveau 2</h2>
-          <p class="note">Choisis une amélioration</p>
+          <p class="note" id="luHint" data-i18n="levelup.hint">Choisis une amélioration</p>
+          <p class="note slotline" id="luSlots"></p>
         </div>
         <div class="cards" id="cards"></div>
+        <!-- phase 31 : relance des cartes (R), une par partie au départ, plus celles de la boutique -->
+        <div class="mrow"><button class="ghost" id="luReroll">Relancer (1)</button></div>
+      </div>
+    </section>
+
+    <!-- phase 17 : échoppe du marchand, la partie est en pause ; 1–4 achète, R relance, Échap part -->
+    <section id="merchant" class="screen" hidden>
+      <div class="panel">
+        <div>
+          <h2 class="h2" data-i18n="merchant.title">Le marchand</h2>
+          <p class="gold sub" id="mGold">0 or</p>
+          <p class="note" id="mNote" data-i18n="merchant.hint">
+            L'or que tu dépenses ici ne sera pas gardé à la fin de la partie.
+          </p>
+        </div>
+        <div class="cards" id="mcards"></div>
+        <div class="mrow">
+          <button class="ghost" id="mReroll">Relancer</button>
+          <button class="big" id="mLeave" data-i18n="merchant.leave">Partir</button>
+        </div>
       </div>
     </section>
 
     <section id="pause" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2">Pause</h2>
-        <div class="btnrow"><button class="big" id="resumeBtn">Reprendre</button></div>
+        <h2 class="h2" data-i18n="pause.title">Pause</h2>
+        <div class="btnrow"><button class="big" id="resumeBtn" data-i18n="pause.resume">Reprendre</button></div>
         <div class="btnrow">
           <button class="ghost" id="soundBtn">Son : activé</button
           ><button class="ghost" id="fxBtn">Effets : complets</button
+          ><button class="ghost" id="qualityBtn">Rendu : auto</button
           ><button class="ghost" id="perfBtn">Perf : masquée</button
-          ><button class="ghost" id="restartBtn">Recommencer</button><button class="ghost" id="quitBtn">Menu</button>
+          ><button class="ghost" id="pauseMapBtn" data-i18n="map.title">Carte</button
+          ><button class="ghost" id="pauseSettingsBtn" data-i18n="pause.settings">Réglages</button
+          ><button class="ghost" id="restartBtn" data-i18n="pause.restart">Recommencer</button
+          ><button class="ghost" id="quitBtn" data-i18n="pause.menu">Menu</button>
         </div>
+      </div>
+    </section>
+
+    <section id="map" class="screen" hidden>
+      <div class="panel mappanel">
+        <h2 class="h2" data-i18n="map.title">Carte</h2>
+        <canvas id="bigmap" width="680" height="680"></canvas>
+        <p class="maplegend">
+          <span><i class="lg you"></i><span data-i18n="map.legend.you">Toi</span></span
+          ><span><i class="lg chest"></i><span data-i18n="map.legend.chest">Coffre</span></span
+          ><span><i class="lg shrine"></i><span data-i18n="map.legend.shrine">Sanctuaire</span></span
+          ><span><i class="lg merchant"></i><span data-i18n="map.legend.merchant">Marchand</span></span
+          ><span><i class="lg boss"></i><span data-i18n="map.legend.boss">Boss</span></span>
+        </p>
+        <p class="mapexplored" id="mapExplored"></p>
+        <div class="btnrow"><button class="big" id="mapClose" data-i18n="map.close">Fermer</button></div>
+      </div>
+    </section>
+
+    <!-- phase 39 : victoire au monde 3, puis monde infini au choix (clavier : 1 ou Entrée continuer, 2 ou Échap terminer) -->
+    <section id="victory" class="screen" hidden>
+      <div class="panel">
+        <h2 class="h2 win" data-i18n="victory.title">Victoire !</h2>
+        <div class="stats">
+          <div><b id="vTime">0:00</b><span data-i18n="over.time">Temps</span></div>
+          <div><b id="vKills">0</b><span data-i18n="over.kills">Vaincus</span></div>
+        </div>
+        <p class="note" data-i18n="victory.text">
+          Les trois mondes sont tombés. Tu peux rester : des boss arrivent toutes les 2:30, de plus en plus nombreux.
+        </p>
+        <div class="btnrow">
+          <button class="big" id="vContinue" data-i18n="victory.continue">Continuer (monde infini)</button>
+        </div>
+        <div class="btnrow"><button class="ghost" id="vEnd" data-i18n="victory.end">Terminer</button></div>
       </div>
     </section>
 
     <section id="over" class="screen" hidden>
       <div class="panel">
-        <h2 class="h2 dead">La horde t'a eu</h2>
+        <h2 class="h2 dead" id="oTitle">La horde t'a eu</h2>
         <div class="stats">
-          <div><b id="oTime">0:00</b><span>Temps</span></div>
-          <div><b id="oLvl">1</b><span>Niveau</span></div>
-          <div><b id="oKills">0</b><span>Vaincus</span></div>
-          <div><b id="oBest">0:00</b><span>Record</span></div>
+          <div><b id="oStage">Monde 1</b><span data-i18n="over.world">Monde</span></div>
+          <div><b id="oTime">0:00</b><span data-i18n="over.time">Temps</span></div>
+          <div><b id="oLvl">1</b><span data-i18n="over.level">Niveau</span></div>
+          <div><b id="oKills">0</b><span data-i18n="over.kills">Vaincus</span></div>
+          <div><b id="oGold">0</b><span data-i18n="over.gold">Or</span></div>
+          <div><b id="oBest">0:00</b><span data-i18n="over.best">Record</span></div>
         </div>
+        <div class="gear static" id="oGear" aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
         <p class="note" id="oMsg"></p>
-        <div class="btnrow"><button class="big" id="againBtn">Rejouer</button></div>
-        <div class="btnrow"><button class="ghost" id="menuBtn">Menu</button></div>
+        <p class="note slotline" id="oNext" hidden></p>
+        <p class="unlocked" id="oUnlocked" hidden></p>
+        <div class="achs" id="oProgress"></div>
+        <div class="btnrow"><button class="big" id="againBtn" data-i18n="over.again">Rejouer</button></div>
+        <div class="btnrow">
+          <button class="ghost" id="overShopBtn" data-i18n="over.shop">Boutique</button
+          ><button class="ghost" id="menuBtn" data-i18n="over.menu">Menu</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="shop" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" id="shopTitle" data-i18n="shop.title">Emplacements</h2>
+          <button class="btn-icon close" id="shopBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+          <p class="gold sub" id="shopGold">0 or</p>
+        </header>
+        <!-- emplacements (phase 10) : communs à tous les personnages, débloqués par succès + or ; phase 17 : plus de
+             paliers par personnage, la puissance se trouve en partie (coffres, marchand, synergies) -->
+        <p class="note" data-i18n="shop.note">
+          Débloque des emplacements d'armes et de tomes pour tous tes personnages.
+        </p>
+        <div class="shop slots" id="slotList"></div>
+        <!-- phase 31 : relances des cartes de montée de niveau -->
+        <p class="note" id="rerollNote"></p>
+        <div class="shop slots" id="rerollList"></div>
+      </div>
+    </section>
+
+    <section id="achievements" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="ach.title">Succès</h2>
+          <button class="btn-icon close" id="achBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <div class="achs" id="achList"></div>
+      </div>
+    </section>
+    <section id="library" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="lib.title">Bibliothèque</h2>
+          <p class="gold sub" id="libGold"></p>
+          <button class="btn-icon close" id="libBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <div class="btnrow libtabs" id="libTabs" role="group"></div>
+        <div class="achs" id="libList"></div>
+      </div>
+    </section>
+
+    <section id="settings" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="settings.title">Réglages</h2>
+          <button
+            class="btn-icon close"
+            id="settingsBackBtn"
+            aria-label="Fermer"
+            data-i18n-attr="aria-label:menu.close"
+          >
+            ×
+          </button>
+        </header>
+        <div class="settings">
+          <div class="btnrow">
+            <button class="ghost" id="setSoundBtn">Son : activé</button
+            ><button class="ghost" id="setVibrateBtn">Vibrations : activées</button
+            ><button class="ghost" id="setFxBtn">Effets : complets</button
+            ><button class="ghost" id="setQualityBtn">Rendu : auto</button
+            ><button class="ghost" id="setLeftyBtn">Gaucher : non</button
+            ><button class="ghost" id="setLangBtn">Langue : auto</button>
+          </div>
+          <!-- phase 36 : volumes séparés des effets et de la musique -->
+          <div class="vols">
+            <label
+              ><span data-i18n="settings.sfxVol">Effets</span>
+              <input type="range" id="sfxVol" min="0" max="100" step="5" value="100"
+            /></label>
+            <label
+              ><span data-i18n="settings.musicVol">Musique</span>
+              <input type="range" id="musicVol" min="0" max="100" step="5" value="70"
+            /></label>
+          </div>
+          <!-- 1.40.0 (demande de Jimmy) : touches du clavier configurables ; masqué sur un appareil tactile sans clavier -->
+          <div class="keybinds" id="keybinds" hidden>
+            <p class="note"><b data-i18n="settings.keys.title">Touches du clavier</b></p>
+            <div class="keygrid" id="keygrid"></div>
+            <div class="btnrow">
+              <button class="ghost" id="keysResetBtn" data-i18n="settings.keys.reset">Touches par défaut</button>
+            </div>
+            <p class="note" id="keysMsg" data-i18n="settings.keys.hint">
+              Clique sur une touche, puis appuie sur la nouvelle. Les flèches et Échap marchent toujours.
+            </p>
+          </div>
+          <div class="btnrow">
+            <span class="note" data-i18n="settings.hud">Taille du HUD</span
+            ><button class="ghost" id="hudSmallBtn" data-i18n="settings.hud.small">Petit</button
+            ><button class="ghost" id="hudNormalBtn" data-i18n="settings.hud.normal">Normal</button
+            ><button class="ghost" id="hudLargeBtn" data-i18n="settings.hud.large">Grand</button>
+          </div>
+          <div class="btnrow">
+            <button class="ghost" id="exportBtn" data-i18n="settings.export">Exporter la sauvegarde</button
+            ><button class="ghost" id="importBtn" data-i18n="settings.import">Importer le texte ci-dessous</button
+            ><button class="ghost" id="resetBtn" data-i18n="settings.reset">Tout effacer</button>
+          </div>
+          <textarea
+            id="saveText"
+            aria-label="Sauvegarde JSON"
+            placeholder="Colle ici une sauvegarde exportée, puis « Importer »"
+            data-i18n-attr="aria-label:settings.saveAria;placeholder:settings.savePlaceholder"
+          ></textarea>
+          <p class="note" id="settingsMsg"></p>
+        </div>
+        <div class="btnrow">
+          <button class="ghost" id="helpBtn" data-i18n="menu.help">Comment jouer</button
+          ><a class="ghost" href="/a-propos.html" data-i18n="menu.about">À propos</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- phase 13 : compte facultatif (Google ou e-mail), progression synchronisée ; Firebase chargé à l'ouverture seulement -->
+    <!-- phase 38 : classement en ligne, réservé aux joueurs connectés (src/ui/board.ts) -->
+    <section id="board" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="board.title">Classement</h2>
+          <button class="btn-icon close" id="boardBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <div class="settings">
+          <div class="settings" id="boardInvite">
+            <p class="note" id="boardInviteText">Connecte-toi pour voir le classement et y figurer.</p>
+            <div class="btnrow">
+              <button class="ghost" id="boardAccountBtn" data-i18n="board.toAccount">Se connecter</button>
+            </div>
+          </div>
+          <div class="settings" id="boardPseudo" hidden>
+            <p class="note" data-i18n="board.pickPseudo">
+              Choisis un pseudo dans Compte pour apparaître au classement.
+            </p>
+            <div class="btnrow">
+              <button class="ghost" id="boardPseudoBtn" data-i18n="board.toPseudo">Choisir un pseudo</button>
+            </div>
+          </div>
+          <div class="settings" id="boardLive" hidden>
+            <div class="btnrow" id="boardTabs" role="group">
+              <button class="ghost" data-view="best" data-i18n="board.tab.best">Meilleure partie</button
+              ><button class="ghost" data-view="time" data-i18n="board.tab.time">Plus longue survie</button
+              ><button class="ghost" data-view="kills" data-i18n="board.tab.kills">Plus de kills</button>
+            </div>
+            <div class="btnrow" role="group">
+              <button class="ghost" id="boardAll" data-i18n="board.all">Tous les temps</button
+              ><button class="ghost" id="boardWeek" data-i18n="board.week">Cette semaine</button>
+            </div>
+            <p class="note" id="boardMsg"></p>
+            <ol class="board" id="boardList"></ol>
+            <p class="note" id="boardMine"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="account" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="account.title">Compte</h2>
+          <button class="btn-icon close" id="accountBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <div class="settings">
+          <p class="note" data-i18n="account.intro">
+            Un compte garde ta progression (record, or, boutique, succès) et la retrouve sur un autre appareil ; avec un
+            pseudo, tes meilleurs scores entrent au classement (visible des seuls joueurs connectés). Tes réglages
+            restent sur cet appareil. C'est facultatif : sans compte, tout reste ici.
+          </p>
+          <p class="note accstatus" id="accStatus"></p>
+          <div class="settings" id="accSignedOut" hidden>
+            <div class="btnrow">
+              <button class="ghost" id="accGoogleBtn" data-i18n="account.google">Continuer avec Google</button>
+            </div>
+            <p class="note" id="accIosHint" hidden data-i18n="account.iosHint">
+              Sur l'app installée, la fenêtre Google peut ne pas s'ouvrir : utilise l'e-mail et le mot de passe, ou
+              ouvre ruee-nocturne.web.app dans Safari.
+            </p>
+            <p class="note" data-i18n="account.or">ou avec un e-mail</p>
+            <form class="settings" id="accForm" novalidate>
+              <input
+                id="accEmail"
+                type="email"
+                autocomplete="email"
+                inputmode="email"
+                autocapitalize="off"
+                spellcheck="false"
+                placeholder="Adresse e-mail"
+                aria-label="Adresse e-mail"
+                data-i18n-attr="aria-label:account.email;placeholder:account.email"
+              />
+              <input
+                id="accPwd"
+                type="password"
+                autocomplete="current-password"
+                minlength="6"
+                placeholder="Mot de passe (6 caractères minimum)"
+                aria-label="Mot de passe (6 caractères minimum)"
+                data-i18n-attr="aria-label:account.password;placeholder:account.password"
+              />
+              <div class="btnrow">
+                <button class="ghost" id="accSignInBtn" type="submit" data-i18n="account.signIn">Se connecter</button
+                ><button class="ghost" id="accSignUpBtn" type="button" data-i18n="account.signUp">
+                  Créer un compte</button
+                ><button class="ghost" id="accForgotBtn" type="button" data-i18n="account.forgot">
+                  Mot de passe oublié
+                </button>
+              </div>
+            </form>
+          </div>
+          <div class="settings" id="accSignedIn" hidden>
+            <p class="note" id="accSync"></p>
+            <!-- phase 38 : pseudo du classement (synchronisé avec la progression) -->
+            <form class="settings" id="accPseudoForm" novalidate>
+              <label class="note" for="accPseudo" data-i18n="account.pseudo.label">Pseudo au classement</label>
+              <div class="btnrow">
+                <input
+                  id="accPseudo"
+                  type="text"
+                  maxlength="16"
+                  autocomplete="nickname"
+                  spellcheck="false"
+                  placeholder="2 à 16 lettres ou chiffres"
+                  data-i18n-attr="placeholder:account.pseudo.placeholder"
+                /><button class="ghost" id="accPseudoBtn" type="submit" data-i18n="account.pseudo.save">
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+            <div class="btnrow">
+              <button class="ghost" id="accSignOutBtn" data-i18n="account.signOut">Se déconnecter</button
+              ><button class="ghost" id="accDeleteBtn" data-i18n="account.delete">
+                Supprimer mon compte et ses données
+              </button>
+            </div>
+            <input
+              id="accDeletePwd"
+              type="password"
+              autocomplete="current-password"
+              hidden
+              placeholder="Confirme ton mot de passe pour supprimer le compte"
+              aria-label="Confirme ton mot de passe pour supprimer le compte"
+              data-i18n-attr="aria-label:account.deletePwd;placeholder:account.deletePwd"
+            />
+          </div>
+          <div class="settings" id="accChoice" hidden>
+            <p class="note" data-i18n="account.choice.text">
+              Cet appareil et ton compte ont chacun une progression. Laquelle garder ? L'autre sera remplacée.
+            </p>
+            <div class="btnrow">
+              <button class="ghost" id="accKeepLocal"></button><button class="ghost" id="accKeepCloud"></button>
+            </div>
+          </div>
+          <div class="btnrow" id="accRetryRow" hidden>
+            <button class="ghost" id="accRetryBtn" data-i18n="account.retry">Réessayer</button>
+          </div>
+          <p class="note" id="accMsg"></p>
+        </div>
       </div>
     </section>
 
     <div id="nogl" class="screen" hidden>
-      <p>WebGL n'est pas disponible sur cet appareil, le jeu ne peut pas démarrer.</p>
+      <p data-i18n="nogl.text">WebGL n'est pas disponible sur cet appareil, le jeu ne peut pas démarrer.</p>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

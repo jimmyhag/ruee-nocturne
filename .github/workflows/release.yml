@@ -1,0 +1,42 @@
+name: Release
+
+# Sur un tag v* : build, archive de dist/ et release GitHub avec les notes de la section correspondante du CHANGELOG.
+# Le tag se pose sur main après le merge de la PR de phase 5 (docs/GATES.md). Aucune action tierce : `gh` est préinstallé.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Archive du build
+        run: (cd dist && zip -qr "../swarmageddon-${GITHUB_REF_NAME}.zip" .)
+      - name: Notes de version depuis CHANGELOG.md
+        run: |
+          node -e '
+            const fs = require("fs");
+            const v = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+            const sections = fs.readFileSync("CHANGELOG.md", "utf8").split(/^## /m).slice(1);
+            const s = sections.find((x) => x.startsWith(v + " ") || x.startsWith("[" + v + "]"));
+            const body = s ? s.slice(s.indexOf("\n") + 1).trim() : "Voir CHANGELOG.md.";
+            fs.writeFileSync("notes.md", body + "\n\n---\n\nJouer : https://ruee-nocturne.web.app · Installable (PWA), hors ligne, FR/EN.\n");
+          '
+          head -c 1200 notes.md
+      - name: Release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "swarmageddon-${GITHUB_REF_NAME}.zip" \
+            --title "Swarmageddon $GITHUB_REF_NAME" --notes-file notes.md --verify-tag

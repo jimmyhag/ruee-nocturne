@@ -4,6 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = +(process.env.PW_PORT ?? 4173); // PW_PORT : autre port quand un preview tourne déjà (worktrees en parallèle)
 const CHROMIUM_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+// PW_CHROMIUM : binaire Chromium déjà présent (environnement sans `playwright install`) ; vide = celui de Playwright
+const LAUNCH = { args: CHROMIUM_ARGS, executablePath: process.env.PW_CHROMIUM || undefined };
 
 export default defineConfig({
   testDir: 'e2e',
@@ -16,6 +18,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL: `http://localhost:${PORT}`,
+    locale: 'fr-FR', // les specs lisent des libellés français ; e2e/lang.spec.ts teste l'anglais avec son propre profil
     trace: 'retain-on-failure',
     video: 'off',
   },
@@ -32,7 +35,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1280, height: 720 },
-        launchOptions: { args: CHROMIUM_ARGS },
+        launchOptions: LAUNCH,
       },
     },
     {
@@ -41,7 +44,7 @@ export default defineConfig({
         ...devices['iPhone 13'],
         browserName: 'chromium', // le profil iPhone cible WebKit par défaut ; on reste sur Chromium
         hasTouch: true,
-        launchOptions: { args: CHROMIUM_ARGS },
+        launchOptions: LAUNCH,
       },
     },
   ],

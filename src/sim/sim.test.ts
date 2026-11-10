@@ -22,9 +22,9 @@ function snapshot(w: World): string {
 }
 
 function scriptedInput(frame: number): Input {
-  // tourne en cercle, saute toutes les 3 s, dash toutes les 5 s, prend toujours la carte 1
+  // tourne en cercle, saute toutes les 3 s, lance son sort toutes les 5 s, prend toujours la carte 1
   const a = frame / 90;
-  return { mx: Math.cos(a), mz: Math.sin(a), jump: frame % 180 === 0, dash: frame % 300 === 0, pick: 1 };
+  return { mx: Math.cos(a), mz: Math.sin(a), jump: frame % 180 === 0, spell: frame % 300 === 0, pick: 1 };
 }
 
 describe('déterminisme', () => {
@@ -67,29 +67,33 @@ describe('rng', () => {
 
 describe('progression', () => {
   it('courbe needFor', () => {
-    expect(XP.needFor(1)).toBe(9);
-    expect(XP.needFor(5)).toBe(40);
-    expect(XP.needFor(10)).toBe(105);
-    expect(XP.needFor(20)).toBe(325);
+    // phase 12 : courbe aplatie (≈ 3× plus de cartes) : 5 + 2·lv + 0,15·lv² ; phase 17 : ×0,45 (les coffres donnent des objets)
+    expect(XP.needFor(1)).toBe(3);
+    expect(XP.needFor(5)).toBe(8);
+    expect(XP.needFor(10)).toBe(18);
+    expect(XP.needFor(20)).toBe(47);
   });
   it('tirage : jamais 3 passifs quand on a < 2 armes, 3 cartes distinctes', () => {
-    for (let s = 0; s < 300; s++) {
+    // 300 tirages sur 30 mondes : construire un monde (carte, relief) coûte cher sous couverture, pas le tirage
+    for (let s = 0; s < 30; s++) {
       const w = new World(s);
-      rollChoices(w);
-      expect(w.cards.length).toBe(3);
-      expect(w.cards.some((c) => c.kind === 'w')).toBe(true);
-      const keys = new Set(w.cards.map((c) => c.key));
-      expect(keys.size).toBe(3);
+      for (let k = 0; k < 10; k++) {
+        rollChoices(w);
+        expect(w.cards.length).toBe(3);
+        expect(w.cards.some((c) => c.kind === 'w')).toBe(true);
+        const keys = new Set(w.cards.map((c) => c.key));
+        expect(keys.size).toBe(3);
+      }
     }
   });
   it('le joueur monte de niveau et le mode passe en LevelUp puis revient en Play', () => {
     const w = new World(7);
     startRun(w);
     w.player.xp = 100; // force
-    step(w, { mx: 0, mz: 0, jump: false, dash: false, pick: -1 }, STEP);
+    step(w, { mx: 0, mz: 0, jump: false, spell: false, pick: -1 }, STEP);
     expect(w.mode).toBe(Mode.LevelUp);
     expect(w.cards.length).toBe(3);
-    step(w, { mx: 0, mz: 0, jump: false, dash: false, pick: 0 }, STEP);
+    step(w, { mx: 0, mz: 0, jump: false, spell: false, pick: 0 }, STEP);
     expect([Mode.Play, Mode.LevelUp]).toContain(w.mode);
   });
 });
@@ -98,7 +102,7 @@ describe('combat', () => {
   it('un bot immobile tue quelques ennemis puis meurt', () => {
     const w = new World(99);
     startRun(w);
-    const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+    const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
     for (let f = 0; f < 7200 && w.mode !== Mode.Dead; f++) step(w, still, STEP);
     expect(w.kills).toBeGreaterThan(0);
     expect(w.mode).toBe(Mode.Dead); // immobile, on meurt
@@ -131,6 +135,7 @@ describe('frontière sim/render', () => {
     for (const f of files) {
       const src = readFileSync(f, 'utf8');
       expect(src, f).not.toMatch(/from ['"]three/);
+      expect(src, f).not.toMatch(/from ['"]\.\.?\/.*i18n/); // les textes vivent côté UI (src/ui/cards.ts)
       expect(src, f).not.toMatch(/\b(document|window|navigator|performance)\./);
       expect(src, f).not.toMatch(/Math\.random\(/);
     }

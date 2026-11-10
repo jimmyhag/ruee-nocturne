@@ -1,4 +1,10 @@
-// Cibles d'équilibrage (survivor-design §9) pour le bot « average ».
+// Cibles d'équilibrage (survivor-design §9) pour le bot « average », en deux profils (phase 17) :
+// « naked » = emplacements de départ (1 arme, 2 tomes), « maxed » = tous les emplacements débloqués.
+// La boutique par personnage n'existe plus : la puissance d'un run vient des objets (coffres, marchand) et des synergies.
+import { SLOTS } from '../src/sim/balance';
+
+/** Prix de référence de l'économie : le 2e emplacement d'arme, premier achat d'un nouveau joueur. */
+export const REF_PRICE = SLOTS.find((s) => s.kind === 'weapon' && s.n === 2)?.price ?? 300;
 export interface Target {
   name: string;
   min: number;
@@ -6,31 +12,112 @@ export interface Target {
   get: (s: any) => number;
   fmt?: (v: number) => string;
 }
-const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-export const TARGETS: Target[] = [
-  { name: 'survie p50 9–13 min', min: 540, max: 780, get: (s) => s.survival.p50, fmt: mmss },
-  { name: 'fin atteinte 8–15 %', min: 8, max: 15, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+const economy: Target = {
+  name: 'or gardé p50 ≥ 0,5 emplacement n°2', // après les achats au marchand : l'emplacement n°2 (300) en ≤ 2 runs
+  min: 0.5,
+  max: 1e9,
+  get: (s) => s.goldP50 / REF_PRICE,
+  fmt: (v) => '×' + v.toFixed(1),
+};
+export const NAKED: Target[] = [
+  // phase 37 : trois mondes. Le profil nu meurt surtout dans le monde 1 ; un kit de départ qui en sort concentre tout sur
+  // une arme et va loin (mesuré : 36 % de victoires) ; le boss final (phase suivante) fermera la fin du monde 3
+  { name: 'monde 2 atteint ≤ 55 %', min: 0, max: 55, get: (s) => s.stage2Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 43 : ≤ 40 % → ≤ 30 % (33 % avant la phase : trop facile une fois sorti du monde 1 ; mesuré 24 %). Pas de
+  // borne basse : les autres personnages gagnent moins souvent que l'Éclaireuse avec leur kit de départ
+  { name: 'victoire ≤ 30 %', min: 0, max: 30, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'passent 3 min ≥ 40 %', min: 40, max: 100, get: (s) => s.aliveCurve[2], fmt: (v) => v + ' %' }, // l'arme n°2 (succès « Première nuit ») reste atteignable
+  economy,
+  // phase 18 : difficulté lisse, pas de falaise (au plus 22 points perdus en une minute) ; on ouvre des coffres de carte
+  { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' },
+  { name: 'coffres de carte ≥ 1 / run', min: 1, max: 1e9, get: (s) => s.mapChestsPerRun, fmt: (v) => v.toFixed(1) },
+  // phase 19 : le sort de classe sert sans remplacer l'arme (au plus 30 % des kills). 0,75 lancer par minute et non 1 :
+  // le bot garde le Bond (esquive) pour le contact (≥ 3 ennemis à 2 u), un joueur le lance plus souvent ; mesuré 0,95
+  { name: 'sort ≥ 0,3 / min', min: 0.3, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
+  { name: 'sort ≤ 30 % des kills', min: 0, max: 30, get: (s) => s.spellKillPct, fmt: (v) => v + ' %' },
+];
+export const MAXED: Target[] = [
+  // phase 17 : 13–16 → 10–13 min et fin 3–12 → 1–12 % : la boutique (≈ +24 PV, dégâts ×1,17, recharge ×0,92, réanimation)
+  // n'existe plus ; un kit complet ne gagne plus que par ses synergies. Mesuré sans rien changer d'autre : 5:45.
+  // phase 37 : trois mondes (bot : totem à 6:00). Le kit complet sort presque toujours du monde 1 ; quatre armes
+  // éparpillent les dégâts et peinent contre les boss et les Brutes du monde 3 (mesuré : 86 / 46 / 10 %)
+  { name: 'monde 2 atteint ≥ 75 %', min: 75, max: 100, get: (s) => s.stage2Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'monde 3 atteint ≥ 35 %', min: 35, max: 100, get: (s) => s.stage3Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 43 : 3–20 % → 5–28 % (34 % avant la phase, 19 % après ; le kit complet reste au niveau du kit de départ)
+  { name: 'victoire 5–28 %', min: 5, max: 28, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  {
+    // phase 43 : ≤ 20 → ≤ 25 %. Les boss du totem sont plus solides (BOSS.hpMul) : le kit complet, aux dégâts répartis,
+    // perd plus souvent contre le chrono (15 → 21 %). C'est sa façon prévue de perdre, pas une falaise
+    name: 'morts en prolongation ≤ 25 %',
+    min: 0,
+    max: 25,
+    get: (s) => s.overDeathPct,
+    fmt: (v) => v.toFixed(0) + ' %',
+  },
   { name: 'morts <3 min < 10 %', min: 0, max: 10, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
-  { name: 'kills@10 900–1500', min: 900, max: 1500, get: (s) => s.killsAt10p50 },
-  { name: 'niveau@10 16–20', min: 16, max: 20, get: (s) => s.levelAt10p50 },
+  { name: 'kills@10 900–1600', min: 900, max: 1600, get: (s) => s.killsAt10p50 }, // phase 8 : spawn plus dense après 7:00
+  // phase 17 : 24–32 → 32–42, les coffres ne donnent plus de cartes, les niveaux les portent toutes (XP ×0,45)
+  { name: 'niveau@10 32–42', min: 32, max: 42, get: (s) => s.levelAt10p50 },
+  // phase 17 : 15–30 → 8–30, quatre armes se partagent les cartes (le kit de départ, lui, en met ≈ 22 sur la sienne)
+  { name: 'arme principale@10 niv 8–30', min: 8, max: 30, get: (s) => s.weaponLvAt10p50 },
   {
     name: 'pick min ≥ 8 %',
     min: 8,
     max: 100,
-    get: (s) => Math.min(...Object.values<number>(s.pickPct)),
+    get: (s) => (Object.keys(s.pickPct).length ? Math.min(...Object.values<number>(s.pickPct)) : 100), // --weapons à une arme : rien à mesurer
     fmt: (v) => v + ' %',
   },
   {
-    name: 'pick max ≤ 35 %… hors arme de départ',
+    name: 'pick max ≤ 35 % (hors arme de départ)',
     min: 0,
-    max: 100,
-    get: (s) =>
-      Math.max(
-        ...Object.entries<number>(s.pickPct)
-          .filter(([k]) => k !== 'orbe')
-          .map(([, v]) => v),
-      ),
+    max: 35,
+    get: (s) => (Object.keys(s.pickPct).length ? Math.max(...Object.values<number>(s.pickPct)) : 0),
     fmt: (v) => v + ' %',
+  },
+  { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' }, // phase 18
+  { name: 'coffres de carte ≥ 3 / run', min: 3, max: 1e9, get: (s) => s.mapChestsPerRun, fmt: (v) => v.toFixed(1) },
+  // phase 19 : le sort de classe sert sans remplacer l'arme (au plus 30 % des kills). 0,75 lancer par minute et non 1 :
+  // le bot garde le Bond (esquive) pour le contact (≥ 3 ennemis à 2 u), un joueur le lance plus souvent ; mesuré 0,95
+  { name: 'sort ≥ 0,45 / min', min: 0.45, max: 1e9, get: (s) => s.spellPerMin, fmt: (v) => v.toFixed(1) },
+  { name: 'sort ≤ 30 % des kills', min: 0, max: 30, get: (s) => s.spellKillPct, fmt: (v) => v + ' %' },
+  // phase 18 : l'or sert en partie (7 % avant la phase) ; 25 % et non 35 : le bot ne fait que de courts détours (28 u),
+  // un joueur qui suit les colonnes de lumière ouvre davantage de coffres
+  { name: 'or dépensé ≥ 25 %', min: 25, max: 100, get: (s) => s.goldSpentPct, fmt: (v) => v + ' %' },
+  {
+    name: 'synergie ≥ 50 % des runs', // phase 17 : la synergie est un objectif de build atteignable
+    min: 50,
+    max: 100,
+    get: (s) => s.synergyRunPct,
+    fmt: (v) => v.toFixed(0) + ' %',
+  },
+  {
+    name: 'variance kills inter-builds < 3×',
+    min: 0,
+    max: 3,
+    get: (s) => s.killsVarianceRatio ?? 1,
+    fmt: (v) => '×' + v.toFixed(1),
+  },
+];
+export const PROFILES = { naked: NAKED, maxed: MAXED };
+const mmss = (v: number) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
+// phase 43 (grand rééquilibrage, demande de Jimmy) : monde infini, mesuré sur les parties gagnées qui continuent
+// (--endless). Avant : tenu p50 7:39, p90 17:51, 24 % des parties passaient 6 vagues ; un joueur va environ deux fois plus
+// loin que le bot : 20 minutes restent possibles, mais c'est un exploit
+export const ENDLESS_TARGETS: Target[] = [
+  // le kit concentré sur une arme (profil nu) est le plus fort en monde infini (4:34) ; les kits à plusieurs armes
+  // tiennent environ 3 min, d'où la borne basse
+  { name: 'infini tenu p50 2:30–6 min', min: 150, max: 360, get: (s) => s.endless.p50, fmt: mmss },
+  { name: 'infini tenu p90 ≤ 12 min', min: 0, max: 720, get: (s) => s.endless.p90, fmt: mmss },
+  { name: 'infini ≥ 6 vagues ≤ 5 %', min: 0, max: 5, get: (s) => s.endless.wave6Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  // un combat de boss dure 45 à 90 s pour un kit complet (survivor-design §7 ; mesuré 50 s) ; le kit concentré du profil
+  // nu les tue plus vite (36 s ; 31 s avant la phase 43), d'où la borne basse
+  {
+    name: 'boss du totem en vie p50 35–75 s',
+    min: 35,
+    max: 75,
+    get: (s) => s.bossLifeP50.totem,
+    fmt: (v) => v.toFixed(0) + ' s',
   },
 ];
 export function checkTargets(summary: any, targets: Target[]) {

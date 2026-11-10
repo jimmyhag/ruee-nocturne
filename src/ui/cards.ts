@@ -1,0 +1,193 @@
+// Libellés du contenu (armes, tomes, lignes de stats, ennemis, personnages, boutique, succès) : la sim ne porte que
+// des clés (PLAN.md §4.2), les textes vivent ici, dans les deux langues. Aucun DOM : testable sous Vitest.
+import type { Achievement } from '../meta/achievements';
+import { BOON, CHARACTERS, CHOICE, ENEMIES, SYNERGIES, TOMES, WEAPON_LINES } from '../sim/balance';
+import type { StatLine } from '../sim/balance';
+import type { BoonKey, Card, CharacterKey, ItemKey, SpellKey, TomeKey, WeaponKey } from '../sim/types';
+import type { World } from '../sim/world';
+import { weaponStats } from '../sim/weapons/defs';
+import { fmtNum, fmtTime, t } from '../i18n';
+
+export const weaponName = (k: WeaponKey): string => t(`weapon.${k}.name`);
+export const tomeName = (k: TomeKey): string => t(`tome.${k}.name`);
+export const tomeText = (k: TomeKey): string => t(`tome.${k}.text`);
+export const characterName = (k: CharacterKey): string => t(`char.${k}.name`);
+export const characterText = (k: CharacterKey): string => t(`char.${k}.text`);
+/** Passif signature du personnage (phase 6) : nom et règle ; chaîne vide pour l'Éclaireuse. */
+export const characterTrait = (k: CharacterKey): string => (k === 'eclaireuse' ? '' : t(`char.${k}.trait`));
+/** Nom d'un ennemi par son type (index dans ENEMIES). */
+export const enemyName = (type: number): string => t(`enemy.${ENEMIES[type].key}`);
+/** Objets passifs (phase 17) : nom, règle, glyphe et couleur (par rareté). */
+/** Bonus de sanctuaire (phase 18) : nom et effet chiffré (BOON). */
+export const boonName = (k: BoonKey): string => t(`boon.${k}.name`);
+export const boonText = (k: BoonKey): string => {
+  const v = BOON[k];
+  return t(`boon.${k}.text`, { v: k === 'hp' ? String(v) : fmtNum(Math.round(v * 100)) });
+};
+export const BOON_GLYPH: Record<BoonKey, string> = {
+  hp: '♥',
+  dmg: '⚔',
+  speed: '»',
+  cd: '↻',
+  magnet: '◎',
+  gold: '◉',
+  spell: '✧',
+};
+// phase 19 : sorts de classe
+export const spellName = (k: SpellKey): string => t(`spell.${k}.name`);
+export const spellText = (k: SpellKey): string => t(`spell.${k}.text`);
+export const SPELL_GLYPH: Record<SpellKey, string> = {
+  bond: '»',
+  tourbillon: '✣',
+  clignement: 'ϟ',
+  eclat: '✺',
+  collet: '#',
+  petard: '✸',
+  comete: '☄',
+  voile: '☾',
+  bourse: '¤',
+};
+export const itemName = (k: ItemKey): string => t(`item.${k}.name`);
+export const itemText = (k: ItemKey): string => t(`item.${k}.text`);
+export const ITEM_GLYPH: Record<ItemKey, string> = {
+  phenix: '❋',
+  cape: '☾',
+  lanterne: '✺',
+  coeur: '♥',
+  talisman: 'ϟ',
+  sablier: '⧗',
+  epines: '✶',
+  bottes: '⇡',
+  oeil: '◉',
+  aimant: '❂',
+  fer: '∩',
+  bourse: '¤',
+  rune: 'ᚱ', // phase 22
+  collier: '☠',
+  patins: '⛸', // phase 28
+  echarpe: '≋',
+  plume: '❦',
+  boussole: '✧',
+  bouclier: '⛨',
+  corne: '♫',
+  croc: '▾', // phase 31
+  calice: '♆',
+  mousse: '♣',
+  souffle: '❥',
+  pierre: '◆',
+  de: '⚄',
+  gant: '✊',
+  brume: '◈',
+  sandales: '⇢',
+  amulette: '✪',
+  ecorce: '▣',
+  couronne: '♛',
+};
+export const RARITY_COLOR = ['#9aa4c2', '#5fd3ff', '#ffd166'];
+export const synergyName = (i: number): string => t(`syn.${SYNERGIES[i].key}.name`);
+export const synergyText = (i: number): string => t(`syn.${SYNERGIES[i].key}.text`);
+const TIER = ['I', 'II', 'III'];
+/** Phase 41 : un défi par personnage s'appelle « Bûcheron II » ; son texte vient d'un gabarit (chal.<kind>). */
+export const achName = (a: Achievement): string =>
+  a.char ? t('chal.name', { char: characterName(a.char), tier: TIER[(a.tier ?? 1) - 1] }) : t(`ach.${a.id}.name`);
+/** Le texte « Vaincs 2 000 ennemis » prend l'objectif en paramètre quand il est grand (format du nombre). */
+export const achText = (a: Achievement): string =>
+  a.char
+    ? t(`chal.${a.kind}`, {
+        n: a.goal,
+        weapon: weaponName(CHARACTERS.find((c) => c.key === a.char)?.weapon ?? 'orbe'),
+        time: fmtTime(a.goal),
+      })
+    : t(`ach.${a.id}.text`, { n: a.goal });
+/** Ce que le succès débloque ; phase 40 : une arme ou un objet devient achetable dans la Bibliothèque. */
+export const achUnlock = (a: Achievement): string =>
+  a.unlocks?.item
+    ? t('lib.toBuy', { what: itemName(a.unlocks.item) })
+    : a.unlocks?.weapon
+      ? t('lib.toBuy', { what: weaponName(a.unlocks.weapon) })
+      : a.unlocks?.gold
+        ? t('gold', { n: a.unlocks.gold }) // phase 41 : récompense en or
+        : a.unlocks?.outfit
+          ? t('chal.outfit')
+          : t(`ach.${a.id}.unlock`);
+
+/** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
+const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop']);
+/** Lignes en valeur absolue bien que < 1 (PV/s, points de chance). */
+const ABSOLUTE = new Set(['regen', 'luck', 'killheal']);
+/** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */
+function lineValue(l: StatLine, kind: 'w' | 't'): string {
+  const sign = l.step > 0 !== (kind === 't' && REDUCES.has(l.stat)) ? '+' : '−';
+  if (l.kind === 'pct' || (l.kind === 'add' && Math.abs(l.step) < 1 && !ABSOLUTE.has(l.stat))) {
+    return `${sign}${Math.round(Math.abs(l.step) * 100)} %`;
+  }
+  return `${sign}${fmtNum(Math.abs(l.step))}`;
+}
+/** Texte d'une ligne de stat (arme : `line.w.<stat>`, tome : `line.t.<stat>`), ex. « +7 % dégâts », « +1 projectile ». */
+export function lineText(kind: 'w' | 't', l: StatLine): string {
+  return t(`line.${kind}.${l.label ?? l.stat}`, { v: lineValue(l, kind) });
+}
+/** Les lignes d'une carte, dans l'ordre (vide pour un soin). */
+export function cardLines(c: Card): string[] {
+  const out: string[] = [];
+  if (c.kind === 'heal') return out;
+  if (c.kind === 'i') return [itemText(c.key as ItemKey)];
+  if (c.kind === 'b') return [boonText(c.key as BoonKey)];
+  const lines = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey] : TOMES[c.key as TomeKey];
+  for (const s of [c.s0, c.s1, c.s2]) if (s >= 0) out.push(lineText(c.kind, lines[s]));
+  return out;
+}
+export function cardTitle(c: Card): string {
+  if (c.kind === 'w') return weaponName(c.key as WeaponKey);
+  if (c.kind === 't') return tomeName(c.key as TomeKey);
+  if (c.kind === 'i') return itemName(c.key as ItemKey);
+  if (c.kind === 'b') return boonName(c.key as BoonKey);
+  return t('card.heal');
+}
+/** Corps d'une carte : les lignes séparées par « · » (nouvelle arme ou nouveau tome : sa règle d'abord). */
+export function cardText(c: Card): string {
+  if (c.kind === 'heal') return t('card.healText', { n: fmtNum(Math.round(CHOICE.healFrac * 100)) }); // phase 43 : soin partiel
+  if (c.kind === 'i') return itemText(c.key as ItemKey);
+  if (c.kind === 'b') return boonText(c.key as BoonKey);
+  const lines = cardLines(c).join(' · ');
+  const rule = c.kind === 'w' ? t(`weapon.${c.key}.text`) : tomeText(c.key as TomeKey);
+  if (c.lv === 1) return lines ? `${rule} — ${lines}` : rule; // phase 33 : une nouvelle arme n'a que sa règle
+  return lines;
+}
+/** Nom de la rareté d'une carte (1 ligne : commune, 2 : rare, 3 : épique). */
+export const rarityName = (n: number): string => t(`card.rarity.${Math.max(1, Math.min(3, n))}`);
+
+/** Résumé des stats courantes d'une arme possédée (inventaire, écran de mort) : gabarit paramétré par ses stats. */
+export function weaponSummary(w: World, k: WeaponKey): string {
+  const s = weaponStats(w, k);
+  switch (k) {
+    case 'orbe':
+      return t('weapon.orbe.stats', { n: s.n, dmg: Math.round(s.dmg), pierce: s.pierce });
+    case 'aura':
+      return t('weapon.aura.stats', { r: +s.r.toFixed(1), dmg: Math.round(s.dmg) });
+    case 'lames':
+      return t('weapon.lames.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+    case 'foudre':
+      return t('weapon.foudre.stats', { n: s.chain + 1, dmg: Math.round(s.dmg) });
+    case 'boomerang':
+      return t('weapon.boomerang.stats', { n: s.n, range: Math.round(s.range), dmg: Math.round(s.dmg) });
+    case 'mines':
+      return t('weapon.mines.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+    case 'faux':
+      return t('weapon.faux.stats', {
+        deg: Math.round(Math.min(360, s.arc)),
+        dmg: Math.round(s.dmg),
+        r: +s.r.toFixed(1),
+      });
+    case 'lance':
+      return t('weapon.lance.stats', { n: s.n, dmg: Math.round(s.dmg) });
+    case 'meteores':
+      return t('weapon.meteores.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+  }
+}
+
+/** Valeur d'un succès (temps ou compteur) dans la langue courante. */
+export const achValue = (a: Achievement, v: number): string => (a.time ? fmtTime(v) : fmtNum(v));
+
+/** Personnage par clé (cartes du menu). */
+export const characterDef = (k: CharacterKey) => CHARACTERS.find((c) => c.key === k);

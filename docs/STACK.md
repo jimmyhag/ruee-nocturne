@@ -1,19 +1,22 @@
 # Stack et état de la base (v0.1 + phase 0, 2 nov. 2026)
 
-| Composant        | Version | Note                                                                                                              |
-| ---------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
-| Node             | 22      | CI et déploiement (Vite 8 exige ≥ 22.12) ; Node 25 en local fonctionne avec un avertissement `EBADENGINE`         |
-| Vite             | 8.3     | `SINGLE=1` → build en un fichier (artifact / test rapide), sans PWA                                               |
-| TypeScript       | 6.0     | strict, `noUnusedLocals`. TS 7 (port natif) n'expose pas l'API JS requise par typescript-eslint : voir GATES.md   |
-| Three.js         | 0.187.0 | `InstancedMesh.setColorAt` alloue sur la capacité (plus de piège r128) ; `three.core.js` séparé                   |
-| Vitest           | 5.1     | sim uniquement, couverture v8 sur `src/sim/` avec seuil 80 % (branches 70 %)                                      |
-| Playwright       | 1.64    | Chromium SwiftShader, projets `desktop` 1280×720 et `mobile` iPhone 13 tactile, sert le build de prod (`preview`) |
-| ESLint           | 10      | flat config, `typescript-eslint` recommended, `eslint-config-prettier`                                            |
-| Prettier         | 3.9     | `singleQuote`, `printWidth` 120, LF. Les docs de Jimmy et les skills ne sont pas reformatés (`.prettierignore`)   |
-| vite-plugin-pwa  | 2.0     | `generateSW`, `registerType: 'prompt'`, manifest complet, polices Google en CacheFirst                            |
-| simple-git-hooks | 2.14    | pre-commit : `lint` + `typecheck` + `test`                                                                        |
-| tsx              | 4       | CLI sim, bench, génération d'icônes                                                                               |
-| idb-keyval       | 6.2     | sauvegarde méta, repli localStorage                                                                               |
+| Composant        | Version | Note                                                                                                                                    |
+| ---------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Node             | 22      | CI et déploiement (Vite 8 exige ≥ 22.12) ; Node 25 en local fonctionne avec un avertissement `EBADENGINE`                               |
+| Vite             | 8.3     | `SINGLE=1` → build en un fichier (artifact / test rapide), sans PWA                                                                     |
+| TypeScript       | 6.0     | strict, `noUnusedLocals`. TS 7 (port natif) n'expose pas l'API JS requise par typescript-eslint : voir GATES.md                         |
+| Three.js         | 0.187.0 | `InstancedMesh.setColorAt` alloue sur la capacité (plus de piège r128) ; `three.core.js` séparé                                         |
+| Vitest           | 5.1     | sim uniquement, couverture v8 sur `src/sim/` avec seuil 80 % (branches 70 %)                                                            |
+| Playwright       | 1.64    | Chromium SwiftShader, projets `desktop` 1280×720 et `mobile` iPhone 13 tactile, sert le build de prod (`preview`)                       |
+| ESLint           | 10      | flat config, `typescript-eslint` recommended, `eslint-config-prettier`                                                                  |
+| Prettier         | 3.9     | `singleQuote`, `printWidth` 120, LF. Les docs de Jimmy et les skills ne sont pas reformatés (`.prettierignore`)                         |
+| vite-plugin-pwa  | 2.0     | `generateSW`, `registerType: 'prompt'`, manifest complet, polices Google en CacheFirst                                                  |
+| simple-git-hooks | 2.14    | pre-commit : `lint` + `typecheck` + `test`                                                                                              |
+| tsx              | 4       | CLI sim, bench, génération d'icônes                                                                                                     |
+| idb-keyval       | 6.2     | sauvegarde méta, repli localStorage                                                                                                     |
+| firebase         | 13.2    | phase 13 : `firebase/app`, `firebase/auth`, `firebase/firestore/lite`, dans le seul chunk `account-*.js` chargé à la demande (65 ko gz) |
+| @gltf-transform  | 4.5     | phase 20, dev uniquement : `npm run assets` (`tools/assets/build.ts`) produit `public/models/*.glb` et `src/render/models.json`         |
+| meshoptimizer    | 1.3     | phase 20, dev uniquement : encodeur meshopt ; le décodeur d'exécution vient de `three/examples` (aucune dépendance de prod)             |
 
 ## Ce qui est fait (phase 1 largement couverte, début de phase 2)
 
@@ -39,6 +42,26 @@
 ## Reste pour franchir les portes
 
 - Phase 0 : secret `FIREBASE_SERVICE_ACCOUNT` + variable `FIREBASE_PROJECT_ID` sur GitHub, CI verte, test d'installation Android/iOS par Jimmy (voir `docs/GATES.md`).
-- Phase 1 : franchie (60 fps à 400 ennemis sur le téléphone de Jimmy, 2 nov. 2026). Suivis : vitesse de la sim 40 runs/min sous charge (61 runs/min sur machine libre, revue perf : cible 50 tenue), cible « pick max » de `tools/targets.ts` inopérante (`max: 100`). Le hit-stop continu a été borné en phase 2.
+- Phase 1 : franchie (60 fps à 400 ennemis sur le téléphone de Jimmy, 2 nov. 2026). Suivis : vitesse de la sim 40 runs/min sous charge (61 runs/min sur machine libre, revue perf : cible 50 tenue). La cible « pick max » de `tools/targets.ts` (`max: 100`, inopérante) a été corrigée depuis (`max: 35`) et le hit-stop continu borné en phase 2.
 - Phase 2 : franchie (checklist game-feel 11/11, PR #5, puis correctifs iPhone #6 à #8 : squash & stretch retiré, taille du rendu vérifiée à chaque frame, musique procédurale retirée). Musique réelle reportée en phase 5.
 - Phase 3 : Boomerang, Mines, évolutions, Volant, Cracheur, élites, coffres, 3 boss, zones de terrain, équilibrage aux cibles (survie p50 9–13 min, fin de run 8–15 %).
+
+## Phase 5 (3 nov. 2026)
+
+- `src/i18n/` : `fr.json` / `en.json` à clés plates, `t()` (pluriel `_one`/`_other`, `{x}`, nombres par `Intl`), réglage `settings.lang`. La sim ne porte aucun texte ; `src/ui/cards.ts` fait le pont (clés → libellés).
+- Rendu en chunk séparé (`import('./render/scene')`, `modulepreload` injecté par `vite.config.ts`), évalué à la première interaction ; `GameScene.warmup()` = `compileAsync`. `__game.scene` peut être `null` avant.
+- Polices auto-hébergées (`public/fonts/`), plus aucune origine externe. `a-propos/index.html` : seconde entrée Vite, page statique bilingue.
+- Mesure Lighthouse : `npm run lh` (`tools/lighthouse.mjs` + `tools/lh-median.mjs`), bloquante en CI. Playwright : `PW_CHROMIUM=<binaire>` pour un Chromium déjà installé (ici `/opt/pw-browsers/chromium`), `PW_PORT` pour le port.
+
+## Phase 20 (5 nov. 2026)
+
+- Modèles KayKit (CC0) : `props.glb` (316 ko, 206 ko gzip). Phase 25 : 9 fichiers de héros Quaternius HD (CC0, 550 à 640 ko ; ≈ 9 000 triangles, atlas JPEG 1024², clips UAL), 6,3 Mo en tout avec les ennemis. Un joueur ne télécharge que son héros et les objets (≈ 390 ko gzip) : pas de précache, `runtimeCaching` CacheFirst sur `/models/`.
+- `src/render/models.ts` : `GLTFLoader` + `MeshoptDecoder` (three/examples), cache par fichier, nouvel essai après un échec. `loadProps()` déquantifie (`toFloat`) avant de cuire les transformations, sinon `applyMatrix4` écrase les Int16 normalisés.
+- `src/render/heroes.ts` : `SkeletonUtils.clone`, parties skinnées fusionnées en une `SkinnedMesh` (quantification `scene` à l'export, indispensable), coque de contour à normales lissées, `HeroAnimator` (fond + ponctuels, zéro allocation).
+- Les modèles procéduraux restent le repli tant que rien n'est chargé (hors ligne à la première visite, réseau bloqué : test e2e).
+
+## Phase 21 (5 nov. 2026)
+
+- `public/models/enemies.glb` (621 ko, phase 26) : huit morts-vivants Quaternius (atlas 256² pour la masse, 512² pour les boss ; seuls les niveaux cuits), corps en trois niveaux de détail (hi ≈ 1 800, mid ≈ 330, lo ≈ 110 triangles), clips utiles. Simplification meshopt `simplifyWithAttributes` (mode Permissive) dans `tools/assets/build.ts`, sans dépendance nouvelle.
+- `src/render/enemyModels.ts` cuit les poses en morphs absolues au chargement ; `src/render/pose.ts` écrit les poids par instance ; three 0.187 : `InstancedMesh.morphTexture` (chunk `morphinstance_vertex`).
+- Budget mobile : 250 k triangles en rendu net, 150 k en pixel (PLAN §4.3).

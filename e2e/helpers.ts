@@ -3,9 +3,9 @@ import type { Page } from '@playwright/test';
 
 export const DEBUG_URL = '/?debug=1';
 
-/** Erreurs console à ignorer : polices Google indisponibles hors ligne (CI), ce n'est pas un bug. */
+/** Erreurs console à ignorer : réseau coupé par le test hors ligne (les polices sont auto-hébergées et précachées). */
 export function isIgnorableConsoleError(text: string): boolean {
-  return /fonts\.(googleapis|gstatic)\.com|ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED/i.test(text);
+  return /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED/i.test(text);
 }
 
 export function collectConsoleErrors(page: Page): string[] {
@@ -26,6 +26,13 @@ export async function openGame(page: Page): Promise<void> {
 export async function startRun(page: Page, variant = 1): Promise<void> {
   await page.evaluate((v) => (window as any).__game.start(v), variant);
   await page.waitForFunction(() => (window as any).__game.app === 'play');
+}
+
+/** Phase 14 : la grille des personnages vit dans la feuille « Personnage » ; on l'ouvre avant d'y cliquer. */
+export async function openCharacters(page: Page): Promise<void> {
+  if (await page.locator('#characters').isVisible()) return;
+  await page.locator('#charsBtn').click();
+  await page.locator('#characters').waitFor({ state: 'visible' });
 }
 
 export async function appMode(page: Page): Promise<string> {

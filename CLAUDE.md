@@ -1,4 +1,4 @@
-# Ruée Nocturne — instructions pour Claude Code
+# Swarmageddon (ex-Ruée Nocturne) — instructions pour Claude Code
 
 Survivor 3D en PWA (téléphone + PC). Source de vérité : `PLAN.md`. Avancement des phases : `docs/GATES.md`.
 Langue du projet : **français** (commits, commentaires, docs, UI par défaut). Code en anglais (identifiants).
@@ -31,7 +31,7 @@ npm run shot         # captures Playwright dans shots/ (desktop 1280×720, mobil
 5. **Pas de dépendance ajoutée sans justification** dans la PR (taille gz, alternative native évaluée). Pas de framework UI.
 6. **Three.js épinglé** : vérifier l'API de la version installée dans `node_modules/three/` avant d'utiliser une méthode. Version actuelle : 0.187 (`docs/STACK.md`). On garde le schéma « allouer les couleurs à pleine capacité puis `count = 0` » (`src/render/instancing.ts`) : il est correct sur toutes les versions.
 7. **Ne jamais modifier `prototype/`** : c'est une référence historique, pas du code vivant.
-8. Aucune donnée utilisateur ne quitte l'appareil. Pas d'analytics sans décision explicite de Jimmy.
+8. Sans compte, aucune donnée utilisateur ne quitte l'appareil. Avec un compte (décision de Jimmy, phase 13), seule la progression (`PROGRESS_KEYS` de `src/meta/sync.ts`) est écrite dans Firestore `saves/{uid}` : jamais les réglages, jamais d'analytics sans décision explicite de Jimmy. Seul `src/platform/account.ts` importe `firebase`, chargé à la demande ; un joueur sans compte n'émet aucune requête (test e2e). Classement en ligne (décision de Jimmy, phase 38) : un joueur connecté qui a choisi un pseudo publie ses meilleurs scores (`scores/{uid}`, `weeks/{semaine}/scores/{uid}`, forme dans `src/meta/board.ts`), lisibles par les seuls joueurs connectés ; rien d'autre.
 
 ## Façon de travailler
 - **Une phase = une branche `phase/N-nom` = une PR vers `main`.** Avant de coder une phase : plan mode, lecture de la porte dans PLAN.md §5, découpage en tâches (TaskCreate).

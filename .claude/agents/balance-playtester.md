@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: inherit
 ---
 
-Tu es le playtesteur d'équilibrage de Ruée Nocturne. Tu ne joues pas : tu fais jouer des bots des centaines de fois et tu lis les chiffres.
+Tu es le playtesteur d'équilibrage de Swarmageddon. Tu ne joues pas : tu fais jouer des bots des centaines de fois et tu lis les chiffres.
 
 Lis `.claude/skills/survivor-design/SKILL.md` (§1–3 et §9) et `.claude/skills/sim-testing/SKILL.md` (§2–3). Puis :
 

@@ -1,16 +1,16 @@
 // Combat, gemmes, cartes et rng : cas limites non couverts par les runs complets.
 import { describe, expect, it } from 'vitest';
-import { BOSS_TYPE, ENEMIES, PLAYER, STEP, XP } from './balance';
+import { BOSS_TYPE, CHOICE, ENEMIES, PLAYER, STEP, TOME_KEYS, LEVEL_MAX, XP } from './balance';
 import { dropGem, hitEnemy, killEnemy } from './combat';
-import { applyCard, cardText, cardTitle, rollChoices } from './progression';
+import { applyCard, rollChoices } from './progression';
 import { Rng, hashString } from './rng';
 import { spawnEnemy } from './spawner';
 import { startRun, step } from './step';
 import { Ev, Mode } from './types';
-import type { Input } from './types';
+import type { Card, Input } from './types';
 import { World } from './world';
 
-const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 
 describe('combat', () => {
   it('hitEnemy applique dmgMul, flash, recul, et tue à 0 PV', () => {
@@ -32,6 +32,7 @@ describe('combat', () => {
     const w = new World(2);
     for (let k = 0; k < 5; k++) dropGem(w, k * 3, 0, 1);
     const i = spawnEnemy(w, BOSS_TYPE, 0, 10);
+    w.totemBossId = w.enemies[i].id; // boss du totem (phase 42 : un boss de survie ne soigne pas)
     hitEnemy(w, i, 1, 10, w.player.x, w.player.z);
     expect(w.enemies[i].kx).toBe(0);
     w.player.hp = 1;
@@ -43,6 +44,15 @@ describe('combat', () => {
     expect(w.player.hp).toBe(w.player.maxHp);
     for (let g = 0; g < w.gemCount; g++) expect(w.gems[g].mag).toBe(true);
     expect(w.gems[w.gemCount - 1].v).toBe(ENEMIES[BOSS_TYPE].xp);
+  });
+  it('phase 42 : un boss de survie ne soigne pas et laisse un coffre d’élite', () => {
+    const w = new World(2);
+    const i = spawnEnemy(w, BOSS_TYPE, 0, 10);
+    w.player.hp = 1;
+    killEnemy(w, i);
+    expect(w.player.hp).toBe(1);
+    expect(w.chestCount).toBe(1);
+    expect(w.chests[0].boss).toBe(false);
   });
   it('au-delà de gemMergeAbove, les gemmes fusionnent au lieu de s’ajouter', () => {
     const w = new World(3);
@@ -56,6 +66,7 @@ describe('combat', () => {
   });
   it('les gemmes dans le rayon d’aimant volent vers le joueur et donnent de l’XP', () => {
     const w = new World(4);
+    w.player.need = 1e9; // pas de montée de niveau (elle remettrait l'XP à zéro)
     dropGem(w, w.player.x + 2, w.player.z, 3);
     let picked = 0;
     for (let f = 0; f < 60 && picked === 0; f++) {
@@ -73,61 +84,66 @@ describe('combat', () => {
     const hp = w.player.hp;
     expect(hp).toBeLessThan(PLAYER.hp); // il a bien pris des dégâts au sol
     let steps = 0;
+    let airHp = hp;
     while (w.player.y >= PLAYER.airborneSafeY) {
       step(w, still, STEP);
       steps++;
+      if (w.player.y >= PLAYER.airborneSafeY) airHp = w.player.hp; // encore en l’air après ce pas
     }
     expect(steps).toBeGreaterThan(5);
-    expect(w.player.hp).toBeCloseTo(hp + w.player.regen * steps * STEP, 3); // en l’air : aucun dégât
+    // en l’air : aucun dégât (le dernier pas retombe sous la hauteur sûre : le contact y redevient possible)
+    expect(airHp).toBeCloseTo(hp + w.player.regen * (steps - 1) * STEP, 3);
   });
 });
 
 describe('cartes', () => {
-  it('applyCard : arme, passif, soin ; relance un tirage si plusieurs niveaux attendent', () => {
+  const card = (c: Partial<Card>): Card => ({ kind: 'w', key: 'orbe', lv: 1, n: 1, s0: 0, s1: -1, s2: -1, ...c });
+  it('applyCard : arme (lignes comptées), tome (effet appliqué), soin ; relance un tirage si plusieurs niveaux attendent', () => {
     const w = new World(6);
     w.cards = [
-      { kind: 'w', key: 'aura', lv: 1 },
-      { kind: 's', key: 'coeur', lv: 1 },
-      { kind: 'heal', key: '', lv: 0 },
+      card({ kind: 'w', key: 'aura', lv: 1, n: 2, s0: 0, s1: 1 }),
+      card({ kind: 't', key: 'vitalite', s0: 0 }),
+      card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 }),
     ];
     w.pending = 2;
     w.mode = Mode.LevelUp;
     applyCard(w, 0);
     expect(w.weapons.aura).toBe(1);
+    expect(w.wmods.aura[0]).toBe(1);
+    expect(w.wmods.aura[1]).toBe(1);
     expect(w.pending).toBe(1);
     expect(w.mode).toBe(Mode.LevelUp);
     expect(w.cards.length).toBe(3); // retirage
-    w.cards = [{ kind: 's', key: 'coeur', lv: 1 }];
+    w.cards = [card({ kind: 't', key: 'vitalite', s0: 0 })];
     applyCard(w, 0);
-    expect(w.passives.coeur).toBe(1);
-    expect(w.player.maxHp).toBe(125);
+    expect(w.tomes.vitalite).toBe(1);
+    expect(w.player.maxHp).toBe(112);
     expect(w.pending).toBe(0);
     expect(w.mode).toBe(Mode.Play);
     w.player.hp = 1;
-    w.cards = [{ kind: 'heal', key: '', lv: 0 }];
+    w.cards = [card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 })];
     w.pending = 1;
     applyCard(w, 0);
-    expect(w.player.hp).toBe(w.player.maxHp);
+    expect(w.player.hp).toBeCloseTo(1 + w.player.maxHp * CHOICE.healFrac, 9); // phase 43 : soin partiel
     applyCard(w, 9); // index invalide : ignoré
-  });
-  it('titres et textes pour chaque sorte de carte', () => {
-    expect(cardTitle({ kind: 'w', key: 'orbe', lv: 1 })).toBe('Orbe filante');
-    expect(cardText({ kind: 'w', key: 'foudre', lv: 2 })).toContain('ennemis');
-    expect(cardTitle({ kind: 's', key: 'force', lv: 1 })).toBe('Gants lourds');
-    expect(cardText({ kind: 's', key: 'force', lv: 1 })).toContain('%');
-    expect(cardTitle({ kind: 'heal', key: '', lv: 0 })).toBe('Soin complet');
-    expect(cardText({ kind: 'heal', key: '', lv: 0 })).toContain('PV');
+    // une carte à 3 lignes compte pour le succès « Triple ligne », le niveau d'arme pour « Érudit »
+    w.cards = [card({ kind: 'w', key: 'orbe', lv: 7, n: 3, s0: 0, s1: 0, s2: 3 })];
+    w.pending = 1;
+    applyCard(w, 0);
+    expect(w.triples).toBe(1);
+    expect(w.weaponLvBest).toBe(7);
+    expect(w.wmods.orbe[0]).toBe(2);
   });
   it('tout au maximum : une seule carte de soin', () => {
     const w = new World(7);
-    w.weapons = { orbe: 5, aura: 5, lames: 5, foudre: 5 };
-    w.passives = { vitesse: 5, coeur: 5, regen: 5, aimant: 4, force: 5, cadence: 5 };
+    w.weapons = { orbe: LEVEL_MAX.weapon, aura: LEVEL_MAX.weapon, lames: LEVEL_MAX.weapon, foudre: LEVEL_MAX.weapon };
+    for (const k of TOME_KEYS) w.tomes[k] = LEVEL_MAX.tome;
     rollChoices(w);
-    expect(w.cards).toEqual([{ kind: 'heal', key: '', lv: 0 }]);
+    expect(w.cards).toEqual([{ kind: 'heal', key: '', lv: 0, n: 0, s0: -1, s1: -1, s2: -1 }]);
   });
   it('4 armes possédées : plus aucune nouvelle arme proposée', () => {
     const w = new World(8);
-    w.weapons = { orbe: 1, aura: 1, lames: 1, foudre: 5 };
+    w.weapons = { orbe: 1, aura: 1, lames: 1, foudre: 5 }; // 4 armes possédées
     for (let s = 0; s < 50; s++) {
       rollChoices(w);
       for (const c of w.cards) if (c.kind === 'w') expect(c.lv).toBeGreaterThan(1);

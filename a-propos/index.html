@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1628" />
+    <title>À propos · Swarmageddon</title>
+    <meta
+      name="description"
+      content="Swarmageddon : survivor 3D jouable hors ligne sur téléphone et PC. Comment jouer, installer, confidentialité et crédits."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/lilita-one-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/rubik-latin.woff2" />
+    <style>
+      @font-face {
+        font-family: 'Lilita One';
+        font-weight: 400;
+        font-display: swap;
+        src: url(/fonts/lilita-one-latin.woff2) format('woff2');
+      }
+      @font-face {
+        font-family: 'Rubik';
+        font-weight: 300 900;
+        font-display: swap;
+        src: url(/fonts/rubik-latin.woff2) format('woff2');
+      }
+      :root {
+        --ink: #0f1628;
+        --ink-2: #141c33;
+        --ink-3: #2a3657;
+        --paper: #f3ecdc;
+        --muted: #9aa4c2;
+        --accent: #ffb347;
+        --gold: #ffd166;
+        --xp: #5fd3ff;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        background: var(--ink);
+        color: var(--paper);
+        font-family:
+          'Rubik',
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        padding: calc(env(safe-area-inset-top, 0px) + 20px) max(16px, env(safe-area-inset-right, 0px))
+          calc(env(safe-area-inset-bottom, 0px) + 40px) max(16px, env(safe-area-inset-left, 0px));
+      }
+      main {
+        width: min(720px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: 28px;
+      }
+      h1,
+      h2 {
+        font-family: 'Lilita One', 'Arial Black', Impact, sans-serif;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(40px, 10vw, 64px);
+        line-height: 0.95;
+        color: var(--paper);
+        text-shadow:
+          3px 3px 0 var(--accent),
+          6px 6px 0 #2a3657;
+      }
+      h2 {
+        font-size: 26px;
+        color: var(--gold);
+      }
+      p,
+      li {
+        margin: 0;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .lang {
+        display: inline-flex;
+        border: 2px solid var(--ink-3);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .lang button {
+        font: inherit;
+        font-weight: 700;
+        color: var(--muted);
+        background: var(--ink-2);
+        border: 0;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+      .lang button[aria-pressed='true'] {
+        color: var(--ink);
+        background: var(--gold);
+      }
+      .tag {
+        font-size: 19px;
+        color: var(--muted);
+      }
+      .cta {
+        display: inline-block;
+        font-family: 'Lilita One', 'Arial Black', Impact, sans-serif;
+        font-size: 24px;
+        color: var(--ink);
+        background: var(--gold);
+        border: 3px solid var(--ink);
+        border-radius: 14px;
+        padding: 12px 28px;
+        text-decoration: none;
+        box-shadow: 0 6px 0 var(--accent);
+        justify-self: start;
+      }
+      .cta:active {
+        transform: translateY(4px);
+        box-shadow: 0 2px 0 var(--accent);
+      }
+      .shots {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 12px;
+        align-items: start;
+      }
+      .shots img {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        border: 2px solid var(--ink-3);
+        display: block;
+      }
+      @media (max-width: 560px) {
+        .shots {
+          grid-template-columns: 1fr;
+        }
+      }
+      section {
+        display: grid;
+        gap: 10px;
+      }
+      ul {
+        padding-left: 20px;
+        display: grid;
+        gap: 6px;
+      }
+      .cap {
+        display: inline-block;
+        font-weight: 800;
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--paper);
+        border-radius: 6px;
+        padding: 1px 7px;
+        margin-right: 4px;
+      }
+      a {
+        color: var(--xp);
+      }
+      .note {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      footer {
+        border-top: 1px solid var(--ink-3);
+        padding-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="top">
+        <h1>Swarm<wbr />ageddon</h1>
+        <div class="lang" role="group" aria-label="Langue / Language">
+          <button type="button" data-lang="fr" aria-pressed="true">FR</button
+          ><button type="button" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+      </div>
+
+      <!-- ====================== FRANÇAIS ====================== -->
+      <div data-l="fr" style="display: contents">
+        <p class="tag">
+          La nuit tombe sur la clairière. Tes armes tirent toutes seules : à toi de bouger, sauter par-dessus la horde,
+          dasher et choisir tes améliorations. Tiens 20 minutes.
+        </p>
+        <a class="cta" href="/">Jouer</a>
+        <div class="shots">
+          <img
+            src="/screenshots/mobile.png"
+            alt="Le jeu sur téléphone : joystick, barre d'XP, horde autour du joueur"
+            width="1080"
+            height="1920"
+            loading="lazy"
+          />
+          <img
+            src="/screenshots/desktop.png"
+            alt="Le jeu sur PC : la clairière de nuit, armes qui tirent, chiffres de dégâts"
+            width="1920"
+            height="1080"
+            loading="lazy"
+          />
+        </div>
+
+        <section>
+          <h2>Comment jouer</h2>
+          <ul>
+            <li>
+              <span class="cap">ZQSD</span><span class="cap">↑↓←→</span> se déplacer ; sur téléphone, le joystick
+              apparaît sous ton pouce ; à la manette, le stick gauche.
+            </li>
+            <li><span class="cap">Espace</span> sauter par-dessus la horde (et éviter la plongée des Volants).</li>
+            <li><span class="cap">Maj</span> dash, invincible pendant l'élan.</li>
+            <li>
+              <span class="cap">1 2 3</span> choisir une amélioration à chaque niveau. Une arme au niveau 5, son passif
+              associé et un coffre : elle évolue.
+            </li>
+            <li>
+              Chaque run est différent ; chaque mort fait progresser : or, boutique, succès, personnages, défi du jour.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Installer</h2>
+          <ul>
+            <li>
+              <b>Android, Windows, macOS (Chrome, Edge)</b> : bouton « Installer l'app » au menu, ou l'icône
+              d'installation dans la barre d'adresse.
+            </li>
+            <li><b>iPhone, iPad (Safari)</b> : Partager, puis « Sur l'écran d'accueil ».</li>
+            <li>
+              Une fois installé, le jeu fonctionne <b>hors ligne</b> ; les mises à jour sont proposées au menu, jamais
+              en pleine partie.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Confidentialité</h2>
+          <p>
+            Sans compte, aucune donnée ne quitte ton appareil : ta progression et tes réglages sont enregistrés dans le
+            stockage du navigateur ; tu peux les exporter en JSON ou tout effacer depuis les réglages. Si tu crées un
+            compte (Google ou e-mail, facultatif), seule ta progression est enregistrée sur Firebase pour la retrouver
+            sur un autre appareil ; tu peux supprimer le compte et ses données depuis le panneau Compte. Pas de traceur,
+            pas de cookie, pas de publicité. Détail :
+            <a href="https://github.com/jimmyhag/ruee-nocturne/blob/main/PRIVACY.md">politique de confidentialité</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2>Crédits</h2>
+          <p>
+            Un jeu de Jimmy Haggege, écrit avec Claude Code. Rendu Three.js (MIT), sauvegarde idb-keyval (Apache-2.0),
+            polices Lilita One et Rubik (SIL Open Font License). Personnages et ennemis : modèles
+            <a href="https://quaternius.com">Quaternius</a> (CC0) ; armes et décor : modèles
+            <a href="https://kaylousberg.com">KayKit</a> de Kay Lousberg (CC0). Bruitages : Kenney (CC0) et « Oculus
+            Audio Pack 01 » d'Oculus VR, LLC, sous licence
+            <a href="https://creativecommons.org/licenses/by/4.0/deed.fr">CC BY 4.0</a> (renommés, raccourcis, niveaux
+            ajustés) ; musique : HoliznaCC0, album « Background Music » (CC0). Les effets visuels sont générés par le
+            code. <a href="https://github.com/jimmyhag/ruee-nocturne/blob/main/CREDITS.md">Tous les crédits</a> ·
+            <a href="https://github.com/jimmyhag/ruee-nocturne">code source</a>.
+          </p>
+        </section>
+      </div>
+
+      <!-- ====================== ENGLISH ====================== -->
+      <div data-l="en" style="display: contents" hidden>
+        <p class="tag">
+          Night falls on the clearing. Your weapons fire on their own: you move, jump over the horde, dash and pick your
+          upgrades. Hold out for 20 minutes.
+        </p>
+        <a class="cta" href="/">Play</a>
+        <div class="shots">
+          <img
+            src="/screenshots/mobile.png"
+            alt="The game on a phone: joystick, XP bar, horde around the player"
+            width="1080"
+            height="1920"
+            loading="lazy"
+          />
+          <img
+            src="/screenshots/desktop.png"
+            alt="The game on PC: the clearing at night, weapons firing, damage numbers"
+            width="1920"
+            height="1080"
+            loading="lazy"
+          />
+        </div>
+
+        <section>
+          <h2>How to play</h2>
+          <ul>
+            <li>
+              <span class="cap">WASD</span><span class="cap">↑↓←→</span> move; on a phone the joystick appears under
+              your thumb; left stick on a gamepad.
+            </li>
+            <li><span class="cap">Space</span> jump over the horde (and dodge the Flyers' dive).</li>
+            <li><span class="cap">Shift</span> dash, invincible while you rush.</li>
+            <li>
+              <span class="cap">1 2 3</span> pick an upgrade at every level. A level 5 weapon, its matching passive and
+              a chest: it evolves.
+            </li>
+            <li>
+              Every run is different; every death makes you stronger: gold, shop, achievements, characters, daily
+              challenge.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Install</h2>
+          <ul>
+            <li>
+              <b>Android, Windows, macOS (Chrome, Edge)</b>: “Install the app” button on the menu, or the install icon
+              in the address bar.
+            </li>
+            <li><b>iPhone, iPad (Safari)</b>: Share, then “Add to Home Screen”.</li>
+            <li>Once installed, the game works <b>offline</b>; updates are offered on the menu, never mid-run.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Privacy</h2>
+          <p>
+            Without an account, no data leaves your device: your progress and settings live in the browser's storage;
+            you can export them as JSON or erase everything from the settings. If you create an account (Google or
+            e-mail, optional), only your progress is stored on Firebase so you can find it on another device; you can
+            delete the account and its data from the Account panel. No tracker, no cookie, no ads. Details:
+            <a href="https://github.com/jimmyhag/ruee-nocturne/blob/main/PRIVACY.md">privacy policy</a> (French).
+          </p>
+        </section>
+
+        <section>
+          <h2>Credits</h2>
+          <p>
+            A game by Jimmy Haggege, written with Claude Code. Three.js rendering (MIT), idb-keyval storage
+            (Apache-2.0), Lilita One and Rubik fonts (SIL Open Font License). Characters and enemies:
+            <a href="https://quaternius.com">Quaternius</a> models (CC0); weapons and scenery:
+            <a href="https://kaylousberg.com">KayKit</a> models by Kay Lousberg (CC0). Sound effects: Kenney (CC0) and
+            "Oculus Audio Pack 01" by Oculus VR, LLC, licensed under
+            <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> (renamed, trimmed, levels adjusted);
+            music: HoliznaCC0, "Background Music" album (CC0). Visual effects are generated by code.
+            <a href="https://github.com/jimmyhag/ruee-nocturne/blob/main/CREDITS.md">Full credits</a> ·
+            <a href="https://github.com/jimmyhag/ruee-nocturne">source code</a>.
+          </p>
+        </section>
+      </div>
+
+      <footer class="note"><span id="version"></span> · <a href="/">← Swarmageddon</a></footer>
+    </main>
+
+    <script>
+      // Langue : réglage du jeu (sauvegarde locale), sinon navigateur ; bouton FR / EN. Aucune dépendance : page statique.
+      (function () {
+        var lang = 'fr';
+        try {
+          var m = JSON.parse(localStorage.getItem('ruee-meta') || 'null');
+          var set = m && m.settings && m.settings.lang;
+          lang = set === 'fr' || set === 'en' ? set : /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
+        } catch (e) {
+          lang = /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
+        }
+        function apply(l) {
+          document.documentElement.lang = l;
+          document.title = (l === 'fr' ? 'À propos' : 'About') + ' · Swarmageddon';
+          var blocks = document.querySelectorAll('[data-l]');
+          for (var i = 0; i < blocks.length; i++) blocks[i].hidden = blocks[i].getAttribute('data-l') !== l;
+          var btns = document.querySelectorAll('.lang button');
+          for (var j = 0; j < btns.length; j++)
+            btns[j].setAttribute('aria-pressed', String(btns[j].getAttribute('data-lang') === l));
+        }
+        apply(lang);
+        document.querySelector('.lang').addEventListener('click', function (e) {
+          var b = e.target.closest && e.target.closest('button[data-lang]');
+          if (b) apply(b.getAttribute('data-lang'));
+        });
+        document.getElementById('version').textContent = 'v%APP_VERSION%';
+      })();
+    </script>
+  </body>
+</html>

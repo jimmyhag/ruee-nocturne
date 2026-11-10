@@ -1,0 +1,295 @@
+{
+  "source": "KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : Quaternius (quaternius.com), CC0",
+  "heroes": {
+    "eclaireuse": {
+      "file": "hero-eclaireuse.glb",
+      "bytes": 667968,
+      "tris": 9000,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "bucheron": {
+      "file": "hero-bucheron.glb",
+      "bytes": 617832,
+      "tris": 8999,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "sorciere": {
+      "file": "hero-sorciere.glb",
+      "bytes": 589872,
+      "tris": 8999,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "veilleuse": {
+      "file": "hero-veilleuse.glb",
+      "bytes": 664588,
+      "tris": 8999,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "braconnier": {
+      "file": "hero-braconnier.glb",
+      "bytes": 675528,
+      "tris": 8999,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "sapeur": {
+      "file": "hero-sapeur.glb",
+      "bytes": 604760,
+      "tris": 8999,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "feufollet": {
+      "file": "hero-feufollet.glb",
+      "bytes": 604912,
+      "tris": 8999,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "revenante": {
+      "file": "hero-revenante.glb",
+      "bytes": 668612,
+      "tris": 9000,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    },
+    "colporteur": {
+      "file": "hero-colporteur.glb",
+      "bytes": 685016,
+      "tris": 8999,
+      "anims": [
+        "Idle",
+        "Run",
+        "Jump_Start",
+        "Jump_Idle",
+        "Jump_Land",
+        "Hit",
+        "Death",
+        "Cheer",
+        "Dash",
+        "Spin",
+        "Cast",
+        "Throw",
+        "Long",
+        "Raise",
+        "Slide"
+      ]
+    }
+  },
+  "props": {
+    "file": "props.glb",
+    "bytes": 322584,
+    "nodes": {
+      "tree_dead": 256,
+      "tree_dead_m": 216,
+      "tree_pine": 318,
+      "tree_pine_y": 318,
+      "lantern": 568,
+      "grave": 323,
+      "gravestone": 271,
+      "pumpkin": 374,
+      "shrine": 360,
+      "fence": 380,
+      "chest": 728,
+      "chest_gold": 1568,
+      "barrel": 561,
+      "crates": 1331,
+      "coins": 1776,
+      "sword": 300,
+      "axe": 274,
+      "bomb": 310,
+      "skull": 344
+    }
+  },
+  "enemies": {
+    "file": "enemies.glb",
+    "bytes": 636368,
+    "lods": {
+      "hi": 1800,
+      "mid": 330,
+      "lo": 110
+    },
+    "models": {
+      "zombie": {
+        "anims": ["Zombie_Walk_Fwd_Loop", "Zombie_Scratch"],
+        "tris": {
+          "mid": 325,
+          "lo": 110
+        }
+      },
+      "zombief": {
+        "anims": ["Zombie_Walk_Fwd_Loop", "Spell_Simple_Shoot"],
+        "tris": {
+          "mid": 330,
+          "lo": 110
+        }
+      },
+      "runner": {
+        "anims": ["Sprint_Loop"],
+        "tris": {
+          "mid": 326,
+          "lo": 110
+        }
+      },
+      "brute": {
+        "anims": ["Walk_Loop", "Sword_Attack"],
+        "tris": {
+          "hi": 1797,
+          "mid": 326,
+          "lo": 109
+        }
+      },
+      "knight": {
+        "anims": ["Walk_Loop", "Sword_Attack"],
+        "tris": {
+          "hi": 1797
+        }
+      },
+      "archer": {
+        "anims": ["Walk_Loop", "Pistol_Shoot"],
+        "tris": {
+          "mid": 325,
+          "lo": 109
+        }
+      },
+      "caster": {
+        "anims": ["Walk_Loop", "Spell_Simple_Shoot"],
+        "tris": {
+          "hi": 1789,
+          "mid": 329,
+          "lo": 110
+        }
+      },
+      "reaper": {
+        "anims": ["Sprint_Loop"],
+        "tris": {
+          "hi": 1797
+        }
+      }
+    }
+  }
+}

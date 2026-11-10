@@ -1,22 +1,51 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, STEP } from './sim/balance';
+import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STAGE, STEP, WEAPON_LINES } from './sim/balance';
+import { dropPower } from './sim/powers';
+import { dropChest, hitEnemy } from './sim/combat';
+import { nextStage, stageBossDown } from './sim/stages';
+import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
+import { refreshStats } from './sim/weapons/defs';
 import { step } from './sim/step';
-import { Mode } from './sim/types';
-import type { Input, WeaponKey } from './sim/types';
+import { Ev, Mode } from './sim/types';
+import type { Pw } from './sim/types';
+import type { Input, ItemKey, PowerKey, WeaponKey } from './sim/types';
 import type { World } from './sim/world';
 
 export interface DebugHost {
   readonly world: World | null;
   readonly app: string;
-  readonly scene: GameScene;
+  /** Scène de rendu : null tant que le module de rendu (chargé à part) n'est pas construit. */
+  readonly scene: GameScene | null;
+  /** Prêt pour les tests : scène construite, shaders compilés, méta chargée. */
+  ready(): boolean;
   /** Démarre une partie ; `variant` fixe le décalage du rng pour une partie reproductible. */
   start(variant?: number): void;
+  /** Phase 27 : graine de carte imposée aux parties lancées avec une variante (null : MAP.seed). */
+  setMapSeed(seed: number | null): void;
+  /** Graine de la carte construite dans la scène. */
+  readonly mapSeed: number;
   /** À appeler après un saut dans la sim : resynchronise le HUD et l'écran de niveau. */
   afterSimJump(): void;
+  /** Phase 37 : un monde a été changé hors d'un pas de jeu (décor, ambiance, bannière). */
+  afterStage(): void;
   audioVoices(): number;
+  /** Phase 36 : état du son (planche décodée, musique en cours, gains des bus). */
+  audioState(): { samples: boolean; music: string; sfx: number; musicGain: number };
+  /** Méta (phase 4) : lecture et remplacement (tests « nouveau joueur », export/import). */
+  getMeta(): unknown;
+  setMeta(m: unknown): void;
+  /**
+   * Phase 38 : compte factice pour l'écran Classement (Firebase n'est pas joignable en preview). `rows` : lignes
+   * renvoyées par fetchBoard ; les scores envoyés sont rangés dans `sent` (lecture par les tests).
+   */
+  fakeAccount(
+    uid: string,
+    rows: unknown[],
+    opts?: { sync?: boolean; failWrites?: number },
+  ): { sent: unknown[]; saves: unknown[] };
 }
 
 export function debugEnabled(): boolean {
@@ -29,11 +58,13 @@ export interface DebugRuntime {
   onFrame(world: World): void;
   /** Facteur appliqué au temps réel de la boucle (captures : 0 fige sim, particules et caméra sans écran de pause). */
   speed: number;
+  /** Tests du repli de qualité (phase 9) : durée de frame simulée en ms (0 = mesure réelle). */
+  slowFrames: number;
 }
 
 export function installDebugHooks(host: DebugHost): DebugRuntime | null {
   if (!debugEnabled()) return null;
-  const still: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: 0 };
+  const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
   const w = () => host.world;
   // ?stress=400 : mesure de fps à N ennemis (porte de phase 1), N borné par la capacité du pool
   const stressParam = new URLSearchParams(location.search).get('stress');
@@ -41,6 +72,10 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
   let stressWorld: World | null = null; // monde déjà passé en god mode
 
   const debug = {
+    /** Phase 27 : carte des prochaines parties de test (null : MAP.seed). */
+    mapSeed(seed: number | null): void {
+      host.setMapSeed(seed);
+    },
     /** Avance la sim de `seconds` secondes, joueur invincible, cartes prises automatiquement. */
     warp(seconds: number): void {
       const world = w();
@@ -55,7 +90,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     },
     kill(): void {
       const world = w();
-      if (world) world.player.hp = 0;
+      if (world) world.player.hp = -1e9; // en dessous de toute régénération d'un step (Sève vive)
     },
     give(weapon: WeaponKey, lv = 1): void {
       const world = w();
@@ -81,6 +116,102 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     seed(n: number): void {
       host.start(n);
     },
+    /** Ajoute `n` lignes à une arme (toutes ses lignes à tour de rôle, plafonds respectés) : captures, tests. */
+    upgrade(weapon: WeaponKey, n = 10): void {
+      const world = w();
+      if (!world) return;
+      const lines = WEAPON_LINES[weapon];
+      const mods = world.wmods[weapon];
+      world.weapons[weapon] = Math.max(1, world.weapons[weapon] ?? 0);
+      for (let i = 0, tries = 0; i < n && tries < n * lines.length; tries++) {
+        const j = tries % lines.length;
+        const max = lines[j].max ?? 1e9;
+        if (mods[j] >= max) continue;
+        mods[j]++;
+        world.weapons[weapon]!++;
+        i++;
+      }
+      refreshStats(world);
+      host.afterSimJump();
+    },
+    /** Téléporte le joueur (captures : lac, bois). */
+    teleport(x: number, z: number): void {
+      const world = w();
+      if (!world) return;
+      world.player.x = world.player.px = x;
+      world.player.z = world.player.pz = z;
+      host.scene?.snapCamera(world);
+    },
+    /** Phase 37 : met le chrono du monde à `s` secondes (avant la fin : 590 ; prolongation : 600 + n). */
+    stageTime(s: number): void {
+      const world = w();
+      if (world) world.stageT = s;
+    },
+    /** Phase 37 : tue le boss du monde (portail si le chrono tourne, victoire au monde 3). */
+    killBoss(): void {
+      const world = w();
+      if (world && world.bossIndex >= 0) hitEnemy(world, world.bossIndex, 1e12, 0, 0, 0);
+    },
+    /** Phase 39 : victoire immédiate (monde 3, boss du totem tué à temps) : ouvre l'écran de victoire. */
+    win(): void {
+      const world = w();
+      if (!world || world.mode !== Mode.Play) return;
+      while (world.stage < STAGE.count - 1) nextStage(world);
+      host.afterStage();
+      world.totem.state = 1;
+      stageBossDown(world, world.player.x, world.player.z);
+    },
+    /** Phase 39 : temps passé en monde infini (la prochaine vague sort à `nextEndlessBoss`). */
+    endlessTime(s: number): void {
+      const world = w();
+      if (world && world.endless) world.endlessT = s;
+    },
+    /** Phase 37 : passe directement au monde suivant (captures des ambiances), comme par le portail. */
+    nextStage(): void {
+      const world = w();
+      if (!world || world.stage >= 2) return;
+      nextStage(world);
+      host.afterStage();
+    },
+    /** Pose un coffre sous le joueur (phase 17 : un objet à choisir ; boss : deux). */
+    chest(boss = false): void {
+      const world = w();
+      if (world) dropChest(world, world.player.x, world.player.z + 0.3, boss);
+    },
+    /** Phase 35 : pose le bonus `key` à (dx, dz) du joueur (dz < 0 : devant, vers le haut de l'écran). */
+    power(key: PowerKey, dx = 0, dz = -3): void {
+      const world = w();
+      if (world) dropPower(world, world.player.x + dx, world.player.z + dz, POWER_KEYS.indexOf(key) as Pw);
+    },
+    /** Fait venir le marchand à `dist` u devant le joueur, maintenant (phase 17 : tests, captures). */
+    merchant(dist = 4): void {
+      const world = w();
+      if (!world) return;
+      const M = world.merchant;
+      M.active = true;
+      M.x = world.player.x;
+      M.z = world.player.z - dist;
+      M.until = world.stageT + MERCHANT.stay; // phase 37 : le marchand suit le chrono du monde
+      M.visit++;
+      M.rolled = M.inside = false;
+      M.rerolls = 0;
+      world.emit(Ev.MerchantArrive, M.x, 0, M.z, MERCHANT.stay);
+    },
+    /** Donne un objet passif (clé ITEM_KEYS) : captures du HUD. */
+    item(key: ItemKey): void {
+      const world = w();
+      if (!world) return;
+      gainItem(world, ITEM_KEYS.indexOf(key));
+      host.afterSimJump();
+    },
+    /** Active la synergie d'index `i` (SYNERGIES) sans ses conditions : captures du HUD. */
+    synergy(i: number): void {
+      const world = w();
+      if (!world) return;
+      world.syn[i] = 1;
+      refreshStats(world);
+      host.afterSimJump();
+    },
     /** Pose un ennemi de type `type` à `dist` u avec `hp` PV : la prochaine arme qui le touche le tue (captures de kill). */
     weak(type: number, dist = 2, hp = 1): void {
       const world = w();
@@ -100,6 +231,10 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     speed(s: number): void {
       runtime.speed = Math.max(0, s);
     },
+    /** Fait croire à la boucle que chaque frame dure `ms` (0 = réel) : teste le repli automatique de qualité. */
+    slowFrames(ms: number): void {
+      runtime.slowFrames = Math.max(0, ms);
+    },
     /**
      * Fixe le nombre d'ennemis à maintenir (0 = arrêt). Équivaut à `?stress=n`.
      * Attention : le recomplètement tire `world.rng` hors de `step()`, un run en mode stress n'est donc
@@ -116,6 +251,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
 
   const runtime: DebugRuntime = {
     speed: 1,
+    slowFrames: 0,
     onFrame(world) {
       if (stressTarget <= 0 || world.mode !== Mode.Play) return;
       if (stressWorld !== world) {
@@ -127,7 +263,13 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       if (missing <= 0) return;
       const n = Math.min(20, missing);
       const base = world.rng.next() * Math.PI * 2;
-      for (let i = 0; i < n; i++) spawnEnemy(world, i % 3, base + (i / n) * Math.PI * 2, 14 + (i % 5) * 2.5);
+      for (let i = 0; i < n; i++)
+        spawnEnemy(
+          world,
+          i % 20 === 0 ? 9 : i % 20 === 10 ? 10 : i % 3,
+          base + (i / n) * Math.PI * 2,
+          14 + (i % 5) * 2.5,
+        );
     },
   };
 
@@ -139,18 +281,35 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       return host.app;
     },
     get renderer() {
-      return host.scene.renderer;
+      return host.scene?.renderer;
     },
     get audioVoices() {
       return host.audioVoices();
     },
-    scene: host.scene,
+    get audio() {
+      return host.audioState();
+    },
+    get meta() {
+      return host.getMeta();
+    },
+    setMeta: (m: unknown) => host.setMeta(m),
+    itemKeys: ITEM_KEYS, // phase 40 : index de w.itemBan / w.items
+    fakeAccount: (uid: string, rows: unknown[], opts?: { sync?: boolean; failWrites?: number }) =>
+      host.fakeAccount(uid, rows, opts),
+    get scene() {
+      return host.scene;
+    },
     start: (variant?: number) => host.start(variant),
+    get mapSeed() {
+      return host.mapSeed;
+    },
     debug,
     // raccourcis historiques
     warp: debug.warp,
     kill: debug.kill,
-    ready: true,
+    get ready() {
+      return host.ready();
+    },
   };
   return runtime;
 }

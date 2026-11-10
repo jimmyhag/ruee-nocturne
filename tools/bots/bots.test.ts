@@ -2,7 +2,9 @@
 // filtre d'armes de la CLI, entrées bornées. Chaque test tient en < 2 s sans coverage ; avec `--coverage`
 // la sim instrumentée est ~6× plus lente, d'où le délai global de 30 s (vite.config.ts).
 import { describe, expect, it } from 'vitest';
-import { STEP } from '../../src/sim/balance';
+import { STEP, VOLANT_TYPE } from '../../src/sim/balance';
+import { dropChest } from '../../src/sim/combat';
+import { spawnEnemy } from '../../src/sim/spawner';
 import { startRun, step } from '../../src/sim/step';
 import { Mode } from '../../src/sim/types';
 import type { Input, WeaponKey } from '../../src/sim/types';
@@ -15,13 +17,13 @@ function runBot(bot: Bot, seed: number, maxSteps: number, allowed: ReadonlySet<s
   const w = new World(seed);
   if (allowed) w.weapons = { [[...allowed][0] as WeaponKey]: 1 };
   startRun(w);
-  const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+  const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
   let frame = 0;
   while (frame < maxSteps) {
     if (w.mode === Mode.LevelUp) {
       inp.pick = pickAllowed(bot, w, w.cards, allowed);
       inp.mx = inp.mz = 0;
-      inp.jump = inp.dash = false;
+      inp.jump = inp.spell = false;
     } else {
       inp.pick = -1;
       bot.decide(w, frame, inp);
@@ -62,11 +64,11 @@ describe('bots de playtest', () => {
 
   it('pickAllowed remplace une arme hors liste par la meilleure carte autorisée', () => {
     const w = new World(1);
-    const firstPicker: Bot = { name: 'test', decide: () => {}, pick: () => 0 };
+    const firstPicker: Bot = { name: 'test', decide: () => {}, pick: () => 0, shop: () => 11 };
     const cards = [
-      { kind: 'w', key: 'orbe', lv: 2 },
-      { kind: 's', key: 'force', lv: 1 },
-      { kind: 'w', key: 'foudre', lv: 1 },
+      { kind: 'w', key: 'orbe', lv: 2, n: 1, s0: 0, s1: -1, s2: -1 },
+      { kind: 't', key: 'degats', lv: 1, n: 1, s0: 0, s1: -1, s2: -1 },
+      { kind: 'w', key: 'foudre', lv: 1, n: 1, s0: 0, s1: -1, s2: -1 },
     ] as const;
     expect(pickAllowed(firstPicker, w, [...cards], new Set(['foudre']))).toBe(2);
     expect(pickAllowed(firstPicker, w, [...cards], new Set(['lames']))).toBe(1);
@@ -79,15 +81,32 @@ describe('bots de playtest', () => {
       const bot = makeBot(name, 99);
       const w = new World(42);
       startRun(w);
-      const inp: Input = { mx: 0, mz: 0, jump: false, dash: false, pick: -1 };
+      const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
       for (let f = 0; f < 300; f++) {
         bot.decide(w, f, inp);
         expect(Math.abs(inp.mx), `${name} mx`).toBeLessThanOrEqual(2);
         expect(Math.abs(inp.mz), `${name} mz`).toBeLessThanOrEqual(2);
         expect(typeof inp.jump).toBe('boolean');
-        expect(typeof inp.dash).toBe('boolean');
+        expect(typeof inp.spell).toBe('boolean');
         if (w.mode === Mode.Play) step(w, inp, STEP);
       }
     }
+  });
+
+  it('phase 3 : greedy va chercher un coffre à 15 u, average saute quand un Volant pique', () => {
+    const w = new World(7);
+    dropChest(w, w.player.x + 15, w.player.z, false);
+    const greedy = makeBot('greedy', 1);
+    const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
+    greedy.decide(w, 0, inp);
+    expect(inp.mx).toBeGreaterThan(0.5); // vers le coffre (+x)
+
+    const w2 = new World(8);
+    const i = spawnEnemy(w2, VOLANT_TYPE, 0, 2);
+    w2.enemies[i].state = 1; // télégraphe de plongée presque fini
+    w2.enemies[i].timer = 0.1;
+    const avg = makeBot('average', 1);
+    avg.decide(w2, 0, inp);
+    expect(inp.jump).toBe(true);
   });
 });

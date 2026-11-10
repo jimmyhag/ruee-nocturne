@@ -15,9 +15,31 @@ permissions:
   pull-requests: write
 
 jobs:
+  rules:
+    # Règles Firestore (phase 13) : seulement depuis main (une PR ne doit pas changer les règles live), avant le client.
+    # continue-on-error : tant que la base Firestore ou les rôles IAM (docs/DEPLOY.md) ne sont pas en place, l'hébergement
+    # se déploie quand même ; le panneau Compte affiche alors une erreur, le jeu reste jouable.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Déployer les règles Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15 deploy --only firestore:rules --project "$FIREBASE_PROJECT_ID" --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
   deploy:
-    # les secrets ne sont pas disponibles pour les PR venant d'un fork
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # les secrets ne sont pas disponibles pour les PR venant d'un fork ; sur main, après les règles (réussies ou non)
+    needs: rules
+    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

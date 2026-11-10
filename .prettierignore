@@ -17,5 +17,8 @@ README.md
 # skills et agents : texte de Jimmy
 .claude/**/*.md
 .firebaserc
+lighthouse/
+# généré par npm run audio
+src/platform/sfx.json
 # worktrees créés par l'app Claude
 .claude/worktrees/
