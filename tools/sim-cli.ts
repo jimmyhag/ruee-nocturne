@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
   CHARACTERS,
+  STAGE,
   ENDLESS,
   ENEMIES,
   ITEM,
@@ -91,6 +92,12 @@ if (args.has('ramp')) {
   const k = +args.get('ramp')!,
     R = ENDLESS.ramp;
   for (const c of [R.rate, R.hp, R.dmg, R.spd]) for (let i = 0; i < c.length; i++) c[i] *= k;
+}
+// phase 42 : boss de survie (STAGE.survival) : --no-survival pour comparer, --survival-hp 0.4,0.65 pour régler
+if (args.has('no-survival')) STAGE.survival.at.length = 0;
+if (args.has('survival-hp')) {
+  const v = args.get('survival-hp')!.split(',').map(Number);
+  for (let i = 0; i < STAGE.survival.hp.length; i++) STAGE.survival.hp[i] = v[i] ?? STAGE.survival.hp[i];
 }
 const WEAPONS_ARG = args.get('weapons');
 const WEAPONS: WeaponKey[] | null = WEAPONS_ARG
