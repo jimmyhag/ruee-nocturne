@@ -79,7 +79,7 @@ export function summonStageBoss(w: World): void {
   T.state = 1;
   T.charge = STAGE.totemCharge;
   const type = STAGE.bosses[w.stage];
-  if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0); // un boss a toujours sa place
+  if (w.enemyCount >= CAPS.enemies) freeNonBoss(w); // un boss a toujours sa place, jamais à la place d'un autre boss (phase 42)
   const i = spawnEnemy(w, type, 0, 0);
   w.emit(Ev.TotemOn, T.x, 0, T.z, w.stage + 1);
   if (i < 0) return;
@@ -236,7 +236,9 @@ export function startEndless(w: World): void {
   w.endlessT = 0;
   w.endlessWave = 0;
   w.nextEndlessBoss = ENDLESS.period;
-  w.endlessAlive = 0;
+  // phase 42 : un boss de survie encore en vie à la victoire devient un boss du monde infini (compté, barre, plafond)
+  w.endlessAlive = w.survivalAlive;
+  w.survivalAlive = 0;
   w.overT = 0;
   w.overRate = w.overHp = w.overDmg = w.overSpd = 1;
   w.portal.open = false;

@@ -693,6 +693,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - ils n'ouvrent rien : ni soin, ni coffre de boss (un coffre d'élite à la place), ni horde calmée ;
   - ils cessent une fois le portail ouvert, et n'existent pas en monde infini ;
   - le marchand de 7:00 passe à 7:30.
+  - relecture perf : le boss du totem ne chasse plus un boss de survie du pool plein, et un boss de survie en vie à la victoire passe compté en monde infini ; un préavis à 6:50 suivi d'un portail ouvert avant 7:00 n'amène pas de boss (accepté).
 - **Équilibrage** (150 runs) :
 
   | Réglage | Nu : victoire | Nu : morts avant 3 min | Maxé : victoire |

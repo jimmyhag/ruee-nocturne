@@ -399,6 +399,22 @@ describe('boss de survie (phase 42)', () => {
     w.stageT = S.at[1] - 0.05;
     expect(run(w, 0.2, still, Ev.BossSpawn)).toBe(0); // portail ouvert : plus de boss de survie
   });
+  it('un boss de survie en vie à la victoire est compté en monde infini', () => {
+    const w = arena(46);
+    nextStage(w);
+    nextStage(w);
+    w.survivalNext = 0;
+    w.stageT = S.at[1] - 0.05;
+    w.survivalNext = 1;
+    run(w, 0.1);
+    expect(w.survivalAlive).toBe(1);
+    summon(w);
+    const t = alive(w).find((i) => w.enemies[i].id === w.totemBossId)!;
+    hitEnemy(w, t, 1e12, 0, 0, 0);
+    expect(w.mode).toBe(Mode.Won);
+    startEndless(w);
+    expect([w.endlessAlive, w.survivalAlive]).toEqual([1, 0]);
+  });
   it('remis à zéro au monde suivant ; jamais en monde infini ; déterministe', () => {
     const w = arena(44);
     w.stageT = S.at[0] + 1;
