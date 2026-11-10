@@ -62,7 +62,8 @@ import { TerrainView } from './terrain';
 import { borderGeometry } from './border';
 import { Base, MotionState } from './motion';
 import { OUTLINE, stylize, toonGradient, toonMaterial } from './toon';
-import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, SLASH_ARC } from './textures';
+import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, softGlow, SLASH_ARC } from './textures';
+import { buildTotem, TOTEM_HEIGHT } from './totem';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
 import { AimLines, Bolts, DamageNumbers, Particles, PowerMarks } from './fx';
@@ -74,14 +75,9 @@ const WHITE = new THREE.Color(0xffffff);
 const MINE_IDLE = new THREE.Color(0xc4c8d6); // bombe KayKit non armée : texture assombrie
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lam = (c: number) => toonMaterial({ color: c }); // phase 15 : toon partout (sauf lumineux et sol)
+// 1.42.1 : plus d'additif pur (délavé sur le sol clair), voir softGlow
 const additive = (color: number, opacity: number) =>
-  new THREE.MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
+  softGlow(new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }), 0.5);
 /** Ombre douce au sol (phase 9) : plan 2×2 (scale = rayon) à texture radiale, teinté encre. */
 const shadowGeometry = (r: number) => new THREE.PlaneGeometry(2 * r, 2 * r).rotateX(-Math.PI / 2);
 const shadowMaterial = (opacity: number) =>
@@ -247,6 +243,7 @@ export class GameScene {
   private grassProc: THREE.Object3D | null = null; // herbe procédurale (repli)
   private cLeaf = new THREE.Color();
   private haloMat: THREE.MeshBasicMaterial | null = null;
+  private totem = buildTotem(); // 1.42.1 : stèle du totem (un maillage, à la place d'une instance de sanctuaire)
   private scatterSeed = 0;
   // textures de sol par monde (phase 44) : [tapis, terre], null tant qu'elles chargent (repli : texture dessinée)
   private groundSet: ([THREE.Texture, THREE.Texture] | null)[] = [null, null, null];
@@ -429,13 +426,8 @@ export class GameScene {
     this.glowW = new InstanceWriter(
       makeInstanced(
         new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          map: glowTexture(),
-          transparent: true,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        }),
+        // 1.42.1 : orbes, feu, météores, lances : couleur pleine de jour, cœur blanc
+        softGlow(new THREE.MeshBasicMaterial({ color: 0xffffff, map: glowTexture() }), 0.75, 0.8),
         GLOW_CAP,
       ),
     );
@@ -505,14 +497,7 @@ export class GameScene {
     // à plat : inclinable (phase 18) ; phase 30 : anneau runique additif qui tourne (texture plane sur l'anneau)
     this.aura = new THREE.Mesh(
       new THREE.RingGeometry(0.76, 1, 48).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({
-        color: PAL.xp,
-        map: runeRingTexture(),
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
+      softGlow(new THREE.MeshBasicMaterial({ color: PAL.xp, map: runeRingTexture(), opacity: 0.8 }), 0.55, 0.35),
     );
     this.aura.visible = false;
     this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, 0.08));
@@ -530,14 +515,12 @@ export class GameScene {
     this.slashW = new InstanceWriter(
       makeInstanced(
         new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2),
-        new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          map: slashTexture(),
-          transparent: true,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        }),
+        // 1.42.1 : arcs de lame et de faux lisibles sur l'herbe (cœur blanc, bord dans la couleur de l'arme)
+        softGlow(
+          new THREE.MeshBasicMaterial({ color: 0xffffff, map: slashTexture(), side: THREE.DoubleSide }),
+          0.75,
+          0.55,
+        ),
         SLASH_CAP,
       ),
     );
@@ -615,6 +598,8 @@ export class GameScene {
     this.stall.visible = this.stallRing.visible = false;
     this.scene.add(this.stall, this.stallRing);
 
+    this.totem.mesh.scale.setScalar((STAGE.totemR * 1.8) / TOTEM_HEIGHT); // ≈ 5,4 u de haut : domine les arbres voisins
+    this.scene.add(this.totem.mesh);
     this.setStage(0); // phase 44 : sol et décor du premier monde dès l'accueil (le menu rend la scène)
     this.particles = new Particles(this.scene);
     this.fireflies = new Fireflies(this.scene);
@@ -1409,6 +1394,7 @@ export class GameScene {
    * sanctuaires et des colonnes : aucun appel de dessin en plus.
    */
   private drawTotem(w: World, px: number, pz: number, now: number): void {
+    this.totem.mesh.visible = false;
     const T = w.totem;
     const g = this.gy(T.x, T.z);
     const near = (T.x - px) ** 2 + (T.z - pz) ** 2 < POI_DRAW2;
@@ -1427,8 +1413,14 @@ export class GameScene {
     const f = T.state === 0 ? T.charge / STAGE.totemCharge : 1;
     if (near) {
       this.tilt(T.x, T.z);
-      this.cPoi.setHex(locked ? 0x6a6470 : fought ? 0xff6a5a : 0xff9a8a);
-      this.shrineW.put(T.x, g - 0.05, T.z, 0.3, STAGE.totemR * 0.6, this.cPoi, this.tRx, this.tRz, STAGE.totemR * 0.95);
+      // 1.42.1 : la stèle ; runes et cristal dans la couleur de l'état, qui battent avec la jauge
+      const tm = this.totem.mesh;
+      tm.visible = true;
+      tm.position.set(T.x, g - 0.05, T.z);
+      tm.rotation.set(this.tRx, 0.3, this.tRz);
+      this.totem.glow
+        .setHex(locked ? 0x5a5666 : fought ? 0xff7a4a : 0xff3b5c)
+        .multiplyScalar(locked ? 0.8 : 1.05 + f * 0.5 + Math.sin(now * 3) * 0.15);
       if (!locked) {
         this.cPoi.setHex(PAL.hp).multiplyScalar(0.4 + f * 1.2 + Math.sin(now * 3) * 0.1);
         this.shrineGlowW.put(
@@ -2263,6 +2255,7 @@ export class GameScene {
 
   /** Caméra d'attente (menu, phase 14) : plan rapproché, le personnage fait face à la caméra qui oscille lentement. */
   renderIdle(now: number, dt: number): void {
+    this.totem.mesh.visible = false; // menu : pas de totem d'une partie précédente
     this.lightCycle(0);
     this.fireflies.update(0, 0, now, 0.6);
     if ((this.propsReady || this.natureReady) && this.propX * this.propX + this.propZ * this.propZ > 16)
