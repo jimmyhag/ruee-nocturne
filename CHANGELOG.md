@@ -2,6 +2,32 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.37.0 — 10 nov. 2026 (phase 42 « Boss de survie », demande de Jimmy)
+
+### Ajouté
+
+- **Deux boss de survie dans chaque monde**, à **3:00** et **7:00** du chrono (l'horloge affiche alors 7:00, puis 3:00), avant le boss du totem.
+  - Ils arrivent tout seuls, en cercle autour de toi.
+  - 10 s avant, une bannière annonce « Un boss de survie arrive ! », avec un grondement.
+  - Le type tourne : ce ne sont jamais le boss du totem du monde, donc chaque monde montre ses trois boss.
+- La barre de boss suit le boss de survie. Si le boss du totem est là, elle suit le boss du totem. Quand l'un tombe, elle passe à l'autre.
+
+### Modifié
+
+- **Un boss de survie se bat sans filet** :
+  - il est aussi solide que le boss du totem à 3:00, et 1,4 fois plus à 7:00 ;
+  - il ne soigne pas à sa mort ;
+  - il laisse un coffre d'élite ;
+  - il ne calme pas la horde.
+- Seul le boss du totem ouvre le portail.
+- Le passage du marchand de 7:00 passe à 7:30, pour ne pas tomber avec le boss.
+
+### Technique
+
+- **Équilibrage** (150 runs) : le profil nu gagne 34 % de ses parties (43 % avant) et meurt avant 3 min dans 20 % des cas (inchangé). Le profil maxé gagne 31 % (41 % avant).
+- Premier essai, avec la récompense d'un vrai boss (soin complet, coffre de boss, horde calmée) : ça rendait la partie plus facile, le profil maxé passait de 41 à 53 % de victoires.
+- Le boss du totem est suivi par son identifiant d'ennemi (stable dans le pool). La CLI gagne `--no-survival` et `--survival-hp`.
+
 ## 1.36.1 — 10 nov. 2026 (demande de Jimmy : jouer hors ligne)
 
 ### Modifié
