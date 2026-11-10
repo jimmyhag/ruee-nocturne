@@ -648,5 +648,7 @@
   "chal.outfitLocked": "Challenge III",
   "outfit.master": "Master",
   "chal.pays": "pays {what}",
-  "menu.accountPending": "Account · not synced yet"
+  "menu.accountPending": "Account · not synced yet",
+  "banner.survivalSoon": "A survival boss is coming!",
+  "banner.survival": "Survival boss · {name}"
 }

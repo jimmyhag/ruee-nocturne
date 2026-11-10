@@ -49,7 +49,9 @@ export function tickStage(w: World, dt: number): void {
       if (T.state === 0 || T.state === 1) T.state = 3;
       w.emit(Ev.TimeUp, P.x, 0, P.z, w.stage + 1, T.state === 2 ? 1 : 0);
     }
-  } else if (!w.stageWarned && T.state === 0 && STAGE.dur - w.stageT <= STAGE.warnLeft) {
+  }
+  if (T.state !== 2) tickSurvival(w); // phase 42 : boss de survie tant que le portail n'est pas ouvert
+  if (over <= 0 && !w.stageWarned && T.state === 0 && STAGE.dur - w.stageT <= STAGE.warnLeft) {
     // rappel : plus qu'une minute pour appeler le boss
     w.stageWarned = true;
     w.emit(Ev.BossWarn, T.x, 0, T.z, w.stage + 1, STAGE.bosses[w.stage]);
@@ -77,7 +79,7 @@ export function summonStageBoss(w: World): void {
   T.state = 1;
   T.charge = STAGE.totemCharge;
   const type = STAGE.bosses[w.stage];
-  if (w.enemyCount >= CAPS.enemies) w.freeEnemy(0); // un boss a toujours sa place
+  if (w.enemyCount >= CAPS.enemies) freeNonBoss(w); // un boss a toujours sa place, jamais à la place d'un autre boss (phase 42)
   const i = spawnEnemy(w, type, 0, 0);
   w.emit(Ev.TotemOn, T.x, 0, T.z, w.stage + 1);
   if (i < 0) return;
@@ -89,8 +91,45 @@ export function summonStageBoss(w: World): void {
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;
+  w.totemBossId = e.id; // phase 42 : seul ce boss ouvre le portail
   w.bossCount++;
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type);
+}
+
+/** Phase 42 : préavis puis apparition des boss de survie aux heures STAGE.survival.at du monde. */
+function tickSurvival(w: World): void {
+  const S = STAGE.survival;
+  const k = w.survivalNext;
+  if (k >= S.at.length) return;
+  if (!w.survivalWarned && w.stageT >= S.at[k] - S.warn) {
+    w.survivalWarned = true;
+    w.emit(Ev.SurvivalWarn, w.player.x, 0, w.player.z, survivalType(w, k));
+  }
+  if (w.stageT >= S.at[k]) {
+    w.survivalNext++;
+    w.survivalWarned = false;
+    summonSurvivalBoss(w, k);
+  }
+}
+/** Type du k-ième boss de survie du monde : les deux boss qui ne sont pas celui du totem, dans l'ordre. */
+export const survivalType = (w: World, k: number): number => STAGE.bosses[(w.stage + 1 + k) % STAGE.bosses.length];
+
+/** Boss de survie : autour du joueur, PV = fraction de ceux du boss du totem du monde ; n'ouvre rien. */
+export function summonSurvivalBoss(w: World, k: number): void {
+  const type = survivalType(w, k);
+  if (w.enemyCount >= CAPS.enemies) freeNonBoss(w);
+  const i = spawnEnemy(w, type, w.rng.range(0, Math.PI * 2), STAGE.survival.dist);
+  if (i < 0) return;
+  const e = w.enemies[i];
+  e.hp = e.max =
+    ENEMIES[type].hp *
+    SPAWN.hpScale(STAGE.bossHpAt[w.stage]) *
+    w.overHp *
+    (1 + w.bossCount * STAGE.bossHpPerBoss) *
+    STAGE.survival.hp[k];
+  w.survivalAlive++;
+  if (w.bossIndex < 0) w.bossIndex = i; // la barre suit le boss du totem s'il est déjà là
+  w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type, 1); // y2 = 1 : boss de survie
 }
 
 /**
@@ -141,6 +180,10 @@ export function nextStage(w: World): void {
   w.overRate = w.overHp = w.overDmg = w.overSpd = 1;
   w.timeUp = false;
   w.stageWarned = false;
+  w.survivalNext = 0; // phase 42
+  w.survivalWarned = false;
+  w.survivalAlive = 0;
+  w.totemBossId = -1;
   w.portal.open = false;
   w.portal.charge = 0;
   w.merchant = makeMerchant();
@@ -193,7 +236,9 @@ export function startEndless(w: World): void {
   w.endlessT = 0;
   w.endlessWave = 0;
   w.nextEndlessBoss = ENDLESS.period;
-  w.endlessAlive = 0;
+  // phase 42 : un boss de survie encore en vie à la victoire devient un boss du monde infini (compté, barre, plafond)
+  w.endlessAlive = w.survivalAlive;
+  w.survivalAlive = 0;
   w.overT = 0;
   w.overRate = w.overHp = w.overDmg = w.overSpd = 1;
   w.portal.open = false;
@@ -206,7 +251,8 @@ export function startEndless(w: World): void {
  * ennemis (step.ts), pour qu'aucune image ne montre la barre cachée entre deux boss. Balayage rare : un boss vient de tomber.
  */
 export function retargetBoss(w: World): void {
-  if (!w.endless || w.bossIndex >= 0 || w.endlessAlive <= 0) return;
+  // phase 42 : aussi en monde, quand un boss de survie (ou celui du totem) reste en vie
+  if (w.bossIndex >= 0 || (w.endless ? w.endlessAlive : w.survivalAlive) <= 0) return;
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (e.alive && ENEMIES[e.type].boss) {
@@ -214,7 +260,8 @@ export function retargetBoss(w: World): void {
       return;
     }
   }
-  w.endlessAlive = 0; // plus aucun en vie (compte resynchronisé)
+  if (w.endless) w.endlessAlive = 0; // plus aucun en vie (compte resynchronisé)
+  else w.survivalAlive = 0;
 }
 
 function tickEndless(w: World, dt: number): void {

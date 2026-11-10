@@ -684,6 +684,30 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Calage** (bot nu, 100 runs par personnage) : défi I 28–56 %, défi II 6–25 % ; défi III = victoire (Éclaireuse 42 %, Feu follet 39 %, Braconnier 34 %, Revenante 26 %, Sorcière 22 %, Bûcheron 11 %, Colporteur 9 %, Veilleuse 6 %, Sapeur 0 %).
 - **Porte** : Vitest (compteurs, stats par personnage, défis du bon personnage, or versé une fois, tenue de maître) ; e2e clavier et doigt (fiche, tenue verrouillée puis choisie, défi en fin de partie) ; portraits en tenue de maître lus ; relecture perf approuvée.
 
+### Phase 42 — Boss de survie (après la 1.36.1)
+- **Demande de Jimmy** (10 nov.) : « un boss à 3 minutes, un boss à 7 minutes, genre de survie, et le boss final après, dans chaque monde ; sinon c'est un peu facile ».
+- **Décisions prises** :
+  - à 3:00 et 7:00 du chrono du monde, un boss arrive seul autour du joueur, avec un préavis de 10 s ;
+  - le type tourne entre les deux boss qui ne sont pas celui du totem du monde ;
+  - leurs PV valent 1 puis 1,4 fois ceux du boss du totem du même monde, sans renforcer les boss suivants ;
+  - ils n'ouvrent rien : ni soin, ni coffre de boss (un coffre d'élite à la place), ni horde calmée ;
+  - ils cessent une fois le portail ouvert, et n'existent pas en monde infini ;
+  - le marchand de 7:00 passe à 7:30.
+  - relecture perf : le boss du totem ne chasse plus un boss de survie du pool plein, et un boss de survie en vie à la victoire passe compté en monde infini ; un préavis à 6:50 suivi d'un portail ouvert avant 7:00 n'amène pas de boss (accepté).
+- **Équilibrage** (150 runs) :
+
+  | Réglage | Nu : victoire | Nu : morts avant 3 min | Maxé : victoire |
+  |---|---|---|---|
+  | Sans boss de survie | 43 % | 20 % | 41 % |
+  | Récompense de vrai boss | 42 % | — | 53 % |
+  | PV 0,7 / 1 | 39 % | — | 31 % |
+  | PV 1 / 1,4 (retenu) | 34 % | 20 % | 31 % |
+
+- **Porte** :
+  - Vitest : horaires, types, PV, portail réservé au boss du totem, barre, remise à zéro, déterminisme, récompense réduite ;
+  - e2e : préavis, barre, le tuer n'ouvre pas le portail ; capture lue.
+- **Suite décalée** : armes nouvelles (phase 43), objets nouveaux (phase 44), Nuits.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.

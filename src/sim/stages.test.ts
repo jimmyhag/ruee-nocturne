@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENDLESS, ENEMIES, GOLD, STAGE, STEP } from './balance';
 import { hitEnemy } from './combat';
-import { endlessBosses, nextStage, stageSeed, startEndless } from './stages';
+import { endlessBosses, nextStage, stageSeed, startEndless, survivalType } from './stages';
 import { startRun, step } from './step';
 import { Ev, Mode } from './types';
 import type { Input } from './types';
@@ -21,6 +21,7 @@ function lab(seed: number): World {
   w.player.need = 1e9;
   w.nextWave = w.nextElite = w.nextEruption = 1e9;
   w.merchant.next = 99;
+  w.survivalNext = 99; // phase 42 : les boss de survie ont leur propre suite de tests
   return w;
 }
 /** Avance `s` secondes ; renvoie le nombre d'événements `ev`. */
@@ -329,6 +330,102 @@ describe('monde infini (phase 39)', () => {
       nextWave(w);
       run(w, 10, { ...still, mx: -0.5, mz: 0.2 });
       return [w.t, w.kills, w.endlessWave, w.bossCount, w.enemyCount, w.player.x, w.rng.next()];
+    };
+    expect(play()).toEqual(play());
+  });
+});
+
+describe('boss de survie (phase 42)', () => {
+  /** Monde de test avec les boss de survie (lab les coupe). */
+  function arena(seed: number): World {
+    const w = lab(seed);
+    w.survivalNext = 0;
+    return w;
+  }
+  const S = STAGE.survival;
+  const alive = (w: World) => {
+    const out: number[] = [];
+    for (let i = 0; i < w.enemyCount; i++) if (w.enemies[i].alive && ENEMIES[w.enemies[i].type].boss) out.push(i);
+    return out;
+  };
+  it('préavis puis boss à 3:00 et à 7:00, de types différents de celui du totem', () => {
+    const w = arena(41);
+    w.stageT = S.at[0] - S.warn - 0.05;
+    expect(run(w, 0.1, still, Ev.SurvivalWarn)).toBe(1);
+    expect(run(w, S.warn - 0.2, still, Ev.BossSpawn)).toBe(0);
+    expect(run(w, 0.3, still, Ev.BossSpawn)).toBe(1);
+    const [a] = alive(w);
+    expect(w.enemies[a].type).toBe(survivalType(w, 0));
+    expect(w.bossIndex).toBe(a);
+    w.stageT = S.at[1] - 0.05;
+    expect(run(w, 0.1, still, Ev.BossSpawn)).toBe(1);
+    const types = alive(w).map((i) => w.enemies[i].type);
+    expect(new Set(types).size).toBe(2);
+    expect(types).not.toContain(STAGE.bosses[w.stage]);
+    expect(w.bossCount).toBe(0); // ne renforce pas les boss suivants
+  });
+  it('PV : fraction de ceux du boss du totem ; le tuer n’ouvre ni portail ni victoire, la barre passe au suivant', () => {
+    const w = arena(42);
+    w.stageT = S.at[0] - 0.05;
+    run(w, 0.1);
+    w.stageT = S.at[1] - 0.05;
+    run(w, 0.1);
+    const [a, b] = alive(w);
+    const totemHp = ENEMIES[STAGE.bosses[0]].hp; // boss du totem du monde 1, au même facteur de temps
+    expect(w.enemies[a].max / ENEMIES[w.enemies[a].type].hp).toBeCloseTo(
+      (w.enemies[b].max / ENEMIES[w.enemies[b].type].hp) * (S.hp[0] / S.hp[1]),
+      6,
+    );
+    expect(totemHp).toBeGreaterThan(0);
+    hitEnemy(w, a, 1e12, 0, 0, 0);
+    step(w, still, STEP);
+    expect(w.portal.open).toBe(false);
+    expect(w.mode).toBe(Mode.Play);
+    expect(w.bossIndex).toBeGreaterThanOrEqual(0); // le second boss de survie a la barre
+    expect(ENEMIES[w.enemies[w.bossIndex].type].boss).toBe(true);
+  });
+  it('le boss du totem ouvre le portail même si un boss de survie est en vie ; plus de boss de survie ensuite', () => {
+    const w = arena(43);
+    w.stageT = S.at[0] - 0.05;
+    run(w, 0.1);
+    expect(summon(w)).toBe(1);
+    const totemIdx = alive(w).find((i) => w.enemies[i].id === w.totemBossId)!;
+    expect(w.bossIndex).toBe(totemIdx); // la barre suit le boss du totem
+    hitEnemy(w, totemIdx, 1e12, 0, 0, 0);
+    step(w, still, STEP);
+    expect(w.portal.open).toBe(true);
+    expect(alive(w).length).toBe(1); // le boss de survie reste
+    expect(w.bossIndex).toBeGreaterThanOrEqual(0);
+    w.stageT = S.at[1] - 0.05;
+    expect(run(w, 0.2, still, Ev.BossSpawn)).toBe(0); // portail ouvert : plus de boss de survie
+  });
+  it('un boss de survie en vie à la victoire est compté en monde infini', () => {
+    const w = arena(46);
+    nextStage(w);
+    nextStage(w);
+    w.survivalNext = 0;
+    w.stageT = S.at[1] - 0.05;
+    w.survivalNext = 1;
+    run(w, 0.1);
+    expect(w.survivalAlive).toBe(1);
+    summon(w);
+    const t = alive(w).find((i) => w.enemies[i].id === w.totemBossId)!;
+    hitEnemy(w, t, 1e12, 0, 0, 0);
+    expect(w.mode).toBe(Mode.Won);
+    startEndless(w);
+    expect([w.endlessAlive, w.survivalAlive]).toEqual([1, 0]);
+  });
+  it('remis à zéro au monde suivant ; jamais en monde infini ; déterministe', () => {
+    const w = arena(44);
+    w.stageT = S.at[0] + 1;
+    run(w, 0.1);
+    nextStage(w);
+    expect([w.survivalNext, w.survivalAlive, w.totemBossId]).toEqual([0, 0, -1]);
+    const play = () => {
+      const v = arena(45);
+      v.stageT = S.at[0] - 1;
+      run(v, 3, { ...still, mx: 0.5, mz: 0.3 });
+      return [v.enemyCount, v.bossIndex, v.player.x, v.rng.next()];
     };
     expect(play()).toEqual(play());
   });

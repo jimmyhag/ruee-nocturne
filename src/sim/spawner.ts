@@ -60,7 +60,9 @@ export function tickSpawner(w: World, dt: number): void {
     st = w.stageT,
     now = w.t;
   // boss du monde en vie : la horde se calme (pas en prolongation : elle ne doit pas amortir le renfort)
-  let rate = SPAWN.rate(t) * w.overRate * (w.bossIndex >= 0 && w.overT === 0 ? STAGE.bossRate : 1);
+  // phase 42 : seule la présence du boss du totem (ou d'une vague du monde infini) calme la horde, pas un boss de survie
+  const calm = w.endless ? w.bossIndex >= 0 : w.totemBossId >= 0;
+  let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1);
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
   if (w.boredomUntil > now) rate *= SPAWN.boredomMul;
