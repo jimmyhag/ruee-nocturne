@@ -1,4 +1,15 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STAGE, STEP } from './sim/balance';
+import {
+  ELITE_TYPE,
+  ENDLESS,
+  ENEMIES,
+  ITEM_KEYS,
+  MAP,
+  POWER_KEYS,
+  REAPER_TYPE,
+  SLIDE,
+  STAGE,
+  STEP,
+} from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell } from './sim/types';
 import { POWER_ICON } from './ui/icons';
@@ -568,7 +579,13 @@ function openMerchant(): void {
 function renderMerchant(): void {
   if (!world) return;
   $('mGold').textContent = t('gold', { n: Math.floor(world.gold) });
-  $('mNote').textContent = canGainItem(world) ? t('merchant.hint') : t('merchant.full');
+  // phase 43 : en monde infini, le dernier passage est dit dans l'échoppe aussi
+  const lastVisit = world.endless && world.merchant.endlessVisits >= ENDLESS.merchantVisits;
+  $('mNote').textContent = !canGainItem(world)
+    ? t('merchant.full')
+    : lastVisit
+      ? `${t('merchant.hint')} ${t('merchant.last')}`
+      : t('merchant.hint');
   renderCards($('mcards'), world.offers, world, { gold: world.gold, full: !canGainItem(world) });
   const cost = rerollCost(world);
   const rr = $('mReroll') as HTMLButtonElement;
@@ -1977,6 +1994,9 @@ function handleEvents(w: World, now: number): void {
         hud.banner(t('banner.merchant'));
         audio.chest();
         break;
+      case Ev.MerchantLast:
+        hud.banner(t('banner.merchantLast')); // phase 43 : émis juste après MerchantArrive, il remplace sa bannière
+        break;
       case Ev.MapChestOpen:
         // phase 18 : coffre de carte payé : pièces qui jaillissent, puis le choix d'objet
         S.particles.burst(e.x, e.y, e.z, PAL.gold, (26 * fx) | 0, 6, 7);
@@ -2074,6 +2094,15 @@ function handleEvents(w: World, now: number): void {
       case Ev.BossRoar:
         audio.roar();
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+        break;
+      case Ev.BossEnrage:
+        // phase 43 : rage du boss (en vie depuis BOSS.enrage.after s) : bannière, rugissement, anneau rouge, secousse
+        hud.banner(t('banner.enrage'));
+        audio.roar();
+        vibrate(120);
+        S.particles.ring(e.x, 0.4, e.z, PAL.telegraph, (36 * fx) | 0, 8, 2);
+        S.particles.burst(e.x, e.y + 1, e.z, PAL.telegraph, (24 * fx) | 0, 5, 8);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.boss);
         break;
       case Ev.Eruption:
         // pic sorti du sol : gerbe de roche vers le haut + anneau de poussière, secousse, coup sourd

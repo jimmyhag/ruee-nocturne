@@ -133,8 +133,8 @@
   "card.bonus": "Bonus",
   "card.newWeapon": "Nouvelle arme",
   "card.level": "Niv {n}",
-  "card.heal": "Soin complet",
-  "card.healText": "Rend tous tes PV",
+  "card.heal": "Soin",
+  "card.healText": "Rend {n} % de tes PV",
   "weapon.orbe.name": "Orbe filante",
   "weapon.aura.name": "Halo brûlant",
   "weapon.lames.name": "Lames",
@@ -650,5 +650,11 @@
   "chal.pays": "rapporte {what}",
   "menu.accountPending": "Compte · à synchroniser",
   "banner.survivalSoon": "Un boss de survie arrive !",
-  "banner.survival": "Boss de survie · {name}"
+  "banner.survival": "Boss de survie · {name}",
+  "banner.enrage": "Le boss enrage !",
+  "banner.merchantLast": "Dernier passage du marchand",
+  "merchant.last": "C'est son dernier passage : il ne reviendra plus.",
+  "card.itemMax": "Objet ×{n} · max",
+  "gear.max": "{name} (max)",
+  "lib.copies": "Jusqu'à ×{n} par partie"
 }

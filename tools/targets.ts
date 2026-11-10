@@ -23,7 +23,9 @@ export const NAKED: Target[] = [
   // phase 37 : trois mondes. Le profil nu meurt surtout dans le monde 1 ; un kit de départ qui en sort concentre tout sur
   // une arme et va loin (mesuré : 36 % de victoires) ; le boss final (phase suivante) fermera la fin du monde 3
   { name: 'monde 2 atteint ≤ 55 %', min: 0, max: 55, get: (s) => s.stage2Pct, fmt: (v) => v.toFixed(0) + ' %' },
-  { name: 'victoire ≤ 40 %', min: 0, max: 40, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 43 : ≤ 40 % → ≤ 30 % (33 % avant la phase : trop facile une fois sorti du monde 1 ; mesuré 24 %). Pas de
+  // borne basse : les autres personnages gagnent moins souvent que l'Éclaireuse avec leur kit de départ
+  { name: 'victoire ≤ 30 %', min: 0, max: 30, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'passent 3 min ≥ 40 %', min: 40, max: 100, get: (s) => s.aliveCurve[2], fmt: (v) => v + ' %' }, // l'arme n°2 (succès « Première nuit ») reste atteignable
   economy,
@@ -42,11 +44,14 @@ export const MAXED: Target[] = [
   // éparpillent les dégâts et peinent contre les boss et les Brutes du monde 3 (mesuré : 86 / 46 / 10 %)
   { name: 'monde 2 atteint ≥ 75 %', min: 75, max: 100, get: (s) => s.stage2Pct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'monde 3 atteint ≥ 35 %', min: 35, max: 100, get: (s) => s.stage3Pct, fmt: (v) => v.toFixed(0) + ' %' },
-  { name: 'victoire 3–20 %', min: 3, max: 20, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  // phase 43 : 3–20 % → 5–28 % (34 % avant la phase, 19 % après ; le kit complet reste au niveau du kit de départ)
+  { name: 'victoire 5–28 %', min: 5, max: 28, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
   {
-    name: 'morts en prolongation ≤ 20 %',
+    // phase 43 : ≤ 20 → ≤ 25 %. Les boss du totem sont plus solides (BOSS.hpMul) : le kit complet, aux dégâts répartis,
+    // perd plus souvent contre le chrono (15 → 21 %). C'est sa façon prévue de perdre, pas une falaise
+    name: 'morts en prolongation ≤ 25 %',
     min: 0,
-    max: 20,
+    max: 25,
     get: (s) => s.overDeathPct,
     fmt: (v) => v.toFixed(0) + ' %',
   },
@@ -95,6 +100,26 @@ export const MAXED: Target[] = [
   },
 ];
 export const PROFILES = { naked: NAKED, maxed: MAXED };
+const mmss = (v: number) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
+// phase 43 (grand rééquilibrage, demande de Jimmy) : monde infini, mesuré sur les parties gagnées qui continuent
+// (--endless). Avant : tenu p50 7:39, p90 17:51, 24 % des parties passaient 6 vagues ; un joueur va environ deux fois plus
+// loin que le bot : 20 minutes restent possibles, mais c'est un exploit
+export const ENDLESS_TARGETS: Target[] = [
+  // le kit concentré sur une arme (profil nu) est le plus fort en monde infini (4:34) ; les kits à plusieurs armes
+  // tiennent environ 3 min, d'où la borne basse
+  { name: 'infini tenu p50 2:30–6 min', min: 150, max: 360, get: (s) => s.endless.p50, fmt: mmss },
+  { name: 'infini tenu p90 ≤ 12 min', min: 0, max: 720, get: (s) => s.endless.p90, fmt: mmss },
+  { name: 'infini ≥ 6 vagues ≤ 5 %', min: 0, max: 5, get: (s) => s.endless.wave6Pct, fmt: (v) => v.toFixed(0) + ' %' },
+  // un combat de boss dure 45 à 90 s pour un kit complet (survivor-design §7 ; mesuré 50 s) ; le kit concentré du profil
+  // nu les tue plus vite (36 s ; 31 s avant la phase 43), d'où la borne basse
+  {
+    name: 'boss du totem en vie p50 35–75 s',
+    min: 35,
+    max: 75,
+    get: (s) => s.bossLifeP50.totem,
+    fmt: (v) => v.toFixed(0) + ' s',
+  },
+];
 export function checkTargets(summary: any, targets: Target[]) {
   return targets.map((t) => {
     const v = t.get(summary);

@@ -296,6 +296,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       // cercles rouges du Colosse : un joueur moyen lit le télégraphe et sort de la zone
       // phase 11 : éruption sous les pieds imminente ou onde de choc qui arrive → saut au bon moment
       let hazard = false;
+      let volley = 0; // phase 43 : crachats sur le point de nous toucher (salve en éventail de l'Essaim-mère)
       for (let i = 0; i < w.shotCount; i++) {
         const s = w.shots[i];
         const dx = s.x - P.x,
@@ -330,6 +331,9 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
             pz = vx; // perpendiculaire
           const side = (-dx * px - dz * pz) / Math.sqrt(sp2);
           if (Math.abs(side) > 1.4) continue;
+          // phase 43 : plusieurs crachats arrivent de front (on ne passe pas entre deux) → on saute la salve, comme un
+          // joueur moyen ; un crachat seul s'esquive toujours d'un pas de côté
+          if (s.kind === ShotKind.Spit && along < Math.sqrt(sp2) * 0.3) volley++;
           const wgt = 40 / (d2 + 0.5);
           cx -= Math.sign(side || 1) * px * wgt; // fuir = s'éloigner de la ligne (cx/cz est une direction à fuir)
           cz -= Math.sign(side || 1) * pz * wgt;
@@ -338,12 +342,16 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         }
         if (s.kind !== ShotKind.Zone && s.kind !== ShotKind.Fireball) continue; // boule de feu (phase 16) : cercle à fuir
         if (d2 < (s.r + 1.5) ** 2) {
+          // phase 43 : encore dans un cercle du Colosse au dernier moment (la croix se referme autour du centre) → saut,
+          // comme pour une éruption ; pas la boule de feu du Sorcier (inchangé : elle reste une cause de mort mesurée)
+          if (s.kind === ShotKind.Zone && s.life < 0.35 && d2 < (s.r + 0.4) ** 2) hazard = true;
           const wgt = 60 / (d2 + 0.5);
           cx += dx * wgt;
           cz += dz * wgt;
           n++;
         }
       }
+      if (volley >= 2) hazard = true;
       // Brute élite qui charge dans notre direction : on la traverse en dash (invulnérable) si elle est proche
       let charged = false;
       for (let i = 0; i < w.enemyCount; i++) {

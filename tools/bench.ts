@@ -18,6 +18,14 @@ refreshStats(w);
 // masse + Volants + Cracheurs : types 0,1,2 puis 4 et 5 (le modulo 5 ignore le Gardien, type 3)
 const MIX = [0, 1, 2, 4, 5, 9, 10]; // masse + Volants + Cracheurs + Archers et Sorciers (phase 16 ; le Gardien, type 3, est exclu) ; hissé hors de la fenêtre de mesure du tas
 for (let i = 0; i < 390; i++) spawnEnemy(w, MIX[i % MIX.length], (i / 390) * Math.PI * 2, 6 + (i % 17));
+// phase 43 (relecture perf) : six boss enragés en phase 2 (deux de chaque), pour que le bench couvre leurs attaques
+// (sillage, double onde, salve, croix, onde de choc) : tirs pris dans le pool, aucune allocation attendue
+for (let i = 0; i < 6; i++) {
+  const e = w.enemies[spawnEnemy(w, [3, 6, 7][i % 3], (i / 6) * Math.PI * 2, 9)];
+  e.max = 1e12;
+  e.hp = e.max * 0.4;
+  e.enraged = true;
+}
 const inp = { mx: 0.7, mz: 0.3, jump: false, spell: false, pick: 0 };
 w.player.maxHp = 1e9; // invincible : on mesure le coût du step, pas la survie
 // phase 31 (relecture perf) : objets de soin et de dégâts actifs, PV sous le maximum (vol de vie, Couronne, Second souffle)

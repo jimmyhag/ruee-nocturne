@@ -1,6 +1,6 @@
 // Combat, gemmes, cartes et rng : cas limites non couverts par les runs complets.
 import { describe, expect, it } from 'vitest';
-import { BOSS_TYPE, ENEMIES, PLAYER, STEP, TOME_KEYS, TOME_MAX, WEAPON_MAX, XP } from './balance';
+import { BOSS_TYPE, CHOICE, ENEMIES, PLAYER, STEP, TOME_KEYS, LEVEL_MAX, XP } from './balance';
 import { dropGem, hitEnemy, killEnemy } from './combat';
 import { applyCard, rollChoices } from './progression';
 import { Rng, hashString } from './rng';
@@ -124,7 +124,7 @@ describe('cartes', () => {
     w.cards = [card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 })];
     w.pending = 1;
     applyCard(w, 0);
-    expect(w.player.hp).toBe(w.player.maxHp);
+    expect(w.player.hp).toBeCloseTo(1 + w.player.maxHp * CHOICE.healFrac, 9); // phase 43 : soin partiel
     applyCard(w, 9); // index invalide : ignoré
     // une carte à 3 lignes compte pour le succès « Triple ligne », le niveau d'arme pour « Érudit »
     w.cards = [card({ kind: 'w', key: 'orbe', lv: 7, n: 3, s0: 0, s1: 0, s2: 3 })];
@@ -136,8 +136,8 @@ describe('cartes', () => {
   });
   it('tout au maximum : une seule carte de soin', () => {
     const w = new World(7);
-    w.weapons = { orbe: WEAPON_MAX, aura: WEAPON_MAX, lames: WEAPON_MAX, foudre: WEAPON_MAX };
-    for (const k of TOME_KEYS) w.tomes[k] = TOME_MAX;
+    w.weapons = { orbe: LEVEL_MAX.weapon, aura: LEVEL_MAX.weapon, lames: LEVEL_MAX.weapon, foudre: LEVEL_MAX.weapon };
+    for (const k of TOME_KEYS) w.tomes[k] = LEVEL_MAX.tome;
     rollChoices(w);
     expect(w.cards).toEqual([{ kind: 'heal', key: '', lv: 0, n: 0, s0: -1, s1: -1, s2: -1 }]);
   });

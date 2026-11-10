@@ -71,7 +71,8 @@ jobs:
         run: |
           mkdir -p sim
           # deux profils : run « nu » (emplacements de départ) et tous les emplacements débloqués (phase 17)
-          npm run sim -- --runs 200 --bot average --seed 42 --profile naked --out sim/ci-naked.json | tee sim/ci.txt || true
+          # phase 43 : le profil nu continue en monde infini (--endless), ses cibles sont vérifiées aussi
+          npm run sim -- --runs 200 --bot average --seed 42 --profile naked --endless --until 6000 --out sim/ci-naked.json | tee sim/ci.txt || true
           echo >> sim/ci.txt
           npm run sim -- --runs 200 --bot average --seed 42 --profile maxed --out sim/ci-maxed.json | tee -a sim/ci.txt || true
       - name: Commentaire sur la PR

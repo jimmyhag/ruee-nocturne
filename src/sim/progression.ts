@@ -1,4 +1,4 @@
-import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, TOME_MAX, WEAPON_LINES, WEAPON_MAX, XP, It, RUN_REROLL } from './balance';
+import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
 import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
@@ -65,7 +65,7 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
   weights.length = 0;
   for (const k of WEAPON_KEYS) {
     const lv = w.weapons[k] ?? 0;
-    if (lv >= WEAPON_MAX) continue;
+    if (lv >= LEVEL_MAX.weapon) continue;
     if (lv === 0 && nW >= w.maxWeapons) continue; // emplacements (phase 10)
     if (lv === 0 && w.unlocked && !w.unlocked.has(k)) continue; // arme pas encore débloquée (succès)
     const c = pool[n];
@@ -85,7 +85,7 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
   }
   for (const k of TOME_KEYS) {
     const lv = w.tomes[k] ?? 0;
-    if (lv >= TOME_MAX) continue;
+    if (lv >= LEVEL_MAX.tome) continue;
     if (lv === 0 && nT >= w.maxTomes) continue;
     const c = pool[n];
     c.kind = 't';
@@ -179,7 +179,7 @@ export function applyCard(w: World, idx: number): void {
   } else if (c.kind === 't') {
     w.tomes[c.key as TomeKey] = c.lv;
   } else {
-    w.player.hp = w.player.maxHp;
+    w.player.hp = Math.min(w.player.maxHp, w.player.hp + w.player.maxHp * CHOICE.healFrac); // phase 43 : soin partiel
   }
   if (c.kind !== 'heal') {
     applyLine(w, c, c.s0);
@@ -285,8 +285,8 @@ export function tickChests(w: World, dt: number): void {
       // phase 17 : un coffre ouvre un choix d'objet passif (un coffre de boss : deux) ; aucun objet possible (tous
       // bannis, phase 38) : un sac d'or à la place
       const goldMul = w.player.goldMul * w.player.chestGoldMul * (c.boss ? GOLD.eliteMul : 1);
-      const n = c.boss ? CHEST.bossPicks : 1;
-      const item = c.boss || w.eliteChests++ % ITEM.eliteItemEvery === 0; // phase 38 : un coffre d'élite sur N
+      const n = c.picks > 0 ? c.picks : 1; // phase 43 : objets garantis portés par le coffre (boss : CHEST.bossPicks)
+      const item = c.picks > 0 || w.eliteChests++ % ITEM.eliteItemEvery === 0; // phase 38 : un coffre d'élite sur N
       if (item && canGainItem(w)) w.itemPicks += n;
       else w.gold += ITEM.chestGoldIfFull * n * goldMul;
       w.gold += CHEST.gold * goldMul;

@@ -2,6 +2,68 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.39.0 — 10 nov. 2026 (phase 43 « Grand rééquilibrage », demande de Jimmy)
+
+Un ami de Jimmy tenait plus de 15 minutes en monde infini sans avoir tout débloqué. Le jeu était trop facile sur la fin. Tout concentrer sur une seule arme était la stratégie la plus forte : cette build finissait toujours par dépasser les monstres.
+
+### Modifié
+
+- **Armes et tomes : niveau 40 au plus** (100 avant), comme dans Megabonk. Un niveau au plafond s'affiche en couleur dans la barre d'équipement.
+- **Niveaux plus longs à partir du niveau 30.** Le début de partie ne change pas.
+- **Objets : exemplaires limités par objet**, selon la rareté : commun ×5, rare ×3, épique ×2.
+  - Le nombre total d'objets reste libre.
+  - Les 2 premiers exemplaires valent plein, les suivants moitié (3 avant).
+  - Un objet au plafond est marqué « max » et ne sort plus des tirages. La Bibliothèque indique le maximum de chaque objet.
+- **Marchand plus cher** :
+  - relance à 60 or, qui double à chaque relance de la visite (60, 120, 240…) et part de plus haut à chaque visite (avant : 40, 80, 120, remis à 40) ;
+  - prix des objets +35 % par visite (25 % avant) et +25 % par objet porté (20 % avant).
+- **Monde infini** :
+  - le marchand passe **2 fois** (1:15 et 3:45), puis ne revient plus ; une bannière annonce « Dernier passage du marchand » ;
+  - **un seul coffre par vague de boss**, laissé par le dernier boss, avec 1 objet (avant : un coffre de 2 objets par boss) ;
+  - un boss tué rend **60 % des PV**, plus la totalité ;
+  - la difficulté des monstres monte moins vite qu'en monde (voir « Technique »).
+- **Mondes 2 et 3 plus durs** : les monstres y partent de plus haut. Le monde 1 ne change pas avant le premier boss.
+- **Carte « Soin »** (quand tout est au plafond) : rend 30 % des PV, plus la totalité.
+
+### Ajouté
+
+- **Une attaque de plus par boss** :
+  - **Gardien** : sa charge laisse un sillage de 4 cercles qui explosent derrière lui ; en phase 2, deux ondes à sauter coup sur coup ;
+  - **Essaim-mère** : elle gonfle, puis crache un éventail de 5 projectiles à sauter (7 en phase 2) ; en phase 2, deux Volants sortent à chaque ponte ;
+  - **Colosse** : une onde de choc part de lui quand on reste collé (un cercle se remplit d'abord à ses pieds) ; en phase 2, une attaque sur deux dessine une croix de cercles centrée sur le joueur.
+- **Rage** : un boss du totem ou du monde infini en vie depuis 90 s devient rouge, attaque 40 % plus souvent et avance 25 % plus vite. Bannière « Le boss enrage ! ». Pas les boss de survie.
+- **Boss du totem plus solides** : PV ×1,15 au monde 1, ×1,4 au monde 2, ×1,5 au monde 3 et en monde infini.
+
+### Technique
+
+- **Mesures** (bot moyen, 200 parties par profil, graine 42) :
+
+  | Mesure                                                  | Avant       | Après       | Cible       |
+  | ------------------------------------------------------- | ----------- | ----------- | ----------- |
+  | Victoires, profil de départ (1 arme)                    | 33 %        | 24 %        | ≤ 30 %      |
+  | Victoires, profil maxé (4 armes)                        | 34 %        | 19 %        | 5 à 28 %    |
+  | Morts avant 3 min, profil de départ                     | 20 %        | 20 %        | ≤ 20 %      |
+  | Monde infini, temps tenu médian (départ)                | 7:39        | 4:25        | 2:30 à 6:00 |
+  | Monde infini, 1 partie sur 10 dépasse (départ)          | 17:51       | 7:52        | ≤ 12:00     |
+  | Monde infini, 6 vagues passées (départ)                 | 24 %        | 0 %         | ≤ 5 %       |
+  | Combat contre le boss du totem, médiane (départ / maxé) | 31 s / 38 s | 36 s / 47 s | 35 à 75 s   |
+
+  Un joueur va environ deux fois plus loin que le bot : 15 minutes en monde infini restent possibles, mais c'est un exploit.
+
+- **Profil intermédiaire** (2 armes, 3 tomes, 100 parties) : 36 % → 15 % de victoires. C'est le plus touché : ses dégâts sont répartis, et le boss du monde 3 l'élimine une fois sur deux.
+- **Un levier à la fois** (profil intermédiaire) : les PV des boss, les nouvelles attaques et l'économie pèsent chacun 4 à 5 points de victoire ; le plafond de niveau et l'XP tardive, zéro dans les trois mondes (ils jouent en monde infini).
+- **Écarts avec le plan** :
+  - en monde infini, le soin par boss est de 60 % (35 % prévu) et les PV des boss par vague ne montent pas plus vite : avec le plafond de niveau, le monde infini était déjà trop court (2:48 en médiane au premier essai) ;
+  - la difficulté y avance à 40 % de sa vitesse (`ENDLESS.diffRate`) : à pleine vitesse, c'est la horde qui tuait en 3 min, pas les boss ;
+  - la rage vient à 90 s (75 s prévu) et épargne les boss de survie : ils vivent 110 s en médiane, la rage les touchait presque tous dès 3:00 ;
+  - le « barrage » du Colosse est devenu une croix (une ligne s'évitait d'un pas) ;
+  - pas de ligne ajoutée à l'écran « Comment jouer » (il ne liste que les commandes) : le plafond se lit sur le marqueur « max » et dans la Bibliothèque, le départ du marchand sur sa bannière et dans l'échoppe ;
+  - les PV des boss montent par monde, et les boss de survie gardent leurs PV : à ×1,5 partout, les victoires du profil de départ tombaient à 16 %.
+- **Bot** : il saute maintenant un éventail de crachats et le centre de la croix, comme un joueur. Avant, il restait planté et la simulation surestimait ces attaques de 10 points de victoire.
+- **CLI** : `--set ENDLESS.diffRate=0.4,BOSS.hpMul.0=1` règle une constante sans toucher `balance.ts` ; avec `--endless`, la CLI imprime les objets et le niveau à la victoire et à la mort, les causes de mort en monde infini, la durée de vie des boss par sorte, et vérifie les cibles du monde infini. La CI les mesure sur le profil de départ.
+- **Relecture perf** : approuvée. Aucune allocation par image, pool de tirs à 76/192 au pire avec 6 boss enragés. Trois corrections appliquées : seconde onde du Gardien jamais pendant sa charge, cercle d'annonce de l'onde du Colosse dessiné, remplissage des cercles du sillage. Le bench couvre maintenant 6 boss.
+- **Classement** : les records faits avant la 1.39.0 restent affichés (décision à prendre par Jimmy).
+
 ## 1.38.0 — 10 nov. 2026 (choix de Jimmy : nouveau nom)
 
 ### Modifié

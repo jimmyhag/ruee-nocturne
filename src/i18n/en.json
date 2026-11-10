@@ -133,8 +133,8 @@
   "card.bonus": "Bonus",
   "card.newWeapon": "New weapon",
   "card.level": "Lv {n}",
-  "card.heal": "Full heal",
-  "card.healText": "Restores all your HP",
+  "card.heal": "Heal",
+  "card.healText": "Restores {n}% of your HP",
   "weapon.orbe.name": "Shooting Orb",
   "weapon.aura.name": "Burning Halo",
   "weapon.lames.name": "Blades",
@@ -650,5 +650,11 @@
   "chal.pays": "pays {what}",
   "menu.accountPending": "Account · not synced yet",
   "banner.survivalSoon": "A survival boss is coming!",
-  "banner.survival": "Survival boss · {name}"
+  "banner.survival": "Survival boss · {name}",
+  "banner.enrage": "The boss is enraged!",
+  "banner.merchantLast": "The merchant's last visit",
+  "merchant.last": "This is his last visit: he will not come back.",
+  "card.itemMax": "Item ×{n} · max",
+  "gear.max": "{name} (max)",
+  "lib.copies": "Up to ×{n} per run"
 }

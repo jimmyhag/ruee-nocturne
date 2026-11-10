@@ -1,7 +1,7 @@
 // Libellés du contenu (armes, tomes, lignes de stats, ennemis, personnages, boutique, succès) : la sim ne porte que
 // des clés (PLAN.md §4.2), les textes vivent ici, dans les deux langues. Aucun DOM : testable sous Vitest.
 import type { Achievement } from '../meta/achievements';
-import { BOON, CHARACTERS, ENEMIES, SYNERGIES, TOMES, WEAPON_LINES } from '../sim/balance';
+import { BOON, CHARACTERS, CHOICE, ENEMIES, SYNERGIES, TOMES, WEAPON_LINES } from '../sim/balance';
 import type { StatLine } from '../sim/balance';
 import type { BoonKey, Card, CharacterKey, ItemKey, SpellKey, TomeKey, WeaponKey } from '../sim/types';
 import type { World } from '../sim/world';
@@ -146,7 +146,7 @@ export function cardTitle(c: Card): string {
 }
 /** Corps d'une carte : les lignes séparées par « · » (nouvelle arme ou nouveau tome : sa règle d'abord). */
 export function cardText(c: Card): string {
-  if (c.kind === 'heal') return t('card.healText');
+  if (c.kind === 'heal') return t('card.healText', { n: fmtNum(Math.round(CHOICE.healFrac * 100)) }); // phase 43 : soin partiel
   if (c.kind === 'i') return itemText(c.key as ItemKey);
   if (c.kind === 'b') return boonText(c.key as BoonKey);
   const lines = cardLines(c).join(' · ');

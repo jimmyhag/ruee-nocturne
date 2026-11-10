@@ -282,6 +282,7 @@ export class GameScene {
   private cStun = new THREE.Color(0xfff1a8);
   private cSlow = new THREE.Color(0x9fd8ff);
   private cFreeze = new THREE.Color(PAL.freeze); // phase 35 : Temps figé
+  private cRage = new THREE.Color(PAL.telegraph); // phase 43 : boss enragé
   private frozenPose = false; // phase 35 : poses des ennemis 3D arrêtées pendant le Temps figé
   private cPower = PAL.power.map((c) => new THREE.Color(c)); // phase 35 : bonus au sol (index Pw)
   private cPowerHalo = PAL.power.map((c) => new THREE.Color(c).multiplyScalar(0.9));
@@ -1486,9 +1487,11 @@ export class GameScene {
               ? this.cStun
               : e.slowT > 0
                 ? this.cSlow
-                : e.elite
-                  ? this.eliteColor[e.type]
-                  : this.enemyColor[e.type];
+                : e.enraged
+                  ? this.cRage // phase 43 : boss enragé, rouge
+                  : e.elite
+                    ? this.eliteColor[e.type]
+                    : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
@@ -1610,7 +1613,9 @@ export class GameScene {
       } else {
         // cercle du Colosse ou d'éruption (fixes, posés sur le sol local) : le disque se remplit
         const eruption = sh.kind === ShotKind.Eruption;
-        const f = 1 - Math.max(0, sh.life / (eruption ? HAZARDS.eruption.telegraph : BOSS.zoneTelegraph));
+        // phase 43 : durée propre du cercle (t0 : sillage du Gardien 0,7 s, annonce de l'onde du Colosse) s'il en a une
+        const f =
+          1 - Math.max(0, sh.life / (eruption ? HAZARDS.eruption.telegraph : sh.t0 > 0 ? sh.t0 : BOSS.zoneTelegraph));
         const sx = sh.x,
           sz = sh.z;
         const gy = this.gy(sx, sz);

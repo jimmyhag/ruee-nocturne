@@ -624,7 +624,8 @@ function tickShots(w: World, dt: number): void {
     } else if (s.life <= 0) {
       // zone du Colosse ou boule de feu du Sorcier (phase 16) : explose ; un joueur en l'air y échappe
       w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
-      if (inside && !airborne && P.invul <= 0) {
+      // dmg 0 : cercle d'annonce de l'onde du Colosse (phase 43), il ne blesse pas
+      if (s.dmg > 0 && inside && !airborne && P.invul <= 0) {
         P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
         hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
         w.lastHurt = s.kind === ShotKind.Fireball ? HurtSrc.Fire : HurtSrc.Zone;

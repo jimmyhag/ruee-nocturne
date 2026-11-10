@@ -1,4 +1,4 @@
-import { CRIT, ELITE, ENEMIES, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
+import { CHEST, CRIT, ELITE, ENDLESS, ENEMIES, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
 import { stageBossDown } from './stages';
 import { WEAPON_KEYS } from './weapons/defs';
 import { Ev, HitSrc, Mode, Pw, Trait } from './types';
@@ -87,13 +87,20 @@ export function killEnemy(w: World, i: number): void {
     // vrai boss, il rendait la partie plus facile, profil maxé 41 → 53 % de victoires)
     const survival = !w.endless && e.id !== w.totemBossId;
     if (!survival) {
-      w.player.hp = w.player.maxHp;
+      // phase 43 : en monde infini, un boss tué ne rend plus tous les PV (ENDLESS.healFrac)
+      const P = w.player;
+      P.hp = w.endless ? Math.min(P.maxHp, P.hp + P.maxHp * ENDLESS.healFrac) : P.maxHp;
       for (let g = 0; g < w.gemCount; g++) w.gems[g].mag = true;
     }
-    dropChest(w, e.x, e.z, !survival);
+    if (w.endless) {
+      w.endlessAlive = Math.max(0, w.endlessAlive - 1); // phase 39 : la barre passe au boss suivant
+      // phase 43 : un seul coffre par vague, laissé par le dernier boss en vie (ENDLESS.chestPicks objet)
+      if (w.endlessAlive === 0) dropChest(w, e.x, e.z, true, ENDLESS.chestPicks);
+    } else dropChest(w, e.x, e.z, !survival);
     w.emit(Ev.BossKill, e.x, e.y, e.z, e.type);
-    if (w.endless) w.endlessAlive = Math.max(0, w.endlessAlive - 1); // phase 39 : la barre passe au boss suivant
-    else if (e.id === w.totemBossId) {
+    if (w.endless) {
+      // compte des boss en vie déjà mis à jour ci-dessus
+    } else if (e.id === w.totemBossId) {
       w.totemBossId = -1;
       stageBossDown(w, e.x, e.z); // phase 37 : boss du totem → portail, ou victoire au monde 3
     } else w.survivalAlive = Math.max(0, w.survivalAlive - 1); // phase 42 : boss de survie (n'ouvre rien)
@@ -125,7 +132,7 @@ export function dropGem(w: World, x: number, z: number, v: number): void {
 }
 
 /** Coffre au sol (élite : 1/3/5 cartes, boss : 3–5). Pool plein : le plus ancien est remplacé. */
-export function dropChest(w: World, x: number, z: number, boss: boolean): void {
+export function dropChest(w: World, x: number, z: number, boss: boolean, picks = boss ? CHEST.bossPicks : 0): void {
   let c = w.allocChest();
   if (!c) {
     let oldest = 0;
@@ -136,6 +143,7 @@ export function dropChest(w: World, x: number, z: number, boss: boolean): void {
   c.z = z;
   c.age = 0;
   c.boss = boss;
+  c.picks = picks;
 }
 
 /** Retire du pool tous les ennemis marqués morts (swap-remove, ordre non préservé). */

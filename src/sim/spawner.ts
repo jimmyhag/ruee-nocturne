@@ -1,4 +1,4 @@
-import { ARCHER, ARCHER_TYPE, BOSS_TYPE, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, ARCHER_TYPE, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -36,6 +36,10 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   if (elite && type === ELITE_TYPE) e.timer = HAZARDS.charge.first; // Brute élite : première charge différée
   e.tx = e.tz = 0;
   e.phase2 = false;
+  e.t2 = def.boss && type !== BOSS_TYPE ? BOSS.second.first : 0; // phase 43 : seconde attaque (Essaim-mère, Colosse), différée ; Gardien : seconde onde en attente
+  e.age = 0;
+  e.enraged = false;
+  e.combo = 0;
   e.detour = 0;
   e.stun = 0;
   e.slowT = 0;

@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, POWER, SPAWN, STAGE } from './balance';
+import { BOSS, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, POWER, SPAWN, STAGE } from './balance';
 import { spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
@@ -27,13 +27,14 @@ const poly = (c: readonly number[], m: number): number => 1 + c[0] * m + c[1] * 
 /** Horloges du monde, prolongation, totem et portail. Appelé à chaque pas de jeu (Mode.Play), avant le spawner. */
 export function tickStage(w: World, dt: number): void {
   w.stageT += dt;
-  w.diffT = w.stageT + STAGE.offset[w.stage];
   const T = w.totem,
     P = w.player;
   if (w.endless) {
     tickEndless(w, dt); // phase 39 : ni prolongation, ni totem, ni portail
+    w.diffT = w.endlessDiff0 + w.endlessT * ENDLESS.diffRate; // phase 43 : la difficulté avance moins vite qu'en monde
     return;
   }
+  w.diffT = w.stageT + STAGE.offset[w.stage];
   const over = w.stageT - STAGE.dur;
   if (over > 0) {
     w.overT = over;
@@ -87,7 +88,7 @@ export function summonStageBoss(w: World): void {
   const e = w.enemies[i];
   // PV fixés par monde (STAGE.bossHpAt), pas à l'heure de l'appel ; renfort de prolongation compris
   e.hp = e.max =
-    ENEMIES[type].hp * SPAWN.hpScale(STAGE.bossHpAt[w.stage]) * w.overHp * (1 + w.bossCount * STAGE.bossHpPerBoss);
+    ENEMIES[type].hp * BOSS.hpMul[w.stage] * SPAWN.hpScale(STAGE.bossHpAt[w.stage]) * w.overHp * (1 + w.bossCount * STAGE.bossHpPerBoss);
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;
@@ -234,6 +235,7 @@ export function startEndless(w: World): void {
   w.clearEvents(); // les événements du pas de la victoire ont déjà été traités (relecture perf : double comptage)
   w.endless = true;
   w.endlessT = 0;
+  w.endlessDiff0 = w.diffT; // phase 43 : difficulté au moment de la victoire, point de départ du monde infini
   w.endlessWave = 0;
   w.nextEndlessBoss = ENDLESS.period;
   // phase 42 : un boss de survie encore en vie à la victoire devient un boss du monde infini (compté, barre, plafond)
@@ -294,7 +296,7 @@ export function summonEndlessWave(w: World): void {
     if (i < 0) continue;
     const e = w.enemies[i];
     e.hp = e.max =
-      ENEMIES[type].hp *
+      ENEMIES[type].hp * BOSS.hpMul[w.stage] *
       SPAWN.hpScale(w.diffT) *
       (1 + w.bossCount * STAGE.bossHpPerBoss) *
       (1 + ENDLESS.hpPerWave * k);

@@ -27,14 +27,16 @@ export function canGainItem(w: World): boolean {
   for (let i = 0; i < ITEM_KEYS.length; i++) if (offerable(w, i)) return true;
   return false;
 }
-const offerable = (w: World, i: number): boolean => !w.itemBan[i] && w.items[i] < ITEM.maxStack;
+/** Exemplaires au plus de l'objet `i` (phase 43 : selon sa rareté, ITEM.maxCopies). */
+export const maxCopies = (i: number): number => Math.min(ITEM.maxStack, ITEM.maxCopies[ITEM_RARITY[i]]);
+const offerable = (w: World, i: number): boolean => !w.itemBan[i] && w.items[i] < maxCopies(i);
 
 /**
  * Obtient un exemplaire de l'objet d'index `i` (ITEM_KEYS) : effets immédiats, compte, événement. `bought` : acheté au
  * marchand. Les effets ponctuels s'appliquent à chaque exemplaire, pondérés par sa valeur dans la règle de cumul (`f`).
  */
 export function gainItem(w: World, i: number, bought = false): void {
-  if (w.items[i] >= ITEM.maxStack) return;
+  if (w.items[i] >= maxCopies(i)) return;
   const n = ++w.items[i];
   if (n === 1) w.itemOrder.push(i);
   const f = stackEff(n) - stackEff(n - 1);

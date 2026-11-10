@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, WEAPON_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -99,6 +99,7 @@ export class World {
   // phase 39 : monde infini (après la victoire, au choix du joueur)
   endless = false;
   endlessT = 0; // s passées dans le monde infini
+  endlessDiff0 = 0; // phase 43 : diffT à l'entrée en monde infini (il avance ensuite à ENDLESS.diffRate)
   endlessWave = 0; // vagues de boss déjà sorties
   nextEndlessBoss = 0; // endlessT de la prochaine vague
   endlessAlive = 0; // boss du monde infini en vie (la barre passe au suivant)
@@ -310,7 +311,7 @@ export class World {
     for (let i = 0; i < CAPS.projectiles; i++) this.projs.push(makeProj());
     for (let i = 0; i < CAPS.shots; i++) this.shots.push(makeShot());
     for (let i = 0; i < CAPS.gems; i++) this.gems.push(makeGem());
-    for (let i = 0; i < CAPS.chests; i++) this.chests.push({ alive: false, x: 0, z: 0, age: 0, boss: false });
+    for (let i = 0; i < CAPS.chests; i++) this.chests.push({ alive: false, x: 0, z: 0, age: 0, boss: false, picks: 0 });
     for (let i = 0; i < CAPS.powers; i++) this.powers.push({ alive: false, x: 0, z: 0, kind: 0, age: 0 });
     for (let i = 0; i < CAPS.events; i++) this.events.push({ type: Ev.Hit, x: 0, y: 0, z: 0, x2: 0, y2: 0, z2: 0, v: 0 });
     this.startSeed = seed;
@@ -577,7 +578,7 @@ export class World {
     return this.weapons[k] ?? 0;
   }
   weaponMaxed(k: WeaponKey): boolean {
-    return (this.weapons[k] ?? 0) >= WEAPON_MAX;
+    return (this.weapons[k] ?? 0) >= LEVEL_MAX.weapon;
   }
 }
 
@@ -774,6 +775,10 @@ function makeEnemy(): Enemy {
     tx: 0,
     tz: 0,
     phase2: false,
+    t2: 0,
+    age: 0,
+    enraged: false,
+    combo: 0,
     detour: 0,
     stun: 0,
     slowT: 0,

@@ -22,9 +22,10 @@ export interface MerchantState {
   inside: boolean; // le joueur est dans l'échoppe (il doit en sortir pour la rouvrir)
   rerolls: number;
   endlessNext: number; // 1.34.1 : endlessT de la prochaine visite en monde infini
+  endlessVisits: number; // phase 43 : passages faits en monde infini (ENDLESS.merchantVisits au plus)
 }
 export function makeMerchant(): MerchantState {
-  return { active: false, x: 0, z: 0, until: 0, visit: -1, next: 0, rolled: false, inside: false, rerolls: 0, endlessNext: ENDLESS.merchantAt };
+  return { active: false, x: 0, z: 0, until: 0, visit: -1, next: 0, rolled: false, inside: false, rerolls: 0, endlessNext: ENDLESS.merchantAt, endlessVisits: 0 };
 }
 
 const TAU = Math.PI * 2;
@@ -37,9 +38,14 @@ export function tickMerchant(w: World): void {
   // phase 37 : aux heures MERCHANT.times de chaque monde (chrono du monde) ; 1.34.1 : en monde infini, entre deux vagues
   // de boss (ENDLESS.merchantAt après chaque vague, sur le chrono du monde infini)
   if (w.endless) {
-    if (w.endlessT >= M.endlessNext) {
+    // phase 43 (demande de Jimmy) : ENDLESS.merchantVisits passages, puis plus de marchand
+    if (M.endlessVisits < ENDLESS.merchantVisits && w.endlessT >= M.endlessNext) {
       M.endlessNext += ENDLESS.period;
-      if (!M.active) arrive(w); // encore là (rare) : on saute cette visite
+      M.endlessVisits++;
+      if (!M.active) {
+        arrive(w); // encore là (rare) : on saute cette visite
+        if (M.endlessVisits >= ENDLESS.merchantVisits) w.emit(Ev.MerchantLast, M.x, 0, M.z);
+      }
     }
   } else if (!M.active && M.next < MERCHANT.times.length && w.stageT >= MERCHANT.times[M.next]) {
     M.next++;
@@ -114,7 +120,9 @@ export function merchantInput(w: World, pick: number): void {
 }
 
 export function rerollCost(w: World): number {
-  return MERCHANT.reroll * (1 + w.merchant.rerolls);
+  // phase 43 : ×rerollMul à chaque relance de la visite, +rerollVisit par visite passée
+  const M = w.merchant;
+  return Math.round(MERCHANT.reroll * MERCHANT.rerollMul ** M.rerolls * (1 + MERCHANT.rerollVisit * Math.max(0, M.visit)));
 }
 
 /** L'or suffit-il pour au moins une offre encore en vente ? (bots, HUD) */

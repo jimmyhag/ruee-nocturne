@@ -80,6 +80,14 @@ Un ennemi existe pour poser une **question** au joueur :
 ## 7. Boss : scripts courts
 Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90 s. Récompense : aimant global + soin complet + coffre de boss (deux objets passifs à choisir, phase 17). PV ∝ `hpScale(t) · (1 + 0.8·bossIndex)`.
 
+Phase 43 (grand rééquilibrage) :
+- **Trois attaques par boss.** Gardien : charge + Sillage (cercles sur son trajet), onde à sauter, double onde en phase 2. Essaim-mère : ponte (avec des Volants en phase 2), Salve en éventail. Colosse : cercles, croix en phase 2, onde de choc si le joueur est collé à lui.
+- **Une attaque nouvelle réutilise un danger existant** (tir Zone, Ring ou Spit du pool) : déjà dessiné, sonorisé, esquivé par le bot. Un télégraphe qui n'est pas un tir ne se voit pas : le rendu ne dessine que les tirs.
+- **Rage** (`BOSS.enrage`) : boss du totem et du monde infini seulement, après 90 s. Les boss de survie sont faits pour durer (≈ 110 s contre un kit à deux armes) : pas de rage pour eux.
+- **PV par monde** (`BOSS.hpMul`), croissants : le début de partie ne doit pas se durcir. Les kits à plusieurs armes souffrent le plus des PV de boss (dégâts dilués) ; le kit concentré sur une arme, presque pas.
+- **Le bot doit savoir esquiver ce qu'un joueur esquive** : avant de régler une attaque, vérifier que le bot la lit (il restait planté dans un éventail de crachats et au centre de la croix : la sim surestimait la difficulté de 10 points de victoire).
+- **Monde infini** : un boss tué rend `ENDLESS.healFrac` des PV, un seul coffre par vague (un objet).
+
 ## 8. Méta-progression (phase 4, refondue en phases 8, 10 et 17)
 - Or : 1 par kill ×`goldMul`, ×3 élite, ×20 boss, bonus de fin = secondes survécues / 10.
 - Emplacements (phase 10) : `SLOTS` dans `balance.ts`, débloqués dans l'ordre par un succès **et** de l'or (300 → 12 000, ≈ 1,5–2 runs d'or au moment où le succès tombe), communs à tous les personnages ; profil nu de la sim = départ (1 arme, 2 améliorations).
@@ -94,6 +102,15 @@ Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90
 
 - **Rythme et exploration** (phase 18) : la carte doit toujours offrir un but proche (coffre de carte payant, sanctuaire, signalés par une colonne de lumière). Le prix d'un coffre de carte suit l'or gagné (×(1 + t/250)) et monte à chaque ouverture : l'or a un usage pendant toute la partie, sans que le kit complet ouvre tout sans y penser. Avec 6 objets, un coffre donne un bonus de sanctuaire (aucun cul-de-sac). Avant chaque boss : annonce 15 s avant et spawn à 60 % les 10 dernières secondes (tension → respiration → pic).
 - **Difficulté lisse** : la CLI mesure la plus forte chute des vivants en une minute ; une falaise (≥ 25 points) fait quitter. Les rampes de densité commencent en pente douce (terme `t − 480` /360 plutôt qu'un seuil sec à 10:00).
+
+## 8 bis. Bornes de puissance (phase 43)
+Les lignes d'arme en pourcentage se multiplient, les monstres montent en ligne droite : sans borne, une bonne build finit toujours par dépasser le jeu (mesuré : le kit à une arme tenait 7:39 en médiane en monde infini, 17:51 pour une partie sur dix).
+- **Niveau 40 au plus** pour une arme ou un tome (`LEVEL_MAX`), comme Megabonk. Le kit concentré l'atteint à la fin du monde 3 ; ensuite seuls les autres emplacements progressent : les emplacements débloqués comptent en fin de partie.
+- **XP** : terme tardif à partir du niveau 30 (`XP.late`). Sans effet mesurable sur les victoires ; il espace les cartes en monde infini.
+- **Objets** : pas de plafond au total (comme Megabonk), mais 5 / 3 / 2 exemplaires au plus par objet commun / rare / épique (`ITEM.maxCopies`), deux exemplaires pleins puis moitié.
+- **Marchand** : relance 60 or, ×2 par relance de la visite, +35 % par visite ; prix +35 % par visite, +25 % par objet porté ; deux passages seulement en monde infini.
+- **Monde infini** : le temps de difficulté avance à 40 % de sa vitesse (`ENDLESS.diffRate`). À pleine vitesse, avec le plafond, la horde tuait en 3 min quelle que soit la build.
+- Leçon : régler un levier à la fois (`npm run sim -- --set BOSS.hpMul.0=1,XP.late=0`). Sur le kit à deux armes, les PV des boss, les nouvelles attaques et l'économie pesaient chacun 4 à 5 points de victoire ; le plafond de niveau et l'XP, zéro.
 
 ## 9. Cibles d'équilibrage mesurées par simulation
 Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile naked|maxed` (`tools/targets.ts`) :
@@ -113,6 +130,8 @@ Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile nake
 | Variance de kills inter-builds | — | < 3× médiane |
 | Niveau à 10 min (médiane) | — | 32–42 (phase 17 : toutes les cartes viennent des niveaux) |
 | Arme principale à 10 min | — | niveau 8–30 |
+
+Phase 43 : victoire ≤ 30 % (nu) et 5–28 % (maxé), morts en prolongation ≤ 25 % (maxé). Avec `--endless` (parties gagnées qui continuent, `ENDLESS_TARGETS`) : temps tenu p50 2:30–6 min, p90 ≤ 12 min, 6 vagues passées ≤ 5 %, boss du totem en vie 35–75 s en médiane. Un joueur va environ deux fois plus loin que le bot.
 
 Les neuf personnages restent à ± 3 min de l'Éclaireuse dans chaque profil. `--no-item phenix,talisman` retire des objets des tirages (ablation) ; la CLI imprime aussi objets par run, part de chaque objet, or dépensé au marchand et part de chaque synergie.
 

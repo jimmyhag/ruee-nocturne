@@ -50,7 +50,7 @@ describe('cartes', () => {
     ]);
     expect(cardLines(card({ kind: 't', key: 'chance', s0: 0 }))).toEqual(['+0,5 chance']);
     expect(cardLines(card({ kind: 't', key: 'projectiles', s0: 0 }))).toEqual(['+1 projectile pour toutes les armes']);
-    expect(cardTitle(card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 }))).toBe('Soin complet');
+    expect(cardTitle(card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 }))).toBe('Soin');
     expect(cardText(card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 }))).toContain('PV');
     expect(rarityName(1)).toBe('Commune');
     expect(rarityName(3)).toBe('Épique');
@@ -73,7 +73,7 @@ describe('cartes', () => {
     expect(weaponSummary(w, 'orbe')).toContain('1 shot');
     expect(weaponSummary(w, 'aura')).toContain('2.2');
     expect(cardLines(card({ kind: 'w', key: 'orbe', s0: 0 }))).toEqual(['+10 % damage']);
-    expect(cardTitle(card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 }))).toBe('Full heal');
+    expect(cardTitle(card({ kind: 'heal', key: '', lv: 0, n: 0, s0: -1 }))).toBe('Heal');
     expect(cardTitle(card({ kind: 't', key: 'savoir' }))).toBe('Tome of Lore');
     expect(achText(ACHIEVEMENTS.find((a) => a.id === 'kills2000')!)).toContain('2,000');
     setLang('fr');

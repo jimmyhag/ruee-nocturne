@@ -706,7 +706,39 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Porte** :
   - Vitest : horaires, types, PV, portail réservé au boss du totem, barre, remise à zéro, déterminisme, récompense réduite ;
   - e2e : préavis, barre, le tuer n'ouvre pas le portail ; capture lue.
-- **Suite décalée** : armes nouvelles (phase 43), objets nouveaux (phase 44), Nuits.
+- **Suite décalée** : armes nouvelles, objets nouveaux, Nuits (décalées d'un cran de plus par la phase 43).
+
+### Phase 43 — Grand rééquilibrage (après la 1.38.0)
+- **Demande de Jimmy** (10 nov.) : un ami a tenu plus de 15 minutes en monde infini sans avoir tout débloqué. Pistes : montée des armes plus longue, moins d'objets cumulés, marchand plus cher et absent au bout d'un moment en monde infini, boss plus durs avec d'autres attaques, progression un peu plus lente et plus dure vers la fin.
+- **Constat mesuré** (100 parties par profil, avant la phase) :
+  - le kit à une arme tenait 7:39 en médiane en monde infini (17:51 pour une partie sur dix), contre 4 minutes pour les kits à 2 et 4 armes : concentrer bat diversifier, sans limite ;
+  - en monde infini, chaque boss tué soignait à fond et laissait un coffre de 2 objets ;
+  - un combat de boss du totem durait 31 s en médiane.
+- **Référence Megabonk** : pas de plafond d'objets ; armes au niveau 40 au plus ; un marchand ne vend qu'un objet ; coffres plus chers à chaque ouverture. La puissance y est bornée par le niveau des armes et par des sources rares, pas par un plafond d'objets.
+- **Décisions prises** :
+  - niveau 40 au plus pour les armes et les tomes (`LEVEL_MAX`) ; XP plus longue à partir du niveau 30 ;
+  - exemplaires par objet bornés par la rareté (5 / 3 / 2), deux exemplaires pleins puis moitié ; total d'objets toujours libre ;
+  - marchand : relance 60 or qui double, prix +35 % par visite et +25 % par objet porté ; deux passages seulement en monde infini ;
+  - monde infini : un coffre d'un objet par vague, soin de 60 % par boss, difficulté qui avance à 40 % de sa vitesse ;
+  - boss : une attaque de plus chacun (Sillage et double onde, Salve et Volants, onde de choc et croix), rage après 90 s pour les boss du totem et du monde infini, PV ×1,15 / ×1,4 / ×1,5 par monde ;
+  - mondes 2 et 3 : difficulté de départ relevée (`STAGE.offset` [0, 320, 580]) ;
+  - le bot apprend à sauter un éventail de crachats et le centre de la croix ;
+  - le classement n'est pas remis à zéro (décision laissée à Jimmy).
+- **Équilibrage** (200 parties, graine 42 ; intermédiaire : 100 parties) :
+
+  | Mesure | Avant | Après |
+  |---|---|---|
+  | Victoires, départ / intermédiaire / maxé | 33 % / 36 % / 34 % | 24 % / 15 % / 19 % |
+  | Monde infini, tenu médian, départ / intermédiaire / maxé | 7:39 / 3:52 / 4:02 | 4:25 / 2:49 / 3:56 |
+  | Monde infini, 1 partie sur 10 dépasse (départ) | 17:51 | 7:52 |
+  | Boss du totem en vie, médiane, départ / maxé | 31 s / 38 s | 36 s / 47 s |
+  | Morts avant 3 min (départ) | 20 % | 20 % |
+
+- **Un levier à la fois** (intermédiaire, victoires avec tous les leviers 16 %) : PV des boss annulés 21 %, attaques annulées 21 %, économie annulée 20 %, XP annulée 16 %, plafond annulé 16 %.
+- **Porte** :
+  - Vitest : plafonds et tirages, coût de la relance, marchand du monde infini, coffre par vague et soin partiel, XP, chaque attaque de boss, rage, déterminisme ;
+  - e2e clavier et doigt : relance qui double, objet « max », dernier passage du marchand, captures des attaques et de la rage lues ;
+  - cibles de `tools/targets.ts` au vert sur les profils de départ et maxé, monde infini compris ; relecture perf approuvée ; bench avec 6 boss.
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.

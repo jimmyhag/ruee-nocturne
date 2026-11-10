@@ -9,19 +9,40 @@ import type { World } from './world';
 
 const TAU = Math.PI * 2;
 
+/** Cercle au sol qui explose après `telegraph` s (zone du Colosse, sillage du Gardien). Pris dans le pool de tirs. */
+function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dmg: number): void {
+  const s = w.allocShot();
+  if (!s) return;
+  s.kind = ShotKind.Zone;
+  s.r = r;
+  s.x = s.px = x;
+  s.z = s.pz = z;
+  s.vx = s.vz = 0;
+  s.life = s.t0 = telegraph; // t0 : durée totale, pour le remplissage du disque au rendu
+  s.dmg = dmg;
+  w.emit(Ev.Telegraph, x, 0, z, r, telegraph);
+}
+
 /** Déplacement (u/s) décidé par le script du boss `e`, écrit dans mv[0], mv[1]. dx/dz/d : vecteur vers le joueur. */
 export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number, d: number, mv: Float64Array): void {
   const def = ENEMIES[e.type];
-  const sp = def.speed * e.spd;
   const ux = dx / d,
     uz = dz / d;
   if (!e.phase2 && e.hp <= e.max * BOSS.phase2At) e.phase2 = true;
+  // phase 43 : rage. Les recharges d'attaque défilent `haste` fois plus vite (dtA), les télégraphes gardent leur durée (dt)
+  e.age += dt;
+  if (!e.enraged && e.age >= BOSS.enrage.after && e.type !== REAPER_TYPE && (w.endless || e.id === w.totemBossId)) {
+    e.enraged = true;
+    w.emit(Ev.BossEnrage, e.x, e.y, e.z, e.type);
+  }
+  const dtA = e.enraged ? dt * BOSS.enrage.haste : dt;
+  const sp = def.speed * e.spd * (e.enraged ? BOSS.enrage.speed : 1);
   mv[0] = ux * sp;
   mv[1] = uz * sp;
-  e.timer -= dt;
   switch (e.type) {
     case BOSS_TYPE: {
       // Gardien : approche, puis recul + rugissement 0,8 s, puis charge en ligne 1 s. Phase 2 : charges 2× plus fréquentes.
+      e.timer -= e.state === 0 ? dtA : dt;
       if (e.state === 0 && e.timer <= 0 && d < BOSS.chargeRange) {
         e.state = 1;
         e.timer = BOSS.chargeTelegraph;
@@ -34,25 +55,39 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
         if (e.timer <= 0) {
           e.state = 2;
           e.timer = BOSS.chargeTime;
+          e.combo = 0;
         }
       } else if (e.state === 2) {
         mv[0] = e.tx * BOSS.chargeSpeed;
         mv[1] = e.tz * BOSS.chargeSpeed;
+        // phase 43, Sillage : un cercle derrière lui tous les `every` s de charge (`n` au plus)
+        const W = BOSS.wake;
+        if (e.combo < W.n && BOSS.chargeTime - e.timer >= e.combo * W.every) {
+          e.combo++;
+          zoneAt(w, e.x, e.z, W.r, W.telegraph, W.dmg * e.dmgMul);
+        }
         if (e.timer <= 0) {
           e.state = 0;
           e.timer = e.phase2 ? BOSS.chargePeriod / 2 : BOSS.chargePeriod;
         }
       }
       // phase 11 : onde de choc périodique (hors charge), à sauter ; phase 2 : deux fois plus souvent
-      e.aim -= dt;
+      e.aim -= dtA;
       if (e.aim <= 0 && e.state !== 2) {
         e.aim = e.phase2 ? HAZARDS.ring.period / 2 : HAZARDS.ring.period;
         emitRing(w, e);
+        if (e.phase2) e.t2 = BOSS.ring2; // phase 43, double onde : la seconde suit
+      }
+      if (e.t2 > 0 && e.state !== 2) {
+        // jamais pendant la charge (relecture perf) : elle recouvrirait les cercles du sillage
+        e.t2 -= dt;
+        if (e.t2 <= 0) emitRing(w, e);
       }
       break;
     }
     case SWARM_TYPE: {
       // Essaim-mère : avance lentement et pond des Dards en anneau ; phase 2 : pontes plus grosses
+      e.timer -= dtA;
       if (e.timer <= 0) {
         e.timer = BOSS.swarmPeriod;
         const n = e.phase2 ? BOSS.swarmN2 : BOSS.swarmN;
@@ -61,35 +96,105 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
         w.player.x = e.x;
         w.player.z = e.z; // spawnEnemy place autour du joueur : on vise la mère le temps de l'appel
         for (let i = 0; i < n; i++) spawnEnemy(w, DARD_TYPE, (i / n) * TAU, BOSS.swarmDist);
+        // phase 43 : en phase 2, deux Volants sortent avec la ponte
+        if (e.phase2) for (let i = 0; i < BOSS.swarmFlyers2; i++) spawnEnemy(w, VOLANT_TYPE, ((i + 0.5) / BOSS.swarmFlyers2) * TAU, BOSS.swarmDist);
         w.player.x = px;
         w.player.z = pz;
-        e.state = 1; // pulsation côté rendu
-        e.aim = BOSS.swarmPulse;
+        if (e.combo === 0) {
+          e.state = 1; // pulsation côté rendu
+          e.aim = BOSS.swarmPulse;
+        }
+      }
+      // phase 43, Salve : elle gonfle (state 1, `windup` s) puis crache un éventail vers le joueur
+      const V = BOSS.volley;
+      e.t2 -= dtA;
+      if (e.t2 <= 0 && e.combo === 0 && d < V.range) {
+        e.t2 = V.period;
+        e.combo = 1; // salve armée
+        e.state = 1;
+        e.aim = V.windup;
+        e.tx = ux;
+        e.tz = uz;
+        w.emit(Ev.BossRoar, e.x, e.y, e.z, V.windup, ux, 0, uz);
       }
       if (e.aim > 0) {
         e.aim -= dt;
-        if (e.aim <= 0) e.state = 0;
+        if (e.aim <= 0) {
+          e.state = 0;
+          if (e.combo === 1) {
+            e.combo = 0;
+            const n = e.phase2 ? V.n2 : V.n;
+            let fired = 0;
+            for (let k = 0; k < n; k++) {
+              const s = w.allocShot();
+              if (!s) break;
+              fired++;
+              const a = (k - (n - 1) / 2) * V.spread,
+                c = Math.cos(a),
+                sn = Math.sin(a),
+                vx = e.tx * c - e.tz * sn,
+                vz = e.tx * sn + e.tz * c;
+              s.kind = ShotKind.Spit;
+              s.r = V.r;
+              s.x = s.px = e.x + vx * e.r;
+              s.z = s.pz = e.z + vz * e.r;
+              s.vx = vx * V.speed;
+              s.vz = vz * V.speed;
+              s.life = V.life;
+              s.dmg = V.dmg * e.dmgMul;
+            }
+            if (fired > 0) w.emit(Ev.Spit, e.x, e.y, e.z, 0, e.tx, 0, e.tz); // pas de son sans projectile (pool plein)
+          }
+        }
       }
       break;
     }
     case COLOSSUS_TYPE: {
       // Colosse : cercles rouges au sol autour du joueur (télégraphe 1 s) puis explosion ; phase 2 : 5 cercles
+      e.timer -= dtA;
       if (e.timer <= 0) {
         e.timer = BOSS.zonePeriod;
-        const n = e.phase2 ? BOSS.zoneN2 : BOSS.zoneN;
-        for (let i = 0; i < n; i++) {
-          const s = w.allocShot();
-          if (!s) break;
-          const a = w.rng.range(0, TAU),
-            r = i === 0 ? 0 : w.rng.range(1.5, BOSS.zoneSpread); // le premier cercle est sous le joueur
-          s.kind = ShotKind.Zone;
-          s.r = BOSS.zoneR;
-          s.x = s.px = w.player.x + Math.sin(a) * r;
-          s.z = s.pz = w.player.z + Math.cos(a) * r;
-          s.vx = s.vz = 0;
-          s.life = BOSS.zoneTelegraph;
-          s.dmg = BOSS.zoneDmg * e.dmgMul;
-          w.emit(Ev.Telegraph, s.x, 0, s.z, BOSS.zoneR, BOSS.zoneTelegraph);
+        const dmg = BOSS.zoneDmg * e.dmgMul;
+        e.combo++;
+        if (e.phase2 && e.combo % 2 === 0) {
+          // phase 43, croix (phase 2, une attaque sur deux) : le centre sous le joueur, `arm` cercles sur chaque bras
+          const X = BOSS.cross,
+            a0 = w.rng.range(0, TAU);
+          zoneAt(w, w.player.x, w.player.z, BOSS.zoneR, BOSS.zoneTelegraph, dmg);
+          for (let b = 0; b < 4; b++) {
+            const a = a0 + (b * TAU) / 4,
+              sx = Math.sin(a),
+              cz = Math.cos(a);
+            for (let k = 1; k <= X.arm; k++)
+              zoneAt(w, w.player.x + sx * X.step * k, w.player.z + cz * X.step * k, BOSS.zoneR, BOSS.zoneTelegraph, dmg);
+          }
+        } else {
+          const n = e.phase2 ? BOSS.zoneN2 : BOSS.zoneN;
+          for (let i = 0; i < n; i++) {
+            const a = w.rng.range(0, TAU),
+              r = i === 0 ? 0 : w.rng.range(1.5, BOSS.zoneSpread); // le premier cercle est sous le joueur
+            zoneAt(w, w.player.x + Math.sin(a) * r, w.player.z + Math.cos(a) * r, BOSS.zoneR, BOSS.zoneTelegraph, dmg);
+          }
+        }
+      }
+      // phase 43, onde de choc : le joueur est collé à lui → un cercle se remplit sous le Colosse, puis l'onde part
+      const Q = BOSS.quake;
+      if (e.aim > 0) {
+        e.aim -= dt;
+        if (e.aim <= 0) {
+          e.state = 0;
+          emitRing(w, e);
+        }
+      } else {
+        e.t2 -= dtA;
+        if (e.t2 <= 0 && d < Q.range) {
+          e.t2 = Q.period;
+          e.aim = Q.windup;
+          e.state = 1; // geste côté rendu
+          // cercle d'annonce sous le Colosse : un tir Zone sans dégâts (le rendu ne dessine que les tirs) ; l'onde
+          // part de lui quand il est plein
+          zoneAt(w, e.x, e.z, Q.r, Q.windup, 0);
+          w.emit(Ev.BossRoar, e.x, e.y, e.z, Q.windup, ux, 0, uz);
         }
       }
       break;

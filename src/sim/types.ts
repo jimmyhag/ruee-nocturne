@@ -30,6 +30,12 @@ export interface Enemy {
   tx: number;
   tz: number;
   phase2: boolean; // boss : phase à 50 % PV déclenchée
+  // phase 43 : boss — minuteur de la seconde attaque, âge (rage), compteur d'attaque (cercles du sillage posés, salve
+  // armée, parité des attaques du Colosse)
+  t2: number;
+  age: number;
+  enraged: boolean;
+  combo: number;
   detour: number; // phase 16 : s restantes où il suit le champ de flux case par case (il butait sur un obstacle)
   stun: number; // phase 19 : s restantes d'immobilisation (Éclat, Collet) ; les boss n'y sont pas sensibles
   slowT: number; // phase 19 : s restantes de ralentissement (Voile, boss pris dans un Collet ou un Éclat)
@@ -123,6 +129,7 @@ export interface Chest {
   z: number;
   age: number;
   boss: boolean; // coffre de boss : 3 à 5 cartes
+  picks: number; // phase 43 : objets garantis (0 : coffre d'élite, un objet un coffre sur ITEM.eliteItemEvery)
 }
 
 /** Source d'un coup (Ev.Hit, champ x2) : couleur des particules et du son côté rendu. */
@@ -211,6 +218,8 @@ export const enum Ev {
   TimeUp, // phase 37 : fin du chrono du monde, v = monde (1..), x2 = 1 si le portail est ouvert
   EndlessStart, // phase 39 : le joueur continue en monde infini
   EndlessWave, // phase 39 : vague de boss du monde infini, v = numéro (1..), x2 = nombre de boss
+  BossEnrage, // phase 43 : un boss en vie depuis BOSS.enrage.after s enrage, en (x,y,z), v = type
+  MerchantLast, // phase 43 : dernier passage du marchand en monde infini, échoppe en (x,z)
 }
 
 export interface GameEvent {

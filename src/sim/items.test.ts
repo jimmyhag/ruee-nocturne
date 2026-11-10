@@ -57,8 +57,8 @@ describe('objets passifs', () => {
     expect(itemCount(w)).toBe(39);
     expect(canGainItem(w)).toBe(true); // plus de plafond
   });
-  it('règle de cumul : trois exemplaires pleins, puis chacun à moitié ; w.itemEff suit', () => {
-    expect([0, 1, 2, 3, 4, 5, 7].map(stackEff)).toEqual([0, 1, 2, 3, 3.5, 4, 5]);
+  it('règle de cumul (phase 43) : deux exemplaires pleins, puis chacun à moitié ; w.itemEff suit', () => {
+    expect([0, 1, 2, 3, 4, 5].map(stackEff)).toEqual([0, 1, 2, 2.5, 3, 3.5]);
     const w = new World(1);
     const P = w.player;
     const dmg = P.dmgMul;
@@ -67,11 +67,14 @@ describe('objets passifs', () => {
       expect(w.itemEff[It.Pierre]).toBe(stackEff(k));
       expect(P.dmgMul).toBeCloseTo(dmg + ITEM.pierre.dmg * stackEff(k), 9);
     }
-    // Phénix : une réanimation par exemplaire plein, puis une tous les deux
+    // Phénix (épique, 2 exemplaires au plus) : une réanimation par exemplaire plein
     for (let k = 0; k < 5; k++) gainItem(w, It.Phenix);
-    expect(P.revives).toBe(4);
-    // Cape et Rune : les réductions se multiplient, sous le plancher de recharge
+    expect(w.items[It.Phenix]).toBe(ITEM.maxCopies[2]);
+    expect(P.revives).toBe(2);
+    // Cape et Rune (rares, 3 au plus) : les réductions se multiplient, jamais sous le plancher de recharge
     for (let k = 0; k < 8; k++) gainItem(w, It.Rune);
+    expect(P.spellCdMul).toBeCloseTo(ITEM.rune.cdMul ** stackEff(ITEM.maxCopies[1]), 9);
+    for (let k = 0; k < 8; k++) gainItem(w, It.Cape);
     expect(P.spellCdMul).toBeCloseTo(TOME_CAPS.spellCdMin, 9);
     // Bottes : le saut une seule fois
     const jump = P.jumpMul;
@@ -92,6 +95,7 @@ describe('objets passifs', () => {
   });
   it('les prix du marchand montent avec les objets portés, sauf la Bourse ; pas ceux des coffres de carte', () => {
     const w = new World(1);
+    w.merchant.visit = 0; // première visite : le prix de base, sans arrondi intermédiaire
     const p0 = itemPrice(w, It.Coeur),
       c0 = mapChestPrice(w);
     gainItem(w, It.Pierre);
@@ -117,11 +121,36 @@ describe('objets passifs', () => {
     }
     expect(picks).toBe(2);
   });
-  it('un plafond de comptage : 255 exemplaires au plus (Uint8Array), sans débordement', () => {
+  it('phase 43 : exemplaires bornés par la rareté (commun 5, rare 3, épique 2) ; un objet plein ne sort plus des tirages', () => {
     const w = new World(1);
     for (let k = 0; k < 300; k++) gainItem(w, It.Amulette);
-    expect(w.items[It.Amulette]).toBe(ITEM.maxStack);
+    expect(w.items[It.Amulette]).toBe(ITEM.maxCopies[0]);
     expect(w.itemOrder).toEqual([It.Amulette]);
+    for (let i = 0; i < ITEM_KEYS.length; i++) {
+      for (let k = 0; k < 10; k++) gainItem(w, i);
+      expect(w.items[i]).toBe(ITEM.maxCopies[ITEM_RARITY[i]]);
+    }
+    expect(canGainItem(w)).toBe(false); // tout est au plafond
+    const full = new World(2);
+    for (let k = 0; k < 10; k++) gainItem(full, It.Amulette);
+    for (let n = 0; n < 200; n++) {
+      rollItemChoices(full, 3, false, full.cards);
+      expect(full.cards.some((c) => c.key === 'amulette')).toBe(false);
+    }
+  });
+  it('phase 43 : la relance du marchand double à chaque fois, et part de plus haut à chaque visite', () => {
+    const w = new World(1);
+    const M = w.merchant;
+    M.visit = 0;
+    M.rerolls = 0;
+    expect(rerollCost(w)).toBe(MERCHANT.reroll);
+    M.rerolls = 1;
+    expect(rerollCost(w)).toBe(MERCHANT.reroll * MERCHANT.rerollMul);
+    M.rerolls = 2;
+    expect(rerollCost(w)).toBe(MERCHANT.reroll * MERCHANT.rerollMul ** 2);
+    M.visit = 2;
+    M.rerolls = 0;
+    expect(rerollCost(w)).toBe(Math.round(MERCHANT.reroll * (1 + 2 * MERCHANT.rerollVisit)));
   });
   it('les effets survivent aux montées de niveau (les tomes s’ajoutent, ne réinitialisent pas)', () => {
     const w = new World(2);

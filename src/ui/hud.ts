@@ -1,6 +1,16 @@
-import { ENEMIES, ITEM_KEYS, ITEM_RARITY, MAPCHEST, POWER, POWER_KEYS, SHRINE, SPELL_KEYS } from '../sim/balance';
+import {
+  ENEMIES,
+  ITEM_KEYS,
+  ITEM_RARITY,
+  LEVEL_MAX,
+  MAPCHEST,
+  POWER,
+  POWER_KEYS,
+  SHRINE,
+  SPELL_KEYS,
+} from '../sim/balance';
 import { PAL } from '../render/palette';
-import { canGainItem } from '../sim/items';
+import { canGainItem, maxCopies } from '../sim/items';
 import { mapChestPrice } from '../sim/poi';
 import { stageLeft } from '../sim/stages';
 import { spellCooldown } from '../sim/spells';
@@ -469,9 +479,12 @@ export class Hud {
 export function gearHtml(w: World, hide = 0): string {
   let s = '';
   for (const k in w.weapons) {
-    const name = weaponName(k as WeaponKey),
-      lv = w.weapons[k as WeaponKey];
-    s += `<span class="gi gw" title="${name} ${lv}" aria-label="${name} ${lv}">${WEAPON_ICON[k as WeaponKey]}<b>${lv}</b></span>`;
+    const lv = w.weapons[k as WeaponKey]!,
+      max = lv >= LEVEL_MAX.weapon, // phase 43 : niveau plafonné, marqué
+      name = max
+        ? t('gear.max', { name: `${weaponName(k as WeaponKey)} ${lv}` })
+        : `${weaponName(k as WeaponKey)} ${lv}`;
+    s += `<span class="gi gw" title="${name}" aria-label="${name}">${WEAPON_ICON[k as WeaponKey]}<b${max ? ' class="max"' : ''}>${lv}</b></span>`;
   }
   const order = w.itemOrder;
   if (order.length === 0) return s;
@@ -481,8 +494,10 @@ export function gearHtml(w: World, hide = 0): string {
     const i = order[k],
       key = ITEM_KEYS[i],
       n = w.items[i],
-      name = itemName(key) + (n > 1 ? ` ×${n}` : '');
-    s += `<span class="gi git" title="${name}" aria-label="${name}" style="--r:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_ICON[key]}${n > 1 ? `<b>×${n}</b>` : ''}</span>`;
+      max = n >= maxCopies(i), // phase 43 : exemplaires plafonnés par la rareté
+      base = itemName(key) + (n > 1 ? ` ×${n}` : ''),
+      name = max ? t('gear.max', { name: base }) : base;
+    s += `<span class="gi git" title="${name}" aria-label="${name}" style="--r:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_ICON[key]}${n > 1 || max ? `<b${max ? ' class="max"' : ''}>×${n}</b>` : ''}</span>`;
   }
   return s;
 }
@@ -532,7 +547,9 @@ export function renderCards(
         glyph = ITEM_GLYPH[c.key as ItemKey];
         icon = ITEM_ICON[c.key as ItemKey];
         color = RARITY_COLOR[c.lv];
-        badge = `<span class="badge new item">${c.s2 > 1 ? t('card.itemStack', { n: c.s2 }) : t('card.item')}</span>`; // phase 38 : cumul
+        // phase 38 : cumul ; phase 43 : « max » quand cet exemplaire est le dernier possible
+        const top = c.s2 >= maxCopies(ITEM_KEYS.indexOf(c.key as ItemKey));
+        badge = `<span class="badge new item">${top ? t('card.itemMax', { n: c.s2 }) : c.s2 > 1 ? t('card.itemStack', { n: c.s2 }) : t('card.item')}</span>`;
         if (shop) {
           const sold = c.s1 === 1;
           off = sold || shop.full || shop.gold < c.s0;

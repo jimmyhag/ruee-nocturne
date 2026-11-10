@@ -180,7 +180,9 @@ export const STAGE = {
   // qu'il ne finissait (respiration à l'arrivée) et monte plus haut que le précédent ; le monde 3 finit au niveau de
   // l'ancienne 19:00 (mesuré : [0, 330, 600] allait jusqu'à l'ancien 20:00 et le profil maxé n'en sortait pas ;
   // [0, 240, 420] laissait passer tout profil nu qui survivait au monde 1)
-  offset: [0, 300, 540],
+  // phase 43 (grand rééquilibrage, « plus dur vers la fin ») : [0, 300, 540] → [0, 320, 580]. Le kit concentré sur une
+  // arme sortait du monde 1 puis gagnait 8 fois sur 10 ; avec la hausse, victoires 32 → 22 % (nu) et 32 → 22 % (maxé)
+  offset: [0, 320, 580],
   bosses: [3, 6, 7], // Gardien, Essaim-mère, Colosse (types ; BOSSES dans l'ordre)
   // PV du boss du monde : ceux des anciens boss à 5:00, 10:00, 15:00 (hpScale à ce temps), quelle que soit l'heure
   // d'activation. Farmer plus longtemps rend donc le boss relativement plus facile ; le risque, c'est le chrono.
@@ -202,6 +204,8 @@ export const STAGE = {
   // phase 42 (demande de Jimmy) : boss de survie à heure fixe dans chaque monde, avant le boss du totem. Ils arrivent
   // seuls, en cercle autour du joueur ; PV = fraction de ceux du boss du totem du même monde ; ils n'ouvrent rien et ne
   // renforcent pas les boss suivants (bossCount inchangé). Préavis `warn` s avant.
+  // phase 43 : BOSS.hpMul ne s'applique pas à eux (ils ont déjà une attaque de plus : avec ×1,5, le boss de 3:00 vivait
+  // 93 s contre le profil nu, 132 s contre le profil maxé, et coûtait 18 points de survie de plus)
   survival: { at: [180, 420], hp: [1, 1.4], dist: 12, warn: 10 }, // 150 runs : nu 43 → 34 % de victoires, maxé 41 → 31 %
   overWaveCap: 3, // en prolongation, les vagues grossissent au plus ×3 (au-delà, le pool d'ennemis est plein)
   totemTries: 4000, // tirages pour placer le totem
@@ -227,7 +231,18 @@ export const STAGE = {
 export const ENDLESS = {
   period: 150, // s : 2:30 (choix de Jimmy)
   maxBosses: 4,
-  hpPerWave: 0.25,
+  hpPerWave: 0.25, // phase 43 : essayé 0,4 et 0,3 avec le reste des changements : tenu p50 2:48 et 3:24, trop sec
+  // phase 43 (grand rééquilibrage) : avant, chaque boss tué soignait à fond et laissait un coffre de deux objets (jusqu'à
+  // 40 objets et 20 soins complets en 8 vagues). Maintenant : un soin partiel par boss, et un seul coffre par vague
+  // (laissé par le dernier boss en vie), avec chestPicks objet
+  healFrac: 0.6,
+  chestPicks: 1,
+  merchantVisits: 2, // le marchand passe deux fois (1:15 et 3:45), puis plus jamais (demande de Jimmy)
+  // phase 43 : en monde infini le temps de difficulté (diffT) avance `diffRate` fois moins vite qu'en monde. Avant, il
+  // continuait à pleine vitesse (PV des monstres +7,5 par minute, dégâts +1,3) en plus de la rampe ci-dessous : avec le
+  // plafond de niveau 40, c'est la horde qui tuait en 3 min, pas les boss (qui tombaient en 18 s). La rampe reste le
+  // seul réglage de la montée
+  diffRate: 0.4,
   // montée lente des monstres normaux (choix de Jimmy) : m = minutes en monde infini, multiplicateurs 1 + a·m + b·m²,
   // bien plus doux que la prolongation (1.34.1 : PV ×1,6 à 10 min, ×4 à 30). Sans elle, une build forte ne mourait plus (mesuré : 38 %
   // des parties nues passaient 8 vagues, certaines plus d'une heure)
@@ -349,7 +364,14 @@ export const XP = {
   // needFor(lv) = 0,45·(5 + 2·lv + 0,15·lv²)  → lv1:3, lv10:18, lv20:47, lv40:146 (phase 12 : la montée est longue et faite de
   // petites lignes ; phase 17 : ×0,45, les coffres ne donnent plus de cartes mais des objets, les niveaux portent toutes les
   // cartes : ≈ 37 niveaux à 10 min au lieu de 26 + ≈ 12 cartes de coffre)
-  needFor: (lv: number) => Math.floor((5 + lv * 2 + lv * lv * 0.15) * 0.45),
+  // phase 43 (grand rééquilibrage, demande de Jimmy : « la montée en niveau doit être un peu plus longue ») : terme tardif
+  // late · (lv − lateFrom)² ; rien ne change avant le niveau lateFrom (le niveau à 10 min reste 32–42)
+  lateFrom: 30,
+  late: 0.25,
+  needFor: (lv: number): number => {
+    const over = Math.max(0, lv - XP.lateFrom);
+    return Math.floor((5 + lv * 2 + lv * lv * 0.15 + XP.late * over * over) * 0.45);
+  },
   gemMergeAbove: 880, // au-delà, les nouvelles gemmes fusionnent avec une existante
   magnetAccel: 45,
   magnetMax: 26,
@@ -546,6 +568,31 @@ export const BOSS = {
   zoneSpread: 4.5, // cercles autour de la position du joueur
   zoneDmg: 9, // × dmgScale (×3,5 à 15:00 ⇒ 32) : 35 tuait 100 % des runs à 15:00, 12 en tuait encore 65 %
   phase2At: 0.5, // phase 2 à 50 % PV (survivor-design §7)
+  // phase 43 (grand rééquilibrage, demande de Jimmy : « les boss sont trop faciles, leur mettre d'autres compétences »).
+  // Chaque ajout réutilise un danger déjà dessiné, sonorisé et esquivé (cercle au sol, onde à sauter, crachat).
+  // PV des boss du totem par monde (le monde infini prend le dernier ; pas les boss de survie) : un combat durait 31 s en médiane, cible
+  // 45–75 s. Croissant : le début de partie ne doit pas se durcir (×1,5 partout : 33 % des profils nus mouraient au
+  // premier boss du totem au lieu de 13 %, victoires 33 → 16 %)
+  hpMul: [1.15, 1.4, 1.5],
+  second: { first: 4 }, // s après l'apparition avant la seconde attaque (Essaim-mère, Colosse)
+  // rage : un boss du totem ou du monde infini en vie depuis `after` s attaque `haste` fois plus souvent et avance `speed`
+  // fois plus vite ; les télégraphes gardent leur durée (lisibilité). Pas les boss de survie : ils sont faits pour durer
+  // (110 s en médiane contre un kit à deux armes, avant comme après la phase), la rage les touchait presque tous dès 3:00
+  enrage: { after: 90, haste: 1.4, speed: 1.25 },
+  // Gardien, Sillage : sa charge laisse `n` cercles sur son trajet (un tous les `every` s), qui explosent après `telegraph`
+  wake: { n: 4, every: 0.25, r: 1.8, telegraph: 0.7, dmg: 8 },
+  ring2: 0.9, // Gardien, phase 2 : seconde onde 0,9 s après la première (8 u d'écart : le temps de retomber et de ressauter)
+  // Essaim-mère, Salve : elle gonfle `windup` s puis crache `n` projectiles en éventail (`n2` en phase 2), au sol : on les
+  // saute ou on passe entre deux. Seulement si le joueur est à moins de `range`
+  // dmg 11 → 7 : × dmgScale (×8,6 en monde infini), les salves faisaient 21 % des morts du monde infini
+  volley: { period: 6.5, windup: 0.6, n: 5, n2: 7, spread: 0.24, speed: 7, life: 2.6, dmg: 7, r: 0.45, range: 20 },
+  swarmFlyers2: 2, // Essaim-mère, phase 2 : chaque ponte ajoute 2 Volants
+  // Colosse, onde de choc : quand le joueur est à moins de `range`, un cercle se remplit sous le Colosse (`windup` s)
+  // puis une onde part (HAZARDS.ring) : on ne reste plus collé à lui
+  quake: { period: 5, range: 6.5, windup: 0.7, r: 4 },
+  // Colosse, phase 2 : une attaque de cercles sur deux dessine une croix centrée sur le joueur (`arm` cercles par bras,
+  // espacés de `step`) : on sort par une diagonale, ou on saute
+  cross: { arm: 2, step: 3.8 },
 };
 
 // armes de phase 3 : comportement (les stats par niveau restent dans weapons/defs.ts)
@@ -895,15 +942,18 @@ export const ITEM_RARITY: number[] = [
 export const ITEM = {
   // phase 38 (demande de Jimmy) : plus de limite, un objet déjà pris peut revenir et se cumule. Les trois premiers
   // exemplaires valent chacun un « premier », les suivants stackFalloff (règle de cumul dans items.ts, stackEff)
-  stackFull: 3,
+  stackFull: 2, // phase 43 : 3 → 2 (rendement décroissant plus tôt)
   stackFalloff: 0.5,
+  // phase 43 (demande de Jimmy : « on peut trop en stacker ») : exemplaires au plus par objet, selon sa rareté (commun,
+  // rare, épique). Le nombre total d'objets reste libre, comme dans Megabonk ; un objet au plafond ne sort plus des tirages
+  maxCopies: [5, 3, 2],
   dupWeight: 0.8, // poids de tirage d'un objet déjà possédé (× celui de sa rareté) : de la variété avant tout
   maxStack: 255, // w.items est un Uint8Array
   // sans plafond, les ≈ 16 coffres d'élite d'une partie donnaient 28 objets : un coffre d'élite sur `eliteItemEvery`
   // ouvre un choix d'objet, les autres un sac d'or (chestGoldIfFull) ; coffres de boss, de carte et marchand inchangés
   eliteItemEvery: 4,
   // …et le marchand vend plus cher à chaque objet porté : × (1 + k · objets) (1.33.1 : plus les coffres de carte)
-  priceGrowth: 0.2,
+  priceGrowth: 0.25, // phase 43 : 0,2 → 0,25
   offers: 3, // choix d'un coffre et offres du marchand (4 avec le Fer à cheval ou le Colporteur dans un coffre)
   weight: [1, 0.55, 0.2], // poids de tirage par rareté…
   luckWeight: [0, 0.08, 0.04], // …décalés par point de Chance
@@ -960,8 +1010,12 @@ export const MERCHANT = {
   stay: 45, // s avant de repartir
   r: 1.8, // entrer dans ce rayon ouvre l'échoppe
   price: [70, 140, 240], // par rareté, à la première visite…
-  growth: 0.25, // …+25 % à chaque visite
-  reroll: 40, // relance : 40 or, puis +40 à chaque fois pendant la visite
+  growth: 0.35, // …+35 % à chaque visite (phase 43 : 25 → 35 %, les objets ne coûtaient plus assez cher à la longue)
+  // phase 43 (demande de Jimmy : « 40 balles la relance, c'est pas assez ») : 60 or, ×2 à chaque relance de la visite
+  // (60, 120, 240…), et +35 % par visite passée. Avant : 40, 80, 120, remis à 40 à chaque visite
+  reroll: 60,
+  rerollMul: 2,
+  rerollVisit: 0.35,
   placeTries: 8, // essais de placement autour du joueur, hors obstacle
   placeMargin: 0.5, // u de dégagement autour de l'échoppe
 };
@@ -1025,8 +1079,10 @@ export const REVIVE = {
   invul: 1, // s d'invulnérabilité pour sortir de la masse
 };
 
-export const WEAPON_MAX = 100; // phase 12 : 100 améliorations par arme (jamais atteint en 20 min : la montée est longue)
-export const TOME_MAX = 100;
+// phase 43 (grand rééquilibrage) : 100 → 40 améliorations par arme et par tome, comme Megabonk. Les lignes en pourcentage
+// se multiplient (+10 % cumulés) alors que les monstres montent en ligne droite : sans plafond, une bonne build finissait
+// toujours par les dépasser en monde infini. Dans un objet : la CLI peut le régler (--set LEVEL_MAX.weapon=…)
+export const LEVEL_MAX = { weapon: 40, tome: 40 };
 export const MAX_WEAPONS = 4;
 export const MAX_PASSIVES = 4; // tomes (le nom « passives » reste dans la méta et les emplacements sauvegardés)
 
@@ -1051,6 +1107,7 @@ export const SLOTS: SlotUnlock[] = [
 ];
 
 export const CHOICE = {
+  healFrac: 0.3, // phase 43 : plus rien à améliorer (tout au plafond) → la carte « Soin » rend 30 % des PV max (avant : tous)
   ownedWeight: 1.6, // favorise la cohérence de build
   newWeight: 1.3, // découverte
   cards: 3,

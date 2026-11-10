@@ -26,7 +26,8 @@ import { runCharStats } from '../src/meta/chars';
 import { DEFAULT_META } from '../src/meta/save';
 import { enforceAllowed, makeBot, pickAllowed } from './bots';
 import { startEndless } from '../src/sim/stages';
-import { PROFILES, REF_PRICE, checkTargets } from './targets';
+import { ENDLESS_TARGETS, PROFILES, REF_PRICE, checkTargets } from './targets';
+import * as BALANCE from '../src/sim/balance';
 
 const args = new Map<string, string>();
 // 1.34.1 : une option sans valeur (--endless) n'avale plus l'option suivante
@@ -93,6 +94,21 @@ if (args.has('ramp')) {
     R = ENDLESS.ramp;
   for (const c of [R.rate, R.hp, R.dmg, R.spd]) for (let i = 0; i < c.length; i++) c[i] *= k;
 }
+// phase 43 : --set ENDLESS.hpPerWave=0.4,ITEM.stackFull=3,ENDLESS.ramp.hp.0=0.08 : règle n'importe quelle constante
+// numérique d'un objet exporté par balance.ts, sans toucher au fichier (un levier à la fois)
+if (args.has('set'))
+  for (const kv of args.get('set')!.split(',')) {
+    const [path, val] = kv.split('=');
+    const keys = path.split('.');
+    let o: any = BALANCE;
+    for (let i = 0; i < keys.length - 1; i++) o = o?.[keys[i]];
+    const last = keys[keys.length - 1];
+    if (!o || typeof o[last] !== 'number' || !Number.isFinite(+val)) {
+      console.error(`--set : « ${kv} » ne désigne pas une constante numérique de balance.ts`);
+      process.exit(2);
+    }
+    o[last] = +val;
+  }
 // phase 42 : boss de survie (STAGE.survival) : --no-survival pour comparer, --survival-hp 0.4,0.65 pour régler
 if (args.has('no-survival')) STAGE.survival.at.length = 0;
 if (args.has('survival-hp')) {
@@ -135,6 +151,8 @@ interface RunResult {
   overT: number; // s de prolongation tenues dans le dernier monde (0 : mort avant la fin du chrono)
   totemAt: number[]; // chrono du monde (s) à l'activation de chaque totem
   bossFight: number[]; // s entre l'appel et la mort de chaque boss de totem
+  bossLife: { totem: number[]; survie: number[]; infini: number[] }; // phase 43 : s en vie de chaque boss tué, par sorte
+  atWin: { items: number; level: number; weaponLv: number } | null; // phase 43 : état à l'entrée en monde infini
   killsAt10: number;
   levelAt10: number;
   weapons: Record<string, number>;
@@ -188,6 +206,10 @@ function runOnce(seed: number): RunResult {
   const totemAt: number[] = [],
     bossFight: number[] = [];
   let summonedAt = -1;
+  // phase 43 : durée de vie de chaque boss (totem, survie, monde infini) et état du joueur à la victoire
+  const bossLife = { totem: [] as number[], survie: [] as number[], infini: [] as number[] };
+  const bossBorn = new Map<number, { t: number; kind: 'totem' | 'survie' | 'infini' }>();
+  let atWin: RunResult['atWin'] = null;
   let eruptions = 0,
     eruptionHits = 0;
   // phase 11 : les dangers (éruption, anneau, charge, crachat, zone) sont nommés ; le contact garde l'ennemi le plus proche
@@ -239,6 +261,22 @@ function runOnce(seed: number): RunResult {
       if ((e.type === Ev.PortalOpen || e.type === Ev.Victory) && summonedAt >= 0) {
         bossFight.push(w.t - summonedAt);
         summonedAt = -1;
+      }
+      if (e.type === Ev.BossSpawn || e.type === Ev.BossKill) {
+        // balayage rare (un boss vient d'arriver ou de tomber) : nouveaux boss datés, boss disparus comptés
+        for (const [id, b] of bossBorn) {
+          let there = false;
+          for (let k = 0; k < w.enemyCount; k++) if (w.enemies[k].id === id && w.enemies[k].alive) there = true;
+          if (!there) {
+            bossLife[b.kind].push(w.t - b.t);
+            bossBorn.delete(id);
+          }
+        }
+        for (let k = 0; k < w.enemyCount; k++) {
+          const en = w.enemies[k];
+          if (en.alive && ENEMIES[en.type].boss && !bossBorn.has(en.id))
+            bossBorn.set(en.id, { t: w.t, kind: w.endless ? 'infini' : en.id === w.totemBossId ? 'totem' : 'survie' });
+        }
       }
       if (e.type === Ev.Eruption) eruptions++;
       if (e.type === Ev.PlayerHurt && w.lastHurt === HurtSrc.Eruption) eruptionHits++;
@@ -300,7 +338,10 @@ function runOnce(seed: number): RunResult {
       }
     }
     // phase 39 : --endless, le bot continue en monde infini après la victoire
-    if (w.mode === Mode.Won && ENDLESS_ON) startEndless(w);
+    if (w.mode === Mode.Won && ENDLESS_ON) {
+      atWin = { items: w.items.reduce((a, n) => a + n, 0), level: w.player.level, weaponLv: w.weaponLvBest };
+      startEndless(w);
+    }
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
   }
   return {
@@ -317,6 +358,8 @@ function runOnce(seed: number): RunResult {
     overT: w.overT,
     totemAt,
     bossFight,
+    bossLife,
+    atWin,
     killsAt10,
     levelAt10,
     weapons: { ...w.weapons } as Record<string, number>,
@@ -440,6 +483,66 @@ const summary = {
     results.flatMap((r) => r.bossFight),
     90,
   ),
+  // phase 43 : monde infini (--endless), sur les parties gagnées qui ont continué
+  endless: (() => {
+    const inf = results.filter((r) => r.endless);
+    const share = (k: number) => (inf.length ? (100 * inf.filter((r) => r.endlessWave >= k).length) / inf.length : 0);
+    return {
+      n: inf.length,
+      p10: pct(
+        inf.map((r) => r.endlessT),
+        10,
+      ),
+      p50: pct(
+        inf.map((r) => r.endlessT),
+        50,
+      ),
+      p90: pct(
+        inf.map((r) => r.endlessT),
+        90,
+      ),
+      wave6Pct: share(6),
+      itemsAtWinP50: pct(
+        inf.map((r) => r.atWin?.items ?? 0),
+        50,
+      ),
+      itemsEndP50: pct(
+        inf.map((r) => r.itemN),
+        50,
+      ),
+      levelAtWinP50: pct(
+        inf.map((r) => r.atWin?.level ?? 0),
+        50,
+      ),
+      levelEndP50: pct(
+        inf.map((r) => r.level),
+        50,
+      ),
+      weaponLvAtWinP50: pct(
+        inf.map((r) => r.atWin?.weaponLv ?? 0),
+        50,
+      ),
+      weaponLvEndP50: pct(
+        inf.map((r) => r.weaponLvBest),
+        50,
+      ),
+    };
+  })(),
+  // phase 43 : durée de vie médiane des boss tués, par sorte
+  bossLifeP50: {
+    totem: pct(
+      results.flatMap((r) => r.bossLife.totem),
+      50,
+    ),
+    survie: pct(
+      results.flatMap((r) => r.bossLife.survie),
+      50,
+    ),
+    infini: pct(
+      results.flatMap((r) => r.bossLife.infini),
+      50,
+    ),
+  },
   bossWinPct: [0, 1, 2].map((k) =>
     Math.round(
       (100 * results.filter((r) => r.bossFight.length > k).length) /
@@ -602,6 +705,9 @@ lines.push(
 lines.push(
   `mondes      monde 2 atteint ${summary.stage2Pct.toFixed(0)} % · monde 3 ${summary.stage3Pct.toFixed(0)} % · victoire ${summary.reachedEndPct.toFixed(0)} % · totem p50 à ${mmss(summary.totemP50)} · boss tués ${summary.bossWinPct.join('/')} % en p50 ${summary.bossFightP50.toFixed(0)} s (p90 ${summary.bossFightP90.toFixed(0)} s) · morts en prolongation ${summary.overDeathPct.toFixed(0)} % après p50 ${summary.overP50.toFixed(0)} s (p90 ${summary.overP90.toFixed(0)} s)`,
 );
+lines.push(
+  `boss        en vie p50 : totem ${summary.bossLifeP50.totem.toFixed(0)} s · survie ${summary.bossLifeP50.survie.toFixed(0)} s · monde infini ${summary.bossLifeP50.infini.toFixed(0)} s`,
+);
 // phase 41 : défis du personnage, en une partie (part des runs qui les remplissent)
 lines.push(
   `défis       ${charChal
@@ -627,6 +733,18 @@ if (ENDLESS_ON) {
   );
   lines.push(
     `infini      ${inf.length} parties · tenu p10 ${mmss(pct(tq, 10))} p50 ${mmss(pct(tq, 50))} p90 ${mmss(pct(tq, 90))} · vagues p50 ${pct(wq, 50)} · ${waves.join(' · ')}`,
+  );
+  const E = summary.endless;
+  const why: Record<string, number> = {};
+  for (const r of inf) if (r.deathBy !== '—') why[r.deathBy] = (why[r.deathBy] ?? 0) + 1;
+  lines.push(
+    `infini mort ${Object.entries(why)
+      .sort((x, y) => y[1] - x[1])
+      .map(([k, v]) => `${k} ${Math.round((100 * v) / Math.max(1, inf.length))} %`)
+      .join(' · ')}`,
+  );
+  lines.push(
+    `infini+     objets p50 ${E.itemsAtWinP50} à la victoire, ${E.itemsEndP50} à la mort · niveau ${E.levelAtWinP50} → ${E.levelEndP50} · arme principale niv ${E.weaponLvAtWinP50} → ${E.weaponLvEndP50}`,
   );
 }
 lines.push(
@@ -680,7 +798,11 @@ lines.push(
   `carte       ${summary.mapChestsPerRun} coffres de carte et ${summary.shrinesPerRun} sanctuaires par run · ${summary.goldSpentPct} % de l'or gagné dépensé en partie`,
 );
 lines.push(`sort        ${summary.spellPerMin} lancers par minute · ${summary.spellKillPct} % des kills`);
-const checks = checkTargets(summary, PROFILES[PROFILE]);
+// phase 43 : avec --endless, les cibles du monde infini s'ajoutent (s'il y a des parties gagnées à mesurer)
+const checks = checkTargets(
+  summary,
+  ENDLESS_ON && summary.endless.n > 0 ? [...PROFILES[PROFILE], ...ENDLESS_TARGETS] : PROFILES[PROFILE],
+);
 lines.push(`cibles      ${checks.map((c) => `${c.ok ? '✔' : '✘'} ${c.name} (${c.value})`).join('  ')}`);
 if (!checks.every((c) => c.ok)) lines.push('cibles non atteintes : à régler dans balance.ts (survivor-design §9)');
 console.log(lines.join('\n'));
