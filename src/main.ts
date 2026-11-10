@@ -77,6 +77,7 @@ import { buyUnlock, recordCodex, toggleItem } from './meta/library';
 import { addCharRun, runCharStats } from './meta/chars';
 import type { LibKind } from './meta/library';
 import { LIB_TABS, renderLibrary } from './ui/library';
+import { initKeySettings, loadKeyboardLayout, renderKeyHints } from './ui/keys';
 import type { LibTab } from './ui/library';
 import { dailyBest, dailySeed, recordDaily, todayKey } from './meta/daily';
 import { hashString } from './sim/rng';
@@ -278,6 +279,7 @@ function applySettings(): void {
   ($('sfxVol') as HTMLInputElement).value = String(Math.round(meta.settings.sfxVol * 100));
   ($('musicVol') as HTMLInputElement).value = String(Math.round(meta.settings.musicVol * 100));
   audio.setVolumes(meta.settings.sfxVol, meta.settings.musicVol);
+  applyKeys();
   for (const [id, v] of [
     ['hudSmallBtn', 0.85],
     ['hudNormalBtn', 1],
@@ -285,6 +287,32 @@ function applySettings(): void {
   ] as const)
     $(id).classList.toggle('selected', meta.settings.hudScale === v);
 }
+// 1.40.0 (demande de Jimmy) : touches du clavier configurables. Les réglages restent sur l'appareil (jamais synchronisés).
+let keysApplied = '';
+const keySettings = initKeySettings({
+  grid: $('keygrid'),
+  msg: $('keysMsg'),
+  reset: $('keysResetBtn'),
+  get: () => meta.settings.keys,
+  set: (b) => {
+    meta.settings.keys = b;
+    saveMeta(meta);
+    applySettings();
+  },
+});
+/** Applique les touches choisies : lecture du clavier, bandeau du jeu, aide, grille des réglages. */
+function applyKeys(): void {
+  const json = JSON.stringify(meta.settings.keys);
+  if (json !== keysApplied) {
+    keysApplied = json;
+    input.setBinds(meta.settings.keys); // seulement au changement : relâche les touches tenues
+  }
+  renderKeyHints(meta.settings.keys);
+  keySettings.render();
+  // un téléphone ou une tablette sans souris ni clavier n'a rien à régler ici
+  $('keybinds').hidden = input.isTouch && !matchMedia('(any-pointer: fine)').matches;
+}
+loadKeyboardLayout(() => applyKeys());
 function vibrate(ms: number): void {
   if (!meta.settings.vibrate || !input.isTouch || !navigator.vibrate) return;
   const now = performance.now();
@@ -1134,7 +1162,7 @@ $('minimap').addEventListener('pointerdown', (e) => {
 $('pauseMapBtn').onclick = () => openMap();
 $('mapClose').onclick = () => closeMap();
 addEventListener('keydown', (e) => {
-  if (e.code !== 'KeyM' || e.repeat) return;
+  if (!input.isMapKey(e.code) || e.repeat) return; // 1.40.0 : touche configurable
   const el = e.target as HTMLElement | null;
   if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
   if (app === 'map') closeMap();

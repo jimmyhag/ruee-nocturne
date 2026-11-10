@@ -1,6 +1,8 @@
 // Sauvegarde méta : IndexedDB via idb-keyval, repli localStorage, jamais bloquante.
 // v2 (phase 4) : or, boutique, compteurs cumulés, succès, personnage, défi du jour, réglages. Migration depuis v1.
 import { cleanPseudo } from './board';
+import { normalizeBinds } from '../platform/keymap';
+import type { KeyBinds } from '../platform/keymap';
 import { get, set } from 'idb-keyval';
 import {
   CHARACTERS,
@@ -48,6 +50,7 @@ export interface MetaSettings {
   quality: QualitySetting; // phase 9 : 'auto' = net avec repli automatique si l'appareil ne suit pas, 'net', 'pixel'
   sfxVol: number; // phase 36 : volume des effets (0–1)
   musicVol: number; // phase 36 : volume de la musique (0–1)
+  keys: KeyBinds; // 1.40.0 : touches du clavier choisies par le joueur (actions modifiées seulement)
 }
 export interface Meta {
   version: 5; // 3 (phase 10) : progression remise à zéro, emplacements ; 4 (phase 17) : boutique par personnage retirée, or rendu ; 5 (phase 40) : Bibliothèque
@@ -124,7 +127,16 @@ export const DEFAULT_META: Meta = {
   pseudo: '',
   seenReset: true,
   seenHelp: false,
-  settings: { vibrate: true, hudScale: 1, lefty: false, lang: 'auto', quality: 'auto', sfxVol: 1, musicVol: 0.7 },
+  settings: {
+    vibrate: true,
+    hudScale: 1,
+    lefty: false,
+    lang: 'auto',
+    quality: 'auto',
+    sfxVol: 1,
+    musicVol: 0.7,
+    keys: {},
+  },
 };
 
 /** Réglages normalisés seuls (conservés par la remise à zéro et la migration). */
@@ -137,6 +149,7 @@ function normalizeSettings(se: Record<string, unknown>): MetaSettings {
     quality: QUALITY_SETTINGS.includes(se.quality as QualitySetting) ? (se.quality as QualitySetting) : 'auto',
     sfxVol: Math.max(0, Math.min(1, num(se.sfxVol, 1))),
     musicVol: Math.max(0, Math.min(1, num(se.musicVol, 0.7))),
+    keys: normalizeBinds(se.keys),
   };
 }
 

@@ -710,6 +710,30 @@
         color: var(--text);
         font-variant-numeric: tabular-nums;
       }
+      /* 1.40.0 : touches du clavier configurables (réglages) */
+      .keygrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+        margin: 8px 0;
+      }
+      .keygrid label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--paper);
+      }
+      .keygrid button {
+        min-width: 64px;
+        padding: 6px 10px;
+        font-variant-numeric: tabular-nums;
+      }
+      .keygrid button.listening {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
       /* phase 43 : niveau d'arme ou cumul d'objet au plafond */
       .gi b.max {
         color: var(--accent);
@@ -2187,12 +2211,12 @@
     </div>
     <div id="perf" hidden></div>
     <div class="keys" id="keys" hidden>
-      <span><b data-i18n="keys.space">Espace</b><span data-i18n="keys.jump">Saut</span></span
-      ><span><b>C</b><span data-i18n="keys.slide">Glisse</span></span
+      <span><b data-key="jump">Espace</b><span data-i18n="keys.jump">Saut</span></span
+      ><span><b data-key="slide">C</b><span data-i18n="keys.slide">Glisse</span></span
       ><span
-        ><b data-i18n="keys.shift">Maj</b><span id="spellKey" data-i18n="keys.spell">Sort</span><em id="spellSec"></em
+        ><b data-key="spell">Maj</b><span id="spellKey" data-i18n="keys.spell">Sort</span><em id="spellSec"></em
         ><i id="spellbar"></i></span
-      ><span><b>M</b><span data-i18n="keys.map">Carte</span></span
+      ><span><b data-key="map">M</b><span data-i18n="keys.map">Carte</span></span
       ><span><b>F3</b><span data-i18n="keys.perf">Perf</span></span>
     </div>
     <div id="dmg" aria-hidden="true"></div>
@@ -2388,11 +2412,11 @@
           trois mondes.
         </p>
         <dl class="ctrl">
-          <dt><span class="cap" data-i18n="menu.keys.move">ZQSD</span> <span class="cap">↑↓←→</span></dt>
+          <dt><span class="cap" data-key="move">ZQSD</span> <span class="cap">↑↓←→</span></dt>
           <dd data-i18n="menu.ctrl.move">Se déplacer (joystick sous le pouce sur mobile, stick gauche à la manette)</dd>
-          <dt><span class="cap" data-i18n="keys.space">Espace</span></dt>
+          <dt><span class="cap" data-key="jump">Espace</span></dt>
           <dd data-i18n="menu.ctrl.jump">Sauter par-dessus la horde</dd>
-          <dt><span class="cap" data-i18n="keys.shift">Maj</span></dt>
+          <dt><span class="cap" data-key="spell">Maj</span></dt>
           <dd data-i18n="menu.ctrl.spell">Sort de ta classe (chaque personnage a le sien)</dd>
           <dt><span class="cap">1 2 3</span></dt>
           <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
@@ -2590,6 +2614,17 @@
               ><span data-i18n="settings.musicVol">Musique</span>
               <input type="range" id="musicVol" min="0" max="100" step="5" value="70"
             /></label>
+          </div>
+          <!-- 1.40.0 (demande de Jimmy) : touches du clavier configurables ; masqué sur un appareil tactile sans clavier -->
+          <div class="keybinds" id="keybinds" hidden>
+            <p class="note"><b data-i18n="settings.keys.title">Touches du clavier</b></p>
+            <div class="keygrid" id="keygrid"></div>
+            <div class="btnrow">
+              <button class="ghost" id="keysResetBtn" data-i18n="settings.keys.reset">Touches par défaut</button>
+            </div>
+            <p class="note" id="keysMsg" data-i18n="settings.keys.hint">
+              Clique sur une touche, puis appuie sur la nouvelle. Les flèches et Échap marchent toujours.
+            </p>
           </div>
           <div class="btnrow">
             <span class="note" data-i18n="settings.hud">Taille du HUD</span

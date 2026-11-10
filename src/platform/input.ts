@@ -1,4 +1,6 @@
 import type { Input } from '../sim/types';
+import { codesFor } from './keymap';
+import type { KeyBinds } from './keymap';
 
 /** Fusionne clavier, joystick tactile et manette en un Input normalisé par step. */
 /** Le focus est dans un champ de saisie : le clavier appartient au champ, pas au jeu. */
@@ -32,6 +34,39 @@ export class InputManager {
   onConfirm: (() => void) | null = null;
   gamepadUsed = false;
 
+  // 1.40.0 : touches configurables (keymap.ts). Listes recalculées au changement de réglage, jamais par image
+  private kUp: string[] = codesFor({}, 'up');
+  private kDown: string[] = codesFor({}, 'down');
+  private kLeft: string[] = codesFor({}, 'left');
+  private kRight: string[] = codesFor({}, 'right');
+  private kJump: string[] = codesFor({}, 'jump');
+  private kSlide: string[] = codesFor({}, 'slide');
+  private kSpell: string[] = codesFor({}, 'spell');
+  private kMap: string[] = codesFor({}, 'map');
+  private kPause: string[] = codesFor({}, 'pause');
+  /** Applique les touches choisies par le joueur (réglages). */
+  setBinds(b: KeyBinds): void {
+    this.kUp = codesFor(b, 'up');
+    this.kDown = codesFor(b, 'down');
+    this.kLeft = codesFor(b, 'left');
+    this.kRight = codesFor(b, 'right');
+    this.kJump = codesFor(b, 'jump');
+    this.kSlide = codesFor(b, 'slide');
+    this.kSpell = codesFor(b, 'spell');
+    this.kMap = codesFor(b, 'map');
+    this.kPause = codesFor(b, 'pause');
+    for (const k in this.keys) this.keys[k] = false; // une touche tenue pendant le changement ne reste pas collée
+  }
+  /** Cette touche ouvre-t-elle la carte ? (raccourci géré par l'interface, hors de la boucle de jeu) */
+  isMapKey(code: string): boolean {
+    return this.kMap.includes(code);
+  }
+  /** Une des touches de la liste est-elle tenue ? Boucle indexée : aucune allocation (appelé à chaque pas). */
+  private held(codes: string[]): boolean {
+    for (let i = 0; i < codes.length; i++) if (this.keys[codes[i]]) return true;
+    return false;
+  }
+
   /** Phase 27 : appui sur GLISSE au doigt, transmis à la sim pendant un pas (elle ne lit que le front montant). */
   private slideQueued = false;
   private prevSlide = false; // glisse envoyée au pas précédent
@@ -49,13 +84,13 @@ export class InputManager {
       this.keys[e.code] = true;
       if (e.repeat) return;
       if (/^Digit[1-4]$/.test(e.code)) this.pickQueued = +e.code.slice(5) - 1;
-      if (e.code === 'Space') {
-        e.preventDefault();
+      if (this.kJump.includes(e.code)) {
+        e.preventDefault(); // Espace ne fait pas défiler la page
         this.jumpQueued = true;
       }
-      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.spellQueued = true;
-      if (e.code === 'KeyC') this.slideQueued = true; // phase 27 : un tapotement plus court qu'un pas compte aussi
-      if (e.code === 'Escape' || e.code === 'KeyP') this.onPause?.();
+      if (this.kSpell.includes(e.code)) this.spellQueued = true;
+      if (this.kSlide.includes(e.code)) this.slideQueued = true; // phase 27 : un tapotement plus court qu'un pas compte aussi
+      if (this.kPause.includes(e.code)) this.onPause?.();
       if (e.code === 'Enter') this.onConfirm?.();
     });
     addEventListener('keyup', (e) => (this.keys[e.code] = false));
@@ -141,11 +176,10 @@ export class InputManager {
   poll(out: Input): void {
     let mx = 0,
       mz = 0;
-    const k = this.keys;
-    if (k.KeyA || k.KeyQ || k.ArrowLeft) mx -= 1;
-    if (k.KeyD || k.ArrowRight) mx += 1;
-    if (k.KeyW || k.KeyZ || k.ArrowUp) mz -= 1;
-    if (k.KeyS || k.ArrowDown) mz += 1;
+    if (this.held(this.kLeft)) mx -= 1;
+    if (this.held(this.kRight)) mx += 1;
+    if (this.held(this.kUp)) mz -= 1;
+    if (this.held(this.kDown)) mz += 1;
     if (this.joy.active) {
       mx += this.joy.x;
       mz += this.joy.y;
@@ -191,7 +225,7 @@ export class InputManager {
     // voyait la touche tenue passe d'abord par un pas « relâché », puis l'appui arrive au pas suivant (16 ms).
     if (this.slideQueued && this.prevSlide) out.slide = false;
     else {
-      out.slide = !!k.KeyC || this.padSlide || this.slideQueued;
+      out.slide = this.held(this.kSlide) || this.padSlide || this.slideQueued;
       this.slideQueued = false;
     }
     this.prevSlide = out.slide;

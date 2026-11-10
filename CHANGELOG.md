@@ -2,6 +2,29 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.40.0 — 10 nov. 2026 (demande de Jimmy : changer les touches sur PC)
+
+### Ajouté
+
+- **Touches du clavier configurables**, dans Réglages → « Touches du clavier » : Haut, Bas, Gauche, Droite, Saut, Glissade, Sort, Carte et Pause.
+  - Clique sur une touche, puis appuie sur la nouvelle. Échap annule.
+  - Si la touche sert déjà à une autre action, les deux actions échangent leurs touches.
+  - « Touches par défaut » remet tout comme avant.
+  - Les flèches (déplacement) et Échap (pause) marchent toujours, quel que soit le réglage.
+  - Touches réservées, qu'on ne peut pas attribuer : flèches, Échap, Entrée, 1 à 4 (choix des cartes), R (relance), F1 à F12, Tab.
+- Le bandeau des touches en jeu et l'écran « Comment jouer » affichent les touches choisies.
+- Le réglage n'apparaît pas sur un téléphone ou une tablette sans clavier ni souris.
+
+### Corrigé
+
+- **Clavier AZERTY : la touche M ouvre la carte.** Avant, il fallait appuyer sur la virgule (la touche à l'emplacement du M d'un clavier américain).
+
+### Technique
+
+- Les touches choisies font partie des réglages : elles restent sur l'appareil et ne sont jamais envoyées au compte.
+- `src/platform/keymap.ts` (règles, pur) et `src/ui/keys.ts` (grille, capture, noms des touches). La lecture du clavier ne fait aucune allocation par image.
+- Tests : Vitest (9, dont 400 réglages tirés au hasard sans jamais deux actions sur la même touche) ; e2e `touches.spec.ts` (PC : changer, échanger, remettre, garder après rechargement ; mobile : réglage masqué).
+
 ## 1.39.0 — 10 nov. 2026 (phase 43 « Grand rééquilibrage », demande de Jimmy)
 
 Un ami de Jimmy tenait plus de 15 minutes en monde infini sans avoir tout débloqué. Le jeu était trop facile sur la fin. Tout concentrer sur une seule arme était la stratégie la plus forte : cette build finissait toujours par dépasser les monstres.
