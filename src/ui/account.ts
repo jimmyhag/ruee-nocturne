@@ -43,6 +43,8 @@ const summaryText = (key: string, s: SaveSummary) =>
 
 /** Libellé du bouton du menu : « Compte » ou « Connecté · e-mail ». */
 export function accountLabel(v: AccountView): string {
+  // 1.36.1 : hors ligne (ou envoi raté), le menu dit que la progression attend le réseau
+  if (v.status === 'in' && (v.sync === 'offline' || v.sync === 'error')) return t('menu.accountPending');
   return v.status === 'in' && v.email ? t('menu.accountIn', { email: v.email }) : t('menu.account');
 }
 

@@ -41,7 +41,11 @@ export interface DebugHost {
    * Phase 38 : compte factice pour l'écran Classement (Firebase n'est pas joignable en preview). `rows` : lignes
    * renvoyées par fetchBoard ; les scores envoyés sont rangés dans `sent` (lecture par les tests).
    */
-  fakeAccount(uid: string, rows: unknown[]): { sent: unknown[] };
+  fakeAccount(
+    uid: string,
+    rows: unknown[],
+    opts?: { sync?: boolean; failWrites?: number },
+  ): { sent: unknown[]; saves: unknown[] };
 }
 
 export function debugEnabled(): boolean {
@@ -286,7 +290,8 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     },
     setMeta: (m: unknown) => host.setMeta(m),
     itemKeys: ITEM_KEYS, // phase 40 : index de w.itemBan / w.items
-    fakeAccount: (uid: string, rows: unknown[]) => host.fakeAccount(uid, rows),
+    fakeAccount: (uid: string, rows: unknown[], opts?: { sync?: boolean; failWrites?: number }) =>
+      host.fakeAccount(uid, rows, opts),
     get scene() {
       return host.scene;
     },

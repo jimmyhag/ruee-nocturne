@@ -2,6 +2,20 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.36.1 — 10 nov. 2026 (demande de Jimmy : jouer hors ligne)
+
+### Modifié
+
+- **Jouer hors ligne, synchroniser au retour du réseau** : la progression gagnée hors ligne part toute seule vers le compte dès que le réseau revient, sans rouvrir le panneau Compte.
+  - Lancé sans réseau, le jeu recharge le compte au retour du réseau (avant, il fallait ouvrir le panneau Compte).
+  - Un envoi raté alors que le téléphone se croit en ligne (wifi sans internet, serveur injoignable) est réessayé tout seul : 5 s, 15 s, 30 s, 1 min, 2 min, puis toutes les 5 min.
+  - En revenant sur l'app, une progression pas encore envoyée part aussitôt.
+- Le bouton du menu affiche « Compte · à synchroniser » tant que la progression attend le réseau.
+
+### Technique
+
+- e2e : partie jouée hors ligne puis envoyée au retour du réseau ; envoi raté puis réessayé (compte factice, aucun appel Firebase).
+
 ## 1.36.0 — 9 nov. 2026 (phase 41 « Défis par personnage »)
 
 ### Ajouté

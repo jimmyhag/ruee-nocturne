@@ -647,5 +647,6 @@
   "chal.outfit": "the master outfit",
   "chal.outfitLocked": "Challenge III",
   "outfit.master": "Master",
-  "chal.pays": "pays {what}"
+  "chal.pays": "pays {what}",
+  "menu.accountPending": "Account · not synced yet"
 }

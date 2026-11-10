@@ -31,6 +31,9 @@ export interface SyncRecord {
 }
 export const SYNC = {
   debounceMs: 2000,
+  // 1.36.1 : envoi raté alors que l'appareil se croit en ligne (wifi sans internet, serveur injoignable) : on
+  // réessaie seul, de plus en plus espacé, tant que la progression locale n'est pas partie
+  retryMs: [5000, 15000, 30000, 60000, 120000, 300000],
   key: 'ruee-sync',
   accountKey: 'ruee-account',
   redirectKey: 'ruee-auth-redirect',
