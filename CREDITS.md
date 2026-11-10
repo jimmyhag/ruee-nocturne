@@ -1,6 +1,6 @@
 # Crédits
 
-Ruée Nocturne est un jeu de **Jimmy Haggege**. Le code a été écrit avec [Claude Code](https://claude.com/claude-code) (Anthropic), phase par phase, à partir du plan de conception `PLAN.md`.
+Swarmageddon (ex-Ruée Nocturne) est un jeu de **Jimmy Haggege**. Le code a été écrit avec [Claude Code](https://claude.com/claude-code) (Anthropic), phase par phase, à partir du plan de conception `PLAN.md`.
 
 Depuis la phase 20 (1.15.0), les armes et une partie du décor sont des modèles 3D KayKit (voir plus bas), depuis la phase 25 (1.20.0) les neuf personnages sont des modèles Quaternius texturés (versions gratuites, CC0), et depuis la phase 26 (1.21.0) les ennemis aussi (morts-vivants construits avec le même kit). Depuis la phase 36 (1.31.0), les bruitages et la musique sont des enregistrements sous licence libre (voir « Sons et musique »). Le reste est produit par le code : les effets et les ouvrages sont des primitives low-poly générées au lancement, et des sons synthétisés par Web Audio prennent le relais tant que les fichiers audio ne sont pas chargés. Il n'y a pas de sprite.
 

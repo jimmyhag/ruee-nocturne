@@ -2,6 +2,30 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.38.0 — 10 nov. 2026 (choix de Jimmy : nouveau nom)
+
+### Modifié
+
+- **Le jeu s'appelle désormais Swarmageddon** (ex-Ruée Nocturne). Le nouveau nom apparaît :
+  - sur l'écran-titre ;
+  - dans le nom de l'onglet ;
+  - dans le nom de l'app installée (Android, iPhone, PC) ;
+  - sur la page À propos ;
+  - dans le fichier de sauvegarde exporté ;
+  - dans les notes de version.
+- Les captures de la fiche d'installation et du store sont refaites avec l'interface actuelle et le nouveau titre.
+
+### Inchangé
+
+- **Ta progression reste là.** Les sauvegardes, le compte et le classement ne bougent pas.
+- **L'adresse du site ne change pas** : ruee-nocturne.web.app. Le dépôt et le projet Firebase gardent aussi `ruee-nocturne`.
+- Une sauvegarde exportée avant le changement de nom s'importe toujours, et inversement.
+- Sur un appareil où le jeu est déjà installé, le nouveau nom sous l'icône peut demander de réinstaller l'app. Le navigateur met parfois du temps à appliquer ce changement.
+
+### Technique
+
+- `tools/store-shots.ts` : la capture du boss montre le boss de survie de 3:00. Le boss du monde ne vient plus seul à 5:00 depuis la phase 37.
+
 ## 1.37.1 — 10 nov. 2026 (retours de Jimmy)
 
 ### Corrigé

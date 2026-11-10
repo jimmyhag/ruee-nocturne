@@ -1,4 +1,6 @@
-# Ruée Nocturne
+# Swarmageddon
+
+*(ex-Ruée Nocturne, renommé en 1.38.0. L'adresse du site ne change pas.)*
 
 Survivor 3D low-poly, jouable sur téléphone et PC, livré en PWA installable et hors ligne. La nuit tombe sur une clairière : tes armes tirent toutes seules, toi tu bouges, tu sautes par-dessus la horde, tu dashes, tu choisis tes améliorations. Tiens 20 minutes.
 

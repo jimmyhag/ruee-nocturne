@@ -1,6 +1,6 @@
 # Politique de confidentialité
 
-**Ruée Nocturne se joue sans compte, et dans ce cas aucune donnée ne quitte ton appareil.** Depuis la version 1.8.0, tu peux créer un compte facultatif pour retrouver ta progression sur un autre appareil. Depuis la version 1.33.0, un compte permet aussi de figurer au **classement en ligne**, sous un pseudo que tu choisis.
+**Swarmageddon se joue sans compte, et dans ce cas aucune donnée ne quitte ton appareil.** Depuis la version 1.8.0, tu peux créer un compte facultatif pour retrouver ta progression sur un autre appareil. Depuis la version 1.33.0, un compte permet aussi de figurer au **classement en ligne**, sous un pseudo que tu choisis.
 
 ## Sans compte : ce que le jeu enregistre, et où
 

@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#0f1628" />
-    <title>À propos · Ruée Nocturne</title>
+    <title>À propos · Swarmageddon</title>
     <meta
       name="description"
-      content="Ruée Nocturne : survivor 3D jouable hors ligne sur téléphone et PC. Comment jouer, installer, confidentialité et crédits."
+      content="Swarmageddon : survivor 3D jouable hors ligne sur téléphone et PC. Comment jouer, installer, confidentialité et crédits."
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -187,7 +187,7 @@
   <body>
     <main>
       <div class="top">
-        <h1>Ruée<br />Nocturne</h1>
+        <h1>Swarm<wbr />ageddon</h1>
         <div class="lang" role="group" aria-label="Langue / Language">
           <button type="button" data-lang="fr" aria-pressed="true">FR</button
           ><button type="button" data-lang="en" aria-pressed="false">EN</button>
@@ -363,7 +363,7 @@
         </section>
       </div>
 
-      <footer class="note"><span id="version"></span> · <a href="/">← Ruée Nocturne</a></footer>
+      <footer class="note"><span id="version"></span> · <a href="/">← Swarmageddon</a></footer>
     </main>
 
     <script>
@@ -379,7 +379,7 @@
         }
         function apply(l) {
           document.documentElement.lang = l;
-          document.title = (l === 'fr' ? 'À propos' : 'About') + ' · Ruée Nocturne';
+          document.title = (l === 'fr' ? 'À propos' : 'About') + ' · Swarmageddon';
           var blocks = document.querySelectorAll('[data-l]');
           for (var i = 0; i < blocks.length; i++) blocks[i].hidden = blocks[i].getAttribute('data-l') !== l;
           var btns = document.querySelectorAll('.lang button');

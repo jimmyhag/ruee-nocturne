@@ -1,4 +1,4 @@
-# Ruée Nocturne — instructions pour Claude Code
+# Swarmageddon (ex-Ruée Nocturne) — instructions pour Claude Code
 
 Survivor 3D en PWA (téléphone + PC). Source de vérité : `PLAN.md`. Avancement des phases : `docs/GATES.md`.
 Langue du projet : **français** (commits, commentaires, docs, UI par défaut). Code en anglais (identifiants).

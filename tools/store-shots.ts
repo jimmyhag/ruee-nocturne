@@ -159,9 +159,10 @@ try {
 
   await start(d, 7);
   await d.evaluate(() => (window as any).__game.debug.god());
-  await d.evaluate(() => (window as any).__game.debug.warp(299.5));
+  // phase 37 : le boss du monde s'appelle au totem ; on montre le boss de survie de 3:00 (phase 42)
+  await d.evaluate(() => (window as any).__game.debug.warp(179.5));
   await pickUntilPlay(d);
-  await d.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 8000 });
+  await d.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 20_000 });
   await d.evaluate(() => (window as any).__game.debug.pullBoss(6));
   await d.waitForTimeout(400);
   await d.evaluate(() => (window as any).__game.debug.speed(0));

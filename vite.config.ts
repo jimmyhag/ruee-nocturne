@@ -49,8 +49,8 @@ export default defineConfig({
       injectRegister: null, // enregistrement explicite dans src/platform/pwa.ts
       manifest: {
         id: '/',
-        name: 'Ruée Nocturne',
-        short_name: 'Ruée',
+        name: 'Swarmageddon',
+        short_name: 'Swarmageddon',
         description: 'Survis à la horde : armes automatiques, saut, dash et améliorations.',
         lang: 'fr',
         start_url: '/',

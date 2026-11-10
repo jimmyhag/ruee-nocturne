@@ -1,8 +1,8 @@
-# Ruée Nocturne — Plan de conception et d'exécution
+# Swarmageddon — Plan de conception et d'exécution
 
 > Survivor 3D (famille Vampire Survivors / Megabonk), jouable sur téléphone et PC, livré en PWA installable.
 > Ce document est la source de vérité du projet. Claude Code l'exécute phase par phase, chaque phase ayant une porte de validation mesurable.
-> Le nom « Ruée Nocturne » est un nom de code : renommable sans impact technique.
+> Nom du jeu : **Swarmageddon** depuis la 1.38.0 (choix de Jimmy), ex-« Ruée Nocturne ». Les identifiants techniques gardent `ruee-nocturne` (dépôt, projet Firebase, adresse du site, étiquette des sauvegardes exportées) : les renommer casserait les sauvegardes et l'hébergement.
 
 ---
 

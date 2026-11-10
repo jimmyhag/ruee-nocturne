@@ -6,7 +6,7 @@ description: Livraison du jeu en PWA installable (Android, iOS, desktop) — man
 # PWA et mise en production
 
 ## 1. Manifest (`vite-plugin-pwa`, `manifest` dans `vite.config.ts`)
-- `name` « Ruée Nocturne », `short_name` « Ruée », `lang: fr`, `display: fullscreen`, `display_override: ['fullscreen','standalone']`, `orientation: any`, `background_color` = `theme_color` = couleur `--ink`.
+- `name` et `short_name` « Swarmageddon », `lang: fr`, `display: fullscreen`, `display_override: ['fullscreen','standalone']`, `orientation: any`, `background_color` = `theme_color` = couleur `--ink`.
 - Icônes : 192, 512, 512 **maskable** (marge 12 % de sécurité), `apple-touch-icon` 180. Générées depuis `assets/icon.svg` par un script `npm run icons` (sharp) : pas d'icône dessinée à la main dans le repo.
 - `screenshots` (form_factor `narrow` et `wide`) : Chrome les affiche dans la fiche d'installation, elles changent le taux d'installation.
 - `start_url: '/'`, `scope: '/'`, `id: '/'`.
