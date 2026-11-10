@@ -11,6 +11,7 @@ import MANIFEST from './models.json';
 export { MANIFEST };
 export type HeroModelKey = keyof typeof MANIFEST.heroes;
 export type PropKey = keyof typeof MANIFEST.props.nodes;
+export type NatureKey = keyof typeof MANIFEST.nature.nodes;
 
 let loader: GLTFLoader | null = null;
 const cache = new Map<string, Promise<GLTF>>();
@@ -22,6 +23,8 @@ const cache = new Map<string, Promise<GLTF>>();
 function bytesOf(file: string): number {
   if (MANIFEST.props.file === file) return MANIFEST.props.bytes;
   if (MANIFEST.enemies.file === file) return MANIFEST.enemies.bytes;
+  if (MANIFEST.nature.file === file) return MANIFEST.nature.bytes;
+  if (file in MANIFEST.ground) return (MANIFEST.ground as Record<string, number>)[file];
   for (const h of Object.values(MANIFEST.heroes)) if (h.file === file) return h.bytes;
   throw new Error(`models.json : ${file} sans taille`);
 }
@@ -107,4 +110,95 @@ export function loadProps(): Promise<Record<PropKey, PropGeometry>> {
   });
   propsPromise.catch(() => (propsPromise = null)); // nouvel essai au prochain appel, comme loadGLTF
   return propsPromise;
+}
+
+/**
+ * Phase 44 : un modèle du décor stylisé (nature.glb). Hauteur 1, pied au sol, origine au pied du tronc. `base` : couleur
+ * linéaire par sommet ; `tint` : 1 pour ce que le monde teinte (feuilles, herbe), 0 pour le reste (écorce, pierre).
+ */
+export interface NatureGeometry {
+  geometry: THREE.BufferGeometry;
+  base: Float32Array;
+  tint: Uint8Array;
+}
+export interface NatureSet {
+  models: Record<NatureKey, NatureGeometry>;
+  /** atlas commun (masques de feuilles, branche de sapin, fleurs) */
+  map: THREE.Texture | null;
+}
+
+let naturePromise: Promise<NatureSet> | null = null;
+
+/** Décor stylisé : une géométrie par modèle (position, normale, UV), couleurs séparées pour être teintées par monde. */
+export function loadNature(): Promise<NatureSet> {
+  if (naturePromise) return naturePromise;
+  naturePromise = loadGLTF(MANIFEST.nature.file).then((gltf) => {
+    const models = {} as Record<NatureKey, NatureGeometry>;
+    let map: THREE.Texture | null = null;
+    const c = new THREE.Color();
+    gltf.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const key = (m.name in MANIFEST.nature.nodes ? m.name : (m.parent?.name ?? '')) as NatureKey;
+      if (!(key in MANIFEST.nature.nodes)) return;
+      const col = m.geometry.attributes.color as THREE.BufferAttribute;
+      const n = col.count;
+      const base = new Float32Array(n * 3),
+        tint = new Uint8Array(n);
+      for (let i = 0; i < n; i++) {
+        // couleurs écrites en sRGB par le pipeline : linéarisées ici, comme une texture
+        c.setRGB(col.getX(i), col.getY(i), col.getZ(i), THREE.SRGBColorSpace);
+        base[i * 3] = c.r;
+        base[i * 3 + 1] = c.g;
+        base[i * 3 + 2] = c.b;
+        tint[i] = col.getW(i) > 0.5 ? 1 : 0;
+      }
+      const geometry = toFloat(m.geometry.clone()); // retire aussi la couleur à 4 composantes (alpha = masque)
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+      models[key] = { geometry, base, tint };
+      map ??= (m.material as THREE.MeshStandardMaterial).map ?? null;
+    });
+    for (const k of Object.keys(MANIFEST.nature.nodes))
+      if (!models[k as NatureKey]) throw new Error(`nature.glb : ${k} absent`);
+    return { models, map };
+  });
+  naturePromise.catch(() => (naturePromise = null));
+  return naturePromise;
+}
+
+/**
+ * Géométrie d'un modèle du décor mise à l'échelle (hauteur `height`), teintée : les sommets marqués prennent `leaf`
+ * (couleur du monde), les autres gardent leur couleur. Tampons neufs : à libérer par l'appelant (dispose).
+ */
+export function tintedNature(g: NatureGeometry, height: number, leaf: THREE.Color): THREE.BufferGeometry {
+  const geo = g.geometry.clone().scale(height, height, height);
+  const n = g.tint.length,
+    col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const t = g.tint[i];
+    col[i * 3] = g.base[i * 3] * (t ? leaf.r : 1);
+    col[i * 3 + 1] = g.base[i * 3 + 1] * (t ? leaf.g : 1);
+    col[i * 3 + 2] = g.base[i * 3 + 2] * (t ? leaf.b : 1);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geo;
+}
+
+const groundCache = new Map<string, Promise<THREE.Texture>>();
+/** Texture de sol du monde `stage` (0..2), `slot` a (tapis) ou b (terre) : répétée, filtrée, en sRGB. */
+export function loadGroundTexture(stage: number, slot: 'a' | 'b'): Promise<THREE.Texture> {
+  const file = `ground-${stage + 1}-${slot}.jpg`;
+  let p = groundCache.get(file);
+  if (!p) {
+    p = new THREE.TextureLoader().loadAsync(modelUrl(file)).then((t) => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 2; // le sol couvre tout l'écran : filtrage léger (relecture perf)
+      return t;
+    });
+    p.catch(() => groundCache.delete(file));
+    groundCache.set(file, p);
+  }
+  return p;
 }

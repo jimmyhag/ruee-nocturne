@@ -740,6 +740,25 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - e2e clavier et doigt : relance qui double, objet « max », dernier passage du marchand, captures des attaques et de la rage lues ;
   - cibles de `tools/targets.ts` au vert sur les profils de départ et maxé, monde infini compris ; relecture perf approuvée ; bench avec 6 boss.
 
+### Phase 44 — Refonte visuelle (1.41.0 à 1.43.0)
+- **Demande de Jimmy** (10 nov.) : textures propres (herbe, sol, arbres, objets, totem), personnages, ennemis et armes « très clean, style League of Legends », menus beaucoup plus propres, avec les packs gratuits disponibles.
+- **Limite annoncée à Jimmy** : aucun pack libre n'a la finition d'un jeu Riot. La phase applique les principes du style (couleurs franches, scène claire, silhouettes détachées, interface à cadres dorés), pas son niveau de détail.
+- **Trois livraisons**, chacune jouable :
+  - **A, le monde (1.41.0)** : sol texturé à deux textures par monde (Poly Haven, CC0), décor stylisé (Quaternius « Ultimate Stylized Nature », CC0), lumière claire, brume au loin seulement, cristaux d'XP ;
+  - **B, personnages, ennemis, armes (1.42.0)** : mêmes modèles, rendu refait (liseré de lumière, ombres colorées, contours fins, couleurs par type) ;
+  - **C, interface (1.43.0)** : icônes illustrées (game-icons.net, CC BY 3.0, crédit obligatoire), cadres de rareté, menus et HUD.
+- **Ne change pas** : simulation, équilibrage, collisions, sauvegardes ; le rendu « pixel » de secours ; le repli procédural sans fichiers.
+- **Décisions de la livraison A** :
+  - les arbres du pack (3 000 à 12 000 triangles) sont ramenés à ≤ 600 : cartes de feuilles échantillonnées et agrandies, cœur opaque par houppier, écorce cuite par sommet ;
+  - les feuilles sont un masque blanc teinté par sommet : chaque monde colore ses arbres sans texture en plus ;
+  - le semis d'herbe, de fleurs et de buissons est tiré d'une grille autour du joueur (rendu seul, sans collision) ;
+  - 3 familles d'instances en plus (herbe, fleurs, buissons), 1 en moins quand le décor est chargé (herbe procédurale).
+- **Porte de la livraison A** :
+  - Vitest : manifeste (26 modèles sous leurs plafonds, six textures, crédits) ;
+  - e2e complet sur les deux projets, budgets d'appels et de triangles tenus ;
+  - captures lues : trois mondes de jour, monde 1 de nuit, accueil, téléphone.
+
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.

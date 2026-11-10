@@ -1,4 +1,11 @@
 // Palette partagée rendu ↔ UI. Les mêmes valeurs sont dans index.html (:root).
+/** Phase 44 : décor stylisé d'un monde : modèle et teinte des quatre familles d'arbres, de l'herbe, du buisson. */
+interface StageDecor {
+  trees: [string, number][];
+  grass: number;
+  bush: [string, number];
+  flowers: string[];
+}
 export const PAL = {
   // phase 14 : nuit bleue profonde, lanternes chaudes (les anciennes valeurs violettes : 1c1226 / 5d4f7d / ff8a3d / ffcc4d)
   ink: 0x0f1628,
@@ -10,8 +17,8 @@ export const PAL = {
   xp: 0x5fd3ff,
   gold: 0xffd166,
   lantern: 0xffb347, // lumière des lanternes et des halos chauds
-  grass1: [66, 108, 92] as const, // phase 15 : damier à peine marqué (il lisait « cubique »)
-  grass2: [70, 114, 97] as const,
+  grass1: [94, 152, 64] as const, // phase 44 : vert de la clairière (repli tant que la texture de sol charge)
+  grass2: [98, 158, 68] as const,
   tree: 0x2d5248,
   rock: 0x8a7f9a,
   lake: 0x3a8fc4,
@@ -42,25 +49,62 @@ export const PAL = {
     night: { fog: 0x0f1628, sky: 0x8aa2e6, ground: 0x141c36, hemi: 0.9, sun: 0xa8bdff, sunI: 0.65 },
     dawn: { fog: 0x3b3f66, sky: 0xffe4c2, ground: 0x2a2d4e, hemi: 1.0, sun: 0xffc89a, sunI: 0.9 },
   },
-  // phase 37 : ambiance de chaque monde, du crépuscule (0:00) à la nuit (fin du chrono), et teinte du sol (multipliée)
+  // phase 37 : ambiance de chaque monde, du crépuscule (0:00) à la nuit (fin du chrono), et teinte du sol (multipliée).
+  // Phase 44 : scène claire et couleurs franches. Les intensités sont en unités de three (une lumière de 1 éclaire
+  // une surface blanche à 1/π) : hémisphère ≈ 2 et soleil ≈ 2,4 donnent une herbe à sa vraie couleur. La nuit reste
+  // bleue mais lisible. `decor` : modèles et teintes du décor stylisé (nature.glb) ; arbres dans l'ordre des quatre
+  // familles (deux essences communes, deux plus rares).
   stages: [
     {
-      // Nuit bleue (celle d'avant la phase 37)
-      dusk: { fog: 0x182341, sky: 0xffcfa6, ground: 0x24305a, hemi: 1.0, sun: 0xffd6a8, sunI: 0.95 },
-      night: { fog: 0x0f1628, sky: 0x8aa2e6, ground: 0x141c36, hemi: 0.9, sun: 0xa8bdff, sunI: 0.65 },
+      // Clairière : herbe verte, lumière dorée du soir puis nuit claire
+      dusk: { fog: 0x9fc7c4, sky: 0xfff0d2, ground: 0x6f8a52, hemi: 2.0, sun: 0xffe6b8, sunI: 2.5 },
+      night: { fog: 0x3c5a8c, sky: 0xb4ccff, ground: 0x3a5078, hemi: 1.75, sun: 0xcfdcff, sunI: 1.7 },
       tint: 0xffffff,
+      decor: {
+        trees: [
+          ['pine_a', 0x9ad06a],
+          ['leafy_b', 0x74c63e],
+          ['leafy_a', 0x5fb83a],
+          ['birch_a', 0xb4d63e],
+        ],
+        grass: 0x86d054,
+        bush: ['bush_flowers', 0x62b83a],
+        flowers: ['flowers_a', 'flowers_b'],
+      } as StageDecor,
     },
     {
-      // Bois de braise : brume ambrée, lune rousse
-      dusk: { fog: 0x33221c, sky: 0xffc08a, ground: 0x44301f, hemi: 1.1, sun: 0xffb070, sunI: 1.05 },
-      night: { fog: 0x241812, sky: 0xe8a478, ground: 0x2e1d14, hemi: 1.0, sun: 0xffa060, sunI: 0.85 },
-      tint: 0xffe2c4,
+      // Bois de braise : érables rouges, herbe dorée, tapis de feuilles
+      dusk: { fog: 0xd9a070, sky: 0xffe2bc, ground: 0x8a5a36, hemi: 2.0, sun: 0xffd09a, sunI: 2.5 },
+      night: { fog: 0x5a3a44, sky: 0xe6bfd2, ground: 0x5a3a3a, hemi: 1.75, sun: 0xffc0a0, sunI: 1.7 },
+      tint: 0xffffff,
+      decor: {
+        trees: [
+          ['maple_a', 0xe85a36],
+          ['birch_b', 0xf0b82c],
+          ['maple_c', 0xe07e2c],
+          ['pine_c', 0xc8b060],
+        ],
+        grass: 0xd6b446,
+        bush: ['bush', 0xd0702c],
+        flowers: ['flowers_c', 'flowers_b'],
+      } as StageDecor,
     },
     {
-      // Marais blême : vert pâle et violet
-      dusk: { fog: 0x18262a, sky: 0xc6f2d6, ground: 0x2a2244, hemi: 1.0, sun: 0xd6ffe0, sunI: 0.9 },
-      night: { fog: 0x0f1a1c, sky: 0x96d6b8, ground: 0x1c1632, hemi: 0.9, sun: 0xbaa8ff, sunI: 0.7 },
-      tint: 0xc8ecd8,
+      // Marais blême : mousse pâle, vase violette, arbres morts
+      dusk: { fog: 0x8fb4b0, sky: 0xdaf5e6, ground: 0x4a4a6a, hemi: 1.9, sun: 0xe4ffe9, sunI: 2.2 },
+      night: { fog: 0x2f4654, sky: 0xa6dcc8, ground: 0x34304e, hemi: 1.7, sun: 0xc8b8ff, sunI: 1.6 },
+      tint: 0xffffff,
+      decor: {
+        trees: [
+          ['dead_a', 0x8f9ab8],
+          ['pine_b', 0x4f8292],
+          ['dead_b', 0x8894b0],
+          ['leafy_c', 0x7fae9e],
+        ],
+        grass: 0x8dbfae,
+        bush: ['bush', 0x5f9486],
+        flowers: ['plant', 'flowers_a'],
+      } as StageDecor,
     },
   ],
 };

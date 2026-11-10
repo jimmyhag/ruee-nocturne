@@ -11,10 +11,11 @@ const POWER_CSS = PAL.power.map((c) => '#' + c.toString(16).padStart(6, '0')); /
 const SIZE = 2 * WORLD_HALF; // u, un pixel du fond par unité
 const VIEW = 110; // u de côté visibles dans la minicarte
 const C = {
-  flat: [52, 74, 70],
-  high: [96, 120, 92],
-  bank: [128, 104, 82],
-  low: [40, 50, 66],
+  // phase 44 : verts de la clairière (le fond de la carte suit le sol clair du jeu)
+  flat: [66, 112, 60],
+  high: [118, 150, 80],
+  bank: [146, 110, 76],
+  low: [52, 84, 78],
   lake: [56, 104, 170],
 };
 
@@ -79,7 +80,7 @@ export class MapView {
       ctx.arc(px(l.x), px(l.z), l.r, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.fillStyle = '#22382c';
+    ctx.fillStyle = '#2c5428';
     for (let i = 0; i < w.treeCount; i++) {
       const o = w.obstacles[i];
       ctx.fillRect(px(o.x) - 1, px(o.z) - 1, 2, 2);
