@@ -135,10 +135,12 @@ test('1.30.1 : glisse → saut → glisse au bon moment de la réception = gliss
       return P.vy < 0 && P.y < 0.9;
     },
     null,
-    { timeout: 3000, polling: 'raf' },
+    // 0,62 s de temps de jeu après l'impulsion : en rendu logiciel le jeu tourne à un quart de l'horloge (≈ 2,5 s
+    // réelles), la limite de 3 s tombait juste avant la fenêtre
+    { timeout: 12_000, polling: 'raf' },
   );
   await tap('#btnSlide', 'KeyC');
-  await page.waitForFunction(() => (window as any).__game.world.tricks === 1, null, { timeout: 2000 });
+  await page.waitForFunction(() => (window as any).__game.world.tricks === 1, null, { timeout: 8000 });
   await expect(page.locator('#dmg span.trick')).toContainText('Glisse parfaite');
   expect(await page.evaluate(() => (window as any).__game.world.player.sliding)).toBe(true);
   await page.screenshot({ path: `shots/${info.project.name}-glisse-parfaite.png` });
