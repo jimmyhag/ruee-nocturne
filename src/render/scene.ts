@@ -102,20 +102,22 @@ const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
 const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
 /** Distance² sous laquelle coffres de carte et sanctuaires sont dessinés (phase 18 : au-delà, seule la colonne). */
 const POI_DRAW2 = 50 * 50;
-const PROP_DRAW = 48; // phase 20 : rayon du décor KayKit autour du joueur (le brouillard masque au-delà)
+const PROP_DRAW = 48; // phase 20 : rayon des arbres autour du joueur (la vue s'arrête à ≈ 36 u au zoom le plus large)
 const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
 // phase 44 : semis d'herbe, de fleurs et de buissons autour du joueur (décor stylisé), tiré d'une grille de cases
-const SCATTER = { cell: 2, draw: 27, grass: 360, flowers: 64, bushes: 40 };
+// rayon : les coins hauts de l'écran sont à ≈ 30 u du joueur (16:9), 31 u en portrait. En rendu « pixel » (secours
+// des téléphones lents) : rayon réduit, herbe seule et deux fois moins dense (relecture perf : +0 appel, ≈ +5 k triangles).
+const SCATTER = { cell: 2, draw: 32, drawPixel: 26, grass: 480, flowers: 72, bushes: 44 };
 const TREE_H = 4.7; // hauteur des arbres stylisés avant l'échelle de chaque arbre (≈ ×0,75)
 const GROUND_TILE = 7; // unités monde par répétition des textures de sol (phase 44)
 const FOG = { near: 30, far: 115 }; // phase 44 : brume au loin seulement (la caméra est à ≈ 16 u du joueur)
 const ELITE_RINGS = 48; // anneaux dorés des élites à l'écran, au plus
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
 const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
-const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (brouillard)
+const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (hors de la vue)
 const ENEMY_TINT_KEEP = 0.72; // part de blanc froid dans la teinte d'un squelette (os clairs, type reconnaissable)
 const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
@@ -1023,11 +1025,14 @@ export class GameScene {
   private dressRocks(): void {
     const n = this.nature,
       m = this.rocksMesh;
-    if (!n || !m || !this.natureMat || m.material === this.natureMat) return;
+    if (!n || !m || m.userData.stylized) return;
     m.geometry.dispose();
     (m.material as THREE.Material).dispose();
     m.geometry = tintedNature(n.models.rock_b, 1.7, WHITE);
-    m.material = this.natureMat;
+    // matériau à lui (libéré avec le décor de la carte, pas le matériau partagé du décor stylisé), opaque et à une
+    // face : un rocher n'a ni feuille à découper ni dos à dessiner (relecture perf) ; même programme que les ouvrages
+    m.material = toonMaterial({ vertexColors: true });
+    m.userData.stylized = true;
   }
   /** État des modèles d'ennemis, affiché dans l'onglet perf : chargement, prêt (durée), ou erreur. */
   enemyStatus = 'chargement';
@@ -1218,8 +1223,10 @@ export class GameScene {
    * fleurs, un buisson en lisière de terre. Rien sur la terre nue, les pistes, les lacs. Aucune allocation.
    */
   private scatter(px: number, pz: number): void {
+    const lite = this.qualityLevel === 0;
     const C = SCATTER.cell,
-      R = SCATTER.draw,
+      R = lite ? SCATTER.drawPixel : SCATTER.draw,
+      grassP = lite ? 0.3 : 0.6,
       R2 = R * R,
       lim = WORLD_HALF - 1.5;
     this.grassW.begin();
@@ -1243,10 +1250,11 @@ export class GameScene {
           bare = this.terrain.bareAt(x, z);
         const ry = pick * 61,
           sc = 0.8 + ((h >>> 5) & 31) / 62;
-        if (bare > 0.2 && bare < 0.6 && pick > 0.86) this.bushW.put(x, this.gy(x, z) - 0.06, z, ry, sc, WHITE);
-        else if (bare > 0.3) continue;
-        else if (pick < 0.6) this.grassW.put(x, this.gy(x, z) - 0.03, z, ry, sc, WHITE);
-        else if (pick < 0.68) this.flowerW.put(x, this.gy(x, z) - 0.02, z, ry, sc, WHITE);
+        if (bare > 0.2 && bare < 0.6 && pick > 0.86) {
+          if (!lite) this.bushW.put(x, this.gy(x, z) - 0.06, z, ry, sc, WHITE);
+        } else if (bare > 0.3) continue;
+        else if (pick < grassP) this.grassW.put(x, this.gy(x, z) - 0.03, z, ry, sc, WHITE);
+        else if (!lite && pick >= 0.6 && pick < 0.68) this.flowerW.put(x, this.gy(x, z) - 0.02, z, ry, sc, WHITE);
       }
     this.grassW.end();
     this.flowerW.end();
@@ -1294,6 +1302,7 @@ export class GameScene {
       if (b && this.enemyMorph[t]) this.enemyW[t].mesh.geometry = level > 0 ? b.geo.net : b.geo.pixel;
     }
     this.applyGround();
+    this.propX = this.propZ = 1e9; // le semis dépend du niveau : refait au prochain rendu
     this.renderer.domElement.classList.toggle('pixel', level === 0);
   }
   private groundTex(net: boolean): THREE.Texture {
@@ -1411,21 +1420,25 @@ export class GameScene {
     const st = (this.stageIdx = Math.max(0, Math.min(PAL.stages.length - 1, i)));
     this.groundMat.color.setHex(PAL.stages[st].tint);
     this.applyGround();
-    if (!this.groundAsked[st]) {
-      this.groundAsked[st] = true;
-      Promise.all([loadGroundTexture(st, 'a'), loadGroundTexture(st, 'b')]).then(
-        ([a, b]) => {
-          a.repeat.set((WORLD_HALF * 2) / GROUND_TILE, (WORLD_HALF * 2) / GROUND_TILE);
-          this.groundSet[st] = [a, b];
-          if (this.stageIdx === st) this.applyGround();
-        },
-        (e: unknown) => {
-          this.groundAsked[st] = false; // nouvel essai au prochain passage dans ce monde
-          console.warn('textures de sol indisponibles, repli', e);
-        },
-      );
-    }
+    this.askGround(st);
+    if (st > 0 && st + 1 < PAL.stages.length) this.askGround(st + 1); // monde suivant prêt avant le portail
     this.dressStage();
+  }
+  /** Demande (une fois) les deux textures de sol d'un monde ; appliquées si c'est le monde courant. */
+  private askGround(st: number): void {
+    if (this.groundAsked[st]) return;
+    this.groundAsked[st] = true;
+    Promise.all([loadGroundTexture(st, 'a'), loadGroundTexture(st, 'b')]).then(
+      ([a, b]) => {
+        a.repeat.set((WORLD_HALF * 2) / GROUND_TILE, (WORLD_HALF * 2) / GROUND_TILE);
+        this.groundSet[st] = [a, b];
+        if (this.stageIdx === st) this.applyGround();
+      },
+      (e: unknown) => {
+        this.groundAsked[st] = false; // nouvel essai au prochain passage dans ce monde
+        console.warn('textures de sol indisponibles, repli', e);
+      },
+    );
   }
   /** Textures du sol du monde courant (ou la texture dessinée tant qu'elles chargent). */
   private applyGround(): void {

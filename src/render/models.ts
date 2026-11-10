@@ -194,7 +194,7 @@ export function loadGroundTexture(stage: number, slot: 'a' | 'b'): Promise<THREE
     p = new THREE.TextureLoader().loadAsync(modelUrl(file)).then((t) => {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = 4;
+      t.anisotropy = 2; // le sol couvre tout l'écran : filtrage léger (relecture perf)
       return t;
     });
     p.catch(() => groundCache.delete(file));

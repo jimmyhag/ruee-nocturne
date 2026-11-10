@@ -30,21 +30,24 @@ function segDist(x: number, z: number, ax: number, az: number, bx: number, bz: n
   t = t < 0 ? 0 : t > 1 ? 1 : t;
   return Math.hypot(x - (ax + ux * t), z - (az + uz * t));
 }
+/** Hachage entier → 0..1 (coins de la grille du bruit). */
+function hash01(a: number, b: number, seed: number): number {
+  let n = (Math.imul(a, 374761393) + Math.imul(b, 668265263) + Math.imul(seed, 1442695041)) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+}
 /** Bruit de valeur lissé, 0..1, déterministe pour une graine (taches du sol : construction seulement). */
 function noise2(x: number, z: number, seed: number): number {
   const xi = Math.floor(x),
     zi = Math.floor(z);
   const fx = x - xi,
     fz = z - zi;
-  const h = (a: number, b: number) => {
-    let n = (a * 374761393 + b * 668265263 + seed * 1442695041) | 0;
-    n = Math.imul(n ^ (n >>> 13), 1274126177);
-    return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
-  };
   const u = fx * fx * (3 - 2 * fx),
     v = fz * fz * (3 - 2 * fz);
-  const a = h(xi, zi) + (h(xi + 1, zi) - h(xi, zi)) * u,
-    b = h(xi, zi + 1) + (h(xi + 1, zi + 1) - h(xi, zi + 1)) * u;
+  const h00 = hash01(xi, zi, seed),
+    h01 = hash01(xi, zi + 1, seed);
+  const a = h00 + (hash01(xi + 1, zi, seed) - h00) * u,
+    b = h01 + (hash01(xi + 1, zi + 1, seed) - h01) * u;
   return a + (b - a) * v;
 }
 export class TerrainView {
@@ -156,17 +159,18 @@ export class TerrainView {
           bC = sh * (1 - 0.07 * t - 0.1 * (macro - 0.5));
         // terre : flancs, sous-bois, rives des lacs, lieux construits, et quelques plaques au hasard
         let dirt = bank;
+        // rejet par distance au carré d'abord : 29 000 sommets × une quarantaine de zones (relecture perf)
         for (const o of w.woods) {
-          const d = Math.hypot(x - o.x, z - o.z);
-          dirt = Math.max(dirt, 0.9 * smooth(o.r + 1, o.r - 5, d));
+          const d2 = (x - o.x) * (x - o.x) + (z - o.z) * (z - o.z);
+          if (d2 < (o.r + 1) * (o.r + 1)) dirt = Math.max(dirt, 0.9 * smooth(o.r + 1, o.r - 5, Math.sqrt(d2)));
         }
         for (const o of w.lakes) {
-          const d = Math.hypot(x - o.x, z - o.z);
-          dirt = Math.max(dirt, smooth(o.r + 3.5, o.r + 0.5, d));
+          const d2 = (x - o.x) * (x - o.x) + (z - o.z) * (z - o.z);
+          if (d2 < (o.r + 3.5) * (o.r + 3.5)) dirt = Math.max(dirt, smooth(o.r + 3.5, o.r + 0.5, Math.sqrt(d2)));
         }
         for (const o of w.places) {
-          const d = Math.hypot(x - o.x, z - o.z);
-          dirt = Math.max(dirt, 0.85 * smooth(o.r + 1, o.r - 2.5, d));
+          const d2 = (x - o.x) * (x - o.x) + (z - o.z) * (z - o.z);
+          if (d2 < (o.r + 1) * (o.r + 1)) dirt = Math.max(dirt, 0.85 * smooth(o.r + 1, o.r - 2.5, Math.sqrt(d2)));
         }
         dirt = Math.max(dirt, 0.8 * smooth(0.64, 0.82, noise2(x * 0.085 + 31.7, z * 0.085 + 17.3, w.seed)));
         // phase 28 : grandes pistes en neige tassée (claire, bleutée) bordée d'un liseré sombre ; tremplins en bois clair
@@ -230,6 +234,9 @@ export class TerrainView {
     this.follow(0, 0);
     const group = new THREE.Group();
     const mesh = new THREE.Mesh(this.winGeo, mat);
+    // dessiné après les autres opaques : les fragments du sol cachés par le décor et les personnages sont rejetés
+    // par la profondeur avant son shader à trois textures (relecture perf, phase 44)
+    mesh.renderOrder = 1;
     mesh.frustumCulled = false; // toujours sous la caméra
     group.add(mesh);
     return group;

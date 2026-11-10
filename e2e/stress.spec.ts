@@ -40,7 +40,7 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   await page.waitForFunction(
     () => {
       const s = (window as any).__game.scene;
-      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
+      return s.heroKind === 'gltf' && s.propsReady === true && s.natureReady === true && s.enemyKind === 'gltf';
     },
     null,
     { timeout: 20_000 },
@@ -90,25 +90,26 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   await page.waitForFunction(
     () => {
       const s = (window as any).__game.scene;
-      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
+      return s.heroKind === 'gltf' && s.propsReady === true && s.natureReady === true && s.enemyKind === 'gltf';
     },
     null,
     { timeout: 20_000 },
   );
-  // point le plus dense : poids ≈ triangles (arbre 600, lanterne 570, cimetière 1 000) à moins de 30 u
+  // point le plus dense : poids ≈ triangles dans le rayon de dessin de chaque sorte (phase 44 : arbre stylisé 640
+  // à moins de 48 u ; lanterne 570 et cimetière 1 000 à moins de 30 u)
   const at = await page.evaluate(() => {
     const s = (window as any).__game.scene;
-    const pts: [number, number, number][] = [];
+    const pts: [number, number, number, number][] = [];
     const T = s.treeData as Float32Array,
       L = s.lampData as Float32Array,
       G = s.graveData as Float32Array;
-    for (let i = 0; i < T.length; i += 6) pts.push([T[i], T[i + 2], 600]);
-    for (let i = 0; i < L.length; i += 3) pts.push([L[i], L[i + 2], 570]);
-    for (let i = 0; i < G.length; i += 4) pts.push([G[i], G[i + 2], 1000]);
+    for (let i = 0; i < T.length; i += 6) pts.push([T[i], T[i + 2], 640, 48 * 48]);
+    for (let i = 0; i < L.length; i += 3) pts.push([L[i], L[i + 2], 570, 900]);
+    for (let i = 0; i < G.length; i += 4) pts.push([G[i], G[i + 2], 1000, 900]);
     let best = { x: 0, z: 0, w: -1 };
     for (const [x, z] of pts) {
       let w = 0;
-      for (const [x2, z2, k] of pts) if ((x - x2) ** 2 + (z - z2) ** 2 < 900) w += k;
+      for (const [x2, z2, k, r2] of pts) if ((x - x2) ** 2 + (z - z2) ** 2 < r2) w += k;
       if (w > best.w) best = { x, z, w };
     }
     return best;
@@ -181,7 +182,7 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
   await page.waitForFunction(
     () => {
       const s = (window as any).__game.scene;
-      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
+      return s.heroKind === 'gltf' && s.propsReady === true && s.natureReady === true && s.enemyKind === 'gltf';
     },
     null,
     { timeout: 20_000 },
@@ -256,7 +257,7 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
   await page.waitForFunction(
     () => {
       const s = (window as any).__game.scene;
-      return s.heroKind === 'gltf' && s.propsReady === true && s.enemyKind === 'gltf';
+      return s.heroKind === 'gltf' && s.propsReady === true && s.natureReady === true && s.enemyKind === 'gltf';
     },
     null,
     { timeout: 20_000 },
