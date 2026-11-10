@@ -19,6 +19,9 @@ export const FEEL = {
     boss: 0.6,
     evolve: 0.5,
   },
+  // 1.37.1 : reprise après une pause (menu, niveau, coffre, marchand) : le temps repart à 35 % et revient à 100 % en
+  // 0,5 s (temps réel injecté, le pas de sim reste fixe), le temps de reprendre ses repères
+  resume: { ease: 0.5, from: 0.35 },
   camera: {
     zoomOutAt15min: 0.08, // zoom-out progressif de 8 % de 0 à 15 min (le pouvoir se voit)
     bossPullback: 0.1, // recul de 10 % pendant un boss

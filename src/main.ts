@@ -511,9 +511,16 @@ function pauseGame(): void {
 }
 function resumeGame(): void {
   if (app !== 'pause') return;
+  backToPlay();
+}
+// 1.37.1 (retour de Jimmy) : toute reprise garde l'élan (input.resume) et repart en douceur (FEEL.resume)
+let resumeEase = 0;
+function backToPlay(): void {
   app = 'play';
   showOnly(null);
   last = performance.now();
+  input.resume();
+  resumeEase = reducedFx() ? 0 : FEEL.resume.ease;
 }
 function openLevelUp(): void {
   if (!world) return;
@@ -582,10 +589,8 @@ function merchantAct(code: number): void {
     renderMerchant();
     return;
   }
-  app = 'play';
-  showOnly(null);
+  backToPlay();
   audio.whoosh();
-  last = performance.now();
 }
 $('mcards').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-i]') as HTMLElement | null;
@@ -639,10 +644,8 @@ function choose(i: number): void {
     hud.kit(world);
     if (world.mode === Mode.LevelUp) openLevelUp();
     else {
-      app = 'play';
-      showOnly(null);
+      backToPlay();
       audio.whoosh();
-      last = performance.now();
     }
   };
   if (reducedFx()) apply();
@@ -2172,7 +2175,14 @@ function frame(nowMs: number): void {
 
   if (app === 'play' && world) {
     // hit-stop borné : ralentit le temps réel injecté dans l'accumulateur, le pas fixe reste déterministe
-    acc += hitStop.advance(realDt);
+    let dtIn = realDt;
+    if (resumeEase > 0) {
+      // 1.37.1 : reprise en douceur, de FEEL.resume.from à 1 en FEEL.resume.ease s
+      const R = FEEL.resume;
+      dtIn *= R.from + (1 - R.from) * (1 - resumeEase / R.ease);
+      resumeEase = Math.max(0, resumeEase - realDt);
+    }
+    acc += hitStop.advance(dtIn);
     let n = 0;
     while (acc >= STEP && n < 4) {
       input.poll(inp);

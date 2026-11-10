@@ -8,8 +8,20 @@ function isEditable(t: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable;
 }
 
+/**
+ * 1.37.1 (retour de Jimmy) : après une pause (menu, montée de niveau, coffre, marchand), on continue dans la dernière
+ * direction tant que le joueur n'a pas repris la main (doigt reposé, touche, manette), au plus CARRY_MS. Au doigt, on
+ * lève forcément le pouce pour toucher une carte : sans ça, le héros restait planté à la reprise.
+ */
+const CARRY_MS = 3000;
+
 export class InputManager {
   private keys: Record<string, boolean> = {};
+  private lastX = 0; // direction du dernier pas joué (avant la pause)
+  private lastZ = 0;
+  private carryX = 0;
+  private carryZ = 0;
+  private carryUntil = 0; // performance.now() de fin de l'élan conservé
   private jumpQueued = false;
   private spellQueued = false;
   private pickQueued = -1;
@@ -70,6 +82,7 @@ export class InputManager {
       if (this.joy.id !== -1 || (e.target as HTMLElement).closest('button, .screen')) return;
       this.joy.id = e.pointerId;
       this.joy.active = true;
+      this.carryUntil = 0; // le doigt est revenu : il reprend la main
       this.joy.ox = e.clientX;
       this.joy.oy = e.clientY;
       this.joy.x = this.joy.y = 0;
@@ -117,6 +130,13 @@ export class InputManager {
 
   private prevPadButtons = { jump: false, spell: false, pause: false, pick: -1 };
 
+  /** Reprise du jeu après une pause : garde l'élan du dernier pas si plus rien n'est tenu (voir CARRY_MS). */
+  resume(): void {
+    this.carryX = this.lastX;
+    this.carryZ = this.lastZ;
+    this.carryUntil = this.lastX !== 0 || this.lastZ !== 0 ? performance.now() + CARRY_MS : 0;
+  }
+
   /** Remplit `out` pour ce step et consomme les fronts montants. */
   poll(out: Input): void {
     let mx = 0,
@@ -154,6 +174,14 @@ export class InputManager {
       this.prevPadButtons.pause = b(9);
       this.prevPadButtons.pick = pick;
     }
+    if (mx !== 0 || mz !== 0)
+      this.carryUntil = 0; // une vraie commande remplace l'élan
+    else if (this.carryUntil > 0 && performance.now() < this.carryUntil) {
+      mx = this.carryX;
+      mz = this.carryZ;
+    }
+    this.lastX = mx;
+    this.lastZ = mz;
     out.mx = mx;
     out.mz = mz;
     out.jump = this.jumpQueued;

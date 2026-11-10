@@ -1,7 +1,7 @@
 // Marchand (phase 17, PLAN §3.6) : une échoppe s'installe près du joueur aux heures MERCHANT.times et reste
 // MERCHANT.stay s. Y entrer met la partie en pause (Mode.Merchant) : objets en vente (w.offers, kind 'i'), relance, départ.
 // On paie avec l'or de la partie ; ce qui n'est pas dépensé reste acquis à la fin du run.
-import { ENDLESS, MERCHANT } from './balance';
+import { ENDLESS, MERCHANT, PLAY_LIMIT } from './balance';
 import { canGainItem, gainItem, itemIndex, merchantOffers, rollItemChoices } from './items';
 import { Ev, Mode } from './types';
 import type { ItemKey } from './types';
@@ -28,6 +28,7 @@ export function makeMerchant(): MerchantState {
 }
 
 const TAU = Math.PI * 2;
+const clamp = (v: number, lim: number): number => (v < -lim ? -lim : v > lim ? lim : v);
 const out2 = new Float64Array(2);
 
 /** Apparition, départ, entrée du joueur. Appelé à chaque pas de jeu (Mode.Play). */
@@ -66,22 +67,26 @@ export function tickMerchant(w: World): void {
 /** L'échoppe s'installe à une place libre près du joueur. */
 function arrive(w: World): void {
   const M = w.merchant;
-  // place libre près du joueur : quelques essais autour de lui, repoussée hors des obstacles
-    const P = w.player;
-    for (let k = 0; k < MERCHANT.placeTries; k++) {
-      const a = w.rng.range(0, TAU),
-        d = w.rng.range(MERCHANT.distMin, MERCHANT.distMax);
-      w.resolveObstacles(P.x + Math.sin(a) * d, P.z + Math.cos(a) * d, MERCHANT.r + MERCHANT.placeMargin, out2, 0);
-      M.x = out2[0];
-      M.z = out2[1];
-      if (!w.nearObstacle(M.x, M.z) || k === MERCHANT.placeTries - 1) break;
-    }
-    M.active = true;
-    M.until = w.stageT + MERCHANT.stay;
-    M.visit++;
-    M.rolled = false;
-    M.inside = false;
-    M.rerolls = 0;
+  // place libre près du joueur : quelques essais autour de lui, repoussée hors des obstacles ; 1.37.1 (retour de Jimmy) :
+  // toujours dans la zone jouable (près du bord, un essai pouvait tomber dans la lisière, hors d'atteinte)
+  const P = w.player;
+  const lim = PLAY_LIMIT - MERCHANT.r - MERCHANT.placeMargin;
+  for (let k = 0; k < MERCHANT.placeTries; k++) {
+    const a = w.rng.range(0, TAU),
+      d = w.rng.range(MERCHANT.distMin, MERCHANT.distMax);
+    const x = clamp(P.x + Math.sin(a) * d, lim),
+      z = clamp(P.z + Math.cos(a) * d, lim);
+    w.resolveObstacles(x, z, MERCHANT.r + MERCHANT.placeMargin, out2, 0);
+    M.x = clamp(out2[0], lim);
+    M.z = clamp(out2[1], lim);
+    if (!w.nearObstacle(M.x, M.z) || k === MERCHANT.placeTries - 1) break;
+  }
+  M.active = true;
+  M.until = w.stageT + MERCHANT.stay;
+  M.visit++;
+  M.rolled = false;
+  M.inside = false;
+  M.rerolls = 0;
   w.emit(Ev.MerchantArrive, M.x, 0, M.z, MERCHANT.stay);
 }
 

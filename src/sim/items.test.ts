@@ -1,6 +1,6 @@
 // Phase 17 : objets passifs, marchand et synergies tome + arme.
 import { describe, expect, it } from 'vitest';
-import { CHEST, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, STEP, SYN, SYNERGIES, Syn, TOME_CAPS } from './balance';
+import { CHEST, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, PLAY_LIMIT, STEP, SYN, SYNERGIES, Syn, TOME_CAPS } from './balance';
 import { dropChest, hitEnemy } from './combat';
 import { canGainItem, gainItem, itemCount, itemPrice, merchantOffers, rollItemChoices, shieldAbsorb, stackEff } from './items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, canAffordAny, rerollCost } from './merchant';
@@ -224,6 +224,20 @@ describe('objets passifs', () => {
 });
 
 describe('marchand', () => {
+  it('1.37.1 : près du bord de la carte, l’échoppe reste dans la zone jouable', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const w = new World(seed);
+      startRun(w);
+      w.player.x = w.player.px = PLAY_LIMIT - 1; // coin de la carte
+      w.player.z = w.player.pz = -(PLAY_LIMIT - 1);
+      w.stageT = MERCHANT.times[0];
+      step(w, { mx: 0, mz: 0, jump: false, spell: false, pick: -1 }, STEP);
+      expect(w.merchant.active).toBe(true);
+      const lim = PLAY_LIMIT - MERCHANT.r;
+      expect(Math.abs(w.merchant.x)).toBeLessThanOrEqual(lim);
+      expect(Math.abs(w.merchant.z)).toBeLessThanOrEqual(lim);
+    }
+  });
   const arrive = (seed: number) => {
     const w = new World(seed);
     god(w);

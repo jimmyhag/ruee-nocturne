@@ -2,6 +2,23 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.37.1 — 10 nov. 2026 (retours de Jimmy)
+
+### Corrigé
+
+- **Le héros garde son élan à la reprise**, après une pause, une montée de niveau, un coffre ou le marchand.
+  - Avant : au doigt, on lève le pouce pour toucher une carte, donc le joystick était relâché à la reprise et le héros restait planté. Au clavier, une touche relâchée pendant la pause donnait le même résultat.
+  - Maintenant, le héros continue dans sa dernière direction jusqu'à 3 s, ou jusqu'à ce que tu reprennes la main (doigt reposé, touche, manette).
+  - Le jeu repart aussi en douceur : le temps remonte de 35 % à 100 % en une demi-seconde. Ce n'est pas le cas avec « réduction des effets ».
+- **Le marchand ne s'installe plus hors de la carte.** Près du bord, son échoppe pouvait tomber dans la lisière, hors d'atteinte. Elle reste maintenant toujours dans la zone jouable.
+
+### Technique
+
+- `InputManager.resume()` conserve la dernière direction (`CARRY_MS`). `backToPlay()` regroupe toutes les reprises dans `main.ts`. `FEEL.resume` règle l'accélération.
+- Tests :
+  - Vitest : 40 graines avec le joueur dans un coin.
+  - e2e `resume.spec.ts` (clavier et doigt) : il échoue sans le correctif.
+
 ## 1.37.0 — 10 nov. 2026 (phase 42 « Boss de survie », demande de Jimmy)
 
 ### Ajouté
