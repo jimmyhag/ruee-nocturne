@@ -50,7 +50,11 @@ test('pause puis reprise sans rien tenir : le héros continue dans sa direction'
   }
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   const a = await player(page);
-  await page.waitForTimeout(900);
+  // on attend le déplacement au lieu d'un délai fixe : sur une machine lente (CI, rendu logiciel à quelques images
+  // par seconde), 0,9 s d'horloge ne donnaient que 0,42 u. Sans le correctif, le héros reste sur place et ceci échoue.
+  await page
+    .waitForFunction((x0) => (window as any).__game.world.player.x > x0 + 0.5, a.x, { timeout: 2500 })
+    .catch(() => undefined);
   const b = await player(page);
   expect(b.x, 'toujours en mouvement après la reprise').toBeGreaterThan(a.x + 0.5);
   expect(errors).toEqual([]);

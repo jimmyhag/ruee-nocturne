@@ -28,7 +28,10 @@ test('bord de carte : lisière visible, aucun vide, le joueur reste dans la zone
     g.debug.teleport(160, 0);
     g.world.player.x = g.world.player.px = 175; // poussé au-delà : la sim le ramène à la limite au pas suivant
   });
-  await page.waitForTimeout(300);
+  // on attend le pas de sim qui ramène le joueur (délai fixe trop court sur une machine lente : aucun pas en 300 ms)
+  await page
+    .waitForFunction((l) => (window as any).__game.world.player.x <= l + 1e-6, lim, { timeout: 5000 })
+    .catch(() => undefined);
   const x = await page.evaluate(() => (window as any).__game.world.player.x as number);
   expect(x).toBeLessThanOrEqual(lim + 1e-6);
   // la bordure est bien dans la scène (segments de lisière autour de la carte)
