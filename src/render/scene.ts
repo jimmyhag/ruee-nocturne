@@ -287,8 +287,8 @@ export class GameScene {
   private cLanceTip = new THREE.Color(0xbff4ff);
   private cBoomTrail = [0.45, 0.28, 0.15].map((k) => new THREE.Color(PAL.boomerang).multiplyScalar(k));
   private cMineHalo = new THREE.Color();
-  private cSlashFaux = new THREE.Color(0xc9b3ff);
-  private cSlashBlade = new THREE.Color(0xbfe8ff).multiplyScalar(0.75);
+  private cSlashFaux = new THREE.Color(0xa66bff); // 1.42.1 : violet franc (0xc9b3ff se lisait blanc sur l'herbe)
+  private cSlashBlade = new THREE.Color(0x4fc8ff); // 1.42.1 : bleu acier franc
   private cSlashTmp = new THREE.Color();
   private cMeteor = new THREE.Color(PAL.gold);
   private cEliteRing = new THREE.Color(PAL.gold).multiplyScalar(0.8 / 0.9); // ancien matériau doré à 0,8, ici à 0,9
@@ -518,8 +518,8 @@ export class GameScene {
         // 1.42.1 : arcs de lame et de faux lisibles sur l'herbe (cœur blanc, bord dans la couleur de l'arme)
         softGlow(
           new THREE.MeshBasicMaterial({ color: 0xffffff, map: slashTexture(), side: THREE.DoubleSide }),
-          0.75,
-          0.55,
+          0.8,
+          0.3,
         ),
         SLASH_CAP,
       ),
