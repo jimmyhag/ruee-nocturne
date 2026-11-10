@@ -647,5 +647,6 @@
   "chal.outfit": "la tenue de maître",
   "chal.outfitLocked": "Défi III",
   "outfit.master": "Maître",
-  "chal.pays": "rapporte {what}"
+  "chal.pays": "rapporte {what}",
+  "menu.accountPending": "Compte · à synchroniser"
 }

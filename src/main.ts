@@ -1260,6 +1260,7 @@ function onAuthChange(u: AccountUser | null): void {
   refreshAccount();
   fillPseudo(u);
   if (!u) savePending([]); // déconnexion : les parties en attente ne partiront pas sous un autre compte
+  if (!u) syncOk(); // 1.36.1 : plus de réessai sans compte
   if (u) void reconcileAccount();
   if (u) void flushScores();
   if (app === 'board') void refreshBoard();
@@ -1299,11 +1300,13 @@ async function reconcileAccount(): Promise<void> {
     else if (d === 'pull' && cloud) applyCloud(u.uid, cloud);
     else if (d === 'adopt' && cloud) alignWith(u.uid, cloud.updatedAt);
     accView.sync = 'synced';
+    syncOk();
     refreshAccount();
   } catch (e) {
     accView.sync = 'error';
     accView.retry = true;
     accountError(e);
+    scheduleRetry();
   } finally {
     reconciling = false;
   }
@@ -1348,7 +1351,26 @@ async function pushNow(uid: string): Promise<void> {
   }
   saveSyncRecord(syncRec);
   accView.sync = 'synced';
+  syncOk();
   refreshAccount();
+}
+// 1.36.1 : réessai automatique d'une synchronisation ratée (en ligne mais injoignable) ; remis à zéro au succès
+let retryTimer = 0;
+let retryN = 0;
+function scheduleRetry(): void {
+  clearTimeout(retryTimer);
+  if (!account?.user || !navigator.onLine) return; // hors ligne : l'événement « online » relancera
+  const d = SYNC.retryMs[Math.min(retryN, SYNC.retryMs.length - 1)];
+  retryN++;
+  retryTimer = window.setTimeout(() => {
+    retryTimer = 0;
+    if (account?.user) void reconcileAccount();
+  }, d);
+}
+function syncOk(): void {
+  clearTimeout(retryTimer);
+  retryTimer = 0;
+  retryN = 0;
 }
 function schedulePush(): void {
   clearTimeout(pushTimer);
@@ -1362,6 +1384,7 @@ function schedulePush(): void {
         accView.sync = 'error';
         accView.retry = true;
         accountError(e);
+        scheduleRetry();
       });
   }, SYNC.debounceMs);
 }
@@ -1384,11 +1407,17 @@ document.addEventListener('visibilitychange', () => {
       pushNow(u.uid).catch(() => {
         accView.sync = 'error';
         accView.retry = true;
+        scheduleRetry();
       });
+  } else if (!document.hidden && account?.user && syncRec?.dirty && navigator.onLine && !reconciling) {
+    // 1.36.1 : retour au premier plan avec une progression pas encore partie (l'événement « online » a pu être manqué)
+    void reconcileAccount();
   }
 });
 addEventListener('online', () => {
   if (account?.user) void reconcileAccount();
+  // 1.36.1 : lancé hors ligne sans pouvoir charger le compte (module ou configuration) : on réessaie maintenant
+  else if (!account && !accountUnavailable && sessionKnown()) void loadAccount();
   void flushScores(); // phase 38 : parties terminées hors ligne
 });
 
@@ -2326,8 +2355,11 @@ const debugRt = installDebugHooks({
     saveMeta(meta);
     applyMeta();
   },
-  fakeAccount(uid, rows) {
+  fakeAccount(uid, rows, opts) {
     const sent: unknown[] = [];
+    // 1.36.1 : `opts.sync` branche aussi la sauvegarde (lecture, écriture, échecs simulés) et la réconciliation
+    const saves: CloudDoc[] = [];
+    let failWrites = opts?.failWrites ?? 0;
     const user: AccountUser = { uid, email: 'test@example.com', name: 'Testeur Fictif', provider: 'password' };
     const fake = {
       user,
@@ -2339,8 +2371,15 @@ const debugRt = installDebugHooks({
         return Promise.resolve();
       },
       renameScores: () => Promise.resolve(),
-      readSave: () => Promise.resolve(null),
-      writeSave: () => Promise.resolve(),
+      readSave: () => Promise.resolve(saves.length ? saves[saves.length - 1] : null),
+      writeSave: (_uid: string, d: CloudDoc) => {
+        if (failWrites > 0) {
+          failWrites--;
+          return Promise.reject(new Error('fake/unavailable'));
+        }
+        saves.push(d);
+        return Promise.resolve();
+      },
     };
     account = fake as unknown as Account;
     accountUnavailable = false;
@@ -2348,7 +2387,8 @@ const debugRt = installDebugHooks({
     accView.email = user.email;
     refreshAccount();
     fillPseudo(user);
-    return { sent };
+    if (opts?.sync) onAuthChange(user);
+    return { sent, saves };
   },
 });
 
