@@ -32,6 +32,7 @@ describe('combat', () => {
     const w = new World(2);
     for (let k = 0; k < 5; k++) dropGem(w, k * 3, 0, 1);
     const i = spawnEnemy(w, BOSS_TYPE, 0, 10);
+    w.totemBossId = w.enemies[i].id; // boss du totem (phase 42 : un boss de survie ne soigne pas)
     hitEnemy(w, i, 1, 10, w.player.x, w.player.z);
     expect(w.enemies[i].kx).toBe(0);
     w.player.hp = 1;
@@ -43,6 +44,15 @@ describe('combat', () => {
     expect(w.player.hp).toBe(w.player.maxHp);
     for (let g = 0; g < w.gemCount; g++) expect(w.gems[g].mag).toBe(true);
     expect(w.gems[w.gemCount - 1].v).toBe(ENEMIES[BOSS_TYPE].xp);
+  });
+  it('phase 42 : un boss de survie ne soigne pas et laisse un coffre d’élite', () => {
+    const w = new World(2);
+    const i = spawnEnemy(w, BOSS_TYPE, 0, 10);
+    w.player.hp = 1;
+    killEnemy(w, i);
+    expect(w.player.hp).toBe(1);
+    expect(w.chestCount).toBe(1);
+    expect(w.chests[0].boss).toBe(false);
   });
   it('au-delà de gemMergeAbove, les gemmes fusionnent au lieu de s’ajouter', () => {
     const w = new World(3);

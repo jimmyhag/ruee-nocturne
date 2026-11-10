@@ -202,7 +202,7 @@ export const STAGE = {
   // phase 42 (demande de Jimmy) : boss de survie à heure fixe dans chaque monde, avant le boss du totem. Ils arrivent
   // seuls, en cercle autour du joueur ; PV = fraction de ceux du boss du totem du même monde ; ils n'ouvrent rien et ne
   // renforcent pas les boss suivants (bossCount inchangé). Préavis `warn` s avant.
-  survival: { at: [180, 420], hp: [0.4, 0.65], dist: 12, warn: 10 },
+  survival: { at: [180, 420], hp: [0.7, 1], dist: 12, warn: 10 },
   overWaveCap: 3, // en prolongation, les vagues grossissent au plus ×3 (au-delà, le pool d'ennemis est plein)
   totemTries: 4000, // tirages pour placer le totem
   totemFlat: 0.6, // u d'écart de hauteur toléré sur le cercle du combat

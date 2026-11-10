@@ -83,9 +83,14 @@ export function killEnemy(w: World, i: number): void {
   const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
   dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul : 1) * air);
   if (def.boss) {
-    w.player.hp = w.player.maxHp;
-    for (let g = 0; g < w.gemCount; g++) w.gems[g].mag = true;
-    dropChest(w, e.x, e.z, true);
+    // phase 42 : un boss de survie ne soigne pas et ne laisse qu'un coffre d'élite (mesuré : avec la récompense d'un
+    // vrai boss, il rendait la partie plus facile, profil maxé 41 → 53 % de victoires)
+    const survival = !w.endless && e.id !== w.totemBossId;
+    if (!survival) {
+      w.player.hp = w.player.maxHp;
+      for (let g = 0; g < w.gemCount; g++) w.gems[g].mag = true;
+    }
+    dropChest(w, e.x, e.z, !survival);
     w.emit(Ev.BossKill, e.x, e.y, e.z, e.type);
     if (w.endless) w.endlessAlive = Math.max(0, w.endlessAlive - 1); // phase 39 : la barre passe au boss suivant
     else if (e.id === w.totemBossId) {
