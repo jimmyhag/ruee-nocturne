@@ -122,8 +122,11 @@ test('sanctuaire : rester dans le cercle remplit la jauge, puis un bonus pour la
   await expect(page.locator('#poiChip')).toHaveClass(/shrine/);
   await page.waitForSelector('#levelup:not([hidden])', { timeout: 30000 });
   await expect(page.locator('#luTitle')).toHaveText('Sanctuaire');
-  await expect(page.locator('#cards .card')).toHaveCount(3);
+  await expect(page.locator('#cards .card')).toHaveCount(4); // phase 47 : quatre bonus parmi dix-huit
   await expect(page.locator('#cards .badge.boon').first()).toBeVisible();
+  // chaque carte dit où en est la stat : « Vol de vie : 0 % → 1 % »
+  await expect(page.locator('#cards .card p.now')).toHaveCount(4);
+  await expect(page.locator('#cards .card p.now').first()).toContainText('→');
   await pickCard(page, 1, hasTouch);
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   const boons = await page.evaluate(() =>

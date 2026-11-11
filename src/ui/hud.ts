@@ -545,6 +545,7 @@ export function renderCards(
   w?: World,
   shop?: { gold: number; full: boolean },
 ): void {
+  container.classList.toggle('four', cards.length === 4); // phase 47 : deux rangées de deux
   container.innerHTML = cards
     .map((c, i) => {
       let glyph = '+',
