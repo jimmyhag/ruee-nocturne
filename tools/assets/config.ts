@@ -109,15 +109,18 @@ export const PROPS: Record<string, { pack: PackKey; file: string; tris: number }
 /** Triangles visés pour le corps à chaque niveau : boss (hi), masse en rendu net (mid), masse en pixel (lo). */
 export const ENEMY_LODS = { hi: 1800, mid: 330, lo: 110 } as const;
 
-/** Budgets de téléchargement (porte de phase 20). */
-// un joueur ne télécharge que son héros et props.glb (vite.config.ts : cache à l'usage, pas de précache)
-// phase 25 : héros texturés (atlas JPEG) : 700 ko par héros, 7 Mo au total (un joueur ne charge que son héros)
+/**
+ * Budgets de téléchargement (porte de phase 20), vérifiés par le script et par les tests. Un joueur ne télécharge que
+ * son héros, props.glb, enemies.glb et nature.glb (vite.config.ts : cache à l'usage, pas de précache).
+ * Phase 46 : héros KayKit de 300 à 380 ko (590 à 685 ko pour les héros Quaternius, plafond de 700 ko alors) et
+ * 4,2 Mo en tout : les plafonds sont resserrés à environ 20 % au-dessus du réel.
+ */
 export const BUDGET = {
-  heroBytes: 700_000,
-  enemyBytes: 750_000,
+  heroBytes: 450_000,
+  enemyBytes: 750_000, // phase 26 : ennemis texturés
   natureBytes: 900_000, // phase 44 : décor stylisé (19 modèles et leur atlas)
-  totalBytes: 8_400_000,
-}; // phase 26 : ennemis texturés
+  totalBytes: 5_000_000, // les neuf héros, props.glb, enemies.glb et nature.glb
+};
 
 /**
  * Phase 44 : décor stylisé, Quaternius « Ultimate Stylized Nature » (CC0, quaternius.com). Le site est injoignable
