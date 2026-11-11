@@ -24,12 +24,13 @@ const fresh = () => normalizeMeta(DEFAULT_META);
 const LOCKED_ITEMS = ACHIEVEMENTS.filter((a) => a.unlocks?.item).map((a) => a.unlocks!.item!);
 
 describe('Bibliothèque (phase 40)', () => {
-  it('12 objets verrouillés pour un nouveau joueur, chacun derrière un succès distinct ; 20 au départ', () => {
-    expect(LOCKED_ITEMS.length).toBe(12);
-    expect(new Set(LOCKED_ITEMS).size).toBe(12);
+  it('22 objets verrouillés pour un nouveau joueur (phase 47 B : dix de plus), chacun derrière un succès distinct ; 26 au départ', () => {
+    expect(LOCKED_ITEMS.length).toBe(22);
+    expect(new Set(LOCKED_ITEMS).size).toBe(22);
     const m = fresh();
     expect(bannedItems(m).sort()).toEqual([...LOCKED_ITEMS].sort());
-    expect(activeItems(m)).toBe(ITEM_KEYS.length - 12);
+    expect(activeItems(m)).toBe(ITEM_KEYS.length - 22);
+    expect(activeItems(m)).toBe(26);
     for (const k of LOCKED_ITEMS) expect(entryState(m, 'i', k)).toBe('locked');
     expect(entryState(m, 'i', 'lanterne')).toBe('owned');
     expect(unlockedWeapons(m)).toEqual(['orbe', 'aura', 'lames', 'foudre']);
@@ -64,7 +65,7 @@ describe('Bibliothèque (phase 40)', () => {
     let off = 0;
     for (const k of owned) if (toggleItem(m, k)) off++;
     const commons = owned.filter((k) => ITEM_RARITY[ITEM_KEYS.indexOf(k)] === 0).length;
-    expect(commons).toBe(14);
+    expect(commons).toBe(20); // phase 47 B : six communs de plus
     expect(off).toBe(owned.length - commons);
     expect(activeItems(m)).toBe(commons);
     const back = m.itemsOff[0];
@@ -100,7 +101,7 @@ describe('Bibliothèque (phase 40)', () => {
     expect(unlockedWeapons(m)).not.toContain('lance'); // succès pas encore obtenu : il faudra l'acheter
     expect(normalizeMeta(m).unlocks).toEqual(m.unlocks); // une seule fois : la v5 ne re-migre pas
     const blank = normalizeMeta({ version: 4, runs: 0 });
-    expect(bannedItems(blank).length).toBe(12);
+    expect(bannedItems(blank).length).toBe(22);
   });
 
   it('migration aussi pour une progression venue d’un ancien client par le compte', () => {
@@ -109,7 +110,7 @@ describe('Bibliothèque (phase 40)', () => {
     delete cloud.unlocks;
     expect(bannedItems(withProgress(local, cloud))).toEqual([]);
     const cloudV5 = { ...JSON.parse(JSON.stringify(DEFAULT_META)), runs: 8 };
-    expect(bannedItems(withProgress(local, cloudV5)).length).toBe(12); // déjà v5 : rien d'accordé
+    expect(bannedItems(withProgress(local, cloudV5)).length).toBe(22); // déjà v5 : rien d'accordé
   });
 
   it('normalisation : clés inconnues filtrées, doublons retirés, compteurs bornés', () => {
@@ -122,7 +123,7 @@ describe('Bibliothèque (phase 40)', () => {
     expect(m.unlocks).toEqual(['i:phenix', 'w:faux']);
     expect(m.itemsOff).toEqual(['cape']); // un commun ne peut pas être retiré
     expect(m.codex).toEqual({ 'w:orbe': 4, 't:degats': UNLOCK.codexMax });
-    expect([...UNLOCKABLE.keys()].length).toBe(17); // 12 objets + 5 armes
+    expect([...UNLOCKABLE.keys()].length).toBe(27); // 22 objets + 5 armes (limite Firestore : 64)
   });
 
   it('compteurs : une partie de plus pour chaque arme, objet, tome et synergie du monde final', () => {

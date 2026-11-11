@@ -131,8 +131,8 @@ describe('mondes (phase 37)', () => {
 });
 
 describe('succès', () => {
-  it('23 succès communs et 27 défis par personnage (phase 41), identifiants uniques, « survie3 » débloque le défi du jour', () => {
-    expect(ACHIEVEMENTS.filter((a) => !a.char).length).toBe(23);
+  it('33 succès communs (phase 47 B : dix de plus) et 27 défis par personnage (phase 41), identifiants uniques, « survie3 » débloque le défi du jour', () => {
+    expect(ACHIEVEMENTS.filter((a) => !a.char).length).toBe(33);
     expect(ACHIEVEMENTS.filter((a) => a.char).length).toBe(27);
     expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(ACHIEVEMENTS.length);
     const m = fresh();

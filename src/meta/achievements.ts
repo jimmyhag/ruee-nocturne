@@ -107,6 +107,17 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'elites50', goal: 50, get: (s) => s.elites, unlocks: { item: 'collier' } },
   { id: 'boss5', goal: 5, get: (s) => s.bosses, unlocks: { item: 'phenix' } },
   { id: 'infini1', goal: 150, get: (s) => s.endlessBest, time: true, unlocks: { item: 'souffle' } },
+  // phase 47 B : les dix objets rares et épiques nouveaux, sur des compteurs déjà tenus (aucun champ de sauvegarde en plus)
+  { id: 'kills10000', goal: 10000, get: (s) => s.kills, unlocks: { item: 'fiole' } },
+  { id: 'triple10', goal: 10, get: (s) => s.triples, unlocks: { item: 'miroir' } },
+  { id: 'elites200', goal: 200, get: (s) => s.elites, unlocks: { item: 'glace' } },
+  { id: 'glisse5000', goal: 5000, get: (s) => s.slideDist, unlocks: { item: 'ailes' } },
+  { id: 'prudent', goal: 120, get: (s) => s.noHitBest, time: true, unlocks: { item: 'coquille' } },
+  { id: 'runs30', goal: 30, get: (s) => s.runs, unlocks: { item: 'cloche' } },
+  { id: 'boss20', goal: 20, get: (s) => s.bosses, unlocks: { item: 'trophee' } },
+  { id: 'monde3', goal: 3, get: (s) => s.bestStage, unlocks: { item: 'idole' } },
+  { id: 'wins3', goal: 3, get: (s) => s.wins, unlocks: { item: 'dent' } },
+  { id: 'erudit2', goal: 35, get: (s) => s.weaponLvBest, unlocks: { item: 'grimoire' } },
   ...CHAR_CHALLENGES,
 ];
 
