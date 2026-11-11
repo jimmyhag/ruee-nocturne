@@ -15,7 +15,8 @@ import {
   SLOTS_START,
   STEP,
   SYNERGIES,
-  TOME_KEYS,
+  TOME_HELD,
+  TOME_POOL,
 } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { HurtSrc, Ev, Mode } from '../src/sim/types';
@@ -111,15 +112,17 @@ if (args.has('set'))
     o[last] = +val;
   }
 if (args.has('tome-prior')) BOT_TUNE.tomePrior = +args.get('tome-prior')!; // phase 47 : 0 = bot d'avant (comparaison)
+// phase 47 : --held-tomes remet au tirage les tomes en réserve (TOME_HELD), pour mesurer ce qu'ils coûtent ou rapportent
+if (args.has('held-tomes')) TOME_POOL.push(...TOME_HELD);
 // phase 47 : --no-tome defi,givre retire des tomes du tirage (ablation : un tome dilue-t-il, aide-t-il, nuit-il ?)
 if (args.has('no-tome'))
   for (const k of args.get('no-tome')!.split(',')) {
-    const i = TOME_KEYS.indexOf(k as (typeof TOME_KEYS)[number]);
+    const i = TOME_POOL.indexOf(k as (typeof TOME_POOL)[number]);
     if (i < 0) {
-      console.error(`--no-tome : « ${k} » n'est pas un tome`);
+      console.error(`--no-tome : « ${k} » n'est pas un tome du tirage`);
       process.exit(2);
     }
-    TOME_KEYS.splice(i, 1);
+    TOME_POOL.splice(i, 1);
   }
 // phase 42 : boss de survie (STAGE.survival) : --no-survival pour comparer, --survival-hp 0.4,0.65 pour régler
 if (args.has('no-survival')) STAGE.survival.at.length = 0;

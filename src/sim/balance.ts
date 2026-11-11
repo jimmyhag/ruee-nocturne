@@ -879,6 +879,13 @@ export const BASTION = { revengeT: 3, guardMax: 0.3 };
 // phase 23 : coups critiques (armes seulement), ralentissement du Halo, étourdissement de la Foudre
 export const CRIT = { mul: 2, slowT: 0.6, stunT: 0.5, shopMin: 0.6 };
 export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
+// 1.46.0 : tomes définis et testés, mais pas encore tirés en partie. Mesuré sur 200 parties du kit complet : avec douze
+// tomes pour quatre emplacements, Projectiles (de loin le plus fort) est pris moins souvent (136 → 103 parties) et « monde 2
+// atteint » tombe de 76 à 59 % ; avec le Sang seul en plus, 76 %. Givre, Bastion et Défi attendent la décision de Jimmy sur
+// la façon d'élargir le tirage (bannir une carte, déblocage à la Bibliothèque) : PLAN, phase 47.
+export const TOME_HELD: readonly TomeKey[] = ['givre', 'bastion', 'defi'];
+/** Tomes tirés aux montées de niveau et listés dans la Bibliothèque. */
+export const TOME_POOL: TomeKey[] = TOME_KEYS.filter((k) => !TOME_HELD.includes(k));
 // planchers et plafonds des effets cumulés des tomes (applyTomeLine) : la recharge ne descend pas sous 25 % de la base,
 // l'armure n'annule pas plus de 36 % des dégâts (à 45 % les runs complets ne mouraient plus après 15:00), le sort garde 40 % de recharge
 export const TOME_CAPS = { cdMin: 0.25, armorMax: 0.36, spellCdMin: 0.35 }; // phase 22 : recharge du sort −65 % au plus, toutes sources

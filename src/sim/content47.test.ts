@@ -1,6 +1,6 @@
 // Phase 47 A (demande de Jimmy) : toutes les stats dans les sanctuaires, quatre tomes (Sang, Givre, Bastion, Défi).
 import { describe, expect, it } from 'vitest';
-import { BASTION, BLOOD, BOON, BOON_KEYS, ELITE, FROST, ITEM, SHRINE, SPAWN, STEP, TOMES, TOME_CAPS, TOME_KEYS } from './balance';
+import { BASTION, BLOOD, BOON, BOON_KEYS, ELITE, FROST, ITEM, SHRINE, SPAWN, STEP, TOMES, TOME_CAPS, TOME_HELD, TOME_KEYS, TOME_POOL } from './balance';
 import { hitEnemy } from './combat';
 import { healCap } from './items';
 import { applyBoon, boonApply, boonCapped, rollBoonChoices } from './poi';
@@ -109,6 +109,19 @@ describe('sanctuaires : toutes les stats', () => {
 describe('tomes de la phase 47', () => {
   it('douze tomes, trois lignes chacun pour les nouveaux', () => {
     expect(TOME_KEYS.length).toBe(12);
+    // 1.46.0 : seul le Sang rejoint le tirage ; Givre, Bastion et Défi restent en réserve (dilution mesurée)
+    expect(TOME_HELD).toEqual(['givre', 'bastion', 'defi']);
+    expect(TOME_POOL.length).toBe(9);
+    expect(TOME_POOL).toContain('sang');
+    const w = new World(4);
+    w.maxTomes = 12;
+    const seen = new Set<string>();
+    for (let k = 0; k < 400; k++) {
+      rollChoices(w);
+      for (const c of w.cards) if (c.kind === 't') seen.add(c.key);
+    }
+    expect(seen.size).toBe(9);
+    for (const k of TOME_HELD) expect(seen.has(k), k).toBe(false);
     for (const k of ['sang', 'givre', 'bastion', 'defi'] as TomeKey[]) expect(TOMES[k].length, k).toBe(3);
   });
   it('Sang : le vol de vie soigne dans la limite de la réserve, sans aucun objet', () => {

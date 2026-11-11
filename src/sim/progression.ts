@@ -1,4 +1,4 @@
-import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
+import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_POOL, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
 import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
@@ -88,7 +88,7 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
     n++;
     weights.push(lv > 0 ? CHOICE.ownedWeight : CHOICE.newWeight);
   }
-  for (const k of TOME_KEYS) {
+  for (const k of TOME_POOL) {
     const lv = w.tomes[k] ?? 0;
     if (lv >= LEVEL_MAX.tome) continue;
     if (lv === 0 && nT >= w.maxTomes) continue;
