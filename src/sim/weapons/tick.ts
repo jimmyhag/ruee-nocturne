@@ -1,4 +1,4 @@
-import { BOOMERANG, FAUX, ITEM, It, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT } from '../balance';
+import { BALISE, BOOMERANG, CAPS, ENEMIES, ESPRITS, FAUX, FOUET, ITEM, It, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT, VITRIOL } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind, Trait } from '../types';
 import type { Projectile } from '../types';
@@ -21,7 +21,7 @@ const nearD = new Float64Array(9);
 const seen = new Int32Array(16);
 const seenX = new Float64Array(9); // phase 32 : positions des cibles des Lames (taille de `near`)
 const seenZ = new Float64Array(9);
-const hits = new Int32Array(256);
+const hits = new Int32Array(CAPS.enemies); // phase 47 C (relecture perf) : 256 tronquait en silence les requêtes larges (Balise, Fouet) dans une grande horde
 
 /** Les n ennemis les plus proches dans `range`. Retourne le nombre trouvé. Résultat dans `near`. */
 function nearest(w: World, n: number, range: number): number {
@@ -354,6 +354,239 @@ export function tickWeapons(w: World, dt: number): void {
       S.metX[k] = S.metX[last];
       S.metZ[k] = S.metZ[last];
       S.metLeft[k] = S.metLeft[last];
+    }
+  }
+
+  // ---- Fouet (phase 47 C) : claque en ligne devant le héros, puis derrière et sur les côtés ----
+  const lvW = w.weapons.fouet ?? 0;
+  if (lvW > 0) {
+    const s = weaponStats(w, 'fouet');
+    S.fouetT -= dt;
+    if (S.fouetT <= 0) {
+      const L = s.r,
+        dirs = Math.min(FOUET.maxDirs, s.n | 0);
+      const n = w.grid.query(w.enemies, P.x, P.z, L, MAX_ENEMY_R, hits);
+      let touched = 0;
+      for (let d = 0; d < dirs && n > 0; d++) {
+        // 0 devant, 1 derrière, 2 à gauche, 3 à droite
+        const dx = d === 0 ? P.dirX : d === 1 ? -P.dirX : d === 2 ? -P.dirZ : P.dirZ,
+          dz = d === 0 ? P.dirZ : d === 1 ? -P.dirZ : d === 2 ? P.dirX : -P.dirX;
+        for (let k = 0; k < n; k++) {
+          const e = w.enemies[hits[k]];
+          if (!e.alive) continue; // déjà tué par une autre direction
+          const ex = e.x - P.x,
+            ez = e.z - P.z,
+            along = ex * dx + ez * dz;
+          if (along < -e.r || along > L + e.r) continue;
+          if (Math.abs(ex * dz - ez * dx) > FOUET.halfW + e.r) continue;
+          hitEnemy(w, hits[k], s.dmg, FOUET.kb, P.x, P.z, HitSrc.Fouet);
+          touched++;
+        }
+      }
+      if (touched > 0) {
+        S.fouetT = echo(w, s.cd * P.cdMul);
+        if (w.syn[Syn.Saignee]) P.hp = Math.min(P.maxHp, P.hp + SYN.saignee.heal * Math.min(touched, SYN.saignee.max));
+        for (let d = 0; d < dirs; d++) {
+          const dx = d === 0 ? P.dirX : d === 1 ? -P.dirX : d === 2 ? -P.dirZ : P.dirZ,
+            dz = d === 0 ? P.dirZ : d === 1 ? -P.dirZ : d === 2 ? P.dirX : -P.dirX;
+          w.emit(Ev.Whip, P.x, P.y + FOUET.h, P.z, L, dx, 0, dz);
+        }
+      } else S.fouetT = FOUET.wait;
+    }
+  }
+
+  // ---- Vitriol (phase 47 C) : fiole lancée sur le plus gros groupe, flaque qui blesse et ralentit ----
+  const lvV = w.weapons.vitriol ?? 0;
+  if (lvV > 0) {
+    const s = weaponStats(w, 'vitriol');
+    S.vitT -= dt;
+    if (S.vitT <= 0 && w.enemyCount > 0) {
+      let thrown = 0;
+      const R2 = VITRIOL.range * VITRIOL.range;
+      for (let i = 0; i < s.n && S.vitN < VITRIOL.max; i++) {
+        // le groupe le plus dense parmi quelques ennemis tirés au hasard à portée
+        let bx = 0,
+          bz = 0,
+          best = -1;
+        for (let tries = 0; tries < VITRIOL.tries; tries++) {
+          const e = w.enemies[w.rng.int(w.enemyCount)];
+          const dx = e.x - P.x,
+            dz = e.z - P.z;
+          if (!e.alive || dx * dx + dz * dz > R2) continue;
+          const c = w.grid.query(w.enemies, e.x, e.z, s.r, MAX_ENEMY_R, hits);
+          if (c > best) {
+            best = c;
+            bx = e.x;
+            bz = e.z;
+          }
+        }
+        if (best < 0) break;
+        const k = S.vitN++;
+        S.vitX[k] = bx;
+        S.vitZ[k] = bz;
+        S.vitLeft[k] = VITRIOL.dur * (w.syn[Syn.Corrosion] ? SYN.corrosion.dur : 1);
+        S.vitTick[k] = (i / s.n) * VITRIOL.tick; // premier coup à l'impact ; les fioles d'un même lancer frappent en décalé (pas de rafale d'événements au même pas)
+        w.emit(Ev.Puddle, bx, 0, bz, s.r);
+        thrown++;
+      }
+      if (thrown > 0) {
+        S.vitT = echo(w, s.cd * P.cdMul);
+        w.emit(Ev.Throw, P.x, P.y + 1, P.z);
+      } else S.vitT = VITRIOL.retry;
+    }
+    for (let k = S.vitN - 1; k >= 0; k--) {
+      S.vitLeft[k] -= dt;
+      S.vitTick[k] -= dt;
+      if (S.vitTick[k] <= 0) {
+        S.vitTick[k] += VITRIOL.tick;
+        const x = S.vitX[k],
+          z = S.vitZ[k];
+        const n = w.grid.query(w.enemies, x, z, s.r, MAX_ENEMY_R, hits);
+        for (let j = 0; j < n; j++) {
+          const e = w.enemies[hits[j]];
+          if (!ENEMIES[e.type].boss) e.slowT = Math.max(e.slowT, VITRIOL.slowT);
+          hitEnemy(w, hits[j], s.dmg, 0, x, z, HitSrc.Vitriol);
+        }
+      }
+      if (S.vitLeft[k] <= 0) {
+        const last = --S.vitN;
+        S.vitX[k] = S.vitX[last];
+        S.vitZ[k] = S.vitZ[last];
+        S.vitLeft[k] = S.vitLeft[last];
+        S.vitTick[k] = S.vitTick[last];
+      }
+    }
+  }
+
+  // ---- Esprits (phase 47 C) : ils tournent autour du héros, foncent sur un ennemi proche, reviennent ----
+  const lvE = w.weapons.esprits ?? 0;
+  if (lvE > 0) {
+    const s = weaponStats(w, 'esprits');
+    const n = Math.min(ESPRITS.max, s.n | 0);
+    const pack = w.syn[Syn.Meute] !== 0;
+    const speed = s.speed * (pack ? SYN.meute.speed : 1);
+    S.spA += dt * ESPRITS.orbitSpd;
+    for (let i = 0; i < n; i++) {
+      const a = S.spA + (i / n) * Math.PI * 2;
+      const ox = P.x + Math.sin(a) * ESPRITS.orbitR,
+        oz = P.z + Math.cos(a) * ESPRITS.orbitR;
+      if (i >= S.spN) {
+        // nouvel esprit (ligne « +1 esprit », changement de monde) : il naît dans la ronde, départs décalés
+        S.spX[i] = ox;
+        S.spZ[i] = oz;
+        S.spS[i] = 0;
+        S.spT[i] = ESPRITS.stagger * (i + 1);
+      }
+      if (S.spS[i] === 0) {
+        S.spX[i] = ox;
+        S.spZ[i] = oz;
+        S.spT[i] -= dt;
+        if (S.spT[i] <= 0) {
+          const c = nearest(w, n, ESPRITS.range);
+          if (c > 0) {
+            const ti = near[i % c]; // chacun sa cible quand il y en a assez
+            S.spTi[i] = ti;
+            S.spTid[i] = w.enemies[ti].id;
+            S.spS[i] = 1;
+          } else S.spT[i] = ESPRITS.retry;
+        }
+        continue;
+      }
+      let tx = ox,
+        tz = oz,
+        reach = 0;
+      if (S.spS[i] === 1) {
+        const ti = S.spTi[i];
+        const e = ti < w.enemyCount ? w.enemies[ti] : null;
+        const lx = S.spX[i] - P.x,
+          lz = S.spZ[i] - P.z;
+        if (e && e.alive && e.id === S.spTid[i] && lx * lx + lz * lz < ESPRITS.leash * ESPRITS.leash) {
+          tx = e.x;
+          tz = e.z;
+          reach = ESPRITS.hitR + e.r;
+        } else S.spS[i] = 2; // cible morte, déplacée dans le pool, ou trop loin du héros : retour
+      }
+      const dx = tx - S.spX[i],
+        dz = tz - S.spZ[i],
+        d = Math.sqrt(dx * dx + dz * dz),
+        stepLen = speed * dt;
+      if (S.spS[i] === 1 && d <= reach + stepLen) {
+        hitEnemy(w, S.spTi[i], s.dmg, ESPRITS.kb, S.spX[i], S.spZ[i], HitSrc.Esprits);
+        S.spS[i] = 2;
+      } else if (S.spS[i] === 2 && d <= stepLen) {
+        S.spS[i] = 0;
+        S.spT[i] = echo(w, s.cd * P.cdMul * (pack ? SYN.meute.cd : 1));
+      } else if (d > 1e-6) {
+        const m = Math.min(stepLen, d) / d;
+        S.spX[i] += dx * m;
+        S.spZ[i] += dz * m;
+      }
+    }
+    S.spN = n;
+  }
+
+  // ---- Balise (phase 47 C) : posée où se tient le héros, elle tire seule sur l'ennemi le plus proche d'elle ----
+  const lvB2 = w.weapons.balise ?? 0;
+  if (lvB2 > 0) {
+    const s = weaponStats(w, 'balise');
+    S.balT -= dt;
+    if (S.balT <= 0) {
+      const cap = Math.min(BALISE.max, s.n | 0);
+      let k = S.balN;
+      if (k < cap) S.balN++;
+      else {
+        // au plafond : la plus ancienne (celle à qui il reste le moins de temps) est relevée et replantée ici
+        k = 0;
+        for (let j = 1; j < S.balN; j++) if (S.balLeft[j] < S.balLeft[k]) k = j;
+      }
+      {
+        S.balX[k] = P.x;
+        S.balZ[k] = P.z;
+        S.balLeft[k] = BALISE.dur;
+        S.balShot[k] = BALISE.first;
+        S.balT = echo(w, s.cd * P.cdMul);
+        w.emit(Ev.Beacon, P.x, 0, P.z, s.r);
+      }
+    }
+    const targets = 1 + (w.syn[Syn.Batterie] ? SYN.batterie.targets : 0);
+    for (let k = S.balN - 1; k >= 0; k--) {
+      S.balLeft[k] -= dt;
+      S.balShot[k] -= dt;
+      if (S.balShot[k] <= 0) {
+        const x = S.balX[k],
+          z = S.balZ[k];
+        const n = w.grid.query(w.enemies, x, z, s.r, MAX_ENEMY_R, hits);
+        let shot = 0,
+          lastD = -1;
+        for (let t = 0; t < targets; t++) {
+          // la t-ième plus proche de la balise : sélection sans tri ni allocation
+          let bi = -1,
+            bd = 1e18;
+          for (let j = 0; j < n; j++) {
+            const e = w.enemies[hits[j]];
+            if (!e.alive) continue;
+            const d = (e.x - x) * (e.x - x) + (e.z - z) * (e.z - z);
+            if (d > lastD && d < bd) {
+              bd = d;
+              bi = hits[j];
+            }
+          }
+          if (bi < 0) break;
+          lastD = bd;
+          const e = w.enemies[bi];
+          w.emit(Ev.Bolt, x, BALISE.h, z, 0, e.x, e.y + BALISE.aim, e.z);
+          hitEnemy(w, bi, s.dmg, BALISE.kb, x, z, HitSrc.Balise);
+          shot++;
+        }
+        S.balShot[k] = shot > 0 ? s.period * P.cdMul : BALISE.retry;
+      }
+      if (S.balLeft[k] <= 0) {
+        const last = --S.balN;
+        S.balX[k] = S.balX[last];
+        S.balZ[k] = S.balZ[last];
+        S.balLeft[k] = S.balLeft[last];
+        S.balShot[k] = S.balShot[last];
+      }
     }
   }
 

@@ -71,7 +71,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 
 ## 3. Contenu V1
 
-### 3.1 Armes (9) et lignes de stats (phase 12, phase 28)
+### 3.1 Armes (13) et lignes de stats (phase 12, phase 28, phase 47 C)
 | Arme | Comportement | Lignes possibles |
 |---|---|---|
 | Orbe filante | Projectile auto-visé | dégâts, recharge, +1 projectile, vitesse, +1 perforation |
@@ -83,8 +83,12 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 | **Faux** (phase 28) | Arc de 120° devant le joueur, recul fort | dégâts, recharge, rayon, angle, critique |
 | **Lance** (phase 28) | Vers l'ennemi le plus loin à 16 u, perce tout, touche chaque ennemi une fois | dégâts, recharge, +1 lance, vitesse, critique |
 | **Météores** (phase 28) | Cercles dorés annoncés 0,6 s autour des ennemis, puis impact de zone (phase 33 : un seul météore au départ, toutes les 2 s) | dégâts, recharge, rayon, +1 météore, critique |
+| **Fouet** (phase 47 C) | Claque en ligne devant le héros (5,5 u, recul très fort), toutes les 0,8 s ; les lignes ajoutent des directions : derrière, puis les côtés | dégâts, recharge, portée, +1 direction, critique |
+| **Vitriol** (phase 47 C) | Fiole lancée sur le plus gros groupe à 11 u : flaque de 4 s qui blesse toutes les 0,5 s et ralentit (pas les boss) | dégâts, recharge, rayon, +1 fiole, critique |
+| **Esprits** (phase 47 C) | Deux familiers tournent autour du héros, foncent sur un ennemi à moins de 7,5 u, reviennent ; ils lâchent leur cible à 11 u du héros | dégâts, recharge, +1 esprit, vitesse, critique |
+| **Balise** (phase 47 C) | Posée où se tient le héros, elle tire seule 8 s sur l'ennemi le plus proche d'elle (7 u) : de quoi tenir un cercle | dégâts, cadence de tir, délai de pose, portée, +1 balise, critique |
 
-Déblocage des armes de la phase 28 par des succès de glisse : Faux (glisser 1 000 u au total), Lance (5 glisses parfaites dans une partie ; vrilles jusqu'à la 1.30.0), Météores (ouvrir 50 coffres de carte).
+Déblocage des armes de la phase 28 par des succès de glisse : Faux (glisser 1 000 u au total), Lance (5 glisses parfaites dans une partie ; vrilles jusqu'à la 1.30.0), Météores (ouvrir 50 coffres de carte). Armes de la phase 47 C, sur des compteurs déjà tenus : Fouet (100 élites), Vitriol (5 000 ennemis), Esprits (20 parties), Balise (25 coffres de carte) ; 2 500 or chacune à la Bibliothèque.
 
 Chaque arme s'améliore jusqu'à **100 fois** ; chaque carte apporte **1 à 3 lignes** de sa famille (1 ligne 67 %, 2 lignes « rare » 25 %, 3 lignes « épique » 8 %, décalées par la chance), chacune petite (`WEAPON_LINES` dans `balance.ts`). Il n'y a **plus d'évolutions** (décision de Jimmy, 4 nov. 2026) : la puissance vient des lignes, la montée est longue.
 
@@ -862,6 +866,12 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - **Miroir** : `echo()` ne tire le générateur que si l'objet est possédé ; les parties sans Miroir restent identiques au bit près.
   - **Mesuré** (bot average) : kit complet 75 % de « monde 2 atteint » et 20 % de victoires à la graine 42 (200 parties), 76 % et 21 % à la graine 43 ; toutes les cibles tenues à la graine 42 pour les deux profils. Départ : morts avant 3 min 18 % (graine 42) et 22 % (graine 43), comme avant. Les objets ne se disputent pas d'emplacement : pas de dilution mesurable, contrairement aux tomes.
 - **Porte B** : un test Vitest par objet ; index des 32 objets existants inchangés ; planche des seize icônes lue ; e2e Bibliothèque (48 objets, 21 verrouillés), équipement, saut en l'air au clavier et au doigt ; bench inchangé.
+- **Livraison C (1.48.0)** : quatre armes (§3.1), 13 en tout, et quatre synergies. Aucun appel de dessin en plus : flaques et pieds de balise sur l'écrivain des cercles de météores, esprits et balises sur celui des orbes, claque du Fouet et tirs de balise sur celui des éclairs (variante orangée et tendue, `Bolts.add(…, warm)`).
+  - **Écarts au plan** : l'arme « Fiole » s'appelle **Vitriol** (l'objet Fiole de sang existe) ; les synergies prévues avec Givre, Bastion et Défi (en réserve) sont rattachées à des tomes en jeu : Saignée (Sang + Fouet), Corrosion (Cadence + Vitriol), Meute (Mouvement + Esprits), Batterie (Dégâts + Balise).
+  - **Réglé par la mesure** : le **Fouet** claque devant **et derrière** dès la base (devant seul, il ne touchait rien quand on fuit : 6 % de victoires avec lui contre 18 % sans) ; la **Balise** au plafond replante la plus ancienne sous le héros (laissée derrière, elle ne servait à rien : 7 % contre 18 %), recharge 4,5 s, portée 8 u. Première vue à l'écran : le Fouet dessiné avec l'arc de la Faux ressemblait à un anneau, pas à une claque ; il a son trait droit.
+  - **Sources de coup** : 20, les treize armes en tête dans l'ordre de `WEAPON_KEYS` ; drapeau critique `HIT_CRIT` = 32.
+  - **Cible reformulée** : « pick min ≥ 8 % » valait pour 8 armes à prendre (64 % de la part égale). À 12, la part égale est 8,3 % : la cible devient « ≥ 60 % de la part égale ».
+- **Porte C** : chaque arme seule 30 s (source, dégâts, recul, flash : test générique étendu) ; tests de ligne, de flaque, d'esprits, de balise et des quatre synergies ; captures lues des quatre armes ; e2e « chaque arme a un effet visible » étendu aux onze armes dessinées, Bibliothèque (13 armes, 9 verrouillées) ; bench et test de charge inchangés ; relecture perf.
 - **Porte A** : tests Vitest des 18 bonus, des lignes des quatre tomes, de la réserve de soin et de la fiche de stats ; captures lues (sanctuaire à quatre cartes et fiche de stats, PC et téléphone) ; e2e exploration ; bench inchangé.
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)

@@ -214,6 +214,15 @@ export function weaponSummary(w: World, k: WeaponKey): string {
       return t('weapon.lance.stats', { n: s.n, dmg: Math.round(s.dmg) });
     case 'meteores':
       return t('weapon.meteores.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+    // phase 47 C
+    case 'fouet':
+      return t('weapon.fouet.stats', { n: Math.min(4, s.n), dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+    case 'vitriol':
+      return t('weapon.vitriol.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+    case 'esprits':
+      return t('weapon.esprits.stats', { n: s.n, dmg: Math.round(s.dmg) });
+    case 'balise':
+      return t('weapon.balise.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
   }
 }
 

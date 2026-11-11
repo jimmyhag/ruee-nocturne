@@ -56,7 +56,7 @@ export const FEEL = {
     bladeGhosts: 3,
   },
   // phase 30 : effets d'armes stylisés (rendu seulement)
-  bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
+  bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16, whipJitter: 0.14 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
   // phase 35 : bonus au sol (cristal ×scale, flottement, apparition, clignotement avant de disparaître)
   power: { scale: 2.6, lift: 0.9, bob: 0.18, pop: 0.18, blinkHz: 7, iconLift: 0.9 },
   glow: {
@@ -71,6 +71,14 @@ export const FEEL = {
     meteorFall: 14, // u : hauteur de départ de la chute (pendant l'annonce)
     lanceTip: 1.5, // pointe lumineuse de la Lance
     mineHalo: 1.5, // pouls des mines armées
+    // phase 47 C
+    spiritCore: 0.55, // esprit familier
+    spiritHalo: 1.5,
+    spiritLift: 1.1, // u au-dessus du sol
+    beaconCore: 0.7, // balise
+    beaconHalo: 2.0,
+    beaconLift: 1.5,
+    beaconFoot: 0.8, // anneau au pied de la balise
     boomTrail: 1.2, // traînée du boomerang
     powerHalo: 2.8, // phase 35 : halo d'un bonus au sol
     rageHalo: 2.8, // halo rouge du héros pendant la Rage

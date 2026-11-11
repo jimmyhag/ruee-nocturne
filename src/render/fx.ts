@@ -155,12 +155,15 @@ export class Bolts {
   /** Inclinaison qui fait face à la caméra (comme les particules), posée par la scène à chaque frame. */
   billboardRx = -0.87;
   private w: InstanceWriter;
-  private items: { pts: Float32Array; life: number }[] = [];
+  private items: { pts: Float32Array; life: number; warm: boolean }[] = [];
   private count = 0;
   private cGlow = new THREE.Color();
   private cCore = new THREE.Color();
   private glowHex = new THREE.Color(PAL.boltGlow);
   private coreHex = new THREE.Color(PAL.bolt);
+  // phase 47 C : le Fouet réutilise le trait de l'éclair, en orangé et presque droit (`warm`)
+  private warmGlow = new THREE.Color(0xff8a3d);
+  private warmCore = new THREE.Color(0xffe6bf);
   constructor(scene: THREE.Scene) {
     const mesh = makeInstanced(
       new THREE.PlaneGeometry(1, 1),
@@ -169,15 +172,17 @@ export class Bolts {
     );
     scene.add(mesh);
     this.w = new InstanceWriter(mesh);
-    for (let i = 0; i < BOLT_MAX; i++) this.items.push({ pts: new Float32Array((BOLT_SEG + 1) * 3), life: 0 });
+    for (let i = 0; i < BOLT_MAX; i++)
+      this.items.push({ pts: new Float32Array((BOLT_SEG + 1) * 3), life: 0, warm: false });
   }
-  add(ax: number, ay: number, az: number, bx: number, by: number, bz: number): void {
+  add(ax: number, ay: number, az: number, bx: number, by: number, bz: number, warm = false): void {
     const b = this.items[this.count < BOLT_MAX ? this.count++ : 0];
+    b.warm = warm;
     ay += this.ground(ax, az);
     by += this.ground(bx, bz);
     for (let i = 0; i <= BOLT_SEG; i++) {
       const f = i / BOLT_SEG,
-        j = i === 0 || i === BOLT_SEG ? 0 : FEEL.bolt.jitter;
+        j = i === 0 || i === BOLT_SEG ? 0 : warm ? FEEL.bolt.whipJitter : FEEL.bolt.jitter;
       b.pts[i * 3] = ax + (bx - ax) * f + rnd(-j, j);
       b.pts[i * 3 + 1] = ay + (by - ay) * f + rnd(-j, j) * 0.5;
       b.pts[i * 3 + 2] = az + (bz - az) * f + rnd(-j, j);
@@ -201,8 +206,8 @@ export class Bolts {
         continue;
       }
       const f = b.life / FEEL.bolt.life; // 1 → 0 : l'éclair s'éteint en s'amincissant
-      this.cGlow.copy(this.glowHex).multiplyScalar(f);
-      this.cCore.copy(this.coreHex).multiplyScalar(Math.min(1, f * 1.6));
+      this.cGlow.copy(b.warm ? this.warmGlow : this.glowHex).multiplyScalar(f);
+      this.cCore.copy(b.warm ? this.warmCore : this.coreHex).multiplyScalar(Math.min(1, f * 1.6));
       const P = b.pts;
       for (let k = 0; k < BOLT_SEG; k++) {
         const o = k * 3;

@@ -674,6 +674,18 @@ export const LAMES = {
 export const FAUX = { kb: 7, wait: 0.15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s
 export const LANCE = { range: 16, hitR: 0.45, kb: 2, spread: 0.16, lifeMargin: 1.15, retry: 0.25, maxPerSalvo: 30 }; // cible : l'ennemi le plus loin à moins de 16 u ; éventail de 0,16 rad entre lances ; sans cible, nouvel essai dans 0,25 s ; au plus 30 lances par salve (un bit par lance)
 export const METEOR = { delay: 0.6, range: 13, around: 8, kb: 3, max: 32, tries: 8 }; // cercle annoncé 0,6 s ; sur un ennemi à < 13 u (8 tirages au plus), sinon autour du joueur ; 32 en attente au plus (le surplus d'une salve est perdu)
+// phase 47 C (demande de Jimmy : des armes) : quatre armes, chacune avec sa portée, son ciblage et son rythme
+// Fouet : courte · direction du regard · rapide. Une claque en ligne (longueur = stat r), très fort recul.
+// halfW : demi-largeur de la ligne ; wait : nouvel essai sans ennemi à portée ; h : hauteur de la main (départ du trait)
+export const FOUET = { kb: 13, halfW: 0.9, wait: 0.15, maxDirs: 4, h: 0.9 };
+// Vitriol : moyenne · le plus gros groupe · dégâts dans la durée. Flaque de `dur` s, un coup toutes les `tick` s, ralentit.
+export const VITRIOL = { range: 11, dur: 4, tick: 0.5, slowT: 0.7, max: 8, tries: 6, retry: 0.3 };
+// Esprits : courte · automatique · continu. Ils tournent autour du héros, foncent sur un ennemi proche, reviennent.
+export const ESPRITS = { range: 7.5, orbitR: 1.4, orbitSpd: 2.6, hitR: 0.6, max: 6, kb: 2, retry: 0.2, stagger: 0.25, leash: 11 }; // laisse : au-delà, l'esprit abandonne sa cible et revient
+// Balise : pose fixe · automatique · tir régulier. Elle tire seule `dur` s : de quoi tenir un cercle de sanctuaire.
+// Au plafond de balises, la nouvelle remplace la plus ancienne : elle suit un héros qui bouge (une balise laissée
+// derrière ne servait à rien : 7 % de victoires contre 18 % sans elle).
+export const BALISE = { dur: 8, max: 4, kb: 1, retry: 0.3, first: 0.3, h: 1.5, aim: 0.6 }; // retry : nouvel essai de tir sans cible ; h, aim : hauteurs du tir (balise, cible)
 export const MINES = {
   spacing: 1.2, // u parcourus entre deux poses
   life: 14, // une mine jamais déclenchée expire
@@ -797,6 +809,36 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'r', step: 0.06, kind: 'pct', max: 15, weight: 2 },
     { stat: 'n', step: 1, kind: 'add', max: 6, weight: 1.5 },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  // phase 47 C
+  fouet: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'r', step: 0.06, kind: 'pct', max: 10, weight: 2, label: 'reach' }, // longueur de la claque
+    { stat: 'n', step: 1, kind: 'add', max: 2, weight: 1, label: 'dirs' }, // devant et derrière au départ, puis les côtés
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  vitriol: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'r', step: 0.05, kind: 'pct', max: 12, weight: 2 },
+    { stat: 'n', step: 1, kind: 'add', max: 2, weight: 1, label: 'flasks' },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  esprits: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
+    { stat: 'n', step: 1, kind: 'add', max: 3, weight: 1, label: 'spirits' },
+    { stat: 'speed', step: 0.08, kind: 'pct', max: 10, weight: 2, label: 'spiritspeed' },
+    { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
+  ],
+  balise: [
+    { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
+    { stat: 'period', step: -0.05, kind: 'pct', max: 15, weight: 3, label: 'firerate' }, // cadence de tir de la balise
+    { stat: 'cd', step: -0.05, kind: 'pct', max: 10, weight: 2, label: 'placecd' }, // délai entre deux poses
+    { stat: 'r', step: 0.06, kind: 'pct', max: 10, weight: 2, label: 'reach' },
+    { stat: 'n', step: 1, kind: 'add', max: 2, weight: 1, label: 'beacons' },
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
 };
@@ -1180,6 +1222,11 @@ export const SYN = {
   moissonneuse: { heal: 1, max: 6 }, // phase 28 : Vitalité + Faux, PV rendus par ennemi fauché (au plus 6 par coup)
   volee: { n: 1 }, // Projectiles + Lance
   pluie: { n: 1 }, // Savoir + Météores
+  // phase 47 C
+  saignee: { heal: 0.5, max: 6 }, // Sang + Fouet : PV rendus par ennemi fouetté (au plus 6 par claque)
+  corrosion: { dur: 1.5 }, // Cadence + Vitriol : flaques 50 % plus longues
+  meute: { speed: 1.4, cd: 0.75 }, // Mouvement + Esprits : plus vifs, repartent plus vite
+  batterie: { targets: 1 }, // Dégâts + Balise : une cible de plus par tir
 };
 export interface Synergy {
   key: string;
@@ -1198,6 +1245,11 @@ export const SYNERGIES: Synergy[] = [
   { key: 'moissonneuse', tome: 'vitalite', weapon: 'faux' }, // phase 28
   { key: 'volee', tome: 'projectiles', weapon: 'lance' },
   { key: 'pluie', tome: 'savoir', weapon: 'meteores' },
+  // phase 47 C
+  { key: 'saignee', tome: 'sang', weapon: 'fouet' },
+  { key: 'corrosion', tome: 'cadence', weapon: 'vitriol' },
+  { key: 'meute', tome: 'mouvement', weapon: 'esprits' },
+  { key: 'batterie', tome: 'degats', weapon: 'balise' },
 ];
 export const enum Syn {
   Orage = 0,
@@ -1211,6 +1263,10 @@ export const enum Syn {
   Moissonneuse, // phase 28
   Volee,
   Pluie,
+  Saignee, // phase 47 C
+  Corrosion,
+  Meute,
+  Batterie,
 }
 
 export const REVIVE = {

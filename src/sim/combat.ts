@@ -1,7 +1,7 @@
 import { BASTION, BLOOD, CHEST, CRIT, ELITE, ENDLESS, ENEMIES, FROST, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
 import { stageBossDown } from './stages';
 import { WEAPON_KEYS } from './weapons/defs';
-import { Ev, HitSrc, Mode, Pw, Trait } from './types';
+import { Ev, HIT_CRIT, HitSrc, Mode, Pw, Trait } from './types';
 import { powerOnKill } from './powers';
 import type { Enemy } from './types';
 import type { World } from './world';
@@ -29,13 +29,13 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   if (w.items[It.Glace] && (e.slowT > 0 || e.stun > 0)) dealt *= 1 + ITEM.glace.dmg * w.itemEff[It.Glace];
   if (w.items[It.Trophee]) dealt *= 1 + Math.min(ITEM.trophee.max, ITEM.trophee.perElite * w.eliteKills) * w.itemEff[It.Trophee];
   let crit = 0;
-  if (src <= HitSrc.Meteores) {
+  if (src <= HitSrc.Balise) {
     // phase 23 : coup critique (ligne de l'arme + tome Chance), ralentissement du Halo, étourdissement de la Foudre
     const s = w.wstats[WEAPON_KEYS[src]];
     const c = s.crit + P.crit;
     if (c > 0 && w.rng.next() < c) {
       dealt *= P.critMul;
-      crit = 16;
+      crit = HIT_CRIT;
     }
     if (src === HitSrc.Aura && s.slow > 0 && w.rng.next() < s.slow) e.slowT = Math.max(e.slowT, CRIT.slowT * P.slowMul);
     // phase 47 : tome Givre, tout coup d'arme peut ralentir (pas les boss : ils ont déjà le Sablier et les sorts)
@@ -64,7 +64,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
     e.kx += ux * k;
     e.kz += uz * k;
   }
-  w.emit(Ev.Hit, e.x, e.y, e.z, dealt, src + crit, ux, uz); // x2 : source, +16 si critique (phase 23)
+  w.emit(Ev.Hit, e.x, e.y, e.z, dealt, src + crit, ux, uz); // x2 : source, + HIT_CRIT si critique (phase 23)
   if (e.hp <= 0) {
     w.srcKills[src]++; // phase 41 : défis par personnage
     killEnemy(w, i);

@@ -54,6 +54,12 @@ Chaque arme répond à : **portée** (contact / courte / longue), **ciblage** (a
 | Foudre | longue | aléatoire + chaîne | lent fort | mage | dégâts +10 %, recharge −5 %, +1 cible (max +10) |
 | Boomerang | longue | direction regard | salve | contrôle de ligne | dégâts +10 %, recharge −5 %, portée +6 %, +1 boomerang (max +3), vitesse +6 % |
 | Mines | contact | là où je passe | pose | piégeur / kiting | dégâts +10 %, recharge −5 %, rayon +5 %, +1 mine (max +12), chaîne (unique) |
+| Fouet (47 C) | courte | devant et derrière (regard) | rapide | dompteur | dégâts, recharge, portée, +1 direction (côtés, max +2), critique |
+| Vitriol (47 C) | moyenne | le plus gros groupe | dégâts dans la durée | alchimiste | dégâts par coup de flaque, recharge, rayon, +1 fiole (max +2), critique |
+| Esprits (47 C) | courte | auto, chacun sa cible | continu | invocateur | dégâts, recharge, +1 esprit (max +3), vitesse, critique |
+| Balise (47 C) | pose fixe | auto depuis la balise | tir régulier | tenir un point | dégâts, cadence de tir, délai de pose, portée, +1 balise (max +2), critique |
+
+Leçons de la phase 47 C : une arme « direction du regard » ne touche rien quand on fuit (le Fouet devant seul : 6 % de victoires contre 18 % sans lui ; il claque devant et derrière dès la base) ; une arme posée doit suivre le héros (la Balise au plafond replante la plus ancienne), sinon elle reste derrière lui. Lire « victoire avec / sans l'arme » dans le JSON avant de régler ses chiffres. Une arme nouvelle réutilise les écrivains du rendu (cercles au sol, orbes, éclairs) : zéro appel de dessin en plus.
 
 Les lignes en % se cumulent (`base × (1 + step)^n`), les lignes entières s'ajoutent ; les baisses en % sont plafonnées (15 lignes de recharge : ×0,46). Une ligne rare apporte un **changement qualitatif** (un projectile de plus se voit), les lignes en % font grimper lentement.
 
@@ -147,7 +153,7 @@ Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile nake
 | Plus forte chute des vivants en 1 min | ≤ 22 points | ≤ 22 points |
 | Coffres de carte ouverts par run | ≥ 1 | ≥ 3 |
 | Or dépensé en partie / or gagné | — | ≥ 25 % |
-| Taux de pick par arme | — | 8–35 % |
+| Taux de pick par arme | — | ≥ 60 % de la part égale (100 / nombre d'armes à prendre), ≤ 35 % |
 | Kills à 10 min (médiane) | — | 900–1600 |
 | Variance de kills inter-builds | — | < 3× médiane |
 | Niveau à 10 min (médiane) | — | 32–42 (phase 17 : toutes les cartes viennent des niveaux) |

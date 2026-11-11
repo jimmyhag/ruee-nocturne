@@ -62,10 +62,15 @@ export const MAXED: Target[] = [
   // phase 17 : 15–30 → 8–30, quatre armes se partagent les cartes (le kit de départ, lui, en met ≈ 22 sur la sienne)
   { name: 'arme principale@10 niv 8–30', min: 8, max: 30, get: (s) => s.weaponLvAt10p50 },
   {
-    name: 'pick min ≥ 8 %',
-    min: 8,
-    max: 100,
-    get: (s) => (Object.keys(s.pickPct).length ? Math.min(...Object.values<number>(s.pickPct)) : 100), // --weapons à une arme : rien à mesurer
+    // phase 47 C : 8 % valait pour 8 armes à prendre (part égale 12,5 %, soit 64 % de cette part). À 12 armes la part
+    // égale tombe à 8,3 % : le seuil se compte en part égale, pas en points
+    name: 'pick min ≥ 60 % de la part égale',
+    min: 60,
+    max: 1e9,
+    get: (s) => {
+      const v = Object.values<number>(s.pickPct);
+      return v.length ? Math.round((Math.min(...v) / (100 / v.length)) * 100) : 100; // --weapons à une arme : rien à mesurer
+    },
     fmt: (v) => v + ' %',
   },
   {

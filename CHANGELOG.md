@@ -2,6 +2,29 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.48.0 — 11 nov. 2026 (demande de Jimmy : des armes)
+
+### Ajouté
+
+- **Quatre armes** (13 en tout), chacune avec sa portée, son ciblage et son rythme :
+  - **Fouet** : une claque en ligne devant toi, toutes les 0,8 s, qui repousse très fort. Ses lignes ajoutent des directions : derrière, puis les côtés.
+  - **Vitriol** : une fiole lancée sur le plus gros groupe ; la flaque ronge pendant 4 s et ralentit ceux qui la traversent.
+  - **Esprits** : deux familiers tournent autour de toi, foncent sur les ennemis proches et reviennent.
+  - **Balise** : posée où tu te tiens, elle tire seule pendant 8 s. Faite pour tenir un cercle de sanctuaire ou de totem.
+- **Quatre synergies** : Saignée (Sang + Fouet : chaque ennemi fouetté rend un demi-PV), Corrosion (Cadence + Vitriol : flaques 50 % plus longues), Meute (Mouvement + Esprits : plus vifs, repartent plus tôt), Batterie (Dégâts + Balise : une cible de plus par tir).
+- **Quatre succès** qui les ouvrent à l'achat (2 500 or chacune) : 100 élites (Fouet), 5 000 ennemis (Vitriol), 20 parties (Esprits), 25 coffres de carte (Balise).
+
+### Modifié par rapport au plan
+
+- L'arme « Fiole » s'appelle **Vitriol**, pour ne pas doublonner avec l'objet Fiole de sang.
+- Trois synergies prévues s'appuyaient sur les tomes Givre, Bastion et Défi, restés en réserve : elles sont rattachées à Cadence, Mouvement et Dégâts.
+
+### Technique
+
+- Sources de coup : 20 (16 avant), les treize armes en tête dans l'ordre de `WEAPON_KEYS` ; le drapeau « critique » de `Ev.Hit` passe de 16 à 32 (`HIT_CRIT`).
+- Aucun appel de dessin en plus : flaques et pieds de balise sur l'écrivain des cercles de météores, esprits et balises sur celui des orbes, claque du Fouet et tirs de balise sur celui des éclairs (variante orangée et tendue).
+- État des armes dans `World.wstate` (tableaux préalloués), remis à zéro au changement de monde.
+
 ## 1.47.0 — 11 nov. 2026 (demande de Jimmy : beaucoup plus d'objets)
 
 ### Ajouté

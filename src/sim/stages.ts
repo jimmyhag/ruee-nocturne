@@ -180,6 +180,7 @@ export function nextStage(w: World): void {
   w.powerCount = 0;
   // ce qui vise des coordonnées de l'ancienne carte : météores annoncés, sorts qui durent (Collet, Bourse)
   w.wstate.metN = 0;
+  w.wstate.vitN = w.wstate.balN = w.wstate.spN = 0; // phase 47 C : flaques, balises, esprits (ils repartent du héros)
   P.spellT = 0;
   w.sstate.pending = w.sstate.bondPending = false;
   w.stage++;

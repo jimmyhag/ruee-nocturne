@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { CHAR_CHALLENGE, CHARACTERS, ENEMIES } from '../sim/balance';
 import { hitEnemy } from '../sim/combat';
 import { spawnEnemy } from '../sim/spawner';
-import { HitSrc } from '../sim/types';
+import { HitSrc, HIT_CRIT } from '../sim/types';
 import { World } from '../sim/world';
 import { ACHIEVEMENTS, CHAR_CHALLENGES, checkAchievements, closest, progress } from './achievements';
 import { addCharRun, emptyCharStats, normalizeChars, runCharStats } from './chars';
@@ -25,8 +25,10 @@ describe('défis par personnage (phase 41)', () => {
     }
   });
 
-  it('au plus 16 sources de coup : le drapeau critique (+16, & 15) du rendu en dépend', () => {
-    expect(HitSrc.Count).toBeLessThanOrEqual(16);
+  it('au plus 32 sources de coup (phase 47 C : 20) : le drapeau critique HIT_CRIT du rendu en dépend', () => {
+    expect(HitSrc.Count).toBe(20);
+    expect(HitSrc.Count).toBeLessThanOrEqual(HIT_CRIT);
+    expect(HIT_CRIT & (HIT_CRIT - 1)).toBe(0); // puissance de deux : le masque des sources est HIT_CRIT − 1
   });
   it('la sim compte les ennemis tués par source, en l’air, les élites et les boss', () => {
     const w = new World(5);

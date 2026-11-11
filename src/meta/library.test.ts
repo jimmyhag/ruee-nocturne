@@ -123,7 +123,7 @@ describe('Bibliothèque (phase 40)', () => {
     expect(m.unlocks).toEqual(['i:phenix', 'w:faux']);
     expect(m.itemsOff).toEqual(['cape']); // un commun ne peut pas être retiré
     expect(m.codex).toEqual({ 'w:orbe': 4, 't:degats': UNLOCK.codexMax });
-    expect([...UNLOCKABLE.keys()].length).toBe(27); // 22 objets + 5 armes (limite Firestore : 64)
+    expect([...UNLOCKABLE.keys()].length).toBe(31); // 22 objets + 9 armes (limite Firestore : 64)
   });
 
   it('compteurs : une partie de plus pour chaque arme, objet, tome et synergie du monde final', () => {

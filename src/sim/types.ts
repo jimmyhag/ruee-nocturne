@@ -150,15 +150,23 @@ export const enum HitSrc {
   Faux, // phase 28
   Lance,
   Meteores,
+  // phase 47 C : les sources d'arme restent en tête, dans l'ordre de WEAPON_KEYS (combat.ts lit WEAPON_KEYS[src])
+  Fouet,
+  Vitriol,
+  Esprits,
+  Balise,
   Fire,
   Thorns, // phase 17 : objet Épines
   Talisman, // phase 17 : objet Talisman orageux
   Spell, // phase 19 : sort de classe
   Patins, // phase 28 : Patins de braise (glissade)
   Horn, // phase 28 : Corne de guerre
-  Burn, // phase 47 B : brûlure de la Dent de dragon (16e et dernière source tant que le critique vaut +16)
+  Burn, // phase 47 B : brûlure de la Dent de dragon
   Count, // phase 41 : nombre de sources (taille de w.srcKills)
 }
+
+/** Drapeau « critique » ajouté à la source d'un coup (Ev.Hit, x2). Phase 47 C : 32 (16 avant), 20 sources ; masque : HIT_CRIT − 1. */
+export const HIT_CRIT = 32;
 
 export const enum Ev {
   Hit = 1,
@@ -228,6 +236,9 @@ export const enum Ev {
   EndlessWave, // phase 39 : vague de boss du monde infini, v = numéro (1..), x2 = nombre de boss
   BossEnrage, // phase 43 : un boss en vie depuis BOSS.enrage.after s enrage, en (x,y,z), v = type
   MerchantLast, // phase 43 : dernier passage du marchand en monde infini, échoppe en (x,z)
+  Puddle, // phase 47 C : flaque de Vitriol posée en (x,z), v = rayon
+  Beacon, // phase 47 C : balise posée en (x,z), v = portée
+  Whip, // phase 47 C : claque du Fouet depuis (x,y,z), v = longueur, (x2, z2) = direction
 }
 
 export interface GameEvent {
@@ -258,7 +269,21 @@ export const enum Mode {
   Merchant = 4, // phase 17 : échoppe ouverte, la partie est en pause
 }
 
-export type WeaponKey = 'orbe' | 'aura' | 'lames' | 'foudre' | 'boomerang' | 'mines' | 'faux' | 'lance' | 'meteores';
+export type WeaponKey =
+  | 'orbe'
+  | 'aura'
+  | 'lames'
+  | 'foudre'
+  | 'boomerang'
+  | 'mines'
+  | 'faux'
+  | 'lance'
+  | 'meteores'
+  // phase 47 C
+  | 'fouet'
+  | 'vitriol'
+  | 'esprits'
+  | 'balise';
 export type CharacterKey =
   | 'eclaireuse'
   | 'bucheron'

@@ -25,6 +25,8 @@ import {
   VOLANT_TYPE,
   WORLD_HALF,
   POWER,
+  VITRIOL,
+  BALISE,
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
@@ -296,6 +298,13 @@ export class GameScene {
   private cSlashBlade = new THREE.Color(0x4fc8ff); // 1.42.1 : bleu acier franc
   private cSlashTmp = new THREE.Color();
   private cMeteor = new THREE.Color(PAL.gold);
+  // phase 47 C : flaque de Vitriol, esprits, balises (mêmes écrivains que les météores et les orbes)
+  private cVitriol = new THREE.Color(0x8fe05a);
+  private cVitriolIn = new THREE.Color(0x4f9a38);
+  private cSpiritHalo = new THREE.Color(0x8fdcff).multiplyScalar(0.7);
+  private cSpiritCore = new THREE.Color(0xeafcff);
+  private cBeaconHalo = new THREE.Color(0xffd95a).multiplyScalar(0.75);
+  private cBeaconCore = new THREE.Color(0xfff6c9);
   private cEliteRing = new THREE.Color(PAL.gold).multiplyScalar(0.8 / 0.9); // ancien matériau doré à 0,8, ici à 0,9
   private dashGhostW: InstanceWriter;
   private cGem = [new THREE.Color(PAL.gem), new THREE.Color(PAL.gem2), new THREE.Color(PAL.gem3)];
@@ -542,7 +551,7 @@ export class GameScene {
       makeInstanced(
         new THREE.RingGeometry(0.84, 1, 40).rotateX(-Math.PI / 2),
         additive(0xffffff, 0.9),
-        ELITE_RINGS + 2 * METEOR.max,
+        ELITE_RINGS + 2 * METEOR.max + 2 * VITRIOL.max + BALISE.max, // phase 47 C : flaques et pieds de balise
       ),
     );
     this.scene.add(this.metW.mesh);
@@ -2219,6 +2228,52 @@ export class GameScene {
           );
         this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorHalo, this.cMeteorHalo, brx, now * 3);
         this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorCore, this.cMeteorCore, brx, 0);
+      }
+    }
+    // phase 47 C : flaques de Vitriol (deux anneaux verts, le second respire et s'éteint en fin de vie), esprits et
+    // balises (orbes lumineux). Lus dans w.wstate, écrits par les écrivains déjà ouverts : aucun appel de dessin en plus.
+    if (ws.vitN > 0 || ws.spN > 0 || ws.balN > 0) {
+      const G = FEEL.glow,
+        brx = this.particles.billboardRx;
+      if (ws.vitN > 0) {
+        const vr = weaponStats(w, 'vitriol').r;
+        for (let i = 0; i < ws.vitN; i++) {
+          const x = ws.vitX[i],
+            z = ws.vitZ[i],
+            gy = this.gy(x, z),
+            fade = Math.min(1, ws.vitLeft[i]); // la dernière seconde, la flaque se referme
+          this.tilt(x, z);
+          this.metW.put(x, gy + 0.12, z, now * 0.4, vr * fade, this.cVitriol, this.tRx, this.tRz);
+          this.metW.put(
+            x,
+            gy + 0.11,
+            z,
+            -now * 0.7,
+            vr * fade * (0.55 + 0.1 * Math.sin(now * 5 + i)),
+            this.cVitriolIn,
+            this.tRx,
+            this.tRz,
+          );
+        }
+      }
+      if ((w.weapons.esprits ?? 0) > 0)
+        for (let i = 0; i < ws.spN; i++) {
+          const x = ws.spX[i],
+            z = ws.spZ[i],
+            y = this.gy(x, z) + G.spiritLift + Math.sin(now * 6 + i * 2) * 0.12;
+          this.glowW.put(x, y, z, 0, G.spiritHalo, this.cSpiritHalo, brx, now * 3 + i);
+          this.glowW.put(x, y, z, 0, G.spiritCore, this.cSpiritCore, brx, 0);
+        }
+      for (let i = 0; i < ws.balN; i++) {
+        const x = ws.balX[i],
+          z = ws.balZ[i],
+          gy = this.gy(x, z),
+          fade = Math.min(1, ws.balLeft[i]),
+          beat = 0.85 + 0.15 * Math.sin(now * 8 + i);
+        this.tilt(x, z);
+        this.metW.put(x, gy + 0.1, z, now, G.beaconFoot, this.cBeaconHalo, this.tRx, this.tRz);
+        this.glowW.put(x, gy + G.beaconLift, z, 0, G.beaconHalo * beat * fade, this.cBeaconHalo, brx, now * 2);
+        this.glowW.put(x, gy + G.beaconLift, z, 0, G.beaconCore * fade, this.cBeaconCore, brx, 0);
       }
     }
     this.metW.end();

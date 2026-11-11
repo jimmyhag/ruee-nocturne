@@ -214,7 +214,7 @@ describe('tomes de la phase 47', () => {
       w.enemies[i].x = P.x + 0.3;
       w.enemies[i].z = P.z;
       step(w, still, STEP);
-      for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit && (w.events[k].x2 & 15) === HitSrc.Thorns) thornHits++;
+      for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit && (w.events[k].x2 & 31) === HitSrc.Thorns) thornHits++;
     }
     expect(thornHits).toBeGreaterThanOrEqual(2); // toutes les ITEM.epines.period s
     expect(thornHits).toBeLessThanOrEqual(Math.ceil(1 / ITEM.epines.period) + 1);

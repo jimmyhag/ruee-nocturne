@@ -282,8 +282,8 @@ describe('zones de terrain', () => {
 });
 
 describe('cartes', () => {
-  it('neuf armes et huit tomes sont proposables ; Trèfle peut offrir une 4e carte', () => {
-    expect(WEAPON_KEYS.length).toBe(9);
+  it('treize armes et neuf tomes sont proposables ; Trèfle peut offrir une 4e carte', () => {
+    expect(WEAPON_KEYS.length).toBe(13);
     const w = new World(49);
     w.player.luck = 4; // 24 % de 4e carte
     let four = 0;

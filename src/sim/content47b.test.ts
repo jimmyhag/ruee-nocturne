@@ -143,7 +143,7 @@ describe('seize objets de la phase 47 B', () => {
         w.enemies[i].z = w.player.z + 6;
         w.enemies[i].hp = 1e9;
         step(w, still, STEP);
-        for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit && (w.events[k].x2 & 15) === HitSrc.Orbe) n++;
+        for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit && (w.events[k].x2 & 31) === HitSrc.Orbe) n++;
       }
       return n;
     };
@@ -284,7 +284,7 @@ describe('seize objets de la phase 47 B', () => {
       w.enemies[i].z = P.z + 30;
       step(w, still, STEP);
       for (let k = 0; k < w.eventCount; k++)
-        if (w.events[k].type === Ev.Hit && (w.events[k].x2 & 15) === HitSrc.Burn) {
+        if (w.events[k].type === Ev.Hit && (w.events[k].x2 & 31) === HitSrc.Burn) {
           burns++;
           total += w.events[k].v;
         }
