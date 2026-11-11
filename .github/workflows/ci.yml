@@ -27,7 +27,11 @@ jobs:
       - run: npm run bench
       - name: Playwright (fumée WebGL, tactile, relance, captures)
         run: |
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
+          # Dépendances système à part, sans bloquer : le 11 nov. 2026 les miroirs Ubuntu ne répondaient plus depuis le
+          # runner (trois CI rouges avant le premier test). L'image a déjà les bibliothèques de Chromium, il ne manque
+          # que des polices ; si une bibliothèque manquait vraiment, le lancement du navigateur échouerait juste après.
+          npx playwright install-deps chromium || echo "::warning::Dépendances système de Playwright non installées (miroirs injoignables)"
           npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: always()
