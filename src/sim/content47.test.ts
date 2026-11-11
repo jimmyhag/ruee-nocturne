@@ -129,11 +129,11 @@ describe('tomes de la phase 47', () => {
     const P = w.player;
     expect(healCap(w)).toBe(0);
     line(w, 'sang', 'steal', 2);
-    expect(P.steal).toBeCloseTo(0.02, 9);
-    expect(healCap(w)).toBeCloseTo(0.02 * BLOOD.capPerSteal, 9);
+    expect(P.steal).toBeCloseTo(2 * TOMES.sang[0].step, 9);
+    expect(healCap(w)).toBeCloseTo(P.steal * BLOOD.capPerSteal, 9);
     line(w, 'sang', 'stealcap');
     const cap = healCap(w);
-    expect(cap).toBeCloseTo(0.02 * BLOOD.capPerSteal + TOMES.sang[1].step, 9);
+    expect(cap).toBeCloseTo(P.steal * BLOOD.capPerSteal + TOMES.sang[1].step, 9);
     P.hp = 10;
     const i = dummy(w);
     for (let f = 0; f < 60 * 3; f++) {

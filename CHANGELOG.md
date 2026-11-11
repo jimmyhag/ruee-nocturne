@@ -2,6 +2,30 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.46.0 — 11 nov. 2026 (demande de Jimmy : toutes les stats au sanctuaire, un tome de vol de vie)
+
+### Ajouté
+
+- **Sanctuaires : toutes les stats.** Chaque sanctuaire propose **4 bonus** (3 avant) tirés parmi **18** (7 avant) : PV max, régénération, armure, **vol de vie**, dégâts, critique, dégâts critiques, dégâts aux élites et boss, recharge des armes, taille, vitesse, saut, recharge et puissance du sort, **chance**, collecte, XP, or.
+- **La carte d'un bonus montre où en est la stat** : « Vol de vie : 2 % → 4 % ». Un bonus dont la stat est déjà au plafond (armure, recharges) n'est plus proposé.
+- **Fiche de stats** dans l'écran de pause : les vingt stats du héros, par famille (survie, attaque, mouvement, sort, butin). C'est elle qui dit quoi monter au prochain sanctuaire.
+- **Tome du Sang** : vol de vie +2 % par ligne, réserve de soin +0,6 PV/s, dégâts +6 % sous la moitié des PV. Le vol de vie se cumule avec le Croc et la Couronne et reste plafonné en PV par seconde (la réserve de soin), sinon il rendrait immortel en fin de partie.
+
+### Modifié
+
+- Quatre cartes (sanctuaire, ou la 4e carte de la chance) s'affichent en deux rangées de deux sur PC, au lieu de trois et une.
+
+### Pas encore en jeu
+
+- **Tomes du Givre, du Bastion et du Défi** : écrits et testés, mais gardés hors tirage. Mesuré sur 200 parties : avec douze tomes pour quatre emplacements, on tombe moins souvent sur le tome des Projectiles, de loin le plus fort, et le kit complet atteint le monde 2 dans 59 % des parties au lieu de 76 %. Ils sortiront avec un moyen d'élargir le tirage sans le diluer (bannir une carte, déblocage à la Bibliothèque) : décision de Jimmy.
+
+### Technique
+
+- Stats du héros : `steal`, `stealCap`, `lowDmg`, `slowChance`, `chillDmg`, `slowMul`, `thorns`, `guard`, `revenge`, `spawnMul`, `eliteLoot`, `eliteRate` ; `Player.taken` calculé une fois par pas.
+- Ligne de tome à prérequis (`needs: 'heal'`) : la réserve de soin n'est proposée que si un soin y puise.
+- Simulation : `--no-tome`, `--held-tomes`, `--tome-prior` ; le bot choisit un nouveau tome par famille.
+- CI : l'installation des dépendances système de Playwright ne fait plus échouer la CI quand les miroirs Ubuntu ne répondent pas (trois CI rouges avant le premier test, 1.45.1 à 1.45.3).
+
 ## 1.45.3 — 11 nov. 2026 (retour de Jimmy : après un clic droit, ZQSD répond mal)
 
 ### Corrigé

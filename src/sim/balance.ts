@@ -203,7 +203,7 @@ export const BOON: Record<BoonKey, number> = {
   spell: 0.12,
   regen: 0.4, // PV/s
   armor: 0.03, // dans le plafond TOME_CAPS.armorMax
-  steal: 0.01, // dans la réserve de soin (BLOOD)
+  steal: 0.02, // dans la réserve de soin (BLOOD)
   crit: 0.03,
   critdmg: 0.15,
   elite: 0.1,
@@ -847,7 +847,7 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
   // phase 47 (demande de Jimmy : un tome de vol de vie, et d'autres)
   sang: [
-    { stat: 'steal', step: 0.01, kind: 'add', max: 8, weight: 3 }, // part des dégâts rendue, plafonnée par la réserve (BLOOD.capPerSteal PV/s par point)
+    { stat: 'steal', step: 0.02, kind: 'add', max: 8, weight: 3 }, // part des dégâts rendue, plafonnée par la réserve (BLOOD.capPerSteal PV/s par point)
     { stat: 'stealcap', step: 0.6, kind: 'add', max: 8, weight: 2, needs: 'heal' }, // PV/s de réserve en plus : sans soin à plafonner, la ligne ne sort pas
     { stat: 'lowdmg', step: 0.06, kind: 'add', max: 8, weight: 2 }, // dégâts sous BLOOD.below des PV
   ],
@@ -868,8 +868,8 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
 };
 // phase 47 : vol de vie du héros (tome Sang, sanctuaire). Il puise dans la même réserve de soin par seconde que le Croc
-// (items.ts, healCap) : `capPerSteal` PV/s de réserve par point de vol de vie (1 % → 0,6 PV/s), plus les lignes de réserve
-export const BLOOD = { capPerSteal: 60, below: 0.5 }; // 0,6 PV/s de réserve par point de vol de vie (0,3 mesuré trop faible : le tome diluait le tirage)
+// (items.ts, healCap) : `capPerSteal` PV/s de réserve par point de vol de vie (2 % → 0,6 PV/s), plus les lignes de réserve
+export const BLOOD = { capPerSteal: 30, below: 0.5 }; // 2 % de vol de vie (une ligne, un sanctuaire) → 0,6 PV/s de réserve
 // Givre : un coup d'arme ralentit `slowT` s (× durée) ; la vitesse d'un ennemi ralenti est celle des sorts (SPELL.slow)
 export const FROST = { slowT: 1.5 };
 // Bastion : garde = part des dégâts de contact annulée (plafond `guardMax`) ; revanche pendant `revengeT` s après un coup.
