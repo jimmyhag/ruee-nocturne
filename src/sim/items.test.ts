@@ -1,6 +1,6 @@
 // Phase 17 : objets passifs, marchand et synergies tome + arme.
 import { describe, expect, it } from 'vitest';
-import { CHEST, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, PLAY_LIMIT, STEP, SYN, SYNERGIES, Syn, TOME_CAPS } from './balance';
+import { CHEST, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, PLAY_LIMIT, STEP, SYN, SYNERGIES, Syn, TOME_CAPS, TOME_POOL } from './balance';
 import { dropChest, hitEnemy } from './combat';
 import { canGainItem, gainItem, itemCount, itemPrice, merchantOffers, rollItemChoices, shieldAbsorb, stackEff } from './items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, canAffordAny, rerollCost } from './merchant';
@@ -360,9 +360,10 @@ describe('marchand', () => {
 });
 
 describe('synergies', () => {
-  it('onze synergies (phase 28), paires tome + arme uniques', () => {
-    expect(SYNERGIES.length).toBe(11);
-    expect(new Set(SYNERGIES.map((s) => s.tome + s.weapon)).size).toBe(11);
+  it('quinze synergies (phase 28 : onze ; phase 47 C : quatre), paires tome + arme uniques', () => {
+    expect(SYNERGIES.length).toBe(15);
+    expect(new Set(SYNERGIES.map((s) => s.tome + s.weapon)).size).toBe(15);
+    for (const s of SYNERGIES) expect(TOME_POOL, s.key).toContain(s.tome); // jamais une synergie sur un tome en réserve
   });
   it('s’active à SYN.tome cartes du tome avec l’arme équipée, une seule fois, et modifie l’arme', () => {
     const w = new World(20);
@@ -469,7 +470,7 @@ describe('objets de la phase 28', () => {
       let patins = 0;
       for (let f = 0; f < 60; f++) {
         step(w, { ...still, mx: 1, slide: slide && f === 2 }, STEP);
-        for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit && ((w.events[k].x2 | 0) & 15) === HitSrc.Patins) patins++;
+        for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.Hit && ((w.events[k].x2 | 0) & 31) === HitSrc.Patins) patins++;
       }
       return patins;
     };

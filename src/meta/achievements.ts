@@ -100,6 +100,11 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'glisse1000', goal: 1000, get: (s) => s.slideDist, unlocks: { weapon: 'faux' } },
   { id: 'vrilles5', goal: 5, get: (s) => s.tricksBest, unlocks: { weapon: 'lance' } },
   { id: 'coffres50', goal: 50, get: (s) => s.mapChests, unlocks: { weapon: 'meteores' } },
+  // phase 47 C : quatre armes, sur des compteurs déjà tenus
+  { id: 'elites100', goal: 100, get: (s) => s.elites, unlocks: { weapon: 'fouet' } },
+  { id: 'kills5000', goal: 5000, get: (s) => s.kills, unlocks: { weapon: 'vitriol' } },
+  { id: 'runs20', goal: 20, get: (s) => s.runs, unlocks: { weapon: 'esprits' } },
+  { id: 'coffres25', goal: 25, get: (s) => s.mapChests, unlocks: { weapon: 'balise' } },
   // phase 40 : objets à débloquer (puis à acheter dans la Bibliothèque), sur des compteurs déjà tenus
   { id: 'runs10', goal: 10, get: (s) => s.runs, unlocks: { item: 'sablier' } },
   { id: 'monde2', goal: 2, get: (s) => s.bestStage, unlocks: { item: 'bouclier' } },

@@ -12,8 +12,8 @@ import { WEAPONS, WEAPON_KEYS, applyTomeLine, refreshStats, weaponStats } from '
 const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: 0 };
 
 describe('fiches d’armes et lignes', () => {
-  it('neuf armes (phase 28), une base finie et des lignes qui touchent une stat de la base', () => {
-    expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines', 'faux', 'lance', 'meteores']);
+  it('treize armes (phase 28 : neuf ; phase 47 C : quatre), une base finie et des lignes qui touchent une stat de la base', () => {
+    expect(WEAPON_KEYS).toEqual(['orbe', 'aura', 'lames', 'foudre', 'boomerang', 'mines', 'faux', 'lance', 'meteores', 'fouet', 'vitriol', 'esprits', 'balise']);
     for (const k of WEAPON_KEYS) {
       const d = WEAPONS[k];
       expect(d.glyph.length).toBeGreaterThan(0);
@@ -197,6 +197,10 @@ describe('feedback de chaque coup', () => {
     faux: HitSrc.Faux,
     lance: HitSrc.Lance,
     meteores: HitSrc.Meteores,
+    fouet: HitSrc.Fouet, // phase 47 C
+    vitriol: HitSrc.Vitriol,
+    esprits: HitSrc.Esprits,
+    balise: HitSrc.Balise,
   };
   it.each(WEAPON_KEYS)('%s seule, 30 s : chaque Hit porte sa source, des dégâts et un recul unitaire', (k) => {
     const w = new World(21);
@@ -258,7 +262,7 @@ describe('armes de la phase 28', () => {
       step(w, still, STEP);
       for (let i = 0; i < w.eventCount; i++) {
         const e = w.events[i];
-        if (e.type === Ev.Hit && ((e.x2 | 0) & 15) === src) ids.add(Math.round(e.x * 10) * 1000 + Math.round(e.z * 10));
+        if (e.type === Ev.Hit && ((e.x2 | 0) & 31) === src) ids.add(Math.round(e.x * 10) * 1000 + Math.round(e.z * 10));
       }
     }
     return ids.size;
@@ -286,7 +290,7 @@ describe('armes de la phase 28', () => {
         let n = 0;
         for (let i = 0; i < w.eventCount; i++) {
           const e = w.events[i];
-          if (e.type === Ev.Hit && ((e.x2 | 0) & 15) === HitSrc.Foudre) n++;
+          if (e.type === Ev.Hit && ((e.x2 | 0) & 31) === HitSrc.Foudre) n++;
         }
         if (n > 0) return n;
       }
@@ -321,7 +325,7 @@ describe('armes de la phase 28', () => {
       step(w, still, STEP);
       for (let i = 0; i < w.eventCount; i++) {
         const e = w.events[i];
-        if (e.type === Ev.Hit && ((e.x2 | 0) & 15) === HitSrc.Lance) n++;
+        if (e.type === Ev.Hit && ((e.x2 | 0) & 31) === HitSrc.Lance) n++;
       }
     }
     expect(n).toBe(3); // une salve (recharge 2 s) : trois coups, pas un seul ni davantage
@@ -435,7 +439,8 @@ describe('armes qui partent de zéro (phase 33)', () => {
     expect(found).toBeGreaterThan(5);
     for (const k of WEAPON_KEYS) {
       const s = weaponStats(new World(1), k);
-      if ('n' in WEAPONS[k].base && k !== 'mines') expect(s.n, k).toBe(1); // les Mines : n = mines posées à la fois
+      // les Mines : n = mines posées à la fois ; les Esprits vont par deux
+      if ('n' in WEAPONS[k].base && k !== 'mines') expect(s.n, k).toBe(k === 'esprits' ? 2 : 1);
       if (k === 'foudre') expect(s.chain).toBe(0);
     }
   });

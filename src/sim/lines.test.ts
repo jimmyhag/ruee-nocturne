@@ -6,7 +6,7 @@ import { hitEnemy, killEnemy } from './combat';
 import { itemPrice } from './items';
 import { rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
-import { Ev, HitSrc } from './types';
+import { Ev, HitSrc, HIT_CRIT } from './types';
 import type { TomeKey, WeaponKey } from './types';
 import { WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { World } from './world';
@@ -55,7 +55,7 @@ describe('phase 23 : nouvelles stats', () => {
     w.wstats.orbe.crit = 1;
     hitEnemy(w, i, 10, 0, 0, 0, HitSrc.Orbe);
     const crit = w.events[w.eventCount - 1];
-    expect(crit.x2).toBe(HitSrc.Orbe + 16);
+    expect(crit.x2).toBe(HitSrc.Orbe + HIT_CRIT);
     expect(crit.v).toBeCloseTo(dealt * CRIT.mul, 6);
     // tome Chance : critique global ; tome Dégâts : dégâts critiques
     w.wstats.orbe.crit = 0;

@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER } from './balance';
+import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -154,6 +154,28 @@ export class World {
     metX: new Float64Array(METEOR.max),
     metZ: new Float64Array(METEOR.max),
     metLeft: new Float64Array(METEOR.max),
+    // phase 47 C : Fouet, Vitriol (flaques), Esprits, Balises
+    fouetT: 0.5,
+    vitT: 1.2,
+    vitN: 0, // flaques actives
+    vitX: new Float64Array(VITRIOL.max),
+    vitZ: new Float64Array(VITRIOL.max),
+    vitLeft: new Float64Array(VITRIOL.max), // s restantes
+    vitTick: new Float64Array(VITRIOL.max), // s avant le prochain coup
+    spN: 0, // esprits en vol (positions valides)
+    spA: 0, // angle de la ronde
+    spX: new Float64Array(ESPRITS.max),
+    spZ: new Float64Array(ESPRITS.max),
+    spT: new Float64Array(ESPRITS.max), // s avant le prochain départ
+    spS: new Uint8Array(ESPRITS.max), // 0 en ronde, 1 fonce, 2 revient
+    spTi: new Int32Array(ESPRITS.max), // index de la cible…
+    spTid: new Int32Array(ESPRITS.max), // …et son identifiant (les index bougent au compactage)
+    balT: 1,
+    balN: 0, // balises posées
+    balX: new Float64Array(BALISE.max),
+    balZ: new Float64Array(BALISE.max),
+    balLeft: new Float64Array(BALISE.max),
+    balShot: new Float64Array(BALISE.max), // s avant le prochain tir
   };
   trait: Trait = Trait.None; // passif signature du personnage (phase 6)
   spell: Spell = Spell.Bond; // sort de classe (phase 19)

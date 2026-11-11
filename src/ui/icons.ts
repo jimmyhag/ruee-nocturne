@@ -107,6 +107,31 @@ export const WEAPON_ICON: Record<WeaponKey, string> = {
       hl('M53 12l-2 9-3-3z'),
   ),
   meteores: svg(comet()),
+  // phase 47 C
+  fouet: svg(
+    pole('M14 50c2-14 10-18 18-16s14-4 12-12 6-10 12-6', '#c98a4a', 4) +
+      path('M6 46l12 2-2 12-12-2z', WOOD) +
+      star(54, 14, 7, 3, 4, GOLD),
+  ),
+  vitriol: svg(
+    path('M27 6h10v8h-2v8l12 20c4 8-2 16-15 16s-19-8-15-16l12-20v-8h-2z', '#d6f5c2') +
+      path('M22 40h20l5 8c2 6-4 10-15 10s-17-4-15-10z', '#7ed957') +
+      circle(28, 46, 2.5, '#d6f5c2') +
+      circle(37, 50, 1.8, '#d6f5c2') +
+      hl('M24 44c-2 4-1 8 3 10-5-1-8-5-6-9z'),
+  ),
+  esprits: svg(
+    path('M20 14c8-8 20-8 26 2s2 22-8 28c-4 3-6 8-4 14-10-4-22-12-22-26 0-7 3-13 8-18z', '#bfe9ff') +
+      circle(28, 28, 3.5, INK) +
+      circle(40, 28, 3.5, INK) +
+      hl('M22 18c4-4 10-5 15-3-6 1-11 5-13 11-3-2-4-5-2-8z'),
+  ),
+  balise: svg(
+    path('M24 56l4-30h8l4 30z', '#8b93a8') +
+      path('M18 54h28v6H18z', WOOD) +
+      star(32, 16, 13, 6, 8, GOLD) +
+      circle(32, 16, 5, PAPER),
+  ),
 };
 
 /** Tome : livre relié, emblème à la couleur du tome. */
