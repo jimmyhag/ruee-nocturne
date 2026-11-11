@@ -98,6 +98,7 @@ const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
 const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
 /** Distance² sous laquelle coffres de carte et sanctuaires sont dessinés (phase 18 : au-delà, seule la colonne). */
 const POI_DRAW2 = 50 * 50;
+const TOTEM_VIEW2 = 38 * 38; // 1.42.1 : distance² sous laquelle la stèle du totem est dessinée
 const PROP_DRAW = 48; // phase 20 : rayon des arbres autour du joueur (la vue s'arrête à ≈ 36 u au zoom le plus large)
 const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
@@ -1397,7 +1398,11 @@ export class GameScene {
     this.totem.mesh.visible = false;
     const T = w.totem;
     const g = this.gy(T.x, T.z);
-    const near = (T.x - px) ** 2 + (T.z - pz) ** 2 < POI_DRAW2;
+    const d2 = (T.x - px) ** 2 + (T.z - pz) ** 2;
+    const near = d2 < POI_DRAW2;
+    // la stèle elle-même n'est dessinée que dans le champ de la caméra (≈ 36 u au zoom le plus large) : au-delà, la
+    // colonne de lumière suffit, et l'appel de rendu est rendu au budget (40 sur mobile, mesuré à 40 sans cela)
+    const inView = d2 < TOTEM_VIEW2;
     if (w.portal.open) {
       if (near)
         for (let k = 0; k < 3; k++) {
@@ -1415,7 +1420,7 @@ export class GameScene {
       this.tilt(T.x, T.z);
       // 1.42.1 : la stèle ; runes et cristal dans la couleur de l'état, qui battent avec la jauge
       const tm = this.totem.mesh;
-      tm.visible = true;
+      tm.visible = inView;
       tm.position.set(T.x, g - 0.05, T.z);
       tm.rotation.set(this.tRx, 0.3, this.tRz);
       this.totem.glow
