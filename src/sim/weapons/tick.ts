@@ -498,11 +498,13 @@ export function tickWeapons(w: World, dt: number): void {
       if (S.spS[i] === 1) {
         const ti = S.spTi[i];
         const e = ti < w.enemyCount ? w.enemies[ti] : null;
-        if (e && e.alive && e.id === S.spTid[i]) {
+        const lx = S.spX[i] - P.x,
+          lz = S.spZ[i] - P.z;
+        if (e && e.alive && e.id === S.spTid[i] && lx * lx + lz * lz < ESPRITS.leash * ESPRITS.leash) {
           tx = e.x;
           tz = e.z;
           reach = ESPRITS.hitR + e.r;
-        } else S.spS[i] = 2; // cible morte ou déplacée dans le pool : retour
+        } else S.spS[i] = 2; // cible morte, déplacée dans le pool, ou trop loin du héros : retour
       }
       const dx = tx - S.spX[i],
         dz = tz - S.spZ[i],

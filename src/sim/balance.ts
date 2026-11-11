@@ -680,7 +680,7 @@ export const FOUET = { kb: 13, halfW: 0.9, wait: 0.15, arc: 24 }; // demi-largeu
 // Vitriol : moyenne · le plus gros groupe · dégâts dans la durée. Flaque de `dur` s, un coup toutes les `tick` s, ralentit.
 export const VITRIOL = { range: 11, dur: 4, tick: 0.5, slowT: 0.7, max: 8, tries: 6, retry: 0.3 };
 // Esprits : courte · automatique · continu. Ils tournent autour du héros, foncent sur un ennemi proche, reviennent.
-export const ESPRITS = { range: 7.5, orbitR: 1.4, orbitSpd: 2.6, hitR: 0.6, max: 6, kb: 2, retry: 0.2, stagger: 0.25 };
+export const ESPRITS = { range: 7.5, orbitR: 1.4, orbitSpd: 2.6, hitR: 0.6, max: 6, kb: 2, retry: 0.2, stagger: 0.25, leash: 11 }; // laisse : au-delà, l'esprit abandonne sa cible et revient
 // Balise : pose fixe · automatique · tir régulier. Elle tire seule `dur` s : de quoi tenir un cercle de sanctuaire.
 export const BALISE = { dur: 8, max: 4, kb: 1, retry: 0.3, first: 0.3, h: 1.5 };
 export const MINES = {
