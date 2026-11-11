@@ -1,5 +1,6 @@
-// Phase 21 : ennemis animés sans squelette par instance ; phase 26 : morts-vivants Quaternius HD (même kit que les
-// héros, tools/assets/config.ts : ENEMY_MODELS).
+// Phase 21 : ennemis animés sans squelette par instance ; phase 46 B : créatures KayKit en proportions humanoïdes
+// (gobelin, loup-garou, orc, chevalier noir, ninja, chamane, golem, vampire, homme-oiseau, démone) et Dragonnet de
+// Quaternius (tools/assets/config.ts : ENEMY_MODELS).
 // Au chargement, chaque type est « cuit » une fois : le squelette est posé image par image (AnimationMixer), les
 // sommets sont skinnés sur le CPU, et chaque pose devient une cible de morph absolue. Le rendu (scene.ts) mélange
 // deux poses voisines par instance (InstancedMesh.morphTexture, src/render/pose.ts) : un appel par type, zéro mixer.
@@ -8,75 +9,63 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MANIFEST, loadGLTF } from './models';
 
 export type EnemyLod = 'hi' | 'mid' | 'lo';
-type Model = 'zombie' | 'zombief' | 'runner' | 'brute' | 'knight' | 'archer' | 'caster' | 'reaper';
+type Model =
+  'goblin' | 'wolf' | 'brute' | 'knight' | 'dragon' | 'ninja' | 'shaman' | 'golem' | 'vampire' | 'avian' | 'demon';
 
 interface EnemyLook {
   model: Model;
-  /** marche ou course en boucle, puis geste éventuel (tir, frappe) : [clip, nombre de poses] */
+  /** marche, course ou vol en boucle, puis geste éventuel (tir, frappe) : [clip, nombre de poses] */
   clips: [string, number][];
   /** hauteur du modèle (u), pieds au sol */
   height: number;
   boss?: boolean;
+  /**
+   * créature volante : `height` est son envergure ; elle est centrée sur la boîte de toute sa boucle (le rendu la
+   * place à son altitude) et sa face est un peu levée vers la caméra
+   */
+  fly?: boolean;
+  /** part du clip parcourue par la boucle (0,5 : le clip contient deux battements identiques, on en cuit un seul) */
+  cycle?: number;
 }
 
-/** Index = type d'ennemi (ENEMIES de src/sim/balance.ts). Le Volant (4) est le crâne de props.glb. */
-export const ENEMY_LOOKS: (EnemyLook | null)[] = [
-  { model: 'zombie', clips: [['Zombie_Walk_Fwd_Loop', 8]], height: 1.75 }, // 0 Spectre
-  { model: 'runner', clips: [['Sprint_Loop', 8]], height: 1.55 }, // 1 Dard
-  { model: 'brute', clips: [['Walk_Loop', 8]], height: 2.4 }, // 2 Brute
+const WALK: [string, number] = ['Walk_Loop', 8];
+const SLASH: [string, number] = ['Sword_Attack', 6];
+const CAST: [string, number] = ['Spell_Simple_Shoot', 6];
+
+/** Index = type d'ennemi (ENEMIES de src/sim/balance.ts). */
+export const ENEMY_LOOKS: EnemyLook[] = [
+  { model: 'goblin', clips: [['Jog_Fwd_Loop', 8]], height: 1.7 }, // 0 Spectre : gobelin
+  { model: 'wolf', clips: [['Sprint_Loop', 8]], height: 1.7 }, // 1 Dard : loup-garou
+  { model: 'brute', clips: [WALK], height: 2.5 }, // 2 Brute : orc
+  { model: 'knight', clips: [WALK, SLASH], height: 3.6, boss: true }, // 3 Gardien : chevalier noir
+  { model: 'dragon', clips: [['Fast_Flying', 8]], height: 2.1, fly: true, cycle: 0.5 }, // 4 Volant : dragonnet
   {
-    model: 'knight',
+    model: 'ninja',
     clips: [
-      ['Walk_Loop', 8],
-      ['Sword_Attack', 6],
+      ['Walk_Loop', 6],
+      ['OverhandThrow', 6],
     ],
-    height: 3.6,
-    boss: true,
-  }, // 3 Gardien
-  null, // 4 Volant
+    height: 1.9,
+  }, // 5 Cracheur : ninja
+  { model: 'shaman', clips: [WALK, CAST], height: 4.2, boss: true }, // 6 Essaim-mère : chamane de la meute
+  { model: 'golem', clips: [WALK, SLASH], height: 4.3, boss: true }, // 7 Colosse : golem de glace
+  { model: 'vampire', clips: [['Sprint_Loop', 8]], height: 3.6, boss: true }, // 8 Faucheur : seigneur vampire
   {
-    model: 'zombief',
-    clips: [
-      ['Zombie_Walk_Fwd_Loop', 6],
-      ['Spell_Simple_Shoot', 4],
-    ],
-    height: 1.7,
-  }, // 5 Cracheur
-  {
-    model: 'caster',
-    clips: [
-      ['Walk_Loop', 8],
-      ['Spell_Simple_Shoot', 6],
-    ],
-    height: 3.9,
-    boss: true,
-  }, // 6 Essaim-mère
-  {
-    model: 'brute',
-    clips: [
-      ['Walk_Loop', 8],
-      ['Sword_Attack', 6],
-    ],
-    height: 4.3,
-    boss: true,
-  }, // 7 Colosse
-  { model: 'reaper', clips: [['Sprint_Loop', 8]], height: 3.4, boss: true }, // 8 Faucheur
-  {
-    model: 'archer',
+    model: 'avian',
     clips: [
       ['Walk_Loop', 6],
       ['Pistol_Shoot', 4],
     ],
-    height: 1.8,
-  }, // 9 Archer
+    height: 2.05,
+  }, // 9 Archer : homme-oiseau
   {
-    model: 'caster',
+    model: 'demon',
     clips: [
       ['Walk_Loop', 6],
       ['Spell_Simple_Shoot', 4],
     ],
-    height: 1.8,
-  }, // 10 Sorcier
+    height: 1.95,
+  }, // 10 Sorcier : démone
 ];
 
 /** Géométries cuites d'un type : niveaux de détail (mêmes poses), texture, découpage des poses. */
@@ -88,11 +77,12 @@ export interface BakedEnemy {
   loop: number;
   action: number;
   boss: boolean;
+  /** volants : distance entre l'origine du modèle et son point le plus bas (le rendu ne le laisse pas traverser le sol) */
+  low: number;
 }
 
-const EYE_GLOW = 2.6; // couleur de sommet des yeux (multiplie la texture et la couleur d'instance : ils luisent)
-/** Zone « yeux » de l'atlas (tools/assets/heroes.ts : SLOT.eyes, mise en page 1024) : ces sommets luisent. */
-const EYES_UV = { u0: 768 / 1024, u1: 896 / 1024, v0: 512 / 1024, v1: 640 / 1024 };
+/** Tangage cuit des créatures volantes : la face se lit depuis la caméra 3/4 haute. */
+const FLY_PITCH = -0.45;
 
 /** Maillages (directs ou enfants d'un groupe multi-primitives) du nœud nommé `name` sous `root`. */
 function meshesOf(root: THREE.Object3D, name: string): THREE.Mesh[] {
@@ -103,11 +93,15 @@ function meshesOf(root: THREE.Object3D, name: string): THREE.Mesh[] {
 }
 
 /** Cuit un type à un niveau de détail : une BufferGeometry, poses en cibles de morph (positions et normales). */
-function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGeometry; map: THREE.Texture | null } {
+function bake(
+  gltf: GLTF,
+  look: EnemyLook,
+  lod: EnemyLod,
+): { geo: THREE.BufferGeometry; map: THREE.Texture | null; low: number } {
   const holder = gltf.scene.getObjectByName(look.model);
   if (!holder) throw new Error(`enemies.glb : ${look.model} absent`);
-  const parts: { mesh: THREE.Mesh; eye: boolean }[] = [];
-  for (const m of meshesOf(holder, `${look.model}__body__${lod}`)) parts.push({ mesh: m, eye: false });
+  const parts: { mesh: THREE.Mesh }[] = [];
+  for (const m of meshesOf(holder, `${look.model}__body__${lod}`)) parts.push({ mesh: m });
 
   if (!parts.length) throw new Error(`enemies.glb : ${look.model} ${lod} sans maillage`);
   const map = ((parts[0].mesh.material as THREE.MeshStandardMaterial).map ?? null) as THREE.Texture | null;
@@ -119,7 +113,6 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
     ni += p.mesh.geometry.index ? p.mesh.geometry.index.count : p.mesh.geometry.attributes.position.count;
   }
   const uv = new Float32Array(nv * 2);
-  const col = new Float32Array(nv * 3);
   const index = new Uint32Array(ni);
   {
     let v0 = 0,
@@ -128,17 +121,11 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
       const g = p.mesh.geometry;
       const n = g.attributes.position.count;
       const uvA = g.attributes.uv as THREE.BufferAttribute | undefined;
-      for (let i = 0; i < n; i++) {
-        let eye = p.eye;
-        if (uvA) {
-          const u = uvA.getX(i),
-            t = uvA.getY(i);
-          uv[(v0 + i) * 2] = u;
-          uv[(v0 + i) * 2 + 1] = t;
-          eye ||= u >= EYES_UV.u0 && u < EYES_UV.u1 && t >= EYES_UV.v0 && t < EYES_UV.v1;
+      if (uvA)
+        for (let i = 0; i < n; i++) {
+          uv[(v0 + i) * 2] = uvA.getX(i);
+          uv[(v0 + i) * 2 + 1] = uvA.getY(i);
         }
-        col.fill(eye ? EYE_GLOW : 1, (v0 + i) * 3, (v0 + i) * 3 + 3);
-      }
       if (g.index) for (let k = 0; k < g.index.count; k++) index[i0 + k] = v0 + g.index.getX(k);
       else for (let k = 0; k < n; k++) index[i0 + k] = v0 + k;
       v0 += n;
@@ -160,7 +147,8 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
     for (let k = 0; k < count; k++) {
       mixer.stopAllAction();
       action.reset().play();
-      const t = ci === 0 ? (clip.duration * k) / count : (clip.duration * k) / Math.max(1, count - 1);
+      const t =
+        ci === 0 ? (clip.duration * (look.cycle ?? 1) * k) / count : (clip.duration * k) / Math.max(1, count - 1);
       mixer.setTime(Math.min(t, clip.duration - 1e-4));
       holder.updateMatrixWorld(true);
       inv.copy(holder.matrixWorld).invert();
@@ -219,28 +207,65 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
     minZ = Math.min(minZ, f0[i * 3 + 2]);
     maxZ = Math.max(maxZ, f0[i * 3 + 2]);
   }
-  const k = look.height / Math.max(1e-3, maxY - minY);
+  // volant : mesuré sur son envergure, toutes poses de la boucle confondues (une aile levée ou baissée à la pose 0
+  // ne doit pas changer sa taille)
+  let spanX = 0;
+  if (look.fly)
+    for (let f = 0; f < look.clips[0][1]; f++) {
+      let lo = Infinity,
+        hi = -Infinity;
+      for (let i = 0; i < nv; i++) {
+        lo = Math.min(lo, frames[f].pos[i * 3]);
+        hi = Math.max(hi, frames[f].pos[i * 3]);
+      }
+      spanX = Math.max(spanX, hi - lo);
+    }
+  const k = look.height / Math.max(1e-3, look.fly ? spanX : maxY - minY);
   const cx = (minX + maxX) / 2,
     cz = (minZ + maxZ) / 2;
+  // volant : penché une fois pour toutes vers la caméra, puis centré sur la boîte de toute sa boucle
+  const y0 = look.fly ? (minY + maxY) / 2 : floor;
+  const cp = look.fly ? Math.cos(FLY_PITCH) : 1,
+    sp = look.fly ? Math.sin(FLY_PITCH) : 0;
   for (const f of frames)
     for (let i = 0; i < nv; i++) {
+      const y = (f.pos[i * 3 + 1] - y0) * k,
+        z = (f.pos[i * 3 + 2] - cz) * k;
       f.pos[i * 3] = (f.pos[i * 3] - cx) * k;
-      f.pos[i * 3 + 1] = (f.pos[i * 3 + 1] - floor) * k;
-      f.pos[i * 3 + 2] = (f.pos[i * 3 + 2] - cz) * k;
+      f.pos[i * 3 + 1] = y * cp - z * sp;
+      f.pos[i * 3 + 2] = y * sp + z * cp;
+      if (look.fly) {
+        const ny = f.nrm[i * 3 + 1],
+          nz = f.nrm[i * 3 + 2];
+        f.nrm[i * 3 + 1] = ny * cp - nz * sp;
+        f.nrm[i * 3 + 2] = ny * sp + nz * cp;
+      }
     }
+  let low = 0;
+  if (look.fly) {
+    let lo = Infinity,
+      hi = -Infinity;
+    for (let f = 0; f < look.clips[0][1]; f++)
+      for (let i = 0; i < nv; i++) {
+        lo = Math.min(lo, frames[f].pos[i * 3 + 1]);
+        hi = Math.max(hi, frames[f].pos[i * 3 + 1]);
+      }
+    const mid = (lo + hi) / 2;
+    for (const f of frames) for (let i = 0; i < nv; i++) f.pos[i * 3 + 1] -= mid;
+    low = (hi - lo) / 2;
+  }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(frames[0].pos.slice(), 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(frames[0].nrm.slice(), 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   geo.morphAttributes.position = frames.map((f) => new THREE.BufferAttribute(f.pos, 3));
   geo.morphAttributes.normal = frames.map((f) => new THREE.BufferAttribute(f.nrm, 3));
   geo.morphTargetsRelative = false;
   geo.computeBoundingBox();
   geo.computeBoundingSphere();
-  return { geo, map };
+  return { geo, map, low };
 }
 
 let enemiesPromise: Promise<(BakedEnemy | null)[]> | null = null;
@@ -258,16 +283,15 @@ export function loadEnemyModels(onStage?: (stage: string) => void): Promise<(Bak
     staleFile = true; // remis à false si la cuisson aboutit
     onStage?.('cuisson des poses');
     const baked = ENEMY_LOOKS.map((look) => {
-      if (!look) return null;
       const loop = look.clips[0][1],
         action = look.clips[1]?.[1] ?? 0;
       if (look.boss) {
         const hi = bake(gltf, look, 'hi');
-        return { geo: { net: hi.geo, pixel: hi.geo }, map: hi.map, loop, action, boss: true };
+        return { geo: { net: hi.geo, pixel: hi.geo }, map: hi.map, loop, action, boss: true, low: hi.low };
       }
       const mid = bake(gltf, look, 'mid'),
         lo = bake(gltf, look, 'lo');
-      return { geo: { net: mid.geo, pixel: lo.geo }, map: mid.map, loop, action, boss: false };
+      return { geo: { net: mid.geo, pixel: lo.geo }, map: mid.map, loop, action, boss: false, low: mid.low };
     });
     staleFile = false;
     return baked;

@@ -26,14 +26,17 @@ import {
   HEROES,
   KAY_HEROES,
   KAYKIT2,
+  MONSTERS,
   NATURE,
   PACKS,
   PROPS,
   QUATERNIUS,
 } from './config';
+import type * as THREE from 'three';
 import { buildGround } from './ground';
-import { addBody, assemble, copyClip, finish } from './heroes';
-import { fetchKay, mergeKay, readKay, reproportion, retargetClips } from './kaykit';
+import { copyClip } from './heroes';
+import { dropAnimations, fetchKay, mergeKay, readKay, reproportion, retargetClips } from './kaykit';
+import type { KayBuild } from './kaykit';
 import { buildNature, NATURE_TEXTURES } from './nature';
 import type { PackKey } from './config';
 
@@ -41,9 +44,11 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 const CACHE = process.env.KAYKIT_DIR ?? path.join(ROOT, '.cache/kaykit');
 const QCACHE = process.env.QUATERNIUS_DIR ?? path.join(ROOT, '.cache/quaternius');
 const KCACHE = process.env.KAYKIT2_DIR ?? path.join(ROOT, '.cache/kaykit-characters');
+const MCACHE = process.env.MONSTERS_DIR ?? path.join(ROOT, '.cache/quaternius-monsters');
 const ARGS = process.argv.slice(2);
 const HEROES_ONLY = ARGS.includes('--heroes');
 const NATURE_ONLY = ARGS.includes('--nature');
+const ENEMIES_ONLY = ARGS.includes('--enemies');
 const OUT = ARGS.includes('--out') ? path.resolve(ARGS[ARGS.indexOf('--out') + 1]) : path.join(ROOT, 'public/models');
 const MANIFEST = path.join(ROOT, 'src/render/models.json');
 
@@ -160,34 +165,67 @@ function stripStaticTracks(doc: Document, eps = 1e-4): number {
   return removed;
 }
 
+/** Télécharge (une fois, dans le cache hors dépôt) un fichier du pack de monstres épinglé ; retourne son chemin. */
+async function fetchMonster(file: string, lfs: boolean): Promise<string> {
+  const local = path.join(MCACHE, file);
+  if (fs.existsSync(local)) return local;
+  fs.mkdirSync(path.dirname(local), { recursive: true });
+  const res = await fetch(`${lfs ? MONSTERS.media : MONSTERS.raw}/${file}`);
+  if (!res.ok) throw new Error(`monstres : ${file} → ${res.status}`);
+  fs.writeFileSync(local, new Uint8Array(await res.arrayBuffer()));
+  return local;
+}
+
 /**
- * Phase 26 : les morts-vivants dans un seul fichier. Par modèle : assemblage avec le kit des héros (atlas 512²), corps
- * fusionné puis simplifié à chaque niveau (`<clé>__body__<niveau>`), clips `<clé>__<clip>` (marche, geste), puis fusion
- * dans enemies.glb sous un nœud nommé par la clé. Séparateur `__` : GLTFLoader retire `.` et `:` des noms de nœuds.
+ * Phase 46 B : enemies.glb. Un nœud par modèle (`ENEMY_MODELS`), ses niveaux de détail `<clé>__body__<niveau>` et
+ * ses clips `<clé>__<clip>`. Personnages KayKit : mise en proportions humanoïdes puis reprise des clips UAL, comme les
+ * héros. Dragonnet : tel quel, avec ses clips.
  */
 async function buildEnemies(
   io: NodeIO,
-  bases: Record<'M' | 'F', Document>,
   libs: Record<string, Document>,
 ): Promise<{ bin: Uint8Array; models: Record<string, { anims: string[]; tris: Record<string, number> }> }> {
   const out = new Document();
   const scene = out.createScene('enemies');
   const models: Record<string, { anims: string[]; tris: Record<string, number> }> = {};
+  await fetchMonster(MONSTERS.license, false);
   for (const [key, m] of Object.entries(ENEMY_MODELS)) {
-    const doc = await readKit(io, QUATERNIUS.outfit(m.sex, m.outfit));
-    const root = doc.getRoot();
-    const hairs = await Promise.all(m.hair.map((n) => readKit(io, QUATERNIUS.hair(n))));
-    const props = await Promise.all(m.props.map((p) => io.read(fetchFiles('showcase', [p.file])[0])));
-    const a = await assemble(doc, m, bases[m.sex], hairs, props, m.atlas, 'atlas');
-    const lodTris: Record<string, number> = {};
-    // seuls les niveaux cuits à l'exécution : hi pour les boss, mid et lo pour la masse
-    for (const lod of m.lods) lodTris[lod] = addBody(doc, a, `${key}__body__${lod}`, ENEMY_LODS[lod], 'Atlas');
-    finish(a);
-    const anims: string[] = [];
-    for (const c of m.clips) {
-      copyClip(doc, libs[c.src], c.from, `${key}__${c.from}`, true, 1, false);
-      anims.push(c.from);
+    let doc: Document;
+    let held: Map<string, THREE.Quaternion> | undefined;
+    const anims = m.clips.map((c) => c.from);
+    if (m.rig === 'own') {
+      doc = await io.read(await fetchMonster(m.file, true));
+      dropAnimations(doc, (n) => anims.includes(n));
+      for (const a of doc.getRoot().listAnimations()) a.setName(`${key}__${a.getName()}`);
+      if (doc.getRoot().listAnimations().length !== anims.length) throw new Error(`${key} : clip absent`);
+    } else {
+      // comme les héros : un squelette UE porte les clips UAL (en place), repris image par image sur le KayKit
+      const src = await readKit(io, QUATERNIUS.outfit('M', 'Ranger'));
+      for (const c of m.clips) copyClip(src, libs[c.src!], c.from, c.from, true, 1, false);
+      doc = await readKay(io, KCACHE, m.file);
+      dropAnimations(doc);
+      if (m.prop) reproportion(doc, m.prop);
+      held = retargetClips(src, doc, anims);
+      for (const a of doc.getRoot().listAnimations()) a.setName(`${key}__${a.getName()}`);
     }
+    const root = doc.getRoot();
+    const props = [];
+    for (const spec of m.props) props.push({ doc: await readKay(io, KCACHE, spec.file), spec });
+    const b: KayBuild = {
+      texture: m.texture ? fs.readFileSync(await fetchKay(KCACHE, m.texture)) : undefined,
+      props,
+      held,
+      tris: 0,
+      name: key,
+      material: 'Enemy',
+      atlas: m.atlas,
+      full: true,
+      // seuls les niveaux cuits à l'exécution : hi pour les boss, mid et lo pour la masse
+      lods: m.lods.map((lod) => ({ name: `${key}__body__${lod}`, tris: m.tris?.[lod] ?? ENEMY_LODS[lod] })),
+    };
+    await mergeKay(doc, b);
+    const lodTris: Record<string, number> = {};
+    for (const lod of m.lods) lodTris[lod] = b.done![`${key}__body__${lod}`];
     await doc.transform(resample({ tolerance: 1e-3 }));
     stripStaticTracks(doc);
     await doc.transform(prune());
@@ -272,7 +310,7 @@ async function main(): Promise<void> {
       models: Record<string, { anims: string[]; tris: Record<string, number> }>;
     };
   } = {
-    source: `KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : ${KAYKIT2.source} ; animations des héros et ennemis : ${QUATERNIUS.source} ; décor : ${NATURE.source} ; sol : ${GROUND.source}`,
+    source: `KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : ${KAYKIT2.source} ; ennemis : ${KAYKIT2.source} et ${MONSTERS.source} ; animations des héros : ${QUATERNIUS.source} ; décor : ${NATURE.source} ; sol : ${GROUND.source}`,
     heroes: {},
     props: { file: '', bytes: 0, nodes: {} },
     nature: { file: '', bytes: 0, nodes: {} },
@@ -306,12 +344,27 @@ async function main(): Promise<void> {
     return;
   }
 
-  // --- héros (phase 25 : Quaternius HD) ---
   fetchFiles('kit', [...QUATERNIUS.licenses]);
-  await fetchKay(KCACHE, KAYKIT2.license);
   const libs: Record<string, Document> = {};
   for (const [k, f] of Object.entries(QUATERNIUS.anims)) libs[k] = await readKit(io, f);
-  const bases = { M: await readKit(io, QUATERNIUS.base.M), F: await readKit(io, QUATERNIUS.base.F) };
+  if (ENEMIES_ONLY) {
+    // phase 46 B : enemies.glb seul ; avec --out, le manifeste n'est pas touché (essais)
+    const en = await buildEnemies(io, libs);
+    fs.writeFileSync(path.join(OUT, 'enemies.glb'), en.bin);
+    console.log(`${'enemies.glb'.padEnd(26)} ${(en.bin.byteLength / 1024).toFixed(0).padStart(5)} Ko`);
+    if (ARGS.includes('--out')) return;
+    if (en.bin.byteLength > BUDGET.enemyBytes)
+      throw new Error(`enemies.glb : ${en.bin.byteLength} o > ${BUDGET.enemyBytes}`);
+    const old = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) as typeof manifest;
+    old.enemies = { file: 'enemies.glb', bytes: en.bin.byteLength, lods: ENEMY_LODS, models: en.models };
+    old.source = manifest.source;
+    fs.writeFileSync(MANIFEST, JSON.stringify(old, null, 2) + '\n');
+    execFileSync('npx', ['prettier', '--write', MANIFEST], { cwd: ROOT, stdio: 'ignore' });
+    return;
+  }
+
+  // --- héros (phase 25 : Quaternius HD) ---
+  await fetchKay(KCACHE, KAYKIT2.license);
   const only = ARGS.includes('--only') ? ARGS[ARGS.indexOf('--only') + 1].split(',') : null;
   for (const [key, h] of Object.entries(HEROES)) {
     if (only && !only.includes(key)) continue;
@@ -401,7 +454,7 @@ async function main(): Promise<void> {
   );
 
   // --- ennemis (phase 21) ---
-  const en = await buildEnemies(io, bases, libs);
+  const en = await buildEnemies(io, libs);
   fs.writeFileSync(path.join(OUT, 'enemies.glb'), en.bin);
   if (en.bin.byteLength > BUDGET.enemyBytes)
     throw new Error(`enemies.glb : ${en.bin.byteLength} o > ${BUDGET.enemyBytes}`);

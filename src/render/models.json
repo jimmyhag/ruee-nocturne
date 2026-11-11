@@ -1,5 +1,5 @@
 {
-  "source": "KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : KayKit Adventurers 2.0, Skeletons 1.1 et Mystery Monthly 4 à 6 by Kay Lousberg (www.kaylousberg.com), CC0 ; animations des héros et ennemis : Quaternius (quaternius.com), CC0 ; décor : Quaternius, Ultimate Stylized Nature (quaternius.com), CC0 ; sol : Poly Haven (polyhaven.com), CC0",
+  "source": "KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : KayKit Adventurers 2.0, Skeletons 1.1 et Mystery Monthly 4 à 6 by Kay Lousberg (www.kaylousberg.com), CC0 ; ennemis : KayKit Adventurers 2.0, Skeletons 1.1 et Mystery Monthly 4 à 6 by Kay Lousberg (www.kaylousberg.com), CC0 et Ultimate Monsters by Quaternius (quaternius.com), CC0 ; animations des héros : Quaternius (quaternius.com), CC0 ; décor : Quaternius, Ultimate Stylized Nature (quaternius.com), CC0 ; sol : Poly Haven (polyhaven.com), CC0",
   "heroes": {
     "eclaireuse": {
       "file": "hero-eclaireuse.glb",
@@ -227,67 +227,84 @@
   },
   "enemies": {
     "file": "enemies.glb",
-    "bytes": 636368,
+    "bytes": 545052,
     "lods": {
       "hi": 1800,
       "mid": 330,
       "lo": 110
     },
     "models": {
-      "zombie": {
-        "anims": ["Zombie_Walk_Fwd_Loop", "Zombie_Scratch"],
+      "goblin": {
+        "anims": ["Jog_Fwd_Loop"],
         "tris": {
-          "mid": 325,
-          "lo": 110
+          "mid": 329,
+          "lo": 126
         }
       },
-      "zombief": {
-        "anims": ["Zombie_Walk_Fwd_Loop", "Spell_Simple_Shoot"],
+      "wolf": {
+        "anims": ["Sprint_Loop"],
         "tris": {
           "mid": 330,
           "lo": 110
         }
       },
-      "runner": {
-        "anims": ["Sprint_Loop"],
-        "tris": {
-          "mid": 326,
-          "lo": 110
-        }
-      },
       "brute": {
-        "anims": ["Walk_Loop", "Sword_Attack"],
+        "anims": ["Walk_Loop"],
         "tris": {
-          "hi": 1797,
-          "mid": 326,
-          "lo": 109
+          "mid": 356,
+          "lo": 130
         }
       },
       "knight": {
         "anims": ["Walk_Loop", "Sword_Attack"],
         "tris": {
-          "hi": 1797
+          "hi": 1795
         }
       },
-      "archer": {
-        "anims": ["Walk_Loop", "Pistol_Shoot"],
+      "dragon": {
+        "anims": ["Fast_Flying"],
         "tris": {
-          "mid": 325,
+          "mid": 327,
           "lo": 109
         }
       },
-      "caster": {
-        "anims": ["Walk_Loop", "Spell_Simple_Shoot"],
+      "ninja": {
+        "anims": ["Walk_Loop", "OverhandThrow"],
         "tris": {
-          "hi": 1789,
-          "mid": 329,
+          "mid": 330,
           "lo": 110
         }
       },
-      "reaper": {
+      "shaman": {
+        "anims": ["Walk_Loop", "Spell_Simple_Shoot"],
+        "tris": {
+          "hi": 1798
+        }
+      },
+      "golem": {
+        "anims": ["Walk_Loop", "Sword_Attack"],
+        "tris": {
+          "hi": 1800
+        }
+      },
+      "vampire": {
         "anims": ["Sprint_Loop"],
         "tris": {
-          "hi": 1797
+          "hi": 1800
+        }
+      },
+      "avian": {
+        "anims": ["Walk_Loop", "Pistol_Shoot"],
+        "tris": {
+          "mid": 330,
+          "lo": 108
+        }
+      },
+      "demon": {
+        "anims": ["Walk_Loop", "Spell_Simple_Shoot"],
+        "tris": {
+          "mid": 327,
+          "lo": 104
         }
       }
     }

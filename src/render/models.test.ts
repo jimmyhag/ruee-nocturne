@@ -74,14 +74,13 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
       expect(t, key).toBeLessThanOrEqual(p.tris);
     }
   });
-  it("phase 21 : chaque type d'ennemi a un squelette (le Volant : le crâne), avec ses clips", () => {
+  it("phases 21 et 46 : chaque type d'ennemi a son modèle animé (le Volant aussi), avec ses clips", () => {
     expect(ENEMY_LOOKS.length).toBe(ENEMIES.length);
+    // onze créatures distinctes : plus aucun modèle partagé entre deux types
+    expect(new Set(ENEMY_LOOKS.map((l) => l.model)).size).toBe(ENEMIES.length);
+    expect(Object.keys(MANIFEST.enemies.models).sort()).toEqual(Object.keys(ENEMY_MODELS).sort());
     ENEMY_LOOKS.forEach((look, t) => {
-      if (!look) {
-        expect(ENEMIES[t].key).toBe('volant');
-        expect((MANIFEST.props.nodes as Record<string, number>).skull).toBeGreaterThan(0);
-        return;
-      }
+      expect(!!look.fly, ENEMIES[t].key).toBe(ENEMIES[t].key === 'volant');
       const m = (MANIFEST.enemies.models as Record<string, { anims: string[] }>)[look.model];
       expect(m, `${ENEMIES[t].key} → ${look.model}`).toBeDefined();
       for (const [clip] of look.clips) expect(m.anims, `${ENEMIES[t].key} : ${clip}`).toContain(clip);
@@ -96,9 +95,13 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
       // phase 26 : seuls les niveaux cuits sont construits (hi pour les boss, mid et lo pour la masse)
       if (m.tris.hi && m.tris.mid) expect(m.tris.mid, key).toBeLessThan(m.tris.hi);
       if (m.tris.mid) expect(m.tris.lo, key).toBeLessThan(m.tris.mid);
-      if (m.tris.mid) expect(m.tris.mid, key).toBeLessThanOrEqual(ENEMY_LODS.mid * 1.6); // armes comprises
-      if (m.tris.lo) expect(m.tris.lo, key).toBeLessThanOrEqual(ENEMY_LODS.lo * 1.6);
-      if (m.tris.hi) expect(m.tris.hi, key).toBeLessThanOrEqual(ENEMY_LODS.hi * 1.6);
+      // plafond global, ou celui du modèle (la brute) ; la simplification ne dépasse pas sa cible de plus de 15 %
+      const cap = (lod: 'hi' | 'mid' | 'lo') => (ENEMY_MODELS[key].tris?.[lod] ?? ENEMY_LODS[lod]) * 1.15;
+      if (m.tris.mid) expect(m.tris.mid, key).toBeLessThanOrEqual(cap('mid'));
+      if (m.tris.lo) expect(m.tris.lo, key).toBeLessThanOrEqual(cap('lo'));
+      if (m.tris.hi) expect(m.tris.hi, key).toBeLessThanOrEqual(cap('hi'));
+      for (const lod of ['hi', 'mid', 'lo'] as const)
+        expect(ENEMY_MODELS[key].tris?.[lod] ?? 0, key).toBeLessThanOrEqual(ENEMY_LODS[lod] * 1.6);
     }
     const bytes = fs.statSync(path.join(DIR, MANIFEST.enemies.file)).size;
     expect(bytes).toBe(MANIFEST.enemies.bytes);
@@ -129,6 +132,7 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
   it('les crédits CC0 sont portés par le manifeste et CREDITS.md', () => {
     expect(MANIFEST.source).toMatch(/KayKit.*Kay Lousberg.*CC0/);
     expect(MANIFEST.source).toMatch(/Quaternius.*CC0/);
+    expect(MANIFEST.source).toMatch(/Ultimate Monsters.*Quaternius.*CC0/);
     const credits = fs.readFileSync(path.resolve(import.meta.dirname, '../../CREDITS.md'), 'utf8');
     expect(credits).toMatch(/KayKit/);
     expect(credits).toMatch(/Kay Lousberg/);
@@ -137,5 +141,6 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
     expect(MANIFEST.source).toMatch(/Poly Haven.*CC0/);
     expect(credits).toMatch(/Stylized Nature/);
     expect(credits).toMatch(/Poly Haven/);
+    expect(credits).toMatch(/Ultimate Monsters/);
   });
 });

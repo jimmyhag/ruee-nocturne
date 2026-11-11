@@ -96,6 +96,14 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - `getElement(i, cible)` de gltf-transform écrit dans le tableau donné sans le raccourcir : un tableau par taille d'élément.
 - Objets tenus : liés à 100 % à l'os `handslot` de KayKit ; « tenu droit » = axe long vers le haut à la première image du repos (calculé au build, pas d'angles à deviner).
 - Tenues recolorées : la texture KayKit est une palette où peau et tenue se côtoient ; la peau est reconnue à sa couleur (teinte 14–44°, claire) et laissée.
+- **Ennemis (phase 46 B)** : même chaîne que les héros (`ENEMY_MODELS`, `npm run assets -- --enemies`), plusieurs niveaux de détail tirés des mêmes sommets (`KayBuild.lods`).
+  - Les clips du pack KayKit ne vont pas sur un corps affiné (bras tenus loin du buste, faits pour des corps trapus) : reprendre les clips UAL.
+  - Texture en palette : simplifier en **respectant les coutures d'UV**. Laisser les UV libres étire des triangles entre deux cases de la palette et mélange les couleurs.
+  - À ≈ 330 triangles, un membre fin devient un fil : les sbires ont leur réglage (`FIT_MASS`, tête et membres plus forts). Juger sur une capture en jeu, à la distance de la caméra, pas sur une planche rapprochée.
+  - Maillage rigide porté par un os (ailes du vampire) : lié à 100 % à cet os à la fusion ; son point d'attache suit l'étirement de l'os.
+  - Texture hors fichier (`texture`) : tous les matériaux du modèle l'utilisent, aucun ne devient une pastille de couleur.
+  - Créature volante (`fly`) : cuite centrée sur sa hauteur et penchée vers la caméra ; le rendu ne fait que la poser à son altitude.
+  - Modèles déjà colorés : couleur d'instance presque blanche, liseré éclairci et faible, sinon la couleur du type salit la texture.
 
 ## Pierre à runes : totem et sanctuaires (1.42.1, phase 45)
 - `stoneKit()` (`src/render/totem.ts`) assemble des pièces à facettes : couleur unie par sommet, attribut `glow` (1 = la pièce prend la couleur de l'état). `stoneMaterial(glow?)` : avec une couleur, un uniforme (objet unique, le totem) ; sans, la couleur d'instance (`shrine.ts`), que la pierre ignore (`vColor.rgb = color` sous `USE_INSTANCING_COLOR`).

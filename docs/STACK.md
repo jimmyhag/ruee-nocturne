@@ -61,6 +61,6 @@
 
 ## Phase 21 (5 nov. 2026)
 
-- `public/models/enemies.glb` (621 ko, phase 26) : huit morts-vivants Quaternius (atlas 256² pour la masse, 512² pour les boss ; seuls les niveaux cuits), corps en trois niveaux de détail (hi ≈ 1 800, mid ≈ 330, lo ≈ 110 triangles), clips utiles. Simplification meshopt `simplifyWithAttributes` (mode Permissive) dans `tools/assets/build.ts`, sans dépendance nouvelle.
+- `public/models/enemies.glb` (≈ 530 ko, phase 46 B) : onze créatures, dix KayKit en proportions humanoïdes et un dragonnet Quaternius (atlas 256² pour la masse, 512² pour les boss ; seuls les niveaux cuits), corps en trois niveaux de détail (hi ≈ 1 800, mid ≈ 330, lo ≈ 110 triangles), clips utiles. Simplification meshopt `simplifyWithAttributes` (mode Permissive) dans `tools/assets/build.ts`, sans dépendance nouvelle.
 - `src/render/enemyModels.ts` cuit les poses en morphs absolues au chargement ; `src/render/pose.ts` écrit les poids par instance ; three 0.187 : `InstancedMesh.morphTexture` (chunk `morphinstance_vertex`).
 - Budget mobile : 250 k triangles en rendu net, 150 k en pixel (PLAN §4.3).

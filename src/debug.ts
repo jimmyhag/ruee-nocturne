@@ -262,7 +262,8 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       for (let i = 0; i < n; i++)
         spawnEnemy(
           world,
-          i % 20 === 0 ? 9 : i % 20 === 10 ? 10 : i % 3,
+          // phase 46 B : un Volant sur vingt, pour que la mesure couvre aussi le modèle animé qui vole
+          i % 20 === 0 ? 9 : i % 20 === 10 ? 10 : i % 20 === 5 ? 4 : i % 3,
           base + (i / n) * Math.PI * 2,
           14 + (i % 5) * 2.5,
         );
