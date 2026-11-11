@@ -1,4 +1,4 @@
-// Phase 21 : ennemis animés par morphs instanciés (phase 26 : morts-vivants Quaternius HD). Le glTF remplace les silhouettes
+// Phase 21 : ennemis animés par morphs instanciés (phase 46 B : créatures KayKit humanoïdes). Le glTF remplace les silhouettes
 // procédurales une fois chargé ; sans réseau pour /models, les silhouettes restent et la partie se joue.
 import { expect, test } from '@playwright/test';
 import { collectConsoleErrors, openGame, startRun } from './helpers';
@@ -18,7 +18,7 @@ const GROUPS: [string, number, number, number][] = [
   ['faucheur', 8, 1, 4],
 ];
 
-test('les morts-vivants remplacent les silhouettes : chaque type et chaque boss (captures)', async ({ page }, info) => {
+test('les créatures 3D remplacent les silhouettes : chaque type et chaque boss (captures)', async ({ page }, info) => {
   test.setTimeout(150_000);
   const p = info.project.name;
   const errors = collectConsoleErrors(page);

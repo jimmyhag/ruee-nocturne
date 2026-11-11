@@ -115,9 +115,8 @@ const ELITE_RINGS = 48; // anneaux dorés des élites à l'écran, au plus
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
 const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (hors de la vue)
-const ENEMY_TINT_KEEP = 0.6; // part de blanc froid dans la teinte d'un mort-vivant (phase 44 B : 0,72 → 0,6, couleurs un peu plus franches par type)
-const ENEMY_RIM = 0.4; // force du liseré de lumière des ennemis (couleur du type)
-const BONE = new THREE.Color(0xd2dcff); // os de mort-vivant : blanc froid (la texture KayKit est chaude)
+const ENEMY_TINT_KEEP = 0.88; // part de blanc dans la teinte d'un ennemi (phase 46 B : les textures KayKit portent déjà la couleur)
+const ENEMY_RIM = 0.22; // force du liseré de lumière des ennemis (couleur du type, éclaircie : les textures portent déjà la couleur)
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
 const ENEMY_STRIDE = 0.42; // tours de marche par unité de vitesse (Spectre 2,7 u/s : ≈ 1,1 pas par seconde)
 const CHEST_ELITE = new THREE.Color(0xffd98a); // coffre d'élite : même modèle que celui de carte, teinté d'or
@@ -1072,8 +1071,8 @@ export class GameScene {
   private loadEnemies(attempt: number): void {
     const t0 = performance.now();
     const stage = (st: string) => (this.enemyStatus = `${st} (essai ${attempt + 1})`);
-    Promise.all([loadEnemyModels(stage), loadProps()])
-      .then(([en, p]) => this.applyEnemyModels(en, p))
+    loadEnemyModels(stage)
+      .then((en) => this.applyEnemyModels(en))
       .then(() => {
         this.enemyStatus = `3D prêts en ${((performance.now() - t0) / 1000).toFixed(1)} s`;
         this.enemiesSettled();
@@ -1091,41 +1090,19 @@ export class GameScene {
    * silhouettes ; une morphTexture par type, allouée à pleine capacité (même piège que les couleurs d'instance) ; contour des boss par
    * un InstancedMesh jumeau qui partage matrices et poses. Tout est construit avant d'échanger.
    */
-  private async applyEnemyModels(en: (BakedEnemy | null)[], p: Record<PropKey, PropGeometry>): Promise<void> {
+  private async applyEnemyModels(en: (BakedEnemy | null)[]): Promise<void> {
     const todo: (() => void)[] = [];
     // programmes compilés en tâche de fond avant l'échange (relecture perf : 5 à 7 shaders d'un coup sinon, en jeu)
     const probes = new THREE.Group();
     for (let t = 0; t < this.enemyW.length; t++) {
       const b = en[t] ?? null;
       const mesh = this.enemyW[t].mesh;
-      if (!b) {
-        if (t !== VOLANT_TYPE) continue;
-        // Volant : crâne flottant (statique ; roulis et tangage viennent de la matrice d'instance)
-        const g = p.skull.geometry.clone();
-        g.computeBoundingBox();
-        const bb = g.boundingBox!;
-        const k = 1.05 / Math.max(1e-3, bb.max.x - bb.min.x);
-        g.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, -(bb.min.z + bb.max.z) / 2)
-          .scale(k, k, k)
-          .rotateX(-0.6); // face levée vers la caméra (vue 3/4 haute) : orbites et dents lisibles de loin
-        const m = stylize(
-          new THREE.MeshToonMaterial({ map: p.skull.map, gradientMap: toonGradient() }),
-          PAL.enemy[t],
-          0, // crâne clair : un liseré le blanchit entièrement (orbites et dents perdues)
-        );
-        probes.add(new THREE.InstancedMesh(g, m, 1));
-        todo.push(() => {
-          mesh.geometry.dispose();
-          mesh.geometry = g;
-          mesh.material = m;
-        });
-        continue;
-      }
+      if (!b) continue;
       const geo = this.qualityLevel > 0 ? b.geo.net : b.geo.pixel;
       // phase 44 B : liseré de la couleur du type (plus fort sur les boss) : la silhouette se lit sur l'herbe claire
       const mat = stylize(
-        new THREE.MeshToonMaterial({ map: b.map, vertexColors: true, gradientMap: toonGradient() }),
-        PAL.enemy[t],
+        new THREE.MeshToonMaterial({ map: b.map, gradientMap: toonGradient() }),
+        new THREE.Color(PAL.enemy[t]).lerp(WHITE, 0.6).getHex(), // au chargement seulement
         b.boss ? ENEMY_RIM * 1.5 : ENEMY_RIM,
       );
       const len = 1 + b.loop + b.action,
@@ -1172,10 +1149,10 @@ export class GameScene {
     for (const b of en) if (b?.map) this.renderer.initTexture(b.map);
     this.enemyBaked = en; // avant l'échange : poseEnemy lit enemyBaked dès que enemyMorph[t] existe
     for (const f of todo) f();
-    // la couleur d'instance multiplie la texture : teinte du type adoucie (les os restent clairs), élites dorées
+    // la couleur d'instance multiplie la texture, déjà colorée : presque blanche (un soupçon du type), élites dorées
     for (let t = 0; t < this.enemyW.length; t++) {
-      if (!en[t] && t !== VOLANT_TYPE) continue;
-      this.enemyColor[t].set(PAL.enemy[t]).lerp(BONE, ENEMY_TINT_KEEP);
+      if (!en[t]) continue;
+      this.enemyColor[t].set(PAL.enemy[t]).lerp(WHITE, ENEMY_TINT_KEEP);
       this.eliteColor[t].set(PAL.enemy[t]).lerp(this.cGold, 0.7).lerp(WHITE, 0.2);
     }
     this.cFlash = ENEMY_FLASH;
@@ -1745,6 +1722,7 @@ export class GameScene {
           Math.sin(now * 6 + e.bob) * 0.25,
           Math.sin(now * 4 + e.bob) * 0.2,
         );
+        this.poseEnemy(e.type, e, now); // battement d'ailes du dragonnet
       } else if (e.type === SWARM_TYPE) {
         s *= e.state === 1 ? 1.25 : 1 + Math.sin(now * 3) * 0.04; // pulsation à la ponte
         // procédural : la masse tourne sur elle-même ; squelette : il regarde où il va

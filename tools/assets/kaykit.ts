@@ -9,7 +9,7 @@
 //  - Un personnage = une primitive skinnée, un atlas 1024² (personnage en 768², objets tenus en tuiles de 256²).
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Accessor, Document, Node, NodeIO, Primitive, Skin } from '@gltf-transform/core';
+import type { Accessor, Document, Material, Node, NodeIO, Primitive, Skin } from '@gltf-transform/core';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 import * as THREE from 'three';
@@ -120,6 +120,14 @@ export function reproportion(doc: Document, P: Proportions): Reproportioned {
       t = j.getTranslation();
     j.setTranslation([t[0] * s.x, t[1] * s.y, t[2] * s.z]);
   }
+  // maillages rigides portés par un os (ailes du vampire) : leur point d'attache suit l'étirement de l'os
+  for (const n of doc.getRoot().listNodes()) {
+    const parent = n.getParentNode();
+    if (!n.getMesh() || n.getSkin() || !parent || !joints.includes(parent)) continue;
+    const s = stretchOf(P, parent),
+      t = n.getTranslation();
+    n.setTranslation([t[0] * s.x, t[1] * s.y, t[2] * s.z]);
+  }
   // les jambes ont changé de longueur : le bassin suit, les orteils restent où ils étaient
   const parent = hips.getParentNode();
   const inv = parent ? m4(parent.getWorldMatrix()).invert() : new THREE.Matrix4();
@@ -198,28 +206,6 @@ export function reproportion(doc: Document, P: Proportions): Reproportioned {
 
 function floatAccessor(doc: Document, like: Accessor, type: 'VEC2' | 'VEC3', arr: Float32Array<ArrayBuffer>): Accessor {
   return doc.createAccessor().setType(type).setArray(arr).setBuffer(like.getBuffer());
-}
-
-/** Adapte les clips propres au modèle (ennemis) : translations d'os multipliées par l'étirement du parent. */
-export function adaptClips(doc: Document, rp: Reproportioned): void {
-  for (const a of doc.getRoot().listAnimations())
-    for (const ch of a.listChannels()) {
-      const node = ch.getTargetNode(),
-        out = ch.getSampler()?.getOutput();
-      if (!node || !out || ch.getTargetPath() !== 'translation') continue;
-      const s =
-        base(node.getName()) === 'hips'
-          ? new THREE.Vector3(rp.hip, rp.hip, rp.hip)
-          : stretchOf(rp.P, node.getParentNode());
-      const src = out.getArray()!,
-        arr = new Float32Array(src.length);
-      for (let i = 0; i < src.length; i += 3) {
-        arr[i] = src[i] * s.x;
-        arr[i + 1] = src[i + 1] * s.y;
-        arr[i + 2] = src[i + 2] * s.z;
-      }
-      ch.getSampler()!.setOutput(doc.createAccessor().setType('VEC3').setArray(arr).setBuffer(out.getBuffer()));
-    }
 }
 
 // ---------- reprise des animations (squelette UE → squelette KayKit) ----------
@@ -517,42 +503,50 @@ function propPart(
     const mesh = node.getMesh();
     if (!mesh) continue;
     const m = back.clone().multiply(world).multiply(local).multiply(m4(node.getWorldMatrix()));
-    const nm = new THREE.Matrix3().getNormalMatrix(m);
-    for (const prim of mesh.listPrimitives()) {
-      const pos = prim.getAttribute('POSITION')!,
-        nor = prim.getAttribute('NORMAL')!,
-        tex = prim.getAttribute('TEXCOORD_0');
-      const n = pos.getCount(),
-        idx = prim.getIndices();
-      const part: Part = {
-        P: new Float32Array(n * 3),
-        N: new Float32Array(n * 3),
-        UV: new Float32Array(n * 2),
-        J: new Uint16Array(n * 4),
-        W: new Float32Array(n * 4),
-        I: new Uint32Array(idx ? idx.getCount() : n),
-      };
-      const v = new THREE.Vector3(),
-        e: number[] = [],
-        e2: number[] = [];
-      for (let i = 0; i < n; i++) {
-        v.fromArray(pos.getElement(i, e))
-          .applyMatrix4(m)
-          .toArray(part.P, i * 3);
-        v.fromArray(nor.getElement(i, e))
-          .applyMatrix3(nm)
-          .normalize()
-          .toArray(part.N, i * 3);
-        if (tex) tex.getElement(i, e2);
-        part.UV.set(tex ? uv(e2[0], e2[1]) : uv(0.5, 0.5), i * 2);
-        part.J[i * 4] = joint;
-        part.W[i * 4] = 1;
-      }
-      for (let i = 0; i < part.I.length; i++) part.I[i] = idx ? idx.getScalar(i) : i;
-      parts.push(part);
-    }
+    for (const prim of mesh.listPrimitives()) parts.push(rigidPart(prim, m, joint, uv));
   }
   return parts;
+}
+
+/** Primitive rigide liée à 100 % à l'os `joint` : sommets passés par `m` (vers le repère de liaison). */
+function rigidPart(
+  prim: Primitive,
+  m: THREE.Matrix4,
+  joint: number,
+  uv: (u: number, v: number) => [number, number],
+): Part {
+  const nm = new THREE.Matrix3().getNormalMatrix(m);
+  const pos = prim.getAttribute('POSITION')!,
+    nor = prim.getAttribute('NORMAL')!,
+    tex = prim.getAttribute('TEXCOORD_0');
+  const n = pos.getCount(),
+    idx = prim.getIndices();
+  const part: Part = {
+    P: new Float32Array(n * 3),
+    N: new Float32Array(n * 3),
+    UV: new Float32Array(n * 2),
+    J: new Uint16Array(n * 4),
+    W: new Float32Array(n * 4),
+    I: new Uint32Array(idx ? idx.getCount() : n),
+  };
+  const v = new THREE.Vector3(),
+    e: number[] = [],
+    e2: number[] = [];
+  for (let i = 0; i < n; i++) {
+    v.fromArray(pos.getElement(i, e))
+      .applyMatrix4(m)
+      .toArray(part.P, i * 3);
+    v.fromArray(nor.getElement(i, e))
+      .applyMatrix3(nm)
+      .normalize()
+      .toArray(part.N, i * 3);
+    if (tex) tex.getElement(i, e2);
+    part.UV.set(tex ? uv(e2[0], e2[1]) : uv(0.5, 0.5), i * 2);
+    part.J[i * 4] = joint;
+    part.W[i * 4] = 1;
+  }
+  for (let i = 0; i < part.I.length; i++) part.I[i] = idx ? idx.getScalar(i) : i;
+  return part;
 }
 
 const imageOf = (doc: Document): Uint8Array | null => {
@@ -574,6 +568,15 @@ export interface KayBuild {
   name: string;
   material: string;
   atlas?: number;
+  /** plusieurs niveaux de détail (ennemis) : un nœud par niveau, à la place de `name` / `tris` */
+  lods?: { name: string; tris: number }[];
+  /**
+   * ennemis sans objet tenu ni matériau sans texture : la texture du personnage prend tout l'atlas (sinon elle
+   * n'en occupe que les trois quarts, le reste étant réservé aux objets)
+   */
+  full?: boolean;
+  /** rempli par `mergeKay` : triangles obtenus par nœud */
+  done?: Record<string, number>;
 }
 
 /**
@@ -591,6 +594,19 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
   const parts: Part[] = [];
   const nodes = root.listNodes().filter((n) => n.getMesh() && n.getSkin() === skin);
   if (!nodes.length) throw new Error('aucun maillage skinné');
+  // texture fournie à part (`b.texture`) : les matériaux du fichier n'en portent pas, tous l'utilisent
+  const textured = (m: Material | null): boolean => !!b.texture || !!m?.getBaseColorTexture();
+  // maillages rigides portés par un os (ailes) : liés à 100 % à cet os
+  const rigid = root
+    .listNodes()
+    .filter((n) => n.getMesh() && !n.getSkin() && n.getParentNode() && joints.includes(n.getParentNode()!));
+  const bare = [...nodes, ...rigid].some((n) =>
+    n
+      .getMesh()!
+      .listPrimitives()
+      .some((p) => p.getMaterial()?.getAlphaMode() !== 'BLEND' && !textured(p.getMaterial())),
+  );
+  const cz = b.full && !b.props.length && !bare ? 1 : CHAR_ZONE;
   // matériaux sans texture (yeux lumineux, lueurs) : une pastille de couleur dans la dernière tuile ; verre : retiré
   const swatches = new Map<string, number>();
   const SW = TILE / 4;
@@ -598,7 +614,7 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
     for (const prim of node.getMesh()!.listPrimitives()) {
       const mat = prim.getMaterial();
       if (mat?.getAlphaMode() === 'BLEND') continue;
-      if (mat && !mat.getBaseColorTexture()) {
+      if (mat && !textured(mat)) {
         const e = mat.getEmissiveFactor(),
           c = e[0] + e[1] + e[2] > 0 ? e : mat.getBaseColorFactor();
         const hex = '#' + new THREE.Color(c[0], c[1], c[2]).getHexString(THREE.SRGBColorSpace);
@@ -608,12 +624,18 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
         const u = CHAR_ZONE + ((k % 4) + 0.5) * SW,
           v = 3 * TILE + (Math.floor(k / 4) + 0.5) * SW;
         parts.push(partOf(prim, () => [u, v]));
-      } else parts.push(partOf(prim, (u, v) => [u * CHAR_ZONE, v * CHAR_ZONE]));
+      } else parts.push(partOf(prim, (u, v) => [u * cz, v * cz]));
     }
+  for (const node of rigid) {
+    const j = joints.indexOf(node.getParentNode()!);
+    const m = back.clone().multiply(m4(node.getWorldMatrix()));
+    for (const prim of node.getMesh()!.listPrimitives())
+      if (textured(prim.getMaterial())) parts.push(rigidPart(prim, m, j, (u, v) => [u * cz, v * cz]));
+  }
   // atlas : personnage en haut à gauche, objets en tuiles dans la colonne de droite
   const charImg = b.texture ?? imageOf(doc);
   if (!charImg) throw new Error('personnage sans texture');
-  const zone = Math.round(size * CHAR_ZONE),
+  const zone = Math.round(size * cz),
     tilePx = Math.round(size * TILE);
   const layers: { input: Buffer; left: number; top: number }[] = [
     { input: await sharp(charImg).resize(zone, zone, { fit: 'fill' }).removeAlpha().png().toBuffer(), left: 0, top: 0 },
@@ -657,7 +679,7 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
     UV = new Float32Array(nv * 2),
     J = new Uint16Array(nv * 4),
     W = new Float32Array(nv * 4);
-  let I: Uint32Array<ArrayBuffer> = new Uint32Array(ni);
+  const I: Uint32Array<ArrayBuffer> = new Uint32Array(ni);
   let ov = 0,
     oi = 0;
   for (const p of parts) {
@@ -669,13 +691,6 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
     for (let i = 0; i < p.I.length; i++) I[oi + i] = p.I[i] + ov;
     ov += p.P.length / 3;
     oi += p.I.length;
-  }
-  if (I.length / 3 > b.tris) {
-    const count = Math.round(b.tris) * 3;
-    let out = MeshoptSimplifier.simplifyWithAttributes(I, P, 3, UV, 2, [1, 1], null, count, 0.05, [])[0];
-    if (out.length > count * 1.15)
-      out = MeshoptSimplifier.simplifyWithAttributes(I, P, 3, UV, 2, [1, 1], null, count, 0.05, ['Permissive'])[0];
-    I = new Uint32Array(out);
   }
   const buffer = root.listBuffers()[0];
   const acc = (
@@ -689,27 +704,74 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
       .setBaseColorTexture(doc.createTexture(b.material).setImage(atlas).setMimeType('image/jpeg'))
       .setRoughnessFactor(1)
       .setMetallicFactor(0);
-  const prim = doc
-    .createPrimitive()
-    .setAttribute('POSITION', acc('VEC3', P))
-    .setAttribute('NORMAL', acc('VEC3', N))
-    .setAttribute('TEXCOORD_0', acc('VEC2', UV))
-    .setAttribute('JOINTS_0', acc('VEC4', J))
-    .setAttribute('WEIGHTS_0', acc('VEC4', W))
-    .setIndices(acc('SCALAR', I))
-    .setMaterial(material);
   const holder = nodes[0];
-  const body = doc
-    .createNode(b.name)
-    .setMesh(doc.createMesh(b.name).addPrimitive(prim))
-    .setSkin(skin as Skin);
   const parent = holder.getParentNode();
-  if (parent) parent.addChild(body);
-  else for (const s of root.listScenes()) if (s.listChildren().includes(holder)) s.addChild(body);
-  for (const n of nodes) {
+  const done: Record<string, number> = {};
+  // un nœud par niveau de détail (héros : un seul) : mêmes sommets, index simplifiés, sommets inutiles retirés
+  for (const lod of b.lods ?? [{ name: b.name, tris: b.tris }]) {
+    let idx = I;
+    if (idx.length / 3 > lod.tris) {
+      const count = Math.round(lod.tris) * 3;
+      let out = MeshoptSimplifier.simplifyWithAttributes(idx, P, 3, UV, 2, [1, 1], null, count, 0.05, [])[0];
+      if (out.length > count * 1.15)
+        out = MeshoptSimplifier.simplifyWithAttributes(idx, P, 3, UV, 2, [1, 1], null, count, 0.05, ['Permissive'])[0];
+      if (out.length > count * 1.6)
+        out = MeshoptSimplifier.simplifyWithAttributes(idx, P, 3, UV, 2, [0.2, 0.2], null, count, 0.3, [
+          'Permissive',
+        ])[0];
+      idx = new Uint32Array(out);
+    }
+    const remap = new Int32Array(nv).fill(-1);
+    let used = 0;
+    for (let i = 0; i < idx.length; i++) if (remap[idx[i]] < 0) remap[idx[i]] = used++;
+    const p2 = new Float32Array(used * 3),
+      n2 = new Float32Array(used * 3),
+      uv2 = new Float32Array(used * 2),
+      j2 = new Uint16Array(used * 4),
+      w2 = new Float32Array(used * 4),
+      i2 = new Uint32Array(idx.length);
+    for (let v = 0; v < nv; v++) {
+      const r = remap[v];
+      if (r < 0) continue;
+      p2.set(P.subarray(v * 3, v * 3 + 3), r * 3);
+      n2.set(N.subarray(v * 3, v * 3 + 3), r * 3);
+      uv2.set(UV.subarray(v * 2, v * 2 + 2), r * 2);
+      j2.set(J.subarray(v * 4, v * 4 + 4), r * 4);
+      w2.set(W.subarray(v * 4, v * 4 + 4), r * 4);
+    }
+    for (let i = 0; i < idx.length; i++) i2[i] = remap[idx[i]];
+    const prim = doc
+      .createPrimitive()
+      .setAttribute('POSITION', acc('VEC3', p2))
+      .setAttribute('NORMAL', acc('VEC3', n2))
+      .setAttribute('TEXCOORD_0', acc('VEC2', uv2))
+      .setAttribute('JOINTS_0', acc('VEC4', j2))
+      .setAttribute('WEIGHTS_0', acc('VEC4', w2))
+      .setIndices(acc('SCALAR', i2))
+      .setMaterial(material);
+    const body = doc
+      .createNode(lod.name)
+      .setMesh(doc.createMesh(lod.name).addPrimitive(prim))
+      .setSkin(skin as Skin);
+    if (parent) parent.addChild(body);
+    else for (const sc of root.listScenes()) if (sc.listChildren().includes(holder)) sc.addChild(body);
+    done[lod.name] = Math.round(idx.length / 3);
+  }
+  for (const n of [...nodes, ...rigid]) {
     const m = n.getMesh()!;
     n.dispose();
     m.dispose();
   }
-  return Math.round(I.length / 3);
+  b.done = done;
+  return Object.values(done)[0];
+}
+
+/** Retire les animations d'origine d'un document (pose en T, clips non voulus). */
+export function dropAnimations(doc: Document, keep: (name: string) => boolean = () => false): void {
+  for (const a of doc.getRoot().listAnimations()) {
+    if (keep(a.getName())) continue;
+    for (const ch of a.listChannels()) ch.dispose();
+    for (const sp of a.listSamplers()) sp.dispose();
+    a.dispose();
+  }
 }

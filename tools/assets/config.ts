@@ -234,125 +234,6 @@ export const PROPS: Record<string, { pack: PackKey; file: string; tris: number }
   skull: { pack: 'halloween', file: 'Assets/gltf/skull.gltf', tris: 500 }, // phase 21 : le Volant (120 à l'écran au plus)
 };
 
-/**
- * Phase 26 : ennemis morts-vivants assortis aux héros HD, assemblés avec le même kit Quaternius (tenue, tête, coiffure,
- * objets tenus ; peau verdâtre, vêtements ternis) et animés par les mêmes bibliothèques (marche de zombie, griffure,
- * coups d'épée, sorts). Réunis dans public/models/enemies.glb : un nœud par modèle, corps simplifié à chaque niveau
- * (`<clé>__body__<niveau>`), clips `<clé>__<clip>`, atlas 512². Les poses sont cuites à l'exécution
- * (src/render/enemyModels.ts). `clips` : boucle de marche puis geste éventuel.
- */
-export type EnemySpec = Omit<HeroSpec, 'idle' | 'tris'> & {
-  clips: { src: 'ual1' | 'ual2'; from: string }[];
-  /** niveaux construits (hi : boss ; mid, lo : masse) et taille de l'atlas (256 suffit à la masse, vue de loin) */
-  lods: ('hi' | 'mid' | 'lo')[];
-  atlas: 256 | 512;
-};
-const MASS = { lods: ['mid', 'lo'] as EnemySpec['lods'], atlas: 256 as const };
-const BOSS = { lods: ['hi'] as EnemySpec['lods'], atlas: 512 as const };
-const BOTH = { lods: ['hi', 'mid', 'lo'] as EnemySpec['lods'], atlas: 512 as const };
-
-const ZOMBIE: Tint = { hue: 60, sat: 0.6, light: 1.0 }; // peau gris-vert
-const DIRTY: Tint = { sat: 0.6, light: 0.9 }; // vêtements ternis
-const Z_WALK = { src: 'ual2', from: 'Zombie_Walk_Fwd_Loop' } as const;
-const WALK = { src: 'ual1', from: 'Walk_Loop' } as const;
-const SPRINT = { src: 'ual1', from: 'Sprint_Loop' } as const;
-
-export const ENEMY_MODELS: Record<string, EnemySpec> = {
-  // Spectre : le gros de la horde
-  zombie: {
-    sex: 'M',
-    outfit: 'Peasant',
-    hair: ['Hair_Buzzed'],
-    hairColor: '#4a4a44',
-    skinTint: ZOMBIE,
-    outfitTint: DIRTY,
-    props: [],
-    clips: [Z_WALK, { src: 'ual2', from: 'Zombie_Scratch' }],
-    ...MASS,
-  },
-  // Cracheur : crache à distance
-  zombief: {
-    sex: 'F',
-    outfit: 'Peasant',
-    hair: ['Hair_Long'],
-    hairColor: '#3a3833',
-    skinTint: ZOMBIE,
-    outfitTint: { hue: 200, sat: 0.6, light: 0.9 },
-    props: [],
-    clips: [Z_WALK, { src: 'ual1', from: 'Spell_Simple_Shoot' }],
-    ...MASS,
-  },
-  // Dard : rapide, petit, une dague
-  runner: {
-    sex: 'F',
-    outfit: 'Ranger',
-    hood: false,
-    hide: ['Pauldron'],
-    hair: ['Hair_BuzzedFemale'],
-    hairColor: '#2a2622',
-    skinTint: ZOMBIE,
-    outfitTint: { hue: 140, sat: 0.7, light: 0.9 },
-    props: [R('medieval_weapons_pack/Dagger.glb', 0.45, 0.2)],
-    clips: [SPRINT],
-    ...MASS,
-  },
-  // Brute et Colosse : la hache
-  brute: {
-    sex: 'M',
-    outfit: 'Peasant',
-    hair: ['Hair_Beard'],
-    hairColor: '#2e2a26',
-    skinTint: ZOMBIE,
-    outfitTint: { hue: -20, sat: 0.8, light: 0.85 },
-    props: [R('medieval_weapons_pack/Axe.glb', 1.1, 0.15)],
-    clips: [WALK, { src: 'ual1', from: 'Sword_Attack' }],
-    ...BOTH,
-  },
-  // Gardien : épée et bouclier
-  knight: {
-    sex: 'M',
-    outfit: 'Ranger',
-    hair: [],
-    skinTint: ZOMBIE,
-    outfitTint: { hue: 180, sat: 0.4, light: 1.0 },
-    props: [R('medieval_weapons_pack/Sword.glb', 1.1, 0.15), L('medieval_weapons_pack/Shield_Heater.glb', 0.75, 0.5)],
-    clips: [WALK, { src: 'ual1', from: 'Sword_Attack' }],
-    ...BOSS,
-  },
-  // Archer : l'arc
-  archer: {
-    sex: 'M',
-    outfit: 'Ranger',
-    hair: [],
-    skinTint: ZOMBIE,
-    outfitTint: { hue: -60, sat: 0.6, light: 0.9 },
-    props: [L('medieval_weapons_pack/Bow_Wooden.glb', 1.2, 0.5)],
-    clips: [WALK, { src: 'ual1', from: 'Pistol_Shoot' }],
-    ...MASS,
-  },
-  // Sorcier et Essaim-mère : cristal
-  caster: {
-    sex: 'F',
-    outfit: 'Ranger',
-    hair: [],
-    skinTint: ZOMBIE,
-    outfitTint: { hue: 250, sat: 0.9, light: 0.9 },
-    props: [L('rpg_items_pack/Crystal1.glb', 0.25, 0.5)],
-    clips: [WALK, { src: 'ual1', from: 'Spell_Simple_Shoot' }],
-    ...BOTH,
-  },
-  // Faucheur : la faux
-  reaper: {
-    sex: 'M',
-    outfit: 'Ranger',
-    hair: [],
-    skinTint: { hue: 180, sat: 0.15, light: 0.8 },
-    outfitTint: { sat: 0.15, light: 0.55 },
-    props: [{ ...R('medieval_weapons_pack/Scythe.glb', 1.8, 0.4), rot: [180, 0, 0] }],
-    clips: [SPRINT],
-    ...BOSS,
-  },
-};
 /** Triangles visés pour le corps à chaque niveau : boss (hi), masse en rendu net (mid), masse en pixel (lo). */
 export const ENEMY_LODS = { hi: 1800, mid: 330, lo: 110 } as const;
 
@@ -572,5 +453,190 @@ export const KAY_HEROES: Record<string, KayHero> = {
     file: 'assets/kaykit/mystery-monthly-series-6/8 - February 2026 - Hoarder/characters/Hoarder.glb',
     prop: FIT,
     props: [],
+  },
+};
+
+/**
+ * Phase 46 B : ennemis et boss KayKit, aux mêmes proportions humanoïdes affinées que les héros et animés comme eux :
+ * les clips UAL des ennemis d'avant (marche, course, coup d'épée, sort, tir) sont repris sur leur squelette. Le
+ * Dragonnet de Quaternius garde son squelette et ses clips. Réunis dans public/models/enemies.glb : un nœud par
+ * modèle, corps simplifié à chaque niveau (`<clé>__body__<niveau>`), clips `<clé>__<clip>`, un atlas par modèle.
+ * Les poses sont cuites à l'exécution (src/render/enemyModels.ts). `clips` : boucle de marche puis geste éventuel.
+ */
+export interface EnemySpec {
+  /** fichier du miroir KayKit ; pour `rig: 'own'`, chemin dans `MONSTERS` */
+  file: string;
+  /** `kay` : personnage KayKit, proportions `prop`, clips UAL repris ; `own` : modèle et clips gardés tels quels */
+  rig: 'kay' | 'own';
+  prop?: Proportions;
+  /** texture du personnage quand le fichier ne l'embarque pas */
+  texture?: string;
+  props: KayProp[];
+  /** `src` : bibliothèque UAL du clip ; absente pour `own` (clip du modèle) */
+  clips: { src?: 'ual1' | 'ual2'; from: string }[];
+  /** niveaux construits (hi : boss ; mid, lo : masse) et taille de l'atlas (256 suffit à la masse, vue de loin) */
+  lods: ('hi' | 'mid' | 'lo')[];
+  atlas: 256 | 512;
+  /** triangles visés propres au modèle, à la place de `ENEMY_LODS` (la brute, grande et rare, garde son visage) */
+  tris?: Partial<Record<'hi' | 'mid' | 'lo', number>>;
+}
+const MASS = { lods: ['mid', 'lo'] as EnemySpec['lods'], atlas: 256 as const };
+const BOSS = { lods: ['hi'] as EnemySpec['lods'], atlas: 512 as const };
+
+/** Dragonnet : Ultimate Monsters de Quaternius (CC0), miroir épinglé ; les modèles sont en Git LFS. */
+export const MONSTERS = {
+  media:
+    'https://media.githubusercontent.com/media/series-ai/jam-ready-assets/397bf9ec084a/quaternius-ultimate-monsters/3D/monster',
+  raw: 'https://raw.githubusercontent.com/series-ai/jam-ready-assets/397bf9ec084a/quaternius-ultimate-monsters/3D/monster',
+  license: 'License.txt',
+  source: 'Ultimate Monsters by Quaternius (quaternius.com), CC0',
+} as const;
+
+/**
+ * Grands gabarits (Rig_Large : brute, chevalier, golem) : affinés plus doucement, ils gardent leur carrure
+ * (planche validée par Jimmy, 11 nov.).
+ */
+export const FIT_LARGE: Proportions = {
+  head: [0.7, 0.7, 0.7],
+  upperleg: [0.98, 1.7, 0.98],
+  lowerleg: [0.95, 1.7, 0.95],
+  spine: [0.94, 1.2, 0.92],
+  chest: [0.98, 1.12, 0.94],
+  upperarm: [0.95, 1.15, 0.95],
+  lowerarm: [0.95, 1.15, 0.95],
+};
+
+/**
+ * Sbires (330 triangles, vus de loin et de haut) : mêmes longueurs humanoïdes, mais tête et membres un peu plus forts
+ * que les héros. À ce niveau de détail, un membre affiné se réduit à un fil et la tête, seule partie bien visible
+ * depuis la caméra, doit porter l'identité de la créature (essai en jeu du 11 nov.).
+ */
+export const FIT_MASS: Proportions = {
+  head: [0.62, 0.62, 0.62],
+  hips: [0.9, 1, 0.88],
+  spine: [0.85, 1.45, 0.82],
+  chest: [0.95, 1.4, 0.88],
+  upperleg: [1.0, 2.6, 1.0],
+  lowerleg: [0.95, 2.6, 0.95],
+  foot: [0.9, 0.9, 0.9],
+  toes: [0.9, 0.9, 0.9],
+  upperarm: [0.95, 1.8, 0.95],
+  lowerarm: [0.92, 1.8, 0.92],
+  wrist: [0.9, 1, 0.9],
+  hand: [0.9, 0.9, 0.9],
+};
+
+const MM4 = 'assets/kaykit/mystery-monthly-series-4';
+const MM5 = 'assets/kaykit/mystery-monthly-series-5';
+const MM6 = 'assets/kaykit/mystery-monthly-series-6';
+const WALK = { src: 'ual1', from: 'Walk_Loop' } as const;
+const JOG = { src: 'ual1', from: 'Jog_Fwd_Loop' } as const;
+const SPRINT = { src: 'ual1', from: 'Sprint_Loop' } as const;
+const SLASH = { src: 'ual1', from: 'Sword_Attack' } as const;
+const CAST = { src: 'ual1', from: 'Spell_Simple_Shoot' } as const;
+
+export const ENEMY_MODELS: Record<string, EnemySpec> = {
+  // Spectre : le gros de la horde, un gobelin et sa massue
+  goblin: {
+    file: `${MM4}/1 - July 2023 - Orc Raider/character/OrcRaider.glb`,
+    texture: `${MM4}/1 - July 2023 - Orc Raider/textures/orc_texture_A.png`,
+    rig: 'kay',
+    prop: FIT_MASS,
+    props: [kayR(`${MM4}/1 - July 2023 - Orc Raider/assets/gltf/Orc_Club.gltf.glb`)],
+    clips: [JOG],
+    ...MASS,
+  },
+  // Dard : rapide, un loup-garou
+  wolf: {
+    file: `${MM4}/4 - October 2023 - Werewolf/characters/gltf/Werewolf_Wolf.glb`,
+    rig: 'kay',
+    prop: FIT_MASS,
+    props: [],
+    clips: [SPRINT],
+    ...MASS,
+  },
+  // Brute : l'orc et sa hache
+  brute: {
+    file: `${MM6}/2 - August 2025 - Orc Brute/characters/OrcBrute.glb`,
+    rig: 'kay',
+    prop: FIT_LARGE,
+    props: [kayR(`${MM6}/2 - August 2025 - Orc Brute/assets/gltf/Orc_Axe_Large.gltf`, 1)],
+    clips: [WALK],
+    ...MASS,
+    tris: { mid: 520, lo: 170 },
+  },
+  // Gardien : le chevalier noir, épée et bouclier
+  knight: {
+    file: `${MM5}/3 - September 2024 - Black Knight/characters/BlackKnight.glb`,
+    rig: 'kay',
+    prop: FIT_LARGE,
+    props: [
+      kayR(`${MM5}/3 - September 2024 - Black Knight/assets/gltf/BlackKnight_Sword_Large.gltf`, 1),
+      kayL(`${MM5}/3 - September 2024 - Black Knight/assets/gltf/BlackKnight_Shield_Large.gltf`, 1),
+    ],
+    clips: [WALK, SLASH],
+    ...BOSS,
+  },
+  // Volant : le dragonnet
+  dragon: {
+    file: 'Flying/glTF/Dragon.gltf',
+    rig: 'own',
+    props: [],
+    clips: [{ from: 'Fast_Flying' }],
+    ...MASS,
+  },
+  // Cracheur : le ninja lance ses étoiles
+  ninja: {
+    file: `${MM4}/8 - February 2024 - Ninja/character/Ninja.glb`,
+    rig: 'kay',
+    prop: FIT_MASS,
+    props: [],
+    clips: [WALK, { src: 'ual2', from: 'OverhandThrow' }],
+    ...MASS,
+  },
+  // Essaim-mère : la chamane de la meute et son bâton
+  shaman: {
+    file: `${ADV}/Characters/gltf/Druid.glb`,
+    rig: 'kay',
+    prop: FIT,
+    props: [{ ...kayR(`${ADV}/Assets/gltf/druid_staff.gltf`), upright: true }],
+    clips: [WALK, CAST],
+    ...BOSS,
+  },
+  // Colosse : le golem de glace
+  golem: {
+    file: `${MM5}/7 - January 2025 - FrostGolem/characters/FrostGolem.glb`,
+    rig: 'kay',
+    prop: FIT_LARGE,
+    props: [],
+    clips: [WALK, SLASH],
+    ...BOSS,
+  },
+  // Faucheur : le seigneur vampire et sa faux
+  vampire: {
+    file: `${MM5}/4 - October 2024 - Vampire/characters/Vampire.glb`,
+    rig: 'kay',
+    prop: FIT,
+    props: [{ ...kayR('assets/kaykit/skeletons-1.1/assets/gltf/Skeleton_Scythe.gltf'), upright: true }],
+    clips: [SPRINT],
+    ...BOSS,
+  },
+  // Archer : l'homme-oiseau et son arc
+  avian: {
+    file: `${MM6}/9 - March 2026 - Avian Swordsman/characters/AvianSwordsman.glb`,
+    rig: 'kay',
+    prop: FIT_MASS,
+    props: [kayL(`${ADV}/Assets/gltf/bow_withString.gltf`)],
+    clips: [WALK, { src: 'ual1', from: 'Pistol_Shoot' }],
+    ...MASS,
+  },
+  // Sorcier : la démone
+  demon: {
+    file: `${MM5}/12 - June 2025 - Tiefling/characters/Tiefling.glb`,
+    rig: 'kay',
+    prop: FIT_MASS,
+    props: [],
+    clips: [WALK, CAST],
+    ...MASS,
   },
 };
