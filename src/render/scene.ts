@@ -1086,7 +1086,7 @@ export class GameScene {
       });
   }
   /**
-   * Phase 21 : géométries cuites (poses en cibles de morph) et texture des morts-vivants (phase 26) à la place des
+   * Phase 21 : géométries cuites (poses en cibles de morph) et texture des créatures (phase 46 B) à la place des
    * silhouettes ; une morphTexture par type, allouée à pleine capacité (même piège que les couleurs d'instance) ; contour des boss par
    * un InstancedMesh jumeau qui partage matrices et poses. Tout est construit avant d'échanger.
    */

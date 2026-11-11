@@ -785,10 +785,20 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Méthode** (essayée avant la phase, `scratchpad/p46`) :
   - **proportions** : pas d'échelle d'os à l'exécution (elle cisaille les membres pliés). Au build, les articulations sont déplacées et le maillage redéformé au repos (chaque sommet suit l'étirement local de ses os), puis les matrices de liaison sont refaites ;
   - **animations** : à chaque image d'un clip actuel, le tronc et la tête reprennent la rotation de la pose par rapport au repos, et chaque segment de membre est orienté comme le sien. Pas de doigts (le squelette KayKit n'en a pas) ;
-  - ennemis : clips du pack KayKit (marche, course, coups, tir), adaptés aux nouvelles proportions ; pas de reprise nécessaire.
+  - ennemis : prévu d'abord avec les clips du pack KayKit ; abandonné à l'essai (voir « Livraison B »), ils reprennent les clips UAL comme les héros.
 - **Deux livraisons** : A, les neuf héros (1.44.0) ; B, les ennemis et les boss (1.45.0). Chacune est montrée en jeu avant fusion.
 - **Ne change pas** : la simulation, l'équilibrage, les attaques, les noms affichés, les sauvegardes, le repli procédural sans fichiers.
 - **Porte A** : 9 héros distincts, animés sur les 15 clips, dans leurs 3 tenues ; pieds au sol ; budgets tenus (≤ 700 ko par héros, ≤ 40 appels) ; manifeste et crédits testés ; captures et vidéo lues ; portraits régénérés ; test de Jimmy.
+- **Livraison B, décisions prises** (11 nov.) :
+  - **animations** : les clips KayKit sont dessinés pour des corps trapus et tiennent les bras loin du buste ; sur un corps affiné, le personnage marche les bras en croix. Les ennemis reprennent donc les clips UAL des ennemis d'avant (marche, footing, sprint, coup d'épée, sort, tir, lancer), par la même reprise que les héros. C'est aussi ce que Jimmy a demandé : « le même style d'animation » ;
+  - **un modèle par type** : onze créatures, plus aucun modèle partagé (avant : Brute et Colosse, Sorcier et Essaim-mère) ;
+  - **trois réglages de proportions** : boss `FIT` (celui des héros) ; grands gabarits `FIT_LARGE` (brute, chevalier, golem : ils gardent leur carrure) ; sbires `FIT_MASS`, mêmes longueurs humanoïdes mais tête et membres plus forts. À 330 triangles et vus de haut, un membre affiné se réduit à un fil : essayé en jeu, illisible ;
+  - **simplification** : les coutures d'UV sont respectées. L'essai inverse (forme d'abord, UV libres) mélange les couleurs : la texture KayKit est une palette, un triangle étiré entre deux cases y traverse d'autres couleurs ;
+  - la Brute a son propre plafond (520 triangles en rendu net, 170 en pixel) : grande et peu nombreuse, elle perdait son visage à 330 ;
+  - **Volant** : le dragonnet est un modèle animé comme les autres (battement d'ailes cuit en poses), centré sur sa hauteur et penché une fois pour toutes vers la caméra ; le crâne de `props.glb` ne sert plus ;
+  - **teinte** : la couleur d'instance est presque blanche (les textures portent la couleur) ; le liseré garde un soupçon de la couleur du type, éclairci et deux fois moins fort. Flash du coup, or des élites, rouge de la rage, gel, étourdissement : inchangés ;
+  - `enemies.glb` : 536 Ko (636 Ko avant), plafond de 750 Ko inchangé.
+- **Reste à nettoyer** (sans effet en jeu) : `tools/assets/heroes.ts` garde l'assemblage Quaternius (`assemble`, `addBody`, `finish`), qui ne sert plus qu'à fournir le squelette source des animations ; `props.glb` contient encore le crâne et l'ancien sanctuaire.
 - **Porte B** : 11 types lisibles à 400 ennemis (captures lues en rendu net et pixel) ; LOD et budgets tenus (≤ 40 appels, ≤ 150 k triangles en pixel, ≤ 250 k en net, `enemies.glb` sous son plafond) ; bestiaire régénéré ; relecture perf ; test de Jimmy.
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
