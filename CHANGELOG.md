@@ -2,6 +2,13 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.45.3 — 11 nov. 2026 (retour de Jimmy : après un clic droit, ZQSD répond mal)
+
+### Corrigé
+
+- **Le clic droit n'ouvre plus le menu du navigateur dans le jeu.** Pendant que ce menu était ouvert, le navigateur n'envoyait plus les relâchements de touches : une direction restait « tenue » après sa fermeture, et une gauche coincée empêchait d'aller à droite. Le menu reste disponible dans les champs de texte (pseudo, code de sauvegarde).
+- Le clic milieu ne lance plus le défilement automatique, qui capture le clavier de la même façon.
+
 ## 1.45.2 — 11 nov. 2026 (demande de Jimmy : activer le totem quand on veut, et voir la jauge)
 
 ### Modifié

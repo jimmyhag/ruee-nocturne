@@ -97,6 +97,16 @@ export class InputManager {
     addEventListener('blur', () => {
       for (const k in this.keys) this.keys[k] = false;
     });
+    // 1.45.3 (retour de Jimmy) : le clic droit ouvrait le menu du navigateur. Tant qu'il est ouvert, les relâchements
+    // de touches n'arrivent plus : une direction restait « tenue » après coup, et une gauche coincée annule la droite.
+    // Le menu n'a aucun usage dans le jeu ; il reste disponible dans les champs de texte (coller un code, un pseudo).
+    addEventListener('contextmenu', (e) => {
+      if (!isEditable(e.target)) e.preventDefault();
+    });
+    // clic milieu : le défilement automatique de Windows capture lui aussi le clavier
+    addEventListener('mousedown', (e) => {
+      if (e.button === 1 && !isEditable(e.target)) e.preventDefault();
+    });
 
     const hold = (el: HTMLElement, fn: () => void) =>
       el.addEventListener('pointerdown', (e) => {

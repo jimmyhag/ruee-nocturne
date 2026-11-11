@@ -114,3 +114,49 @@ test('téléphone : pas de réglage des touches (aucun clavier), le reste des r�
   await expect(page.locator('#setLangBtn')).toBeVisible();
   await expect(page.locator('#keybinds')).toBeHidden();
 });
+
+// 1.45.3 (retour de Jimmy) : en bougeant, un clic droit ouvrait le menu du navigateur ; à sa fermeture, une direction
+// restait « tenue » (les relâchements de touches n'arrivent pas pendant que le menu est ouvert) et annulait l'opposée.
+test('clic droit et clic milieu : pas de menu du navigateur dans le jeu, le déplacement continue', async ({
+  page,
+  hasTouch,
+}) => {
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  // au menu comme en partie ; un champ de texte garde son menu (coller un pseudo, un code de sauvegarde)
+  const fire = (sel: string | null, type: string, button: number) =>
+    page.evaluate(
+      ([sel, type, button]) => {
+        let el: Element | null = sel ? document.querySelector(sel as string) : null;
+        if (!sel) {
+          el = document.createElement('input');
+          document.body.appendChild(el);
+        }
+        const prevented = !el!.dispatchEvent(
+          new MouseEvent(type as string, { bubbles: true, cancelable: true, button: button as number }),
+        );
+        if (!sel) el!.remove();
+        return prevented;
+      },
+      [sel, type, button] as const,
+    );
+  expect(await fire('#playBtn', 'contextmenu', 2), 'menu bloqué sur un bouton du menu').toBe(true);
+  expect(await fire(null, 'contextmenu', 2), 'menu gardé dans un champ de texte').toBe(false);
+  await startRun(page, 2);
+  await page.evaluate(() => (window as any).__game.debug.god());
+  expect(await fire('#c', 'contextmenu', 2), 'menu bloqué sur le jeu').toBe(true);
+  expect(await fire('#c', 'mousedown', 1), 'défilement automatique du clic milieu bloqué').toBe(true);
+  expect(await fire('#c', 'mousedown', 0), 'clic gauche laissé tel quel').toBe(false);
+  if (!hasTouch) {
+    // touche tenue, clic droit, puis la direction opposée : elle répond (aucune touche coincée)
+    await page.keyboard.down('KeyA');
+    await page.waitForTimeout(300);
+    await page.mouse.click(640, 400, { button: 'right' });
+    await page.keyboard.up('KeyA');
+    const x0 = await page.evaluate(() => (window as any).__game.world.player.x as number);
+    await page.keyboard.down('KeyD');
+    await page.waitForFunction((x) => (window as any).__game.world.player.x > x + 0.5, x0, { timeout: 15_000 });
+    await page.keyboard.up('KeyD');
+  }
+  expect(errors).toEqual([]);
+});
