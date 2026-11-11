@@ -68,9 +68,9 @@ Douze tomes (huit en phase 12, quatre en phase 47), 4 emplacements, chaque carte
 - **Savoir** : XP +6 %, collecte +8 %.
 - **Chance** : chance +0,5 (lignes rares, 4e carte, coffres), or des coffres +20 %.
 - **Or** : or +8 %, +1 or par élite vaincue.
-- **Sang** (phase 47) : vol de vie +1 %, réserve de soin +0,4 PV/s, dégâts +4 % sous 50 % de PV.
-- **Givre** (phase 47) : 4 % de chance de ralentir à chaque coup d'arme (pas les boss), dégâts +8 % aux ennemis ralentis ou étourdis, durée des ralentissements +10 %.
-- **Bastion** (phase 47) : riposte au contact, dégâts subis −4 % à l'arrêt (plafond −24 %), revanche +6 % de dégâts 3 s après un coup reçu.
+- **Sang** (phase 47) : vol de vie +1 %, réserve de soin +0,6 PV/s (ligne à prérequis : `needs: 'heal'`), dégâts +6 % sous 50 % de PV.
+- **Givre** (phase 47) : 6 % de chance de ralentir à chaque coup d'arme (pas les boss), dégâts +10 % aux ennemis ralentis ou étourdis, durée des ralentissements +15 %.
+- **Bastion** (phase 47) : riposte au contact (×1 par ligne), garde −5 % de dégâts de contact (plafond −30 %), revanche +8 % de dégâts 3 s après un coup reçu.
 - **Défi** (phase 47) : apparitions +5 %, XP et or des élites +8 %, élites +8 % plus fréquentes. Un pari, pas un bonus gratuit : à mesurer par ablation.
 
 ### Vol de vie et soin (phase 47)

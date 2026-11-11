@@ -25,7 +25,7 @@ import { World } from '../src/sim/world';
 import { ACHIEVEMENTS } from '../src/meta/achievements';
 import { runCharStats } from '../src/meta/chars';
 import { DEFAULT_META } from '../src/meta/save';
-import { enforceAllowed, makeBot, pickAllowed } from './bots';
+import { BOT_TUNE, enforceAllowed, makeBot, pickAllowed } from './bots';
 import { startEndless } from '../src/sim/stages';
 import { ENDLESS_TARGETS, PROFILES, REF_PRICE, checkTargets } from './targets';
 import * as BALANCE from '../src/sim/balance';
@@ -110,6 +110,7 @@ if (args.has('set'))
     }
     o[last] = +val;
   }
+if (args.has('tome-prior')) BOT_TUNE.tomePrior = +args.get('tome-prior')!; // phase 47 : 0 = bot d'avant (comparaison)
 // phase 47 : --no-tome defi,givre retire des tomes du tirage (ablation : un tome dilue-t-il, aide-t-il, nuit-il ?)
 if (args.has('no-tome'))
   for (const k of args.get('no-tome')!.split(',')) {

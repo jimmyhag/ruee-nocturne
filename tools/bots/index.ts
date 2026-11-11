@@ -187,10 +187,29 @@ const LINE_VALUE: Record<string, number> = {
   thorns: 4,
   guard: 5,
   revenge: 3,
-  spawn: 3, // plus de monstres : plus d'XP, plus de coups
+  // le Défi est un pari volontaire : un joueur moyen ne cherche pas « plus de monstres » (mesuré : pris tôt par le bot,
+  // monde 2 atteint 40 % contre 64 %)
+  spawn: 0,
   eliteloot: 2,
-  eliterate: 3,
+  eliterate: 1,
 };
+/**
+ * Phase 47 : un emplacement de tome est rare (4 pour 12 tomes) et la carte d'un nouveau tome dit ce qu'il fera toute la
+ * partie. Un joueur moyen prend donc d'abord les tomes qui tuent ou font tenir, pas le premier venu ; avant, le bot ne
+ * jugeait un nouveau tome que sur les lignes tirées ce jour-là. Bonus par famille, pas réglé tome par tome.
+ */
+const COMBAT_TOMES: ReadonlySet<TomeKey> = new Set([
+  'projectiles',
+  'vitalite',
+  'degats',
+  'cadence',
+  'savoir',
+  'sang',
+  'givre',
+  'bastion',
+]);
+/** Réglages du bot ouverts à la CLI (`--tome-prior 0` : ancien comportement, pour comparer). */
+export const BOT_TUNE = { tomePrior: 8 };
 function lineValue(c: Card, s: number): number {
   if (s < 0) return 0;
   const l = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey][s] : TOMES[c.key as TomeKey][s];
@@ -206,6 +225,7 @@ function cardValue(w: World, c: Card): number {
   if (c.kind === 'b') return BOON_VALUE[c.key as BoonKey];
   let v = lineValue(c, c.s0) + lineValue(c, c.s1) + lineValue(c, c.s2);
   if (c.kind === 'w' && c.lv === 1) v += 18; // une arme de plus : une base entière
+  if (c.kind === 't' && c.lv === 1 && COMBAT_TOMES.has(c.key as TomeKey)) v += BOT_TUNE.tomePrior; // phase 47
   // un joueur moyen concentre ses lignes sur son arme principale (les % se cumulent) : bonus croissant avec le niveau
   if (c.kind === 'w' && c.lv > 1) v *= 1 + Math.min(0.6, 0.04 * c.lv);
   if (c.kind === 't' && c.key === 'vitalite' && w.player.hp / w.player.maxHp < 0.4) v += 15;

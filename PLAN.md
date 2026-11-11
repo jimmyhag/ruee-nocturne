@@ -97,12 +97,12 @@ Dégâts (dégâts, élites et boss, recul, dégâts critiques) · Cadence (rech
 
 | Tome | Lignes (par carte) | Ce qu'il change |
 |---|---|---|
-| **Sang** | vol de vie +1 % · réserve de soin +0,4 PV/s · dégâts +4 % sous 50 % de PV | se soigner en frappant, sans objet ; fort quand on est bas |
-| **Givre** | 4 % de chance de ralentir à chaque coup d'arme (1,2 s, pas les boss) · dégâts +8 % aux ennemis ralentis ou étourdis · durée des ralentissements +10 % | contrôle ; se marie avec le Halo, la Foudre, le Sablier |
-| **Bastion** | riposte +50 % des dégâts de contact à l'ennemi qui touche · dégâts subis −4 % à l'arrêt (plafond −24 %) · revanche : dégâts +6 % pendant 3 s après un coup reçu | tenir un cercle (sanctuaire, totem) |
+| **Sang** | vol de vie +1 % · réserve de soin +0,6 PV/s (proposée seulement si un soin y puise déjà) · dégâts +6 % sous 50 % de PV | se soigner en frappant, sans objet ; fort quand on est bas |
+| **Givre** | 6 % de chance de ralentir à chaque coup d'arme (1,5 s, pas les boss) · dégâts +10 % aux ennemis ralentis ou étourdis · durée des ralentissements +15 % | contrôle ; se marie avec le Halo, la Foudre, le Sablier |
+| **Bastion** | riposte : l'ennemi au contact reçoit ses dégâts ×1 de plus par ligne (l'objet Épines : ×3) · garde : dégâts de contact subis −5 % (plafond −30 %, en plus de l'armure) · revanche : dégâts +8 % pendant 3 s après un coup reçu | le corps à corps : tenir dans la masse |
 | **Défi** | apparitions +5 % · XP et or des élites +8 % · élites +8 % plus fréquentes | un pari : plus de monstres contre plus de butin |
 
-Le vol de vie du héros (`Player.steal`) passe par la même **réserve de soin par seconde** que le Croc et la Couronne (`healCap`, `src/sim/items.ts`) : chaque point de vol de vie ouvre 0,3 PV/s de réserve (`BLOOD.capPerSteal`), la ligne « réserve » en ajoute. Sans cette borne, les dégâts de fin de partie rendraient le héros immortel.
+Le vol de vie du héros (`Player.steal`) passe par la même **réserve de soin par seconde** que le Croc et la Couronne (`healCap`, `src/sim/items.ts`) : chaque point de vol de vie ouvre 0,6 PV/s de réserve (`BLOOD.capPerSteal`), la ligne « réserve » en ajoute. Sans cette borne, les dégâts de fin de partie rendraient le héros immortel.
 
 **Phase 23 (demande de Jimmy)** : une carte ne tire **jamais deux fois la même ligne** ; chaque arme et chaque tome a au moins 3 lignes (armes 5 ou 6). Toutes les armes ont une ligne de **coup critique** (+5 %, +3 % pour le Boomerang, ×2 dégâts, chiffre doré « 37! »), le Halo une ligne de ralentissement, la Foudre une ligne d'étourdissement (pas les boss). Constantes : `CRIT` dans `balance.ts`.
 
