@@ -13,6 +13,11 @@ const CASES: [string, string][] = [
   ['lance', 'g.scene.glowW.mesh.count > 0 && g.scene.bladeW.mesh.count > 0'],
   ['meteores', 'g.scene.glowW.mesh.count > 0 && g.world.wstate.metN > 0'],
   ['aura', 'g.scene.aura.visible === true'],
+  // phase 47 C : claque du Fouet (trait de l'éclair), flaque de Vitriol, esprits et balise (orbes lumineux)
+  ['fouet', 'g.scene.bolts.w.mesh.count > 0'],
+  ['vitriol', 'g.world.wstate.vitN > 0 && g.scene.metW.mesh.count > 0'],
+  ['esprits', 'g.world.wstate.spN > 0 && g.scene.glowW.mesh.count > 0'],
+  ['balise', 'g.world.wstate.balN > 0 && g.scene.glowW.mesh.count > 0'],
 ];
 
 async function setQuality(page: Page, q: 'net' | 'pixel') {
@@ -24,7 +29,7 @@ async function setQuality(page: Page, q: 'net' | 'pixel') {
 
 for (const q of ['net', 'pixel'] as const)
   test(`chaque arme a un effet visible (rendu ${q})`, async ({ page }, info) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000); // onze armes depuis la phase 47 C
     const errors = collectConsoleErrors(page);
     await openGame(page);
     await setQuality(page, q);

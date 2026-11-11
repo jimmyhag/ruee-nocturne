@@ -31,8 +31,8 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
   await expect(page.locator('#library')).toBeVisible();
   await expect(page.locator('#libGold')).toHaveText(/5\D?000 or/);
   await expect(page.locator('#libTabs [data-tab="w"]')).toHaveClass(/selected/);
-  await expect(page.locator('#libList .lib')).toHaveCount(9);
-  await expect(page.locator('#libList .lib.locked')).toHaveCount(5); // les armes à succès
+  await expect(page.locator('#libList .lib')).toHaveCount(13); // phase 47 C : quatre armes de plus
+  await expect(page.locator('#libList .lib.locked')).toHaveCount(9); // les armes à succès
   await page.waitForTimeout(200);
   await page.screenshot({ path: `shots/${info.project.name}-bibliotheque-armes.png` });
 

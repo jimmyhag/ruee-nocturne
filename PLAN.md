@@ -71,7 +71,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 
 ## 3. Contenu V1
 
-### 3.1 Armes (9) et lignes de stats (phase 12, phase 28)
+### 3.1 Armes (13) et lignes de stats (phase 12, phase 28, phase 47 C)
 | Arme | Comportement | Lignes possibles |
 |---|---|---|
 | Orbe filante | Projectile auto-visé | dégâts, recharge, +1 projectile, vitesse, +1 perforation |
@@ -83,8 +83,12 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 | **Faux** (phase 28) | Arc de 120° devant le joueur, recul fort | dégâts, recharge, rayon, angle, critique |
 | **Lance** (phase 28) | Vers l'ennemi le plus loin à 16 u, perce tout, touche chaque ennemi une fois | dégâts, recharge, +1 lance, vitesse, critique |
 | **Météores** (phase 28) | Cercles dorés annoncés 0,6 s autour des ennemis, puis impact de zone (phase 33 : un seul météore au départ, toutes les 2 s) | dégâts, recharge, rayon, +1 météore, critique |
+| **Fouet** (phase 47 C) | Claque en ligne devant le héros (5,5 u, recul très fort), toutes les 0,8 s ; les lignes ajoutent des directions : derrière, puis les côtés | dégâts, recharge, portée, +1 direction, critique |
+| **Vitriol** (phase 47 C) | Fiole lancée sur le plus gros groupe à 11 u : flaque de 4 s qui blesse toutes les 0,5 s et ralentit (pas les boss) | dégâts, recharge, rayon, +1 fiole, critique |
+| **Esprits** (phase 47 C) | Deux familiers tournent autour du héros, foncent sur un ennemi à moins de 7,5 u, reviennent ; ils lâchent leur cible à 11 u du héros | dégâts, recharge, +1 esprit, vitesse, critique |
+| **Balise** (phase 47 C) | Posée où se tient le héros, elle tire seule 8 s sur l'ennemi le plus proche d'elle (7 u) : de quoi tenir un cercle | dégâts, cadence de tir, délai de pose, portée, +1 balise, critique |
 
-Déblocage des armes de la phase 28 par des succès de glisse : Faux (glisser 1 000 u au total), Lance (5 glisses parfaites dans une partie ; vrilles jusqu'à la 1.30.0), Météores (ouvrir 50 coffres de carte).
+Déblocage des armes de la phase 28 par des succès de glisse : Faux (glisser 1 000 u au total), Lance (5 glisses parfaites dans une partie ; vrilles jusqu'à la 1.30.0), Météores (ouvrir 50 coffres de carte). Armes de la phase 47 C, sur des compteurs déjà tenus : Fouet (100 élites), Vitriol (5 000 ennemis), Esprits (20 parties), Balise (25 coffres de carte) ; 2 500 or chacune à la Bibliothèque.
 
 Chaque arme s'améliore jusqu'à **100 fois** ; chaque carte apporte **1 à 3 lignes** de sa famille (1 ligne 67 %, 2 lignes « rare » 25 %, 3 lignes « épique » 8 %, décalées par la chance), chacune petite (`WEAPON_LINES` dans `balance.ts`). Il n'y a **plus d'évolutions** (décision de Jimmy, 4 nov. 2026) : la puissance vient des lignes, la montée est longue.
 
