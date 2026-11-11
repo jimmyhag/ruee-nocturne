@@ -20,27 +20,91 @@ export interface TotemView {
   glow: THREE.Color;
 }
 
-export function buildTotem(): TotemView {
+/** Pièces de pierre à facettes : couleur unie par sommet, attribut `glow` (1 = prend la couleur de l'état). */
+export interface StoneKit {
+  add(g: THREE.BufferGeometry, color: number, glow?: number): void;
+  /** Fusionne les pièces en une géométrie non indexée (facettes nettes) et libère les pièces. */
+  build(): THREE.BufferGeometry;
+}
+export const STONES = { base: STONE, light: STONE_LIGHT, dark: STONE_DARK };
+
+export function stoneKit(): StoneKit {
   const parts: THREE.BufferGeometry[] = [];
   const c = new THREE.Color();
-  /** Ajoute une pièce : couleur unie par sommet, `glow` = 1 pour ce qui prend la couleur de l'état. */
-  const add = (g: THREE.BufferGeometry, color: number, glow = 0): void => {
-    const geo = g.index ? g.toNonIndexed() : g;
-    const n = geo.attributes.position.count;
-    const col = new Float32Array(n * 3),
-      gl = new Float32Array(n);
-    c.setHex(color);
-    for (let i = 0; i < n; i++) {
-      col[i * 3] = c.r;
-      col[i * 3 + 1] = c.g;
-      col[i * 3 + 2] = c.b;
-      gl[i] = glow;
-    }
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    geo.setAttribute('glow', new THREE.BufferAttribute(gl, 1));
-    geo.deleteAttribute('uv');
-    parts.push(geo);
+  return {
+    add(g, color, glow = 0) {
+      const geo = g.index ? g.toNonIndexed() : g;
+      const n = geo.attributes.position.count;
+      const col = new Float32Array(n * 3),
+        gl = new Float32Array(n);
+      c.setHex(color);
+      for (let i = 0; i < n; i++) {
+        col[i * 3] = c.r;
+        col[i * 3 + 1] = c.g;
+        col[i * 3 + 2] = c.b;
+        gl[i] = glow;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.setAttribute('glow', new THREE.BufferAttribute(gl, 1));
+      geo.deleteAttribute('uv');
+      parts.push(geo);
+    },
+    build() {
+      const merged = mergeGeometries(parts)!;
+      for (const p of parts) p.dispose();
+      merged.computeVertexNormals();
+      return merged;
+    },
   };
+}
+
+/**
+ * Matériau de pierre à runes : toon à facettes, ombres colorées, et les sommets `glow` remplacés par la couleur de
+ * l'état. `glow` donné : un uniforme (objet unique, le totem). Absent : la couleur d'instance (sanctuaires), que la
+ * pierre, elle, ignore.
+ */
+export function stoneMaterial(glow?: THREE.Color): THREE.MeshToonMaterial {
+  const material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }); // facettes : géométrie non indexée
+  material.onBeforeCompile = (sh) => {
+    if (glow) sh.uniforms.glowColor = { value: glow };
+    sh.vertexShader = sh.vertexShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nattribute float glow;\nvarying float vGlow;\nvarying vec3 vGlowColor;',
+      )
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = glow;')
+      .replace(
+        '#include <color_vertex>',
+        `#include <color_vertex>
+        vGlowColor = vec3( 1.0 );
+        #ifdef USE_INSTANCING_COLOR
+          vGlowColor = instanceColor.rgb;
+          vColor.rgb = color;
+        #endif`,
+      );
+    sh.fragmentShader = sh.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>\n${glow ? 'uniform vec3 glowColor;' : '#define glowColor vGlowColor'}\nvarying float vGlow;\nvarying vec3 vGlowColor;`,
+      )
+      .replace(
+        '#include <gradientmap_pars_fragment>',
+        THREE.ShaderChunk.gradientmap_pars_fragment.replace(
+          'texture2D( gradientMap, coord ).r',
+          'texture2D( gradientMap, coord ).rgb',
+        ),
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        'outgoingLight = mix( outgoingLight, glowColor, vGlow );\n#include <opaque_fragment>',
+      );
+  };
+  material.customProgramCacheKey = () => (glow ? 'stone-uniform' : 'stone-instance');
+  return material;
+}
+
+export function buildTotem(): TotemView {
+  const { add, build } = stoneKit();
   // socle : deux marches hexagonales
   add(new THREE.CylinderGeometry(1.3, 1.45, 0.28, 6).translate(0, 0.14, 0), STONE_DARK);
   add(new THREE.CylinderGeometry(0.98, 1.12, 0.26, 6).translate(0, 0.41, 0), STONE);
@@ -76,31 +140,9 @@ export function buildTotem(): TotemView {
   // cristal flottant
   add(new THREE.OctahedronGeometry(0.36, 0).scale(1, 1.75, 1).translate(0, y + 0.85, 0), 0xffffff, 1);
 
-  const geometry = mergeGeometries(parts)!;
-  for (const p of parts) p.dispose();
-  geometry.computeVertexNormals();
+  const geometry = build();
   const glow = new THREE.Color(1, 0.3, 0.35);
-  const material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }); // facettes : géométrie non indexée
-  material.onBeforeCompile = (sh) => {
-    sh.uniforms.glowColor = { value: glow };
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float glow;\nvarying float vGlow;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = glow;');
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 glowColor;\nvarying float vGlow;')
-      .replace(
-        '#include <gradientmap_pars_fragment>',
-        THREE.ShaderChunk.gradientmap_pars_fragment.replace(
-          'texture2D( gradientMap, coord ).r',
-          'texture2D( gradientMap, coord ).rgb',
-        ),
-      )
-      .replace(
-        '#include <opaque_fragment>',
-        'outgoingLight = mix( outgoingLight, glowColor, vGlow );\n#include <opaque_fragment>',
-      );
-  };
-  material.customProgramCacheKey = () => 'totem-1';
+  const material = stoneMaterial(glow);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.visible = false;
   mesh.frustumCulled = false; // posé loin de l'origine : la sphère englobante de la géométrie ne suit pas

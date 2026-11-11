@@ -113,6 +113,7 @@ export interface Shot {
   ox: number; // boule de feu : point de départ du vol (rendu de l'arc)
   oz: number;
   t0: number; // boule de feu : durée totale du vol
+  boss: boolean; // phase 45 : projectile d'un boss (Éclats du Gardien, Salve de l'Essaim-mère) : rendu propre
 }
 
 export interface Gem {

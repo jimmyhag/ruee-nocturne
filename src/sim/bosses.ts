@@ -105,6 +105,7 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
               vx = Math.sin(a),
               vz = Math.cos(a);
             s.kind = ShotKind.Spit;
+            s.boss = true;
             s.r = B.r;
             s.x = s.px = e.x + vx * e.r;
             s.z = s.pz = e.z + vz * e.r;
@@ -180,6 +181,7 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
                 vx = e.tx * c - e.tz * sn,
                 vz = e.tx * sn + e.tz * c;
               s.kind = ShotKind.Spit;
+              s.boss = true;
               s.r = V.r;
               s.x = s.px = e.x + vx * e.r;
               s.z = s.pz = e.z + vz * e.r;
