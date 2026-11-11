@@ -210,6 +210,22 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Amulette du savant (phase 31) | +15 % d'expérience | commun |
 | Armure d'écorce (phase 31) | +5 % d'armure (dans le plafond) | commun |
 | Couronne du berserker (phase 31) | jusqu'à +50 % de dégâts selon les PV manquants, 2 % de vol de vie | épique |
+| Bandage (phase 47 B) | après 6 s sans coup reçu : +1,5 PV/s | commun |
+| Savon (phase 47 B) | glissade 15 % plus rapide (départ et plafond) | commun |
+| Enclume (phase 47 B) | recul des coups +30 % | commun |
+| Clé rouillée (phase 47 B) | coffres de carte −20 % par exemplaire (plancher 40 % du prix) | commun |
+| Encens (phase 47 B) | sanctuaires et totem chargés 40 % plus vite | commun |
+| Tirelire (phase 47 B) | +12 or par minute | commun |
+| Fiole de sang (phase 47 B) | vol de vie 1 % et réserve de soin +1,5 PV/s | rare |
+| Miroir (phase 47 B) | 12 % de chance qu'une arme retire aussitôt (pas le Halo, continu) | rare |
+| Cœur de glace (phase 47 B) | +20 % de dégâts aux ennemis ralentis ou étourdis | rare |
+| Ailes de cire (phase 47 B) | un saut en l'air par exemplaire, à 85 % de la hauteur | rare |
+| Coquille (phase 47 B) | dans un cercle de sanctuaire ou de totem en charge : dégâts subis −35 % | rare |
+| Cloche de bronze (phase 47 B) | sanctuaire activé : 25 % des PV rendus, onde qui repousse et étourdit | rare |
+| Trophée (phase 47 B) | +1 % de dégâts par élite vaincue dans la partie, 30 % au plus | rare |
+| Idole (phase 47 B) | boss du totem : −15 % de PV par exemplaire (plancher 55 %) | épique |
+| Dent de dragon (phase 47 B) | un coup critique embrase : 30 % des dégâts du coup en plus, sur 3 s | épique |
+| Grimoire (phase 47 B) | un bonus de sanctuaire de plus ; cartes à 2 et 3 lignes plus fréquentes (+8 et +4 points) | épique |
 
 **Soins des objets (phase 31)** : vol de vie et Calice puisent dans une réserve rechargée chaque seconde (somme des plafonds des objets possédés) ; les PV rendus s'annoncent une fois par seconde (chiffre vert). Sans plafond, le vol de vie rendrait le héros immortel en fin de partie (dégâts en milliers).
 
@@ -840,6 +856,12 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - CLI : `--no-tome`, `--held-tomes`, `--tome-prior`.
 - **Cibles** : toutes tenues sauf deux, qui sont posées sur la moyenne du jeu et tombent d'un côté ou de l'autre selon la graine — kit complet « monde 2 atteint » 71 % à la graine 42 (cible ≥ 75 % ; 76 % sur 400 parties, 74 % pour l'ancien tirage) ; départ « morts avant 3 min » 21 % sur 400 parties (cible ≤ 20 % ; ancien tirage 20,3 %, 1.45.2 20,0 %). Relecture d'équilibrage du 11 nov. : livrable, aucune régression mesurable. Piste pour redonner de la marge, non appliquée : PV du premier boss de survie ×0,85 (41 des 96 morts du kit complet en monde 1 tombent entre 3:00 et 5:00).
 - **Attend Jimmy** : comment élargir le tirage des tomes. Pistes : **bannir une carte** pour la partie (idée déjà retenue le 8 nov.), tomes à **débloquer** à la Bibliothèque (le joueur choisit d'élargir son tirage), un **5e emplacement** de tome, ou **rééquilibrer Projectiles**. La question se reposera pour chaque tome ajouté.
+- **Livraison B (1.47.0)** : seize objets (§3.6), 48 en tout. Six communs disponibles d'office ; sept rares et trois épiques à débloquer par un succès puis à l'or, sur des compteurs déjà tenus (dix succès, aucun champ de sauvegarde en plus ; 27 clés de déblocage pour une limite Firestore de 64).
+  - **Écarts au plan** : la **Coquille** agit dans un cercle de sanctuaire ou de totem en charge (prévue « à l'arrêt » : même constat que pour le Bastion) ; la **Fiole de sang** porte 1 % de vol de vie en plus de sa réserve, pour ne jamais être sans effet.
+  - **Brûlure** (Dent de dragon) : dégâts déjà calculés, appliqués toutes les 0,5 s par `burnEnemy` (ni multiplicateur, ni critique, ni vol de vie), source `HitSrc.Burn`, ennemi teinté en orange. C'est la 16e source de coup : le masque `& 15` est plein, la livraison C l'élargit.
+  - **Miroir** : `echo()` ne tire le générateur que si l'objet est possédé ; les parties sans Miroir restent identiques au bit près.
+  - **Mesuré** (bot average) : kit complet 75 % de « monde 2 atteint » et 20 % de victoires à la graine 42 (200 parties), 76 % et 21 % à la graine 43 ; toutes les cibles tenues à la graine 42 pour les deux profils. Départ : morts avant 3 min 18 % (graine 42) et 22 % (graine 43), comme avant. Les objets ne se disputent pas d'emplacement : pas de dilution mesurable, contrairement aux tomes.
+- **Porte B** : un test Vitest par objet ; index des 32 objets existants inchangés ; planche des seize icônes lue ; e2e Bibliothèque (48 objets, 21 verrouillés), équipement, saut en l'air au clavier et au doigt ; bench inchangé.
 - **Porte A** : tests Vitest des 18 bonus, des lignes des quatre tomes, de la réserve de soin et de la fiche de stats ; captures lues (sanctuaire à quatre cartes et fiche de stats, PC et téléphone) ; e2e exploration ; bench inchangé.
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)

@@ -92,6 +92,9 @@ export function gainItem(w: World, i: number, bought = false): void {
     case It.Ecorce:
       P.armor = Math.min(TOME_CAPS.armorMax, P.armor + ITEM.ecorce.armor * f);
       break;
+    case It.Enclume:
+      P.kbMul += ITEM.enclume.kb * f; // phase 47 B
+      break;
     default:
       break; // les autres sont lus par la boucle, × w.itemEff[i]
   }
@@ -281,6 +284,7 @@ export function healCap(w: World): number {
     ITEM.croc.cap * E[It.Croc] +
     ITEM.calice.cap * E[It.Calice] +
     ITEM.couronne.cap * E[It.Couronne] +
+    ITEM.fiole.cap * E[It.Fiole] + // phase 47 B
     // phase 47 : vol de vie du héros (tome Sang, sanctuaire) et lignes de réserve
     Math.min(BLOOD.heroMax, P.steal * BLOOD.capPerSteal + P.stealCap)
   );
@@ -298,7 +302,8 @@ export function itemHeal(w: World, hp: number): void {
 
 /** Vol de vie (Croc de vampire, Couronne du berserker) : appelé par hitEnemy avec les dégâts infligés. */
 export function lifesteal(w: World, dealt: number): void {
-  const k = ITEM.croc.steal * w.itemEff[It.Croc] + ITEM.couronne.steal * w.itemEff[It.Couronne] + w.player.steal;
+  const E = w.itemEff;
+  const k = ITEM.croc.steal * E[It.Croc] + ITEM.couronne.steal * E[It.Couronne] + ITEM.fiole.steal * E[It.Fiole] + w.player.steal;
   if (k > 0) itemHeal(w, dealt * k);
 }
 
@@ -313,4 +318,35 @@ export function healTick(w: World, dt: number): void {
     w.emit(Ev.Heal, P.x, P.y, P.z, w.healed); // la hauteur d'affichage est choisie par le rendu
   }
   w.healed = 0;
+}
+
+/**
+ * Phase 47 B, Cloche de bronze : un sanctuaire activé soigne le héros (part de ses PV max, hors réserve de soin : c'est
+ * un événement, pas un soin continu) et lance une onde qui repousse et étourdit les ennemis proches (pas les boss).
+ */
+export function bellRing(w: World): void {
+  const n = w.itemEff[It.Cloche];
+  if (n <= 0) return;
+  const P = w.player,
+    C = ITEM.cloche,
+    r2 = C.r * C.r;
+  const heal = Math.min(P.maxHp - P.hp, P.maxHp * C.heal * n);
+  if (heal > 0) {
+    P.hp += heal;
+    w.emit(Ev.Heal, P.x, P.y, P.z, heal);
+  }
+  for (let i = 0; i < w.enemyCount; i++) {
+    const e = w.enemies[i];
+    if (!e.alive || ENEMIES[e.type].boss) continue;
+    const dx = e.x - P.x,
+      dz = e.z - P.z,
+      d2 = dx * dx + dz * dz;
+    if (d2 > r2 || d2 < 1e-6) continue;
+    const d = Math.sqrt(d2),
+      k = C.kb * ENEMIES[e.type].kbMul * (1 - d / C.r);
+    e.kx += (dx / d) * k;
+    e.kz += (dz / d) * k;
+    e.stun = Math.max(e.stun, C.stun);
+  }
+  w.emit(Ev.Horn, P.x, 0, P.z, C.r); // même onde et même son que la Corne de guerre
 }

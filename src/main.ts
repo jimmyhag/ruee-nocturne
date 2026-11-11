@@ -1805,6 +1805,7 @@ const HIT_COLORS = [
   PAL.gold,
   0xff8a3d, // phase 28 : Patins de braise
   0xffe08a, // Corne de guerre
+  0xff6a2a, // phase 47 B : brûlure de la Dent de dragon
 ];
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)

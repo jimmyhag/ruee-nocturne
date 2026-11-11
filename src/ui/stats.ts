@@ -28,7 +28,11 @@ export const STAT_ROWS: StatRow[] = [
     key: 'steal',
     group: 'survie',
     fmt: 'pct',
-    get: (P, w) => P.steal + ITEM.croc.steal * w.itemEff[It.Croc] + ITEM.couronne.steal * w.itemEff[It.Couronne],
+    get: (P, w) =>
+      P.steal +
+      ITEM.croc.steal * w.itemEff[It.Croc] +
+      ITEM.couronne.steal * w.itemEff[It.Couronne] +
+      ITEM.fiole.steal * w.itemEff[It.Fiole],
   },
   { key: 'healcap', group: 'survie', fmt: 'd1', get: (_P, w) => healCap(w) },
   { key: 'dmg', group: 'attaque', fmt: 'mul', get: (P) => P.dmgMul },

@@ -80,6 +80,9 @@ Les tomes ne se valent pas : sur 200 parties du kit complet, « monde 2 atteint 
 - Un tome en réserve (`TOME_HELD`) est défini, testé, traduit, mais ni tiré ni listé à la Bibliothèque.
 - Le bot choisit un **nouveau** tome par famille (`COMBAT_TOMES`, `BOT_TUNE.tomePrior`) : un emplacement est rare, un joueur lit la carte. `--tome-prior 0` rend l'ancien bot ; sur l'ancien contenu les deux donnent les mêmes résultats (75 % et 21 % contre 78 % et 21 %).
 
+### Ajouter un objet (phase 47 B)
+Les objets n'ont pas d'emplacements : seize de plus (32 → 48) n'ont rien changé aux cibles (75–76 % de monde 2 atteint, 20 % de victoires), là où quatre tomes coûtaient 16 points. Règles : ajouter **en fin** de `ITEM_KEYS`, `It` et `ITEM_RARITY` (les index sont persistés) ; un objet de soin continu passe par `healCap` ; un objet qui tire le générateur ne le fait que s'il est possédé (parties sans lui identiques) ; un objet « conditionnel » doit avoir une condition qui arrive en jeu (pas « à l'arrêt » : dans un cercle en charge) ; rare ou épique = un succès sur un compteur déjà tenu, puis l'or.
+
 ### Vol de vie et soin (phase 47)
 Tout soin « par coup » passe par la réserve de soin par seconde (`healCap` dans `src/sim/items.ts`) : Croc, Couronne, vol de vie du héros (tome Sang, sanctuaire du sang). Les dégâts montent en multiplicatif, le soin non : un vol de vie sans plafond en PV/s rend le héros immortel en fin de partie. Une nouvelle source de vol de vie ajoute à `Player.steal` et, si besoin, à la réserve ; elle ne soigne jamais directement.
 

@@ -1,9 +1,18 @@
-import { BOOMERANG, FAUX, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT } from '../balance';
+import { BOOMERANG, FAUX, ITEM, It, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind, Trait } from '../types';
 import type { Projectile } from '../types';
 import type { World } from '../world';
 import { weaponStats } from './defs';
+
+/**
+ * Phase 47 B, Miroir : une arme qui vient de tirer a une chance de retirer aussitôt (sa recharge est ramenée à
+ * ITEM.miroir.delay s). Sans l'objet, aucun tirage du rng : les parties d'avant restent identiques.
+ */
+function echo(w: World, cd: number): number {
+  const n = w.itemEff[It.Miroir];
+  return n > 0 && w.rng.next() < ITEM.miroir.chance * n ? Math.min(cd, ITEM.miroir.delay) : cd;
+}
 
 const MAX_ENEMY_R = 2.6; // Colosse
 // tampons réutilisés (zéro allocation)
@@ -89,7 +98,7 @@ export function tickWeapons(w: World, dt: number): void {
       const nShots = Math.min(s.n, near.length);
       const found = nearest(w, nShots, 15);
       if (found > 0) {
-        S.orbeT = s.cd * P.cdMul;
+        S.orbeT = echo(w, s.cd * P.cdMul);
         for (let i = 0; i < nShots; i++) {
           const spread = i >= found ? (i - found + 1) * 0.35 : 0;
           fire(w, near[i % found], s.dmg, s.pierce, s.speed, spread);
@@ -128,7 +137,7 @@ export function tickWeapons(w: World, dt: number): void {
       const s = weaponStats(w, 'lames');
       const found = nearest(w, Math.min(s.n, near.length), LAMES.range * w.bladeRangeMul);
       if (found > 0) {
-        S.bladeT = s.cd * P.cdMul;
+        S.bladeT = echo(w, s.cd * P.cdMul);
         const kb = LAMES.kb * (w.trait === Trait.Fendeur ? TRAIT.fendeur.kbMul : 1); // Bûcheron : Fendeur
         // positions des cibles copiées d'abord : une cible peut mourir sous le coup d'une autre (zones qui se recouvrent),
         // son coup tombe quand même à l'endroit visé
@@ -177,7 +186,7 @@ export function tickWeapons(w: World, dt: number): void {
         }
       }
       if (cur >= 0) {
-        S.foudreT = s.cd * P.cdMul;
+        S.foudreT = echo(w, s.cd * P.cdMul);
         const chain = s.chain;
         let seenN = 0;
         let px = w.enemies[cur].x,
@@ -221,7 +230,7 @@ export function tickWeapons(w: World, dt: number): void {
     const s = weaponStats(w, 'boomerang');
     S.boomT -= dt;
     if (S.boomT <= 0 && w.enemyCount > 0) {
-      S.boomT = s.cd * P.cdMul;
+      S.boomT = echo(w, s.cd * P.cdMul);
       const base = Math.atan2(P.dirX, P.dirZ);
       for (let i = 0; i < s.n; i++) {
         // le 2e part dans le dos, les suivants sur les côtés
@@ -257,7 +266,7 @@ export function tickWeapons(w: World, dt: number): void {
         if (hitEnemy(w, hits[k], s.dmg, FAUX.kb, P.x, P.z, HitSrc.Faux)) fauched++;
       }
       if (n > 0) {
-        S.fauxT = s.cd * P.cdMul;
+        S.fauxT = echo(w, s.cd * P.cdMul);
         if (w.syn[Syn.Moissonneuse] && fauched > 0) P.hp = Math.min(P.maxHp, P.hp + SYN.moissonneuse.heal * Math.min(fauched, SYN.moissonneuse.max));
         w.emit(Ev.Scythe, P.x, P.y + 0.9, P.z, r, dx0, s.arc, dz0);
       } else S.fauxT = FAUX.wait;
@@ -285,7 +294,7 @@ export function tickWeapons(w: World, dt: number): void {
         }
       }
       if (best >= 0) {
-        S.lanceT = s.cd * P.cdMul;
+        S.lanceT = echo(w, s.cd * P.cdMul);
         const t = w.enemies[best];
         const a0 = Math.atan2(t.x - P.x, t.z - P.z);
         const salvo = ++S.lanceSalvo;
@@ -310,7 +319,7 @@ export function tickWeapons(w: World, dt: number): void {
     const s = weaponStats(w, 'meteores');
     S.metT -= dt;
     if (S.metT <= 0 && w.enemyCount > 0) {
-      S.metT = s.cd * P.cdMul;
+      S.metT = echo(w, s.cd * P.cdMul);
       for (let i = 0; i < s.n && S.metN < METEOR.max; i++) {
         // sur un ennemi au hasard à portée (tirage par rejet borné), sinon autour du joueur
         let x = P.x + w.rng.range(-METEOR.around, METEOR.around),
@@ -355,7 +364,7 @@ export function tickWeapons(w: World, dt: number): void {
     S.mineT -= dt;
     S.mineDist += Math.sqrt(P.vx * P.vx + P.vz * P.vz) * dt;
     if (S.mineT <= 0 && S.mineDist >= MINES.spacing && placeMine(w, P.x, P.z)) {
-      S.mineT = s.cd * P.cdMul;
+      S.mineT = echo(w, s.cd * P.cdMul);
       S.mineDist = 0;
     }
   }

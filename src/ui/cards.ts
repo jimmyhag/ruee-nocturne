@@ -96,6 +96,23 @@ export const ITEM_GLYPH: Record<ItemKey, string> = {
   amulette: '✪',
   ecorce: '▣',
   couronne: '♛',
+  // phase 47 B
+  bandage: '✚',
+  savon: '◍',
+  enclume: '▰',
+  cle: '⚷',
+  encens: '♨',
+  tirelire: '◔',
+  fiole: '♁',
+  miroir: '◑',
+  glace: '❆',
+  ailes: '〰',
+  coquille: '◓',
+  cloche: '♜',
+  trophee: '♕',
+  idole: '☗',
+  dent: '▼',
+  grimoire: '✪',
 };
 export const RARITY_COLOR = ['#9aa4c2', '#5fd3ff', '#ffd166'];
 export const synergyName = (i: number): string => t(`syn.${SYNERGIES[i].key}.name`);

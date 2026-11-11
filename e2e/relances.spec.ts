@@ -88,6 +88,7 @@ test('nouveaux objets : cartes du coffre et soin du vol de vie annoncé', async 
     g.world.player.need = 1e9;
     // coffre limité aux nouveaux objets (phase 31) : les 20 premiers sont « interdits » le temps du tirage
     for (let i = 0; i < 20; i++) g.world.itemBan[i] = 1;
+    for (let i = 32; i < g.itemKeys.length; i++) g.world.itemBan[i] = 1; // phase 47 B : seize objets de plus, testés ailleurs
     g.debug.chest();
   });
   await page.waitForSelector('#levelup:not([hidden])');

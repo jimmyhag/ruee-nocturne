@@ -321,6 +321,105 @@ export const ITEM_ICON: Record<ItemKey, string> = {
       circle(46, 38, 3.5, RED) +
       hl('M12 26l6 6v12h-6z'),
   ),
+  // phase 47 B
+  bandage: svg(
+    path('M10 24h44v16H10z', PAPER) +
+      path('M24 24h16v16H24z', '#f3c9c0') +
+      circle(29, 29, 1.5, RED) +
+      circle(35, 35, 1.5, RED) +
+      circle(35, 29, 1.5, RED) +
+      circle(29, 35, 1.5, RED) +
+      hl('M13 27h8v3h-8z'),
+  ),
+  savon: svg(
+    path('M10 30c0-6 4-10 10-10h24c6 0 10 4 10 10v10c0 6-4 10-10 10H20c-6 0-10-4-10-10z', '#f7a8d0') +
+      circle(46, 14, 5, '#bfe9ff') +
+      circle(54, 24, 3, '#bfe9ff') +
+      hl('M16 28c1-3 3-4 6-4h10c-6 1-11 3-16 8z'),
+  ),
+  enclume: svg(
+    path('M6 16h40c6 0 12 3 14 8H44c-2 6-6 9-10 10v6h10v10H16V40h10v-6c-8-1-14-6-14-14H6z', '#8b93a8') +
+      hl('M10 19h28v3H12z'),
+  ),
+  cle: svg(
+    circle(20, 22, 12, '#b87a4a') +
+      circle(20, 22, 4, INK) +
+      path('M28 28l24 24-5 5-5-5-4 4-5-5 4-4-14-14z', '#b87a4a') +
+      hl('M12 18c2-4 6-6 10-5-4 1-7 3-9 7z'),
+  ),
+  encens: svg(
+    path('M14 44h36c0 8-8 12-18 12s-18-4-18-12z', GOLD) +
+      pole('M32 44V28', WOOD, 3) +
+      path('M32 26c-8-6 4-10-2-18 8 4 2 10 8 14-2 2-4 4-6 4z', '#c9b3ff') +
+      hl('M18 46h10c-1 3-3 5-6 6-2-1-4-3-4-6z'),
+  ),
+  tirelire: svg(
+    path('M10 34c0-10 10-18 24-18s22 8 22 18c0 6-3 11-8 14v6h-8v-3H28v3h-8v-6c-6-3-10-8-10-14z', '#f39ab5') +
+      path('M28 14h10v4H28z', GOLD) +
+      circle(48, 30, 2, INK) +
+      path('M4 30h8v8H4z', '#f39ab5') +
+      hl('M16 28c3-5 8-7 14-8-5 3-9 7-11 12z'),
+  ),
+  fiole: svg(
+    path('M26 6h12v6h-2v10l10 18c4 8-2 16-14 16s-18-8-14-16l10-18V12h-2z', '#bfe9ff') +
+      path('M22 38h20l4 6c2 6-4 10-14 10s-16-4-14-10z', RED) +
+      hl('M24 42c-2 4-1 7 3 9-5-1-8-4-6-8z'),
+  ),
+  miroir: svg(
+    path('M32 4c12 0 18 9 18 20s-6 20-18 20-18-9-18-20S20 4 32 4z', GOLD) +
+      path('M32 9c9 0 13 7 13 15s-4 15-13 15-13-7-13-15S23 9 32 9z', '#bfe9ff') +
+      pole('M32 44v16', WOOD, 5) +
+      hl('M24 16c2-3 5-4 8-4-4 3-6 7-6 12-2-2-3-5-2-8z'),
+  ),
+  glace: svg(
+    path('M32 56C12 43 7 30 14 21c6-7 14-6 18 2 4-8 12-9 18-2 7 9 2 22-18 35z', '#8fd8ff') +
+      path('M32 18l4 12 12 2-10 6 2 12-8-8-8 8 2-12-10-6 12-2z', '#e8f8ff') +
+      hl('M18 24c3-3 7-3 9 1-4 0-6 2-8 5-2-2-2-4-1-6z'),
+  ),
+  ailes: svg(
+    path('M32 20C22 8 8 8 4 20c8 0 10 4 6 8 8-2 12 2 10 8 6-2 10-4 12-8z', PAPER) +
+      path('M32 20c10-12 24-12 28 0-8 0-10 4-6 8-8-2-12 2-10 8-6-2-10-4-12-8z', PAPER) +
+      path('M28 22h8v26l-4 8-4-8z', GOLD) +
+      hl('M10 18c4-4 10-4 14 0-5 0-9 1-12 4z'),
+  ),
+  coquille: svg(
+    path('M6 44c0-18 12-32 26-32s26 14 26 32z', '#e0a66a') +
+      path('M32 12v32M20 16l6 28M44 16l-6 28M10 28l10 16M54 28L44 44', 'none') +
+      path('M4 44h56v8H4z', '#b87a4a') +
+      hl('M12 36c2-10 8-17 16-20-6 5-9 12-10 20z'),
+  ),
+  cloche: svg(
+    path('M32 8c12 0 16 10 16 22 0 8 4 12 8 14H8c4-2 8-6 8-14 0-12 4-22 16-22z', '#d9a441') +
+      circle(32, 52, 5, '#b87a2a') +
+      path('M28 4h8v6h-8z', '#b87a2a') +
+      hl('M22 18c2-4 5-6 9-6-4 4-6 9-6 16-3-2-4-6-3-10z'),
+  ),
+  trophee: svg(
+    path('M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z', GOLD) +
+      path('M18 12H8c0 8 4 12 10 12zM46 12h10c0 8-4 12-10 12z', GOLD) +
+      path('M28 38h8v8h-8z', GOLD) +
+      path('M18 46h28v10H18z', WOOD) +
+      hl('M22 12h5v10c0 4 1 7 3 9-5-2-8-6-8-11z'),
+  ),
+  idole: svg(
+    path('M20 6h24l6 10v22l-8 8v12H22V46l-8-8V16z', '#7a8f6a') +
+      circle(25, 24, 4, RED) +
+      circle(39, 24, 4, RED) +
+      path('M24 36h16v5H24z', INK) +
+      hl('M20 12h8l-6 8z'),
+  ),
+  dent: svg(
+    path('M14 8h36c0 22-8 38-18 50C22 46 14 30 14 8z', PAPER) +
+      path('M38 34c6 4 14 4 18-2-2 10-10 16-20 14z', ORANGE) +
+      path('M44 26c4 2 8 1 10-3 0 6-4 10-10 9z', GOLD) +
+      hl('M20 12h6c0 12 2 22 6 30-7-8-12-18-12-30z'),
+  ),
+  grimoire: svg(
+    path('M10 8h36c4 0 8 4 8 8v40H18c-4 0-8-4-8-8z', '#6a3fa0') +
+      path('M18 48h36v8H18c-3 0-5-2-5-4s2-4 5-4z', PAPER) +
+      star(32, 27, 11, 5, 5, GOLD) +
+      hl('M14 14c1-2 3-3 5-3h6c-5 2-9 6-11 12z'),
+  ),
 };
 
 export const BOON_ICON: Record<BoonKey, string> = {

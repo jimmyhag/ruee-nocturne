@@ -18,8 +18,9 @@ for (let i = 0; i < 40; i++) pool.push({ kind: 'w', key: '', lv: 0, n: 1, s0: 0,
 /** Nombre de lignes d'une carte : 1 / 2 / 3, décalé par la chance (RARITY). */
 export function rollLineCount(w: World): number {
   const luck = w.player.luck;
-  const p3 = RARITY.three + luck * RARITY.luckThree;
-  const p2 = RARITY.two + luck * RARITY.luckTwo;
+  const g = w.itemEff[It.Grimoire]; // phase 47 B : Grimoire
+  const p3 = RARITY.three + luck * RARITY.luckThree + ITEM.grimoire.three * g;
+  const p2 = RARITY.two + luck * RARITY.luckTwo + ITEM.grimoire.two * g;
   const r = w.rng.next();
   return r < p3 ? 3 : r < p3 + p2 ? 2 : 1;
 }

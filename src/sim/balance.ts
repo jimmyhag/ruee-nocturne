@@ -999,7 +999,9 @@ export const CHARACTERS: CharacterDef[] = [
 // tomes vient maintenant d'objets passifs trouvés dans les coffres ou achetés au marchand pendant la partie.
 
 // objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun ; phase 38 : cumulables, sans limite
-export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne', 'croc', 'calice', 'mousse', 'souffle', 'pierre', 'de', 'gant', 'brume', 'sandales', 'amulette', 'ecorce', 'couronne'];
+export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne', 'croc', 'calice', 'mousse', 'souffle', 'pierre', 'de', 'gant', 'brume', 'sandales', 'amulette', 'ecorce', 'couronne',
+  // phase 47 B : six communs, sept rares, trois épiques
+  'bandage', 'savon', 'enclume', 'cle', 'encens', 'tirelire', 'fiole', 'miroir', 'glace', 'ailes', 'coquille', 'cloche', 'trophee', 'idole', 'dent', 'grimoire'];
 /** Index fixes (comptes de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
   Phenix = 0,
@@ -1034,12 +1036,31 @@ export const enum It {
   Amulette,
   Ecorce,
   Couronne,
+  Bandage, // phase 47 B
+  Savon,
+  Enclume,
+  Cle,
+  Encens,
+  Tirelire,
+  Fiole,
+  Miroir,
+  Glace,
+  Ailes,
+  Coquille,
+  Cloche,
+  Trophee,
+  Idole,
+  Dent,
+  Grimoire,
 }
 /** Rareté par objet : 0 commun, 1 rare, 2 épique (couleur de carte, prix, poids de tirage). */
 export const ITEM_RARITY: number[] = [
   2, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1,
   // phase 31 : croc, calice, mousse, souffle, pierre, dé, gant, brume, sandales, amulette, écorce, couronne
   1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 2,
+  // phase 47 B : bandage, savon, enclume, clé, encens, tirelire · fiole, miroir, cœur de glace, ailes, coquille, cloche,
+  // trophée · idole, dent de dragon, grimoire
+  0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2,
 ];
 export const ITEM = {
   // phase 38 (demande de Jimmy) : plus de limite, un objet déjà pris peut revenir et se cumule. Les trois premiers
@@ -1096,6 +1117,23 @@ export const ITEM = {
   amulette: { xp: 0.15 },
   ecorce: { armor: 0.05 }, // dans le plafond TOME_CAPS.armorMax
   couronne: { dmg: 0.5, steal: 0.02, cap: 1 }, // dégâts × (1 + 0,5 × part des PV manquants) ; vol de vie 2 %
+  // phase 47 B (demande de Jimmy : beaucoup plus d'objets). Une règle de jeu chacun, cumulables comme les autres
+  bandage: { after: 6, regen: 1.5 }, // `after` s sans coup reçu : PV/s en plus (soigner demande d'esquiver)
+  savon: { speed: 0.15 }, // glissade : vitesse de départ et plafond +15 %
+  enclume: { kb: 0.3 }, // recul des armes +30 %
+  cle: { discount: 0.2, min: 0.4 }, // coffres de carte −20 % par exemplaire, jamais sous 40 % du prix
+  encens: { charge: 0.4 }, // jauge des sanctuaires et du totem +40 % plus rapide
+  tirelire: { perMin: 12 }, // or par minute, sans rien faire
+  fiole: { steal: 0.01, cap: 1.5 }, // vol de vie 1 % et 1,5 PV/s de réserve de soin : elle élargit les soins qu'on a déjà
+  miroir: { chance: 0.12, delay: 0.12 }, // chance qu'une arme retire aussitôt (recharge ramenée à `delay` s)
+  glace: { dmg: 0.2 }, // dégâts aux ennemis ralentis ou étourdis
+  ailes: { velMul: 0.85 }, // un saut en l'air par exemplaire, à 85 % de la hauteur
+  coquille: { dmgTaken: 0.65 }, // dans un cercle de sanctuaire ou de totem en charge : dégâts subis −35 %
+  cloche: { heal: 0.25, r: 8, kb: 12, stun: 0.6 }, // sanctuaire activé : soin (part des PV max) et onde qui repousse
+  trophee: { perElite: 0.01, max: 0.3 }, // dégâts par élite vaincue dans la partie, plafonnés
+  idole: { hp: 0.15, min: 0.55 }, // PV du boss du totem −15 % par exemplaire, jamais sous 55 %
+  dent: { frac: 0.3, t: 3, tick: 0.5 }, // un coup critique embrase : `frac` des dégâts du coup en plus, sur `t` s
+  grimoire: { offers: 1, two: 0.08, three: 0.04 }, // un bonus de sanctuaire de plus ; cartes à 2 et 3 lignes plus fréquentes
   healReport: 1, // s : les soins des objets sont annoncés (chiffre vert) au plus une fois par seconde
 };
 

@@ -1,8 +1,8 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BLOOD, BOON, BOON_KEYS, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
-import { bourseDiscount, canGainItem } from './items';
+import { BLOOD, BOON, BOON_KEYS, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { bellRing, bourseDiscount, canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card, Player } from './types';
 import { refreshStats } from './weapons/defs';
@@ -159,7 +159,9 @@ function placeTotem(w: World, r: Rng, all: { x: number; z: number }[]): void {
 export function mapChestPrice(w: World): number {
   // 1.33.1 (demande de Jimmy) : le prix ne monte qu'à chaque coffre acheté, ni avec le temps ni avec les objets portés
   const base = MAPCHEST.price * Math.pow(1 + MAPCHEST.growth, w.mapChestsOpened);
-  return Math.round(base * bourseDiscount(w));
+  // phase 47 B : Clé rouillée
+  const key = Math.max(ITEM.cle.min, 1 - ITEM.cle.discount * w.itemEff[It.Cle]);
+  return Math.round(base * bourseDiscount(w) * key);
 }
 /**
  * Le coffre de carte peut-il être ouvert maintenant ? Il faut l'or. Il donne un objet (phase 38 : sans limite, ils se
@@ -196,17 +198,22 @@ export function tickPOI(w: World, dt: number): void {
     }
   }
   const sr2 = SHRINE.r * SHRINE.r;
+  const fast = 1 + ITEM.encens.charge * w.itemEff[It.Encens]; // phase 47 B : Encens
+  w.inShrine = false;
   for (let i = 0; i < w.shrines.length; i++) {
     const s = w.shrines[i];
     if (s.used) continue;
     const inside = (s.x - P.x) ** 2 + (s.z - P.z) ** 2 < sr2;
-    if (inside) s.charge += dt;
-    else if (s.charge > 0) s.charge = Math.max(0, s.charge - dt * SHRINE.decay);
+    if (inside) {
+      s.charge += dt * fast;
+      w.inShrine = true; // Coquille
+    } else if (s.charge > 0) s.charge = Math.max(0, s.charge - dt * SHRINE.decay);
     if (s.charge >= SHRINE.charge) {
       s.used = true;
       w.shrinesUsed++;
       w.boonPicks++;
       w.emit(Ev.ShrineDone, s.x, 0.2, s.z);
+      bellRing(w); // phase 47 B : Cloche de bronze
     }
   }
 }
@@ -229,7 +236,8 @@ export function boonCapped(w: World, key: BoonKey): boolean {
 export function rollBoonChoices(w: World, out: Card[]): void {
   out.length = 0;
   const pool = BOON_KEYS.filter((k) => !boonCapped(w, k));
-  for (let k = 0; k < SHRINE.offers && pool.length > 0; k++) {
+  const offers = SHRINE.offers + Math.round(ITEM.grimoire.offers * w.items[It.Grimoire]); // phase 47 B : Grimoire
+  for (let k = 0; k < offers && pool.length > 0; k++) {
     const i = Math.floor(w.rng.next() * pool.length);
     out.push({ kind: 'b', key: pool[i], lv: 0, n: 1, s0: -1, s1: -1, s2: -1 });
     pool.splice(i, 1);

@@ -2,6 +2,27 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.47.0 — 11 nov. 2026 (demande de Jimmy : beaucoup plus d'objets)
+
+### Ajouté
+
+- **Seize objets** (48 en tout), une règle de jeu chacun, cumulables comme les autres.
+  - Communs, disponibles d'office : **Bandage** (6 s sans coup reçu : +1,5 PV/s), **Savon** (glissade 15 % plus rapide), **Enclume** (recul +30 %), **Clé rouillée** (coffres de carte −20 %), **Encens** (sanctuaires et totem chargés 40 % plus vite), **Tirelire** (+12 or par minute).
+  - Rares, à débloquer à la Bibliothèque : **Fiole de sang** (vol de vie 1 % et réserve de soin +1,5 PV/s), **Miroir** (12 % de chance qu'une arme tire deux fois), **Cœur de glace** (+20 % de dégâts aux ennemis ralentis ou étourdis), **Ailes de cire** (un saut de plus en l'air), **Coquille** (dans un cercle de sanctuaire ou de totem : −35 % de dégâts subis), **Cloche de bronze** (un sanctuaire activé rend 25 % des PV et repousse les ennemis), **Trophée** (+1 % de dégâts par élite vaincue, 30 % au plus).
+  - Épiques, à débloquer : **Idole** (le boss du totem arrive avec 15 % de PV en moins), **Dent de dragon** (les coups critiques embrasent : 30 % de dégâts en plus sur 3 s, l'ennemi vire à l'orange), **Grimoire** (un bonus de plus aux sanctuaires, cartes rares et épiques plus fréquentes).
+- **Dix succès** qui ouvrent ces objets à l'achat (10 000 ennemis, 200 élites, 20 boss, 30 parties, monde 3, trois victoires, 5 000 m de glisse, 2 min sans dégât, 10 cartes épiques, une arme à 35 améliorations).
+
+### Modifié par rapport au plan
+
+- **Coquille** : prévue « à l'arrêt », elle agit dans un cercle de sanctuaire ou de totem en charge : c'est le seul moment où l'on s'arrête, et l'effet se lit à l'écran.
+- **Fiole de sang** : elle porte aussi 1 % de vol de vie, pour ne jamais être un objet sans effet quand on n'a aucun soin.
+
+### Technique
+
+- Touches 5 et 6 pour choisir la cinquième et la sixième carte (sanctuaire avec le Grimoire).
+- Source de coup `Burn` (brûlure) : la seizième et dernière tant que le critique vaut +16 ; les armes de la livraison suivante élargiront ce masque.
+- `Player.airJumps`, `Enemy.burn/burnT/burnAcc`, `World.inShrine/inTotem` ; `echo()` dans `weapons/tick.ts` (Miroir : aucun tirage du générateur sans l'objet, les parties d'avant restent identiques).
+
 ## 1.46.0 — 11 nov. 2026 (demande de Jimmy : toutes les stats au sanctuaire, un tome de vol de vie)
 
 ### Ajouté

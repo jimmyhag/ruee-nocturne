@@ -125,6 +125,23 @@ const ITEM_VALUE: Record<ItemKey, number> = {
   amulette: 12,
   ecorce: 17,
   couronne: 22,
+  // phase 47 B : ce qui soigne ou tue d'abord, les objets de confort ensuite
+  bandage: 15,
+  savon: 4,
+  enclume: 6,
+  cle: 7,
+  encens: 5,
+  tirelire: 6,
+  fiole: 13,
+  miroir: 19,
+  glace: 9,
+  ailes: 5,
+  coquille: 6,
+  cloche: 10,
+  trophee: 16,
+  idole: 14,
+  dent: 18,
+  grimoire: 12,
 };
 
 /**

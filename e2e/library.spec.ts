@@ -40,9 +40,9 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
   if (hasTouch) await page.locator('#libTabs [data-tab="i"]').tap();
   else await page.keyboard.press('Digit2');
   await expect(page.locator('#libTabs [data-tab="i"]')).toHaveClass(/selected/);
-  await expect(page.locator('#libList .lib')).toHaveCount(32);
-  await expect(page.locator('#libList .lib.locked')).toHaveCount(11); // 12 verrouillés, le Phénix est à acheter
-  await expect(page.locator('#libList .note')).toContainText('20 objets');
+  await expect(page.locator('#libList .lib')).toHaveCount(48); // phase 47 B : seize objets de plus
+  await expect(page.locator('#libList .lib.locked')).toHaveCount(21); // 22 verrouillés, le Phénix est à acheter
+  await expect(page.locator('#libList .note')).toContainText('26 objets');
   const buy = page.locator('#libList [data-unlock="i:phenix"]');
   await expect(buy).toBeEnabled();
   await page.screenshot({ path: `shots/${info.project.name}-bibliotheque-objets.png` });
@@ -64,7 +64,7 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
     await page.keyboard.press('Enter');
   }
   await expect(page.locator('#libList [data-toggle="cape"]')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#libList .note')).toContainText('20 objets'); // +Phénix −Cape
+  await expect(page.locator('#libList .note')).toContainText('26 objets'); // +Phénix −Cape
   const meta = await page.evaluate(() => (window as any).__game.meta);
   expect(meta.unlocks).toContain('i:phenix');
   expect(meta.itemsOff).toEqual(['cape']);
