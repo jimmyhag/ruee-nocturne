@@ -1,7 +1,7 @@
 import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
-import { compactEnemies } from './combat';
+import { burnEnemy, compactEnemies } from './combat';
 import { LEVEL_REROLL, applyCard, nextChoice, rerollLevel, tickChests, tickGems } from './progression';
 import { merchantInput, tickMerchant } from './merchant';
 import { tickPOI } from './poi';
@@ -56,7 +56,9 @@ export function step(w: World, input: Input, dt: number): void {
   w.flow.tick(w, dt);
   // dégâts subis de ce pas : armure, sorts et objets (dmgTaken), et le tome Bastion quand le héros est à l'arrêt
   const P0 = w.player;
-  P0.taken = (1 - P0.armor) * P0.dmgTaken;
+  // phase 47 B : Coquille, pendant qu'un sanctuaire ou le totem se charge
+  P0.taken =
+    (1 - P0.armor) * P0.dmgTaken * (w.items[It.Coquille] && (w.inShrine || w.inTotem) ? ITEM.coquille.dmgTaken ** w.itemEff[It.Coquille] : 1);
   stepEnemies(w, dt);
   if (!frozen) {
     tickEruptions(w);
@@ -137,7 +139,7 @@ function perfectSlide(w: World, hx: number, hz: number, walk: number, ix: number
     P.dirX = hx / h;
     P.dirZ = hz / h;
   }
-  const v0 = Math.max(h, walk * SLIDE.startMul, P.sliding ? Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz) : 0);
+  const v0 = Math.max(h, walk * SLIDE.startMul * (1 + ITEM.savon.speed * w.itemEff[It.Savon]), P.sliding ? Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz) : 0);
   P.mvx = P.dirX * v0;
   P.mvz = P.dirZ * v0;
   if (!P.sliding) w.emit(Ev.SlideStart, P.x, 0, P.z, v0);
@@ -199,7 +201,14 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   if (P.jumpBuf > 0) P.jumpBuf -= dt;
   if (P.coyote > 0) P.coyote -= dt;
   const coyote = !P.onGround && P.coyote > 0;
-  if (input.jump && !P.onGround && !coyote) P.jumpBuf = SLIDE.jumpBuf;
+  // phase 47 B : Ailes de cire, un saut en l'air par exemplaire (l'appui n'est alors pas gardé pour la réception)
+  const airJump = input.jump && !P.onGround && !coyote && P.airJumps < w.items[It.Ailes];
+  if (input.jump && !P.onGround && !coyote && !airJump) P.jumpBuf = SLIDE.jumpBuf;
+  if (airJump) {
+    P.airJumps++;
+    P.vy = PLAYER.jumpVel * P.jumpMul * ITEM.ailes.velMul;
+    w.emit(Ev.Jump, P.x, P.y, P.z);
+  }
   if ((input.jump || P.jumpBuf > 0) && (P.onGround || coyote)) {
     let vy = PLAYER.jumpVel * P.jumpMul; // phase 17 : Bottes de saut
     if (P.sliding || coyote) {
@@ -245,7 +254,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   // départ de glissade : au sol, en mouvement, droit devant
   if (slidePress && P.onGround && !P.sliding && P.slideCd <= 0 && l > SLIDE.startInput && P.dashT <= 0) {
     const cur = Math.sqrt(P.vx * P.vx + P.vz * P.vz),
-      v0 = Math.max(cur, walk * SLIDE.startMul);
+      v0 = Math.max(cur, walk * SLIDE.startMul * (1 + ITEM.savon.speed * w.itemEff[It.Savon]));
     P.mvx = P.dirX * v0;
     P.mvz = P.dirZ * v0;
     P.sliding = true;
@@ -262,7 +271,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
     sp -= (g2[0] * dx + g2[1] * dz) * SLIDE.grav * dt;
     const fr = w.speedAt(P.x, P.z) < 1 ? SLIDE.lakeFriction : SLIDE.friction;
     sp = Math.max(0, sp - fr * dt);
-    const cap = walk * SLIDE.maxMul;
+    const cap = walk * SLIDE.maxMul * (1 + ITEM.savon.speed * w.itemEff[It.Savon]); // phase 47 B : Savon
     if (sp > cap) sp = cap;
     P.mvx = dx * sp;
     P.mvz = dz * sp;
@@ -355,6 +364,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       P.y = ground;
       P.vy = 0;
       P.onGround = true;
+      P.airJumps = 0;
       w.emit(Ev.Land, P.x, ground, P.z, P.airT);
       if (w.trait === Trait.Demolisseur) placeMine(w, P.x, P.z); // Sapeur : une mine par atterrissage
       if (w.items[It.Bottes]) landingShockwave(w); // phase 17 : l'atterrissage repousse les ennemis proches
@@ -392,6 +402,9 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   let regen = P.regen;
   regen += P.maxHp * ITEM.mousse.pct * w.itemEff[It.Mousse]; // phase 38 : × exemplaires (0 sans l'objet)
   if (w.items[It.Souffle] && P.hp < P.maxHp * ITEM.souffle.below) regen += P.maxHp * ITEM.souffle.pct * w.itemEff[It.Souffle];
+  // phase 47 B : Bandage (aucun coup reçu depuis un moment), Tirelire (or qui tombe tout seul)
+  if (w.items[It.Bandage] && w.t - w.hurtAt > ITEM.bandage.after) regen += ITEM.bandage.regen * w.itemEff[It.Bandage];
+  if (w.items[It.Tirelire]) w.gold += (ITEM.tirelire.perMin / 60) * w.itemEff[It.Tirelire] * dt;
   P.hp = Math.min(P.maxHp, P.hp + regen * dt);
   healTick(w, dt);
   P.walk += l * dt * 12;
@@ -437,6 +450,17 @@ function stepEnemies(w: World, dt: number): void {
     const e = w.enemies[i];
     if (!e.alive) continue;
     const def = ENEMIES[e.type];
+    if (e.burnT > 0) {
+      // phase 47 B : brûlure de la Dent de dragon, un coup toutes les ITEM.dent.tick s
+      e.burnT -= dt;
+      e.burnAcc += dt;
+      if (e.burnAcc >= ITEM.dent.tick) {
+        e.burnAcc -= ITEM.dent.tick;
+        burnEnemy(w, i, e.burn * ITEM.dent.tick);
+        if (!e.alive) continue;
+      }
+      if (e.burnT <= 0) e.burn = e.burnAcc = 0;
+    }
     if (e.type === ARCHER_TYPE || e.type === CRACHEUR_TYPE || e.type === SORCIER_TYPE) shooters++;
     e.px = e.x;
     e.pz = e.z;

@@ -42,6 +42,9 @@ export interface Enemy {
   detour: number; // phase 16 : s restantes où il suit le champ de flux case par case (il butait sur un obstacle)
   stun: number; // phase 19 : s restantes d'immobilisation (Éclat, Collet) ; les boss n'y sont pas sensibles
   slowT: number; // phase 19 : s restantes de ralentissement (Voile, boss pris dans un Collet ou un Éclat)
+  burn: number; // phase 47 B : dégâts par seconde de la brûlure (Dent de dragon)
+  burnT: number; // s restantes de brûlure
+  burnAcc: number; // s écoulées depuis le dernier coup de brûlure
 }
 
 export const enum ProjKind {
@@ -153,6 +156,7 @@ export const enum HitSrc {
   Spell, // phase 19 : sort de classe
   Patins, // phase 28 : Patins de braise (glissade)
   Horn, // phase 28 : Corne de guerre
+  Burn, // phase 47 B : brûlure de la Dent de dragon (16e et dernière source tant que le critique vaut +16)
   Count, // phase 41 : nombre de sources (taille de w.srcKills)
 }
 
@@ -391,7 +395,24 @@ export type ItemKey =
   | 'sandales'
   | 'amulette'
   | 'ecorce'
-  | 'couronne';
+  | 'couronne'
+  // phase 47 B
+  | 'bandage'
+  | 'savon'
+  | 'enclume'
+  | 'cle'
+  | 'encens'
+  | 'tirelire'
+  | 'fiole'
+  | 'miroir'
+  | 'glace'
+  | 'ailes'
+  | 'coquille'
+  | 'cloche'
+  | 'trophee'
+  | 'idole'
+  | 'dent'
+  | 'grimoire';
 
 /**
  * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.
@@ -457,6 +478,7 @@ export interface Player {
   slowMul: number; // durée des ralentissements d'armes
   thorns: number; // riposte : dégâts de contact renvoyés (× ceux du contact), comme les Épines
   guard: number; // part des dégâts de contact annulée (tome Bastion)
+  airJumps: number; // phase 47 B : sauts en l'air déjà faits depuis le dernier appui au sol (Ailes de cire)
   revenge: number; // dégâts en plus pendant BASTION.revengeT s après un coup reçu
   taken: number; // multiplicateur courant des dégâts subis (armure, sorts, arrêt), recalculé à chaque pas
   spawnMul: number; // apparitions (tome Défi)

@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { BOSS, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, POWER, SPAWN, STAGE } from './balance';
+import { BOSS, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
 import { spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
@@ -59,9 +59,11 @@ export function tickStage(w: World, dt: number): void {
     w.emit(Ev.BossWarn, T.x, 0, T.z, w.stage + 1, STAGE.bosses[w.stage]);
   }
   // totem : rester dans le cercle le charge, en sortir le vide (comme un sanctuaire)
+  w.inTotem = false;
   if (T.state === 0) {
     const inside = (T.x - P.x) ** 2 + (T.z - P.z) ** 2 < STAGE.totemR * STAGE.totemR;
-    if (inside) T.charge += dt;
+    w.inTotem = inside; // phase 47 B : Coquille
+    if (inside) T.charge += dt * (1 + ITEM.encens.charge * w.itemEff[It.Encens]); // Encens
     else if (T.charge > 0) T.charge = Math.max(0, T.charge - dt * STAGE.totemDecay);
     if (T.charge >= STAGE.totemCharge) summonStageBoss(w);
   }
@@ -89,7 +91,12 @@ export function summonStageBoss(w: World): void {
   const e = w.enemies[i];
   // PV fixés par monde (STAGE.bossHpAt), pas à l'heure de l'appel ; renfort de prolongation compris
   e.hp = e.max =
-    ENEMIES[type].hp * BOSS.hpMul[w.stage] * SPAWN.hpScale(STAGE.bossHpAt[w.stage]) * w.overHp * (1 + w.bossCount * STAGE.bossHpPerBoss);
+    ENEMIES[type].hp *
+    BOSS.hpMul[w.stage] *
+    SPAWN.hpScale(STAGE.bossHpAt[w.stage]) *
+    w.overHp *
+    (1 + w.bossCount * STAGE.bossHpPerBoss) *
+    Math.max(ITEM.idole.min, 1 - ITEM.idole.hp * w.itemEff[It.Idole]); // phase 47 B : Idole
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;

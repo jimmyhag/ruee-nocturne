@@ -223,6 +223,8 @@ export class World {
   tricks = 0; // glisses parfaites dans la partie (phase 28 : vrilles, 1.30.1 : glisses au bon moment)
   shieldT = 0; // phase 28 : Bouclier, s avant d'être prêt (0 : prêt)
   hornT = 0; // phase 28 : Corne de guerre, s avant la prochaine onde
+  inShrine = false; // phase 47 B : le héros charge un sanctuaire (Coquille)
+  inTotem = false; // …ou le totem
   rerolls: number = RUN_REROLL.base; // phase 31 : relances de cartes restantes pour la partie
   healBank = 0; // phase 31 : PV que les objets peuvent encore rendre cette seconde (vol de vie, Calice)
   healT = 0; // s avant la prochaine recharge de la réserve et l'annonce des soins
@@ -661,6 +663,7 @@ export function makePlayer(opts?: WorldOptions): Player {
     slowMul: 1,
     thorns: 0,
     guard: 0,
+    airJumps: 0,
     revenge: 0,
     taken: 1,
     spawnMul: 1,
@@ -810,6 +813,9 @@ function makeEnemy(): Enemy {
     huntT: 0,
     detour: 0,
     stun: 0,
+    burn: 0,
+    burnT: 0,
+    burnAcc: 0,
     slowT: 0,
   };
 }

@@ -25,6 +25,9 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   if (P.lowDmg > 0 && P.hp < P.maxHp * BLOOD.below) dealt *= 1 + P.lowDmg;
   if (P.chillDmg > 0 && (e.slowT > 0 || e.stun > 0)) dealt *= 1 + P.chillDmg;
   if (P.revenge > 0 && w.t - w.hurtAt < BASTION.revengeT) dealt *= 1 + P.revenge;
+  // phase 47 B : Cœur de glace (cible ralentie ou étourdie), Trophée (élites vaincues dans la partie)
+  if (w.items[It.Glace] && (e.slowT > 0 || e.stun > 0)) dealt *= 1 + ITEM.glace.dmg * w.itemEff[It.Glace];
+  if (w.items[It.Trophee]) dealt *= 1 + Math.min(ITEM.trophee.max, ITEM.trophee.perElite * w.eliteKills) * w.itemEff[It.Trophee];
   let crit = 0;
   if (src <= HitSrc.Meteores) {
     // phase 23 : coup critique (ligne de l'arme + tome Chance), ralentissement du Halo, étourdissement de la Foudre
@@ -38,6 +41,13 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
     // phase 47 : tome Givre, tout coup d'arme peut ralentir (pas les boss : ils ont déjà le Sablier et les sorts)
     if (P.slowChance > 0 && !def.boss && w.rng.next() < P.slowChance) e.slowT = Math.max(e.slowT, FROST.slowT * P.slowMul);
     if (src === HitSrc.Foudre && s.stun > 0 && !def.boss && w.rng.next() < s.stun) e.stun = Math.max(e.stun, CRIT.stunT);
+  }
+  if (crit && w.items[It.Dent]) {
+    // phase 47 B : Dent de dragon, un critique embrase (la brûlure la plus forte l'emporte, la durée repart)
+    const D = ITEM.dent,
+      dps = (dealt * D.frac * w.itemEff[It.Dent]) / D.t;
+    e.burnT = D.t;
+    if (dps > e.burn) e.burn = dps;
   }
   e.hp -= dealt;
   e.flash = 0.1;
@@ -61,6 +71,19 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
     return true;
   }
   return false;
+}
+
+/** Phase 47 B : un coup de brûlure (Dent de dragon). Dégâts déjà calculés : ni multiplicateur ni critique ni vol de vie. */
+export function burnEnemy(w: World, i: number, dmg: number): void {
+  const e = w.enemies[i];
+  if (!e.alive) return;
+  e.hp -= dmg;
+  e.flash = 0.1;
+  w.emit(Ev.Hit, e.x, e.y, e.z, dmg, HitSrc.Burn, 0, 0);
+  if (e.hp <= 0) {
+    w.srcKills[HitSrc.Burn]++;
+    killEnemy(w, i);
+  }
 }
 
 export function killEnemy(w: World, i: number): void {

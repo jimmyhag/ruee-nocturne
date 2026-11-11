@@ -45,6 +45,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.detour = 0;
   e.stun = 0;
   e.slowT = 0;
+  e.burn = e.burnT = e.burnAcc = 0;
   return w.enemyCount - 1;
 }
 
