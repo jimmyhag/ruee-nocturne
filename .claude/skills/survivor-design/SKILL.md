@@ -58,7 +58,7 @@ Chaque arme répond à : **portée** (contact / courte / longue), **ciblage** (a
 Les lignes en % se cumulent (`base × (1 + step)^n`), les lignes entières s'ajoutent ; les baisses en % sont plafonnées (15 lignes de recharge : ×0,46). Une ligne rare apporte un **changement qualitatif** (un projectile de plus se voit), les lignes en % font grimper lentement.
 
 ## 5. Tomes (phase 12, à la place des passifs et des évolutions)
-Huit tomes, 4 emplacements, chaque carte tire 1 à 3 lignes dans sa famille, effets additifs sur la base du joueur :
+Neuf tomes au tirage (huit de la phase 12 et le Sang ; trois autres écrits mais en réserve, voir plus bas), 4 emplacements, chaque carte tire 1 à 3 lignes dans sa famille, effets additifs sur la base du joueur :
 - **Dégâts** : dégâts +8 %, dégâts aux élites et boss +8 %, recul +10 %.
 - **Cadence** : recharge −4 % (plancher 25 %), durée des projectiles +6 %.
 - **Projectiles** : +1 projectile pour toutes les armes (rare, max 3), taille +6 %, vitesse des projectiles +6 %.
@@ -68,6 +68,23 @@ Huit tomes, 4 emplacements, chaque carte tire 1 à 3 lignes dans sa famille, eff
 - **Savoir** : XP +6 %, collecte +8 %.
 - **Chance** : chance +0,5 (lignes rares, 4e carte, coffres), or des coffres +20 %.
 - **Or** : or +8 %, +1 or par élite vaincue.
+- **Sang** (phase 47) : vol de vie +2 % (0,6 PV/s de réserve par ligne), réserve de soin +0,6 PV/s (ligne à prérequis : `needs: 'heal'`), dégâts +6 % sous 50 % de PV.
+- **Givre** (phase 47, en réserve) : 6 % de chance de ralentir à chaque coup d'arme (pas les boss), dégâts +10 % aux ennemis ralentis ou étourdis, durée des ralentissements +15 %.
+- **Bastion** (phase 47, en réserve) : riposte au contact (×1 par ligne), garde −5 % de dégâts de contact (plafond −30 %), revanche +8 % de dégâts 3 s après un coup reçu.
+- **Défi** (phase 47, en réserve) : apparitions +5 %, XP et or des élites +8 %, élites +8 % plus fréquentes. Un pari, pas un bonus gratuit : à mesurer par ablation.
+
+### Ajouter un tome : la dilution (phase 47)
+Les tomes ne se valent pas : sur 200 parties du kit complet, « monde 2 atteint » vaut 85 % avec Projectiles et 62 % sans, 80/73 % pour Vitalité, 80/75 % pour Savoir ; les autres sont neutres. Quatre emplacements pour huit tomes : Projectiles est pris dans 68 % des parties. Avec douze tomes : 51 %, et « monde 2 atteint » tombe de 74–78 % à 52–59 %, victoire de 21 à 9–13 % — même en renforçant les nouveaux tomes de 50 %, même avec un bot qui préfère les tomes de combat. Le recul de Projectiles explique environ 5 de ces 16 points ; le reste baisse avec ou sans lui et n'est pas expliqué. Un tome de plus coûte donc aux autres, quelle que soit sa force.
+- Mesurer un tome **seul** (`--no-tome a,b,c`) puis tous ensemble (`--held-tomes`), sur au moins deux graines (`--seed 42`, `43`) : à 100 parties, deux graines du même réglage s'écartent de 10 points.
+- Lire « monde 2 atteint avec / sans le tome » dans le JSON (`tomes` par partie), pas seulement la médiane.
+- Un tome en réserve (`TOME_HELD`) est défini, testé, traduit, mais ni tiré ni listé à la Bibliothèque.
+- Le bot choisit un **nouveau** tome par famille (`COMBAT_TOMES`, `BOT_TUNE.tomePrior`) : un emplacement est rare, un joueur lit la carte. `--tome-prior 0` rend l'ancien bot ; sur l'ancien contenu les deux donnent les mêmes résultats (75 % et 21 % contre 78 % et 21 %).
+
+### Vol de vie et soin (phase 47)
+Tout soin « par coup » passe par la réserve de soin par seconde (`healCap` dans `src/sim/items.ts`) : Croc, Couronne, vol de vie du héros (tome Sang, sanctuaire du sang). Les dégâts montent en multiplicatif, le soin non : un vol de vie sans plafond en PV/s rend le héros immortel en fin de partie. Une nouvelle source de vol de vie ajoute à `Player.steal` et, si besoin, à la réserve ; elle ne soigne jamais directement.
+
+### Sanctuaires (phase 47)
+Dix-huit bonus, un par stat du héros (`BOON`), quatre proposés par sanctuaire. Règles : un bonus = une stat, la même valeur qu'une ligne de tome ou un peu plus (le sanctuaire coûte 4 s immobile dans la horde) ; un bonus plafonné n'est plus proposé (`boonCapped`) ; la carte dit « actuel → nouveau » (`boonNow`, calculé par `boonApply` sur une copie du héros) ; toute stat ajoutée au héros a sa ligne dans la fiche de stats (`STAT_ROWS`, test).
 Plus d'évolutions (décision de Jimmy, 4 nov. 2026) : la récompense de run est une arme à 25+ améliorations (succès « Érudit ») et les cartes épiques (succès « Triple ligne »).
 
 ## 6. Ennemis : rôles, pas stats

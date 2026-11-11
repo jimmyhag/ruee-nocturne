@@ -54,6 +54,9 @@ export function step(w: World, input: Input, dt: number): void {
   if (!frozen) tickSpawner(w, dt);
   w.grid.build(w.enemies, w.enemyCount, w.player.x, w.player.z);
   w.flow.tick(w, dt);
+  // dégâts subis de ce pas : armure, sorts et objets (dmgTaken), et le tome Bastion quand le héros est à l'arrêt
+  const P0 = w.player;
+  P0.taken = (1 - P0.armor) * P0.dmgTaken;
   stepEnemies(w, dt);
   if (!frozen) {
     tickEruptions(w);
@@ -420,8 +423,10 @@ function stepEnemies(w: World, dt: number): void {
   const sablier = w.items[It.Sablier] > 0; // Sablier fêlé : élites et boss ralentis (phase 38 : > 0, il se cumule)
   const slow = Math.max(ITEM.sablier.min, ITEM.sablier.slow ** w.itemEff[It.Sablier]);
   const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé
+  // phase 47 : la riposte du tome Bastion s'ajoute aux Épines (même rythme, même source de coup)
+  const thornMul = ITEM.epines.mul * w.itemEff[It.Epines] + P.thorns;
   let thorns = false;
-  if (w.items[It.Epines]) {
+  if (thornMul > 0) {
     w.thornT -= dt;
     if (w.thornT <= 0) {
       w.thornT = ITEM.epines.period;
@@ -537,7 +542,7 @@ function stepEnemies(w: World, dt: number): void {
     if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
-        const dmg = HAZARDS.charge.dmg * e.dmgMul * (1 - P.armor) * P.dmgTaken;
+        const dmg = HAZARDS.charge.dmg * e.dmgMul * P.taken * (1 - P.guard); // phase 47 : garde du tome Bastion
         P.hp -= dmg;
         hurt += dmg;
         P.invul = Math.max(P.invul, HAZARDS.charge.invul);
@@ -547,12 +552,12 @@ function stepEnemies(w: World, dt: number): void {
       } else {
         // phase 17 : Rempart (Vitalité + Halo), le contact d'un ennemi dans le Halo est réduit
         const inHalo = w.syn[Syn.Rempart] && d < w.wstats.aura.r;
-        const dmg = def.dmg * e.dmgMul * dt * (1 - P.armor) * P.dmgTaken * (inHalo ? SYN.rempart.dmgTaken : 1);
+        const dmg = def.dmg * e.dmgMul * dt * P.taken * (1 - P.guard) * (inHalo ? SYN.rempart.dmgTaken : 1);
         P.hp -= dmg;
         hurt += dmg;
         w.lastHurt = HurtSrc.Contact;
         // phase 17 : Épines, le contact est renvoyé (par paquets, toutes les ITEM.epines.period s)
-        if (thorns) hitEnemy(w, i, def.dmg * e.dmgMul * ITEM.epines.period * ITEM.epines.mul * w.itemEff[It.Epines], 0, P.x, P.z, HitSrc.Thorns);
+        if (thorns) hitEnemy(w, i, def.dmg * e.dmgMul * ITEM.epines.period * thornMul, 0, P.x, P.z, HitSrc.Thorns);
       }
     }
   }
@@ -584,8 +589,8 @@ function tickShots(w: World, dt: number): void {
       // tirs droits : le crachat (au sol) se saute, la flèche non ; les deux s'arrêtent sur un obstacle (phase 16)
       const arrow = s.kind === ShotKind.Arrow;
       if (inside && (arrow || !airborne) && P.invul <= 0) {
-        P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
-        hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
+        P.hp -= s.dmg * P.taken;
+        hurt += s.dmg * P.taken;
         w.lastHurt = arrow ? HurtSrc.Arrow : HurtSrc.Spit;
         w.freeShot(i);
         continue;
@@ -601,8 +606,8 @@ function tickShots(w: World, dt: number): void {
       s.r += HAZARDS.ring.speed * dt;
       const dist = Math.sqrt(dx * dx + dz * dz);
       if (!s.hit && Math.abs(dist - s.r) < HAZARDS.ring.width * 0.5 + PLAYER.radius && !airborne && P.invul <= 0) {
-        P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
-        hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
+        P.hp -= s.dmg * P.taken;
+        hurt += s.dmg * P.taken;
         s.hit = true;
         w.lastHurt = HurtSrc.Ring;
       }
@@ -613,8 +618,8 @@ function tickShots(w: World, dt: number): void {
         // pic : blesse et projette le joueur au sol
         w.emit(Ev.Eruption, s.x, 0, s.z, s.r);
         if (inside && !airborne && P.invul <= 0) {
-          P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
-          hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
+          P.hp -= s.dmg * P.taken;
+          hurt += s.dmg * P.taken;
           P.vy = HAZARDS.eruption.launch;
           P.onGround = false;
           w.lastHurt = HurtSrc.Eruption;
@@ -626,8 +631,8 @@ function tickShots(w: World, dt: number): void {
       w.emit(Ev.ZoneBlast, s.x, 0, s.z, s.r);
       // dmg 0 : cercle d'annonce de l'onde du Colosse (phase 43), il ne blesse pas
       if (s.dmg > 0 && inside && !airborne && P.invul <= 0) {
-        P.hp -= s.dmg * (1 - P.armor) * P.dmgTaken;
-        hurt += s.dmg * (1 - P.armor) * P.dmgTaken;
+        P.hp -= s.dmg * P.taken;
+        hurt += s.dmg * P.taken;
         w.lastHurt = s.kind === ShotKind.Fireball ? HurtSrc.Fire : HurtSrc.Zone;
       }
       w.freeShot(i);

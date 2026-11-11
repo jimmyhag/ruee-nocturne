@@ -90,8 +90,19 @@ Chaque arme s'améliore jusqu'à **100 fois** ; chaque carte apporte **1 à 3 li
 
 Maximum 4 armes + 4 tomes par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 tomes** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 2 000, 4 000, 8 000, 12 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
 
-### 3.2 Tomes (8, phase 12 ; remplacent les passifs)
+### 3.2 Tomes (12 : 8 en phase 12, 4 en phase 47 ; remplacent les passifs)
 Dégâts (dégâts, élites et boss, recul, dégâts critiques) · Cadence (recharge, durée des projectiles, recharge du sort) · Projectiles (+1 projectile pour toutes les armes, taille, vitesse) · Vitalité (PV max, régénération, dégâts subis, PV par kill) · Mouvement (course, recharge et puissance du sort, saut) · Savoir (XP, collecte, soin à chaque niveau) · Chance (lignes rares, coffres, 4e carte, critique global) · Or (or, or par élite, prix du marchand). Une carte de tome tire elle aussi 1 à 3 lignes dans sa famille (`TOMES` dans `balance.ts`), jusqu'à 100 par tome.
+
+**Phase 47 (demande de Jimmy : plus de tomes, dont un de vol de vie)** — quatre tomes écrits, trois lignes chacun. **Seul le Sang est au tirage en 1.46.0** ; Givre, Bastion et Défi sont en réserve (`TOME_HELD`, voir « Phase 47 ») :
+
+| Tome | Lignes (par carte) | Ce qu'il change |
+|---|---|---|
+| **Sang** | vol de vie +2 % · réserve de soin +0,6 PV/s (proposée seulement si un soin y puise déjà) · dégâts +6 % sous 50 % de PV | se soigner en frappant, sans objet ; fort quand on est bas |
+| **Givre** | 6 % de chance de ralentir à chaque coup d'arme (1,5 s, pas les boss) · dégâts +10 % aux ennemis ralentis ou étourdis · durée des ralentissements +15 % | contrôle ; se marie avec le Halo, la Foudre, le Sablier |
+| **Bastion** | riposte : l'ennemi au contact reçoit ses dégâts ×1 de plus par ligne (l'objet Épines : ×3) · garde : dégâts de contact subis −5 % (plafond −30 %, en plus de l'armure) · revanche : dégâts +8 % pendant 3 s après un coup reçu | le corps à corps : tenir dans la masse |
+| **Défi** | apparitions +5 % · XP et or des élites +8 % · élites +8 % plus fréquentes | un pari : plus de monstres contre plus de butin |
+
+Le vol de vie du héros (`Player.steal`) passe par la même **réserve de soin par seconde** que le Croc et la Couronne (`healCap`, `src/sim/items.ts`) : 2 % de vol de vie ouvrent 0,6 PV/s de réserve (`BLOOD.capPerSteal`), la ligne « réserve » en ajoute. Sans cette borne, les dégâts de fin de partie rendraient le héros immortel.
 
 **Phase 23 (demande de Jimmy)** : une carte ne tire **jamais deux fois la même ligne** ; chaque arme et chaque tome a au moins 3 lignes (armes 5 ou 6). Toutes les armes ont une ligne de **coup critique** (+5 %, +3 % pour le Boomerang, ×2 dégâts, chiffre doré « 37! »), le Halo une ligne de ralentissement, la Foudre une ligne d'étourdissement (pas les boss). Constantes : `CRIT` dans `balance.ts`.
 
@@ -228,7 +239,13 @@ Décision prise : les synergies sont des bonus de stats ou des règles simples p
 
 **Points d'intérêt (phase 18)** : posés avec la carte sur les sommets et dans les lieux construits, signalés de loin par une **colonne de lumière** (pas de minicarte, choix de Jimmy).
 - **Coffres de carte (20)** : on reste 0,6 s dessus pour l'ouvrir (même règle au clavier et au doigt). Prix en or de la partie : 20, puis ×2 à chaque coffre acheté, et seulement à l'achat (1.33.1–1.33.2, demandes de Jimmy : ni le temps ni les objets portés ne le font monter ; victoire nue 46 %, maxée 49 %) ; la puce « Coffre · prix » dit si l'or manque. Le coffre donne un choix d'objet parmi 3. Les coffres d'élite et de boss restent gratuits.
-- **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie parmi 3 : +12 PV max, +8 % de dégâts, +6 % de vitesse, −6 % de recharge, +25 % de collecte, +20 % d'or, −12 % de recharge du sort (sanctuaire de l'arcane, phase 22). Un usage chacun.
+- **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie. Un usage chacun. **Depuis la phase 47 (demande de Jimmy : toutes les stats trouvables au sanctuaire)**, 4 choix tirés parmi 18 (`BOON`, `BOON_KEYS`) :
+  - survie : +12 PV max · régénération +0,4 PV/s · armure +3 % · vol de vie +2 % ;
+  - attaque : dégâts +8 % · critique +3 % · dégâts critiques +15 % · dégâts aux élites et boss +10 % · recharge des armes −6 % · taille +6 % ;
+  - mouvement : vitesse +6 % · saut +6 % ;
+  - sort : recharge du sort −12 % · puissance du sort +8 % ;
+  - butin : chance +0,5 · collecte +25 % · XP +6 % · or +20 %.
+  - Un bonus dont la stat est à son plafond (armure 36 %, recharge ×0,25, recharge du sort ×0,35) n'est plus proposé. La carte montre « stat : actuel → nouveau ». L'écran de pause affiche la **fiche de stats** du héros (`src/ui/stats.ts`), par famille : c'est ce qui permet de choisir.
 - **Respiration avant un boss** : bannière « … approche » 15 s avant, spawn à 60 % les 10 dernières secondes.
 
 ### 3.7 Bonus au sol (phase 35)
@@ -802,6 +819,28 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Relecture perf de la livraison B** (11 nov.) : approuvée, aucun bloquant. Mesuré : aucune allocation par image ajoutée ; bench inchangé (p95 ≈ 1 ms) ; les neuf héros reconstruits avec le nouveau `mergeKay` sont identiques à l'octet ; mémoire GPU des ennemis ≈ 11,8 Mo contre 10,9 (trois atlas de plus), cuisson et téléchargement équivalents. Corrigé à sa suite : le dragonnet est mesuré sur son envergure (2,1 u) et centré sur la boîte de toute sa boucle, son point bas ne traverse plus le sol en plongée, un seul battement d'ailes est cuit (8 poses au lieu de 4 par battement), son balancement est réduit, et la horde du test de charge compte un Volant sur vingt. Laissé : couper les mipmaps des atlas en palette (≈ 1,9 Mo de GPU à gagner, à valider sur capture).
 - **Reste à nettoyer** (sans effet en jeu) : `tools/assets/heroes.ts` garde l'assemblage Quaternius (`assemble`, `addBody`, `finish`), qui ne sert plus qu'à fournir le squelette source des animations ; `props.glb` contient encore le crâne et l'ancien sanctuaire.
 - **Porte B** : 11 types lisibles à 400 ennemis (captures lues en rendu net et pixel) ; LOD et budgets tenus (≤ 40 appels, ≤ 150 k triangles en pixel, ≤ 250 k en net, `enemies.glb` sous son plafond) ; bestiaire régénéré ; relecture perf ; test de Jimmy.
+
+### Phase 47 — Plus de contenu : sanctuaires, tomes, objets, armes (1.46.0 puis suivantes)
+- **Demande de Jimmy** (11 nov.) : « on arrive sur un truc vraiment clean » ; beaucoup plus d'objets, des armes, des tomes dont un de vol de vie, et **toutes les stats trouvables au sanctuaire**, « pour monter les stats qu'on a moins ou dont on a besoin par rapport au build ». Plan approuvé en trois livraisons : A sanctuaires et tomes, B seize objets, C quatre armes (Fouet, Fiole, Esprits, Balise).
+- **Livraison A (1.46.0)** :
+  - **Sanctuaires** : 4 bonus proposés parmi 18, un par stat du héros (§3.6). La carte dit « stat : actuel → nouveau ». Un bonus au plafond de sa stat n'est plus proposé.
+  - **Fiche de stats** dans l'écran de pause (`src/ui/stats.ts`) : vingt lignes en cinq familles (survie, attaque, mouvement, sort, butin).
+  - **Tome du Sang** au tirage (§3.2). Le vol de vie du héros (`Player.steal`) puise dans la réserve de soin par seconde des objets.
+  - Quatre cartes (sanctuaire, 4e carte de la chance) s'affichent en deux rangées de deux sur PC.
+- **Dilution mesurée, et ce qu'elle a changé** (simulations du 11 nov., bot average, kit complet) :
+  - sanctuaires à 18 stats, tirage de tomes inchangé : « monde 2 atteint » 74 % et victoire 21 % sur 300 parties (1.45.2 : 78 % et 21 % sur 200) : neutre ;
+  - les quatre tomes au tirage : 52 à 59 % et 9 à 13 %. Ni les renforcer de 50 % ni apprendre au bot à préférer les tomes de combat n'y change rien ;
+  - cause connue pour un tiers : les tomes ne se valent pas. « Monde 2 atteint » vaut 85 % avec Projectiles et 62 % sans ; avec douze tomes pour quatre emplacements, il est pris dans 51 % des parties au lieu de 68 %, ce qui explique environ 5 des 16 points. Le reste baisse avec ou sans Projectiles (84 → 77 % et 59 → 45 %) et n'est pas expliqué : Vitalité et Savoir moins souvent pris, tomes neufs trop faibles à bas niveau, à mesurer ;
+  - le Sang seul : 76 % sur 400 parties (71 %, 82 % et 80 % aux graines 42, 43 et 44), victoire 17,5 %. Écart avec l'ancien tirage : +2 points ± 6,5 sur « monde 2 atteint », −3 ± 6 sur la victoire : rien de mesurable. Les parties où le bot prend le Sang gagnent moins (12 % contre 23 %) : une corrélation, à suivre.
+- **Décisions prises** :
+  - **Givre, Bastion et Défi restent en réserve** (`TOME_HELD`) : écrits, testés, traduits, mais ni tirés ni listés à la Bibliothèque. Ils sortiront quand le tirage saura s'élargir sans diluer (voir « attend Jimmy »).
+  - **Bastion** : le plan prévoyait « invulnérabilité après un coup +0,1 s » et « dégâts subis −4 % à l'arrêt ». Les dégâts de contact sont continus (pas de fenêtre d'invulnérabilité à allonger) et une ligne « à l'arrêt » ne sert ni au bot ni à un joueur qui bouge. Remplacées par **revanche** (dégâts +8 % pendant 3 s après un coup reçu) et **garde** (dégâts de contact −5 %, plafond −30 %).
+  - **Sang** : +2 % de vol de vie par ligne (1 % ne soignait presque rien en début de partie ; passé le début, c'est la réserve qui borne le soin, pas le pourcentage). La réserve ouverte par le héros (tome et sanctuaires) est plafonnée à 8 PV/s (`BLOOD.heroMax`), et le sanctuaire du sang n'est plus proposé au plafond ; la ligne « réserve de soin » n'est proposée que si un soin y puise déjà (`needs: 'heal'`), pour ne jamais tirer une ligne sans effet.
+  - **Bot** : la carte d'un nouveau tome de combat vaut +8 (`BOT_TUNE.tomePrior`). Sur l'ancien contenu, l'ancien et le nouveau bot donnent les mêmes résultats.
+  - CLI : `--no-tome`, `--held-tomes`, `--tome-prior`.
+- **Cibles** : toutes tenues sauf deux, qui sont posées sur la moyenne du jeu et tombent d'un côté ou de l'autre selon la graine — kit complet « monde 2 atteint » 71 % à la graine 42 (cible ≥ 75 % ; 76 % sur 400 parties, 74 % pour l'ancien tirage) ; départ « morts avant 3 min » 21 % sur 400 parties (cible ≤ 20 % ; ancien tirage 20,3 %, 1.45.2 20,0 %). Relecture d'équilibrage du 11 nov. : livrable, aucune régression mesurable. Piste pour redonner de la marge, non appliquée : PV du premier boss de survie ×0,85 (41 des 96 morts du kit complet en monde 1 tombent entre 3:00 et 5:00).
+- **Attend Jimmy** : comment élargir le tirage des tomes. Pistes : **bannir une carte** pour la partie (idée déjà retenue le 8 nov.), tomes à **débloquer** à la Bibliothèque (le joueur choisit d'élargir son tirage), un **5e emplacement** de tome, ou **rééquilibrer Projectiles**. La question se reposera pour chaque tome ajouté.
+- **Porte A** : tests Vitest des 18 bonus, des lignes des quatre tomes, de la réserve de soin et de la fiche de stats ; captures lues (sanctuaire à quatre cartes et fiche de stats, PC et téléphone) ; e2e exploration ; bench inchangé.
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.

@@ -1,4 +1,4 @@
-import { CRIT, SYN, Syn, TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
+import { BASTION, CRIT, SYN, Syn, TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
 import type { TomeKey, WeaponKey } from '../types';
 import type { World } from '../world';
 
@@ -43,6 +43,10 @@ export const TOME_LOOK: Record<TomeKey, { glyph: string; color: string }> = {
   savoir: { glyph: '✎', color: '#59d8ff' },
   chance: { glyph: '☘', color: '#7ee0a1' },
   or: { glyph: '$', color: '#ffcc4d' },
+  sang: { glyph: '♦', color: '#e0354f' },
+  givre: { glyph: '❄', color: '#8fd8ff' },
+  bastion: { glyph: '▣', color: '#b9a37a' },
+  defi: { glyph: '☠', color: '#b88cff' },
 };
 
 /** Stats courantes d'une arme (objet partagé, recalculé par refreshStats quand une carte s'applique : jamais modifié par l'appelant). */
@@ -181,6 +185,43 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
       break;
     case 'shop':
       P.shopMul = Math.max(CRIT.shopMin, P.shopMul - l.step);
+      break;
+    // phase 47 : Sang, Givre, Bastion, Défi
+    case 'steal':
+      P.steal += l.step;
+      break;
+    case 'stealcap':
+      P.stealCap += l.step;
+      break;
+    case 'lowdmg':
+      P.lowDmg += l.step;
+      break;
+    case 'slowchance':
+      P.slowChance += l.step;
+      break;
+    case 'chilldmg':
+      P.chillDmg += l.step;
+      break;
+    case 'slowdur':
+      P.slowMul += l.step;
+      break;
+    case 'thorns':
+      P.thorns += l.step;
+      break;
+    case 'guard':
+      P.guard = Math.min(BASTION.guardMax, P.guard + l.step);
+      break;
+    case 'revenge':
+      P.revenge += l.step;
+      break;
+    case 'spawn':
+      P.spawnMul += l.step;
+      break;
+    case 'eliteloot':
+      P.eliteLoot += l.step;
+      break;
+    case 'eliterate':
+      P.eliteRate += l.step;
       break;
   }
 }

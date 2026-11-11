@@ -19,6 +19,7 @@ import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
 import { BOON_ICON, ITEM_ICON, POWER_ICON, SPELL_ICON, TOME_ICON, WEAPON_ICON } from './icons';
+import { boonNow } from './stats';
 
 const PAL_POWER = PAL.power;
 import type { World } from '../sim/world';
@@ -544,6 +545,7 @@ export function renderCards(
   w?: World,
   shop?: { gold: number; full: boolean },
 ): void {
+  container.classList.toggle('four', cards.length === 4); // phase 47 : deux rangées de deux
   container.innerHTML = cards
     .map((c, i) => {
       let glyph = '+',
@@ -599,9 +601,11 @@ export function renderCards(
         c.lv === 1 && c.kind !== 'i' && c.kind !== 'b'
           ? `<p>${c.kind === 'w' ? t(`weapon.${c.key}.text`) : t(`tome.${c.key}.text`)}</p>`
           : '';
+      // phase 47 : un bonus de sanctuaire dit où en est la stat (« Vol de vie : 2 % → 3 % »)
+      const now = c.kind === 'b' && w ? `<p class="now">${boonNow(w, c.key as BoonKey)}</p>` : '';
       const body =
         c.kind === 'heal' || c.kind === 'i' || c.kind === 'b'
-          ? `<p>${cardText(c)}</p>`
+          ? `<p>${cardText(c)}</p>${now}`
           : `${intro}<ul class="lines">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
       // phase 17 : la carte qui complète une synergie dit ce qu'elle débloque
       const synLine = syn >= 0 ? `<p class="synline">✦ ${synergyText(syn)}</p>` : '';

@@ -21,6 +21,7 @@ import { FEEL, HitStop } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards } from './ui/hud';
+import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
 import { achName, achUnlock, itemName, synergyName } from './ui/cards';
 import { canGainItem } from './sim/items';
@@ -546,6 +547,7 @@ function toMenu(): void {
 function pauseGame(): void {
   if (app !== 'play') return;
   app = 'pause';
+  if (world) $('pauseStats').innerHTML = statsHTML(world); // phase 47 : fiche de stats, à jour à chaque pause
   showOnly('pause');
 }
 function resumeGame(): void {

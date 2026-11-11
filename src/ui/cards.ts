@@ -20,9 +20,11 @@ export const enemyName = (type: number): string => t(`enemy.${ENEMIES[type].key}
 /** Objets passifs (phase 17) : nom, règle, glyphe et couleur (par rareté). */
 /** Bonus de sanctuaire (phase 18) : nom et effet chiffré (BOON). */
 export const boonName = (k: BoonKey): string => t(`boon.${k}.name`);
+/** Bonus donnés en valeur absolue (PV, PV/s, points de chance) ; les autres sont des pourcentages. */
+const BOON_ABSOLUTE = new Set<BoonKey>(['hp', 'regen', 'luck']);
 export const boonText = (k: BoonKey): string => {
   const v = BOON[k];
-  return t(`boon.${k}.text`, { v: k === 'hp' ? String(v) : fmtNum(Math.round(v * 100)) });
+  return t(`boon.${k}.text`, { v: BOON_ABSOLUTE.has(k) ? fmtNum(v) : fmtNum(Math.round(v * 100)) });
 };
 export const BOON_GLYPH: Record<BoonKey, string> = {
   hp: '♥',
@@ -32,6 +34,18 @@ export const BOON_GLYPH: Record<BoonKey, string> = {
   magnet: '◎',
   gold: '◉',
   spell: '✧',
+  // phase 47
+  regen: '✚',
+  armor: '⛨',
+  steal: '♦',
+  crit: '✸',
+  critdmg: '✹',
+  elite: '♛',
+  size: '◯',
+  jump: '⇡',
+  spellpow: '✦',
+  luck: '☘',
+  xp: '✎',
 };
 // phase 19 : sorts de classe
 export const spellName = (k: SpellKey): string => t(`spell.${k}.name`);
@@ -112,9 +126,9 @@ export const achUnlock = (a: Achievement): string =>
           : t(`ach.${a.id}.unlock`);
 
 /** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
-const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop']);
+const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop', 'guard']);
 /** Lignes en valeur absolue bien que < 1 (PV/s, points de chance). */
-const ABSOLUTE = new Set(['regen', 'luck', 'killheal']);
+const ABSOLUTE = new Set(['regen', 'luck', 'killheal', 'stealcap']);
 /** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */
 function lineValue(l: StatLine, kind: 'w' | 't'): string {
   const sign = l.step > 0 !== (kind === 't' && REDUCES.has(l.stat)) ? '+' : '−';

@@ -1,10 +1,10 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BOON, BOON_KEYS, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BLOOD, BOON, BOON_KEYS, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { bourseDiscount, canGainItem } from './items';
 import { Ev } from './types';
-import type { BoonKey, Card } from './types';
+import type { BoonKey, Card, Player } from './types';
 import { refreshStats } from './weapons/defs';
 import type { Rng } from './rng';
 import type { World } from './world';
@@ -211,10 +211,24 @@ export function tickPOI(w: World, dt: number): void {
   }
 }
 
+/** Un bonus au plafond de sa stat (armure, recharges) n'apporterait rien : il n'est plus proposé. */
+export function boonCapped(w: World, key: BoonKey): boolean {
+  const P = w.player;
+  return key === 'armor'
+    ? P.armor >= TOME_CAPS.armorMax - 1e-9
+    : key === 'cd'
+      ? P.cdMul <= TOME_CAPS.cdMin + 1e-9
+      : key === 'spell'
+        ? P.spellCdMul <= TOME_CAPS.spellCdMin + 1e-9
+        : key === 'steal'
+          ? P.steal * BLOOD.capPerSteal + P.stealCap >= BLOOD.heroMax - 1e-9 // réserve du héros pleine : plus rien à gagner
+          : false;
+}
+
 /** Tire SHRINE.offers bonus distincts dans `out` (kind 'b'). Allocation de cartes : hors boucle chaude (un sanctuaire). */
 export function rollBoonChoices(w: World, out: Card[]): void {
   out.length = 0;
-  const pool = BOON_KEYS.slice();
+  const pool = BOON_KEYS.filter((k) => !boonCapped(w, k));
   for (let k = 0; k < SHRINE.offers && pool.length > 0; k++) {
     const i = Math.floor(w.rng.next() * pool.length);
     out.push({ kind: 'b', key: pool[i], lv: 0, n: 1, s0: -1, s1: -1, s2: -1 });
@@ -222,9 +236,11 @@ export function rollBoonChoices(w: World, out: Card[]): void {
   }
 }
 
-/** Applique un bonus de sanctuaire (permanent pour la partie). */
-export function applyBoon(w: World, key: BoonKey): void {
-  const P = w.player;
+/**
+ * Effet d'un bonus de sanctuaire sur un joueur. Sans autre effet de bord : l'interface l'applique à une copie pour
+ * afficher « valeur actuelle → nouvelle valeur ».
+ */
+export function boonApply(P: Player, key: BoonKey): void {
   switch (key) {
     case 'hp':
       P.maxHp += BOON.hp;
@@ -248,7 +264,46 @@ export function applyBoon(w: World, key: BoonKey): void {
     case 'gold':
       P.goldMul += BOON.gold;
       break;
+    // phase 47 : toutes les stats
+    case 'regen':
+      P.regen += BOON.regen;
+      break;
+    case 'armor':
+      P.armor = Math.min(TOME_CAPS.armorMax, P.armor + BOON.armor);
+      break;
+    case 'steal':
+      P.steal += BOON.steal;
+      break;
+    case 'crit':
+      P.crit += BOON.crit;
+      break;
+    case 'critdmg':
+      P.critMul += BOON.critdmg;
+      break;
+    case 'elite':
+      P.eliteDmgMul += BOON.elite;
+      break;
+    case 'size':
+      P.sizeMul += BOON.size;
+      break;
+    case 'jump':
+      P.jumpMul *= 1 + BOON.jump;
+      break;
+    case 'spellpow':
+      P.spellPow += BOON.spellpow;
+      break;
+    case 'luck':
+      P.luck += BOON.luck;
+      break;
+    case 'xp':
+      P.xpMul += BOON.xp;
+      break;
   }
+}
+
+/** Applique un bonus de sanctuaire (permanent pour la partie). */
+export function applyBoon(w: World, key: BoonKey): void {
+  boonApply(w.player, key);
   w.boons[BOON_KEYS.indexOf(key)]++;
   refreshStats(w);
 }

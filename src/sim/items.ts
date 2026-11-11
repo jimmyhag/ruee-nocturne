@@ -1,7 +1,7 @@
 // Objets passifs (phase 17, PLAN §3.6) : obtenus dans les coffres et chez le marchand. Chaque objet est une règle :
 // soit un effet appliqué au joueur à l'obtention, soit une valeur (w.itemEff[It.X]) lue par la boucle de jeu.
 // Phase 38 : plus de limite, les objets se cumulent (w.items = nombre d'exemplaires, règle stackEff).
-import { ENEMIES, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, SPELL, TOME_CAPS, TRAIT } from './balance';
+import { BLOOD, ENEMIES, ITEM, ITEM_KEYS, ITEM_RARITY, It, MERCHANT, SPELL, TOME_CAPS, TRAIT } from './balance';
 import { hitEnemy } from './combat';
 import { Ev, HitSrc, Trait } from './types';
 import type { Card, ItemKey } from './types';
@@ -274,9 +274,16 @@ export function shieldTick(w: World, dt: number): void {
 // ---- phase 31 : soins des objets (vol de vie, Calice) ----
 
 /** Plafond de soin par seconde des objets possédés (vol de vie et Calice cumulés). */
-function healCap(w: World): number {
-  const E = w.itemEff;
-  return ITEM.croc.cap * E[It.Croc] + ITEM.calice.cap * E[It.Calice] + ITEM.couronne.cap * E[It.Couronne];
+export function healCap(w: World): number {
+  const E = w.itemEff,
+    P = w.player;
+  return (
+    ITEM.croc.cap * E[It.Croc] +
+    ITEM.calice.cap * E[It.Calice] +
+    ITEM.couronne.cap * E[It.Couronne] +
+    // phase 47 : vol de vie du héros (tome Sang, sanctuaire) et lignes de réserve
+    Math.min(BLOOD.heroMax, P.steal * BLOOD.capPerSteal + P.stealCap)
+  );
 }
 
 /** Soigne de `hp` PV en puisant dans la réserve de la seconde ; compte le soin pour l'annonce. */
@@ -291,7 +298,7 @@ export function itemHeal(w: World, hp: number): void {
 
 /** Vol de vie (Croc de vampire, Couronne du berserker) : appelé par hitEnemy avec les dégâts infligés. */
 export function lifesteal(w: World, dealt: number): void {
-  const k = ITEM.croc.steal * w.itemEff[It.Croc] + ITEM.couronne.steal * w.itemEff[It.Couronne];
+  const k = ITEM.croc.steal * w.itemEff[It.Croc] + ITEM.couronne.steal * w.itemEff[It.Couronne] + w.player.steal;
   if (k > 0) itemHeal(w, dealt * k);
 }
 

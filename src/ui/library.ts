@@ -1,6 +1,6 @@
 // Bibliothèque (phase 40) : toutes les armes, objets, tomes et synergies, avec ce qu'on possède et ce qu'on peut
 // débloquer (succès, puis achat à l'or). Rendu à l'ouverture et après chaque action (jamais par frame) : innerHTML.
-import { ITEM, ITEM_KEYS, ITEM_RARITY, SYNERGIES, TOME_KEYS } from '../sim/balance';
+import { ITEM, ITEM_KEYS, ITEM_RARITY, SYNERGIES, TOME_POOL } from '../sim/balance';
 import type { ItemKey } from '../sim/types';
 import { WEAPON_KEYS } from '../sim/weapons/defs';
 import { progress, value } from '../meta/achievements';
@@ -67,7 +67,7 @@ export function tabCount(m: Meta, tab: LibTab): string {
   if (tab === 'w')
     return `${WEAPON_KEYS.filter((k) => entryState(m, 'w', k) === 'owned').length}/${WEAPON_KEYS.length}`;
   if (tab === 'i') return `${ITEM_KEYS.filter((k) => entryState(m, 'i', k) === 'owned').length}/${ITEM_KEYS.length}`;
-  return `${tab === 't' ? TOME_KEYS.length : SYNERGIES.length}`;
+  return `${tab === 't' ? TOME_POOL.length : SYNERGIES.length}`;
 }
 
 export function renderLibrary(tabs: HTMLElement, list: HTMLElement, m: Meta, tab: LibTab): void {
@@ -94,7 +94,7 @@ export function renderLibrary(tabs: HTMLElement, list: HTMLElement, m: Meta, tab
         `${itemText(k)} ${t('lib.copies', { n: ITEM.maxCopies[ITEM_RARITY[ITEM_KEYS.indexOf(k)]] })}`,
         ITEM_RARITY[ITEM_KEYS.indexOf(k)],
       );
-  } else if (tab === 't') for (const k of TOME_KEYS) html += plain(m, `t:${k}`, TOME_ICON[k], tomeName(k), tomeText(k));
+  } else if (tab === 't') for (const k of TOME_POOL) html += plain(m, `t:${k}`, TOME_ICON[k], tomeName(k), tomeText(k));
   else
     SYNERGIES.forEach((s, i) => {
       const recipe = t('lib.recipe', { tome: tomeName(s.tome), weapon: weaponName(s.weapon) });

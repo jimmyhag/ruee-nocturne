@@ -1,4 +1,4 @@
-import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_KEYS, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
+import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_POOL, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
 import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
@@ -12,7 +12,8 @@ import type { World } from './world';
 const pool: Card[] = [];
 const weights: number[] = [];
 const picked: number[] = [];
-for (let i = 0; i < 20; i++) pool.push({ kind: 'w', key: '', lv: 0, n: 1, s0: 0, s1: -1, s2: -1 });
+// 40 entrées : 13 armes et 12 tomes au plus (phase 47 ; 20 ne suffisaient plus au-delà de 17)
+for (let i = 0; i < 40; i++) pool.push({ kind: 'w', key: '', lv: 0, n: 1, s0: 0, s1: -1, s2: -1 });
 
 /** Nombre de lignes d'une carte : 1 / 2 / 3, décalé par la chance (RARITY). */
 export function rollLineCount(w: World): number {
@@ -25,12 +26,15 @@ export function rollLineCount(w: World): number {
 
 /** Tire une ligne parmi celles non plafonnées (poids `weight`) ; `taken` = compte déjà pris par ligne. -1 si tout est plafonné. */
 function rollLine(w: World, lines: StatLine[], taken: ArrayLike<number>, extra0: number, extra1: number): number {
+  // phase 47 : une ligne « réserve de soin » ne sort que si un soin y puise déjà (vol de vie du héros, Croc, Couronne, Calice)
+  const heals = w.player.steal > 0 || w.items[It.Croc] + w.items[It.Calice] + w.items[It.Couronne] > 0;
   let total = 0;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     if (i === extra0 || i === extra1) continue; // phase 23 : jamais deux fois la même ligne sur une carte
     const n = taken[i];
     if (l.max !== undefined && n >= l.max) continue;
+    if (l.needs === 'heal' && !heals) continue;
     total += l.weight;
   }
   if (total === 0) return -1;
@@ -40,6 +44,7 @@ function rollLine(w: World, lines: StatLine[], taken: ArrayLike<number>, extra0:
     if (i === extra0 || i === extra1) continue;
     const n = taken[i];
     if (l.max !== undefined && n >= l.max) continue;
+    if (l.needs === 'heal' && !heals) continue;
     r -= l.weight;
     if (r <= 0) return i;
   }
@@ -83,7 +88,7 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
     n++;
     weights.push(lv > 0 ? CHOICE.ownedWeight : CHOICE.newWeight);
   }
-  for (const k of TOME_KEYS) {
+  for (const k of TOME_POOL) {
     const lv = w.tomes[k] ?? 0;
     if (lv >= LEVEL_MAX.tome) continue;
     if (lv === 0 && nT >= w.maxTomes) continue;

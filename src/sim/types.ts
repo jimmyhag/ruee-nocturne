@@ -302,7 +302,20 @@ export interface WorldOptions {
   bannedItems?: ItemKey[]; // phase 40 : objets jamais proposés (verrouillés ou retirés du tirage) ; undefined = aucun
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
-export type TomeKey = 'degats' | 'cadence' | 'projectiles' | 'vitalite' | 'mouvement' | 'savoir' | 'chance' | 'or';
+export type TomeKey =
+  | 'degats'
+  | 'cadence'
+  | 'projectiles'
+  | 'vitalite'
+  | 'mouvement'
+  | 'savoir'
+  | 'chance'
+  | 'or'
+  // phase 47 : Sang (vol de vie), Givre (contrôle), Bastion (riposte), Défi (plus de monstres contre plus de butin)
+  | 'sang'
+  | 'givre'
+  | 'bastion'
+  | 'defi';
 
 /** Bonus au sol (phase 35) : ramassés en marchant dessus, effet immédiat ou temporaire. */
 export type PowerKey = 'aimant' | 'or' | 'vitesse' | 'gel' | 'rage';
@@ -326,7 +339,26 @@ export interface Power {
 
 /** Objets passifs (phase 17) : une règle de jeu chacun, obtenus dans les coffres et chez le marchand. */
 /** Bonus de sanctuaire (phase 18) : permanents pour la partie. */
-export type BoonKey = 'hp' | 'dmg' | 'speed' | 'cd' | 'magnet' | 'gold' | 'spell';
+// phase 47 (demande de Jimmy) : toutes les stats du héros se trouvent dans un sanctuaire
+export type BoonKey =
+  | 'hp'
+  | 'dmg'
+  | 'speed'
+  | 'cd'
+  | 'magnet'
+  | 'gold'
+  | 'spell'
+  | 'regen'
+  | 'armor'
+  | 'steal'
+  | 'crit'
+  | 'critdmg'
+  | 'elite'
+  | 'size'
+  | 'jump'
+  | 'spellpow'
+  | 'luck'
+  | 'xp';
 export type ItemKey =
   | 'phenix'
   | 'cape'
@@ -416,6 +448,20 @@ export interface Player {
   killHeal: number; // PV par ennemi tué (tome Vitalité)
   lvlHeal: number; // PV soignés à chaque niveau (tome Savoir)
   shopMul: number; // prix du marchand (tome Or)
+  // phase 47 : tomes Sang, Givre, Bastion, Défi et sanctuaires
+  steal: number; // vol de vie : part des dégâts infligés rendue en PV (dans la réserve de soin)
+  stealCap: number; // PV/s ajoutés à la réserve de soin
+  lowDmg: number; // dégâts en plus sous BLOOD.below des PV (tome Sang)
+  slowChance: number; // chance par coup d'arme de ralentir (tome Givre ; pas les boss)
+  chillDmg: number; // dégâts en plus aux ennemis ralentis ou étourdis
+  slowMul: number; // durée des ralentissements d'armes
+  thorns: number; // riposte : dégâts de contact renvoyés (× ceux du contact), comme les Épines
+  guard: number; // part des dégâts de contact annulée (tome Bastion)
+  revenge: number; // dégâts en plus pendant BASTION.revengeT s après un coup reçu
+  taken: number; // multiplicateur courant des dégâts subis (armure, sorts, arrêt), recalculé à chaque pas
+  spawnMul: number; // apparitions (tome Défi)
+  eliteLoot: number; // XP et or des élites
+  eliteRate: number; // fréquence des élites
   revives: number; // réanimations restantes (boutique)
   dashTime: number; // durée du déplacement éclair (Bond, Comète ; 0 pour les autres sorts)
   jumpMul: number; // phase 17 : Bottes de saut
