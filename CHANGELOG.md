@@ -20,6 +20,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 - `mergeKay` produit plusieurs niveaux de détail à partir des mêmes sommets, lie les maillages rigides portés par un os (ailes du vampire) et accepte une texture hors fichier.
 - `enemies.glb` : 532 Ko (636 Ko avant). Le dragonnet vient du pack Ultimate Monsters de Quaternius (CC0).
 - Essayés et écartés : les clips du pack KayKit (bras tenus loin du corps, faits pour des corps trapus) ; une simplification qui ignore les coutures de texture (elle mélange les couleurs).
+- Nettoyage sans effet en jeu : l'assemblage des personnages Quaternius est retiré de `tools/assets/heroes.ts` (il reste `copyClip`, qui pose les clips sur le squelette source) ; `HEROES` ne garde que le squelette source, le repos et le budget de triangles ; le crâne des Volants et l'ancien sanctuaire sortent de `props.glb` (300 Ko, 315 Ko avant) ; plafonds resserrés à 450 ko par héros (700 avant) et 5 Mo au total (8,4 avant, pour 4,2 Mo réels). Héros, ennemis et décor reconstruits à l'identique (mêmes empreintes).
+- `e2e/enemies.spec.ts` (créatures au sol, Volant en l'air) : le test attend que chaque type ait une instance dessinée au lieu de 500 ms fixes. En rendu logiciel lent, la première image après l'apparition des cinq types dépassait ce délai et le test échouait, sur la 1.44.0 comme sur la 1.45.0.
 
 ## 1.44.0 — 11 nov. 2026 (demande de Jimmy : de nouveaux skins de héros, plus « fantasy »)
 
