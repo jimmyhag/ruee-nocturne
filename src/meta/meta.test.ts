@@ -11,7 +11,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './achievements';
-import { dailyBest, dailySeed, recordDaily, todayKey } from './daily';
+import { dailyBest, dailySeed, dailyTimes, msToNextDaily, recordDaily, todayKey } from './daily';
 import { DEFAULT_META, LEGACY_SHOP, exportMeta, importMeta, legacyShopSpent, normalizeMeta } from './save';
 import {
   buyCharacter,
@@ -227,6 +227,13 @@ describe('défi du jour', () => {
     expect(recordDaily(m, 500, '2026-11-03')).toBe(1);
     expect(recordDaily(m, 5, '2026-11-04')).toBe(1);
     expect(m.daily.times).toEqual([5]);
+    // 1.48.1 : la feuille du défi liste les temps du jour (aucun si le dernier défi date d'un autre jour)
+    expect(dailyTimes(m, '2026-11-04')).toEqual([5]);
+    expect(dailyTimes(m, '2026-11-05')).toEqual([]);
+    // … et le délai avant le prochain défi : minuit UTC, là où la date du défi change
+    expect(msToNextDaily(new Date('2026-11-11T21:30:00Z'))).toBe(2.5 * 3600e3);
+    expect(msToNextDaily(new Date('2026-12-31T23:59:59Z'))).toBe(1000);
+    expect(todayKey(new Date(Date.parse('2026-11-11T21:30:00Z') + 2.5 * 3600e3))).toBe('2026-11-12');
     expect(dailyBest(m, '2026-11-05')).toBe(0);
   });
 });

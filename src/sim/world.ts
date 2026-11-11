@@ -233,6 +233,11 @@ export class World {
   readonly itemEff = new Float64Array(ITEM_KEYS.length);
   /** Objets exclus des tirages (sim d'ablation de la CLI) : jamais proposés, sans effet. */
   readonly itemBan = new Uint8Array(ITEM_KEYS.length);
+  /**
+   * Exemplaires consommés (Plume de phénix, une par réanimation) : l'affichage montre `items − itemUsed`, ce qu'il reste
+   * vraiment. `items` garde le compte obtenu dans la partie : c'est lui qui borne les tirages (ITEM.maxCopies).
+   */
+  readonly itemUsed = new Uint8Array(ITEM_KEYS.length);
   itemOrder: number[] = []; // ordre d'obtention (HUD)
   itemPicks = 0; // choix d'objet en attente (coffres)
   eliteChests = 0; // phase 38 : coffres d'élite ramassés (un sur ITEM.eliteItemEvery donne un objet)

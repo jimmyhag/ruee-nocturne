@@ -833,5 +833,21 @@
   "ach.runs20.name": "Faithful",
   "ach.runs20.text": "Play {n} runs",
   "ach.coffres25.name": "Seeker",
-  "ach.coffres25.text": "Open {n} map chests in total"
+  "ach.coffres25.text": "Open {n} map chests in total",
+  "daily.title": "Daily challenge",
+  "daily.tag": "One run a day, the same for everyone. How long will you last?",
+  "daily.same.k": "For all",
+  "daily.same.v": "Today's map and luck are the same for every player. They change every day.",
+  "daily.fair.k": "Even",
+  "daily.fair.v": "You play the Scout with every weapon, item and slot: your unlocks don't count.",
+  "daily.goal.k": "Goal",
+  "daily.goal.v": "Last as long as you can. Replay as often as you like: your 10 best times of the day are kept.",
+  "daily.gain.k": "Rewards",
+  "daily.gain.v": "Gold and achievements count as in a normal run.",
+  "daily.play": "Start the challenge",
+  "daily.times": "Your times today: {list}",
+  "daily.noTime": "No time yet today: set the first one.",
+  "daily.next": "Next challenge in {time}",
+  "daily.hm": "{h} h {m} min",
+  "daily.m": "{m} min"
 }

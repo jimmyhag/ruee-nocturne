@@ -489,6 +489,13 @@ export class Hud {
  * à partir de deux exemplaires). `hide` : nombre des plus anciens objets regroupés en « +n ». Reconstruite au changement
  * d'équipement seulement (kit), jamais par image.
  */
+/** Objets encore portés, dans l'ordre d'obtention : une Plume de phénix consommée n'y est plus (tableau réutilisé). */
+const held: number[] = [];
+function heldItems(w: World): number[] {
+  held.length = 0;
+  for (const i of w.itemOrder) if (w.items[i] > w.itemUsed[i]) held.push(i);
+  return held;
+}
 export function gearHtml(w: World, hide = 0): string {
   let s = '';
   for (const k in w.weapons) {
@@ -499,15 +506,15 @@ export function gearHtml(w: World, hide = 0): string {
         : `${weaponName(k as WeaponKey)} ${lv}`;
     s += `<span class="gi gw" title="${name}" aria-label="${name}">${WEAPON_ICON[k as WeaponKey]}<b${max ? ' class="max"' : ''}>${lv}</b></span>`;
   }
-  const order = w.itemOrder;
+  const order = heldItems(w);
   if (order.length === 0) return s;
   s += '<i class="gsep"></i>';
   if (hide > 0) s += `<span class="gi gmore">+${hide}</span>`;
   for (let k = hide; k < order.length; k++) {
     const i = order[k],
       key = ITEM_KEYS[i],
-      n = w.items[i],
-      max = n >= maxCopies(i), // phase 43 : exemplaires plafonnés par la rareté
+      n = w.items[i] - w.itemUsed[i], // ce qu'il reste : un exemplaire consommé ne s'affiche plus
+      max = w.items[i] >= maxCopies(i), // phase 43 : exemplaires plafonnés par la rareté (consommés compris)
       base = itemName(key) + (n > 1 ? ` ×${n}` : ''),
       name = max ? t('gear.max', { name: base }) : base;
     s += `<span class="gi git" title="${name}" aria-label="${name}" style="--r:${RARITY_COLOR[ITEM_RARITY[i]]}">${ITEM_ICON[key]}${n > 1 || max ? `<b${max ? ' class="max"' : ''}>×${n}</b>` : ''}</span>`;
@@ -530,9 +537,10 @@ function fitGear(el: HTMLElement, w: World): void {
   // ajustement fin : en pratique zéro ou une réécriture de plus (relecture perf : plus un reflow par objet masqué)
   const perRow = Math.max(1, Math.floor((el.clientWidth + 3) / (first.offsetWidth + 3)));
   const cells = el.childElementCount - 1; // le séparateur est étroit
-  let hide = Math.min(w.itemOrder.length, Math.max(2, cells - perRow * rows + 2));
+  const count = heldItems(w).length;
+  let hide = Math.min(count, Math.max(2, cells - perRow * rows + 2));
   el.innerHTML = gearHtml(w, hide);
-  while (el.scrollHeight > row * rows + 2 && hide < w.itemOrder.length) el.innerHTML = gearHtml(w, ++hide);
+  while (el.scrollHeight > row * rows + 2 && hide < count) el.innerHTML = gearHtml(w, ++hide);
 }
 
 /**
@@ -562,8 +570,10 @@ export function renderCards(
         icon = ITEM_ICON[c.key as ItemKey];
         color = RARITY_COLOR[c.lv];
         // phase 38 : cumul ; phase 43 : « max » quand cet exemplaire est le dernier possible
-        const top = c.s2 >= maxCopies(ITEM_KEYS.indexOf(c.key as ItemKey));
-        badge = `<span class="badge new item">${top ? t('card.itemMax', { n: c.s2 }) : c.s2 > 1 ? t('card.itemStack', { n: c.s2 }) : t('card.item')}</span>`;
+        const idx = ITEM_KEYS.indexOf(c.key as ItemKey),
+          top = c.s2 >= maxCopies(idx),
+          n = c.s2 - (w ? w.itemUsed[idx] : 0); // ce qu'on portera : les Plumes de phénix consommées ne comptent plus
+        badge = `<span class="badge new item">${top ? t('card.itemMax', { n }) : n > 1 ? t('card.itemStack', { n }) : t('card.item')}</span>`;
         if (shop) {
           const sold = c.s1 === 1;
           off = sold || shop.full || shop.gold < c.s0;

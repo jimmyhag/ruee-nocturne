@@ -58,7 +58,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 - Pas de stats permanentes achetées (phase 17 : la boutique par personnage de la phase 8 est retirée, l'or dépensé rendu). L'or sert aux **emplacements** d'armes et de tomes (communs à tous les personnages), aux personnages et aux tenues ; la puissance d'un run se construit **pendant** le run (cartes, objets, marchand, synergies). Dépenser au marchand ou garder pour la méta : un choix à chaque visite.
 - Déblocages par **succès** : « survis 10 min » → nouveau personnage ; « tue 100 Dards » → nouvelle arme dans le pool. Chaque succès montre son avancement en temps réel.
 - 3 personnages V1 aux stats et arme de départ différentes.
-- Défi quotidien : seed fixe partagée, classement local (pas de serveur en V1).
+- Défi quotidien : seed fixe partagée, classement local (pas de serveur en V1). 1.48.1 : le bouton ouvre une feuille qui explique le défi (même partie pour tous, Éclaireuse avec tout débloqué, tenir le plus longtemps), liste les temps du jour et lance la partie.
 
 ### 2.5 Règles d'or
 1. **Relance < 2 s** : écran de mort → bouton Rejouer → en jeu. Pas de chargement.
@@ -182,7 +182,7 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 
 | Objet | Effet | Rareté |
 |---|---|---|
-| Plume de phénix | une réanimation à 25 % PV | épique |
+| Plume de phénix | une réanimation à 25 % PV ; consommée, elle quitte la barre d'équipement (1.48.1) mais compte toujours dans la limite de 2 par partie | épique |
 | Cape de brume | dash 50 % plus long, invulnérabilité du dash +0,2 s | rare |
 | Lanterne du veilleur | rayon de collecte ×1,6 | commun |
 | Cœur de pierre | +30 PV max, −3 % vitesse | commun |

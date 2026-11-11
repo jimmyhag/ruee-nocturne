@@ -80,7 +80,7 @@ import type { LibKind } from './meta/library';
 import { LIB_TABS, renderLibrary } from './ui/library';
 import { initKeySettings, loadKeyboardLayout, renderKeyHints } from './ui/keys';
 import type { LibTab } from './ui/library';
-import { dailyBest, dailySeed, recordDaily, todayKey } from './meta/daily';
+import { dailyBest, dailySeed, dailyTimes, msToNextDaily, recordDaily, todayKey } from './meta/daily';
 import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
 import {
@@ -162,6 +162,7 @@ type AppMode =
   | 'victory'
   | 'characters'
   | 'help'
+  | 'daily'
   | 'merchant'
   | 'map';
 const SCREENS = [
@@ -179,6 +180,7 @@ const SCREENS = [
   'victory',
   'characters',
   'help',
+  'daily',
   'map',
 ] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
@@ -326,7 +328,7 @@ function vibrate(ms: number): void {
   }
 }
 function openScreen(
-  id: 'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help',
+  id: 'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help' | 'daily',
 ): void {
   if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings')
     backTo = app === 'settings' ? 'menu' : app;
@@ -345,11 +347,29 @@ function openScreen(
     return;
   } else if (id === 'help') {
     /* statique */
+  } else if (id === 'daily') {
+    renderDailyScreen();
+    showOnly(id);
+    $('dailyPlayBtn').focus(); // au clavier : Entrée lance le défi, Échap ferme
+    return;
   } else {
     applySettings();
     $('settingsMsg').textContent = '';
   }
   showOnly(id);
+}
+/** Feuille du défi du jour (1.48.1) : les temps du jour et le délai avant le prochain ; les règles sont statiques. */
+function renderDailyScreen(): void {
+  const times = dailyTimes(meta);
+  $('dailyTimes').textContent = times.length
+    ? t('daily.times', { list: times.map((s, i) => `${ordinal(i + 1)} ${fmtTime(s)}`).join(' · ') })
+    : t('daily.noTime');
+  const min = Math.ceil(msToNextDaily() / 60000),
+    h = Math.floor(min / 60),
+    m = min % 60;
+  $('dailyNext').textContent = t('daily.next', {
+    time: h > 0 ? t('daily.hm', { h, m: String(m).padStart(2, '0') }) : t('daily.m', { m }),
+  });
 }
 // phase 40 : Bibliothèque (onglet gardé d'une ouverture à l'autre)
 let libTab: LibTab = 'w';
@@ -390,6 +410,7 @@ function applyLang(): void {
   else if (app === 'shop') renderShopScreen();
   else if (app === 'achievements') renderAchievements($('achList'), meta);
   else if (app === 'library') renderLibraryScreen();
+  else if (app === 'daily') renderDailyScreen();
 }
 /** Après tout remplacement de la méta (import, effacement, IndexedDB, tests) : applique la langue si elle change. */
 function syncLang(): void {
@@ -847,7 +868,18 @@ addEventListener('keydown', (e) => {
 
 // ---------- boutons ----------
 $('playBtn').onclick = () => startGame();
-$('dailyBtn').onclick = () => startGame(undefined, true);
+// 1.48.1 : le bouton ouvre la feuille qui explique le défi ; c'est elle qui lance la partie
+$('dailyBtn').onclick = () => openScreen('daily');
+$('dailyBackBtn').onclick = closeScreen;
+$('dailyPlayBtn').onclick = () => {
+  closeScreen();
+  startGame(undefined, true);
+};
+addEventListener('keydown', (e) => {
+  if (app !== 'daily' || e.repeat || e.code !== 'Escape') return;
+  e.preventDefault();
+  closeScreen();
+});
 $('shopBtn').onclick = () => openScreen('shop');
 $('overShopBtn').onclick = () => openScreen('shop');
 $('achBtn').onclick = () => openScreen('achievements');
@@ -1378,6 +1410,7 @@ function applyCloud(uid: string, cloud: CloudDoc): void {
   if (app === 'shop') renderShopScreen();
   else if (app === 'achievements') renderAchievements($('achList'), meta);
   else if (app === 'library') renderLibraryScreen();
+  else if (app === 'daily') renderDailyScreen();
 }
 async function pushNow(uid: string): Promise<void> {
   if (!account) return;
@@ -2133,6 +2166,7 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.Revive:
         hud.banner(t(e.v > 0 ? 'banner.revive2' : 'banner.revive1'));
+        hud.kit(w); // la Plume de phénix consommée quitte la barre d'équipement (événement rare)
         hud.flash('gold');
         S.particles.ring(e.x, 0.5, e.z, PAL.gold, (40 * fx) | 0, 6, 8);
         audio.evolve();
@@ -2388,7 +2422,7 @@ function firstGesture(e: Event): void {
   audio.init();
   // un geste sur Jouer lance la musique de partie juste après : ne pas télécharger celle du menu pour rien
   const t = e.target as Element | null;
-  if (t?.closest?.('#playBtn, #dailyBtn')) return;
+  if (t?.closest?.('#playBtn, #dailyPlayBtn')) return;
   audio.setMusic(app === 'play' || app === 'levelup' || app === 'merchant' ? 'game' : 'menu'); // aide, réglages… : le menu
 }
 addEventListener('pointerup', firstGesture, true);

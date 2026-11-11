@@ -2,6 +2,18 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.48.1 — 11 nov. 2026 (retours de Jimmy : « le défi du jour, je ne sais pas ce que c'est », « le phénix reste affiché »)
+
+### Modifié
+
+- **Défi du jour** : le bouton ouvre une feuille qui dit ce que c'est avant de lancer. Une partie par jour, la même pour tous (carte et hasard du jour) ; on y joue l'Éclaireuse avec toutes les armes, tous les objets et tous les emplacements ; le but est de tenir le plus longtemps ; l'or et les succès comptent. La feuille liste tes temps du jour (10 au plus) et le délai avant le prochain défi. Au clavier : Entrée lance, Échap ferme.
+- **Plume de phénix** : une plume consommée quitte la barre d'équipement (×2 → ×1 → plus rien), en jeu comme sur l'écran de fin. C'est le seul objet qui se consomme ; le Bouclier se recharge.
+
+### Technique
+
+- `World.itemUsed` compte les exemplaires consommés ; l'affichage montre `items − itemUsed`. `items` garde le compte obtenu dans la partie : une plume consommée compte toujours dans la limite de deux par partie, les tirages ne changent pas.
+- Revenante : sa réanimation gratuite part avant la plume.
+
 ## 1.48.0 — 11 nov. 2026 (demande de Jimmy : des armes)
 
 ### Ajouté

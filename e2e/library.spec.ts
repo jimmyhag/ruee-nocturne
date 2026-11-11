@@ -97,6 +97,7 @@ test('défi du jour : aucun objet hors tirage', async ({ page }) => {
     }),
   );
   await page.locator('#dailyBtn').click();
+  await page.locator('#dailyPlayBtn').click(); // 1.48.1 : le bouton ouvre la feuille du défi, qui lance la partie
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   const banned = await page.evaluate(() => Array.from((window as any).__game.world.itemBan as Uint8Array));
   expect(banned.every((b) => b === 0)).toBe(true);

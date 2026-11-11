@@ -833,5 +833,21 @@
   "ach.runs20.name": "Fidèle",
   "ach.runs20.text": "Joue {n} parties",
   "ach.coffres25.name": "Chercheur",
-  "ach.coffres25.text": "Ouvre {n} coffres de carte au total"
+  "ach.coffres25.text": "Ouvre {n} coffres de carte au total",
+  "daily.title": "Défi du jour",
+  "daily.tag": "Une partie par jour, la même pour tout le monde. Combien de temps tiendras-tu ?",
+  "daily.same.k": "Pour tous",
+  "daily.same.v": "La carte et le hasard du jour sont les mêmes pour tous les joueurs. Ils changent chaque jour.",
+  "daily.fair.k": "À égalité",
+  "daily.fair.v": "Tu joues l'Éclaireuse, avec toutes les armes, tous les objets et tous les emplacements : tes déblocages ne comptent pas.",
+  "daily.goal.k": "Le but",
+  "daily.goal.v": "Tenir le plus longtemps possible. Rejoue autant que tu veux : tes 10 meilleurs temps du jour sont gardés.",
+  "daily.gain.k": "Gains",
+  "daily.gain.v": "L'or et les succès comptent comme dans une partie normale.",
+  "daily.play": "Lancer le défi",
+  "daily.times": "Tes temps du jour : {list}",
+  "daily.noTime": "Aucun temps aujourd'hui : à toi d'ouvrir le tableau.",
+  "daily.next": "Nouveau défi dans {time}",
+  "daily.hm": "{h} h {m}",
+  "daily.m": "{m} min"
 }

@@ -84,6 +84,8 @@ export function step(w: World, input: Input, dt: number): void {
   } else if (w.player.hp <= 0 && w.player.revives > 0) {
     // réanimation (boutique) : une seconde chance, puis on sort de la masse
     const P = w.player;
+    // la réanimation gratuite de la Revenante part d'abord ; ensuite chaque réanimation consomme une Plume de phénix
+    if (P.revives <= w.items[It.Phenix] - w.itemUsed[It.Phenix]) w.itemUsed[It.Phenix]++;
     P.revives--;
     P.hp = P.maxHp * REVIVE.hpFrac;
     P.invul = Math.max(P.invul, REVIVE.invul);

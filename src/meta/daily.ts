@@ -17,6 +17,14 @@ export function recordDaily(m: Meta, seconds: number, date = todayKey()): number
   const rank = times.indexOf(seconds) + 1;
   return rank;
 }
+/** Temps du jour, du meilleur au moins bon (10 au plus) ; vide si le dernier défi joué date d'un autre jour. */
+export function dailyTimes(m: Meta, date = todayKey()): number[] {
+  return m.daily.date === date ? m.daily.times : [];
+}
+/** Millisecondes avant le prochain défi (minuit UTC, là où todayKey change). */
+export function msToNextDaily(now = new Date()): number {
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime();
+}
 export function dailyBest(m: Meta, date = todayKey()): number {
   return m.daily.date === date && m.daily.times.length ? m.daily.times[0] : 0;
 }

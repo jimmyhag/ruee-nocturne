@@ -62,9 +62,50 @@ describe('réanimation (Plume de phénix, phase 17)', () => {
     }
     expect(revived).toBe(1);
     expect(w.player.revives).toBe(0);
+    // 1.48.1 : la plume consommée est comptée (l'équipement affiche items − itemUsed), le compte obtenu ne bouge pas
+    expect(w.itemUsed[It.Phenix]).toBe(1);
+    expect(w.items[It.Phenix]).toBe(1);
     // sans réanimation restante, la mort suit une fois l'invulnérabilité passée
     for (let f = 0; f < 600 && w.mode === Mode.Play; f++) step(w, still, STEP);
     expect(w.mode).toBe(Mode.Dead);
+  });
+});
+
+describe('plumes consommées (1.48.1)', () => {
+  /** Tue le joueur une fois (PV à 0 hors invulnérabilité) et rend le nombre de réanimations émises. */
+  const kill = (w: World): number => {
+    w.player.invul = 0;
+    w.player.hp = 0;
+    step(w, still, STEP);
+    return count(w, Ev.Revive);
+  };
+  it('deux plumes : une de moins à chaque réanimation', () => {
+    const w = new World(3);
+    w.weapons = {};
+    gainItem(w, It.Phenix);
+    gainItem(w, It.Phenix);
+    expect(kill(w)).toBe(1);
+    expect(w.items[It.Phenix] - w.itemUsed[It.Phenix]).toBe(1);
+    expect(kill(w)).toBe(1);
+    expect(w.items[It.Phenix] - w.itemUsed[It.Phenix]).toBe(0);
+    expect(kill(w)).toBe(0);
+    expect(w.mode).toBe(Mode.Dead);
+  });
+  it('Revenante : sa réanimation gratuite part avant la plume', () => {
+    const w = new World(3, { character: 'revenante' });
+    w.weapons = {};
+    gainItem(w, It.Phenix);
+    expect(w.player.revives).toBe(2);
+    expect(kill(w)).toBe(1);
+    expect(w.itemUsed[It.Phenix]).toBe(0); // la plume est toujours là
+    expect(kill(w)).toBe(1);
+    expect(w.itemUsed[It.Phenix]).toBe(1);
+  });
+  it('sans plume, la réanimation de la Revenante ne consomme rien', () => {
+    const w = new World(3, { character: 'revenante' });
+    w.weapons = {};
+    expect(kill(w)).toBe(1);
+    expect(w.itemUsed[It.Phenix]).toBe(0);
   });
 });
 

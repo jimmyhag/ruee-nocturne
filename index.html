@@ -2653,6 +2653,41 @@
       </div>
     </section>
 
+    <!-- 1.48.1 (retour de Jimmy : « le défi du jour, je ne sais pas ce que c'est ») : le bouton ouvre cette feuille -->
+    <section id="daily" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="daily.title">Défi du jour</h2>
+          <button class="btn-icon close" id="dailyBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <p class="tag" data-i18n="daily.tag">
+          Une partie par jour, la même pour tout le monde. Combien de temps tiendras-tu ?
+        </p>
+        <dl class="ctrl">
+          <dt><span class="cap" data-i18n="daily.same.k">Pour tous</span></dt>
+          <dd data-i18n="daily.same.v">
+            La carte et le hasard du jour sont les mêmes pour tous les joueurs. Ils changent chaque jour.
+          </dd>
+          <dt><span class="cap" data-i18n="daily.fair.k">À égalité</span></dt>
+          <dd data-i18n="daily.fair.v">
+            Tu joues l'Éclaireuse, avec toutes les armes, tous les objets et tous les emplacements : tes déblocages ne
+            comptent pas.
+          </dd>
+          <dt><span class="cap" data-i18n="daily.goal.k">Le but</span></dt>
+          <dd data-i18n="daily.goal.v">
+            Tenir le plus longtemps possible. Rejoue autant que tu veux : tes 10 meilleurs temps du jour sont gardés.
+          </dd>
+          <dt><span class="cap" data-i18n="daily.gain.k">Gains</span></dt>
+          <dd data-i18n="daily.gain.v">L'or et les succès comptent comme dans une partie normale.</dd>
+        </dl>
+        <p class="note daily-times" id="dailyTimes"></p>
+        <p class="note" id="dailyNext"></p>
+        <div class="btnrow"><button class="big" id="dailyPlayBtn" data-i18n="daily.play">Lancer le défi</button></div>
+      </div>
+    </section>
+
     <section id="levelup" class="screen" hidden>
       <div class="panel">
         <div>
