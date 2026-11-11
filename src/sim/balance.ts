@@ -167,10 +167,52 @@ export const SHRINE = {
   r: 3, // rayon du cercle
   charge: 4, // s à rester dedans
   decay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
-  offers: 3,
+  offers: 4, // phase 47 : 3 → 4, il y a 18 bonus à croiser
 };
-export const BOON_KEYS: BoonKey[] = ['hp', 'dmg', 'speed', 'cd', 'magnet', 'gold', 'spell'];
-export const BOON = { hp: 12, dmg: 0.08, speed: 0.06, cd: 0.06, magnet: 0.25, gold: 0.2, spell: 0.12 }; // spell : phase 22, recharge du sort
+// phase 47 (demande de Jimmy) : toutes les stats du héros, pour monter celles dont le build a besoin. L'ordre est celui
+// de w.boons ; les sept premiers sont ceux d'avant
+export const BOON_KEYS: BoonKey[] = [
+  'hp',
+  'dmg',
+  'speed',
+  'cd',
+  'magnet',
+  'gold',
+  'spell',
+  'regen',
+  'armor',
+  'steal',
+  'crit',
+  'critdmg',
+  'elite',
+  'size',
+  'jump',
+  'spellpow',
+  'luck',
+  'xp',
+];
+// valeur d'un sanctuaire : celle d'une ligne de tome de la même stat, ou un peu plus (un sanctuaire se mérite : il faut
+// y aller et tenir 4 s dans son cercle). spell : phase 22, recharge du sort
+export const BOON: Record<BoonKey, number> = {
+  hp: 12,
+  dmg: 0.08,
+  speed: 0.06,
+  cd: 0.06,
+  magnet: 0.25,
+  gold: 0.2,
+  spell: 0.12,
+  regen: 0.4, // PV/s
+  armor: 0.03, // dans le plafond TOME_CAPS.armorMax
+  steal: 0.01, // dans la réserve de soin (BLOOD)
+  crit: 0.03,
+  critdmg: 0.15,
+  elite: 0.1,
+  size: 0.06,
+  jump: 0.06,
+  spellpow: 0.08,
+  luck: 0.5,
+  xp: 0.06,
+};
 // phase 37 (Jimmy) : trois mondes de 10 min. Un totem appelle le boss du monde ; boss tué avant la fin du chrono → portail
 // vers le monde suivant. Chrono à 0 : les monstres se renforcent de minute en minute (prolongation), il faut partir.
 export const STAGE = {
@@ -802,7 +844,36 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'elitegold', step: 1, kind: 'add', weight: 2 },
     { stat: 'shop', step: 0.06, kind: 'add', max: 5, weight: 2 }, // phase 23 : prix du marchand
   ],
+  // phase 47 (demande de Jimmy : un tome de vol de vie, et d'autres)
+  sang: [
+    { stat: 'steal', step: 0.01, kind: 'add', max: 8, weight: 3 }, // part des dégâts rendue, plafonnée par la réserve de soin
+    { stat: 'stealcap', step: 0.4, kind: 'add', max: 8, weight: 2 }, // PV/s de réserve en plus
+    { stat: 'lowdmg', step: 0.04, kind: 'add', max: 8, weight: 2 }, // dégâts sous BLOOD.below des PV
+  ],
+  givre: [
+    { stat: 'slowchance', step: 0.04, kind: 'add', max: 8, weight: 3 }, // chance par coup d'arme de ralentir (pas les boss)
+    { stat: 'chilldmg', step: 0.08, kind: 'add', max: 8, weight: 2 }, // dégâts aux ennemis ralentis ou étourdis
+    { stat: 'slowdur', step: 0.1, kind: 'add', max: 8, weight: 2 }, // durée des ralentissements
+  ],
+  bastion: [
+    { stat: 'thorns', step: 0.5, kind: 'add', max: 8, weight: 3 }, // riposte : × les dégâts du contact (Épines : ×3)
+    { stat: 'stillarmor', step: 0.04, kind: 'add', max: 6, weight: 2 }, // dégâts subis à l'arrêt (cercle de sanctuaire, de totem)
+    { stat: 'revenge', step: 0.06, kind: 'add', max: 8, weight: 2 }, // dégâts pendant BASTION.revengeT s après un coup reçu
+  ],
+  defi: [
+    { stat: 'spawn', step: 0.05, kind: 'add', max: 8, weight: 3 }, // apparitions : plus de monstres, donc plus d'XP… et de danger
+    { stat: 'eliteloot', step: 0.08, kind: 'add', max: 8, weight: 2 }, // XP et or des élites
+    { stat: 'eliterate', step: 0.08, kind: 'add', max: 8, weight: 2 }, // élites plus fréquentes (un coffre sur ITEM.eliteItemEvery donne un objet)
+  ],
 };
+// phase 47 : vol de vie du héros (tome Sang, sanctuaire). Il puise dans la même réserve de soin par seconde que le Croc
+// (items.ts, healCap) : `capPerSteal` PV/s de réserve par point de vol de vie (1 % → 0,3 PV/s), plus les lignes de réserve
+export const BLOOD = { capPerSteal: 30, below: 0.5 };
+// Givre : un coup d'arme ralentit `slowT` s (× durée) ; la vitesse d'un ennemi ralenti est celle des sorts (SPELL.slow)
+export const FROST = { slowT: 1.2 };
+// Bastion : « à l'arrêt » = vitesse lissée du héros sous `stillSpd` u/s ; revanche pendant `revengeT` s après un coup
+export const BASTION = { stillSpd: 0.6, revengeT: 3, stillMax: 0.24 };
+
 // phase 23 : coups critiques (armes seulement), ralentissement du Halo, étourdissement de la Foudre
 export const CRIT = { mul: 2, slowT: 0.6, stunT: 0.5, shopMin: 0.6 };
 export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];

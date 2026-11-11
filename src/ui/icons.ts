@@ -133,6 +133,13 @@ export const TOME_ICON: Record<TomeKey, string> = {
       pole('M36 38l2 8', '#56806a', 2),
   ),
   or: book(circle(36, 29, 11, GOLD) + `<circle cx="36" cy="29" r="6" fill="#ffe38a" stroke-width="2.5"/>`),
+  // phase 47
+  sang: book(path('M36 13c7 9 10 14 10 20a10 10 0 0 1-20 0c0-6 3-11 10-20z', '#e0354f')),
+  givre: book(star(36, 29, 14, 4, 6, '#8fd8ff') + circle(36, 29, 3.5, PAPER)),
+  bastion: book(path('M25 15h22v14c0 8-5 13-11 16-6-3-11-8-11-16z', '#b9a37a') + path('M36 19v20', 'none')),
+  defi: book(
+    path('M26 18h20v12c0 5-2 8-5 9v5H31v-5c-3-1-5-4-5-9z', PAPER) + circle(32, 27, 3, INK) + circle(40, 27, 3, INK),
+  ),
 };
 
 export const ITEM_ICON: Record<ItemKey, string> = {
@@ -332,6 +339,38 @@ export const BOON_ICON: Record<BoonKey, string> = {
   magnet: svg(magnet()),
   gold: svg(coin()),
   spell: svg(star(32, 32, 26, 8, 4, '#c9b3ff') + star(50, 14, 8, 3, 4, PAPER)),
+  // phase 47 : toutes les stats
+  regen: svg(heart('#7ee0a1') + path('M27 22h10v8h8v10h-8v8H27v-8h-8V30h8z', PAPER)),
+  armor: svg(
+    path('M12 10h40v20c0 14-9 22-20 28C21 52 12 44 12 30z', STEEL) +
+      path('M32 10v48', 'none') +
+      hl('M17 15h10v22c-5-3-9-8-10-14z'),
+  ),
+  steal: svg(
+    path('M32 6c12 15 18 24 18 34a18 18 0 0 1-36 0c0-10 6-19 18-34z', '#e0354f') +
+      hl('M24 36c0-6 3-11 7-17-1 6-1 11 0 17z'),
+  ),
+  crit: svg(star(32, 32, 28, 11, 8, '#ffd23f') + circle(32, 32, 7, PAPER)),
+  critdmg: svg(star(32, 32, 28, 9, 5, RED) + star(32, 32, 14, 5, 5, '#ffd23f')),
+  elite: svg(
+    path('M8 48l4-30 12 14 8-22 8 22 12-14 4 30z', GOLD) + path('M8 48h48v8H8z', '#e0a52e') + circle(32, 40, 4, RED),
+  ),
+  size: svg(
+    `<circle cx="32" cy="32" r="24" fill="none" stroke-width="9"/><circle cx="32" cy="32" r="24" fill="none" stroke="#bff1ff" stroke-width="4"/>` +
+      circle(32, 32, 9, '#59d8ff'),
+  ),
+  jump: svg(path('M32 6l20 22H40v14H24V28H12z', '#7ee0a1') + path('M22 48h20v8H22z', WOOD)),
+  spellpow: svg(
+    star(32, 30, 26, 10, 6, '#c9b3ff') + circle(32, 30, 8, '#7a4dff') + hl('M28 26a5 5 0 0 1 5-3c-2 2-3 3-3 6z'),
+  ),
+  luck: svg(
+    circle(22, 24, 11, '#7ee0a1') +
+      circle(42, 24, 11, '#7ee0a1') +
+      circle(22, 40, 11, '#7ee0a1') +
+      circle(42, 40, 11, '#7ee0a1') +
+      pole('M32 34l8 24', '#56806a', 3),
+  ),
+  xp: svg(path('M32 4l18 22-18 34-18-34z', '#59d8ff') + path('M32 4l-18 22h36z', '#bff1ff') + hl('M22 28l8 20-12-20z')),
 };
 
 export const SPELL_ICON: Record<SpellKey, string> = {

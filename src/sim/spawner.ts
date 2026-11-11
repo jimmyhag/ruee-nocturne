@@ -68,7 +68,7 @@ export function tickSpawner(w: World, dt: number): void {
   // boss du monde en vie : la horde se calme (pas en prolongation : elle ne doit pas amortir le renfort)
   // phase 42 : seule la présence du boss du totem (ou d'une vague du monde infini) calme la horde, pas un boss de survie
   const calm = w.endless ? w.bossIndex >= 0 : w.totemBossId >= 0;
-  let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1);
+  let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1) * w.player.spawnMul; // phase 47 : tome Défi
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
   if (w.boredomUntil > now) rate *= SPAWN.boredomMul;
@@ -86,7 +86,7 @@ export function tickSpawner(w: World, dt: number): void {
   }
   // élite : variante dorée d'un type de masse, lâche un coffre
   if (st >= w.nextElite) {
-    w.nextElite += SPAWN.elitePeriod;
+    w.nextElite += SPAWN.elitePeriod / w.player.eliteRate; // phase 47 : tome Défi, élites plus fréquentes
     const type = SPAWN.pick(t, w.rng.next());
     // jamais un Cracheur ni un Sorcier élite (ils fuient et le coffre serait hors d'atteinte) ; l'Archer élite tire en éventail
     spawnEnemy(w, type === CRACHEUR_TYPE || type === SORCIER_TYPE ? ELITE_TYPE : type, w.rng.range(0, TAU), SPAWN.ringMin, true);

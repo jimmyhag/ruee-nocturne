@@ -12,7 +12,8 @@ import type { World } from './world';
 const pool: Card[] = [];
 const weights: number[] = [];
 const picked: number[] = [];
-for (let i = 0; i < 20; i++) pool.push({ kind: 'w', key: '', lv: 0, n: 1, s0: 0, s1: -1, s2: -1 });
+// 40 entrées : 13 armes et 12 tomes au plus (phase 47 ; 20 ne suffisaient plus au-delà de 17)
+for (let i = 0; i < 40; i++) pool.push({ kind: 'w', key: '', lv: 0, n: 1, s0: 0, s1: -1, s2: -1 });
 
 /** Nombre de lignes d'une carte : 1 / 2 / 3, décalé par la chance (RARITY). */
 export function rollLineCount(w: World): number {

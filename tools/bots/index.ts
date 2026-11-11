@@ -70,7 +70,27 @@ export const naive: Bot = {
 };
 
 /** Valeur d'un bonus de sanctuaire pour le bot (phase 18). */
-const BOON_VALUE: Record<BoonKey, number> = { dmg: 16, hp: 15, cd: 14, spell: 12, speed: 10, magnet: 8, gold: 6 };
+const BOON_VALUE: Record<BoonKey, number> = {
+  dmg: 16,
+  hp: 15,
+  cd: 14,
+  spell: 12,
+  speed: 10,
+  magnet: 8,
+  gold: 6,
+  // phase 47 : un joueur moyen prend d'abord ce qui tue ou ce qui fait tenir
+  armor: 13,
+  regen: 12,
+  steal: 11,
+  crit: 11,
+  elite: 9,
+  size: 9,
+  critdmg: 8,
+  xp: 8,
+  luck: 7,
+  spellpow: 5,
+  jump: 2,
+};
 /** Valeur d'un objet passif pour le bot (phase 17) : ordre de préférence d'un joueur moyen. */
 const ITEM_VALUE: Record<ItemKey, number> = {
   phenix: 40,
@@ -157,6 +177,19 @@ const LINE_VALUE: Record<string, number> = {
   jump: 1,
   lvlheal: 3,
   shop: 2,
+  // phase 47 : Sang, Givre, Bastion, Défi
+  steal: 5,
+  stealcap: 4,
+  lowdmg: 3,
+  slowchance: 4,
+  chilldmg: 3,
+  slowdur: 2,
+  thorns: 3,
+  stillarmor: 2, // le bot ne s'arrête que dans un cercle
+  revenge: 3,
+  spawn: 3, // plus de monstres : plus d'XP, plus de coups
+  eliteloot: 2,
+  eliterate: 3,
 };
 function lineValue(c: Card, s: number): number {
   if (s < 0) return 0;

@@ -1,4 +1,4 @@
-import { CHEST, CRIT, ELITE, ENDLESS, ENEMIES, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
+import { BASTION, BLOOD, CHEST, CRIT, ELITE, ENDLESS, ENEMIES, FROST, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
 import { stageBossDown } from './stages';
 import { WEAPON_KEYS } from './weapons/defs';
 import { Ev, HitSrc, Mode, Pw, Trait } from './types';
@@ -21,6 +21,10 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   if (w.items[It.Gant] && e.hp < e.max * ITEM.gant.below) dealt *= 1 + ITEM.gant.dmg * w.itemEff[It.Gant]; // phase 38 : × exemplaires
   if (w.items[It.Couronne]) dealt *= 1 + ITEM.couronne.dmg * w.itemEff[It.Couronne] * Math.max(0, 1 - P.hp / P.maxHp);
   if (w.powerT[Pw.Rage] > 0) dealt *= POWER.dmgMul; // phase 35 : bonus Rage
+  // phase 47 : tomes Sang (PV bas), Givre (cible ralentie ou étourdie), Bastion (revanche après un coup reçu)
+  if (P.lowDmg > 0 && P.hp < P.maxHp * BLOOD.below) dealt *= 1 + P.lowDmg;
+  if (P.chillDmg > 0 && (e.slowT > 0 || e.stun > 0)) dealt *= 1 + P.chillDmg;
+  if (P.revenge > 0 && w.t - w.hurtAt < BASTION.revengeT) dealt *= 1 + P.revenge;
   let crit = 0;
   if (src <= HitSrc.Meteores) {
     // phase 23 : coup critique (ligne de l'arme + tome Chance), ralentissement du Halo, étourdissement de la Foudre
@@ -30,7 +34,9 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
       dealt *= P.critMul;
       crit = 16;
     }
-    if (src === HitSrc.Aura && s.slow > 0 && w.rng.next() < s.slow) e.slowT = Math.max(e.slowT, CRIT.slowT);
+    if (src === HitSrc.Aura && s.slow > 0 && w.rng.next() < s.slow) e.slowT = Math.max(e.slowT, CRIT.slowT * P.slowMul);
+    // phase 47 : tome Givre, tout coup d'arme peut ralentir (pas les boss : ils ont déjà le Sablier et les sorts)
+    if (P.slowChance > 0 && !def.boss && w.rng.next() < P.slowChance) e.slowT = Math.max(e.slowT, FROST.slowT * P.slowMul);
     if (src === HitSrc.Foudre && s.stun > 0 && !def.boss && w.rng.next() < s.stun) e.stun = Math.max(e.stun, CRIT.stunT);
   }
   e.hp -= dealt;
@@ -76,12 +82,12 @@ export function killEnemy(w: World, i: number): void {
   }
   const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
   w.gold +=
-    (GOLD.perKill * goldMul + (e.elite ? w.player.eliteGold : 0)) *
+    (GOLD.perKill * goldMul * (e.elite ? w.player.eliteLoot : 1) + (e.elite ? w.player.eliteGold : 0)) *
     w.player.goldMul *
     (w.powerT[Pw.Or] > 0 ? POWER.goldMul : 1); // phase 35 : Pluie d'or
   // Revenante : les ennemis tués pendant un saut valent ×2 XP
   const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
-  dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul : 1) * air);
+  dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul * w.player.eliteLoot : 1) * air); // phase 47 : tome Défi
   if (def.boss) {
     // phase 42 : un boss de survie ne soigne pas et ne laisse qu'un coffre d'élite (mesuré : avec la récompense d'un
     // vrai boss, il rendait la partie plus facile, profil maxé 41 → 53 % de victoires)
