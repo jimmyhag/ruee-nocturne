@@ -144,6 +144,16 @@ describe('tomes de la phase 47', () => {
     expect(P.hp - 10).toBeGreaterThan(cap * 1.5);
     expect(P.hp - 10).toBeLessThanOrEqual(cap * 3 + P.regen * 3 + 0.01);
   });
+  it('Sang : la réserve ouverte par le héros est plafonnée, et le sanctuaire du sang ne sort plus au plafond', () => {
+    const w = calm();
+    line(w, 'sang', 'steal', 8);
+    line(w, 'sang', 'stealcap', 8);
+    for (let k = 0; k < 6; k++) applyBoon(w, 'steal');
+    expect(w.player.steal * BLOOD.capPerSteal + w.player.stealCap).toBeGreaterThan(BLOOD.heroMax);
+    expect(healCap(w)).toBe(BLOOD.heroMax);
+    expect(boonCapped(w, 'steal')).toBe(true);
+    expect(boonCapped(calm(), 'steal')).toBe(false);
+  });
   it('Sang : la ligne de réserve ne sort que si un soin y puise', () => {
     const offered = (steal: number) => {
       const w = new World(11);

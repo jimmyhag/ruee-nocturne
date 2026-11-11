@@ -9,7 +9,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 - **Sanctuaires : toutes les stats.** Chaque sanctuaire propose **4 bonus** (3 avant) tirés parmi **18** (7 avant) : PV max, régénération, armure, **vol de vie**, dégâts, critique, dégâts critiques, dégâts aux élites et boss, recharge des armes, taille, vitesse, saut, recharge et puissance du sort, **chance**, collecte, XP, or.
 - **La carte d'un bonus montre où en est la stat** : « Vol de vie : 2 % → 4 % ». Un bonus dont la stat est déjà au plafond (armure, recharges) n'est plus proposé.
 - **Fiche de stats** dans l'écran de pause : les vingt stats du héros, par famille (survie, attaque, mouvement, sort, butin). C'est elle qui dit quoi monter au prochain sanctuaire.
-- **Tome du Sang** : vol de vie +2 % par ligne, réserve de soin +0,6 PV/s, dégâts +6 % sous la moitié des PV. Le vol de vie se cumule avec le Croc et la Couronne et reste plafonné en PV par seconde (la réserve de soin), sinon il rendrait immortel en fin de partie.
+- **Tome du Sang** : vol de vie +2 % par ligne, réserve de soin +0,6 PV/s, dégâts +6 % sous la moitié des PV. Le vol de vie se cumule avec le Croc et la Couronne et reste plafonné en PV par seconde (la réserve de soin, 8 PV/s au plus pour le tome et les sanctuaires), sinon il rendrait immortel en fin de partie.
 
 ### Modifié
 

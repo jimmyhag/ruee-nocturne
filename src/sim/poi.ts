@@ -1,7 +1,7 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BOON, BOON_KEYS, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BLOOD, BOON, BOON_KEYS, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { bourseDiscount, canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card, Player } from './types';
@@ -220,7 +220,9 @@ export function boonCapped(w: World, key: BoonKey): boolean {
       ? P.cdMul <= TOME_CAPS.cdMin + 1e-9
       : key === 'spell'
         ? P.spellCdMul <= TOME_CAPS.spellCdMin + 1e-9
-        : false;
+        : key === 'steal'
+          ? P.steal * BLOOD.capPerSteal + P.stealCap >= BLOOD.heroMax - 1e-9 // réserve du héros pleine : plus rien à gagner
+          : false;
 }
 
 /** Tire SHRINE.offers bonus distincts dans `out` (kind 'b'). Allocation de cartes : hors boucle chaude (un sanctuaire). */

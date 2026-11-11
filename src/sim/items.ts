@@ -282,8 +282,7 @@ export function healCap(w: World): number {
     ITEM.calice.cap * E[It.Calice] +
     ITEM.couronne.cap * E[It.Couronne] +
     // phase 47 : vol de vie du héros (tome Sang, sanctuaire) et lignes de réserve
-    P.steal * BLOOD.capPerSteal +
-    P.stealCap
+    Math.min(BLOOD.heroMax, P.steal * BLOOD.capPerSteal + P.stealCap)
   );
 }
 

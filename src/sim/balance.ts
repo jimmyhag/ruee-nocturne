@@ -869,7 +869,9 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
 };
 // phase 47 : vol de vie du héros (tome Sang, sanctuaire). Il puise dans la même réserve de soin par seconde que le Croc
 // (items.ts, healCap) : `capPerSteal` PV/s de réserve par point de vol de vie (2 % → 0,6 PV/s), plus les lignes de réserve
-export const BLOOD = { capPerSteal: 30, below: 0.5 }; // 2 % de vol de vie (une ligne, un sanctuaire) → 0,6 PV/s de réserve
+// `heroMax` : plafond de la réserve ouverte par le héros (tome et sanctuaires cumulés) ; les objets s'y ajoutent. Sans lui,
+// seize lignes du Sang et quelques sanctuaires dépassaient 10 PV/s (relecture d'équilibrage du 11 nov.)
+export const BLOOD = { capPerSteal: 30, below: 0.5, heroMax: 8 }; // 2 % de vol de vie (une ligne, un sanctuaire) → 0,6 PV/s de réserve
 // Givre : un coup d'arme ralentit `slowT` s (× durée) ; la vitesse d'un ennemi ralenti est celle des sorts (SPELL.slow)
 export const FROST = { slowT: 1.5 };
 // Bastion : garde = part des dégâts de contact annulée (plafond `guardMax`) ; revanche pendant `revengeT` s après un coup.
