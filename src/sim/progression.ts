@@ -26,12 +26,15 @@ export function rollLineCount(w: World): number {
 
 /** Tire une ligne parmi celles non plafonnées (poids `weight`) ; `taken` = compte déjà pris par ligne. -1 si tout est plafonné. */
 function rollLine(w: World, lines: StatLine[], taken: ArrayLike<number>, extra0: number, extra1: number): number {
+  // phase 47 : une ligne « réserve de soin » ne sort que si un soin y puise déjà (vol de vie du héros, Croc, Couronne, Calice)
+  const heals = w.player.steal > 0 || w.items[It.Croc] + w.items[It.Calice] + w.items[It.Couronne] > 0;
   let total = 0;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     if (i === extra0 || i === extra1) continue; // phase 23 : jamais deux fois la même ligne sur une carte
     const n = taken[i];
     if (l.max !== undefined && n >= l.max) continue;
+    if (l.needs === 'heal' && !heals) continue;
     total += l.weight;
   }
   if (total === 0) return -1;
@@ -41,6 +44,7 @@ function rollLine(w: World, lines: StatLine[], taken: ArrayLike<number>, extra0:
     if (i === extra0 || i === extra1) continue;
     const n = taken[i];
     if (l.max !== undefined && n >= l.max) continue;
+    if (l.needs === 'heal' && !heals) continue;
     r -= l.weight;
     if (r <= 0) return i;
   }

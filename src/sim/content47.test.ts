@@ -4,6 +4,7 @@ import { BASTION, BLOOD, BOON, BOON_KEYS, ELITE, FROST, ITEM, SHRINE, SPAWN, STE
 import { hitEnemy } from './combat';
 import { healCap } from './items';
 import { applyBoon, boonApply, boonCapped, rollBoonChoices } from './poi';
+import { rollChoices } from './progression';
 import { spawnEnemy, tickSpawner } from './spawner';
 import { step } from './step';
 import { Ev, HitSrc } from './types';
@@ -119,7 +120,7 @@ describe('tomes de la phase 47', () => {
     expect(healCap(w)).toBeCloseTo(0.02 * BLOOD.capPerSteal, 9);
     line(w, 'sang', 'stealcap');
     const cap = healCap(w);
-    expect(cap).toBeCloseTo(0.02 * BLOOD.capPerSteal + 0.4, 9);
+    expect(cap).toBeCloseTo(0.02 * BLOOD.capPerSteal + TOMES.sang[1].step, 9);
     P.hp = 10;
     const i = dummy(w);
     for (let f = 0; f < 60 * 3; f++) {
@@ -130,6 +131,23 @@ describe('tomes de la phase 47', () => {
     expect(P.hp - 10).toBeGreaterThan(cap * 1.5);
     expect(P.hp - 10).toBeLessThanOrEqual(cap * 3 + P.regen * 3 + 0.01);
   });
+  it('Sang : la ligne de réserve ne sort que si un soin y puise', () => {
+    const offered = (steal: number) => {
+      const w = new World(11);
+      w.tomes.sang = 1;
+      w.player.steal = steal;
+      let seen = 0;
+      for (let k = 0; k < 300; k++) {
+        rollChoices(w);
+        for (const card of w.cards)
+          if (card.kind === 't' && card.key === 'sang' && (card.s0 === 1 || card.s1 === 1 || card.s2 === 1)) seen++;
+      }
+      return seen;
+    };
+    expect(TOMES.sang[1].needs).toBe('heal');
+    expect(offered(0)).toBe(0);
+    expect(offered(0.01)).toBeGreaterThan(10);
+  });
   it('Sang : dégâts en plus sous la moitié des PV seulement', () => {
     const w = calm();
     const P = w.player;
@@ -138,7 +156,7 @@ describe('tomes de la phase 47', () => {
     line(w, 'sang', 'lowdmg', 3);
     expect(dealt(w, i)).toBeCloseTo(base, 6);
     P.hp = P.maxHp * (BLOOD.below - 0.01);
-    expect(dealt(w, i)).toBeCloseTo(base * 1.12, 6);
+    expect(dealt(w, i)).toBeCloseTo(base * (1 + 3 * TOMES.sang[2].step), 6);
   });
   it('Givre : un coup d’arme ralentit (pas un boss), et la cible ralentie prend plus', () => {
     const w = calm();
@@ -149,9 +167,9 @@ describe('tomes de la phase 47', () => {
     P.slowChance = 1; // certitude, pour le test
     line(w, 'givre', 'slowdur', 2);
     dealt(w, i);
-    expect(w.enemies[i].slowT).toBeCloseTo(FROST.slowT * 1.2, 6);
+    expect(w.enemies[i].slowT).toBeCloseTo(FROST.slowT * (1 + 2 * TOMES.givre[2].step), 6);
     line(w, 'givre', 'chilldmg', 2);
-    expect(dealt(w, i)).toBeCloseTo(base * 1.16, 6);
+    expect(dealt(w, i)).toBeCloseTo(base * (1 + 2 * TOMES.givre[1].step), 6);
     w.enemies[i].slowT = 0;
     P.slowChance = 0;
     expect(dealt(w, i)).toBeCloseTo(base, 6);
@@ -183,17 +201,24 @@ describe('tomes de la phase 47', () => {
     const hot = dealt(w, far);
     w.t += BASTION.revengeT + 0.1;
     const cold = dealt(w, far);
-    expect(hot).toBeCloseTo(cold * 1.12, 6);
-    // armure à l'arrêt : le multiplicateur de dégâts subis baisse, plafonné
-    line(w, 'bastion', 'stillarmor', 9);
-    expect(P.stillArmor).toBeCloseTo(BASTION.stillMax, 9);
-    P.spd = 0;
-    step(w, still, STEP);
-    expect(P.taken).toBeCloseTo((1 - P.armor) * P.dmgTaken * (1 - BASTION.stillMax), 6);
-    P.spd = 5;
-    w.player.taken = 0;
-    step(w, { ...still, mx: 1 }, STEP);
-    expect(P.taken).toBeCloseTo((1 - P.armor) * P.dmgTaken, 6);
+    expect(hot).toBeCloseTo(cold * (1 + 2 * TOMES.bastion[2].step), 6);
+    // garde : les dégâts de contact baissent, plafonnés ; l'armure (tous dégâts) n'est pas touchée
+    const contact = (v: World) => {
+      const Q = v.player;
+      Q.maxHp = Q.hp = 1e6;
+      const k = dummy(v, 0.3);
+      for (let f = 0; f < 30; f++) {
+        v.enemies[k].x = Q.x + 0.3;
+        v.enemies[k].z = Q.z;
+        step(v, still, STEP);
+      }
+      return 1e6 - Q.hp;
+    };
+    const bare = contact(calm(7));
+    const g = calm(7);
+    line(g, 'bastion', 'guard', 9);
+    expect(g.player.guard).toBeCloseTo(BASTION.guardMax, 9);
+    expect(contact(g) / bare).toBeCloseTo(1 - BASTION.guardMax, 3);
   });
   it('Défi : plus d’apparitions, élites plus fréquentes et plus généreuses', () => {
     const rate = (n: number) => {

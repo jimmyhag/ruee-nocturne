@@ -456,7 +456,7 @@ export interface Player {
   chillDmg: number; // dégâts en plus aux ennemis ralentis ou étourdis
   slowMul: number; // durée des ralentissements d'armes
   thorns: number; // riposte : dégâts de contact renvoyés (× ceux du contact), comme les Épines
-  stillArmor: number; // part des dégâts subis annulée à l'arrêt
+  guard: number; // part des dégâts de contact annulée (tome Bastion)
   revenge: number; // dégâts en plus pendant BASTION.revengeT s après un coup reçu
   taken: number; // multiplicateur courant des dégâts subis (armure, sorts, arrêt), recalculé à chaque pas
   spawnMul: number; // apparitions (tome Défi)

@@ -178,14 +178,14 @@ const LINE_VALUE: Record<string, number> = {
   lvlheal: 3,
   shop: 2,
   // phase 47 : Sang, Givre, Bastion, Défi
-  steal: 5,
-  stealcap: 4,
+  steal: 6,
+  stealcap: 5,
   lowdmg: 3,
-  slowchance: 4,
-  chilldmg: 3,
+  slowchance: 5,
+  chilldmg: 4,
   slowdur: 2,
-  thorns: 3,
-  stillarmor: 2, // le bot ne s'arrête que dans un cercle
+  thorns: 4,
+  guard: 5,
   revenge: 3,
   spawn: 3, // plus de monstres : plus d'XP, plus de coups
   eliteloot: 2,

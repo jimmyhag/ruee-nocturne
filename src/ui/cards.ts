@@ -126,7 +126,7 @@ export const achUnlock = (a: Achievement): string =>
           : t(`ach.${a.id}.unlock`);
 
 /** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
-const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop', 'stillarmor']);
+const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop', 'guard']);
 /** Lignes en valeur absolue bien que < 1 (PV/s, points de chance). */
 const ABSOLUTE = new Set(['regen', 'luck', 'killheal', 'stealcap']);
 /** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */

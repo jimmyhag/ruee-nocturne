@@ -15,6 +15,7 @@ import {
   SLOTS_START,
   STEP,
   SYNERGIES,
+  TOME_KEYS,
 } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { HurtSrc, Ev, Mode } from '../src/sim/types';
@@ -108,6 +109,16 @@ if (args.has('set'))
       process.exit(2);
     }
     o[last] = +val;
+  }
+// phase 47 : --no-tome defi,givre retire des tomes du tirage (ablation : un tome dilue-t-il, aide-t-il, nuit-il ?)
+if (args.has('no-tome'))
+  for (const k of args.get('no-tome')!.split(',')) {
+    const i = TOME_KEYS.indexOf(k as (typeof TOME_KEYS)[number]);
+    if (i < 0) {
+      console.error(`--no-tome : « ${k} » n'est pas un tome`);
+      process.exit(2);
+    }
+    TOME_KEYS.splice(i, 1);
   }
 // phase 42 : boss de survie (STAGE.survival) : --no-survival pour comparer, --survival-hp 0.4,0.65 pour régler
 if (args.has('no-survival')) STAGE.survival.at.length = 0;

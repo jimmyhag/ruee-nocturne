@@ -726,6 +726,7 @@ export interface StatLine {
   kind: 'pct' | 'add';
   max?: number; // nombre de lignes maximum (plafond de la stat)
   weight: number; // poids de tirage (les lignes « rares » comptent 1 contre 3)
+  needs?: 'heal'; // phase 47 : ligne proposée seulement si le héros a une source de soin par la réserve (vol de vie, Calice)
   label?: string; // phase 32 : clé de texte si elle diffère de `stat` (Lames : `n` compte des cibles, pas des projectiles)
 }
 export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
@@ -846,19 +847,19 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
   // phase 47 (demande de Jimmy : un tome de vol de vie, et d'autres)
   sang: [
-    { stat: 'steal', step: 0.01, kind: 'add', max: 8, weight: 3 }, // part des dégâts rendue, plafonnée par la réserve de soin
-    { stat: 'stealcap', step: 0.4, kind: 'add', max: 8, weight: 2 }, // PV/s de réserve en plus
-    { stat: 'lowdmg', step: 0.04, kind: 'add', max: 8, weight: 2 }, // dégâts sous BLOOD.below des PV
+    { stat: 'steal', step: 0.01, kind: 'add', max: 8, weight: 3 }, // part des dégâts rendue, plafonnée par la réserve (BLOOD.capPerSteal PV/s par point)
+    { stat: 'stealcap', step: 0.6, kind: 'add', max: 8, weight: 2, needs: 'heal' }, // PV/s de réserve en plus : sans soin à plafonner, la ligne ne sort pas
+    { stat: 'lowdmg', step: 0.06, kind: 'add', max: 8, weight: 2 }, // dégâts sous BLOOD.below des PV
   ],
   givre: [
-    { stat: 'slowchance', step: 0.04, kind: 'add', max: 8, weight: 3 }, // chance par coup d'arme de ralentir (pas les boss)
-    { stat: 'chilldmg', step: 0.08, kind: 'add', max: 8, weight: 2 }, // dégâts aux ennemis ralentis ou étourdis
-    { stat: 'slowdur', step: 0.1, kind: 'add', max: 8, weight: 2 }, // durée des ralentissements
+    { stat: 'slowchance', step: 0.06, kind: 'add', max: 8, weight: 3 }, // chance par coup d'arme de ralentir (pas les boss)
+    { stat: 'chilldmg', step: 0.1, kind: 'add', max: 8, weight: 2 }, // dégâts aux ennemis ralentis ou étourdis
+    { stat: 'slowdur', step: 0.15, kind: 'add', max: 8, weight: 2 }, // durée des ralentissements
   ],
   bastion: [
-    { stat: 'thorns', step: 0.5, kind: 'add', max: 8, weight: 3 }, // riposte : × les dégâts du contact (Épines : ×3)
-    { stat: 'stillarmor', step: 0.04, kind: 'add', max: 6, weight: 2 }, // dégâts subis à l'arrêt (cercle de sanctuaire, de totem)
-    { stat: 'revenge', step: 0.06, kind: 'add', max: 8, weight: 2 }, // dégâts pendant BASTION.revengeT s après un coup reçu
+    { stat: 'thorns', step: 1, kind: 'add', max: 6, weight: 3 }, // riposte : × les dégâts du contact (Épines : ×3)
+    { stat: 'guard', step: 0.05, kind: 'add', max: 6, weight: 2 }, // dégâts de contact et de charge subis (6 × 5 % = BASTION.guardMax), en plus de l'armure
+    { stat: 'revenge', step: 0.08, kind: 'add', max: 8, weight: 2 }, // dégâts pendant BASTION.revengeT s après un coup reçu
   ],
   defi: [
     { stat: 'spawn', step: 0.05, kind: 'add', max: 8, weight: 3 }, // apparitions : plus de monstres, donc plus d'XP… et de danger
@@ -867,12 +868,13 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
   ],
 };
 // phase 47 : vol de vie du héros (tome Sang, sanctuaire). Il puise dans la même réserve de soin par seconde que le Croc
-// (items.ts, healCap) : `capPerSteal` PV/s de réserve par point de vol de vie (1 % → 0,3 PV/s), plus les lignes de réserve
-export const BLOOD = { capPerSteal: 30, below: 0.5 };
+// (items.ts, healCap) : `capPerSteal` PV/s de réserve par point de vol de vie (1 % → 0,6 PV/s), plus les lignes de réserve
+export const BLOOD = { capPerSteal: 60, below: 0.5 }; // 0,6 PV/s de réserve par point de vol de vie (0,3 mesuré trop faible : le tome diluait le tirage)
 // Givre : un coup d'arme ralentit `slowT` s (× durée) ; la vitesse d'un ennemi ralenti est celle des sorts (SPELL.slow)
-export const FROST = { slowT: 1.2 };
-// Bastion : « à l'arrêt » = vitesse lissée du héros sous `stillSpd` u/s ; revanche pendant `revengeT` s après un coup
-export const BASTION = { stillSpd: 0.6, revengeT: 3, stillMax: 0.24 };
+export const FROST = { slowT: 1.5 };
+// Bastion : garde = part des dégâts de contact annulée (plafond `guardMax`) ; revanche pendant `revengeT` s après un coup.
+// 1.46.0 : la ligne « dégâts subis à l'arrêt » ne servait ni au bot ni à un joueur qui bouge : mesurée, elle diluait le tome
+export const BASTION = { revengeT: 3, guardMax: 0.3 };
 
 // phase 23 : coups critiques (armes seulement), ralentissement du Halo, étourdissement de la Foudre
 export const CRIT = { mul: 2, slowT: 0.6, stunT: 0.5, shopMin: 0.6 };

@@ -208,8 +208,8 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
     case 'thorns':
       P.thorns += l.step;
       break;
-    case 'stillarmor':
-      P.stillArmor = Math.min(BASTION.stillMax, P.stillArmor + l.step);
+    case 'guard':
+      P.guard = Math.min(BASTION.guardMax, P.guard + l.step);
       break;
     case 'revenge':
       P.revenge += l.step;

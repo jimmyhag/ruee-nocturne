@@ -1,4 +1,4 @@
-import { ARCHER_TYPE, BASTION, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { compactEnemies } from './combat';
@@ -56,7 +56,7 @@ export function step(w: World, input: Input, dt: number): void {
   w.flow.tick(w, dt);
   // dégâts subis de ce pas : armure, sorts et objets (dmgTaken), et le tome Bastion quand le héros est à l'arrêt
   const P0 = w.player;
-  P0.taken = (1 - P0.armor) * P0.dmgTaken * (P0.stillArmor > 0 && P0.spd < BASTION.stillSpd ? 1 - P0.stillArmor : 1);
+  P0.taken = (1 - P0.armor) * P0.dmgTaken;
   stepEnemies(w, dt);
   if (!frozen) {
     tickEruptions(w);
@@ -542,7 +542,7 @@ function stepEnemies(w: World, dt: number): void {
     if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
-        const dmg = HAZARDS.charge.dmg * e.dmgMul * P.taken;
+        const dmg = HAZARDS.charge.dmg * e.dmgMul * P.taken * (1 - P.guard); // phase 47 : garde du tome Bastion
         P.hp -= dmg;
         hurt += dmg;
         P.invul = Math.max(P.invul, HAZARDS.charge.invul);
@@ -552,7 +552,7 @@ function stepEnemies(w: World, dt: number): void {
       } else {
         // phase 17 : Rempart (Vitalité + Halo), le contact d'un ennemi dans le Halo est réduit
         const inHalo = w.syn[Syn.Rempart] && d < w.wstats.aura.r;
-        const dmg = def.dmg * e.dmgMul * dt * P.taken * (inHalo ? SYN.rempart.dmgTaken : 1);
+        const dmg = def.dmg * e.dmgMul * dt * P.taken * (1 - P.guard) * (inHalo ? SYN.rempart.dmgTaken : 1);
         P.hp -= dmg;
         hurt += dmg;
         w.lastHurt = HurtSrc.Contact;
