@@ -587,9 +587,11 @@ export const BOSS = {
   // Index : type du boss (Gardien, Essaim-mère, Colosse).
   huntFirst: 3.5, // s avant la première salve d'un boss
   // boss de survie (3:00 et 7:00 de chaque monde) : la salve est multipliée par ce facteur (arrondie ; 0 = pas de Traque).
-  // Ils arrivent tôt, face à un kit faible, et sont faits pour durer : une salve entière fermait le monde 1 aux
-  // personnages fragiles (relecture d'équilibrage : monde 2 atteint 17 → 3 % pour la Sorcière)
-  huntSurvival: 0.34, // 1 cercle (Gardien, Essaim-mère) ou 2 (Colosse) : le boss de 3:00 annonce l'attaque, sans salve
+  // 0 : ils arrivent tôt, face à un kit faible, et le joueur ne choisit pas le moment du combat. Mesuré (120 à 200
+  // parties par bras, bruit de ± 5 points) : avec la salve entière, monde 2 atteint 17 → 3 % pour la Sorcière et
+  // 19 → 8 % pour le Bûcheron ; avec un seul cercle (0,34), chute max de l'Éclaireuse à 23 points sur deux graines
+  // (cible ≤ 22) ; à 0, 19 points. La Traque reste entière pour les boss du totem et du monde infini.
+  huntSurvival: 0,
   huntVmax: 9, // u/s : vitesse du joueur au-delà de laquelle la Traque ne vise pas plus loin (téléportation, envol)
   hunt: {
     [BOSS_TYPE]: { period: 6, n: 3, n2: 5, every: 0.42, r: 1.9, telegraph: 0.75, dmg: 9, lead: 0.45 },

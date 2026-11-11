@@ -6,7 +6,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 ### Ajouté
 
-- **Traque : des cercles sous tes pieds.** Les trois boss (Gardien, Essaim-mère, Colosse) lancent régulièrement une salve de cercles rouges à l'endroit où tu te trouves, un toutes les 0,4 à 0,5 s. Un cercle sur deux vise là où tu seras si tu continues tout droit : il faut changer de direction, sauter ou dasher. En phase 2 (boss sous 50 % de PV), la salve est plus longue ; en rage, les salves se rapprochent. Les boss de 3:00 et 7:00, qui arrivent tôt, ne posent qu'un cercle ou deux à la fois : la salve entière est pour les boss du totem et du monde infini.
+- **Traque : des cercles sous tes pieds.** Les trois boss (Gardien, Essaim-mère, Colosse) lancent régulièrement une salve de cercles rouges (3 à 5, puis 5 à 7 en phase 2) à l'endroit où tu te trouves, un toutes les 0,4 à 0,5 s. Un cercle sur deux vise là où tu seras si tu continues tout droit : il faut changer de direction, sauter ou dasher. En phase 2 (boss sous 50 % de PV), la salve est plus longue ; en rage, les salves se rapprochent. Elle est réservée aux boss du totem et du monde infini : les boss imposés de 3:00 et 7:00, qui arrivent face à un kit encore faible, ne l'ont pas.
 - **Éclats du Gardien.** Sa charge finit sur une étoile de 10 projectiles rouges qui partent dans toutes les directions (14 en phase 2). On passe entre deux ou on les saute.
 
 ### Modifié
@@ -20,7 +20,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 - `BOSS.hunt`, `BOSS.huntFirst`, `BOSS.burst` dans `src/sim/balance.ts` ; `BOSS.wake` supprimé. Deux champs d'ennemi (`hunt`, `huntT`), un champ de tir (`boss`).
 - `src/render/shrine.ts` : une géométrie, un matériau, un appel de rendu. `stoneKit()` et `stoneMaterial()` (`src/render/totem.ts`) sont partagés par le totem (couleur par uniforme) et les sanctuaires (couleur d'instance).
-- Simulation (200 parties, bot moyen) : victoire 22 % avec le kit de départ (24 % avant), 17 % avec le kit complet (19 % avant) ; toutes les cibles tenues.
+- Simulation (200 parties, bot moyen, graine 42) : victoire 21 % avec le kit de départ (24 % avant) et 21 % avec le kit complet (19 % avant, écart dans le bruit) ; toutes les cibles tenues. Le combat du totem du monde 1 est plus dur pour les personnages fragiles avec leur kit de départ : la Sorcière passe au monde 2 dans 10 % des parties (17 % avant), le Bûcheron dans 11 % (19 % avant).
+- `e2e/scroll.spec.ts` et `e2e/pistes.spec.ts` : délais relevés. Le test de défilement tactile prenait 53 s pour 60 s de limite et expirait sur la CI de la 1.42.1 ; le défilement lui-même fonctionne.
 
 ## 1.42.1 — 10 nov. 2026 (demande de Jimmy : refaire le totem et les armes)
 
