@@ -420,7 +420,7 @@ export class GameScene {
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
       this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.55));
     }
-    // phase 21 : modèles des ennemis (et crâne des Volants) dès qu'enemies.glb et props.glb sont là ; nouvel essai
+    // phase 21 : modèles des ennemis dès qu'enemies.glb est là ; nouvel essai
     // après un échec (réseau mobile), état lisible dans l'onglet perf
     this.loadEnemies(0);
     // phase 9 : une ombre douce sous chaque ennemi (un seul appel pour tous) ; celle des Volants grossit au télégraphe

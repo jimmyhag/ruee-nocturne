@@ -202,7 +202,7 @@
   },
   "props": {
     "file": "props.glb",
-    "bytes": 322584,
+    "bytes": 306896,
     "nodes": {
       "tree_dead": 256,
       "tree_dead_m": 216,
@@ -212,7 +212,6 @@
       "grave": 323,
       "gravestone": 271,
       "pumpkin": 374,
-      "shrine": 360,
       "fence": 380,
       "chest": 728,
       "chest_gold": 1568,
@@ -221,9 +220,48 @@
       "coins": 1776,
       "sword": 300,
       "axe": 274,
-      "bomb": 310,
-      "skull": 344
+      "bomb": 310
     }
+  },
+  "nature": {
+    "file": "nature.glb",
+    "bytes": 339320,
+    "nodes": {
+      "leafy_a": 483,
+      "leafy_b": 399,
+      "leafy_c": 483,
+      "birch_a": 446,
+      "birch_b": 443,
+      "maple_a": 497,
+      "maple_b": 400,
+      "maple_c": 499,
+      "pine_a": 516,
+      "pine_b": 499,
+      "pine_c": 518,
+      "dead_a": 479,
+      "dead_b": 480,
+      "dead_c": 470,
+      "bush": 220,
+      "bush_flowers": 298,
+      "grass": 30,
+      "grass_tall": 108,
+      "flowers_a": 136,
+      "flowers_b": 154,
+      "flowers_c": 136,
+      "plant": 200,
+      "rock_a": 90,
+      "rock_b": 90,
+      "rock_c": 120,
+      "rocks": 200
+    }
+  },
+  "ground": {
+    "ground-1-a.jpg": 26602,
+    "ground-1-b.jpg": 26900,
+    "ground-2-a.jpg": 45435,
+    "ground-2-b.jpg": 36229,
+    "ground-3-a.jpg": 33587,
+    "ground-3-b.jpg": 22446
   },
   "enemies": {
     "file": "enemies.glb",
@@ -308,45 +346,5 @@
         }
       }
     }
-  },
-  "nature": {
-    "file": "nature.glb",
-    "bytes": 339320,
-    "nodes": {
-      "leafy_a": 483,
-      "leafy_b": 399,
-      "leafy_c": 483,
-      "birch_a": 446,
-      "birch_b": 443,
-      "maple_a": 497,
-      "maple_b": 400,
-      "maple_c": 499,
-      "pine_a": 516,
-      "pine_b": 499,
-      "pine_c": 518,
-      "dead_a": 479,
-      "dead_b": 480,
-      "dead_c": 470,
-      "bush": 220,
-      "bush_flowers": 298,
-      "grass": 30,
-      "grass_tall": 108,
-      "flowers_a": 136,
-      "flowers_b": 154,
-      "flowers_c": 136,
-      "plant": 200,
-      "rock_a": 90,
-      "rock_b": 90,
-      "rock_c": 120,
-      "rocks": 200
-    }
-  },
-  "ground": {
-    "ground-1-a.jpg": 26602,
-    "ground-1-b.jpg": 26900,
-    "ground-2-a.jpg": 45435,
-    "ground-2-b.jpg": 36229,
-    "ground-3-a.jpg": 33587,
-    "ground-3-b.jpg": 22446
   }
 }

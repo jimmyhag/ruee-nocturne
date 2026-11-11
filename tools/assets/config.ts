@@ -95,7 +95,6 @@ export const PROPS: Record<string, { pack: PackKey; file: string; tris: number }
   grave: { pack: 'halloween', file: 'Assets/gltf/grave_A.gltf', tris: 400 },
   gravestone: { pack: 'halloween', file: 'Assets/gltf/gravestone.gltf', tris: 400 },
   pumpkin: { pack: 'halloween', file: 'Assets/gltf/pumpkin_orange_jackolantern.gltf', tris: 600 },
-  shrine: { pack: 'halloween', file: 'Assets/gltf/shrine_candles.gltf', tris: 2500 },
   fence: { pack: 'halloween', file: 'Assets/gltf/fence.gltf', tris: 400 },
   chest: { pack: 'dungeon', file: 'Assets/gltf/chest.glb', tris: 2000 }, // 40 coffres au plus à l'écran
   chest_gold: { pack: 'dungeon', file: 'Assets/gltf/chest_gold.glb', tris: 2000 },
@@ -105,7 +104,6 @@ export const PROPS: Record<string, { pack: PackKey; file: string; tris: number }
   sword: { pack: 'adventurers', file: 'Assets/gltf/sword_1handed.gltf', tris: 400 },
   axe: { pack: 'adventurers', file: 'Assets/gltf/axe_1handed.gltf', tris: 400 },
   bomb: { pack: 'adventurers', file: 'Assets/gltf/smokebomb.gltf', tris: 500 },
-  skull: { pack: 'halloween', file: 'Assets/gltf/skull.gltf', tris: 500 }, // phase 21 : le Volant (120 à l'écran au plus)
 };
 
 /** Triangles visés pour le corps à chaque niveau : boss (hi), masse en rendu net (mid), masse en pixel (lo). */
