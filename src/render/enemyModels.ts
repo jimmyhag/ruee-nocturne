@@ -19,8 +19,13 @@ interface EnemyLook {
   /** hauteur du modèle (u), pieds au sol */
   height: number;
   boss?: boolean;
-  /** créature volante : centrée sur sa hauteur (le rendu la place à son altitude), face un peu levée vers la caméra */
+  /**
+   * créature volante : `height` est son envergure ; elle est centrée sur la boîte de toute sa boucle (le rendu la
+   * place à son altitude) et sa face est un peu levée vers la caméra
+   */
   fly?: boolean;
+  /** part du clip parcourue par la boucle (0,5 : le clip contient deux battements identiques, on en cuit un seul) */
+  cycle?: number;
 }
 
 const WALK: [string, number] = ['Walk_Loop', 8];
@@ -33,7 +38,7 @@ export const ENEMY_LOOKS: EnemyLook[] = [
   { model: 'wolf', clips: [['Sprint_Loop', 8]], height: 1.7 }, // 1 Dard : loup-garou
   { model: 'brute', clips: [WALK], height: 2.5 }, // 2 Brute : orc
   { model: 'knight', clips: [WALK, SLASH], height: 3.6, boss: true }, // 3 Gardien : chevalier noir
-  { model: 'dragon', clips: [['Fast_Flying', 8]], height: 0.85, fly: true }, // 4 Volant : dragonnet
+  { model: 'dragon', clips: [['Fast_Flying', 8]], height: 2.1, fly: true, cycle: 0.5 }, // 4 Volant : dragonnet
   {
     model: 'ninja',
     clips: [
@@ -72,6 +77,8 @@ export interface BakedEnemy {
   loop: number;
   action: number;
   boss: boolean;
+  /** volants : distance entre l'origine du modèle et son point le plus bas (le rendu ne le laisse pas traverser le sol) */
+  low: number;
 }
 
 /** Tangage cuit des créatures volantes : la face se lit depuis la caméra 3/4 haute. */
@@ -86,7 +93,11 @@ function meshesOf(root: THREE.Object3D, name: string): THREE.Mesh[] {
 }
 
 /** Cuit un type à un niveau de détail : une BufferGeometry, poses en cibles de morph (positions et normales). */
-function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGeometry; map: THREE.Texture | null } {
+function bake(
+  gltf: GLTF,
+  look: EnemyLook,
+  lod: EnemyLod,
+): { geo: THREE.BufferGeometry; map: THREE.Texture | null; low: number } {
   const holder = gltf.scene.getObjectByName(look.model);
   if (!holder) throw new Error(`enemies.glb : ${look.model} absent`);
   const parts: { mesh: THREE.Mesh }[] = [];
@@ -136,7 +147,8 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
     for (let k = 0; k < count; k++) {
       mixer.stopAllAction();
       action.reset().play();
-      const t = ci === 0 ? (clip.duration * k) / count : (clip.duration * k) / Math.max(1, count - 1);
+      const t =
+        ci === 0 ? (clip.duration * (look.cycle ?? 1) * k) / count : (clip.duration * k) / Math.max(1, count - 1);
       mixer.setTime(Math.min(t, clip.duration - 1e-4));
       holder.updateMatrixWorld(true);
       inv.copy(holder.matrixWorld).invert();
@@ -195,10 +207,23 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
     minZ = Math.min(minZ, f0[i * 3 + 2]);
     maxZ = Math.max(maxZ, f0[i * 3 + 2]);
   }
-  const k = look.height / Math.max(1e-3, maxY - minY);
+  // volant : mesuré sur son envergure, toutes poses de la boucle confondues (une aile levée ou baissée à la pose 0
+  // ne doit pas changer sa taille)
+  let spanX = 0;
+  if (look.fly)
+    for (let f = 0; f < look.clips[0][1]; f++) {
+      let lo = Infinity,
+        hi = -Infinity;
+      for (let i = 0; i < nv; i++) {
+        lo = Math.min(lo, frames[f].pos[i * 3]);
+        hi = Math.max(hi, frames[f].pos[i * 3]);
+      }
+      spanX = Math.max(spanX, hi - lo);
+    }
+  const k = look.height / Math.max(1e-3, look.fly ? spanX : maxY - minY);
   const cx = (minX + maxX) / 2,
     cz = (minZ + maxZ) / 2;
-  // volant : centré sur sa hauteur (le rendu le place à son altitude) et penché une fois pour toutes vers la caméra
+  // volant : penché une fois pour toutes vers la caméra, puis centré sur la boîte de toute sa boucle
   const y0 = look.fly ? (minY + maxY) / 2 : floor;
   const cp = look.fly ? Math.cos(FLY_PITCH) : 1,
     sp = look.fly ? Math.sin(FLY_PITCH) : 0;
@@ -216,6 +241,19 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
         f.nrm[i * 3 + 2] = ny * sp + nz * cp;
       }
     }
+  let low = 0;
+  if (look.fly) {
+    let lo = Infinity,
+      hi = -Infinity;
+    for (let f = 0; f < look.clips[0][1]; f++)
+      for (let i = 0; i < nv; i++) {
+        lo = Math.min(lo, frames[f].pos[i * 3 + 1]);
+        hi = Math.max(hi, frames[f].pos[i * 3 + 1]);
+      }
+    const mid = (lo + hi) / 2;
+    for (const f of frames) for (let i = 0; i < nv; i++) f.pos[i * 3 + 1] -= mid;
+    low = (hi - lo) / 2;
+  }
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(frames[0].pos.slice(), 3));
@@ -227,7 +265,7 @@ function bake(gltf: GLTF, look: EnemyLook, lod: EnemyLod): { geo: THREE.BufferGe
   geo.morphTargetsRelative = false;
   geo.computeBoundingBox();
   geo.computeBoundingSphere();
-  return { geo, map };
+  return { geo, map, low };
 }
 
 let enemiesPromise: Promise<(BakedEnemy | null)[]> | null = null;
@@ -249,11 +287,11 @@ export function loadEnemyModels(onStage?: (stage: string) => void): Promise<(Bak
         action = look.clips[1]?.[1] ?? 0;
       if (look.boss) {
         const hi = bake(gltf, look, 'hi');
-        return { geo: { net: hi.geo, pixel: hi.geo }, map: hi.map, loop, action, boss: true };
+        return { geo: { net: hi.geo, pixel: hi.geo }, map: hi.map, loop, action, boss: true, low: hi.low };
       }
       const mid = bake(gltf, look, 'mid'),
         lo = bake(gltf, look, 'lo');
-      return { geo: { net: mid.geo, pixel: lo.geo }, map: mid.map, loop, action, boss: false };
+      return { geo: { net: mid.geo, pixel: lo.geo }, map: mid.map, loop, action, boss: false, low: mid.low };
     });
     staleFile = false;
     return baked;

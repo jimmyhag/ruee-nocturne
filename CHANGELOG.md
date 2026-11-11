@@ -10,7 +10,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
   - Spectre : gobelin à la massue. Dard : loup-garou. Brute : orc à la hache. Volant : dragonnet. Cracheur : ninja. Archer : homme-oiseau à l'arc. Sorcier : démone.
   - Boss : le Gardien est un chevalier noir (épée et bouclier), l'Essaim-mère une chamane au bâton, le Colosse un golem de glace, le Faucheur un seigneur vampire à la faux.
 - **Les noms, les attaques et la difficulté ne changent pas** : seule l'apparence change.
-- **Les animations sont celles d'avant** (marche, course, coup d'épée, sort, tir), reprises sur les nouveaux modèles. Le dragonnet bat des ailes ; le crâne volant était immobile.
+- **Les animations sont celles d'avant** (marche, course, coup d'épée, sort, tir), reprises sur les nouveaux modèles. Le dragonnet bat des ailes ; le crâne volant était immobile. En plongée, il s'arrête au ras du sol au lieu de le traverser.
 - Les sbires ont la tête et les membres un peu plus forts que les héros : ils sont dessinés avec très peu de triangles et vus de loin, et des membres fins devenaient illisibles.
 - Les ennemis gardent leurs vraies couleurs : la teinte par type, qui servait à distinguer les morts-vivants, est presque retirée. Le flash blanc du coup, l'or des élites et le rouge de la rage restent.
 
@@ -19,6 +19,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 - `ENEMY_MODELS` (`tools/assets/config.ts`) : onze modèles, trois réglages de proportions (`FIT` pour les boss, `FIT_LARGE` pour les grands gabarits, `FIT_MASS` pour les sbires). `npm run assets -- --enemies` refait `enemies.glb` et sa partie du manifeste.
 - `mergeKay` produit plusieurs niveaux de détail à partir des mêmes sommets, lie les maillages rigides portés par un os (ailes du vampire) et accepte une texture hors fichier.
 - `enemies.glb` : 532 Ko (636 Ko avant). Le dragonnet vient du pack Ultimate Monsters de Quaternius (CC0).
+- La horde du test de charge (`?stress=400`) compte un Volant sur vingt : la mesure couvre le modèle animé qui vole. 215 k triangles en rendu net à 400 ennemis (plafond 250 k).
 - Essayés et écartés : les clips du pack KayKit (bras tenus loin du corps, faits pour des corps trapus) ; une simplification qui ignore les coutures de texture (elle mélange les couleurs).
 
 ## 1.44.0 — 11 nov. 2026 (demande de Jimmy : de nouveaux skins de héros, plus « fantasy »)

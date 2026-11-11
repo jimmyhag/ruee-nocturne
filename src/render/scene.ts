@@ -116,6 +116,7 @@ const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu,
 const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (hors de la vue)
 const ENEMY_TINT_KEEP = 0.88; // part de blanc dans la teinte d'un ennemi (phase 46 B : les textures KayKit portent déjà la couleur)
+const ENEMY_RIM_WHITE = 0.6; // part de blanc dans la couleur du liseré
 const ENEMY_RIM = 0.22; // force du liseré de lumière des ennemis (couleur du type, éclaircie : les textures portent déjà la couleur)
 const ENEMY_FLASH = new THREE.Color(2.4, 2.4, 2.4); // flash du coup sur un modèle texturé : surexposé
 const ENEMY_STRIDE = 0.42; // tours de marche par unité de vitesse (Spectre 2,7 u/s : ≈ 1,1 pas par seconde)
@@ -420,7 +421,7 @@ export class GameScene {
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
       this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.55));
     }
-    // phase 21 : modèles des ennemis (et crâne des Volants) dès qu'enemies.glb et props.glb sont là ; nouvel essai
+    // phase 21 : modèles des ennemis dès qu'enemies.glb est là ; nouvel essai
     // après un échec (réseau mobile), état lisible dans l'onglet perf
     this.loadEnemies(0);
     // phase 9 : une ombre douce sous chaque ennemi (un seul appel pour tous) ; celle des Volants grossit au télégraphe
@@ -1102,7 +1103,7 @@ export class GameScene {
       // phase 44 B : liseré de la couleur du type (plus fort sur les boss) : la silhouette se lit sur l'herbe claire
       const mat = stylize(
         new THREE.MeshToonMaterial({ map: b.map, gradientMap: toonGradient() }),
-        new THREE.Color(PAL.enemy[t]).lerp(WHITE, 0.6).getHex(), // au chargement seulement
+        new THREE.Color(PAL.enemy[t]).lerp(WHITE, ENEMY_RIM_WHITE).getHex(), // au chargement seulement
         b.boss ? ENEMY_RIM * 1.5 : ENEMY_RIM,
       );
       const len = 1 + b.loop + b.action,
@@ -1712,17 +1713,21 @@ export class GameScene {
         // ombre au sol : grossit pendant le télégraphe (0,6 s avant la plongée)
         const tele = e.state === 1 ? 1 + (1 - Math.max(0, e.timer / VOLANT.telegraph)) * 1.6 : 1;
         this.shadowW.put(ex, eg + 0.06, ez, 0, 0.6 * tele * (e.state === 2 ? 0.6 : 1), this.cShadow);
+        // dragonnet (modèle cuit) : ses ailes battent, le balancement du crâne d'avant est réduit ; en plongée, son
+        // point le plus bas ne traverse pas le sol
+        const vb = this.enemyMorph[e.type] ? this.enemyBaked[e.type] : null;
+        const sway = vb ? 0.4 : 1;
         this.enemyW[e.type].put(
           ex,
-          ey,
+          vb ? Math.max(ey, eg + vb.low * s) : ey,
           ez,
           e.face,
           s,
           col,
-          Math.sin(now * 6 + e.bob) * 0.25,
-          Math.sin(now * 4 + e.bob) * 0.2,
+          Math.sin(now * 6 + e.bob) * 0.25 * sway,
+          Math.sin(now * 4 + e.bob) * 0.2 * sway,
         );
-        this.poseEnemy(e.type, e, now); // battement d'ailes du dragonnet
+        this.poseEnemy(e.type, e, now); // battement d'ailes
       } else if (e.type === SWARM_TYPE) {
         s *= e.state === 1 ? 1.25 : 1 + Math.sin(now * 3) * 0.04; // pulsation à la ponte
         // procédural : la masse tourne sur elle-même ; squelette : il regarde où il va
