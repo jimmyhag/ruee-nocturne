@@ -30,6 +30,9 @@ const inp = { mx: 0.7, mz: 0.3, jump: false, spell: false, pick: 0 };
 w.player.maxHp = 1e9; // invincible : on mesure le coût du step, pas la survie
 // phase 31 (relecture perf) : objets de soin et de dégâts actifs, PV sous le maximum (vol de vie, Couronne, Second souffle)
 for (const it of [It.Croc, It.Calice, It.Mousse, It.Souffle, It.Gant, It.Couronne]) gainItem(w, it);
+// phase 47 B (relecture perf) : brûlure sur critique, tir doublé, bonus sur cible ralentie
+for (const it of [It.Dent, It.Miroir, It.Glace, It.Trophee, It.Bandage]) gainItem(w, it);
+w.player.crit = 0.3;
 const HP = 3e8; // 30 % des PV max : Couronne et Second souffle jouent, le vol de vie trouve de la place
 const gc = (globalThis as any).gc as (() => void) | undefined;
 // chauffe

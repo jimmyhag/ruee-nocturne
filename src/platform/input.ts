@@ -83,7 +83,9 @@ export class InputManager {
       if (isEditable(e.target)) return; // champ texte (compte, sauvegarde) : Espace, Entrée et chiffres restent au navigateur
       this.keys[e.code] = true;
       if (e.repeat) return;
-      if (/^Digit[1-4]$/.test(e.code)) this.pickQueued = +e.code.slice(5) - 1;
+      if (/^Digit[1-6]$/.test(e.code))
+        // phase 47 B : jusqu'à six cartes au sanctuaire avec le Grimoire
+        this.pickQueued = +e.code.slice(5) - 1;
       if (this.kJump.includes(e.code)) {
         e.preventDefault(); // Espace ne fait pas défiler la page
         this.jumpQueued = true;

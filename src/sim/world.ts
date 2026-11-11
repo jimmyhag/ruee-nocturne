@@ -774,7 +774,7 @@ const DOUBLE_FIELDS = [
   'xp',
 ] as const satisfies readonly (keyof Player)[];
 function makeEnemy(): Enemy {
-  return {
+  const e: Enemy = {
     alive: false,
     id: 0,
     type: 0,
@@ -818,6 +818,11 @@ function makeEnemy(): Enemy {
     burnAcc: 0,
     slowT: 0,
   };
+  // phase 47 B (relecture perf) : la brûlure est fractionnaire ; forme « double » dès la création, comme pour Player,
+  // sinon le premier embrasement déprécie la forme de tous les ennemis en plein combat
+  e.burn = e.burnT = e.burnAcc = 0.5;
+  e.burn = e.burnT = e.burnAcc = 0;
+  return e;
 }
 function makeProj(): Projectile {
   return {

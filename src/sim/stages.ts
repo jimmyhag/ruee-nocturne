@@ -212,6 +212,7 @@ export function nextStage(w: World): void {
   P.vx = P.vz = P.vy = 0;
   P.mvx = P.mvz = 0;
   P.onGround = true;
+  P.airJumps = 0; // phase 47 B : un portail franchi en l'air ne coûte pas le saut des Ailes de cire
   P.sliding = false;
   P.airMom = false;
   P.slideJump = false;
