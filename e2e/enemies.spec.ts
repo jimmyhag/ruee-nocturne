@@ -133,7 +133,13 @@ test('les créatures marchent au sol, le Volant reste en l’air (1.21.4)', asyn
   // Spectre, Brute, Gardien (boss), Archer : pieds au sol ; Volant : en vol
   const types = [0, 2, 3, 9, 4];
   for (const t of types) await page.evaluate((t) => (window as any).__game.debug.spawn(t, 1, 6), t);
-  await page.waitForTimeout(500);
+  // la première image qui dessine de nouveaux types peut prendre plus d'une seconde en rendu logiciel (mesuré : 1,25 s
+  // pour ces cinq-là) : on attend que chaque type ait une instance dessinée, pas un délai fixe
+  await page.waitForFunction(
+    (types) => types.every((t) => (window as any).__game.scene.enemyW[t].mesh.count > 0),
+    types,
+    { timeout: 20_000 },
+  );
   await page.evaluate(() => (window as any).__game.debug.speed(0));
   await page.waitForTimeout(200);
   const lift = await page.evaluate((types) => {
