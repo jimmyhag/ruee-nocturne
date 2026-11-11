@@ -134,4 +134,12 @@ test('sanctuaire : rester dans le cercle remplit la jauge, puis un bonus pour la
   );
   expect(boons).toBe(1);
   await expect(page.locator('#banner')).toContainText('Sanctuaire');
+  // phase 47 : la pause montre la fiche de stats du héros (cinq familles, vingt lignes), à jour
+  if (hasTouch) await page.locator('#pauseBtn').tap();
+  else await page.locator('#pauseBtn').click();
+  await expect(page.locator('#pause')).toBeVisible();
+  await expect(page.locator('#pauseStats .statgroup')).toHaveCount(5);
+  await expect(page.locator('#pauseStats li')).toHaveCount(20);
+  await expect(page.locator('#pauseStats')).toContainText('Vol de vie');
+  await expect(page.locator('#pauseStats')).toContainText('Chance');
 });

@@ -90,8 +90,19 @@ Chaque arme s'améliore jusqu'à **100 fois** ; chaque carte apporte **1 à 3 li
 
 Maximum 4 armes + 4 tomes par run (forcer les choix). **Phase 10** : on part avec **1 arme** (celle du personnage) et **2 tomes** ; les emplacements suivants (jusqu'à 4 et 4) se débloquent pour tous les personnages par un succès **et** de l'or (`SLOTS` dans `balance.ts` : 300, 2 000, 4 000, 8 000, 12 000 or) ; le kit de départ d'un personnage ne compte pas contre le plafond.
 
-### 3.2 Tomes (8, phase 12 ; remplacent les passifs)
+### 3.2 Tomes (12 : 8 en phase 12, 4 en phase 47 ; remplacent les passifs)
 Dégâts (dégâts, élites et boss, recul, dégâts critiques) · Cadence (recharge, durée des projectiles, recharge du sort) · Projectiles (+1 projectile pour toutes les armes, taille, vitesse) · Vitalité (PV max, régénération, dégâts subis, PV par kill) · Mouvement (course, recharge et puissance du sort, saut) · Savoir (XP, collecte, soin à chaque niveau) · Chance (lignes rares, coffres, 4e carte, critique global) · Or (or, or par élite, prix du marchand). Une carte de tome tire elle aussi 1 à 3 lignes dans sa famille (`TOMES` dans `balance.ts`), jusqu'à 100 par tome.
+
+**Phase 47 (demande de Jimmy : plus de tomes, dont un de vol de vie)** — quatre tomes, trois lignes chacun :
+
+| Tome | Lignes (par carte) | Ce qu'il change |
+|---|---|---|
+| **Sang** | vol de vie +1 % · réserve de soin +0,4 PV/s · dégâts +4 % sous 50 % de PV | se soigner en frappant, sans objet ; fort quand on est bas |
+| **Givre** | 4 % de chance de ralentir à chaque coup d'arme (1,2 s, pas les boss) · dégâts +8 % aux ennemis ralentis ou étourdis · durée des ralentissements +10 % | contrôle ; se marie avec le Halo, la Foudre, le Sablier |
+| **Bastion** | riposte +50 % des dégâts de contact à l'ennemi qui touche · dégâts subis −4 % à l'arrêt (plafond −24 %) · revanche : dégâts +6 % pendant 3 s après un coup reçu | tenir un cercle (sanctuaire, totem) |
+| **Défi** | apparitions +5 % · XP et or des élites +8 % · élites +8 % plus fréquentes | un pari : plus de monstres contre plus de butin |
+
+Le vol de vie du héros (`Player.steal`) passe par la même **réserve de soin par seconde** que le Croc et la Couronne (`healCap`, `src/sim/items.ts`) : chaque point de vol de vie ouvre 0,3 PV/s de réserve (`BLOOD.capPerSteal`), la ligne « réserve » en ajoute. Sans cette borne, les dégâts de fin de partie rendraient le héros immortel.
 
 **Phase 23 (demande de Jimmy)** : une carte ne tire **jamais deux fois la même ligne** ; chaque arme et chaque tome a au moins 3 lignes (armes 5 ou 6). Toutes les armes ont une ligne de **coup critique** (+5 %, +3 % pour le Boomerang, ×2 dégâts, chiffre doré « 37! »), le Halo une ligne de ralentissement, la Foudre une ligne d'étourdissement (pas les boss). Constantes : `CRIT` dans `balance.ts`.
 
@@ -228,7 +239,13 @@ Décision prise : les synergies sont des bonus de stats ou des règles simples p
 
 **Points d'intérêt (phase 18)** : posés avec la carte sur les sommets et dans les lieux construits, signalés de loin par une **colonne de lumière** (pas de minicarte, choix de Jimmy).
 - **Coffres de carte (20)** : on reste 0,6 s dessus pour l'ouvrir (même règle au clavier et au doigt). Prix en or de la partie : 20, puis ×2 à chaque coffre acheté, et seulement à l'achat (1.33.1–1.33.2, demandes de Jimmy : ni le temps ni les objets portés ne le font monter ; victoire nue 46 %, maxée 49 %) ; la puce « Coffre · prix » dit si l'or manque. Le coffre donne un choix d'objet parmi 3. Les coffres d'élite et de boss restent gratuits.
-- **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie parmi 3 : +12 PV max, +8 % de dégâts, +6 % de vitesse, −6 % de recharge, +25 % de collecte, +20 % d'or, −12 % de recharge du sort (sanctuaire de l'arcane, phase 22). Un usage chacun.
+- **Sanctuaires (10)** : rester 4 s dans le cercle (la jauge redescend dehors, les ennemis continuent d'arriver), puis 1 bonus permanent pour la partie. Un usage chacun. **Depuis la phase 47 (demande de Jimmy : toutes les stats trouvables au sanctuaire)**, 4 choix tirés parmi 18 (`BOON`, `BOON_KEYS`) :
+  - survie : +12 PV max · régénération +0,4 PV/s · armure +3 % · vol de vie +1 % ;
+  - attaque : dégâts +8 % · critique +3 % · dégâts critiques +15 % · dégâts aux élites et boss +10 % · recharge des armes −6 % · taille +6 % ;
+  - mouvement : vitesse +6 % · saut +6 % ;
+  - sort : recharge du sort −12 % · puissance du sort +8 % ;
+  - butin : chance +0,5 · collecte +25 % · XP +6 % · or +20 %.
+  - Un bonus dont la stat est à son plafond (armure 36 %, recharge ×0,25, recharge du sort ×0,35) n'est plus proposé. La carte montre « stat : actuel → nouveau ». L'écran de pause affiche la **fiche de stats** du héros (`src/ui/stats.ts`), par famille : c'est ce qui permet de choisir.
 - **Respiration avant un boss** : bannière « … approche » 15 s avant, spawn à 60 % les 10 dernières secondes.
 
 ### 3.7 Bonus au sol (phase 35)
