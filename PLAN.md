@@ -762,6 +762,16 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - e2e complet sur les deux projets, budgets d'appels et de triangles tenus ;
   - captures lues : trois mondes de jour, monde 1 de nuit, accueil, téléphone.
 
+### Phase 45 — Boss qui visent le joueur, sanctuaires refaits (1.43.0)
+- **Demande de Jimmy** (11 nov.) : refaire les sanctuaires et les attaques des boss. « Des attaques qui viennent sous mes pieds, qui se spamment un peu, des projectiles, pour que ce soit un peu difficile. Là il dash et les dégâts arrivent derrière lui : ça ne me touchera pas. »
+- **Règle retenue** : une attaque de boss vise le joueur ou l'endroit où il va. Une attaque posée là où le joueur n'est pas (le Sillage, derrière la charge) ne compte pas comme une attaque.
+- **Traque**, commune aux trois boss (`BOSS.hunt`, par type) : salve de `n` cercles (`n2` en phase 2), un tous les `every` s, sous les pieds du joueur ; un sur deux en avance de `lead` s sur sa vitesse. Télégraphe ≥ 0,7 s (fenêtre de saut, game-feel §9). La rage rapproche les salves, pas les cercles d'une salve.
+- **Boss de survie** (3:00 et 7:00) : pas de Traque (`BOSS.huntSurvival` = 0). Le joueur ne choisit pas ce combat et son kit est faible : avec la salve entière, la relecture d'équilibrage mesurait un monde 1 presque fermé aux personnages fragiles (monde 2 atteint : Sorcière 17 → 3 %, Bûcheron 19 → 8 %). Ils gardent les Éclats (Gardien) et leurs attaques de la phase 43.
+- **Éclats du Gardien** (`BOSS.burst`) : étoile de projectiles au sol à la fin de la charge. Le Sillage (`BOSS.wake`) est retiré.
+- **Faucheur** : inchangé (pas de Traque).
+- **Sanctuaires** : géométrie procédurale (`src/render/shrine.ts`), cinq stèles en fer à cheval ouvert vers la caméra, runes à la couleur d'instance (libre, en charge, utilisé). Le modèle KayKit reste dans `props.glb` mais n'est plus dessiné.
+- **Porte** : cibles d'équilibrage des deux profils tenues ; tests Vitest de la Traque (salve, visée en avance, esquive possible) et des Éclats ; captures lues (sanctuaire dans ses trois états, Traque, Éclats) ; budgets de rendu inchangés.
+
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.

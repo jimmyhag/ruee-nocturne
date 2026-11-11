@@ -579,8 +579,28 @@ export const BOSS = {
   // fois plus vite ; les télégraphes gardent leur durée (lisibilité). Pas les boss de survie : ils sont faits pour durer
   // (110 s en médiane contre un kit à deux armes, avant comme après la phase), la rage les touchait presque tous dès 3:00
   enrage: { after: 90, haste: 1.4, speed: 1.25 },
-  // Gardien, Sillage : sa charge laisse `n` cercles sur son trajet (un tous les `every` s), qui explosent après `telegraph`
-  wake: { n: 4, every: 0.25, r: 1.8, telegraph: 0.7, dmg: 8 },
+  // Phase 45 (demande de Jimmy : des attaques qui arrivent sous les pieds, qui s'enchaînent, des projectiles). Le
+  // Sillage de la phase 43 posait ses cercles DERRIÈRE le Gardien : aucun danger pour le joueur, retiré.
+  // Traque : chaque boss lance, toutes les `period` s, une salve de `n` cercles (`n2` en phase 2), un tous les
+  // `every` s, posés sous les pieds du joueur ; un cercle sur deux vise là où il sera (`lead` s d'avance sur sa
+  // vitesse) : courir tout droit ne suffit pas, il faut changer de direction. Télégraphe ≥ 0,7 s (game-feel §9).
+  // Index : type du boss (Gardien, Essaim-mère, Colosse).
+  huntFirst: 3.5, // s avant la première salve d'un boss
+  // boss de survie (3:00 et 7:00 de chaque monde) : la salve est multipliée par ce facteur (arrondie ; 0 = pas de Traque).
+  // 0 : ils arrivent tôt, face à un kit faible, et le joueur ne choisit pas le moment du combat. Mesuré (120 à 200
+  // parties par bras, bruit de ± 5 points) : avec la salve entière, monde 2 atteint 17 → 3 % pour la Sorcière et
+  // 19 → 8 % pour le Bûcheron ; avec un seul cercle (0,34), chute max de l'Éclaireuse à 23 points sur deux graines
+  // (cible ≤ 22) ; à 0, 19 points. La Traque reste entière pour les boss du totem et du monde infini.
+  huntSurvival: 0,
+  huntVmax: 9, // u/s : vitesse du joueur au-delà de laquelle la Traque ne vise pas plus loin (téléportation, envol)
+  hunt: {
+    [BOSS_TYPE]: { period: 6, n: 3, n2: 5, every: 0.42, r: 1.9, telegraph: 0.75, dmg: 9, lead: 0.45 },
+    [SWARM_TYPE]: { period: 7.5, n: 3, n2: 5, every: 0.5, r: 1.7, telegraph: 0.8, dmg: 7, lead: 0.4 },
+    [COLOSSUS_TYPE]: { period: 6.5, n: 5, n2: 7, every: 0.36, r: 1.8, telegraph: 0.8, dmg: 10, lead: 0.5 },
+  } as Record<number, { period: number; n: number; n2: number; every: number; r: number; telegraph: number; dmg: number; lead: number }>,
+  // Gardien, Éclats : à la fin de sa charge, `n` projectiles (`n2` en phase 2) partent en étoile autour de lui, au sol :
+  // on les saute ou on passe entre deux. La charge esquivée ne suffit plus, il faut aussi lire l'arrivée.
+  burst: { n: 10, n2: 14, speed: 6.5, life: 2.2, dmg: 7, r: 0.42 },
   ring2: 0.9, // Gardien, phase 2 : seconde onde 0,9 s après la première (8 u d'écart : le temps de retomber et de ressauter)
   // Essaim-mère, Salve : elle gonfle `windup` s puis crache `n` projectiles en éventail (`n2` en phase 2), au sol : on les
   // saute ou on passe entre deux. Seulement si le joueur est à moins de `range`

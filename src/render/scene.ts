@@ -50,7 +50,6 @@ import {
   lampPostGeometry,
   mapChestGeometry,
   netGeometry,
-  shrineGeometry,
   MERCHANT_LANTERN,
   stallGeometry,
   worksGeometry,
@@ -63,6 +62,7 @@ import { borderGeometry } from './border';
 import { Base, MotionState } from './motion';
 import { OUTLINE, stylize, toonGradient, toonMaterial } from './toon';
 import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, softGlow, SLASH_ARC } from './textures';
+import { buildShrine } from './shrine';
 import { buildTotem, TOTEM_HEIGHT } from './totem';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -265,6 +265,10 @@ export class GameScene {
   private cBeamGold = new THREE.Color(PAL.gold);
   private cBeamGrey = new THREE.Color(0x8a8fa8);
   private cBeamBlue = new THREE.Color(PAL.xp);
+  // phase 45 : runes des sanctuaires (libre, chargé à fond, déjà utilisé) ; au-delà de 1 : lisibles en plein jour
+  private cShrineOn = new THREE.Color(0x4fb8ff).multiplyScalar(1.25);
+  private cShrineFull = new THREE.Color(0xd8f4ff).multiplyScalar(1.7);
+  private cShrineOff = new THREE.Color(0x4a4860);
   private cPoi = new THREE.Color();
   // phase 17 : échoppe du marchand (une seule, visible pendant sa visite) : 3 appels de rendu quand elle est là
   private stall = new THREE.Group();
@@ -300,6 +304,8 @@ export class GameScene {
   private cFire = new THREE.Color(PAL.accent); // traînée de feu du Feu follet (même mesh que les mines, plus large et plate)
   private cMineArmed = new THREE.Color(0xffffff);
   private cSpit = new THREE.Color(PAL.spit);
+  private cBossShot = new THREE.Color(PAL.telegraph).multiplyScalar(1.1);
+  private cBossShotCore = new THREE.Color(0xffd2c4);
   private cArrow = new THREE.Color(PAL.arrow);
   private cTele = new THREE.Color(PAL.telegraph);
   private cShadow = new THREE.Color(PAL.ink);
@@ -442,7 +448,11 @@ export class GameScene {
       makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
     );
     this.spitW = new InstanceWriter(
-      makeInstanced(new THREE.SphereGeometry(0.32, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
+      makeInstanced(
+        new THREE.SphereGeometry(0.32, 6, 4),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+        CAPS.shots, // phase 45 (relecture perf) : autant que le pool de tirs, un tir qui blesse est toujours dessiné
+      ),
     );
     this.arrowW = new InstanceWriter(
       makeInstanced(new THREE.BoxGeometry(0.13, 0.13, 0.95), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
@@ -450,10 +460,10 @@ export class GameScene {
     // cercles rouges (Colosse, éruptions, boules de feu) et, depuis la phase 31, ondes de choc du Gardien : même
     // matériau, un seul appel (l'anneau à 10 % du rayon suit l'épaisseur réelle de l'onde, 0,8 u, mieux que l'ancien)
     this.zoneW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 96 + 8),
+      makeInstanced(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), CAPS.shots + 8),
     );
     this.zoneFillW = new InstanceWriter(
-      makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.35), 96),
+      makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.42), CAPS.shots),
     );
     this.chestW = new InstanceWriter(makeInstanced(new THREE.BoxGeometry(0.9, 0.62, 0.62), lam(PAL.gold), 16));
     this.netW = new InstanceWriter(makeInstanced(netGeometry(), flat(PAL.gold, 0.85), 2));
@@ -561,10 +571,10 @@ export class GameScene {
     this.holdW = new InstanceWriter(
       makeInstanced(new THREE.RingGeometry(0.82, 1, 32).rotateX(-Math.PI / 2), additive(0xffffff, 0.85), 4),
     );
-    // phase 37 : + le totem du monde (une pierre de plus), + 4 anneaux (totem, portail)
-    this.shrineW = new InstanceWriter(
-      makeInstanced(shrineGeometry(), toonMaterial({ vertexColors: true }), SHRINE.count + 1),
-    );
+    // phase 45 : sanctuaire en stèles runiques (`shrine.ts`), les runes prennent la couleur d'instance ; phase 37 :
+    // + 4 anneaux (totem, portail)
+    const shrine = buildShrine();
+    this.shrineW = new InstanceWriter(makeInstanced(shrine.geometry, shrine.material, SHRINE.count));
     this.shrineGlowW = new InstanceWriter(
       makeInstanced(
         new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2),
@@ -911,7 +921,6 @@ export class GameScene {
     // l'élite teinté d'or par la couleur d'instance ; le coffre flottant était centré, le modèle a l'origine au sol
     swap(this.chestW, norm(p.chest, 1.0, 'xz').translate(0, -0.3, 0), mat(p.chest));
     swap(this.mapChestW, norm(p.chest, 1.1, 'xz'), mat(p.chest));
-    swap(this.shrineW, norm(p.shrine, 1.0, 'xz'), mat(p.shrine));
     // lame : épée couchée le long de x (comme l'ancienne boîte de 1 u) ; boomerang : hache à plat, tournant autour de y
     const sword = norm(p.sword, 1.15, 'y').rotateZ(-Math.PI / 2);
     swap(this.bladeW, sword, mat(p.sword));
@@ -1803,7 +1812,23 @@ export class GameScene {
       if (sh.kind === ShotKind.Spit) {
         const sx = lerp(sh.px, sh.x, alpha),
           sz = lerp(sh.pz, sh.z, alpha);
-        this.spitW.put(sx, this.gy(sx, sz) + 0.45 + Math.sin(now * 9 + i) * 0.1, sz, now * 5, 1, this.cSpit);
+        const sy = this.gy(sx, sz) + 0.45 + Math.sin(now * 9 + i) * 0.1;
+        if (sh.boss) {
+          // phase 45 : projectile de boss, orbe rouge à cœur clair et halo (même écrivain de lueurs que les boules de feu) ;
+          // le crachat vert reste celui des Cracheurs
+          const fl = 1 + Math.sin(now * 19 + i) * 0.1;
+          this.glowW.put(
+            sx,
+            sy,
+            sz,
+            0,
+            FEEL.glow.bossShot * fl,
+            this.cBossShot,
+            this.particles.billboardRx,
+            now * 3 + i,
+          );
+          this.spitW.put(sx, sy, sz, now * 5, 1.15, this.cBossShotCore);
+        } else this.spitW.put(sx, sy, sz, now * 5, 1, this.cSpit);
       } else if (sh.kind === ShotKind.Arrow) {
         const sx = lerp(sh.px, sh.x, alpha),
           sz = lerp(sh.pz, sh.z, alpha);
@@ -1916,7 +1941,14 @@ export class GameScene {
       const f = sr.used ? 0 : sr.charge / SHRINE.charge;
       if ((sr.x - px) ** 2 + (sr.z - pz) ** 2 < POI_DRAW2) {
         this.tilt(sr.x, sr.z);
-        this.shrineW.put(sr.x, g - 0.05, sr.z, i * 0.9, SHRINE.r * 0.9, WHITE, this.tRx, this.tRz);
+        // runes : éteintes (gris) une fois le sanctuaire utilisé ; bleues, puis de plus en plus claires pendant la charge
+        if (sr.used) this.cPoi.copy(this.cShrineOff);
+        else
+          this.cPoi
+            .copy(this.cShrineOn)
+            .lerp(this.cShrineFull, f)
+            .multiplyScalar(1 + Math.sin(now * 3 + i) * 0.12);
+        this.shrineW.put(sr.x, g - 0.03, sr.z, 0, SHRINE.r * 0.92, this.cPoi, this.tRx, this.tRz);
         this.cPoi.copy(this.cBeamBlue).multiplyScalar(sr.used ? 0.12 : 0.35 + f * 1.2 + Math.sin(now * 3 + i) * 0.08);
         this.shrineGlowW.put(sr.x, g + 0.12, sr.z, now * 0.4, SHRINE.r * (1 + f * 0.08), this.cPoi, this.tRx, this.tRz);
       }

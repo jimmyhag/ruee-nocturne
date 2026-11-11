@@ -65,6 +65,7 @@ export const FEEL = {
     orbTrail: 1.4, // premier fantôme de traînée (décroît)
     fireCore: 0.95, // boule de feu du Sorcier
     fireHalo: 2.4,
+    bossShot: 1.9, // phase 45 : halo des projectiles de boss (Éclats, Salve)
     meteorCore: 1.1, // météore qui tombe
     meteorHalo: 2.6,
     meteorFall: 14, // u : hauteur de départ de la chute (pendant l'annonce)

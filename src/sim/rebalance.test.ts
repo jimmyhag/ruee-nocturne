@@ -63,6 +63,7 @@ function arena(seed: number, type: number, dist: number): { w: World; e: Enemy }
   const i = spawnEnemy(w, type, 0, dist);
   const e = w.enemies[i];
   e.hp = e.max = 1e12;
+  e.huntT = 1e9; // pas de Traque (phase 45) : chaque test observe une attaque à la fois
   return { w, e };
 }
 
@@ -186,20 +187,21 @@ describe('monde infini resserré (phase 43)', () => {
 });
 
 describe('nouvelles attaques des boss (phase 43)', () => {
-  it('Gardien, Sillage : sa charge laisse des cercles annoncés sur son trajet, qui explosent derrière lui', () => {
-    const { w, e } = arena(51, BOSS_TYPE, 9);
-    e.aim = 1e9; // pas d'onde : on observe la charge
-    e.timer = 0;
-    const tele = run(w, BOSS.chargeTelegraph + BOSS.chargeTime + 0.1, Ev.Telegraph);
-    expect(tele).toBe(BOSS.wake.n);
-    const zones = shots(w, ShotKind.Zone);
-    expect(zones.length).toBeGreaterThan(0);
-    for (const z of zones) expect(z.r).toBe(BOSS.wake.r);
-    // les cercles sont alignés sur le trajet de la charge
-    const xs = new Set(zones.map((z) => Math.round(z.x * 10)));
-    const zs = new Set(zones.map((z) => Math.round(z.z * 10)));
-    expect(xs.size + zs.size).toBeGreaterThan(2);
-    expect(run(w, BOSS.wake.telegraph + 0.2, Ev.ZoneBlast)).toBeGreaterThanOrEqual(zones.length);
+  it('Gardien, Éclats : sa charge finit sur une étoile de projectiles au sol (plus de cercles derrière lui)', () => {
+    for (const phase2 of [false, true]) {
+      const { w, e } = arena(51, BOSS_TYPE, 9);
+      e.aim = 1e9; // pas d'onde : on observe la charge
+      if (phase2) e.hp = e.max * 0.4;
+      e.timer = 0;
+      const tele = run(w, BOSS.chargeTelegraph + BOSS.chargeTime + 0.05, Ev.Telegraph);
+      expect(tele).toBe(0); // le Sillage de la phase 43 est retiré
+      const spits = shots(w, ShotKind.Spit);
+      expect(spits.length).toBe(phase2 ? BOSS.burst.n2 : BOSS.burst.n);
+      // en étoile : tous à la même vitesse, dans des directions distinctes
+      const dirs = new Set(spits.map((s) => Math.round(Math.atan2(s.vx, s.vz) * 100)));
+      expect(dirs.size).toBe(spits.length);
+      for (const s of spits) expect(Math.hypot(s.vx, s.vz)).toBeCloseTo(BOSS.burst.speed, 6);
+    }
   });
   it('Gardien, phase 2 : double onde (la seconde suit de BOSS.ring2 s) ; une seule en phase 1', () => {
     for (const phase2 of [false, true]) {
@@ -349,6 +351,91 @@ describe('nouvelles attaques des boss (phase 43)', () => {
         return [w.t, w.shotCount, w.enemyCount, e.x, e.z, e.timer, e.t2, w.rng.next()];
       };
       expect(play()).toEqual(play());
+    }
+  });
+});
+
+describe('Traque : des cercles sous les pieds du joueur (phase 45)', () => {
+  /** Boss immobile, toutes ses autres attaques coupées, première salve tout de suite. */
+  const hunter = (seed: number, type: number) => {
+    const a = arena(seed, type, 12);
+    a.e.spd = 0;
+    a.e.timer = a.e.aim = a.e.t2 = 1e9;
+    a.e.huntT = STEP / 2;
+    a.w.totemBossId = a.e.id; // boss du totem : salve entière
+    return a;
+  };
+  it('chaque boss lance une salve de `n` cercles (`n2` en phase 2), un tous les `every` s, puis attend `period`', () => {
+    for (const type of [BOSS_TYPE, SWARM_TYPE, COLOSSUS_TYPE])
+      for (const phase2 of [false, true]) {
+        const H = BOSS.hunt[type];
+        const { w, e } = hunter(61, type);
+        e.timer = e.aim = e.t2 = 1e9;
+        if (phase2) e.hp = e.max * 0.4;
+        const n = phase2 ? H.n2 : H.n;
+        expect(run(w, STEP, Ev.Telegraph)).toBe(1);
+        expect(run(w, (n - 1) * H.every + 0.1, Ev.Telegraph)).toBe(n - 1);
+        // la salve est finie : plus rien avant `period`
+        expect(run(w, H.period - 0.3, Ev.Telegraph)).toBe(0);
+        expect(run(w, 0.4, Ev.Telegraph)).toBe(1);
+      }
+  });
+  it('boss de survie : salve réduite (BOSS.huntSurvival) ; en monde infini, salve entière', () => {
+    const H = BOSS.hunt[SWARM_TYPE];
+    for (const kind of ['survie', 'infini'] as const) {
+      const { w } = hunter(65, SWARM_TYPE);
+      w.totemBossId = -1;
+      if (kind === 'infini') w.endless = true;
+      const n = run(w, H.n * H.every + 0.2, Ev.Telegraph);
+      expect(n).toBe(kind === 'infini' ? H.n : Math.round(H.n * BOSS.huntSurvival));
+    }
+  });
+  it('les cercles tombent sous les pieds du joueur et explosent après leur annonce', () => {
+    const H = BOSS.hunt[BOSS_TYPE];
+    const { w } = hunter(62, BOSS_TYPE);
+    run(w, STEP);
+    const [z] = shots(w, ShotKind.Zone);
+    expect(z.r).toBe(H.r);
+    expect(Math.hypot(z.x - w.player.x, z.z - w.player.z)).toBeLessThan(0.01);
+    expect(H.telegraph).toBeGreaterThanOrEqual(0.7); // game-feel §9 : une fenêtre de saut lisible
+    w.player.maxHp = w.player.hp = 100;
+    const hurt = run(w, H.telegraph + 0.05, Ev.PlayerHurt);
+    expect(hurt).toBe(1);
+    expect(w.player.hp).toBeLessThan(100);
+  });
+  it('un cercle sur deux vise en avance : courir tout droit ne suffit pas', () => {
+    const H = BOSS.hunt[BOSS_TYPE];
+    const { w, e } = hunter(63, BOSS_TYPE);
+    e.huntT = 1e9;
+    const east: Input = { ...still, mx: 1 };
+    run(w, 0.5, undefined, east); // le joueur court déjà
+    e.huntT = STEP / 2;
+    const ahead: number[] = [];
+    for (let f = 0; f < Math.round((H.n * H.every) / STEP); f++) {
+      step(w, east, STEP);
+      for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === Ev.Telegraph) ahead.push(w.events[i].x - w.player.x);
+    }
+    expect(ahead.length).toBe(H.n);
+    // posés en alternance : sous les pieds (0), puis en avant du joueur (> 1 u)
+    expect(ahead.filter((d) => d > 1).length).toBe(Math.floor(H.n / 2));
+    expect(ahead.filter((d) => Math.abs(d) < 0.01).length).toBe(Math.ceil(H.n / 2));
+  });
+  it('le joueur qui change de direction pendant la salve en sort indemne ; celui qui reste immobile est touché', () => {
+    const H = BOSS.hunt[COLOSSUS_TYPE];
+    for (const dodge of [false, true]) {
+      const { w, e } = hunter(64, COLOSSUS_TYPE);
+      e.timer = e.aim = e.t2 = 1e9;
+      w.player.maxHp = w.player.hp = 1000;
+      let hurt = 0;
+      const frames = Math.round((H.n * H.every + H.telegraph + 0.2) / STEP);
+      for (let f = 0; f < frames; f++) {
+        // esquive : un zigzag, demi-tour toutes les 0,6 s
+        const input: Input = dodge ? { ...still, mx: Math.floor((f * STEP) / 0.6) % 2 ? -1 : 1, mz: 0.6 } : still;
+        step(w, input, STEP);
+        hurt += count(w, Ev.PlayerHurt);
+      }
+      if (dodge) expect(hurt).toBeLessThanOrEqual(1);
+      else expect(hurt).toBe(H.n);
     }
   });
 });

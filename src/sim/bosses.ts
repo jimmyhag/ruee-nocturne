@@ -9,7 +9,7 @@ import type { World } from './world';
 
 const TAU = Math.PI * 2;
 
-/** Cercle au sol qui explose après `telegraph` s (zone du Colosse, sillage du Gardien). Pris dans le pool de tirs. */
+/** Cercle au sol qui explose après `telegraph` s (zones du Colosse, Traque des boss). Pris dans le pool de tirs. */
 function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dmg: number): void {
   const s = w.allocShot();
   if (!s) return;
@@ -39,6 +39,39 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
   const sp = def.speed * e.spd * (e.enraged ? BOSS.enrage.speed : 1);
   mv[0] = ux * sp;
   mv[1] = uz * sp;
+  // phase 45, Traque : salve de cercles sous les pieds du joueur, un tous les `every` s ; un sur deux vise en avance
+  const H = BOSS.hunt[e.type];
+  if (H) {
+    e.huntT -= e.hunt > 0 ? dt : dtA; // la rage rapproche les salves, pas les cercles d'une salve
+    if (e.huntT <= 0) {
+      if (e.hunt === 0) {
+        // boss du totem et du monde infini : salve entière ; boss de survie (3:00 et 7:00, kit encore faible) : réduite
+        const n = e.phase2 ? H.n2 : H.n;
+        e.hunt = w.endless || e.id === w.totemBossId ? n : Math.round(n * BOSS.huntSurvival);
+      }
+      if (e.hunt === 0) e.huntT = H.period;
+      else {
+        e.hunt--;
+        e.huntT = e.hunt > 0 ? H.every : H.period;
+        const P = w.player;
+        let tx = P.x,
+          tz = P.z;
+        if (e.hunt % 2 === 1) {
+          // vitesse du joueur sur le dernier pas, bornée (téléportation de debug, envol)
+          let vx = (P.x - P.px) / dt,
+            vz = (P.z - P.pz) / dt;
+          const v = Math.sqrt(vx * vx + vz * vz);
+          if (v > BOSS.huntVmax) {
+            vx *= BOSS.huntVmax / v;
+            vz *= BOSS.huntVmax / v;
+          }
+          tx += vx * H.lead;
+          tz += vz * H.lead;
+        }
+        zoneAt(w, tx, tz, H.r, H.telegraph, H.dmg * e.dmgMul);
+      }
+    }
+  }
   switch (e.type) {
     case BOSS_TYPE: {
       // Gardien : approche, puis recul + rugissement 0,8 s, puis charge en ligne 1 s. Phase 2 : charges 2× plus fréquentes.
@@ -60,15 +93,33 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
       } else if (e.state === 2) {
         mv[0] = e.tx * BOSS.chargeSpeed;
         mv[1] = e.tz * BOSS.chargeSpeed;
-        // phase 43, Sillage : un cercle derrière lui tous les `every` s de charge (`n` au plus)
-        const W = BOSS.wake;
-        if (e.combo < W.n && BOSS.chargeTime - e.timer >= e.combo * W.every) {
-          e.combo++;
-          zoneAt(w, e.x, e.z, W.r, W.telegraph, W.dmg * e.dmgMul);
-        }
         if (e.timer <= 0) {
           e.state = 0;
           e.timer = e.phase2 ? BOSS.chargePeriod / 2 : BOSS.chargePeriod;
+          // phase 45, Éclats : la charge finit sur une étoile de projectiles au sol (le Sillage, posé derrière lui,
+          // ne menaçait personne)
+          const B = BOSS.burst,
+            n = e.phase2 ? B.n2 : B.n,
+            a0 = w.rng.range(0, TAU);
+          let fired = 0;
+          for (let k = 0; k < n; k++) {
+            const s = w.allocShot();
+            if (!s) break;
+            fired++;
+            const a = a0 + (k / n) * TAU,
+              vx = Math.sin(a),
+              vz = Math.cos(a);
+            s.kind = ShotKind.Spit;
+            s.boss = true;
+            s.r = B.r;
+            s.x = s.px = e.x + vx * e.r;
+            s.z = s.pz = e.z + vz * e.r;
+            s.vx = vx * B.speed;
+            s.vz = vz * B.speed;
+            s.life = B.life;
+            s.dmg = B.dmg * e.dmgMul;
+          }
+          if (fired > 0) w.emit(Ev.Spit, e.x, e.y, e.z, 0, e.tx, 0, e.tz);
         }
       }
       // phase 11 : onde de choc périodique (hors charge), à sauter ; phase 2 : deux fois plus souvent
@@ -79,7 +130,7 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
         if (e.phase2) e.t2 = BOSS.ring2; // phase 43, double onde : la seconde suit
       }
       if (e.t2 > 0 && e.state !== 2) {
-        // jamais pendant la charge (relecture perf) : elle recouvrirait les cercles du sillage
+        // jamais pendant la charge (relecture perf) : deux dangers à sauter coup sur coup
         e.t2 -= dt;
         if (e.t2 <= 0) emitRing(w, e);
       }
@@ -135,6 +186,7 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
                 vx = e.tx * c - e.tz * sn,
                 vz = e.tx * sn + e.tz * c;
               s.kind = ShotKind.Spit;
+              s.boss = true;
               s.r = V.r;
               s.x = s.px = e.x + vx * e.r;
               s.z = s.pz = e.z + vz * e.r;

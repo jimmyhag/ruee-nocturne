@@ -115,24 +115,6 @@ export function mapChestGeometry(): THREE.BufferGeometry {
     OUTLINE_RGB,
   );
 }
-/** Sanctuaire (phase 18) : six pierres levées en cercle (rayon 1 avant mise à l'échelle) et une dalle centrale. */
-export function shrineGeometry(): THREE.BufferGeometry {
-  const parts: (Prim & { color: number })[] = [
-    { shape: 'cyl', size: [0.55, 0.62, 0.16], pos: [0, 0.08, 0], color: 0x8a86a8, seg: 10 },
-  ];
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2;
-    parts.push({
-      shape: 'box',
-      size: [0.16, 0.5 + (k % 2) * 0.16, 0.16],
-      pos: [Math.sin(a), 0.28, Math.cos(a)],
-      rot: [0, a, 0],
-      color: STONE,
-    });
-  }
-  return withOutline(build(parts), OUTLINE.decor, OUTLINE_RGB);
-}
-
 /**
  * Filet du Collet (phase 19) : disque de rayon 1, à plat, fait d'un cercle et de 5 + 5 cordes croisées. Une géométrie,
  * mise à l'échelle par instance (rayon du sort).

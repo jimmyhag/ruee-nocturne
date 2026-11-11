@@ -414,6 +414,7 @@ export class World {
     if (this.shotCount >= CAPS.shots) return null;
     const s = this.shots[this.shotCount++];
     s.alive = true;
+    s.boss = false;
     return s;
   }
   freeShot(i: number): void {
@@ -779,6 +780,8 @@ function makeEnemy(): Enemy {
     age: 0,
     enraged: false,
     combo: 0,
+    hunt: 0,
+    huntT: 0,
     detour: 0,
     stun: 0,
     slowT: 0,
@@ -808,7 +811,7 @@ function makeProj(): Projectile {
   };
 }
 function makeShot(): Shot {
-  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false, ox: 0, oz: 0, t0: 1 };
+  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false, ox: 0, oz: 0, t0: 1, boss: false };
 }
 function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };

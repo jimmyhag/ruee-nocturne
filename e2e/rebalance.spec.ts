@@ -108,8 +108,17 @@ test('monde infini : le marchand passe deux fois, annonce son dernier passage, p
 
 // Chaque boss dans sa nouvelle attaque : capture lue à la main (CLAUDE.md : ne rien affirmer sans l'avoir regardé)
 const BOSSES: { name: string; type: number; dist: number; arm: string; wait: string }[] = [
-  // Gardien : charge immédiate, on capture quand les cercles du sillage sont au sol
-  { name: 'gardien-sillage', type: 3, dist: 9, arm: 'e.aim = 1e9; e.timer = 0;', wait: 'zone' },
+  // phase 45, Traque : salve de cercles sous les pieds du joueur (le Sillage, posé derrière le Gardien, est retiré) ;
+  // réservée aux boss du totem et du monde infini, d'où `totemBossId`
+  {
+    name: 'gardien-traque',
+    type: 3,
+    dist: 9,
+    arm: 'e.aim = 1e9; e.timer = 1e9; w.totemBossId = e.id; e.huntT = 0.01;',
+    wait: 'zone',
+  },
+  // phase 45, Éclats : la charge du Gardien finit sur une étoile de projectiles
+  { name: 'gardien-eclats', type: 3, dist: 9, arm: 'e.aim = 1e9; e.timer = 0;', wait: 'spit' },
   // Essaim-mère : salve en éventail
   { name: 'essaim-salve', type: 6, dist: 9, arm: 'e.timer = 1e9; e.t2 = 0.01; e.hp = e.max * 0.4;', wait: 'spit' },
   // Colosse : croix de la phase 2 (deuxième attaque de cercles)
@@ -142,7 +151,8 @@ for (const B of BOSSES)
         e.x = e.px = w.player.x;
         e.z = e.pz = w.player.z - (dist as number);
         (document.getElementById('perf') as HTMLElement).hidden = true;
-        new Function('e', arm as string)(e);
+        e.huntT = 1e9; // phase 45 : pas de Traque, sauf si la capture la demande
+        new Function('e', 'w', arm as string)(e, w);
       },
       [B.type, B.dist, B.arm] as const,
     );
@@ -154,7 +164,10 @@ for (const B of BOSSES)
         for (let i = 0; i < w.shotCount; i++) if (w.shots[i].kind === kind) n++;
         return n >= min;
       },
-      (B.wait === 'zone' ? [1, 3] : B.wait === 'spit' ? [0, 5] : [3, 1]) as [number, number], // sillage : 3 cercles au plus à la fois (0,7 s de vie, un tous les 0,25 s)
+      (B.wait === 'zone' ? [1, B.name === 'gardien-traque' ? 2 : 3] : B.wait === 'spit' ? [0, 5] : [3, 1]) as [
+        number,
+        number,
+      ], // Traque : 2 cercles au moins à la fois (0,75 s de vie, un tous les 0,42 s)
       { timeout: 20_000 },
     );
     await page.waitForTimeout(B.wait === 'spit' ? 350 : 250);

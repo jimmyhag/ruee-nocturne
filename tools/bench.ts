@@ -19,7 +19,7 @@ refreshStats(w);
 const MIX = [0, 1, 2, 4, 5, 9, 10]; // masse + Volants + Cracheurs + Archers et Sorciers (phase 16 ; le Gardien, type 3, est exclu) ; hissé hors de la fenêtre de mesure du tas
 for (let i = 0; i < 390; i++) spawnEnemy(w, MIX[i % MIX.length], (i / 390) * Math.PI * 2, 6 + (i % 17));
 // phase 43 (relecture perf) : six boss enragés en phase 2 (deux de chaque), pour que le bench couvre leurs attaques
-// (sillage, double onde, salve, croix, onde de choc) : tirs pris dans le pool, aucune allocation attendue
+// (Traque et Éclats depuis la phase 45, double onde, salve, croix, onde de choc) : tirs pris dans le pool, aucune allocation attendue
 for (let i = 0; i < 6; i++) {
   const e = w.enemies[spawnEnemy(w, [3, 6, 7][i % 3], (i / 6) * Math.PI * 2, 9)];
   e.max = 1e12;
