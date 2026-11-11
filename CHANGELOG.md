@@ -2,6 +2,19 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.42.1 — 10 nov. 2026 (demande de Jimmy : refaire le totem et les armes)
+
+### Modifié
+
+- **Totem refait.** Une vraie stèle de pierre à la place du sanctuaire agrandi : socle à deux marches, trois blocs empilés, cornes, cristal flottant. Les runes et le cristal brillent dans la couleur de l'état : rouge quand il faut l'activer, orangé quand le boss est appelé, gris quand il est fermé. Il est plus haut (environ 5,4 unités) et ne se confond plus avec les sanctuaires.
+- **Effets des armes lisibles de jour.** Les orbes, les arcs de lame et de faux, les éclairs, le halo, les lances et les météores se délavaient en blanc sur l'herbe claire. Ils gardent maintenant leur couleur, avec un cœur blanc : or pour l'orbe, violet pour la faux, bleu acier pour les lames.
+
+### Technique
+
+- `src/render/totem.ts` : une géométrie fusionnée, un matériau, un appel de rendu (l'instance de sanctuaire du totem disparaît). Runes et cristal par attribut de sommet et uniforme de couleur.
+- `softGlow()` (`src/render/textures.ts`) : fusion couvrante à la place de l'additif pur (couleur prémultipliée, alpha écrit réduit). Aucun appel de rendu en plus.
+- Non refait : les modèles des armes (épée, hache, bombe) et les armes tenues par les héros.
+
 ## 1.42.0 — 10 nov. 2026 (demande de Jimmy : refonte visuelle, 2e livraison : personnages et menus)
 
 ### Modifié

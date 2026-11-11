@@ -142,3 +142,27 @@ export function runeRingTexture(): THREE.Texture {
     }
   }));
 }
+
+/**
+ * 1.42.1 (demande de Jimmy : refaire les armes) : fusion « lumineuse couvrante » des effets. L'additif pur, pensé
+ * pour la nuit sombre d'avant, se délave en blanc sur l'herbe claire. Ici la couleur est prémultipliée et l'alpha
+ * écrit vaut `cover` × alpha : résultat = couleur·a + fond·(1 − cover·a). `cover` 0 = additif, 1 = fusion normale ;
+ * entre les deux, l'effet garde sa couleur de jour et brille encore de nuit. `core` > 0 : cœur blanc là où la texture
+ * est pleine (orbes, éclairs). Aucun appel de rendu en plus.
+ */
+export function softGlow<T extends THREE.Material>(m: T, cover = 0.6, core = 0): T {
+  m.transparent = true;
+  m.premultipliedAlpha = true;
+  m.blending = THREE.NormalBlending;
+  m.depthWrite = false;
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <premultiplied_alpha_fragment>',
+      `gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 1.0 ), smoothstep( 0.55, 1.0, gl_FragColor.a ) * ${core.toFixed(2)} );
+      gl_FragColor.rgb *= gl_FragColor.a;
+      gl_FragColor.a *= ${cover.toFixed(2)};`,
+    );
+  };
+  m.customProgramCacheKey = () => `softglow-${cover}-${core}`;
+  return m;
+}

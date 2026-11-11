@@ -84,6 +84,10 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Liseré de lumière : `stylize(mat, couleur, force)`, terme de Fresnel au cube ajouté avant `opaque_fragment`. Héros : chaud, 0,75. Ennemis : couleur du type, 0,4 (boss ×1,5). Au-delà, les petits modèles vus de loin deviennent des aplats fluo ; sur un modèle clair (crâne du Volant), force 0.
 - Un seul programme pour tous (liseré noir = aucun) ; la couleur est un uniforme par matériau (`userData.rim`).
 
+## Effets lumineux sur sol clair (1.42.1)
+- Plus d'`AdditiveBlending` pur pour les effets de jeu : sur l'herbe claire il se délave en blanc. `softGlow(mat, cover, core)` (`textures.ts`) : couleur prémultipliée, alpha écrit = `cover` × alpha (0 = additif, 1 = normal), cœur blanc optionnel. Orbes 0,75 / 0,8 ; arcs 0,8 / 0,3 ; éclairs 0,6 / 0,7 ; halos et colonnes 0,5.
+- Une couleur d'effet pâle reste pâle : choisir des teintes franches (`cSlashFaux`, `cSlashBlade`, `PAL.proj`).
+
 ## Lumière et brume (phase 44)
 - Les intensités de three sont physiques : une lumière de 1 éclaire une surface blanche à 1/π. Hémisphère ≈ 2 et soleil ≈ 2,4 donnent une texture à sa vraie couleur ; en dessous, tout est sombre.
 - Brume **linéaire** (`THREE.Fog`, 30 → 115 u) : la caméra est à ≈ 16 u du joueur, une brume exponentielle voilait tout l'écran.

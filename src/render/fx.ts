@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { FEEL } from './feel';
 import { InstanceWriter, makeInstanced } from './instancing';
-import { beamTexture, hardDiscTexture } from './textures';
+import { beamTexture, hardDiscTexture, softGlow } from './textures';
 import { PAL } from './palette';
 import { POWER } from '../sim/balance';
 import type { Power } from '../sim/types';
@@ -164,14 +164,7 @@ export class Bolts {
   constructor(scene: THREE.Scene) {
     const mesh = makeInstanced(
       new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        map: beamTexture(),
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
+      softGlow(new THREE.MeshBasicMaterial({ color: 0xffffff, map: beamTexture(), side: THREE.DoubleSide }), 0.6, 0.7),
       BOLT_MAX * BOLT_SEG * 2,
     );
     scene.add(mesh);
