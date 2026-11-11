@@ -47,7 +47,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
   - Un **totem** (losange rouge sur la minicarte, colonne de lumière rouge) s'active en restant 3 s dans son cercle tant que le chrono tourne. Il appelle le boss du monde : Gardien, Essaim-mère, puis Colosse.
   - Le boss tué avant 0:00 ouvre un **portail**. Rester 1 s dedans mène au monde suivant : nouvelle carte, build gardée. On peut aussi rester pour farmer.
   - À 0:00, la **prolongation** commence. Les monstres se renforcent de minute en minute : apparitions, PV, dégâts, vitesse plafonnée. C'est jouable au début, mortel vers +3 à +4 min.
-  - Un boss encore vivant (ou jamais appelé) à 0:00 ferme le passage.
+  - Un boss jamais appelé à 0:00 ferme le passage. ~~Un boss encore vivant à 0:00 le ferme aussi.~~ **1.45.1 (retour de Jimmy, 11 nov.)** : un boss appelé avant 0:00 ouvre le portail (ou donne la victoire au monde 3) quand il meurt, même en prolongation. Avant, le joueur qui tuait le boss quelques secondes trop tard ne voyait rien s'ouvrir et croyait à un bug.
   - Le boss du monde 3 tué à temps donne la victoire. Le **boss final** viendra dans une phase suivante.
   - Plus de boss à heure fixe ni de Faucheur. La difficulté suit le temps du monde décalé : `diffT = chrono + STAGE.offset`, donc chaque monde repart un peu plus bas qu'il ne finissait.
 - Les armes **évoluent** (arme niveau max + passif associé → arme évoluée, visuellement spectaculaire). C'est le moment « wow » qui fait rester.

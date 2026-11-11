@@ -133,16 +133,36 @@ describe('mondes (phase 37)', () => {
     // plus aucun boss vivant, seulement les ennemis de départ
     expect(w.enemyCount).toBeLessThanOrEqual(12);
   });
-  it('boss tué après la fin du chrono : pas de portail (totem fermé)', () => {
+  it('boss appelé à temps, tué après la fin du chrono : le portail s’ouvre quand même (1.45.1)', () => {
     const w = lab(9);
     summon(w);
     w.stageT = STAGE.dur - 0.05;
-    const up = run(w, 0.2, still, Ev.TimeUp);
-    expect(up).toBe(1);
-    expect(w.totem.state).toBe(3);
+    let fight = 0;
+    for (let f = 0; f < Math.round(0.2 / STEP); f++) {
+      step(w, still, STEP);
+      for (let i = 0; i < w.eventCount; i++)
+        if (w.events[i].type === Ev.TimeUp) {
+          fight++;
+          expect(w.events[i].x2).toBe(2); // « tue le boss pour ouvrir le portail »
+        }
+    }
+    expect(fight).toBe(1);
+    expect(w.overT).toBeGreaterThan(0);
+    expect(w.totem.state).toBe(1); // le combat continue, le totem n'est pas fermé
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
-    expect(w.portal.open).toBe(false);
+    expect(w.totem.state).toBe(2);
+    expect(w.portal.open).toBe(true);
     expect(w.mode).toBe(Mode.Play);
+  });
+  it('monde 3 : le boss appelé à temps et tué en prolongation donne la victoire (1.45.1)', () => {
+    const w = lab(9);
+    w.stage = STAGE.count - 1;
+    summon(w);
+    w.stageT = STAGE.dur - 0.05;
+    run(w, 0.2);
+    expect(w.totem.state).toBe(1);
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    expect(w.mode).toBe(Mode.Won);
   });
   it('chrono écoulé sans avoir appelé le boss : le totem ne s’active plus', () => {
     const w = lab(10);
