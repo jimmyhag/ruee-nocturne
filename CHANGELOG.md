@@ -2,6 +2,26 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.43.0 — 11 nov. 2026 (demande de Jimmy : refaire les sanctuaires et les attaques des boss)
+
+### Ajouté
+
+- **Traque : des cercles sous tes pieds.** Les trois boss (Gardien, Essaim-mère, Colosse) lancent régulièrement une salve de cercles rouges à l'endroit où tu te trouves, un toutes les 0,4 à 0,5 s. Un cercle sur deux vise là où tu seras si tu continues tout droit : il faut changer de direction, sauter ou dasher. En phase 2 (boss sous 50 % de PV), la salve est plus longue ; en rage, les salves se rapprochent.
+- **Éclats du Gardien.** Sa charge finit sur une étoile de 10 projectiles rouges qui partent dans toutes les directions (14 en phase 2). On passe entre deux ou on les saute.
+
+### Modifié
+
+- **Le Sillage du Gardien est retiré.** Sa charge laissait des cercles derrière lui, là où le joueur n'est jamais : ils ne menaçaient personne.
+- **Sanctuaires refaits.** Un cercle de cinq stèles runiques dans la pierre du totem, ouvert vers la caméra, sur une dalle gravée. Les runes et les cristaux disent l'état : bleus quand le sanctuaire est libre, de plus en plus clairs pendant la charge, gris une fois utilisé.
+- **Projectiles de boss.** Les Éclats et la Salve de l'Essaim-mère sont des orbes rouges lumineux ; le crachat vert reste celui des Cracheurs.
+- Le remplissage des cercles de danger est un peu plus marqué.
+
+### Technique
+
+- `BOSS.hunt`, `BOSS.huntFirst`, `BOSS.burst` dans `src/sim/balance.ts` ; `BOSS.wake` supprimé. Deux champs d'ennemi (`hunt`, `huntT`), un champ de tir (`boss`).
+- `src/render/shrine.ts` : une géométrie, un matériau, un appel de rendu. `stoneKit()` et `stoneMaterial()` (`src/render/totem.ts`) sont partagés par le totem (couleur par uniforme) et les sanctuaires (couleur d'instance).
+- Simulation (200 parties, bot moyen) : victoire 22 % avec le kit de départ (24 % avant), 17 % avec le kit complet (19 % avant) ; toutes les cibles tenues.
+
 ## 1.42.1 — 10 nov. 2026 (demande de Jimmy : refaire le totem et les armes)
 
 ### Modifié

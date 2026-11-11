@@ -88,6 +88,12 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Plus d'`AdditiveBlending` pur pour les effets de jeu : sur l'herbe claire il se délave en blanc. `softGlow(mat, cover, core)` (`textures.ts`) : couleur prémultipliée, alpha écrit = `cover` × alpha (0 = additif, 1 = normal), cœur blanc optionnel. Orbes 0,75 / 0,8 ; arcs 0,8 / 0,3 ; éclairs 0,6 / 0,7 ; halos et colonnes 0,5.
 - Une couleur d'effet pâle reste pâle : choisir des teintes franches (`cSlashFaux`, `cSlashBlade`, `PAL.proj`).
 
+## Pierre à runes : totem et sanctuaires (1.42.1, phase 45)
+- `stoneKit()` (`src/render/totem.ts`) assemble des pièces à facettes : couleur unie par sommet, attribut `glow` (1 = la pièce prend la couleur de l'état). `stoneMaterial(glow?)` : avec une couleur, un uniforme (objet unique, le totem) ; sans, la couleur d'instance (`shrine.ts`), que la pierre ignore (`vColor.rgb = color` sous `USE_INSTANCING_COLOR`).
+- L'état d'un objet instancié se lit donc par la couleur d'instance de ses seules parties lumineuses : pas de second écrivain, pas d'appel en plus. Une couleur au-delà de 1 reste lisible en plein jour.
+- Un objet au centre d'une zone où le joueur se tient (sanctuaire) ne doit pas le cacher : fer à cheval ouvert vers la caméra (+z), rotation d'instance nulle.
+- Projectiles de boss (`Shot.boss`) : orbe dans `spitW` + halo dans `glowW`, deux écrivains déjà actifs.
+
 ## Lumière et brume (phase 44)
 - Les intensités de three sont physiques : une lumière de 1 éclaire une surface blanche à 1/π. Hémisphère ≈ 2 et soleil ≈ 2,4 donnent une texture à sa vraie couleur ; en dessous, tout est sombre.
 - Brume **linéaire** (`THREE.Fog`, 30 → 115 u) : la caméra est à ≈ 16 u du joueur, une brume exponentielle voilait tout l'écran.

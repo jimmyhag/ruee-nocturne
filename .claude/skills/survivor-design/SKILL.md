@@ -81,11 +81,13 @@ Un ennemi existe pour poser une **question** au joueur :
 Un boss = 2 attaques télégraphiées + 1 phase à 50 % PV. Durée cible 45–90 s. Récompense : aimant global + soin complet + coffre de boss (deux objets passifs à choisir, phase 17). PV ∝ `hpScale(t) · (1 + 0.8·bossIndex)`.
 
 Phase 43 (grand rééquilibrage) :
-- **Trois attaques par boss.** Gardien : charge + Sillage (cercles sur son trajet), onde à sauter, double onde en phase 2. Essaim-mère : ponte (avec des Volants en phase 2), Salve en éventail. Colosse : cercles, croix en phase 2, onde de choc si le joueur est collé à lui.
+- **Trois attaques par boss.** Gardien : charge (finie par les Éclats depuis la phase 45), onde à sauter, double onde en phase 2. Essaim-mère : ponte (avec des Volants en phase 2), Salve en éventail. Colosse : cercles, croix en phase 2, onde de choc si le joueur est collé à lui.
 - **Une attaque nouvelle réutilise un danger existant** (tir Zone, Ring ou Spit du pool) : déjà dessiné, sonorisé, esquivé par le bot. Un télégraphe qui n'est pas un tir ne se voit pas : le rendu ne dessine que les tirs.
 - **Rage** (`BOSS.enrage`) : boss du totem et du monde infini seulement, après 90 s. Les boss de survie sont faits pour durer (≈ 110 s contre un kit à deux armes) : pas de rage pour eux.
 - **PV par monde** (`BOSS.hpMul`), croissants : le début de partie ne doit pas se durcir. Les kits à plusieurs armes souffrent le plus des PV de boss (dégâts dilués) ; le kit concentré sur une arme, presque pas.
 - **Le bot doit savoir esquiver ce qu'un joueur esquive** : avant de régler une attaque, vérifier que le bot la lit (il restait planté dans un éventail de crachats et au centre de la croix : la sim surestimait la difficulté de 10 points de victoire).
+- **Une attaque vise le joueur** (phase 45, retour de Jimmy) : le Sillage posait ses cercles derrière la charge du Gardien, là où le joueur n'est jamais. Retiré. Avant d'ajouter une attaque, se demander où est le joueur quand elle tombe.
+- **Traque** (`BOSS.hunt`) : salve de cercles sous les pieds du joueur, un sur deux en avance sur sa vitesse, commune aux trois boss. Elle force à changer de direction ; un cercle seul sous les pieds s'esquive en marchant tout droit. Télégraphe ≥ 0,7 s. Mesuré : −2 points de victoire dans les deux profils, le bot l'esquive bien (un joueur la subit plus).
 - **Monde infini** : un boss tué rend `ENDLESS.healFrac` des PV, un seul coffre par vague (un objet).
 
 ## 8. Méta-progression (phase 4, refondue en phases 8, 10 et 17)
