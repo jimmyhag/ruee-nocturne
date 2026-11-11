@@ -448,7 +448,11 @@ export class GameScene {
       makeInstanced(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), 64),
     );
     this.spitW = new InstanceWriter(
-      makeInstanced(new THREE.SphereGeometry(0.32, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
+      makeInstanced(
+        new THREE.SphereGeometry(0.32, 6, 4),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+        CAPS.shots, // phase 45 (relecture perf) : autant que le pool de tirs, un tir qui blesse est toujours dessiné
+      ),
     );
     this.arrowW = new InstanceWriter(
       makeInstanced(new THREE.BoxGeometry(0.13, 0.13, 0.95), new THREE.MeshBasicMaterial({ color: 0xffffff }), 96),
@@ -456,10 +460,10 @@ export class GameScene {
     // cercles rouges (Colosse, éruptions, boules de feu) et, depuis la phase 31, ondes de choc du Gardien : même
     // matériau, un seul appel (l'anneau à 10 % du rayon suit l'épaisseur réelle de l'onde, 0,8 u, mieux que l'ancien)
     this.zoneW = new InstanceWriter(
-      makeInstanced(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), 96 + 8),
+      makeInstanced(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), CAPS.shots + 8),
     );
     this.zoneFillW = new InstanceWriter(
-      makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.42), 96),
+      makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.42), CAPS.shots),
     );
     this.chestW = new InstanceWriter(makeInstanced(new THREE.BoxGeometry(0.9, 0.62, 0.62), lam(PAL.gold), 16));
     this.netW = new InstanceWriter(makeInstanced(netGeometry(), flat(PAL.gold, 0.85), 2));

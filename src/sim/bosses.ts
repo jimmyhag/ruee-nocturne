@@ -8,8 +8,6 @@ import type { Enemy } from './types';
 import type { World } from './world';
 
 const TAU = Math.PI * 2;
-/** Vitesse du joueur (u/s) au-delà de laquelle la Traque ne vise pas plus loin. */
-const HUNT_VMAX = 9;
 
 /** Cercle au sol qui explose après `telegraph` s (zones du Colosse, Traque des boss). Pris dans le pool de tirs. */
 function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dmg: number): void {
@@ -57,9 +55,9 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
         let vx = (P.x - P.px) / dt,
           vz = (P.z - P.pz) / dt;
         const v = Math.sqrt(vx * vx + vz * vz);
-        if (v > HUNT_VMAX) {
-          vx *= HUNT_VMAX / v;
-          vz *= HUNT_VMAX / v;
+        if (v > BOSS.huntVmax) {
+          vx *= BOSS.huntVmax / v;
+          vz *= BOSS.huntVmax / v;
         }
         tx += vx * H.lead;
         tz += vz * H.lead;

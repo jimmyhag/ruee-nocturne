@@ -586,10 +586,11 @@ export const BOSS = {
   // vitesse) : courir tout droit ne suffit pas, il faut changer de direction. Télégraphe ≥ 0,7 s (game-feel §9).
   // Index : type du boss (Gardien, Essaim-mère, Colosse).
   huntFirst: 3.5, // s avant la première salve d'un boss
+  huntVmax: 9, // u/s : vitesse du joueur au-delà de laquelle la Traque ne vise pas plus loin (téléportation, envol)
   hunt: {
-    3: { period: 6, n: 4, n2: 6, every: 0.42, r: 1.9, telegraph: 0.75, dmg: 9, lead: 0.45 },
-    6: { period: 7.5, n: 3, n2: 5, every: 0.5, r: 1.7, telegraph: 0.8, dmg: 7, lead: 0.4 },
-    7: { period: 6.5, n: 5, n2: 7, every: 0.36, r: 1.8, telegraph: 0.8, dmg: 10, lead: 0.5 },
+    [BOSS_TYPE]: { period: 6, n: 4, n2: 6, every: 0.42, r: 1.9, telegraph: 0.75, dmg: 9, lead: 0.45 },
+    [SWARM_TYPE]: { period: 7.5, n: 3, n2: 5, every: 0.5, r: 1.7, telegraph: 0.8, dmg: 7, lead: 0.4 },
+    [COLOSSUS_TYPE]: { period: 6.5, n: 5, n2: 7, every: 0.36, r: 1.8, telegraph: 0.8, dmg: 10, lead: 0.5 },
   } as Record<number, { period: number; n: number; n2: number; every: number; r: number; telegraph: number; dmg: number; lead: number }>,
   // Gardien, Éclats : à la fin de sa charge, `n` projectiles (`n2` en phase 2) partent en étoile autour de lui, au sol :
   // on les saute ou on passe entre deux. La charge esquivée ne suffit plus, il faut aussi lire l'arrivée.
