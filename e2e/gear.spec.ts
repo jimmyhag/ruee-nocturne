@@ -135,3 +135,28 @@ test('écran de fin : la rangée d’équipement de la partie', async ({ page })
   await expect(page.locator('#oGear .git')).toHaveCount(3);
   await expect(page.locator('#oGear .git b')).toHaveText(['×2']);
 });
+
+// Phase 47 B : les Ailes de cire donnent un saut en l'air, par la même entrée que le saut (touche ou bouton).
+test('Ailes de cire : un second saut en l’air, au clavier comme au doigt', async ({ page, hasTouch }) => {
+  await openGame(page);
+  await startRun(page);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.world.player.need = 1e9;
+    g.debug.item('ailes');
+  });
+  const jump = async () => {
+    if (hasTouch) await page.locator('#btnJump').tap();
+    else await page.keyboard.press('Space');
+  };
+  await jump();
+  await page.waitForFunction(() => !(window as any).__game.world.player.onGround);
+  await jump();
+  await page.waitForFunction(() => (window as any).__game.world.player.airJumps === 1, null, { timeout: 8000 });
+  // au sol, le saut en l'air est rendu
+  await page.waitForFunction(() => {
+    const P = (window as any).__game.world.player;
+    return P.onGround && P.airJumps === 0;
+  });
+});
