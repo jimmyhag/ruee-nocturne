@@ -1400,8 +1400,7 @@ export class GameScene {
       this.beamW.put(T.x, g, T.z, 0, 2.2, this.cBeamBlue, 0, 0, 1.1, 2.2);
       return;
     }
-    const locked = T.state === 3,
-      fought = T.state === 1;
+    const fought = T.state === 1;
     const f = T.state === 0 ? T.charge / STAGE.totemCharge : 1;
     if (near) {
       this.tilt(T.x, T.z);
@@ -1410,24 +1409,11 @@ export class GameScene {
       tm.visible = inView;
       tm.position.set(T.x, g - 0.05, T.z);
       tm.rotation.set(this.tRx, 0.3, this.tRz);
-      this.totem.glow
-        .setHex(locked ? 0x5a5666 : fought ? 0xff7a4a : 0xff3b5c)
-        .multiplyScalar(locked ? 0.8 : 1.05 + f * 0.5 + Math.sin(now * 3) * 0.15);
-      if (!locked) {
-        this.cPoi.setHex(PAL.hp).multiplyScalar(0.4 + f * 1.2 + Math.sin(now * 3) * 0.1);
-        this.shrineGlowW.put(
-          T.x,
-          g + 0.12,
-          T.z,
-          now * 0.6,
-          STAGE.totemR * (1 + f * 0.1),
-          this.cPoi,
-          this.tRx,
-          this.tRz,
-        );
-      }
+      this.totem.glow.setHex(fought ? 0xff7a4a : 0xff3b5c).multiplyScalar(1.05 + f * 0.5 + Math.sin(now * 3) * 0.15);
+      this.cPoi.setHex(PAL.hp).multiplyScalar(0.4 + f * 1.2 + Math.sin(now * 3) * 0.1);
+      this.shrineGlowW.put(T.x, g + 0.12, T.z, now * 0.6, STAGE.totemR * (1 + f * 0.1), this.cPoi, this.tRx, this.tRz);
     }
-    if (!locked && !fought) {
+    if (!fought) {
       this.cPoi.setHex(PAL.hp);
       this.beamW.put(T.x, g, T.z, 0, 1.6 + f, this.cPoi, 0, 0, 1.3, 1.6 + f);
     }

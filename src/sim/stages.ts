@@ -46,10 +46,9 @@ export function tickStage(w: World, dt: number): void {
     w.overSpd = Math.min(O.spdMax, poly(O.spd, m));
     if (!w.timeUp) {
       w.timeUp = true;
-      // boss jamais appelé : plus de passage vers le monde suivant. Boss appelé à temps et encore vivant (1.45.1,
-      // retour de Jimmy) : le combat continue en prolongation, sa mort ouvrira le portail
-      if (T.state === 0) T.state = 3;
-      // x2 : 0 passage fermé, 1 portail déjà ouvert, 2 combat du totem en cours
+      // 1.45.2 (Jimmy) : le totem ne se ferme plus à la fin du chrono. On peut l'activer quand on veut, et le boss
+      // ouvre le portail à sa mort ; la prolongation renforce seulement les monstres (boss compris : w.overHp)
+      // x2 : 0 totem pas encore activé, 1 portail déjà ouvert, 2 combat du totem en cours
       w.emit(Ev.TimeUp, P.x, 0, P.z, w.stage + 1, T.state === 2 ? 1 : T.state === 1 ? 2 : 0);
     }
   }
@@ -137,7 +136,7 @@ export function summonSurvivalBoss(w: World, k: number): void {
 
 /**
  * Le boss du totem est tombé (appelé par killEnemy) : portail vers le monde suivant, ou victoire au dernier monde.
- * Il suffit qu'il ait été appelé avant la fin du chrono (1.45.1) : tué en prolongation, il ouvre quand même.
+ * Peu importe l'heure (1.45.1 puis 1.45.2) : appelé ou tué en prolongation, il ouvre quand même.
  */
 export function stageBossDown(w: World, x: number, z: number): void {
   const T = w.totem;

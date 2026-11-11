@@ -8,6 +8,7 @@ import {
   POWER_KEYS,
   SHRINE,
   SPELL_KEYS,
+  STAGE,
 } from '../sim/balance';
 import { PAL } from '../render/palette';
 import { canGainItem, maxCopies } from '../sim/items';
@@ -45,7 +46,7 @@ export type FlashKind = 'hurt' | 'gold';
 
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
 /** Phase 37 : textes de la puce d'objectif, par sorte (1 totem, 2 boss, 3 portail, 4 fermé). */
-const GOAL_KEYS = ['', 'goal.totem', 'goal.boss', 'goal.portal', 'goal.locked', 'goal.nextBoss'];
+const GOAL_KEYS = ['', 'goal.totem', 'goal.boss', 'goal.portal', '', 'goal.nextBoss'];
 
 export class Hud {
   private cache: Record<string, string | number | boolean | undefined> = {};
@@ -158,8 +159,9 @@ export class Hud {
   private goal(w: World): void {
     const T = w.totem,
       P = w.player;
-    // 0 rien, 1 totem, 2 boss, 3 portail, 4 fermé, 5 monde infini : prochaine vague de boss (phase 39)
-    const kind = w.endless ? 5 : w.portal.open ? 3 : T.state === 0 ? 1 : T.state === 1 ? 2 : T.state === 3 ? 4 : 0;
+    // 0 rien, 1 totem, 2 boss, 3 portail, 5 monde infini : prochaine vague de boss (phase 39) ; 4 (totem fermé) n'existe
+    // plus depuis la 1.45.2 : le totem reste actif après la fin du chrono
+    const kind = w.endless ? 5 : w.portal.open ? 3 : T.state === 0 ? 1 : T.state === 1 ? 2 : 0;
     if (this.cache.goal !== kind) {
       this.cache.goal = kind;
       this.cache.gDeg = this.cache.gDist = undefined;
@@ -236,7 +238,7 @@ export class Hud {
       }
     }
     // phase 18 : coffre de carte ou sanctuaire tout proche : prix (ou pourquoi on ne peut pas) et jauge d'ouverture
-    let kind = 0, // 0 rien, 1 coffre, 2 sanctuaire
+    let kind = 0, // 0 rien, 1 coffre, 2 sanctuaire, 3 piste chronométrée, 4 totem du boss
       fill = 0,
       best = 36; // 6 u²
     for (let i = 0; i < w.mapChests.length; i++) {
@@ -260,6 +262,15 @@ export class Hud {
         fill = s.charge / SHRINE.charge;
       }
     }
+    // 1.45.2 : totem du boss pas encore activé, tout proche : jauge d'activation, comme un sanctuaire
+    const T = w.totem;
+    if (!w.endless && T.state === 0) {
+      const d2 = (T.x - P.x) ** 2 + (T.z - P.z) ** 2;
+      if (d2 < (STAGE.totemR + 2) ** 2 && (kind === 0 || d2 < best)) {
+        kind = 4;
+        fill = T.charge / STAGE.totemCharge;
+      }
+    }
     // phase 28 : piste chronométrée en cours (prioritaire) : secondes restantes et jauge du temps
     let raceT = -1;
     for (let i = 0; i < w.races.length; i++)
@@ -272,6 +283,7 @@ export class Hud {
       this.els.poiChip.hidden = kind === 0;
       this.els.poiChip.classList.toggle('shrine', kind === 2);
       this.els.poiChip.classList.toggle('race', kind === 3);
+      this.els.poiChip.classList.toggle('totem', kind === 4);
       if (kind !== 1) this.els.poiChip.classList.remove('poor'); // « pas assez d'or » ne vaut que pour un coffre
     }
     if (kind === 3) {
@@ -297,9 +309,9 @@ export class Hud {
             : t('mapchest.price', { gold: g });
         this.els.poiChip.classList.toggle('poor', poor);
       }
-    } else if (kind === 2 && this.cache.poiOn !== kind) {
+    } else if ((kind === 2 || kind === 4) && this.cache.poiOn !== kind) {
       this.cache.poiKey = -1;
-      this.els.poiText.textContent = t('shrine.title');
+      this.els.poiText.textContent = t(kind === 2 ? 'shrine.title' : 'totem.title');
       this.els.poiChip.classList.remove('poor');
     }
     this.cache.poiOn = kind;
