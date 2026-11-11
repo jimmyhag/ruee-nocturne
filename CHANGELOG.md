@@ -19,6 +19,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 ### Technique
 
+- Touches 5 et 6 pour choisir la cinquième et la sixième carte (sanctuaire avec le Grimoire).
 - Source de coup `Burn` (brûlure) : la seizième et dernière tant que le critique vaut +16 ; les armes de la livraison suivante élargiront ce masque.
 - `Player.airJumps`, `Enemy.burn/burnT/burnAcc`, `World.inShrine/inTotem` ; `echo()` dans `weapons/tick.ts` (Miroir : aucun tirage du générateur sans l'objet, les parties d'avant restent identiques).
 
