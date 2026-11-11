@@ -523,8 +523,9 @@ export interface KayHero {
   props: KayProp[];
 }
 const ADV = 'assets/kaykit/adventurers-2.0';
-const kayR = (file: string): KayProp => ({ file, bone: 'handslot.r' });
-const kayL = (file: string): KayProp => ({ file, bone: 'handslot.l' });
+// objets du pack taillés pour des mains « chibi » : réduits pour les mains affinées
+const kayR = (file: string, scale = 0.8): KayProp => ({ file, bone: 'handslot.r', scale });
+const kayL = (file: string, scale = 0.8): KayProp => ({ file, bone: 'handslot.l', scale });
 
 /** Modèle KayKit de chaque héros (la source d'animation reste `HEROES` : squelette UE et clips UAL). */
 export const KAY_HEROES: Record<string, KayHero> = {

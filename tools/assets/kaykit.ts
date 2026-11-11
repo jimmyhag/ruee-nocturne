@@ -240,7 +240,10 @@ const LIMBS: [string, string, string, string][] = [
   ['foot', 'toes', 'foot', 'ball'],
 ];
 /** Os KayKit animés par la reprise (les autres gardent leur pose de repos). */
-const RETARGETED = [...TORSO.map((t) => t[0]), ...['l', 'r'].flatMap((side) => LIMBS.map((l) => `${l[0]}.${side}`))];
+const RETARGETED = [
+  ...TORSO.map((t) => t[0]),
+  ...['l', 'r'].flatMap((side) => [...LIMBS.map((l) => `${l[0]}.${side}`), `wrist.${side}`]),
+];
 
 interface Track {
   o: THREE.Object3D;
@@ -294,6 +297,26 @@ export function retargetClips(src: Document, tgt: Document, names: string[], fps
   // repos des deux squelettes
   const sRest = new Map(TORSO.map(([, s]) => [s, wq(sb(s))]));
   const tRest = new Map(TORSO.map(([t]) => [t, wq(tb(t))]));
+  // mains : repos des deux côtés, et rotation qui ramène l'avant-bras KayKit (pose en T) sur l'avant-bras source
+  // (pose en A) : sans elle, la main reprise serait tournée de l'écart entre les deux poses de repos
+  const hands = new Map(
+    ['l', 'r'].map((side) => {
+      const dS = wp(sb(`hand_${side}`))
+          .sub(wp(sb(`lowerarm_${side}`)))
+          .normalize(),
+        dT = wp(tb(`wrist.${side}`))
+          .sub(wp(tb(`lowerarm.${side}`)))
+          .normalize();
+      return [
+        side,
+        {
+          s: wq(sb(`hand_${side}`)).invert(),
+          t: wq(tb(`wrist.${side}`)),
+          a: new THREE.Quaternion().setFromUnitVectors(dT, dS),
+        },
+      ];
+    }),
+  );
   const k = wp(tb('hips')).y / wp(sb('pelvis')).y;
   const hips = tb('hips');
   const setWorldQuat = (b: THREE.Object3D, q: THREE.Quaternion): void => {
@@ -353,7 +376,7 @@ export function retargetClips(src: Document, tgt: Document, names: string[], fps
         T.root.updateMatrixWorld(true);
         setWorldQuat(tb(t2), wq(sb(s2)).multiply(sRest.get(s2)!.clone().invert()).multiply(tRest.get(t2)!));
       }
-      for (const side of ['l', 'r'])
+      for (const side of ['l', 'r']) {
         for (const [b, c, sB, sC] of LIMBS) {
           T.root.updateMatrixWorld(true);
           const B = tb(`${b}.${side}`),
@@ -364,6 +387,17 @@ export function retargetClips(src: Document, tgt: Document, names: string[], fps
           const have = wp(C).sub(wp(B)).normalize();
           setWorldQuat(B, new THREE.Quaternion().setFromUnitVectors(have, want).multiply(wq(B)));
         }
+        // main (et objet tenu) : orientation de la main source par rapport à son repos
+        T.root.updateMatrixWorld(true);
+        const h = hands.get(side)!;
+        setWorldQuat(
+          tb(`wrist.${side}`),
+          wq(sb(`hand_${side}`))
+            .multiply(h.s)
+            .multiply(h.a)
+            .multiply(h.t),
+        );
+      }
       for (const [b, arr] of rot) {
         const q = tb(b).quaternion;
         // même hémisphère que l'image d'avant : l'interpolation ne fait pas le grand tour
@@ -415,7 +449,7 @@ const CHAR_ZONE = 0.75,
 function partOf(prim: Primitive, uv: (u: number, v: number) => [number, number]): Part {
   const pos = prim.getAttribute('POSITION')!,
     nor = prim.getAttribute('NORMAL')!,
-    tex = prim.getAttribute('TEXCOORD_0')!,
+    tex = prim.getAttribute('TEXCOORD_0'),
     ja = prim.getAttribute('JOINTS_0')!,
     wa = prim.getAttribute('WEIGHTS_0')!;
   const n = pos.getCount();
@@ -434,8 +468,8 @@ function partOf(prim: Primitive, uv: (u: number, v: number) => [number, number])
   for (let i = 0; i < n; i++) {
     part.P.set(pos.getElement(i, e3), i * 3);
     part.N.set(nor.getElement(i, e3), i * 3);
-    tex.getElement(i, e2);
-    part.UV.set(uv(e2[0], e2[1]), i * 2);
+    if (tex) tex.getElement(i, e2);
+    part.UV.set(uv(e2[0] ?? 0, e2[1] ?? 0), i * 2);
     part.J.set(ja.getElement(i, e4), i * 4);
     part.W.set(wa.getElement(i, e4), i * 4);
   }
@@ -536,9 +570,25 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
   const parts: Part[] = [];
   const nodes = root.listNodes().filter((n) => n.getMesh() && n.getSkin() === skin);
   if (!nodes.length) throw new Error('aucun maillage skinné');
+  // matériaux sans texture (yeux lumineux, lueurs) : une pastille de couleur dans la dernière tuile ; verre : retiré
+  const swatches = new Map<string, number>();
+  const SW = TILE / 4;
   for (const node of nodes)
-    for (const prim of node.getMesh()!.listPrimitives())
-      parts.push(partOf(prim, (u, v) => [u * CHAR_ZONE, v * CHAR_ZONE]));
+    for (const prim of node.getMesh()!.listPrimitives()) {
+      const mat = prim.getMaterial();
+      if (mat?.getAlphaMode() === 'BLEND') continue;
+      if (mat && !mat.getBaseColorTexture()) {
+        const e = mat.getEmissiveFactor(),
+          c = e[0] + e[1] + e[2] > 0 ? e : mat.getBaseColorFactor();
+        const hex = '#' + new THREE.Color(c[0], c[1], c[2]).getHexString(THREE.SRGBColorSpace);
+        if (!swatches.has(hex)) swatches.set(hex, swatches.size);
+        const k = swatches.get(hex)!;
+        if (k >= 16) throw new Error('trop de matériaux sans texture');
+        const u = CHAR_ZONE + ((k % 4) + 0.5) * SW,
+          v = 3 * TILE + (Math.floor(k / 4) + 0.5) * SW;
+        parts.push(partOf(prim, () => [u, v]));
+      } else parts.push(partOf(prim, (u, v) => [u * CHAR_ZONE, v * CHAR_ZONE]));
+    }
   // atlas : personnage en haut à gauche, objets en tuiles dans la colonne de droite
   const charImg = b.texture ?? imageOf(doc);
   if (!charImg) throw new Error('personnage sans texture');
@@ -549,7 +599,7 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
   ];
   for (let i = 0; i < b.props.length; i++) {
     const { doc: prop, spec } = b.props[i];
-    if (i >= 4) throw new Error('plus de quatre objets tenus');
+    if (i >= 3) throw new Error('plus de trois objets tenus');
     const j = joints.findIndex((n) => n.getName() === spec.bone);
     if (j < 0) throw new Error(`os porteur absent : ${spec.bone}`);
     parts.push(...propPart(prop, spec, m4(joints[j].getWorldMatrix()), j, back, i));
@@ -561,6 +611,15 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
         top: i * tilePx,
       });
   }
+  const swPx = Math.round(size * SW);
+  for (const [hex, k] of swatches)
+    layers.push({
+      input: await sharp({ create: { width: swPx, height: swPx, channels: 3, background: hex } })
+        .png()
+        .toBuffer(),
+      left: zone + (k % 4) * swPx,
+      top: 3 * tilePx + Math.floor(k / 4) * swPx,
+    });
   const atlas = await sharp({ create: { width: size, height: size, channels: 3, background: '#808080' } })
     .composite(layers)
     .jpeg({ quality: 90, chromaSubsampling: '4:4:4', mozjpeg: true })
