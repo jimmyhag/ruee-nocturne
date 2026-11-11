@@ -386,9 +386,6 @@
       #goalChip.g3 {
         border-color: var(--xp);
       }
-      #goalChip.g4 {
-        color: var(--hp);
-      }
       #goalArrow {
         display: inline-block;
         color: var(--hp);
@@ -1536,6 +1533,13 @@
       }
       #poiChip.shrine #poiFill {
         background: var(--xp);
+      }
+      /* 1.45.2 : totem du boss, jauge d'activation */
+      #poiChip.totem {
+        border-color: var(--hp);
+      }
+      #poiChip.totem #poiFill {
+        background: var(--hp);
       }
       /* téléphone : le kit (armes, tomes) occupe la colonne de gauche ; la pastille passe à droite, sous les kills */
       @media (max-width: 480px) {

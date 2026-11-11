@@ -2,6 +2,18 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.45.2 — 11 nov. 2026 (demande de Jimmy : activer le totem quand on veut, et voir la jauge)
+
+### Modifié
+
+- **Le totem s'active à tout moment.** Il ne se ferme plus quand le chrono tombe à 0:00. Attendre a un prix : après 0:00 les monstres se renforcent de minute en minute, et le boss appelé à ce moment-là aussi.
+- **Jauge d'activation.** Dans le cercle du totem, une puce « Totem du boss » montre la jauge qui se remplit (3 s), comme pour un sanctuaire. En sortir la vide.
+- Le rappel à une minute de la fin dit maintenant « Plus qu'une minute : ensuite, les monstres se renforcent ! ». L'objectif reste « Active le totem » après 0:00, flèche comprise.
+
+### Technique
+
+- L'état « totem fermé » (3) n'existe plus : retiré de la sim, du HUD, de la minicarte et du rendu.
+
 ## 1.45.1 — 11 nov. 2026 (retour de Jimmy : boss du totem tué, pas de portail)
 
 ### Corrigé

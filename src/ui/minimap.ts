@@ -221,7 +221,7 @@ export class MapView {
     }
     // phase 37 : totem du monde (losange rouge, toujours visible : c'est l'objectif), portail ouvert en cyan
     const T = w.totem;
-    if (T.state !== 3 || w.portal.open) {
+    {
       const x = this.X(T.x),
         z = this.Z(T.z),
         a = r * 2.2;

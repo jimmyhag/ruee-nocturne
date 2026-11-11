@@ -93,7 +93,7 @@ export class World {
   diffT = 0;
   overT = 0;
   startSeed = 0; // graine de carte du premier monde (celle des suivants en dérive)
-  /** Totem du monde : 0 prêt, 1 boss appelé, 2 boss vaincu à temps (portail ouvert), 3 fermé (chrono écoulé). */
+  /** Totem du monde : 0 prêt, 1 boss appelé, 2 boss vaincu (portail ouvert). Plus d'état « fermé » depuis la 1.45.2. */
   totem = { x: 0, z: 0, charge: 0, state: 0 };
   portal = { open: false, charge: 0 };
   // phase 39 : monde infini (après la victoire, au choix du joueur)

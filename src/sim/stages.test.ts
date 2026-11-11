@@ -164,11 +164,19 @@ describe('mondes (phase 37)', () => {
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
     expect(w.mode).toBe(Mode.Won);
   });
-  it('chrono écoulé sans avoir appelé le boss : le totem ne s’active plus', () => {
+  it('chrono écoulé sans avoir appelé le boss : le totem s’active encore, son boss ouvre le portail (1.45.2)', () => {
     const w = lab(10);
-    w.stageT = STAGE.dur + 1;
-    expect(summon(w)).toBe(0);
-    expect(w.totem.state).toBe(3);
+    w.stageT = STAGE.dur + 30;
+    run(w, 0.1);
+    expect(w.timeUp).toBe(true);
+    expect(w.totem.state).toBe(0); // pas fermé
+    expect(summon(w)).toBe(1);
+    expect(w.totem.state).toBe(1);
+    // appelé en prolongation : le boss porte le renfort de PV du moment
+    expect(w.overHp).toBeGreaterThan(1);
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    expect(w.totem.state).toBe(2);
+    expect(w.portal.open).toBe(true);
   });
   it('rappel à une minute de la fin si le totem n’est pas activé, une seule fois', () => {
     const w = lab(11);
