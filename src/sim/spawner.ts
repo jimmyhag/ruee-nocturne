@@ -40,6 +40,8 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.age = 0;
   e.enraged = false;
   e.combo = 0;
+  e.hunt = 0;
+  e.huntT = BOSS.huntFirst; // phase 45 : première Traque d'un boss peu après son arrivée
   e.detour = 0;
   e.stun = 0;
   e.slowT = 0;

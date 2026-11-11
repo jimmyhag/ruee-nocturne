@@ -779,6 +779,8 @@ function makeEnemy(): Enemy {
     age: 0,
     enraged: false,
     combo: 0,
+    hunt: 0,
+    huntT: 0,
     detour: 0,
     stun: 0,
     slowT: 0,

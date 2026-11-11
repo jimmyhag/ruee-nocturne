@@ -36,6 +36,9 @@ export interface Enemy {
   age: number;
   enraged: boolean;
   combo: number;
+  /** Phase 45, Traque : cercles restant dans la salve en cours, et temps avant le prochain cercle ou la prochaine salve. */
+  hunt: number;
+  huntT: number;
   detour: number; // phase 16 : s restantes où il suit le champ de flux case par case (il butait sur un obstacle)
   stun: number; // phase 19 : s restantes d'immobilisation (Éclat, Collet) ; les boss n'y sont pas sensibles
   slowT: number; // phase 19 : s restantes de ralentissement (Voile, boss pris dans un Collet ou un Éclat)
