@@ -262,7 +262,7 @@ export class World {
   offers: Card[] = []; // offres du marchand (w.cards garde les cartes de niveau et de coffre)
   goldSpent = 0; // or dépensé au marchand (CLI)
   // phase 41 : compteurs de la partie pour les défis par personnage (src/meta/chars.ts)
-  readonly srcKills = new Uint32Array(HitSrc.Count); // ennemis tués par source (armes 0..8, feu, sort…)
+  readonly srcKills = new Uint32Array(HitSrc.Count); // ennemis tués par source (les treize armes en tête, puis feu, sort, objets…)
   airKills = 0; // ennemis tués pendant que le joueur est en l'air
   eliteKills = 0;
   bossKills = 0;

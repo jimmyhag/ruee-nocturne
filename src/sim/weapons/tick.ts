@@ -1,4 +1,4 @@
-import { BALISE, BOOMERANG, ENEMIES, ESPRITS, FAUX, FOUET, ITEM, It, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT, VITRIOL } from '../balance';
+import { BALISE, BOOMERANG, CAPS, ENEMIES, ESPRITS, FAUX, FOUET, ITEM, It, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT, VITRIOL } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind, Trait } from '../types';
 import type { Projectile } from '../types';
@@ -21,7 +21,7 @@ const nearD = new Float64Array(9);
 const seen = new Int32Array(16);
 const seenX = new Float64Array(9); // phase 32 : positions des cibles des Lames (taille de `near`)
 const seenZ = new Float64Array(9);
-const hits = new Int32Array(256);
+const hits = new Int32Array(CAPS.enemies); // phase 47 C (relecture perf) : 256 tronquait en silence les requêtes larges (Balise, Fouet) dans une grande horde
 
 /** Les n ennemis les plus proches dans `range`. Retourne le nombre trouvé. Résultat dans `near`. */
 function nearest(w: World, n: number, range: number): number {
@@ -364,7 +364,7 @@ export function tickWeapons(w: World, dt: number): void {
     S.fouetT -= dt;
     if (S.fouetT <= 0) {
       const L = s.r,
-        dirs = Math.min(4, s.n | 0);
+        dirs = Math.min(FOUET.maxDirs, s.n | 0);
       const n = w.grid.query(w.enemies, P.x, P.z, L, MAX_ENEMY_R, hits);
       let touched = 0;
       for (let d = 0; d < dirs && n > 0; d++) {
@@ -389,7 +389,7 @@ export function tickWeapons(w: World, dt: number): void {
         for (let d = 0; d < dirs; d++) {
           const dx = d === 0 ? P.dirX : d === 1 ? -P.dirX : d === 2 ? -P.dirZ : P.dirZ,
             dz = d === 0 ? P.dirZ : d === 1 ? -P.dirZ : d === 2 ? P.dirX : -P.dirX;
-          w.emit(Ev.Whip, P.x, P.y + 0.9, P.z, L, dx, 0, dz);
+          w.emit(Ev.Whip, P.x, P.y + FOUET.h, P.z, L, dx, 0, dz);
         }
       } else S.fouetT = FOUET.wait;
     }
@@ -425,7 +425,7 @@ export function tickWeapons(w: World, dt: number): void {
         S.vitX[k] = bx;
         S.vitZ[k] = bz;
         S.vitLeft[k] = VITRIOL.dur * (w.syn[Syn.Corrosion] ? SYN.corrosion.dur : 1);
-        S.vitTick[k] = 0; // premier coup à l'impact
+        S.vitTick[k] = (i / s.n) * VITRIOL.tick; // premier coup à l'impact ; les fioles d'un même lancer frappent en décalé (pas de rafale d'événements au même pas)
         w.emit(Ev.Puddle, bx, 0, bz, s.r);
         thrown++;
       }
@@ -574,7 +574,7 @@ export function tickWeapons(w: World, dt: number): void {
           if (bi < 0) break;
           lastD = bd;
           const e = w.enemies[bi];
-          w.emit(Ev.Bolt, x, BALISE.h, z, 0, e.x, e.y + 0.6, e.z);
+          w.emit(Ev.Bolt, x, BALISE.h, z, 0, e.x, e.y + BALISE.aim, e.z);
           hitEnemy(w, bi, s.dmg, BALISE.kb, x, z, HitSrc.Balise);
           shot++;
         }

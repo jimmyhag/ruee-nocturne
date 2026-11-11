@@ -11,7 +11,7 @@ import {
   STEP,
 } from './sim/balance';
 import { startRun, step } from './sim/step';
-import { Ev, Mode, Pw, Spell, HIT_CRIT } from './sim/types';
+import { Ev, Mode, Pw, Spell, HIT_CRIT, HitSrc } from './sim/types';
 import { POWER_ICON } from './ui/icons';
 import type { Input } from './sim/types';
 import { World } from './sim/world';
@@ -1719,7 +1719,7 @@ $('installBtn').onclick = async () => {
 
 // ---------- événements de la sim → effets ----------
 // Règle 3 de CLAUDE.md : chaque coup porté produit flash (sim), recul (sim), son, chiffre et particules.
-// HitSrc : Orbe, Aura, Lames, Foudre, Boomerang, Mines, Fire, Thorns, Talisman, Spell (phase 19 : or du sort)
+// HitSrc : les treize armes dans l'ordre de WEAPON_KEYS, puis Fire, Thorns, Talisman, Spell, Patins, Horn, Burn
 /**
  * Retour visuel d'un sort (phase 19, règle 3) : au lancement (x2, z2 = point visé ou d'arrivée), à l'impact (x2 = rayon).
  * Les effets qui durent (filet, Tourbillon, Voile, ennemis étourdis) sont dessinés par la scène.
@@ -1821,7 +1821,7 @@ function handleEvents(w: World, now: number): void {
     const e = w.events[i];
     switch (e.type) {
       case Ev.Hit: {
-        // phase 23 : x2 = source de l'arme, +16 si coup critique
+        // phase 23 : x2 = source de l'arme, + HIT_CRIT si coup critique
         const crit = e.x2 >= HIT_CRIT;
         S.dmg.add(e.x, e.y, e.z, e.v, crit);
         if (crit) S.particles.burst(e.x, e.y, e.z, PAL.gold, PT.crit.n, PT.crit.speed, PT.crit.up);
@@ -1951,15 +1951,18 @@ function handleEvents(w: World, now: number): void {
         // phase 47 C : la lanière claque en ligne droite (trait de l'éclair, orangé et tendu), étincelles au bout
         const tx = e.x + e.x2 * e.v,
           tz = e.z + e.z2 * e.v;
-        S.bolts.add(e.x, 0.9, e.z, tx, 0.5, tz, true);
-        S.particles.burst(tx, 0.5, tz, 0xffb46b, (5 * fx) | 0, 4, 3, false, e.x2, e.z2, 1);
-        audio.blade();
+        S.bolts.add(e.x, e.y, e.z, tx, e.y - 0.4, tz, true); // à la hauteur du héros : la claque suit un saut
+        S.particles.burst(tx, e.y - 0.4, tz, HIT_COLORS[HitSrc.Fouet], (5 * fx) | 0, 4, 3, false, e.x2, e.z2, 1);
+        if (!bladeSnd) {
+          audio.blade(); // un seul son par image, même à quatre directions
+          bladeSnd = true;
+        }
         break;
       }
       case Ev.Puddle:
         // phase 47 C : la fiole de Vitriol éclate, gerbe verte et anneau au sol
-        S.particles.burst(e.x, 0.3, e.z, 0x9be36a, (12 * fx) | 0, 5, 5);
-        S.particles.ring(e.x, 0.2, e.z, 0x9be36a, (10 * fx) | 0, e.v * 2, 1);
+        S.particles.burst(e.x, 0.3, e.z, HIT_COLORS[HitSrc.Vitriol], (12 * fx) | 0, 5, 5);
+        S.particles.ring(e.x, 0.2, e.z, HIT_COLORS[HitSrc.Vitriol], (10 * fx) | 0, e.v * 2, 1);
         audio.spit();
         break;
       case Ev.Beacon:

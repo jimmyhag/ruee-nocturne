@@ -29,7 +29,7 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // longue · ennemi le plus loin (ligne) · lent : perce tout
   lance: { glyph: '➹', color: '#9fe8ff', base: { cd: 2.0, dmg: 30, speed: 22, n: 1, crit: 0 } },
   // longue · zone aléatoire autour · lent : cercles annoncés, puis impact
-  meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 2.0, dmg: 42, r: 2.4, n: 1, crit: 0 } },
+  meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 2.0, dmg: 42, r: 2.4, n: 1, crit: 0 } }, // phase 33 : un météore par salve au départ (2 avant, recharge 2,5 s) ; à 2,0 s, même profil qu'avant seule (3:28 contre 3:21) — à 1,4 s, 17:27
   // phase 47 C
   // courte · direction du regard · rapide : une claque en ligne (r = longueur), n = directions (devant et derrière, puis
   // les côtés). 1.48.0 : devant seul, elle ne touchait rien quand on fuit (6 % de victoires contre 18 % sans elle)
@@ -39,7 +39,7 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // courte · automatique · continu : n esprits, chacun repart cd s après son retour
   esprits: { glyph: '☄', color: '#b9f3ff', base: { cd: 0.9, dmg: 12, n: 2, speed: 14, crit: 0 } },
   // pose fixe · automatique · tir régulier : une balise toutes les cd s, qui tire toutes les period s à r u
-  balise: { glyph: '♜', color: '#ffe27a', base: { cd: 4.5, dmg: 13, period: 0.6, r: 8, n: 1, crit: 0 } }, // phase 33 : un météore par salve au départ (2 avant, recharge 2,5 s) ; à 2,0 s, même profil qu'avant seule (3:28 contre 3:21) — à 1,4 s, 17:27
+  balise: { glyph: '♜', color: '#ffe27a', base: { cd: 4.5, dmg: 13, period: 0.6, r: 8, n: 1, crit: 0 } },
 };
 export const WEAPON_KEYS = Object.keys(WEAPONS) as WeaponKey[];
 
