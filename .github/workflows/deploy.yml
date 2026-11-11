@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # lancement manuel (onglet Actions ou API) : le 11 nov. 2026, le déploiement de la 1.48.0 est resté bloqué chez GitHub
+  # avant la file d'attente, sans pouvoir être ni annulé ni relancé. Un lancement manuel déploie comme une poussée.
+  workflow_dispatch:
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -19,7 +22,7 @@ jobs:
     # Règles Firestore (phase 13) : seulement depuis main (une PR ne doit pas changer les règles live), avant le client.
     # continue-on-error : tant que la base Firestore ou les rôles IAM (docs/DEPLOY.md) ne sont pas en place, l'hébergement
     # se déploie quand même ; le panneau Compte affiche alors une erreur, le jeu reste jouable.
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
@@ -39,7 +42,7 @@ jobs:
   deploy:
     # les secrets ne sont pas disponibles pour les PR venant d'un fork ; sur main, après les règles (réussies ou non)
     needs: rules
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -56,5 +59,5 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: ${{ vars.FIREBASE_PROJECT_ID }}
-          channelId: ${{ github.event_name == 'push' && 'live' || format('pr-{0}', github.event.number) }}
+          channelId: ${{ github.event_name != 'pull_request' && 'live' || format('pr-{0}', github.event.number) }}
           expires: 7d
