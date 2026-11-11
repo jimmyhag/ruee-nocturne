@@ -44,25 +44,32 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
   if (H) {
     e.huntT -= e.hunt > 0 ? dt : dtA; // la rage rapproche les salves, pas les cercles d'une salve
     if (e.huntT <= 0) {
-      if (e.hunt === 0) e.hunt = e.phase2 ? H.n2 : H.n;
-      e.hunt--;
-      e.huntT = e.hunt > 0 ? H.every : H.period;
-      const P = w.player;
-      let tx = P.x,
-        tz = P.z;
-      if (e.hunt % 2 === 1) {
-        // vitesse du joueur sur le dernier pas, bornée (téléportation de debug, envol)
-        let vx = (P.x - P.px) / dt,
-          vz = (P.z - P.pz) / dt;
-        const v = Math.sqrt(vx * vx + vz * vz);
-        if (v > BOSS.huntVmax) {
-          vx *= BOSS.huntVmax / v;
-          vz *= BOSS.huntVmax / v;
-        }
-        tx += vx * H.lead;
-        tz += vz * H.lead;
+      if (e.hunt === 0) {
+        // boss du totem et du monde infini : salve entière ; boss de survie (3:00 et 7:00, kit encore faible) : réduite
+        const n = e.phase2 ? H.n2 : H.n;
+        e.hunt = w.endless || e.id === w.totemBossId ? n : Math.round(n * BOSS.huntSurvival);
       }
-      zoneAt(w, tx, tz, H.r, H.telegraph, H.dmg * e.dmgMul);
+      if (e.hunt === 0) e.huntT = H.period;
+      else {
+        e.hunt--;
+        e.huntT = e.hunt > 0 ? H.every : H.period;
+        const P = w.player;
+        let tx = P.x,
+          tz = P.z;
+        if (e.hunt % 2 === 1) {
+          // vitesse du joueur sur le dernier pas, bornée (téléportation de debug, envol)
+          let vx = (P.x - P.px) / dt,
+            vz = (P.z - P.pz) / dt;
+          const v = Math.sqrt(vx * vx + vz * vz);
+          if (v > BOSS.huntVmax) {
+            vx *= BOSS.huntVmax / v;
+            vz *= BOSS.huntVmax / v;
+          }
+          tx += vx * H.lead;
+          tz += vz * H.lead;
+        }
+        zoneAt(w, tx, tz, H.r, H.telegraph, H.dmg * e.dmgMul);
+      }
     }
   }
   switch (e.type) {

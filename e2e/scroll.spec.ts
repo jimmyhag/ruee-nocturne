@@ -22,6 +22,9 @@ test.describe('défilement tactile', () => {
 
   test('les réglages, la boutique et les succès défilent au doigt quand ils dépassent l’écran', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 420 }); // fenêtre basse : chaque écran dépasse et doit défiler
+    // 1.43.0 : trois écrans, trois gestes de 16 touches, chacune attend une image du menu (scène 3D derrière). Sous
+    // SwiftShader le test prenait 53 s ici pour 60 s de limite, et expirait sur la CI au milieu d'un geste (1.42.1)
+    test.setTimeout(180_000);
     await openGame(page);
     for (const [btn, screen, back] of [
       ['settingsBtn', 'settings', 'settingsBackBtn'],

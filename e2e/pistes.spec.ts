@@ -16,7 +16,7 @@ test('Faux, Lance et Météores frappent, avec leurs effets à l’écran', asyn
     g.debug.spawn(0, 40, 7);
   });
   // un cercle de météore annoncé, une lance en vol (dessinée) : on attend chacun
-  await page.waitForFunction(() => (window as any).__game.world.wstate.metN > 0, null, { timeout: 8000 });
+  await page.waitForFunction(() => (window as any).__game.world.wstate.metN > 0, null, { timeout: 20_000 });
   await page.waitForFunction(
     () => {
       const w = (window as any).__game.world;

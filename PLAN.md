@@ -766,6 +766,7 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Demande de Jimmy** (11 nov.) : refaire les sanctuaires et les attaques des boss. « Des attaques qui viennent sous mes pieds, qui se spamment un peu, des projectiles, pour que ce soit un peu difficile. Là il dash et les dégâts arrivent derrière lui : ça ne me touchera pas. »
 - **Règle retenue** : une attaque de boss vise le joueur ou l'endroit où il va. Une attaque posée là où le joueur n'est pas (le Sillage, derrière la charge) ne compte pas comme une attaque.
 - **Traque**, commune aux trois boss (`BOSS.hunt`, par type) : salve de `n` cercles (`n2` en phase 2), un tous les `every` s, sous les pieds du joueur ; un sur deux en avance de `lead` s sur sa vitesse. Télégraphe ≥ 0,7 s (fenêtre de saut, game-feel §9). La rage rapproche les salves, pas les cercles d'une salve.
+- **Boss de survie** (3:00 et 7:00) : salve réduite par `BOSS.huntSurvival` (un cercle, deux pour le Colosse). Avec la salve entière, la relecture d'équilibrage mesurait un monde 1 presque fermé aux personnages fragiles (monde 2 atteint : Sorcière 17 → 3 %, Bûcheron 19 → 8 %).
 - **Éclats du Gardien** (`BOSS.burst`) : étoile de projectiles au sol à la fin de la charge. Le Sillage (`BOSS.wake`) est retiré.
 - **Faucheur** : inchangé (pas de Traque).
 - **Sanctuaires** : géométrie procédurale (`src/render/shrine.ts`), cinq stèles en fer à cheval ouvert vers la caméra, runes à la couleur d'instance (libre, en charge, utilisé). Le modèle KayKit reste dans `props.glb` mais n'est plus dessiné.

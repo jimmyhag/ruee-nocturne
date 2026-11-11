@@ -6,7 +6,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 ### Ajouté
 
-- **Traque : des cercles sous tes pieds.** Les trois boss (Gardien, Essaim-mère, Colosse) lancent régulièrement une salve de cercles rouges à l'endroit où tu te trouves, un toutes les 0,4 à 0,5 s. Un cercle sur deux vise là où tu seras si tu continues tout droit : il faut changer de direction, sauter ou dasher. En phase 2 (boss sous 50 % de PV), la salve est plus longue ; en rage, les salves se rapprochent.
+- **Traque : des cercles sous tes pieds.** Les trois boss (Gardien, Essaim-mère, Colosse) lancent régulièrement une salve de cercles rouges à l'endroit où tu te trouves, un toutes les 0,4 à 0,5 s. Un cercle sur deux vise là où tu seras si tu continues tout droit : il faut changer de direction, sauter ou dasher. En phase 2 (boss sous 50 % de PV), la salve est plus longue ; en rage, les salves se rapprochent. Les boss de 3:00 et 7:00, qui arrivent tôt, ne posent qu'un cercle ou deux à la fois : la salve entière est pour les boss du totem et du monde infini.
 - **Éclats du Gardien.** Sa charge finit sur une étoile de 10 projectiles rouges qui partent dans toutes les directions (14 en phase 2). On passe entre deux ou on les saute.
 
 ### Modifié

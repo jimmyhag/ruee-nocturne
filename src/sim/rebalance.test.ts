@@ -362,6 +362,7 @@ describe('Traque : des cercles sous les pieds du joueur (phase 45)', () => {
     a.e.spd = 0;
     a.e.timer = a.e.aim = a.e.t2 = 1e9;
     a.e.huntT = STEP / 2;
+    a.w.totemBossId = a.e.id; // boss du totem : salve entière
     return a;
   };
   it('chaque boss lance une salve de `n` cercles (`n2` en phase 2), un tous les `every` s, puis attend `period`', () => {
@@ -378,6 +379,16 @@ describe('Traque : des cercles sous les pieds du joueur (phase 45)', () => {
         expect(run(w, H.period - 0.3, Ev.Telegraph)).toBe(0);
         expect(run(w, 0.4, Ev.Telegraph)).toBe(1);
       }
+  });
+  it('boss de survie : salve réduite (BOSS.huntSurvival) ; en monde infini, salve entière', () => {
+    const H = BOSS.hunt[SWARM_TYPE];
+    for (const kind of ['survie', 'infini'] as const) {
+      const { w } = hunter(65, SWARM_TYPE);
+      w.totemBossId = -1;
+      if (kind === 'infini') w.endless = true;
+      const n = run(w, H.n * H.every + 0.2, Ev.Telegraph);
+      expect(n).toBe(kind === 'infini' ? H.n : Math.round(H.n * BOSS.huntSurvival));
+    }
   });
   it('les cercles tombent sous les pieds du joueur et explosent après leur annonce', () => {
     const H = BOSS.hunt[BOSS_TYPE];
