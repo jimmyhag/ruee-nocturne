@@ -9,34 +9,27 @@ export const PACKS = {
 export type PackKey = keyof typeof PACKS;
 
 /**
- * Phase 25 : héros Quaternius « HD » (CC0, quaternius.com, versions Standard gratuites, 2025) :
- * - Universal Base Characters : tête, yeux, sourcils, coiffures ;
- * - Modular Character Outfits – Fantasy : tenues Rôdeur et Paysan, homme et femme ;
- * - Universal Animation Library 1 et 2 : 88 clips sur le même squelette (aucun reciblage).
+ * Quaternius (CC0, quaternius.com, versions Standard gratuites, 2025), source d'animation depuis la phase 46 :
+ * - Universal Animation Library 1 et 2 : les clips des héros et des ennemis ;
+ * - Modular Character Outfits – Fantasy : le squelette d'une tenue (65 os, celui des bibliothèques) porte les clips, que
+ *   `retargetClips` (kaykit.ts) reprend sur les personnages KayKit. Ni le squelette ni la tenue ne sont livrés.
  * quaternius.com est injoignable depuis l'environnement de build : les fichiers viennent d'un dépôt public qui les
- * redistribue tels quels (licences CC0 jointes). Les objets tenus viennent du miroir quaternius-showcase.
+ * redistribue tels quels (licences CC0 jointes).
  */
 export const QUATERNIUS = {
   source: 'Quaternius (quaternius.com), CC0',
   /** dépôt git, dossier racine des fichiers dans ce dépôt */
   mirrors: {
     kit: { repo: 'https://github.com/kirbycope/godot-3d-player-controller-v2', dir: 'assets' },
-    showcase: { repo: 'https://github.com/trebeljahr/quaternius-showcase', dir: 'public/glb' },
   },
   /** fichiers du kit (relatifs à mirrors.kit.dir) */
-  base: {
-    M: 'universal_base_characters/Base Characters/Superhero_Male_FullBody.gltf',
-    F: 'universal_base_characters/Base Characters/Superhero_Female_FullBody.gltf',
-  },
   outfit: (sex: 'M' | 'F', kind: 'Ranger' | 'Peasant') =>
     `modular_character_outfits/Outfits/${sex === 'M' ? 'Male' : 'Female'}_${kind}.gltf`,
-  hair: (name: string) => `universal_base_characters/Hairstyles/Rigged/${name}.gltf`,
   anims: {
     ual1: 'universal_animation_library/UAL1.glb',
     ual2: 'universal_animation_library_2/UAL2.glb',
   },
   licenses: [
-    'universal_base_characters/License_Standard.txt',
     'modular_character_outfits/License_Standard.txt',
     'universal_animation_library/License.txt',
     'universal_animation_library_2/License.txt',
@@ -66,146 +59,27 @@ export const HERO_CLIPS: { to: string; src: 'ual1' | 'ual2'; from: string; speed
 ];
 
 /**
- * Objet tenu : fichier du miroir showcase, os porteur, longueur voulue (m, le long de son axe vertical), point de
- * prise (0 = bas, 1 = haut), rotation (degrés, XYZ) et décalage (m) dans le repère de l'os.
- */
-export interface HeroProp {
-  file: string;
-  bone: 'hand_r' | 'hand_l';
-  size: number;
-  grip: number;
-  rot: [number, number, number];
-  pos?: [number, number, number];
-}
-
-/** Teinte d'une zone de texture : décalage de teinte (degrés), saturation et luminosité multipliées. */
-export interface Tint {
-  hue?: number;
-  sat?: number;
-  light?: number;
-}
-
-/**
- * Un fichier par personnage : sexe, tenue (capuche du Rôdeur en option, parties retirées), coiffures, couleurs (tenue,
- * cheveux, peau), repos propre au personnage, objets tenus. `tris` : triangles visés pour le tout, fusionné en une
- * primitive (un appel de rendu, plus la coque de contour). La seconde tenue est teintée à l'exécution (heroes.ts).
+ * Source d'animation et budget de chaque héros (son modèle KayKit est dans `KAY_HEROES`) : sexe et tenue du squelette
+ * Quaternius qui porte les clips avant leur reprise, repos propre au personnage, `tris` : triangles visés pour le tout,
+ * fusionné en une primitive (un appel de rendu, plus la coque de contour).
  */
 export interface HeroSpec {
   sex: 'M' | 'F';
   outfit: 'Ranger' | 'Peasant';
-  hood?: boolean;
-  /** maillages de la tenue retirés (sous-chaîne du nom : 'Pauldron', 'Bracer'…) */
-  hide?: string[];
-  hair: string[];
-  hairColor?: string;
-  outfitTint?: Tint;
-  skinTint?: Tint;
   idle?: { src: 'ual1' | 'ual2'; from: string };
-  props: HeroProp[];
   tris: number;
 }
 
-const R = (file: string, size: number, grip: number): HeroProp => ({
-  file,
-  bone: 'hand_r',
-  size,
-  grip,
-  rot: [0, 0, 0],
-});
-const L = (file: string, size: number, grip: number): HeroProp => ({
-  file,
-  bone: 'hand_l',
-  size,
-  grip,
-  rot: [0, 0, 0],
-});
-
 export const HEROES: Record<string, HeroSpec> = {
-  eclaireuse: {
-    sex: 'F',
-    outfit: 'Ranger',
-    hood: false,
-    hair: ['Hair_Buns'],
-    hairColor: '#7a3b1e',
-    props: [R('medieval_weapons_pack/Dagger.glb', 0.45, 0.2)],
-    tris: 9000,
-  },
-  bucheron: {
-    sex: 'M',
-    outfit: 'Peasant',
-    hair: ['Hair_Buzzed', 'Hair_Beard'],
-    hairColor: '#5a2e14',
-    outfitTint: { hue: -25, sat: 1.4 },
-    props: [R('medieval_weapons_pack/Axe.glb', 0.95, 0.15)],
-    tris: 9000,
-  },
-  sorciere: {
-    sex: 'F',
-    outfit: 'Peasant',
-    hair: ['Hair_Long'],
-    hairColor: '#1e1a26',
-    outfitTint: { hue: 245, sat: 1.3, light: 0.85 },
-    props: [L('rpg_items_pack/Crystal1.glb', 0.18, 0.5)],
-    tris: 9000,
-  },
-  veilleuse: {
-    sex: 'F',
-    outfit: 'Ranger',
-    hair: [],
-    outfitTint: { hue: 160, sat: 0.8 },
-    idle: { src: 'ual1', from: 'Idle_Torch_Loop' },
-    props: [L('survival_pack/WoodenTorch_Fire.glb', 0.6, 0.2), R('medieval_weapons_pack/Sword.glb', 1.0, 0.15)],
-    tris: 9000,
-  },
-  braconnier: {
-    sex: 'M',
-    outfit: 'Ranger',
-    hair: ['Hair_Beard'],
-    hairColor: '#3a2614',
-    outfitTint: { hue: -85, sat: 0.55, light: 0.85 }, // cuir brun
-    props: [L('medieval_weapons_pack/Bow_Wooden.glb', 1.2, 0.5)],
-    tris: 9000,
-  },
-  sapeur: {
-    sex: 'M',
-    outfit: 'Peasant',
-    hide: [],
-    hair: ['Hair_SimpleParted', 'Hair_Beard'],
-    hairColor: '#24201c',
-    outfitTint: { hue: 190, sat: 0.9, light: 0.75 }, // bleu de travail
-    props: [{ ...R('survival_pack/Shovel.glb', 1.15, 0.75), rot: [180, 0, 0] }], // pelle : fer vers le bas
-    tris: 9000,
-  },
-  feufollet: {
-    sex: 'F',
-    outfit: 'Peasant',
-    hair: ['Hair_BuzzedFemale'],
-    hairColor: '#ff7a1a',
-    outfitTint: { hue: -10, sat: 1.6, light: 1.05 },
-    props: [],
-    tris: 9000,
-  },
-  revenante: {
-    sex: 'F',
-    outfit: 'Ranger',
-    hair: [],
-    outfitTint: { hue: 200, sat: 0.45, light: 1.2 }, // spectre bleuté
-    skinTint: { hue: 180, sat: 0.2, light: 1.1 },
-    idle: { src: 'ual2', from: 'Zombie_Idle_Loop' },
-    props: [{ ...R('medieval_weapons_pack/Scythe.glb', 1.7, 0.4), rot: [180, 0, 0] }], // faux : lame en haut
-    tris: 9000,
-  },
-  colporteur: {
-    sex: 'M',
-    outfit: 'Ranger',
-    hood: false,
-    hair: ['Hair_SimpleParted', 'Hair_Beard'],
-    hairColor: '#b9b6b0',
-    outfitTint: { hue: -115, sat: 1.25, light: 1.0 }, // pourpre et or
-    idle: { src: 'ual2', from: 'Idle_FoldArms_Loop' },
-    props: [L('rpg_items_pack/Pouch.glb', 0.28, 0.95)],
-    tris: 9000,
-  },
+  eclaireuse: { sex: 'F', outfit: 'Ranger', tris: 9000 },
+  bucheron: { sex: 'M', outfit: 'Peasant', tris: 9000 },
+  sorciere: { sex: 'F', outfit: 'Peasant', tris: 9000 },
+  veilleuse: { sex: 'F', outfit: 'Ranger', idle: { src: 'ual1', from: 'Idle_Torch_Loop' }, tris: 9000 },
+  braconnier: { sex: 'M', outfit: 'Ranger', tris: 9000 },
+  sapeur: { sex: 'M', outfit: 'Peasant', tris: 9000 },
+  feufollet: { sex: 'F', outfit: 'Peasant', tris: 9000 },
+  revenante: { sex: 'F', outfit: 'Ranger', idle: { src: 'ual2', from: 'Zombie_Idle_Loop' }, tris: 9000 },
+  colporteur: { sex: 'M', outfit: 'Ranger', idle: { src: 'ual2', from: 'Idle_FoldArms_Loop' }, tris: 9000 },
 };
 
 /**

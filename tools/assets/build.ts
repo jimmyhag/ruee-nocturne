@@ -1,13 +1,15 @@
-// Phase 20 : construit public/models/*.glb et src/render/models.json à partir des packs KayKit (CC0) ; phase 25 : héros
-// Quaternius « HD » (Universal Base Characters, Modular Character Outfits – Fantasy, Universal Animation Library, CC0).
-//   npm run assets            (clone les packs KayKit dans .cache/kaykit et les miroirs Quaternius dans .cache/quaternius,
+// Phase 20 : construit public/models/*.glb et src/render/models.json. Objets : packs KayKit (CC0). Héros et ennemis
+// (phase 46) : personnages KayKit mis en proportions humanoïdes (kaykit.ts), animés par les clips des Universal Animation
+// Library de Quaternius (CC0) repris d'un squelette source (heroes.ts). Décor (phase 44) : nature.ts, ground.ts.
+//   npm run assets            (clone les packs KayKit dans .cache/kaykit et le miroir Quaternius dans .cache/quaternius,
 //                              hors dépôt, si absents ; clones partiels : seuls les fichiers utilisés sont téléchargés)
 //   KAYKIT_DIR=… QUATERNIUS_DIR=… npm run assets   (sources déjà clonées ailleurs)
 //   npm run assets -- --heroes [--only clé,clé] [--out dossier]   (héros seulement ; avec --only ou --out : essais,
 //                              manifeste intact ; sans : les neuf héros et leur partie du manifeste)
+//   npm run assets -- --enemies [--out dossier]   (enemies.glb seulement ; avec --out : essai, manifeste intact)
 //   npm run assets -- --nature   (phase 44 : décor stylisé seulement ; le manifeste garde le reste tel quel)
 //   NATURE_DIR=… : dossier « sources » du pack Ultimate Stylized Nature déjà cloné
-// Héros : tête, tenue, coiffures et objets tenus fusionnés, atlas JPEG, clips UAL, simplification, compression meshopt
+// Héros : une primitive skinnée, objets tenus fusionnés, atlas, clips repris, simplification, compression meshopt
 // (décodeur fourni par three/examples). Objets : un seul fichier, un nœud par objet, transformations cuites.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -363,7 +365,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // --- héros (phase 25 : Quaternius HD) ---
+  // --- héros (phase 46 : KayKit, clips UAL repris) ---
   await fetchKay(KCACHE, KAYKIT2.license);
   const only = ARGS.includes('--only') ? ARGS[ARGS.indexOf('--only') + 1].split(',') : null;
   for (const [key, h] of Object.entries(HEROES)) {

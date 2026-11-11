@@ -1,10 +1,20 @@
-// Phase 20 : le manifeste des modèles (src/render/models.json, produit par npm run assets) couvre le jeu ; phase 24 :
-// héros Quaternius, un fichier par personnage (phase 25 : versions HD texturées).
+// Phase 20 : le manifeste des modèles (src/render/models.json, produit par npm run assets) couvre le jeu ; phase 46 :
+// héros et ennemis KayKit, un fichier par héros.
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS } from '../sim/balance';
-import { BUDGET, ENEMY_LODS, ENEMY_MODELS, GROUND, HERO_CLIPS, HEROES, NATURE, PROPS } from '../../tools/assets/config';
+import {
+  BUDGET,
+  ENEMY_LODS,
+  ENEMY_MODELS,
+  GROUND,
+  HERO_CLIPS,
+  HEROES,
+  KAY_HEROES,
+  NATURE,
+  PROPS,
+} from '../../tools/assets/config';
 import { ENEMIES } from '../sim/balance';
 import { ENEMY_LOOKS } from './enemyModels';
 import { CLIP_NAMES, HERO_LOOKS } from './heroes';
@@ -14,7 +24,7 @@ import { PAL } from './palette';
 
 const DIR = path.resolve(import.meta.dirname, '../../public/models');
 
-describe('modèles (phases 20, 21, 25, 26)', () => {
+describe('modèles (phases 20, 21, 44, 46)', () => {
   it('chaque fichier du manifeste a une URL versionnée par sa taille (sinon le cache garde l’ancien)', () => {
     const files = [
       MANIFEST.props,
@@ -41,10 +51,9 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
       files.add(hero.file);
     }
     expect(files.size).toBe(CHARACTERS.length); // neuf silhouettes distinctes
-    // aucun personnage identique à un autre (tenue, coiffure, teinte, objets)
-    const looks = Object.values(HEROES).map((h) =>
-      JSON.stringify([h.sex, h.outfit, h.hood, h.hair, h.hairColor, h.outfitTint, h.props.map((p) => p.file)]),
-    );
+    // aucun personnage identique à un autre : un modèle KayKit par héros (fichier, objets tenus)
+    expect(Object.keys(KAY_HEROES).sort()).toEqual(Object.keys(HEROES).sort());
+    const looks = Object.values(KAY_HEROES).map((h) => JSON.stringify([h.file, h.props.map((p) => p.file)]));
     expect(new Set(looks).size).toBe(CHARACTERS.length);
   });
   it('chaque héros porte toutes les animations jouées par le rendu, dans l’ordre de HeroAnim', () => {
