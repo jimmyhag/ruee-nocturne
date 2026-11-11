@@ -238,6 +238,7 @@ export const enum Ev {
   MerchantLast, // phase 43 : dernier passage du marchand en monde infini, échoppe en (x,z)
   Puddle, // phase 47 C : flaque de Vitriol posée en (x,z), v = rayon
   Beacon, // phase 47 C : balise posée en (x,z), v = portée
+  Whip, // phase 47 C : claque du Fouet depuis (x,y,z), v = longueur, (x2, z2) = direction
 }
 
 export interface GameEvent {

@@ -389,7 +389,7 @@ export function tickWeapons(w: World, dt: number): void {
         for (let d = 0; d < dirs; d++) {
           const dx = d === 0 ? P.dirX : d === 1 ? -P.dirX : d === 2 ? -P.dirZ : P.dirZ,
             dz = d === 0 ? P.dirZ : d === 1 ? -P.dirZ : d === 2 ? P.dirX : -P.dirX;
-          w.emit(Ev.Scythe, P.x, P.y + 0.9, P.z, L, dx, FOUET.arc, dz); // même trait et même son que la Faux, en ligne
+          w.emit(Ev.Whip, P.x, P.y + 0.9, P.z, L, dx, 0, dz);
         }
       } else S.fouetT = FOUET.wait;
     }

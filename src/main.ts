@@ -1947,6 +1947,15 @@ function handleEvents(w: World, now: number): void {
       case Ev.MeteorWarn:
         audio.meteorWarn();
         break;
+      case Ev.Whip: {
+        // phase 47 C : la lanière claque en ligne droite (trait de l'éclair, orangé et tendu), étincelles au bout
+        const tx = e.x + e.x2 * e.v,
+          tz = e.z + e.z2 * e.v;
+        S.bolts.add(e.x, 0.9, e.z, tx, 0.5, tz, true);
+        S.particles.burst(tx, 0.5, tz, 0xffb46b, (5 * fx) | 0, 4, 3, false, e.x2, e.z2, 1);
+        audio.blade();
+        break;
+      }
       case Ev.Puddle:
         // phase 47 C : la fiole de Vitriol éclate, gerbe verte et anneau au sol
         S.particles.burst(e.x, 0.3, e.z, 0x9be36a, (12 * fx) | 0, 5, 5);

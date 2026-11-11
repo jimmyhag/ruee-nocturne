@@ -56,7 +56,7 @@ export const FEEL = {
     bladeGhosts: 3,
   },
   // phase 30 : effets d'armes stylisés (rendu seulement)
-  bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
+  bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16, whipJitter: 0.14 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
   // phase 35 : bonus au sol (cristal ×scale, flottement, apparition, clignotement avant de disparaître)
   power: { scale: 2.6, lift: 0.9, bob: 0.18, pop: 0.18, blinkHz: 7, iconLift: 0.9 },
   glow: {

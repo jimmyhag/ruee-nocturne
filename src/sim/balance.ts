@@ -676,7 +676,7 @@ export const LANCE = { range: 16, hitR: 0.45, kb: 2, spread: 0.16, lifeMargin: 1
 export const METEOR = { delay: 0.6, range: 13, around: 8, kb: 3, max: 32, tries: 8 }; // cercle annoncé 0,6 s ; sur un ennemi à < 13 u (8 tirages au plus), sinon autour du joueur ; 32 en attente au plus (le surplus d'une salve est perdu)
 // phase 47 C (demande de Jimmy : des armes) : quatre armes, chacune avec sa portée, son ciblage et son rythme
 // Fouet : courte · direction du regard · rapide. Une claque en ligne (longueur = stat r), très fort recul.
-export const FOUET = { kb: 13, halfW: 0.9, wait: 0.15, arc: 24 }; // demi-largeur de la ligne ; arc (degrés) du trait dessiné
+export const FOUET = { kb: 13, halfW: 0.9, wait: 0.15 }; // demi-largeur de la ligne ; sans ennemi à portée, nouvel essai dans 0,15 s
 // Vitriol : moyenne · le plus gros groupe · dégâts dans la durée. Flaque de `dur` s, un coup toutes les `tick` s, ralentit.
 export const VITRIOL = { range: 11, dur: 4, tick: 0.5, slowT: 0.7, max: 8, tries: 6, retry: 0.3 };
 // Esprits : courte · automatique · continu. Ils tournent autour du héros, foncent sur un ennemi proche, reviennent.

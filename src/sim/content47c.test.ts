@@ -89,7 +89,7 @@ describe('quatre armes de la phase 47 C', () => {
         w.player.dirX = 0;
         w.player.dirZ = 1;
         tick(w, 4);
-        cracks += count(w, Ev.Scythe);
+        cracks += count(w, Ev.Whip);
         for (let k = 0; k < w.eventCount; k++) {
           const ev = w.events[k];
           if (ev.type !== Ev.Hit || (ev.x2 & (HIT_CRIT - 1)) !== HitSrc.Fouet) continue;
