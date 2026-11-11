@@ -682,7 +682,9 @@ export const VITRIOL = { range: 11, dur: 4, tick: 0.5, slowT: 0.7, max: 8, tries
 // Esprits : courte · automatique · continu. Ils tournent autour du héros, foncent sur un ennemi proche, reviennent.
 export const ESPRITS = { range: 7.5, orbitR: 1.4, orbitSpd: 2.6, hitR: 0.6, max: 6, kb: 2, retry: 0.2, stagger: 0.25, leash: 11 }; // laisse : au-delà, l'esprit abandonne sa cible et revient
 // Balise : pose fixe · automatique · tir régulier. Elle tire seule `dur` s : de quoi tenir un cercle de sanctuaire.
-export const BALISE = { dur: 8, max: 4, kb: 1, retry: 0.3, first: 0.3, h: 1.5 };
+// Au plafond de balises, la nouvelle remplace la plus ancienne : elle suit un héros qui bouge (une balise laissée
+// derrière ne servait à rien : 7 % de victoires contre 18 % sans elle).
+export const BALISE = { dur: 8, max: 4, kb: 1, retry: 0.3, first: 0.3, h: 1.5 }; // retry : nouvel essai de tir sans cible à portée
 export const MINES = {
   spacing: 1.2, // u parcourus entre deux poses
   life: 14, // une mine jamais déclenchée expire
@@ -813,7 +815,7 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'r', step: 0.06, kind: 'pct', max: 10, weight: 2, label: 'reach' }, // longueur de la claque
-    { stat: 'n', step: 1, kind: 'add', max: 3, weight: 1, label: 'dirs' }, // devant, puis derrière, puis les côtés
+    { stat: 'n', step: 1, kind: 'add', max: 2, weight: 1, label: 'dirs' }, // devant et derrière au départ, puis les côtés
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
   vitriol: [

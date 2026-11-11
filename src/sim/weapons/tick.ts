@@ -531,15 +531,22 @@ export function tickWeapons(w: World, dt: number): void {
     const s = weaponStats(w, 'balise');
     S.balT -= dt;
     if (S.balT <= 0) {
-      if (S.balN < Math.min(BALISE.max, s.n | 0)) {
-        const k = S.balN++;
+      const cap = Math.min(BALISE.max, s.n | 0);
+      let k = S.balN;
+      if (k < cap) S.balN++;
+      else {
+        // au plafond : la plus ancienne (celle à qui il reste le moins de temps) est relevée et replantée ici
+        k = 0;
+        for (let j = 1; j < S.balN; j++) if (S.balLeft[j] < S.balLeft[k]) k = j;
+      }
+      {
         S.balX[k] = P.x;
         S.balZ[k] = P.z;
         S.balLeft[k] = BALISE.dur;
         S.balShot[k] = BALISE.first;
         S.balT = echo(w, s.cd * P.cdMul);
         w.emit(Ev.Beacon, P.x, 0, P.z, s.r);
-      } else S.balT = BALISE.retry;
+      }
     }
     const targets = 1 + (w.syn[Syn.Batterie] ? SYN.batterie.targets : 0);
     for (let k = S.balN - 1; k >= 0; k--) {

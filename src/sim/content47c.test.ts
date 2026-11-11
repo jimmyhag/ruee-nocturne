@@ -61,16 +61,16 @@ describe('quatre armes de la phase 47 C', () => {
       for (const l of WEAPON_LINES[k]) expect(l.stat in WEAPONS[k].base, `${k}.${l.stat}`).toBe(true);
     });
   });
-  it('Fouet : une ligne devant le héros, pas sur les côtés ni derrière ; les lignes ajoutent des directions', () => {
+  it('Fouet : une ligne devant et derrière le héros, pas sur les côtés ; les lignes ajoutent les côtés', () => {
     const w = solo('fouet');
     const L = weaponStats(w, 'fouet').r;
     const front = dummy(w, 0, L - 1),
-      side = dummy(w, FOUET.halfW + 2.5, 2),
+      side = dummy(w, FOUET.halfW + 2.5, 0),
       back = dummy(w, 0, -(L - 1)),
       far = dummy(w, 0, L + 3);
     const pos = [
       [0, L - 1],
-      [FOUET.halfW + 2.5, 2],
+      [FOUET.halfW + 2.5, 0],
       [0, -(L - 1)],
       [0, L + 3],
     ];
@@ -101,17 +101,18 @@ describe('quatre armes de la phase 47 C', () => {
     };
     run(180);
     expect(got[0]).toBeGreaterThanOrEqual(3);
-    expect(got[1]).toBe(0);
-    expect(got[2]).toBe(0);
-    expect(got[3]).toBe(0);
-    expect(cracks).toBe(got[0]); // un trait par claque
-    // +1 direction : derrière aussi
-    w.wmods.fouet[WEAPON_LINES.fouet.findIndex((l) => l.stat === 'n')] = 1;
+    expect(got[1]).toBe(0); // sur le côté : hors de la ligne
+    expect(got[2]).toBe(got[0]); // derrière : touché à chaque claque, comme devant
+    expect(got[3]).toBe(0); // trop loin
+    expect(cracks).toBe(got[0] * 2); // un trait par direction
+    // +2 directions : les deux côtés aussi
+    w.wmods.fouet[WEAPON_LINES.fouet.findIndex((l) => l.stat === 'n')] = 2;
     refreshStats(w);
+    expect(weaponStats(w, 'fouet').n).toBe(4);
     got.fill(0);
     run(180);
-    expect(got[2]).toBeGreaterThanOrEqual(3);
-    expect(got[1]).toBe(0);
+    expect(got[1]).toBeGreaterThanOrEqual(3);
+    expect(got[3]).toBe(0);
   });
   it('Vitriol : la flaque blesse par à-coups, ralentit et s’éteint', () => {
     const w = solo('vitriol');
@@ -253,6 +254,24 @@ describe('quatre armes de la phase 47 C', () => {
     // elle s'éteint au bout de BALISE.dur s (la suivante n'est pas encore due : cd > dur − 5 s)
     for (let f = 0; f < 60 * (BALISE.dur - 4.5); f++) tick(w, 0);
     expect(w.wstate.balN).toBeLessThanOrEqual(1);
+  });
+  it('Balise : au plafond, la nouvelle remplace la plus ancienne et suit le héros', () => {
+    const w = solo('balise');
+    const s = weaponStats(w, 'balise');
+    const P = w.player;
+    for (let f = 0; f < 90; f++) tick(w, 0);
+    expect(w.wstate.balN).toBe(1);
+    const x0 = w.wstate.balX[0];
+    P.x = P.px = x0 + 20;
+    let beacons = 0;
+    for (let f = 0; f < 60 * (s.cd + 0.5); f++) {
+      tick(w, 0);
+      beacons += count(w, Ev.Beacon);
+    }
+    expect(beacons).toBe(1);
+    expect(w.wstate.balN).toBe(1); // toujours une seule
+    expect(w.wstate.balX[0]).toBeCloseTo(P.x, 6); // replantée sous le héros
+    expect(w.wstate.balLeft[0]).toBeGreaterThan(BALISE.dur - 1);
   });
   it('synergies : Saignée soigne, Corrosion allonge, Meute accélère, Batterie double la cible', () => {
     expect(SYNERGIES.slice(11).map((s) => s.key)).toEqual(['saignee', 'corrosion', 'meute', 'batterie']);

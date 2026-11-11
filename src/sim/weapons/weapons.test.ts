@@ -439,8 +439,8 @@ describe('armes qui partent de zéro (phase 33)', () => {
     expect(found).toBeGreaterThan(5);
     for (const k of WEAPON_KEYS) {
       const s = weaponStats(new World(1), k);
-      // les Mines : n = mines posées à la fois ; les Esprits vont par deux
-      if ('n' in WEAPONS[k].base && k !== 'mines') expect(s.n, k).toBe(k === 'esprits' ? 2 : 1);
+      // les Mines : n = mines posées à la fois ; les Esprits vont par deux, le Fouet claque devant et derrière
+      if ('n' in WEAPONS[k].base && k !== 'mines') expect(s.n, k).toBe(k === 'esprits' || k === 'fouet' ? 2 : 1);
       if (k === 'foudre') expect(s.chain).toBe(0);
     }
   });
