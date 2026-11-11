@@ -476,3 +476,101 @@ export const GROUND = {
     },
   ] as { a: GroundSpec; b: GroundSpec }[],
 };
+
+// ---------- phase 46 : personnages KayKit en proportions humanoïdes ----------
+
+/** Miroir public des packs de personnages KayKit (Kay Lousberg, CC0), épinglé par commit. */
+export const KAYKIT2 = {
+  raw: 'https://raw.githubusercontent.com/GeorgeQLe/assets-kaykit-3d-characters/af08a62d3669',
+  license: 'LICENSES/KayKit-CC0-License.txt',
+  source: 'KayKit Adventurers 2.0, Skeletons 1.1 et Mystery Monthly 4 à 6 by Kay Lousberg (www.kaylousberg.com), CC0',
+} as const;
+
+/** Étirement par os (nom sans côté), dans le repère de l'os : y le long de l'os, x et z son épaisseur. */
+export type Proportions = Record<string, [number, number, number]>;
+
+/**
+ * « Affiné » (choix de Jimmy sur planche, 11 nov.) : tête réduite, jambes, torse et bras allongés, taille marquée,
+ * bassin étroit, membres fins, épaules gardées. Rig_Medium de KayKit (2,7 têtes de haut) → environ 5,5 têtes.
+ */
+export const FIT: Proportions = {
+  head: [0.5, 0.5, 0.5],
+  hips: [0.8, 1, 0.78],
+  spine: [0.7, 1.55, 0.68],
+  chest: [0.86, 1.5, 0.74],
+  upperleg: [0.8, 3.0, 0.8],
+  lowerleg: [0.74, 3.0, 0.74],
+  foot: [0.72, 0.8, 0.72],
+  toes: [0.72, 0.8, 0.72],
+  upperarm: [0.74, 1.95, 0.74],
+  lowerarm: [0.7, 1.95, 0.7],
+  wrist: [0.72, 1, 0.72],
+  hand: [0.72, 0.72, 0.72],
+};
+
+/** Objet tenu : fichier du miroir, os porteur (les `handslot` de KayKit sont faits pour ça), réglages facultatifs. */
+export interface KayProp {
+  file: string;
+  bone: string;
+  scale?: number;
+  /** degrés, XYZ, dans le repère de l'os */
+  rot?: [number, number, number];
+  pos?: [number, number, number];
+  /** l'axe long de l'objet pointe vers le haut quand le héros est au repos (bâton, faux) */
+  upright?: boolean;
+}
+export interface KayHero {
+  file: string;
+  prop: Proportions;
+  props: KayProp[];
+}
+const ADV = 'assets/kaykit/adventurers-2.0';
+// objets du pack taillés pour des mains « chibi » : réduits pour les mains affinées
+const kayR = (file: string, scale = 0.8): KayProp => ({ file, bone: 'handslot.r', scale });
+const kayL = (file: string, scale = 0.8): KayProp => ({ file, bone: 'handslot.l', scale });
+
+/** Modèle KayKit de chaque héros (la source d'animation reste `HEROES` : squelette UE et clips UAL). */
+export const KAY_HEROES: Record<string, KayHero> = {
+  eclaireuse: { file: `${ADV}/Characters/gltf/Rogue.glb`, prop: FIT, props: [kayR(`${ADV}/Assets/gltf/dagger.gltf`)] },
+  bucheron: {
+    file: `${ADV}/Characters/gltf/Barbarian.glb`,
+    // le bûcheron garde de la carrure : bras et torse moins affinés
+    prop: { ...FIT, chest: [0.95, 1.5, 0.84], upperarm: [0.92, 1.9, 0.92], lowerarm: [0.86, 1.9, 0.86] },
+    props: [kayR(`${ADV}/Assets/gltf/axe_1handed.gltf`), kayL(`${ADV}/Assets/gltf/axe_1handed.gltf`)],
+  },
+  sorciere: {
+    file: `${ADV}/Characters/gltf/Mage.glb`,
+    prop: FIT, // bâton et faux : retournés, la tête de l'arme vers le haut quand le bras pend
+    props: [{ ...kayR(`${ADV}/Assets/gltf/staff.gltf`), upright: true }],
+  },
+  veilleuse: {
+    file: 'assets/kaykit/mystery-monthly-series-6/3 - September 2025 - Cleric/characters/Cleric.glb',
+    prop: FIT,
+    props: [kayR('assets/kaykit/mystery-monthly-series-6/3 - September 2025 - Cleric/assets/gltf/Cleric_Mace.gltf')],
+  },
+  braconnier: {
+    file: `${ADV}/Characters/gltf/Ranger.glb`,
+    prop: FIT,
+    props: [kayL(`${ADV}/Assets/gltf/bow_withString.gltf`)],
+  },
+  sapeur: {
+    file: `${ADV}/Characters/gltf/Engineer.glb`,
+    prop: FIT,
+    props: [kayL(`${ADV}/Assets/gltf/smokebomb.gltf`)],
+  },
+  feufollet: {
+    file: 'assets/kaykit/mystery-monthly-series-6/5 - November 2025 - Plant Warrior/characters/PlantWarrior.glb',
+    prop: FIT,
+    props: [],
+  },
+  revenante: {
+    file: 'assets/kaykit/skeletons-1.1/characters/gltf/Necromancer.glb',
+    prop: FIT,
+    props: [{ ...kayR('assets/kaykit/skeletons-1.1/assets/gltf/Skeleton_Scythe.gltf'), upright: true }],
+  },
+  colporteur: {
+    file: 'assets/kaykit/mystery-monthly-series-6/8 - February 2026 - Hoarder/characters/Hoarder.glb',
+    prop: FIT,
+    props: [],
+  },
+};

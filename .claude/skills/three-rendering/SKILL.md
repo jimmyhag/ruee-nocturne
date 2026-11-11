@@ -88,6 +88,15 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - Plus d'`AdditiveBlending` pur pour les effets de jeu : sur l'herbe claire il se délave en blanc. `softGlow(mat, cover, core)` (`textures.ts`) : couleur prémultipliée, alpha écrit = `cover` × alpha (0 = additif, 1 = normal), cœur blanc optionnel. Orbes 0,75 / 0,8 ; arcs 0,8 / 0,3 ; éclairs 0,6 / 0,7 ; halos et colonnes 0,5.
 - Une couleur d'effet pâle reste pâle : choisir des teintes franches (`cSlashFaux`, `cSlashBlade`, `PAL.proj`).
 
+## Personnages KayKit en proportions humanoïdes (phase 46)
+- **Jamais d'échelle d'os à l'exécution pour changer des proportions** : une échelle non uniforme héritée cisaille le membre dès que l'articulation plie. `reproportion()` (`tools/assets/kaykit.ts`) déplace les articulations et redéforme le maillage une fois, au repos : sommet′ = Σ poids · (monde′ de l'os · étirement local · inverse de liaison) · sommet, puis inverses de liaison = (monde′)⁻¹. À l'exécution, c'est un squelette ordinaire.
+- **Un squelette peut être partagé par plusieurs maillages** (three : même `Skeleton` pour toutes les parties d'un personnage) : garder les inverses de liaison d'origine jusqu'à la fin du calcul, sinon la deuxième partie est déformée avec celles de la première.
+- **Reprendre une animation sur un autre squelette** (`retargetClips`) : le tronc et la tête prennent la rotation de la pose par rapport au repos (les deux repos sont debout) ; chaque segment de membre est orienté dans la direction du segment source (arc le plus court depuis sa direction courante, de la racine vers l'extrémité) ; la main prend la rotation de la main source par rapport à son repos, corrigée de l'écart entre les deux poses de repos (A contre T). Le bassin suit à hauteur relative.
+- **Le repos d'un fichier dont les pistes immobiles ont été retirées est la pose par défaut de ses nœuds**, pas `skeleton.pose()` (qui remet la pose de liaison, différente).
+- `getElement(i, cible)` de gltf-transform écrit dans le tableau donné sans le raccourcir : un tableau par taille d'élément.
+- Objets tenus : liés à 100 % à l'os `handslot` de KayKit ; « tenu droit » = axe long vers le haut à la première image du repos (calculé au build, pas d'angles à deviner).
+- Tenues recolorées : la texture KayKit est une palette où peau et tenue se côtoient ; la peau est reconnue à sa couleur (teinte 14–44°, claire) et laissée.
+
 ## Pierre à runes : totem et sanctuaires (1.42.1, phase 45)
 - `stoneKit()` (`src/render/totem.ts`) assemble des pièces à facettes : couleur unie par sommet, attribut `glow` (1 = la pièce prend la couleur de l'état). `stoneMaterial(glow?)` : avec une couleur, un uniforme (objet unique, le totem) ; sans, la couleur d'instance (`shrine.ts`), que la pierre ignore (`vColor.rgb = color` sous `USE_INSTANCING_COLOR`).
 - L'état d'un objet instancié se lit donc par la couleur d'instance de ses seules parties lumineuses : pas de second écrivain, pas d'appel en plus. Une couleur au-delà de 1 reste lisible en plein jour.
