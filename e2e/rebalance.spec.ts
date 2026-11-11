@@ -108,8 +108,15 @@ test('monde infini : le marchand passe deux fois, annonce son dernier passage, p
 
 // Chaque boss dans sa nouvelle attaque : capture lue à la main (CLAUDE.md : ne rien affirmer sans l'avoir regardé)
 const BOSSES: { name: string; type: number; dist: number; arm: string; wait: string }[] = [
-  // phase 45, Traque : salve de cercles sous les pieds du joueur (le Sillage, posé derrière le Gardien, est retiré)
-  { name: 'gardien-traque', type: 3, dist: 9, arm: 'e.aim = 1e9; e.timer = 1e9; e.huntT = 0.01;', wait: 'zone' },
+  // phase 45, Traque : salve de cercles sous les pieds du joueur (le Sillage, posé derrière le Gardien, est retiré) ;
+  // réservée aux boss du totem et du monde infini, d'où `totemBossId`
+  {
+    name: 'gardien-traque',
+    type: 3,
+    dist: 9,
+    arm: 'e.aim = 1e9; e.timer = 1e9; w.totemBossId = e.id; e.huntT = 0.01;',
+    wait: 'zone',
+  },
   // phase 45, Éclats : la charge du Gardien finit sur une étoile de projectiles
   { name: 'gardien-eclats', type: 3, dist: 9, arm: 'e.aim = 1e9; e.timer = 0;', wait: 'spit' },
   // Essaim-mère : salve en éventail
@@ -145,7 +152,7 @@ for (const B of BOSSES)
         e.z = e.pz = w.player.z - (dist as number);
         (document.getElementById('perf') as HTMLElement).hidden = true;
         e.huntT = 1e9; // phase 45 : pas de Traque, sauf si la capture la demande
-        new Function('e', arm as string)(e);
+        new Function('e', 'w', arm as string)(e, w);
       },
       [B.type, B.dist, B.arm] as const,
     );

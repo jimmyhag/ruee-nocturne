@@ -113,6 +113,9 @@ test('sanctuaire : rester dans le cercle remplit la jauge, puis un bonus pour la
   await calmRun(page, 20);
   await page.evaluate(() => {
     const g = (window as any).__game;
+    // rendu fixé : en automatique, le repli de qualité sous SwiftShader affiche « Rendu allégé » au moment où le test
+    // attend la bannière du sanctuaire (échec intermittent sur mobile, 1.42.1 et 1.43.0)
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
     const s = g.world.shrines[0];
     g.debug.teleport(s.x, s.z);
   });
