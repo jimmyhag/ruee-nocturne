@@ -313,6 +313,7 @@ export class GameScene {
   // phase 19 : ennemis étourdis (Éclat, Collet) ou ralentis (Voile), silhouettes du Voile
   private cStun = new THREE.Color(0xfff1a8);
   private cSlow = new THREE.Color(0x9fd8ff);
+  private cBurn = new THREE.Color(0xffa25e); // phase 47 B : ennemi en feu (Dent de dragon)
   private cFreeze = new THREE.Color(PAL.freeze); // phase 35 : Temps figé
   private cRage = new THREE.Color(PAL.telegraph); // phase 43 : boss enragé
   private frozenPose = false; // phase 35 : poses des ennemis 3D arrêtées pendant le Temps figé
@@ -1687,11 +1688,13 @@ export class GameScene {
               ? this.cStun
               : e.slowT > 0
                 ? this.cSlow
-                : e.enraged
-                  ? this.cRage // phase 43 : boss enragé, rouge
-                  : e.elite
-                    ? this.eliteColor[e.type]
-                    : this.enemyColor[e.type];
+                : e.burnT > 0
+                  ? this.cBurn // phase 47 B : en feu (Dent de dragon), orangé
+                  : e.enraged
+                    ? this.cRage // phase 43 : boss enragé, rouge
+                    : e.elite
+                      ? this.eliteColor[e.type]
+                      : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;

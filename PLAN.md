@@ -210,6 +210,22 @@ Demande de Jimmy : « pas d'amélioration par perso », « un achat de tomes plu
 | Amulette du savant (phase 31) | +15 % d'expérience | commun |
 | Armure d'écorce (phase 31) | +5 % d'armure (dans le plafond) | commun |
 | Couronne du berserker (phase 31) | jusqu'à +50 % de dégâts selon les PV manquants, 2 % de vol de vie | épique |
+| Bandage (phase 47 B) | après 6 s sans coup reçu : +1,5 PV/s | commun |
+| Savon (phase 47 B) | glissade 15 % plus rapide (départ et plafond) | commun |
+| Enclume (phase 47 B) | recul des coups +30 % | commun |
+| Clé rouillée (phase 47 B) | coffres de carte −20 % par exemplaire (plancher 40 % du prix) | commun |
+| Encens (phase 47 B) | sanctuaires et totem chargés 40 % plus vite | commun |
+| Tirelire (phase 47 B) | +12 or par minute | commun |
+| Fiole de sang (phase 47 B) | vol de vie 1 % et réserve de soin +1,5 PV/s | rare |
+| Miroir (phase 47 B) | 12 % de chance qu'une arme retire aussitôt (pas le Halo, continu) | rare |
+| Cœur de glace (phase 47 B) | +20 % de dégâts aux ennemis ralentis ou étourdis | rare |
+| Ailes de cire (phase 47 B) | un saut en l'air par exemplaire, à 85 % de la hauteur | rare |
+| Coquille (phase 47 B) | dans un cercle de sanctuaire ou de totem en charge : dégâts subis −35 % | rare |
+| Cloche de bronze (phase 47 B) | sanctuaire activé : 25 % des PV rendus, onde qui repousse et étourdit | rare |
+| Trophée (phase 47 B) | +1 % de dégâts par élite vaincue dans la partie, 30 % au plus | rare |
+| Idole (phase 47 B) | boss du totem : −15 % de PV par exemplaire (plancher 55 %) | épique |
+| Dent de dragon (phase 47 B) | un coup critique embrase : 30 % des dégâts du coup en plus, sur 3 s | épique |
+| Grimoire (phase 47 B) | un bonus de sanctuaire de plus ; cartes à 2 et 3 lignes plus fréquentes (+8 et +4 points) | épique |
 
 **Soins des objets (phase 31)** : vol de vie et Calice puisent dans une réserve rechargée chaque seconde (somme des plafonds des objets possédés) ; les PV rendus s'annoncent une fois par seconde (chiffre vert). Sans plafond, le vol de vie rendrait le héros immortel en fin de partie (dégâts en milliers).
 
