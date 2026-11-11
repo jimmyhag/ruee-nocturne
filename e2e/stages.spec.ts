@@ -105,7 +105,7 @@ test('monde 1 → 2 : chrono, totem activé en marchant, boss, portail, nouvelle
 
 test('chrono écoulé sans avoir appelé le boss : dépassement en rouge, le totem reste à activer (1.45.2)', async ({
   page,
-}) => {
+}, info) => {
   test.setTimeout(90_000);
   const errors = collectConsoleErrors(page);
   await openGame(page);
@@ -126,6 +126,8 @@ test('chrono écoulé sans avoir appelé le boss : dépassement en rouge, le tot
   await expect(page.locator('#poiChip')).toBeVisible();
   await expect(page.locator('#poiChip')).toHaveClass(/totem/);
   await expect(page.locator('#poiText')).toHaveText('Totem du boss');
+  await page.waitForFunction(() => (window as any).__game.world.totem.charge > 1.2, null, { timeout: 30_000 });
+  await page.screenshot({ path: `shots/${info.project.name}-totem-jauge.png` });
   await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, null, { timeout: 40_000 });
   await expect(page.locator('#poiChip')).toBeHidden();
   await expect(page.locator('#goalChip')).toHaveClass(/g2/);
