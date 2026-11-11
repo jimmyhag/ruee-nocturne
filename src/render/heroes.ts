@@ -226,8 +226,13 @@ function heroGeometry(src: THREE.BufferGeometry): THREE.BufferGeometry {
 /** Phase 41 : teinte de la tenue de maître (or), saturation relevée pour un rendu métal. */
 const MASTER_HUE = 42;
 const MASTER_SAT = 1.25;
-/** Zone « tenue » de l'atlas (tools/assets/heroes.ts : SLOT.outfit), en fractions de l'image. */
-const OUTFIT_ZONE = { x: 0, y: 0, w: 0.5, h: 0.5 };
+/**
+ * Zone teintée de l'atlas, en fractions de l'image. Phase 46 (KayKit) : tout l'atlas, la texture d'un personnage est
+ * une palette où peau et tenue se côtoient ; la peau est reconnue à sa couleur et laissée telle quelle.
+ */
+const OUTFIT_ZONE = { x: 0, y: 0, w: 1, h: 1 };
+/** Peau : teinte entre 14° et 44°, claire (luminosité au-delà de 0,58). Le cuir, plus sombre, se teint. */
+const SKIN = { h0: 14 / 360, h1: 44 / 360, edge: 4 / 360, l0: 0.54, l1: 0.62 };
 /** Dernier atlas teinté (un seul gardé : 4 Mo de canvas, libéré de la carte graphique quand le héros l'est). */
 let tinted: { key: string; tex: THREE.Texture } | null = null;
 /**
@@ -257,11 +262,17 @@ function outfitTexture(src: THREE.Texture, key: string, hue: number, absolute = 
     const max = Math.max(r, g, b),
       min = Math.min(r, g, b),
       chroma = max - min;
-    const k = Math.min(1, Math.max(0, (chroma - 0.04) / 0.06)); // 0 sous 0,04 de chroma, 1 au-delà de 0,10
+    let k = Math.min(1, Math.max(0, (chroma - 0.04) / 0.06)); // 0 sous 0,04 de chroma, 1 au-delà de 0,10
     if (k <= 0) continue;
     const l = (max + min) / 2;
     let s = chroma / (1 - Math.abs(2 * l - 1));
     let h = max === r ? (g - b) / chroma + (g < b ? 6 : 0) : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4;
+    // peau : laissée telle quelle, avec un bord doux (pas de frange sur le JPEG)
+    const hh = h / 6;
+    const inHue =
+      Math.min(1, Math.max(0, (hh - SKIN.h0) / SKIN.edge)) * Math.min(1, Math.max(0, (SKIN.h1 - hh) / SKIN.edge));
+    k *= 1 - inHue * Math.min(1, Math.max(0, (l - SKIN.l0) / (SKIN.l1 - SKIN.l0)));
+    if (k <= 0) continue;
     if (absolute) {
       // tenue de maître : la teinte va vers `hue` (et non décalée), un peu plus saturée
       let dd = dh - h / 6; // arc le plus court vers la teinte visée (pas de détour par le vert ou le bleu)

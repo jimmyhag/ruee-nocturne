@@ -1,10 +1,10 @@
 {
-  "source": "KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : Quaternius (quaternius.com), CC0 ; décor : Quaternius, Ultimate Stylized Nature (quaternius.com), CC0 ; sol : Poly Haven (polyhaven.com), CC0",
+  "source": "KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : KayKit Adventurers 2.0, Skeletons 1.1 et Mystery Monthly 4 à 6 by Kay Lousberg (www.kaylousberg.com), CC0 ; animations des héros et ennemis : Quaternius (quaternius.com), CC0 ; décor : Quaternius, Ultimate Stylized Nature (quaternius.com), CC0 ; sol : Poly Haven (polyhaven.com), CC0",
   "heroes": {
     "eclaireuse": {
       "file": "hero-eclaireuse.glb",
-      "bytes": 667968,
-      "tris": 9000,
+      "bytes": 323028,
+      "tris": 7734,
       "anims": [
         "Idle",
         "Run",
@@ -25,8 +25,8 @@
     },
     "bucheron": {
       "file": "hero-bucheron.glb",
-      "bytes": 617832,
-      "tris": 8999,
+      "bytes": 323324,
+      "tris": 7671,
       "anims": [
         "Idle",
         "Run",
@@ -47,8 +47,8 @@
     },
     "sorciere": {
       "file": "hero-sorciere.glb",
-      "bytes": 589872,
-      "tris": 8999,
+      "bytes": 310872,
+      "tris": 7108,
       "anims": [
         "Idle",
         "Run",
@@ -69,8 +69,8 @@
     },
     "veilleuse": {
       "file": "hero-veilleuse.glb",
-      "bytes": 664588,
-      "tris": 8999,
+      "bytes": 346936,
+      "tris": 8787,
       "anims": [
         "Idle",
         "Run",
@@ -91,8 +91,8 @@
     },
     "braconnier": {
       "file": "hero-braconnier.glb",
-      "bytes": 675528,
-      "tris": 8999,
+      "bytes": 341700,
+      "tris": 9000,
       "anims": [
         "Idle",
         "Run",
@@ -113,8 +113,8 @@
     },
     "sapeur": {
       "file": "hero-sapeur.glb",
-      "bytes": 604760,
-      "tris": 8999,
+      "bytes": 333944,
+      "tris": 7810,
       "anims": [
         "Idle",
         "Run",
@@ -135,8 +135,8 @@
     },
     "feufollet": {
       "file": "hero-feufollet.glb",
-      "bytes": 604912,
-      "tris": 8999,
+      "bytes": 303832,
+      "tris": 6138,
       "anims": [
         "Idle",
         "Run",
@@ -157,8 +157,8 @@
     },
     "revenante": {
       "file": "hero-revenante.glb",
-      "bytes": 668612,
-      "tris": 9000,
+      "bytes": 336408,
+      "tris": 6524,
       "anims": [
         "Idle",
         "Run",
@@ -179,7 +179,7 @@
     },
     "colporteur": {
       "file": "hero-colporteur.glb",
-      "bytes": 685016,
+      "bytes": 378148,
       "tris": 8999,
       "anims": [
         "Idle",

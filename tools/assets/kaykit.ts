@@ -281,7 +281,9 @@ function evaluate(tracks: Track[], t: number, qa: THREE.Quaternion, qb: THREE.Qu
  * Reprend sur `tgt` (KayKit, déjà aux bonnes proportions) les clips `names` de `src` (squelette UE, clips déjà en
  * place et à la bonne vitesse). Échantillonnage à `fps` images par seconde.
  */
-export function retargetClips(src: Document, tgt: Document, names: string[], fps = 30): void {
+export function retargetClips(src: Document, tgt: Document, names: string[], fps = 30): Map<string, THREE.Quaternion> {
+  /** orientation monde des os porteurs à la première image du premier clip (le repos) : objets « tenus droits » */
+  const held = new Map<string, THREE.Quaternion>();
   const S = rigOf(src),
     T = rigOf(tgt);
   const sb = (n: string): THREE.Object3D => {
@@ -406,6 +408,10 @@ export function retargetClips(src: Document, tgt: Document, names: string[], fps
         q.toArray(arr, f * 4);
       }
       hips.position.toArray(pos, f * 3);
+      if (f === 0 && name === names[0]) {
+        T.root.updateMatrixWorld(true);
+        for (const [n, o] of T.byName) if (/^handslot/i.test(n)) held.set(n, wq(o));
+      }
     }
     const out = tgt.createAnimation(name);
     const input = tgt.createAccessor().setType('SCALAR').setArray(times).setBuffer(buffer);
@@ -428,6 +434,7 @@ export function retargetClips(src: Document, tgt: Document, names: string[], fps
     for (const [b, arr] of rot) add(tb(b), 'rotation', arr);
     add(hips, 'translation', pos);
   }
+  return held;
 }
 
 // ---------- fusion en une primitive, atlas, objets tenus ----------
@@ -482,14 +489,26 @@ function partOf(prim: Primitive, uv: (u: number, v: number) => [number, number])
 function propPart(
   prop: Document,
   spec: KayProp,
+  held: THREE.Quaternion | undefined,
   world: THREE.Matrix4,
   joint: number,
   back: THREE.Matrix4,
   tile: number,
 ): Part[] {
+  const euler = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(...(spec.rot ?? [0, 0, 0]).map((d) => (d * Math.PI) / 180)),
+  );
+  // « tenu droit » : l'axe long de l'objet (son y) pointe vers le haut quand le héros est au repos
+  const upright =
+    spec.upright && held
+      ? new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          new THREE.Vector3(0, 1, 0).applyQuaternion(held.clone().invert()),
+        )
+      : new THREE.Quaternion();
   const local = new THREE.Matrix4().compose(
     new THREE.Vector3(...(spec.pos ?? [0, 0, 0])),
-    new THREE.Quaternion().setFromEuler(new THREE.Euler(...(spec.rot ?? [0, 0, 0]).map((d) => (d * Math.PI) / 180))),
+    upright.multiply(euler),
     new THREE.Vector3().setScalar(spec.scale ?? 1),
   );
   const parts: Part[] = [];
@@ -548,6 +567,8 @@ export interface KayBuild {
   /** texture du personnage (PNG ou JPEG) quand le fichier ne l'embarque pas */
   texture?: Uint8Array;
   props: { doc: Document; spec: KayProp }[];
+  /** orientation des os porteurs au repos (retour de `retargetClips`) */
+  held?: Map<string, THREE.Quaternion>;
   tris: number;
   /** nom du nœud skinné produit */
   name: string;
@@ -602,7 +623,7 @@ export async function mergeKay(doc: Document, b: KayBuild): Promise<number> {
     if (i >= 3) throw new Error('plus de trois objets tenus');
     const j = joints.findIndex((n) => n.getName() === spec.bone);
     if (j < 0) throw new Error(`os porteur absent : ${spec.bone}`);
-    parts.push(...propPart(prop, spec, m4(joints[j].getWorldMatrix()), j, back, i));
+    parts.push(...propPart(prop, spec, b.held?.get(spec.bone), m4(joints[j].getWorldMatrix()), j, back, i));
     const img = imageOf(prop);
     if (img)
       layers.push({

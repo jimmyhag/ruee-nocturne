@@ -3,7 +3,8 @@
 //   npm run assets            (clone les packs KayKit dans .cache/kaykit et les miroirs Quaternius dans .cache/quaternius,
 //                              hors dépôt, si absents ; clones partiels : seuls les fichiers utilisés sont téléchargés)
 //   KAYKIT_DIR=… QUATERNIUS_DIR=… npm run assets   (sources déjà clonées ailleurs)
-//   npm run assets -- --heroes [--only clé,clé] [--out dossier]   (héros seulement, manifeste intact : essais)
+//   npm run assets -- --heroes [--only clé,clé] [--out dossier]   (héros seulement ; avec --only ou --out : essais,
+//                              manifeste intact ; sans : les neuf héros et leur partie du manifeste)
 //   npm run assets -- --nature   (phase 44 : décor stylisé seulement ; le manifeste garde le reste tel quel)
 //   NATURE_DIR=… : dossier « sources » du pack Ultimate Stylized Nature déjà cloné
 // Héros : tête, tenue, coiffures et objets tenus fusionnés, atlas JPEG, clips UAL, simplification, compression meshopt
@@ -325,14 +326,14 @@ async function main(): Promise<void> {
     const doc = await readKay(io, KCACHE, K.file);
     const root = doc.getRoot();
     reproportion(doc, K.prop);
-    retargetClips(
+    const held = retargetClips(
       src,
       doc,
       HERO_CLIPS.map((c) => c.to),
     );
     const props = [];
     for (const spec of K.props) props.push({ doc: await readKay(io, KCACHE, spec.file), spec });
-    const heroTris = await mergeKay(doc, { props, tris: h.tris, name: 'Body', material: 'Hero' });
+    const heroTris = await mergeKay(doc, { props, held, tris: h.tris, name: 'Body', material: 'Hero' });
     await doc.transform(resample({ tolerance: 1e-3 }));
     const stripped = stripStaticTracks(doc);
     await doc.transform(
@@ -354,7 +355,17 @@ async function main(): Promise<void> {
     );
   }
   if (HEROES_ONLY) {
-    console.log(`héros seulement → ${OUT} (manifeste inchangé)`);
+    if (ARGS.includes('--out') || only) {
+      console.log(`héros seulement → ${OUT} (manifeste inchangé)`);
+      return;
+    }
+    // phase 46 : les neuf héros refaits sans toucher au reste ; le manifeste garde objets, ennemis et décor tels quels
+    const old = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) as typeof manifest;
+    old.heroes = manifest.heroes;
+    old.source = manifest.source;
+    fs.writeFileSync(MANIFEST, JSON.stringify(old, null, 2) + '\n');
+    execFileSync('npx', ['prettier', '--write', MANIFEST], { cwd: ROOT, stdio: 'ignore' });
+    console.log(`héros seulement → ${path.relative(ROOT, OUT)}, manifeste mis à jour (héros et sources)`);
     return;
   }
 

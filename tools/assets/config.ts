@@ -516,6 +516,8 @@ export interface KayProp {
   /** degrés, XYZ, dans le repère de l'os */
   rot?: [number, number, number];
   pos?: [number, number, number];
+  /** l'axe long de l'objet pointe vers le haut quand le héros est au repos (bâton, faux) */
+  upright?: boolean;
 }
 export interface KayHero {
   file: string;
@@ -536,7 +538,11 @@ export const KAY_HEROES: Record<string, KayHero> = {
     prop: { ...FIT, chest: [0.95, 1.5, 0.84], upperarm: [0.92, 1.9, 0.92], lowerarm: [0.86, 1.9, 0.86] },
     props: [kayR(`${ADV}/Assets/gltf/axe_1handed.gltf`), kayL(`${ADV}/Assets/gltf/axe_1handed.gltf`)],
   },
-  sorciere: { file: `${ADV}/Characters/gltf/Mage.glb`, prop: FIT, props: [kayR(`${ADV}/Assets/gltf/staff.gltf`)] },
+  sorciere: {
+    file: `${ADV}/Characters/gltf/Mage.glb`,
+    prop: FIT, // bâton et faux : retournés, la tête de l'arme vers le haut quand le bras pend
+    props: [{ ...kayR(`${ADV}/Assets/gltf/staff.gltf`), upright: true }],
+  },
   veilleuse: {
     file: 'assets/kaykit/mystery-monthly-series-6/3 - September 2025 - Cleric/characters/Cleric.glb',
     prop: FIT,
@@ -560,7 +566,7 @@ export const KAY_HEROES: Record<string, KayHero> = {
   revenante: {
     file: 'assets/kaykit/skeletons-1.1/characters/gltf/Necromancer.glb',
     prop: FIT,
-    props: [kayR('assets/kaykit/skeletons-1.1/assets/gltf/Skeleton_Scythe.gltf')],
+    props: [{ ...kayR('assets/kaykit/skeletons-1.1/assets/gltf/Skeleton_Scythe.gltf'), upright: true }],
   },
   colporteur: {
     file: 'assets/kaykit/mystery-monthly-series-6/8 - February 2026 - Hoarder/characters/Hoarder.glb',

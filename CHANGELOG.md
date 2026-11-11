@@ -2,6 +2,22 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.44.0 — 11 nov. 2026 (demande de Jimmy : de nouveaux skins de héros, plus « fantasy »)
+
+### Modifié
+
+- **Les neuf héros ont un nouveau modèle.** Ce sont des personnages KayKit (Kay Lousberg, licence libre CC0), remis en proportions humanoïdes : tête plus petite, jambes, torse et bras allongés, taille marquée, membres fins.
+  - Éclaireuse : voleuse à la dague. Bûcheron : barbare à deux haches. Sorcière : mage au bâton. Veilleuse : clerc à la masse. Braconnier : rôdeur à l'arc. Sapeur : ingénieur. Feu follet : esprit encapuchonné. Revenante : nécromancienne à la faux. Colporteur : marchande au grand sac.
+- **Les animations ne changent pas.** Course, saut, glissade, roulade, sorts : ce sont celles d'avant, reprises sur les nouveaux personnages. Les mains n'ont plus de doigts animés (les nouveaux modèles n'en ont pas).
+- **Tenues 2 et 3** : la recoloration touche toute la tenue et laisse la peau telle quelle.
+- Chaque héros pèse 280 à 370 Ko à télécharger, contre 590 à 685 Ko avant.
+
+### Technique
+
+- `tools/assets/kaykit.ts` : proportions changées au repos (articulations déplacées, maillage redéformé, matrices de liaison refaites : aucune échelle d'os à l'exécution) ; clips repris image par image du squelette actuel (65 os) vers le squelette KayKit (23 os) ; une primitive skinnée, atlas 1024² (personnage en 768², objets tenus en tuiles).
+- `npm run assets -- --heroes` refait les neuf héros et leur partie du manifeste sans toucher au reste.
+- Les ennemis ne changent pas dans cette version : ils suivent dans la 1.45.0.
+
 ## 1.43.0 — 11 nov. 2026 (demande de Jimmy : refaire les sanctuaires et les attaques des boss)
 
 ### Ajouté
