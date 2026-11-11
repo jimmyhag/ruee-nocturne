@@ -773,6 +773,23 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Porte** : cibles d'équilibrage des deux profils tenues ; tests Vitest de la Traque (salve, visée en avance, esquive possible) et des Éclats ; captures lues (sanctuaire dans ses trois états, Traque, Éclats) ; budgets de rendu inchangés.
 
 
+### Phase 46 — Nouveaux héros et nouveaux ennemis (1.44.0 puis 1.45.0)
+- **Demande de Jimmy** (11 nov.) : des skins plus proches d'un univers fantasy façon MOBA, avec des packs gratuits, en gardant les neuf personnages ; des ennemis du même univers, « pas des zombies » ; le même style d'animation.
+- **Ce qui a été montré et choisi sur planches et vidéos** (11 nov.) :
+  - modèles **KayKit** (Kay Lousberg, CC0), mais **en proportions humanoïdes affinées** : Jimmy aime leur dessin, pas leur format « chibi ». Tête réduite, jambes, torse et bras allongés, taille marquée, membres fins (réglage « affiné ») ;
+  - **animations actuelles gardées** (les 15 clips UAL, glissade comprise), reprises sur le squelette KayKit : le pack n'a pas de glissade, et Jimmy préfère celles du jeu ;
+  - ennemis : gobelin (masse), loup-garou (Dard), ninja (Cracheur ; l'homme-lézard est refusé), homme-oiseau (Archer), démone (Sorcier), dragonnet (Volant, Quaternius « Ultimate Monsters », CC0), orc brute (Brute) ; boss : chevalier noir (Gardien), chamane de la meute (Essaim-mère), golem de glace (Colosse), seigneur vampire à la faux (Faucheur).
+- **Héros** : Éclaireuse = Rogue, Bûcheron = Barbarian, Sorcière = Mage, Veilleuse = Cleric, Braconnier = Ranger, Sapeur = Engineer, Feu follet = PlantWarrior, Revenante = Necromancer, Colporteur = Hoarder.
+- **Origine** : une partie des modèles vient de la collection payante de l'auteur, redistribuée sous CC0 sur GitHub (miroir épinglé par commit). Dit à Jimmy trois fois, sans objection ; l'auteur est crédité. Décision réversible : les aventuriers et squelettes gratuits à la source restent un repli.
+- **Méthode** (essayée avant la phase, `scratchpad/p46`) :
+  - **proportions** : pas d'échelle d'os à l'exécution (elle cisaille les membres pliés). Au build, les articulations sont déplacées et le maillage redéformé au repos (chaque sommet suit l'étirement local de ses os), puis les matrices de liaison sont refaites ;
+  - **animations** : à chaque image d'un clip actuel, le tronc et la tête reprennent la rotation de la pose par rapport au repos, et chaque segment de membre est orienté comme le sien. Pas de doigts (le squelette KayKit n'en a pas) ;
+  - ennemis : clips du pack KayKit (marche, course, coups, tir), adaptés aux nouvelles proportions ; pas de reprise nécessaire.
+- **Deux livraisons** : A, les neuf héros (1.44.0) ; B, les ennemis et les boss (1.45.0). Chacune est montrée en jeu avant fusion.
+- **Ne change pas** : la simulation, l'équilibrage, les attaques, les noms affichés, les sauvegardes, le repli procédural sans fichiers.
+- **Porte A** : 9 héros distincts, animés sur les 15 clips, dans leurs 3 tenues ; pieds au sol ; budgets tenus (≤ 700 ko par héros, ≤ 40 appels) ; manifeste et crédits testés ; captures et vidéo lues ; portraits régénérés ; test de Jimmy.
+- **Porte B** : 11 types lisibles à 400 ennemis (captures lues en rendu net et pixel) ; LOD et budgets tenus (≤ 40 appels, ≤ 150 k triangles en pixel, ≤ 250 k en net, `enemies.glb` sous son plafond) ; bestiaire régénéré ; relecture perf ; test de Jimmy.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.
