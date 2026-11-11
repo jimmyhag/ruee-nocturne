@@ -124,7 +124,7 @@ test('cache périmé : un ancien enemies.glb est retéléchargé hors cache et l
   expect(await page.evaluate(() => (window as any).__game.scene.enemyKind)).toBe('gltf');
 });
 
-test('les morts-vivants marchent au sol, le Volant reste en l’air (1.21.4)', async ({ page }) => {
+test('les créatures marchent au sol, le Volant reste en l’air (1.21.4)', async ({ page }) => {
   test.setTimeout(60_000);
   await openGame(page);
   await startRun(page, 0);

@@ -794,10 +794,10 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - **un modèle par type** : onze créatures, plus aucun modèle partagé (avant : Brute et Colosse, Sorcier et Essaim-mère) ;
   - **trois réglages de proportions** : boss `FIT` (celui des héros) ; grands gabarits `FIT_LARGE` (brute, chevalier, golem : ils gardent leur carrure) ; sbires `FIT_MASS`, mêmes longueurs humanoïdes mais tête et membres plus forts. À 330 triangles et vus de haut, un membre affiné se réduit à un fil : essayé en jeu, illisible ;
   - **simplification** : les coutures d'UV sont respectées. L'essai inverse (forme d'abord, UV libres) mélange les couleurs : la texture KayKit est une palette, un triangle étiré entre deux cases y traverse d'autres couleurs ;
-  - la Brute a son propre plafond (520 triangles en rendu net, 170 en pixel) : grande et peu nombreuse, elle perdait son visage à 330 ;
+  - la Brute a son propre plafond (360 triangles en rendu net, 130 en pixel) : grande, elle perdait son visage à 330. Essayée à 520 : le plafond de 250 k triangles sautait à 400 ennemis (118 brutes dans la horde de test, 253 k mesurés) ;
   - **Volant** : le dragonnet est un modèle animé comme les autres (battement d'ailes cuit en poses), centré sur sa hauteur et penché une fois pour toutes vers la caméra ; le crâne de `props.glb` ne sert plus ;
   - **teinte** : la couleur d'instance est presque blanche (les textures portent la couleur) ; le liseré garde un soupçon de la couleur du type, éclairci et deux fois moins fort. Flash du coup, or des élites, rouge de la rage, gel, étourdissement : inchangés ;
-  - `enemies.glb` : 536 Ko (636 Ko avant), plafond de 750 Ko inchangé.
+  - `enemies.glb` : 532 Ko (636 Ko avant), plafond de 750 Ko inchangé.
 - **Reste à nettoyer** (sans effet en jeu) : `tools/assets/heroes.ts` garde l'assemblage Quaternius (`assemble`, `addBody`, `finish`), qui ne sert plus qu'à fournir le squelette source des animations ; `props.glb` contient encore le crâne et l'ancien sanctuaire.
 - **Porte B** : 11 types lisibles à 400 ennemis (captures lues en rendu net et pixel) ; LOD et budgets tenus (≤ 40 appels, ≤ 150 k triangles en pixel, ≤ 250 k en net, `enemies.glb` sous son plafond) ; bestiaire régénéré ; relecture perf ; test de Jimmy.
 

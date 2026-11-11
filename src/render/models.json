@@ -227,7 +227,7 @@
   },
   "enemies": {
     "file": "enemies.glb",
-    "bytes": 548560,
+    "bytes": 545052,
     "lods": {
       "hi": 1800,
       "mid": 330,
@@ -251,8 +251,8 @@
       "brute": {
         "anims": ["Walk_Loop"],
         "tris": {
-          "mid": 516,
-          "lo": 166
+          "mid": 356,
+          "lo": 130
         }
       },
       "knight": {

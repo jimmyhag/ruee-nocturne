@@ -563,7 +563,7 @@ export const ENEMY_MODELS: Record<string, EnemySpec> = {
     props: [kayR(`${MM6}/2 - August 2025 - Orc Brute/assets/gltf/Orc_Axe_Large.gltf`, 1)],
     clips: [WALK],
     ...MASS,
-    tris: { mid: 520, lo: 170 },
+    tris: { mid: 360, lo: 130 },
   },
   // Gardien : le chevalier noir, épée et bouclier
   knight: {

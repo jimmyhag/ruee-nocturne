@@ -18,7 +18,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 - `ENEMY_MODELS` (`tools/assets/config.ts`) : onze modèles, trois réglages de proportions (`FIT` pour les boss, `FIT_LARGE` pour les grands gabarits, `FIT_MASS` pour les sbires). `npm run assets -- --enemies` refait `enemies.glb` et sa partie du manifeste.
 - `mergeKay` produit plusieurs niveaux de détail à partir des mêmes sommets, lie les maillages rigides portés par un os (ailes du vampire) et accepte une texture hors fichier.
-- `enemies.glb` : 536 Ko (636 Ko avant). Le dragonnet vient du pack Ultimate Monsters de Quaternius (CC0).
+- `enemies.glb` : 532 Ko (636 Ko avant). Le dragonnet vient du pack Ultimate Monsters de Quaternius (CC0).
 - Essayés et écartés : les clips du pack KayKit (bras tenus loin du corps, faits pour des corps trapus) ; une simplification qui ignore les coutures de texture (elle mélange les couleurs).
 
 ## 1.44.0 — 11 nov. 2026 (demande de Jimmy : de nouveaux skins de héros, plus « fantasy »)
