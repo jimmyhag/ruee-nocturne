@@ -2078,7 +2078,7 @@ function handleEvents(w: World, now: number): void {
         vibrate(80);
         break;
       case Ev.TimeUp:
-        hud.banner(t(e.x2 === 1 ? 'banner.timeUpOpen' : 'banner.timeUp'));
+        hud.banner(t(e.x2 === 1 ? 'banner.timeUpOpen' : e.x2 === 2 ? 'banner.timeUpFight' : 'banner.timeUp'));
         hud.flash('hurt');
         audio.bossWarn();
         vibrate(120);

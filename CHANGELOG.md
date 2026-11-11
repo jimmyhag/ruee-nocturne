@@ -2,6 +2,19 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.45.1 — 11 nov. 2026 (retour de Jimmy : boss du totem tué, pas de portail)
+
+### Corrigé
+
+- **Le portail s'ouvre même si le boss du totem meurt après 0:00.** Il suffit d'avoir activé le totem avant la fin du chrono. Avant, le chrono qui tombait à zéro pendant le combat fermait le passage pour de bon : on tuait le boss et rien ne s'ouvrait. Au monde 3, ce boss donne la victoire de la même façon.
+- À 0:00 pendant le combat, la bannière dit « Le temps est écoulé ! Tue le boss pour ouvrir le portail ». Les monstres se renforcent comme dans toute prolongation.
+- Ce qui ne change pas : un totem jamais activé à 0:00 se ferme.
+
+### Technique
+
+- `tickStage` ne ferme plus un totem en combat à 0:00 ; `Ev.TimeUp` porte l'état (0 fermé, 1 portail ouvert, 2 combat en cours).
+- Simulation (200 parties, bot moyen, graine 42) : 21 % de victoires avec le kit de départ et avec le kit complet, 78 % de passages au monde 2, comme en 1.43.0.
+
 ## 1.45.0 — 11 nov. 2026 (demande de Jimmy : des ennemis du même univers que les héros, « pas des zombies »)
 
 ### Modifié
