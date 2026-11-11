@@ -23,19 +23,23 @@ import {
   GROUND,
   HERO_CLIPS,
   HEROES,
+  KAY_HEROES,
+  KAYKIT2,
   NATURE,
   PACKS,
   PROPS,
   QUATERNIUS,
 } from './config';
 import { buildGround } from './ground';
-import { addBody, assemble, buildHero, copyClip, finish } from './heroes';
+import { addBody, assemble, copyClip, finish } from './heroes';
+import { fetchKay, mergeKay, readKay, reproportion, retargetClips } from './kaykit';
 import { buildNature, NATURE_TEXTURES } from './nature';
 import type { PackKey } from './config';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const CACHE = process.env.KAYKIT_DIR ?? path.join(ROOT, '.cache/kaykit');
 const QCACHE = process.env.QUATERNIUS_DIR ?? path.join(ROOT, '.cache/quaternius');
+const KCACHE = process.env.KAYKIT2_DIR ?? path.join(ROOT, '.cache/kaykit-characters');
 const ARGS = process.argv.slice(2);
 const HEROES_ONLY = ARGS.includes('--heroes');
 const NATURE_ONLY = ARGS.includes('--nature');
@@ -267,7 +271,7 @@ async function main(): Promise<void> {
       models: Record<string, { anims: string[]; tris: Record<string, number> }>;
     };
   } = {
-    source: `KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : ${QUATERNIUS.source} ; décor : ${NATURE.source} ; sol : ${GROUND.source}`,
+    source: `KayKit by Kay Lousberg (www.kaylousberg.com), CC0 ; héros : ${KAYKIT2.source} ; animations des héros et ennemis : ${QUATERNIUS.source} ; décor : ${NATURE.source} ; sol : ${GROUND.source}`,
     heroes: {},
     props: { file: '', bytes: 0, nodes: {} },
     nature: { file: '', bytes: 0, nodes: {} },
@@ -303,17 +307,32 @@ async function main(): Promise<void> {
 
   // --- héros (phase 25 : Quaternius HD) ---
   fetchFiles('kit', [...QUATERNIUS.licenses]);
+  await fetchKay(KCACHE, KAYKIT2.license);
   const libs: Record<string, Document> = {};
   for (const [k, f] of Object.entries(QUATERNIUS.anims)) libs[k] = await readKit(io, f);
   const bases = { M: await readKit(io, QUATERNIUS.base.M), F: await readKit(io, QUATERNIUS.base.F) };
   const only = ARGS.includes('--only') ? ARGS[ARGS.indexOf('--only') + 1].split(',') : null;
   for (const [key, h] of Object.entries(HEROES)) {
     if (only && !only.includes(key)) continue;
-    const doc = await readKit(io, QUATERNIUS.outfit(h.sex, h.outfit));
+    // phase 46 : le squelette de la tenue Quaternius et ses 15 clips UAL ne servent plus que de source d'animation ;
+    // le modèle est un personnage KayKit mis en proportions humanoïdes, sur lequel les clips sont repris
+    const src = await readKit(io, QUATERNIUS.outfit(h.sex, h.outfit));
+    for (const c of HERO_CLIPS) {
+      const from = c.to === 'Idle' && h.idle ? h.idle : c;
+      copyClip(src, libs[from.src], from.from, c.to, !!c.inPlace, c.speed ?? 1);
+    }
+    const K = KAY_HEROES[key];
+    const doc = await readKay(io, KCACHE, K.file);
     const root = doc.getRoot();
-    const hairs = await Promise.all(h.hair.map((n) => readKit(io, QUATERNIUS.hair(n))));
-    const props = await Promise.all(h.props.map((p) => io.read(fetchFiles('showcase', [p.file])[0])));
-    const heroTris = await buildHero(doc, h, bases[h.sex], hairs, libs, props);
+    reproportion(doc, K.prop);
+    retargetClips(
+      src,
+      doc,
+      HERO_CLIPS.map((c) => c.to),
+    );
+    const props = [];
+    for (const spec of K.props) props.push({ doc: await readKay(io, KCACHE, spec.file), spec });
+    const heroTris = await mergeKay(doc, { props, tris: h.tris, name: 'Body', material: 'Hero' });
     await doc.transform(resample({ tolerance: 1e-3 }));
     const stripped = stripStaticTracks(doc);
     await doc.transform(
