@@ -1332,7 +1332,10 @@ export const REVIVE = {
 // phase 43 (grand rééquilibrage) : 100 → 40 améliorations par arme et par tome, comme Megabonk. Les lignes en pourcentage
 // se multiplient (+10 % cumulés) alors que les monstres montent en ligne droite : sans plafond, une bonne build finissait
 // toujours par les dépasser en monde infini. Dans un objet : la CLI peut le régler (--set LEVEL_MAX.weapon=…)
-export const LEVEL_MAX = { weapon: 40, tome: 40 };
+// phase 50 (décision de Jimmy, 12 nov.) : retour à 100. Ce qui borne la puissance, c'est l'XP tardive (XP.late : une
+// arme seule arrive vers le niveau 42 à la victoire, 49 à sa mort en monde infini) et la montée du monde infini
+// (ENDLESS.ramp), plus le plafond. Mesures dans PLAN.md, phase 50
+export const LEVEL_MAX = { weapon: 100, tome: 100 };
 export const MAX_WEAPONS = 4;
 export const MAX_PASSIVES = 4; // tomes (le nom « passives » reste dans la méta et les emplacements sauvegardés)
 

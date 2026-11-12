@@ -133,7 +133,7 @@ Phase 43 (grand rééquilibrage) :
 
 ## 8 bis. Bornes de puissance (phase 43)
 Les lignes d'arme en pourcentage se multiplient, les monstres montent en ligne droite : sans borne, une bonne build finit toujours par dépasser le jeu (mesuré : le kit à une arme tenait 7:39 en médiane en monde infini, 17:51 pour une partie sur dix).
-- **Niveau 40 au plus** pour une arme ou un tome (`LEVEL_MAX`), comme Megabonk. Le kit concentré l'atteint à la fin du monde 3 ; ensuite seuls les autres emplacements progressent : les emplacements débloqués comptent en fin de partie.
+- **Niveau 100 au plus** pour une arme ou un tome (`LEVEL_MAX`). La phase 43 l'avait mis à 40, Jimmy l'a remis à 100 en phase 50 : le plafond ne se voit plus en partie (une arme seule arrive vers le niveau 42 à la victoire, 50 à sa mort en monde infini). Ce qui borne la puissance, c'est l'XP tardive. Mesuré à 100 contre 40 : rien ne bouge pour le kit complet (arme principale niveau 18) ; le kit à une arme tient 4:24–4:31 en monde infini au lieu de 2:49 (p90 10–11 min au lieu de 6:23), toujours dans les cibles. Doubler les termes carrés de `ENDLESS.ramp` n'y change rien : ce n'est pas la rampe qui le tue, ce sont les attaques des boss et les tireurs.
 - **XP** : terme tardif à partir du niveau 30 (`XP.late`). Sans effet mesurable sur les victoires ; il espace les cartes en monde infini.
 - **Objets** : pas de plafond au total (comme Megabonk), mais 5 / 3 / 2 exemplaires au plus par objet commun / rare / épique (`ITEM.maxCopies`), deux exemplaires pleins puis moitié.
 - **Marchand** : relance 60 or, ×2 par relance de la visite, +35 % par visite ; prix +35 % par visite, +25 % par objet porté ; deux passages seulement en monde infini.

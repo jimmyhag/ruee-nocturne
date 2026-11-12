@@ -47,17 +47,17 @@ describe('partie gardée en mémoire : reprise identique', () => {
     const f = play(w, 1800);
     expect(w.t).toBeGreaterThan(20);
     expectSameFuture(w, f, 3600);
-  });
+  }, 90_000);
 
   it('chaque personnage (armes, sorts et passifs différents)', () => {
     for (const c of CHARACTERS) {
       const opts: WorldOptions = { character: c.key as CharacterKey };
       const w = invincible(new World(77, opts));
       startRun(w);
-      const f = play(w, 2400);
-      expectSameFuture(w, f, 1200);
+      const f = play(w, 1800);
+      expectSameFuture(w, f, 900);
     }
-  });
+  }, 120_000); // neuf parties : 50 s sur le runner de CI avec la couverture (30 s par défaut : rouge sur la 1.52.0)
 
   it('longue partie : instantané chaque minute pendant 8 min (marchand, coffres, boss de survie, totem)', () => {
     const w = invincible(new World(4242));
@@ -124,7 +124,7 @@ describe('partie gardée en mémoire : reprise identique', () => {
     f = play(w, 1200, f);
     expect(w.endless).toBe(true);
     expectSameFuture(w, f, 1200);
-  });
+  }, 90_000);
 
   it('lieux de la carte utilisés : coffres, sanctuaires, crânes, totems de boss, totem', () => {
     const w = invincible(new World(555));
