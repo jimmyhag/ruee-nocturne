@@ -169,7 +169,7 @@ export function summonSurvivalBoss(w: World, k: number): void {
     x.hp = x.max = (e.max / ENEMIES[type].hp) * ENEMIES[xt].hp * BOSSTOTEM.extraHp;
     x.cadence = BOSSTOTEM.extraCadence;
     w.survivalAlive++;
-    w.emit(Ev.BossSpawn, x.x, 2, x.z, w.bossCount, xt, 1);
+    w.emit(Ev.BossSpawn, x.x, 2, x.z, w.bossCount, xt, 2); // y2 = 2 : boss en plus, la bannière reste au boss de la vague
   }
 }
 
@@ -330,7 +330,9 @@ function tickEndless(w: World, dt: number): void {
 /** Vague de boss du monde infini : autour du joueur, PV de la règle du totem × (1 + hpPerWave · vague). */
 export function summonEndlessWave(w: World): void {
   const k = w.endlessWave++;
-  const n = endlessBosses(k) + w.bossExtra, // phase 48 : totems de boss activés au monde 3, dans la limite de maxAlive
+  // phase 48 : totems de boss activés au monde 3, dans la limite de maxAlive. Ici la vague grossit de boss entiers (pas
+  // de seconds couteaux) : le monde infini compte en boss par vague
+  const n = endlessBosses(k) + w.bossExtra,
     P = w.player;
   for (let j = 0; j < n; j++) {
     if (w.endlessAlive >= ENDLESS.maxAlive) break; // trop de boss en vie : le reste de la vague attend

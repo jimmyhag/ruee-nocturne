@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 import { collectConsoleErrors, openGame, startRun } from './helpers';
 
 test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au dernier', async ({ page }, info) => {
+  test.setTimeout(150_000); // trois combats de boss à la suite : plus d'une minute sur le runner (SwiftShader)
   const errors = collectConsoleErrors(page);
   const p = info.project.name;
   await openGame(page);
@@ -39,8 +40,14 @@ test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au der
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 2, null, { timeout: 20_000 });
   await expect(page.locator('#bossbar')).toBeVisible();
   await expect(page.locator('#bossname')).toContainText('encore 1');
-  await page.waitForTimeout(600);
+  await expect(page.locator('#banner')).toContainText('Boss de survie'); // celle du boss de la vague, pas du boss en plus
+  await page.waitForTimeout(3000); // le temps qu'ils entrent dans le champ
   await page.screenshot({ path: `shots/${p}-deux-boss.png` });
+  // deux types de boss à l'écran : relevé des appels de rendu (4 de plus qu'un seul type : corps et contour)
+  console.log(
+    `[${p}] appels de rendu avec deux boss :`,
+    await page.evaluate(() => (window as any).__game.renderer.info.render.calls),
+  );
   await page.evaluate(() => (window as any).__game.debug.killBoss());
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 1, null, { timeout: 20_000 });
   await expect(page.locator('#bossname')).not.toContainText('encore');
