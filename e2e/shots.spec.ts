@@ -90,6 +90,7 @@ test('menu, jeu à 3 min, montée de niveau, mort', async ({ page }, info) => {
 
 // Porte de phase 2 : kill d'élite (particules, chiffres), montée de niveau (anneau), boss (bannière, barre, recul caméra).
 test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, info) => {
+  test.setTimeout(120_000); // 40 à 58 s en rendu logiciel, pour 60 s par défaut
   const p = info.project.name;
   await openGame(page);
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
@@ -124,7 +125,9 @@ test('game feel : kill d’élite, montée de niveau, boss', async ({ page }, in
     g.debug.teleport(g.world.totem.x, g.world.totem.z);
   });
   await pickUntilPlay(page);
-  await page.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 15_000 });
+  // la charge (3 s de jeu) prend 11 à 14 s réelles en rendu logiciel, autant avant qu'après la phase 50 (mesuré) :
+  // 15 s ne laissaient aucune marge sur le runner de CI (rouge sur le correctif de la 1.53.0)
+  await page.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 45_000 });
   await page.evaluate(() => (window as any).__game.debug.pullBoss(6));
   await page.waitForTimeout(400);
   await expect(page.locator('#banner')).toHaveClass(/on/);
