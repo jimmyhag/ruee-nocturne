@@ -15,6 +15,8 @@ import { Ev, Mode, Pw, Spell, HIT_CRIT, HitSrc } from './sim/types';
 import { POWER_ICON } from './ui/icons';
 import type { Input } from './sim/types';
 import { World } from './sim/world';
+import { restoreWorld, snapshotWorld } from './sim/snapshot';
+import { clearRun, peekRun, readRun, writeRun, type RunRead, type SavedRun } from './meta/run-save';
 import type { GameScene } from './render/scene';
 import { PAL } from './render/palette';
 import { FEEL, HitStop } from './render/feel';
@@ -189,6 +191,14 @@ const SCREENS = [
 ] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 let dailyRun = false; // partie en cours = défi du jour
+// phase 49 : partie gardée sur l'appareil (menu « Reprendre »), personnage et tenue de la partie en cours (le joueur peut
+// changer de personnage au menu pendant qu'elle attend), temps de jeu de la dernière écriture
+let savedRun: SavedRun | null = null;
+let runChar = 'eclaireuse';
+let runOutfit = 0;
+let runSavedT = 0;
+/** Lancement en attente d'une confirmation d'abandon (« Jouer » ou défi du jour alors qu'une partie attend). */
+let abandonFor: { daily: boolean } | null = null;
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
 const runStats = { dards: 0, elites: 0, bosses: 0, won: false };
 let lastVibe = 0;
@@ -277,6 +287,7 @@ function updateBestLine(): void {
   $('notesDot').hidden = !fresh;
   $('notesBtn').classList.toggle('fresh', fresh);
   $('shopLabel').textContent = t('menu.shopGold', { gold: t('gold', { n: Math.round(meta.gold) }) }); // le bouton garde son icône
+  updateResumeBtn();
 }
 /** Applique les réglages (HUD, gaucher, vibrations, son, langue) au DOM et aux libellés. */
 function applySettings(): void {
@@ -479,10 +490,10 @@ function mapSeedFor(variant: number | undefined, daily: boolean): number {
 /** Graine imposée par le débogage (tests e2e) aux parties lancées avec une variante. */
 let debugMapSeed: number | null = null;
 
-let startWanted: { variant?: number; daily: boolean } | null = null;
+let startWanted: { variant?: number; daily: boolean; resume: SavedRun | null } | null = null;
 /** Attente des modèles des ennemis au premier départ de la session (une seule fois). */
 let modelsWaited = false;
-function startGame(variant?: number, daily = false): void {
+function startGame(variant?: number, daily = false, resume: SavedRun | null = null): void {
   timestopOn = false; // phase 35
   document.body.classList.remove('timestop');
   if (!meta.seenReset) {
@@ -491,7 +502,7 @@ function startGame(variant?: number, daily = false): void {
   }
   if (!scene || !sceneReady) {
     // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
-    if (!startWanted) startWanted = { variant, daily }; // la première intention (ex. défi du jour) l'emporte
+    if (!startWanted) startWanted = { variant, daily, resume }; // la première intention (ex. défi du jour) l'emporte
     $<HTMLButtonElement>('playBtn').disabled = true;
     $('playBtn').textContent = t('menu.loading');
     loadScene().then(
@@ -500,7 +511,7 @@ function startGame(variant?: number, daily = false): void {
         startWanted = null;
         $<HTMLButtonElement>('playBtn').disabled = false;
         $('playBtn').textContent = t('menu.play');
-        if (w) startGame(w.variant, w.daily);
+        if (w) startGame(w.variant, w.daily, w.resume);
       },
       () => {
         // module introuvable (réseau coupé au tout premier lancement) : on laisse réessayer
@@ -522,31 +533,58 @@ function startGame(variant?: number, daily = false): void {
     Promise.race([scene.enemiesReady, new Promise<void>((r) => setTimeout(r, 8000))]).then(() => {
       btn.disabled = false;
       btn.textContent = t('menu.play');
-      startGame(variant, daily);
+      startGame(variant, daily, resume);
     });
     return;
   }
   const S = scene;
-  S.setCharacter(daily ? 'eclaireuse' : meta.character, daily ? 0 : outfitOf(meta, meta.character));
+  // phase 49 : reprise d'une partie gardée (le monde vient de l'instantané), ou partie neuve
+  $('runLostNote').hidden = true;
+  let restored: World | null = null;
+  if (resume) {
+    try {
+      restored = restoreWorld(resume.snap);
+    } catch {
+      forgetRun(); // sauvegarde illisible : le menu repart sans elle
+      $('runLostNote').hidden = false;
+      updateBestLine();
+      return;
+    }
+    daily = resume.daily;
+    runChar = resume.character;
+    runOutfit = resume.outfit;
+  } else {
+    forgetRun(); // une nouvelle partie remplace celle qui attendait (abandon confirmé au menu)
+    runChar = daily ? 'eclaireuse' : meta.character;
+    runOutfit = daily ? 0 : outfitOf(meta, meta.character);
+  }
+  S.setCharacter(runChar as CharacterKey, runOutfit);
   audio.init();
   audio.setMusic('game'); // phase 36 : musique de partie et ambiance de nuit
   dailyRun = daily;
-  runStats.dards = runStats.elites = runStats.bosses = 0;
+  runStats.dards = resume?.runStats.dards ?? 0;
+  runStats.elites = resume?.runStats.elites ?? 0;
+  runStats.bosses = resume?.runStats.bosses ?? 0;
   runStats.won = false;
-  // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
-  const mapSeed = mapSeedFor(variant, daily);
-  world = new World(mapSeed, worldOptions(meta, unlockedWeapons(meta), daily));
-  if (mapSeed !== decorSeed) {
-    S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
-    decorSeed = mapSeed;
+  if (restored) world = restored;
+  else {
+    // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
+    world = new World(mapSeedFor(variant, daily), worldOptions(meta, unlockedWeapons(meta), daily));
   }
-  S.setStage(0); // phase 37 : ambiance du premier monde
+  if (world.seed !== decorSeed) {
+    S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
+    decorSeed = world.seed;
+  }
+  S.setStage(world.stage); // phase 37 : ambiance du monde
   mapView.prepare(world); // fond de la minicarte construit ici, pas dans la première image de jeu
-  // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
-  // `variant` (debug/tests) remplace l'horloge ; le défi du jour utilise la seed de la date : même run pour tous
-  const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;
-  for (let i = 0; i < skips; i++) world.rng.next();
-  startRun(world);
+  if (!restored) {
+    // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
+    // `variant` (debug/tests) remplace l'horloge ; le défi du jour utilise la seed de la date : même run pour tous
+    const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;
+    for (let i = 0; i < skips; i++) world.rng.next();
+    startRun(world);
+  }
+  runSavedT = world.t;
   app = 'play';
   showOnly(null);
   $('hud').hidden = false;
@@ -563,6 +601,74 @@ function startGame(variant?: number, daily = false): void {
   applyFx();
   $('update').hidden = true; // jamais de bannière de mise à jour en jeu
   last = performance.now();
+  if (restored) {
+    // phase 49 : on rouvre ce que le joueur avait devant lui ; une partie en cours reprend en pause
+    if (world.mode === Mode.LevelUp) openLevelUp();
+    else if (world.mode === Mode.Merchant) openMerchant();
+    else if (world.mode === Mode.Won) openVictory();
+    else pauseGame();
+  }
+}
+
+// ---------- phase 49 : partie gardée sur l'appareil ----------
+/** Écrans où une partie est en cours (la mort et l'écran de fin n'en font plus partie). */
+function runOngoing(): boolean {
+  return (
+    world !== null &&
+    world.mode !== Mode.Dead &&
+    (app === 'play' || app === 'pause' || app === 'levelup' || app === 'merchant' || app === 'map' || app === 'victory')
+  );
+}
+/** Écrit la partie en cours sur l'appareil (fermeture, pause, choix, et toutes les RUN_SAVE_EVERY s de jeu). */
+function saveRun(): void {
+  if (!world || !runOngoing()) return;
+  const w = world;
+  try {
+    savedRun = {
+      v: 1,
+      version: VERSION,
+      at: Date.now(),
+      snap: snapshotWorld(w),
+      character: runChar,
+      outfit: runOutfit,
+      daily: dailyRun,
+      runStats: { dards: runStats.dards, elites: runStats.elites, bosses: runStats.bosses },
+      summary: { stage: w.stage + 1, stageT: w.stageT, t: w.t, endless: w.endless, kills: w.kills },
+    };
+    writeRun(savedRun);
+  } catch {
+    /* jamais bloquant : la partie continue, au pire sans sauvegarde */
+  }
+  runSavedT = w.t;
+}
+function forgetRun(): void {
+  savedRun = null;
+  abandonFor = null;
+  clearRun(); // localStorage et IndexedDB : une sauvegarde trop grosse pour le premier vit dans le second
+}
+/** Bouton « Reprendre » du menu et confirmation d'abandon. */
+function updateResumeBtn(): void {
+  const r = savedRun;
+  $('resumeRunBtn').hidden = !r;
+  $('playBtn').classList.toggle('big', !r);
+  $('playBtn').classList.toggle('ghost', !!r);
+  if (r) {
+    const time = fmtTime(r.summary.endless ? r.summary.t : r.summary.stageT);
+    $('resumeRunInfo').textContent = r.summary.endless
+      ? t('menu.resumeInfoEndless', { time })
+      : t('menu.resumeInfo', { stage: r.summary.stage, time });
+  }
+  $('abandonRow').hidden = abandonFor === null;
+}
+/** « Jouer » ou défi du jour : si une partie attend, on demande d'abord s'il faut l'abandonner. */
+function playNew(daily: boolean): void {
+  if (savedRun) {
+    abandonFor = { daily };
+    updateResumeBtn();
+    $('abandonNoBtn').focus({ preventScroll: true });
+    return;
+  }
+  startGame(undefined, daily);
 }
 /**
  * Phase 37 : arrivée dans un nouveau monde (la sim a déjà construit la carte). Fondu au noir, décor et minicarte
@@ -609,6 +715,7 @@ function pauseGame(): void {
   app = 'pause';
   if (world) $('pauseStats').innerHTML = statsHTML(world); // phase 47 : fiche de stats, à jour à chaque pause
   showOnly('pause');
+  saveRun(); // phase 49
 }
 function resumeGame(): void {
   if (app !== 'pause') return;
@@ -616,6 +723,8 @@ function resumeGame(): void {
 }
 // 1.37.1 (retour de Jimmy) : toute reprise garde l'élan (input.resume) et repart en douceur (FEEL.resume)
 let resumeEase = 0;
+/** Phase 49 : s de jeu entre deux écritures de la partie pendant qu'on joue (les fermetures écrivent aussi). */
+const RUN_SAVE_EVERY = 20;
 function backToPlay(): void {
   app = 'play';
   showOnly(null);
@@ -627,6 +736,7 @@ function openLevelUp(): void {
   if (!world) return;
   const again = app === 'levelup'; // re-rendu (changement de langue) : ni son ni balayage
   app = 'levelup';
+  if (!again) saveRun(); // phase 49 : les cartes proposées sont gardées telles quelles
   // phase 17 : un coffre propose des objets passifs (même écran, autre titre)
   const chest = world.cards[0]?.kind === 'i';
   const shrine = world.cards[0]?.kind === 'b'; // phase 18 : bonus de sanctuaire
@@ -662,6 +772,7 @@ function openMerchant(): void {
   app = 'merchant';
   renderMerchant();
   if (!first) return;
+  saveRun(); // phase 49
   showOnly('merchant');
   audio.chest();
   if (!input.isTouch) ($('mcards').firstElementChild as HTMLElement | null)?.focus({ preventScroll: true });
@@ -823,6 +934,7 @@ function gameOver(won = false): void {
   if (!world || !scene) return;
   const S = scene;
   app = 'over';
+  forgetRun(); // phase 49 : une partie finie n'est plus à reprendre
   const rec = world.t > meta.bestTime;
   meta.runs++;
   meta.totalKills += world.kills;
@@ -851,7 +963,7 @@ function gameOver(won = false): void {
   st.bestStage = Math.max(st.bestStage, won ? 4 : world.stage + 1); // phase 37
   if (world.endless) st.endlessBest = Math.max(st.endlessBest, Math.floor(world.endlessT)); // phase 39
   recordCodex(meta, world); // phase 40 : parties avec chaque arme, objet, tome, synergie (Bibliothèque)
-  const played = dailyRun ? 'eclaireuse' : meta.character; // défi du jour : toujours l'Éclaireuse
+  const played = runChar as CharacterKey; // défi du jour : toujours l'Éclaireuse ; phase 49 : celui de la partie, même reprise
   addCharRun(meta.chars, played, runCharStats(played, world, won)); // phase 41 : défis par personnage
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
@@ -863,7 +975,7 @@ function gameOver(won = false): void {
     stage: won ? 4 : world.stage + 1,
     time: Math.floor(world.t),
     kills: world.kills,
-    char: dailyRun ? 'eclaireuse' : meta.character,
+    char: runChar,
   });
   renderOverScreen();
   S.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
@@ -914,13 +1026,26 @@ addEventListener('keydown', (e) => {
 });
 
 // ---------- boutons ----------
-$('playBtn').onclick = () => startGame();
+$('playBtn').onclick = () => playNew(false);
+$('resumeRunBtn').onclick = () => {
+  if (savedRun) startGame(undefined, false, savedRun);
+};
+$('abandonYesBtn').onclick = () => {
+  const d = abandonFor?.daily ?? false;
+  forgetRun();
+  updateResumeBtn();
+  startGame(undefined, d);
+};
+$('abandonNoBtn').onclick = () => {
+  abandonFor = null;
+  updateResumeBtn();
+};
 // 1.48.1 : le bouton ouvre la feuille qui explique le défi ; c'est elle qui lance la partie
 $('dailyBtn').onclick = () => openScreen('daily');
 $('dailyBackBtn').onclick = closeScreen;
 $('dailyPlayBtn').onclick = () => {
   closeScreen();
-  startGame(undefined, true);
+  playNew(true);
 };
 addEventListener('keydown', (e) => {
   if ((app !== 'daily' && app !== 'notes') || e.repeat || e.code !== 'Escape') return;
@@ -1011,7 +1136,7 @@ $('helpBtn').onclick = () => openScreen('help');
 $('helpBackBtn').onclick = closeScreen;
 $('helpPlayBtn').onclick = () => {
   closeScreen();
-  startGame();
+  playNew(false);
 };
 $('pauseSettingsBtn').onclick = () => openScreen('settings');
 $('shopBackBtn').onclick = closeScreen;
@@ -1198,8 +1323,11 @@ $('resetBtn').onclick = () => {
 };
 $('againBtn').onclick = () => startGame();
 $('restartBtn').onclick = () => startGame();
-$('menuBtn').onclick = toMenu;
-$('quitBtn').onclick = toMenu;
+$('menuBtn').onclick = toMenu; // écran de fin : la partie est terminée
+$('quitBtn').onclick = () => {
+  saveRun(); // phase 49 : « Menu » de la pause garde la partie (« Reprendre »)
+  toMenu();
+};
 $('pauseBtn').onclick = pauseGame;
 $('resumeBtn').onclick = resumeGame;
 $('soundBtn').onclick = () => {
@@ -1256,8 +1384,13 @@ addEventListener('keydown', (e) => {
   else openMap();
 });
 input.onConfirm = () => {
-  if (app === 'menu') startGame();
-  else if (app === 'over') startGame();
+  // phase 49 : au menu, Entrée reprend la partie gardée s'il y en a une (le focus clavier, lui, peut viser un autre bouton)
+  // un bouton du menu qui a le focus reçoit déjà Entrée (clic natif) : il décide seul (« Jouer » demande l'abandon)
+  if (app === 'menu' && document.activeElement?.closest?.('#menu button')) return;
+  if (app === 'menu') {
+    if (savedRun) startGame(undefined, false, savedRun);
+    else startGame();
+  } else if (app === 'over') startGame();
   else if (app === 'victory') victoryContinue(); // phase 39 : Entrée = continuer en monde infini
 };
 input.onTouchDetected = () => {
@@ -1282,9 +1415,14 @@ addEventListener('keydown', (e) => {
 });
 $('perfBtn').onclick = () => setPerf(!perfOn);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) pauseGame();
+  if (document.hidden) {
+    pauseGame();
+    saveRun(); // phase 49 : changer d'app ou fermer passe ici (sur téléphone, souvent sans pagehide ensuite)
+  }
   audio.background(document.hidden); // phase 36 : pas de musique quand l'appli passe en arrière-plan
 });
+// phase 49 : rafraîchir ou fermer l'onglet ; localStorage est écrit de façon synchrone, avant que la page parte
+addEventListener('pagehide', saveRun);
 $('version').textContent = `v${VERSION}`;
 $('notesVer').textContent = `v${VERSION}`;
 
@@ -1406,7 +1544,8 @@ function onAuthChange(u: AccountUser | null): void {
 async function reconcileAccount(): Promise<void> {
   const u = account?.user;
   if (!account || !u) return;
-  if (app === 'play' || app === 'levelup' || app === 'pause') {
+  // phase 49 : aussi chez le marchand, sur la carte et à l'écran de victoire (une partie y est encore en cours)
+  if (runOngoing()) {
     pendingReconcile = true;
     return;
   }
@@ -2387,6 +2526,7 @@ function frame(nowMs: number): void {
       if (world.mode !== Mode.Play) break;
     }
     if (n === 4) acc = 0; // on ne rattrape pas : évite la spirale de la mort
+    if (world.t - runSavedT >= RUN_SAVE_EVERY) saveRun(); // phase 49 : contre un arrêt brutal sans événement
     if (debugRt) debugRt.onFrame(world); // mode stress (debug uniquement) ; null en prod
     if (world.mode === Mode.Dead)
       gameOver(world.endless); // phase 39 : la victoire est acquise si l'on est en monde infini
@@ -2508,6 +2648,22 @@ if (!meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   saveMeta(meta);
   openScreen('help');
 }
+// phase 49 : une partie gardée sur l'appareil ? Lecture synchrone d'abord (menu juste dès l'affichage), IndexedDB ensuite
+function takeRun(r: RunRead): void {
+  if (r && 'run' in r) savedRun = r.run;
+  else if (r && 'stale' in r) {
+    clearRun(); // format d'avant une mise à jour qui le rend faux : on le dit une fois et on l'oublie
+    $('runLostNote').hidden = false;
+  }
+}
+takeRun(peekRun());
+updateResumeBtn();
+if (!savedRun)
+  void readRun().then((r) => {
+    if (app !== 'menu' || savedRun) return;
+    takeRun(r);
+    updateResumeBtn();
+  });
 let metaLoaded = false;
 loadMeta().then((m) => {
   if (JSON.stringify(m) !== JSON.stringify(meta)) {

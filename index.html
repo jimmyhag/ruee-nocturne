@@ -1004,6 +1004,34 @@
         align-items: center;
         gap: 10px;
       }
+      /* phase 49 : reprendre la partie gardée, avec le monde et le chrono */
+      button.resume small {
+        display: block;
+        font-family: var(--f-body);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0;
+        opacity: 0.75;
+      }
+      .abandonrow {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+      }
+      .abandonrow p,
+      .runnote {
+        width: 100%;
+        margin: 0;
+        text-align: center;
+        color: var(--paper);
+        font-size: 14px;
+      }
+      #abandonYesBtn {
+        color: var(--hp);
+        border-color: currentColor;
+      }
       /* barre d'icônes : rangée en bas sur téléphone, colonne à gauche sur grand écran */
       .menubar {
         display: flex;
@@ -2303,8 +2331,13 @@
         .title {
           font-size: 92px;
         }
-        .playrow {
+        .playrow,
+        .abandonrow {
           justify-content: flex-start;
+        }
+        .abandonrow p,
+        .runnote {
+          text-align: left;
         }
         .menubar {
           justify-content: flex-start;
@@ -2652,9 +2685,20 @@
       </div>
       <div class="home-bottom">
         <div class="playrow">
-          <button class="big" id="playBtn" data-i18n="menu.play">Jouer</button
+          <button class="big resume" id="resumeRunBtn" hidden>
+            <span data-i18n="menu.resume">Reprendre</span><small id="resumeRunInfo"></small></button
+          ><button class="big" id="playBtn" data-i18n="menu.play">Jouer</button
           ><button class="ghost" id="dailyBtn" hidden data-i18n="menu.daily">Défi du jour</button>
         </div>
+        <!-- phase 49 : une partie attend ; en commencer une autre l'abandonne -->
+        <div class="abandonrow" id="abandonRow" hidden role="alertdialog" aria-labelledby="abandonText">
+          <p id="abandonText" data-i18n="menu.abandon.q">Abandonner la partie en cours ?</p>
+          <button class="ghost" id="abandonYesBtn" data-i18n="menu.abandon.yes">Abandonner</button
+          ><button class="ghost" id="abandonNoBtn" data-i18n="menu.abandon.no">Annuler</button>
+        </div>
+        <p class="runnote" id="runLostNote" hidden data-i18n="menu.runLost">
+          Ta partie en cours n'a pas pu être reprise après la mise à jour.
+        </p>
         <nav class="menubar" id="menuBar" aria-label="Menu">
           <button class="btn-icon" id="charsBtn">
             <svg viewBox="0 0 24 24" aria-hidden="true">
