@@ -192,11 +192,10 @@ const SCREENS = [
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 let dailyRun = false; // partie en cours = défi du jour
 // phase 49 : partie gardée sur l'appareil (menu « Reprendre »), personnage et tenue de la partie en cours (le joueur peut
-// changer de personnage au menu pendant qu'elle attend), temps de jeu de la dernière écriture
+// changer de personnage au menu pendant qu'elle attend)
 let savedRun: SavedRun | null = null;
 let runChar = 'eclaireuse';
 let runOutfit = 0;
-let runSavedT = 0;
 /** Lancement en attente d'une confirmation d'abandon (« Jouer » ou défi du jour alors qu'une partie attend). */
 let abandonFor: { daily: boolean } | null = null;
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
@@ -584,7 +583,6 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
     for (let i = 0; i < skips; i++) world.rng.next();
     startRun(world);
   }
-  runSavedT = world.t;
   app = 'play';
   showOnly(null);
   $('hud').hidden = false;
@@ -619,7 +617,11 @@ function runOngoing(): boolean {
     (app === 'play' || app === 'pause' || app === 'levelup' || app === 'merchant' || app === 'map' || app === 'victory')
   );
 }
-/** Écrit la partie en cours sur l'appareil (fermeture, pause, choix, et toutes les RUN_SAVE_EVERY s de jeu). */
+/**
+ * Écrit la partie en cours sur l'appareil : en quittant (onglet caché, fermeture), en pause, aux choix de cartes et chez le
+ * marchand. Jamais pendant l'action : un instantané à 400 ennemis coûte ≈ 4 ms et 165 Ko (npm run bench), une image
+ * perdue sur téléphone ; les montées de niveau (une toutes les 15 s environ) le rafraîchissent déjà souvent.
+ */
 function saveRun(): void {
   if (!world || !runOngoing()) return;
   const w = world;
@@ -639,7 +641,6 @@ function saveRun(): void {
   } catch {
     /* jamais bloquant : la partie continue, au pire sans sauvegarde */
   }
-  runSavedT = w.t;
 }
 function forgetRun(): void {
   savedRun = null;
@@ -723,8 +724,6 @@ function resumeGame(): void {
 }
 // 1.37.1 (retour de Jimmy) : toute reprise garde l'élan (input.resume) et repart en douceur (FEEL.resume)
 let resumeEase = 0;
-/** Phase 49 : s de jeu entre deux écritures de la partie pendant qu'on joue (les fermetures écrivent aussi). */
-const RUN_SAVE_EVERY = 20;
 function backToPlay(): void {
   app = 'play';
   showOnly(null);
@@ -2526,7 +2525,6 @@ function frame(nowMs: number): void {
       if (world.mode !== Mode.Play) break;
     }
     if (n === 4) acc = 0; // on ne rattrape pas : évite la spirale de la mort
-    if (world.t - runSavedT >= RUN_SAVE_EVERY) saveRun(); // phase 49 : contre un arrêt brutal sans événement
     if (debugRt) debugRt.onFrame(world); // mode stress (debug uniquement) ; null en prod
     if (world.mode === Mode.Dead)
       gameOver(world.endless); // phase 39 : la victoire est acquise si l'on est en monde infini

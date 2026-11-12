@@ -5,6 +5,7 @@ import { startRun, step } from '../src/sim/step';
 import { spawnEnemy } from '../src/sim/spawner';
 import { World } from '../src/sim/world';
 import { refreshStats } from '../src/sim/weapons/defs';
+import { snapshotWorld } from '../src/sim/snapshot';
 
 const w = new World(1);
 startRun(w);
@@ -62,7 +63,19 @@ const heapMb = (heap1 - heap0) / 1048576;
 console.log(
   `steps 600 · ennemis ~${w.enemyCount} · p50 ${p(0.5)} ms · p95 ${p(0.95)} ms · max ${times[times.length - 1].toFixed(3)} ms · tas ${heapMb >= 0 ? '+' : ''}${heapMb.toFixed(2)} Mo`,
 );
+// phase 49 : partie gardée sur l'appareil. Un instantané (instantané + texte) à 400 ennemis : hors de la boucle de
+// pas (pause, fermeture, toutes les 20 s de jeu), mais il ne doit pas faire sauter une image sur téléphone
+const snapTimes: number[] = [];
+let snapLen = 0;
+for (let i = 0; i < 20; i++) {
+  const t0 = performance.now();
+  snapLen = JSON.stringify(snapshotWorld(w)).length;
+  snapTimes.push(performance.now() - t0);
+}
+snapTimes.sort((a, b) => a - b);
+const snapMs = snapTimes[snapTimes.length >> 1];
+console.log(`instantané de partie : p50 ${snapMs.toFixed(2)} ms · ${(snapLen / 1024).toFixed(0)} Ko`);
 const maxMs = times[times.length - 1];
-const ok = +p(0.95) <= 6 && maxMs <= 20 && heapMb <= 2; // max : une désoptimisation V8 après une carte se voit ici (phase 12)
-console.log(ok ? 'BENCH OK' : 'BENCH ÉCHEC (p95 ≤ 6 ms, max ≤ 20 ms, tas ≤ +2 Mo)');
+const ok = +p(0.95) <= 6 && maxMs <= 20 && heapMb <= 2 && snapMs <= 6 && snapLen <= 600_000; // max : une désoptimisation V8 après une carte se voit ici (phase 12)
+console.log(ok ? 'BENCH OK' : 'BENCH ÉCHEC (p95 ≤ 6 ms, max ≤ 20 ms, tas ≤ +2 Mo, instantané ≤ 6 ms et 600 Ko)');
 process.exit(ok ? 0 : 1);

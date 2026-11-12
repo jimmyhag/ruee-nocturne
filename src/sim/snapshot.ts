@@ -99,6 +99,8 @@ function encode(v: unknown, path: string): unknown {
   }
   if (typeof v === 'string' || typeof v === 'boolean' || v === null || v === undefined) return v ?? null;
   if (isTyped(v)) {
+    // entiers : ni -0, ni NaN, ni infini possibles, copie directe (le brouillard découvert en compte des milliers)
+    if (!(v instanceof Float32Array || v instanceof Float64Array)) return { $ta: v.constructor.name, d: Array.from(v) };
     const out = new Array<unknown>(v.length);
     for (let i = 0; i < v.length; i++) out[i] = encode(v[i], path);
     return { $ta: v.constructor.name, d: out };
@@ -113,6 +115,9 @@ function encode(v: unknown, path: string): unknown {
   throw new Error(`instantané : « ${path} » n'est pas une donnée simple (${Object.prototype.toString.call(v)})`);
 }
 
+/** Élément d'un tableau typé : un nombre, ou un nombre marqué (-0, infini, NaN). */
+const num = (x: unknown): number => (typeof x === 'number' ? x : (decode(x) as number));
+
 /** Valeur JSON → valeur neuve (sans cible existante). */
 function decode(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(decode);
@@ -121,7 +126,7 @@ function decode(v: unknown): unknown {
     if (typeof v.$ta === 'string' && Array.isArray(v.d)) {
       const C = TYPED[v.$ta] ?? Float64Array;
       const a = new C(v.d.length);
-      for (let i = 0; i < v.d.length; i++) a[i] = decode(v.d[i]) as number;
+      for (let i = 0; i < v.d.length; i++) a[i] = num(v.d[i]);
       return a;
     }
     if (Array.isArray(v.$set)) return new Set(v.$set.map(decode));
@@ -139,7 +144,7 @@ function decode(v: unknown): unknown {
 function merge(cur: unknown, src: unknown): unknown {
   if (isTyped(cur) && isPlain(src) && typeof src.$ta === 'string' && Array.isArray(src.d)) {
     const n = Math.min(cur.length, src.d.length); // une autre version a pu changer la taille : on garde le commun
-    for (let i = 0; i < n; i++) cur[i] = decode(src.d[i]) as number;
+    for (let i = 0; i < n; i++) cur[i] = num(src.d[i]);
     return cur;
   }
   if (isPlain(cur) && isPlain(src) && src.$ta === undefined && src.$set === undefined && src.$n === undefined) {
@@ -153,6 +158,40 @@ function merge(cur: unknown, src: unknown): unknown {
   return decode(src);
 }
 
+/**
+ * Réserve en colonnes : `{ $keys, rows }`, les clés une seule fois (400 ennemis × 50 champs : le texte est deux fois
+ * plus court et l'instantané deux fois plus rapide qu'objet par objet).
+ */
+function encodePool(pool: Record<string, unknown>[], n: number, path: string): unknown {
+  const keys = n > 0 ? Object.keys(pool[0]) : [];
+  const rows = new Array<unknown[]>(n);
+  for (let i = 0; i < n; i++) {
+    const o = pool[i];
+    const row = new Array<unknown>(keys.length);
+    for (let j = 0; j < keys.length; j++) {
+      const x = o[keys[j]];
+      row[j] =
+        (typeof x === 'number' && Number.isFinite(x) && !Object.is(x, -0)) || typeof x === 'boolean'
+          ? x
+          : encode(x, `${path}[${i}].${keys[j]}`);
+    }
+    rows[i] = row;
+  }
+  return { $keys: keys, rows };
+}
+/** Lignes d'une réserve en colonnes, réécrites dans les objets existants (champ inconnu : ignoré). */
+function restorePool(pool: Record<string, unknown>[], src: unknown): number {
+  if (!isPlain(src) || !Array.isArray(src.$keys) || !Array.isArray(src.rows)) return 0;
+  const keys = src.$keys as string[];
+  const n = Math.min(src.rows.length, pool.length);
+  for (let i = 0; i < n; i++) {
+    const o = pool[i];
+    const row = src.rows[i] as unknown[];
+    for (let j = 0; j < keys.length; j++) if (keys[j] in o) o[keys[j]] = merge(o[keys[j]], row[j]);
+  }
+  return n;
+}
+
 /** Instantané JSON du monde (à passer à JSON.stringify). */
 export function snapshotWorld(w: World): RunSnap {
   const fields: Record<string, unknown> = {};
@@ -160,10 +199,8 @@ export function snapshotWorld(w: World): RunSnap {
   for (const k of Object.keys(w)) {
     if (MAP_FIELDS.has(k) || SPECIAL_FIELDS.has(k)) continue;
     const v = rec[k];
-    if (k in POOLS) {
-      const n = rec[POOLS[k]] as number;
-      fields[k] = (v as unknown[]).slice(0, n).map((x, i) => encode(x, `${k}[${i}]`));
-    } else fields[k] = encode(v, k);
+    if (k in POOLS) fields[k] = encodePool(v as Record<string, unknown>[], rec[POOLS[k]] as number, k);
+    else fields[k] = encode(v, k);
   }
   return { format: SNAP_FORMAT, startSeed: w.startSeed, seed: w.seed, rng: w.rng.state(), flow: w.flow.save(), fields };
 }
@@ -177,13 +214,8 @@ export function restoreWorld(s: RunSnap): World {
   for (const k of Object.keys(s.fields)) {
     if (!(k in rec) || MAP_FIELDS.has(k) || SPECIAL_FIELDS.has(k)) continue; // champ d'une autre version
     const src = s.fields[k];
-    if (k in POOLS) {
-      const pool = rec[k] as unknown[];
-      const items = src as unknown[];
-      const n = Math.min(items.length, pool.length);
-      for (let i = 0; i < n; i++) merge(pool[i], items[i]);
-      rec[POOLS[k]] = n;
-    } else if (REPLACED.has(k)) rec[k] = decode(src);
+    if (k in POOLS) rec[POOLS[k]] = restorePool(rec[k] as Record<string, unknown>[], src);
+    else if (REPLACED.has(k)) rec[k] = decode(src);
     else rec[k] = merge(rec[k], src);
   }
   w.rng.setState(s.rng);
