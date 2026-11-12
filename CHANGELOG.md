@@ -2,6 +2,19 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.49.0 — 12 nov. 2026 (demande de Jimmy : un récap de tous les patchs dans le menu)
+
+### Ajouté
+
+- **Nouveautés** : un bouton sous le titre du menu ouvre la liste de toutes les versions du jeu, de la plus récente à la plus ancienne, avec ce qui a été ajouté, changé et corrigé. La dernière version est ouverte ; les autres se déplient d'un appui, les plus anciennes derrière « Versions plus anciennes ».
+- **Pastille de mise à jour** : le bouton s'allume en doré quand une version est arrivée depuis ta dernière lecture, et les versions que tu n'as pas encore lues portent l'étiquette « Nouveau ».
+
+### Technique
+
+- La feuille lit ce journal : `src/meta/patch-notes.ts` le réduit au build (sections Ajouté, Modifié, Corrigé ; sans les sections techniques, les lignes qui citent du code ou un outil, ni les noms de personnes) et `vite.config.ts` le sert sous `virtual:patch-notes`, un chunk chargé à l'ouverture de la feuille seulement. Une version ajoutée ici apparaît dans le jeu sans autre geste ; un test Vitest échoue si la version de `package.json` n'est pas en tête du journal.
+- `meta.seenNotes` (dernière version lue) reste sur l'appareil, comme l'aide vue : jamais synchronisée.
+- Le texte du journal est échappé à l'affichage ; seul le gras passe.
+
 ## 1.48.1 — 11 nov. 2026 (retours de Jimmy : « le défi du jour, je ne sais pas ce que c'est », « le phénix reste affiché »)
 
 ### Modifié

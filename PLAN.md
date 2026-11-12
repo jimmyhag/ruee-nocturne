@@ -58,6 +58,7 @@ Un survivor fonctionne par empilement de boucles emboîtées. Chacune doit exist
 - Pas de stats permanentes achetées (phase 17 : la boutique par personnage de la phase 8 est retirée, l'or dépensé rendu). L'or sert aux **emplacements** d'armes et de tomes (communs à tous les personnages), aux personnages et aux tenues ; la puissance d'un run se construit **pendant** le run (cartes, objets, marchand, synergies). Dépenser au marchand ou garder pour la méta : un choix à chaque visite.
 - Déblocages par **succès** : « survis 10 min » → nouveau personnage ; « tue 100 Dards » → nouvelle arme dans le pool. Chaque succès montre son avancement en temps réel.
 - 3 personnages V1 aux stats et arme de départ différentes.
+- **Nouveautés (1.49.0, demande de Jimmy)** : un bouton sous le titre ouvre la liste des versions du jeu. Source unique : `CHANGELOG.md`, réduit au build à ce qui parle aux joueurs (`src/meta/patch-notes.ts`, servi sous `virtual:patch-notes`, chargé à l'ouverture). Écrire les sections Ajouté, Modifié et Corrigé du journal pour les joueurs : elles sont lues dans le jeu ; le détail d'implémentation va sous Technique, qui n'y paraît pas.
 - Défi quotidien : seed fixe partagée, classement local (pas de serveur en V1). 1.48.1 : le bouton ouvre une feuille qui explique le défi (même partie pour tous, Éclaireuse avec tout débloqué, tenir le plus longtemps), liste les temps du jour et lance la partie.
 
 ### 2.5 Règles d'or

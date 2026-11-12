@@ -1850,6 +1850,126 @@
         color: var(--gold);
         font-weight: 700;
       }
+      /* Nouveautés (1.49.0) : pastille d'entrée sous le titre, puis une version par bloc repliable */
+      .newsbtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 36px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line-2);
+        background: var(--glass);
+        color: var(--paper);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .newsbtn small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 400;
+      }
+      .newsbtn.fresh {
+        border-color: var(--gold);
+      }
+      .newsdot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--gold);
+        box-shadow: 0 0 8px var(--gold);
+      }
+      .newsdot[hidden] {
+        display: none;
+      }
+      .pns {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        max-width: 620px;
+        text-align: left;
+      }
+      .pn {
+        background: var(--glass-2);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 0 14px;
+      }
+      .pn[open] {
+        padding-bottom: 12px;
+        border-color: var(--line-2);
+      }
+      .pn summary {
+        display: grid;
+        gap: 2px;
+        padding: 10px 0;
+        min-height: 44px;
+        cursor: pointer;
+        list-style: none;
+      }
+      .pn summary::-webkit-details-marker {
+        display: none;
+      }
+      .pn-h {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+      }
+      .pn-h::after {
+        content: '▸';
+        margin-left: auto;
+        color: var(--muted);
+      }
+      .pn[open] .pn-h::after {
+        content: '▾';
+      }
+      .pn-d {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .pn-l {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .pn[open] .pn-l {
+        white-space: normal;
+        color: var(--paper);
+      }
+      .pn-k {
+        margin: 10px 0 4px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--gold);
+      }
+      .pn-k.changed {
+        color: #8fc7ff;
+      }
+      .pn-k.fixed {
+        color: #7ee0a1;
+      }
+      .pn ul {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .pn li + li,
+      .pn li > ul {
+        margin-top: 4px;
+      }
+      .pn li > ul {
+        color: var(--muted);
+        font-size: 13px;
+      }
       .resetnote {
         background: var(--glass);
         border: 1px solid var(--accent);
@@ -2474,6 +2594,11 @@
         <p class="note resetnote" id="resetNote" data-i18n="menu.resetNote" hidden>
           Nouvelle progression : tout le monde repart de zéro. Tes réglages sont conservés.
         </p>
+        <!-- 1.49.0 (demande de Jimmy) : le récap des versions ; la pastille s'allume tant que la dernière n'a pas été lue -->
+        <button class="newsbtn" id="notesBtn">
+          <i class="newsdot" id="notesDot" hidden></i><span data-i18n="menu.notes">Nouveautés</span>
+          <small id="notesVer"></small>
+        </button>
       </div>
       <div class="home-bottom">
         <div class="playrow">
@@ -2685,6 +2810,20 @@
         <p class="note daily-times" id="dailyTimes"></p>
         <p class="note" id="dailyNext"></p>
         <div class="btnrow"><button class="big" id="dailyPlayBtn" data-i18n="daily.play">Lancer le défi</button></div>
+      </div>
+    </section>
+
+    <section id="notes" class="screen" hidden>
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" data-i18n="notes.title">Nouveautés</h2>
+          <button class="btn-icon close" id="notesBackBtn" aria-label="Fermer" data-i18n-attr="aria-label:menu.close">
+            ×
+          </button>
+        </header>
+        <p class="tag" data-i18n="notes.tag">Ce qui a changé, version après version.</p>
+        <div class="pns" id="notesList"></div>
+        <button class="ghost" id="notesMore" hidden></button>
       </div>
     </section>
 

@@ -5,3 +5,9 @@ declare const __APP_VERSION__: string;
 interface ImportMetaEnv {
   readonly VITE_FIREBASE_CONFIG?: string;
 }
+
+/** Nouveautés (1.49.0) : le journal des versions réduit pour les joueurs, produit au build par vite.config.ts. */
+declare module 'virtual:patch-notes' {
+  const notes: import('./meta/patch-notes').PatchNote[];
+  export default notes;
+}

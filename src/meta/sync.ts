@@ -6,7 +6,15 @@ import type { Meta } from './save';
 import { SLOTS_START } from '../sim/balance';
 
 /** Clés de Meta qui ne quittent jamais l'appareil. */
-export const DEVICE_KEYS = ['muted', 'reducedFx', 'fxChosen', 'settings', 'seenReset', 'seenHelp'] as const;
+export const DEVICE_KEYS = [
+  'muted',
+  'reducedFx',
+  'fxChosen',
+  'settings',
+  'seenReset',
+  'seenHelp',
+  'seenNotes',
+] as const;
 export type DeviceKey = (typeof DEVICE_KEYS)[number];
 export type Progress = Omit<Meta, DeviceKey>;
 /** Clés synchronisées : tout Meta sauf DEVICE_KEYS. firestore.rules les liste une à une (test de non-dérive). */
@@ -61,6 +69,7 @@ export function withProgress(local: Meta, raw: unknown): Meta {
     settings: local.settings,
     seenReset: local.seenReset,
     seenHelp: local.seenHelp,
+    seenNotes: local.seenNotes,
   });
 }
 

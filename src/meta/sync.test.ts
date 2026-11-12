@@ -33,10 +33,11 @@ const cloud = (m: Meta, updatedAt: number): CloudDoc => toCloudDoc(m, updatedAt)
 const rec = (o: Partial<SyncRecord> = {}): SyncRecord => ({ uid: 'u1', base: 100, dirty: false, changedAt: 0, ...o });
 
 describe('frontière progression / appareil', () => {
-  it('PROGRESS_KEYS couvre toute la méta sauf les cinq clés d’appareil', () => {
+  it('PROGRESS_KEYS couvre toute la méta sauf les clés d’appareil', () => {
     const all = Object.keys(DEFAULT_META).sort();
     expect([...PROGRESS_KEYS, ...DEVICE_KEYS].sort()).toEqual(all);
-    expect(DEVICE_KEYS).toEqual(['muted', 'reducedFx', 'fxChosen', 'settings', 'seenReset', 'seenHelp']);
+    // 1.49.0 : seenNotes (dernière version dont les Nouveautés ont été lues) reste sur l'appareil, comme l'aide vue
+    expect(DEVICE_KEYS).toEqual(['muted', 'reducedFx', 'fxChosen', 'settings', 'seenReset', 'seenHelp', 'seenNotes']);
   });
   it('progressOf ne transporte ni réglages, ni son, ni effets, ni aide vue', () => {
     const p = progressOf(played()) as unknown as Record<string, unknown>;

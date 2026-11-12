@@ -78,6 +78,7 @@ export interface Meta {
   pseudo: string; // phase 38 : nom affiché dans le classement en ligne ('' = aucun, rien n'est publié) ; synchronisé
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   seenHelp: boolean; // aide « Comment jouer » déjà vue au premier lancement (phase 14 ; propre à l'appareil)
+  seenNotes: string; // dernière version dont les Nouveautés ont été ouvertes (1.49.0 ; propre à l'appareil), '' = jamais
   settings: MetaSettings;
 }
 /** Rendu (phase 9) : auto (net, repli automatique), net, pixel (résolution réduite, look d'origine). */
@@ -127,6 +128,7 @@ export const DEFAULT_META: Meta = {
   pseudo: '',
   seenReset: true,
   seenHelp: false,
+  seenNotes: '',
   settings: {
     vibrate: true,
     hudScale: 1,
@@ -162,6 +164,7 @@ export function resetProgress(m: Meta): Meta {
     fxChosen: m.fxChosen,
     settings: m.settings,
     seenHelp: m.seenHelp,
+    seenNotes: m.seenNotes,
   });
 }
 
@@ -201,6 +204,7 @@ export function normalizeMeta(raw: unknown): Meta {
           settings: r0.settings,
           seenReset: !(num(r0.runs) > 0 || num(r0.gold) > 0),
           seenHelp: r0.seenHelp,
+          seenNotes: r0.seenNotes,
         }
       : r0;
   const st = (r.stats && typeof r.stats === 'object' ? r.stats : {}) as Record<string, unknown>;
@@ -290,6 +294,7 @@ export function normalizeMeta(raw: unknown): Meta {
     },
     seenReset: bool(r.seenReset, true),
     seenHelp: bool(r.seenHelp, false),
+    seenNotes: typeof r.seenNotes === 'string' && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(r.seenNotes) ? r.seenNotes : '',
   };
 }
 

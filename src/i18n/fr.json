@@ -849,5 +849,15 @@
   "daily.noTime": "Aucun temps aujourd'hui : à toi d'ouvrir le tableau.",
   "daily.next": "Nouveau défi dans {time}",
   "daily.hm": "{h} h {m}",
-  "daily.m": "{m} min"
+  "daily.m": "{m} min",
+  "menu.notes": "Nouveautés",
+  "notes.title": "Nouveautés",
+  "notes.tag": "Ce qui a changé, version après version.",
+  "notes.added": "Ajouts",
+  "notes.changed": "Changements",
+  "notes.fixed": "Corrections",
+  "notes.new": "Nouveau",
+  "notes.older": "Versions plus anciennes ({n})",
+  "notes.loading": "Chargement…",
+  "notes.error": "Impossible de charger les nouveautés. Réessaie une fois en ligne."
 }

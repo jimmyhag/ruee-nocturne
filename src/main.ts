@@ -81,6 +81,8 @@ import { LIB_TABS, renderLibrary } from './ui/library';
 import { initKeySettings, loadKeyboardLayout, renderKeyHints } from './ui/keys';
 import type { LibTab } from './ui/library';
 import { dailyBest, dailySeed, dailyTimes, msToNextDaily, recordDaily, todayKey } from './meta/daily';
+import type { PatchNote } from './meta/patch-notes';
+import { hasUnseenNotes, renderNotes } from './ui/notes';
 import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
 import {
@@ -163,6 +165,7 @@ type AppMode =
   | 'characters'
   | 'help'
   | 'daily'
+  | 'notes'
   | 'merchant'
   | 'map';
 const SCREENS = [
@@ -181,6 +184,7 @@ const SCREENS = [
   'characters',
   'help',
   'daily',
+  'notes',
   'map',
 ] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
@@ -269,6 +273,9 @@ function updateBestLine(): void {
     const best = dailyBest(meta);
     $('dailyBtn').textContent = best > 0 ? t('menu.dailyBest', { time: fmtTime(best) }) : t('menu.daily');
   }
+  const fresh = hasUnseenNotes(meta.seenNotes, VERSION, meta.runs); // 1.49.0 : une version pas encore lue
+  $('notesDot').hidden = !fresh;
+  $('notesBtn').classList.toggle('fresh', fresh);
   $('shopLabel').textContent = t('menu.shopGold', { gold: t('gold', { n: Math.round(meta.gold) }) }); // le bouton garde son icône
 }
 /** Applique les réglages (HUD, gaucher, vibrations, son, langue) au DOM et aux libellés. */
@@ -328,7 +335,8 @@ function vibrate(ms: number): void {
   }
 }
 function openScreen(
-  id: 'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help' | 'daily',
+  id:
+    'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help' | 'daily' | 'notes',
 ): void {
   if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings')
     backTo = app === 'settings' ? 'menu' : app;
@@ -347,6 +355,10 @@ function openScreen(
     return;
   } else if (id === 'help') {
     /* statique */
+  } else if (id === 'notes') {
+    showOnly(id);
+    void openNotes();
+    return;
   } else if (id === 'daily') {
     renderDailyScreen();
     showOnly(id);
@@ -357,6 +369,32 @@ function openScreen(
     $('settingsMsg').textContent = '';
   }
   showOnly(id);
+}
+// ---------- Nouveautés (1.49.0) : le journal des versions, chargé à la première ouverture ----------
+let notesData: PatchNote[] | null = null;
+let notesSeen = ''; // version vue avant cette ouverture : ce qui est plus récent est marqué « Nouveau »
+let notesAll = false;
+function renderNotesScreen(): void {
+  if (notesData) renderNotes($('notesList'), $('notesMore'), notesData, notesSeen, notesAll);
+}
+async function openNotes(): Promise<void> {
+  notesSeen = meta.seenNotes;
+  notesAll = false;
+  if (meta.seenNotes !== VERSION) {
+    meta.seenNotes = VERSION; // propre à l'appareil : la pastille du menu s'éteint
+    saveMeta(meta);
+  }
+  if (!notesData) {
+    $('notesMore').hidden = true;
+    $('notesList').textContent = t('notes.loading');
+    try {
+      notesData = (await import('virtual:patch-notes')).default;
+    } catch {
+      $('notesList').textContent = t('notes.error'); // hors ligne avant que le service worker ait tout mis en cache
+      return;
+    }
+  }
+  if (app === 'notes') renderNotesScreen();
 }
 /** Feuille du défi du jour (1.48.1) : les temps du jour et le délai avant le prochain ; les règles sont statiques. */
 function renderDailyScreen(): void {
@@ -411,6 +449,7 @@ function applyLang(): void {
   else if (app === 'achievements') renderAchievements($('achList'), meta);
   else if (app === 'library') renderLibraryScreen();
   else if (app === 'daily') renderDailyScreen();
+  else if (app === 'notes') renderNotesScreen();
 }
 /** Après tout remplacement de la méta (import, effacement, IndexedDB, tests) : applique la langue si elle change. */
 function syncLang(): void {
@@ -876,10 +915,16 @@ $('dailyPlayBtn').onclick = () => {
   startGame(undefined, true);
 };
 addEventListener('keydown', (e) => {
-  if (app !== 'daily' || e.repeat || e.code !== 'Escape') return;
+  if ((app !== 'daily' && app !== 'notes') || e.repeat || e.code !== 'Escape') return;
   e.preventDefault();
   closeScreen();
 });
+$('notesBtn').onclick = () => openScreen('notes');
+$('notesBackBtn').onclick = closeScreen;
+$('notesMore').onclick = () => {
+  notesAll = true;
+  renderNotesScreen();
+};
 $('shopBtn').onclick = () => openScreen('shop');
 $('overShopBtn').onclick = () => openScreen('shop');
 $('achBtn').onclick = () => openScreen('achievements');
@@ -1233,6 +1278,7 @@ document.addEventListener('visibilitychange', () => {
   audio.background(document.hidden); // phase 36 : pas de musique quand l'appli passe en arrière-plan
 });
 $('version').textContent = `v${VERSION}`;
+$('notesVer').textContent = `v${VERSION}`;
 
 // PWA : mise à jour proposée uniquement au menu ou à l'écran de mort (skill pwa-release §2)
 const pwa = new Pwa();
@@ -1411,6 +1457,7 @@ function applyCloud(uid: string, cloud: CloudDoc): void {
   else if (app === 'achievements') renderAchievements($('achList'), meta);
   else if (app === 'library') renderLibraryScreen();
   else if (app === 'daily') renderDailyScreen();
+  else if (app === 'notes') renderNotesScreen();
 }
 async function pushNow(uid: string): Promise<void> {
   if (!account) return;

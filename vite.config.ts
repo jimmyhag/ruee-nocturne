@@ -3,6 +3,8 @@ import type { Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { parsePatchNotes } from './src/meta/patch-notes.ts';
 import pkg from './package.json' with { type: 'json' };
 
 // SINGLE=1 : build en un seul fichier HTML (publication en artifact / test rapide), sans PWA.
@@ -17,6 +19,26 @@ const SINGLE = !!process.env.SINGLE;
 /** Remplace %APP_VERSION% dans les pages HTML (la page « À propos » n'a pas de module JS pour lire `define`). */
 function htmlVersion(): Plugin {
   return { name: 'ruee:html-version', transformIndexHtml: (html) => html.replace(/%APP_VERSION%/g, pkg.version) };
+}
+
+/**
+ * Nouveautés (1.49.0) : `virtual:patch-notes` = CHANGELOG.md réduit à ce qui parle aux joueurs (src/meta/patch-notes.ts).
+ * Importé dynamiquement par la feuille Nouveautés : un chunk à part, précaché par le service worker, absent du
+ * premier chargement. Le journal est la seule source : une version ajoutée au journal apparaît dans le jeu.
+ */
+function patchNotes(): Plugin {
+  const ID = 'virtual:patch-notes';
+  const RESOLVED = '\0' + ID;
+  const file = fileURLToPath(new URL('./CHANGELOG.md', import.meta.url));
+  return {
+    name: 'ruee:patch-notes',
+    resolveId: (id) => (id === ID ? RESOLVED : undefined),
+    load(id) {
+      if (id !== RESOLVED) return undefined;
+      this.addWatchFile(file);
+      return `export default ${JSON.stringify(parsePatchNotes(readFileSync(file, 'utf8')))};`;
+    },
+  };
 }
 
 function preloadRenderChunk(): Plugin {
@@ -42,6 +64,7 @@ function preloadRenderChunk(): Plugin {
 export default defineConfig({
   plugins: [
     htmlVersion(),
+    patchNotes(),
     ...(SINGLE ? [viteSingleFile()] : [preloadRenderChunk()]),
     VitePWA({
       disable: SINGLE,

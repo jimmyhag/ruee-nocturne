@@ -45,6 +45,6 @@ npm run shot         # captures Playwright dans shots/ (desktop 1280×720, mobil
 
 ## Fin de phase
 1. `docs/GATES.md` : porte, mesures réelles, captures, date.
-2. `CHANGELOG.md` mis à jour.
+2. `CHANGELOG.md` mis à jour. Ses sections Ajouté, Modifié et Corrigé sont affichées dans le jeu (feuille « Nouveautés », `src/meta/patch-notes.ts`) : les écrire pour les joueurs, sans code ni nom de personne ; le détail d'implémentation va sous « Technique », qui n'y paraît pas. La version de `package.json` doit être en tête du journal (test Vitest).
 3. PR avec : résumé, décisions prises, mesures perf avant/après, GIF ou captures, checklist de la phase.
 4. Message à Jimmy : ce qu'il doit tester sur son téléphone (URL de preview) et ce qui attend sa décision.
