@@ -1723,12 +1723,12 @@ export class GameScene {
               ? this.cStun
               : e.slowT > 0
                 ? this.cSlow
-                : e.toxT > 0
-                  ? this.cTox // phase 50 : boss empoisonné (Toxine), vert
-                  : e.burnT > 0
-                    ? this.cBurn // phase 47 B : en feu (Dent de dragon), orangé
-                    : e.enraged
-                      ? this.cRage // phase 43 : boss enragé, rouge
+                : e.enraged
+                  ? this.cRage // phase 43 : boss enragé, rouge ; phase 50 : avant le poison, la rage doit se lire
+                  : e.toxT > 0
+                    ? this.cTox // phase 50 : boss empoisonné (Toxine), vert
+                    : e.burnT > 0
+                      ? this.cBurn // phase 47 B : en feu (Dent de dragon), orangé
                       : e.elite
                         ? this.eliteColor[e.type]
                         : this.enemyColor[e.type];

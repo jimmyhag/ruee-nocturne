@@ -43,7 +43,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
     if (src === HitSrc.Foudre && s.stun > 0 && !def.boss && w.rng.next() < s.stun) e.stun = Math.max(e.stun, CRIT.stunT);
   }
   if (def.boss && w.items[It.Toxine]) {
-    // phase 50 : Toxine, une chance d'injecter une dose au boss (le tirage n'a lieu qu'avec l'objet : parties inchangées)
+    // phase 50 : Toxine, une chance d'injecter une dose au boss (le tirage n'a lieu qu'avec l'objet : sans elle, pas un tirage de plus)
     const X = ITEM.toxine;
     if (w.rng.next() < X.chance * w.itemEff[It.Toxine]) {
       if (e.tox < X.stacks * w.items[It.Toxine]) e.tox++;

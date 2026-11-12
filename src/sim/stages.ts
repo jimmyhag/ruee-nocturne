@@ -104,7 +104,7 @@ export function summonStageBoss(w: World): void {
   w.totemBossId = e.id; // phase 42 : seul ce boss ouvre le portail ; phase 48 : avec ceux en plus (totemAlive)
   w.totemAlive = 1;
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount + 1, type);
-  // phase 48 : un boss de plus par totem de boss activé, autour du totem, d'un autre type, PV réduits
+  // phase 48 : un boss de plus par totem de boss activé, autour du totem ; phase 50 : un double du boss du totem
   for (let j = 1; j <= w.bossExtra; j++) {
     const xt = type; // phase 50 : un double exact du boss du totem
     if (w.enemyCount >= CAPS.enemies) freeNonBoss(w);
@@ -158,7 +158,7 @@ export function summonSurvivalBoss(w: World, k: number): void {
   w.survivalAlive++;
   if (w.bossIndex < 0) w.bossIndex = i; // la barre suit le boss du totem s'il est déjà là
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type, 1); // y2 = 1 : boss de survie
-  // phase 48 : un boss de plus par totem de boss activé, autour du joueur, d'un autre type, PV réduits
+  // phase 48 : un boss de plus par totem de boss activé, autour du joueur ; phase 50 : un double du boss de la vague
   const a0 = Math.atan2(e.x - w.player.x, e.z - w.player.z);
   for (let j = 1; j <= w.bossExtra; j++) {
     const xt = type; // phase 50 : un double exact du boss de la vague

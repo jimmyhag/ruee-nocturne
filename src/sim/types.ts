@@ -35,7 +35,7 @@ export interface Enemy {
   t2: number;
   age: number;
   enraged: boolean;
-  cadence: number; // phase 48 : vitesse des recharges d'attaque d'un boss (1 ; moins pour un boss en plus)
+  cadence: number; // phase 48 : vitesse des recharges d'attaque d'un boss (1 ; BOSSTOTEM.extraCadence pour un boss en plus, 1 aussi depuis la phase 50)
   totemExtra: boolean; // phase 48 : boss en plus du combat du totem (un totem de boss activé) ; compte pour le portail
   combo: number;
   /** Phase 45, Traque : cercles restant dans la salve en cours, et temps avant le prochain cercle ou la prochaine salve. */

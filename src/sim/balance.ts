@@ -192,8 +192,8 @@ export const DIFFICULTY = {
 };
 // phase 48, livraison 2 (demande de Jimmy) : totems de boss. Chacun, une fois activé, ajoute un boss à chaque vague de
 // boss du monde encore à venir : boss de survie (3:00, 7:00) et combat du totem (le portail attend qu'ils soient tous
-// morts). Remis à zéro à chaque monde. Les boss en plus sont les autres boss du jeu, à tour de rôle, avec `extraHp` des
-// PV du boss qu'ils accompagnent ; ils laissent un coffre d'élite, le soin complet et le coffre de boss restant au dernier.
+// morts). Remis à zéro à chaque monde. Phase 50 : le boss en plus est un double du boss de la vague (`extraHp` de ses
+// PV) ; il laisse un coffre d'élite, le soin complet et le coffre de boss restant au dernier.
 export const BOSSTOTEM = {
   // phase 50 (retour de Jimmy) : un nombre tiré avec la carte, entre min et max
   min: 1,
