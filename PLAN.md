@@ -914,6 +914,19 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
   - **Sans totem, rien ne change** : 183 parties sur 200 identiques à la 1.50.0 (les 17 autres : le bot s'écarte des cercles) ; aucune activation par accident.
 - **Porte L2** : tests Vitest (placement stable, jauge, 1 + n boss aux trois sortes de vague, portail et victoire au dernier, récompenses, remise à zéro, monde infini) ; e2e PC et mobile (jauge, deux boss à 3:00, barre « encore 1 », portail au second) ; captures lues ; relectures `perf-reviewer` et `balance-playtester`.
 
+### Phase 49 — Partie gardée en mémoire (1.52.0)
+
+Demande de Jimmy (12 nov. 2026) : « une partie en cours pas finie, même si on rafraîchit la page ou qu'on ferme l'app PWA, on garde en mémoire qu'on est en partie pour ne pas la perdre ».
+
+- **Pour le joueur** : rafraîchir, fermer l'app ou passer à une autre app ne perd plus la partie. Au retour, le menu propose « Reprendre · Monde 2 · 8:41 » en tête (« Jouer » passe en bouton secondaire). Reprendre rouvre la partie en pause, à l'identique ; sur un choix de cartes, un coffre, un sanctuaire ou le marchand, ce choix revient avec les mêmes cartes. « Menu » dans la pause garde la partie. « Jouer » ou le défi du jour demandent d'abord « Abandonner la partie en cours ? » ; une partie abandonnée ne rapporte rien (comme avant). La mort ou la fin de partie l'efface. Désinstaller l'app efface ses données, donc la partie.
+- **Instantané** (`src/sim/snapshot.ts`) : la carte n'est pas sauvegardée, `buildMapFor(seed)` la refait à l'identique ; tout le reste du `World` est copié champ par champ, de façon générique (un champ ajouté plus tard est sauvegardé sans y penser ; un test échoue si un champ ne sait pas se copier). Réserves en colonnes. `Rng.setState` (état gardé sur 32 bits, même suite), `FlowField.save/load`.
+  - **Reprise identique** (test `snapshot.test.ts`) : sauvegarder → texte → restaurer, puis jouer les deux mondes 15 à 60 s : même état au bit près. Neuf personnages, longue partie (instantané chaque minute pendant 8 min), mondes 2 et 3, monde infini, choix de cartes, marchand, lieux utilisés.
+  - Le test a trouvé un défaut : un emplacement de tir réutilisé gardait `hit`, `ox`, `oz`, `t0` de son ancien occupant (`allocShot` les remet à neuf).
+- **Stockage** (`src/meta/run-save.ts`) : localStorage, écrit de façon synchrone (seul stockage sûr pendant une fermeture), IndexedDB en secours si le quota déborde. Sur l'appareil seulement : ni dans `Meta`, ni dans le compte en ligne (règle 8).
+- **Quand** : onglet caché, `pagehide`, pause, choix de cartes, marchand, « Menu » de la pause. **Jamais pendant l'action** : un instantané à 400 ennemis coûte 3-4 ms et 212 Ko (bench, seuil ≤ 6 ms et 600 Ko) ; les montées de niveau (une toutes les 15 s environ) le rafraîchissent déjà.
+- **Mises à jour** : une partie gardée est reprise sur la version suivante (champ absent : valeur neuve ; champ inconnu : ignoré). `SNAP_FORMAT` ne monte que si un changement rend les anciennes sauvegardes fausses ; le menu dit alors « Ta partie en cours n'a pas pu être reprise après la mise à jour ».
+- **Porte** : Vitest (reprise identique, couverture des champs, format, stockage) ; e2e PC et mobile (rafraîchir puis reprendre à l'identique, Menu de la pause, abandon confirmé, mort qui efface, choix de cartes conservé) ; captures lues ; bench ; relecture perf.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.

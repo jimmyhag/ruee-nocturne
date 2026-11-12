@@ -16,6 +16,11 @@ La sim est pure et déterministe : c'est ce qui permet de **tester un jeu comme 
 - Zéro import de `three` ou du DOM dans `src/sim/` (test qui lit les fichiers et échoue sur `from 'three'`, `document.`, `window.`).
 - Couverture `src/sim/` ≥ 80 % (`vitest --coverage`, seuil dans `vitest.config.ts`).
 
+### Instantané de partie (phase 49)
+- `src/sim/snapshot.ts` copie tout le `World` sauf la carte (refaite par `buildMapFor(seed)`). `snapshot.test.ts` sauvegarde → texte → restaure, puis joue les deux mondes : ils doivent rester **identiques au bit près**. C'est aussi un détecteur d'état caché : un champ qui n'est pas dans le monde (variable de module, champ privé d'une classe) ou un emplacement de réserve qui garde des valeurs de son ancien occupant fait diverger les deux mondes.
+- Diagnostic d'une divergence : jouer les deux mondes pas à pas et comparer `snapshotWorld(a).fields` champ par champ au premier pas qui diffère (c'est ainsi qu'on a trouvé `allocShot` qui laissait `hit`, `ox`, `oz`, `t0`).
+- Un champ ajouté au `World` est sauvegardé sans rien faire ; une classe ajoutée dedans fait échouer le test de couverture (lui donner `save`/`load` comme `FlowField`, ou la classer dans `MAP_FIELDS` si la carte la refait).
+
 ## 2. Bots de playtest (`tools/bots/`)
 Un bot = `decide(world): InputState` + `pick(cards, world): number`. Trois niveaux :
 - **naive** : se déplace en cercle constant, prend la carte 0. Mesure le plancher.

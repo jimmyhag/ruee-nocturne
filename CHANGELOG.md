@@ -2,6 +2,31 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.52.0 — 12 nov. 2026 (demande de Jimmy : ne plus perdre une partie en cours)
+
+Une partie en cours ne se perd plus : ferme l'app, reviens, et reprends-la là où tu l'avais laissée.
+
+### Ajouté
+
+- **Ta partie t'attend** : rafraîchir la page, fermer l'app ou passer à une autre app ne fait plus perdre la partie. Au retour, le menu propose **Reprendre**, avec le monde et le chrono où tu en étais.
+- La partie reprend **en pause**, exactement comme tu l'avais laissée : mêmes monstres, mêmes boss, même vie, même équipement. Si tu étais en train de choisir une carte, un objet de coffre, un bonus de sanctuaire ou d'acheter chez le marchand, ce choix revient avec les mêmes propositions.
+- Le défi du jour se reprend aussi.
+
+### Modifié
+
+- **Menu** dans la pause ne met plus fin à la partie : elle t'attend au menu, sous « Reprendre ».
+- Lancer une nouvelle partie alors qu'une autre attend demande d'abord de l'abandonner. Une partie abandonnée ne rapporte rien, comme avant.
+
+### Corrigé
+
+- Un cercle d'attaque de boss pouvait, rarement, garder l'état d'une attaque précédente.
+
+### Technique
+
+- `src/sim/snapshot.ts` (`snapshotWorld` / `restoreWorld`) : carte refaite par `buildMapFor(seed)`, le reste du `World` copié champ par champ, réserves en colonnes ; test de reprise identique au bit près (neuf personnages, 8 min avec un instantané par minute, mondes 2 et 3, monde infini, choix de cartes, marchand) et de couverture des champs. `Rng.setState` (état sur 32 bits, même suite tirée), `FlowField.save/load`, `allocShot` remet `hit`, `ox`, `oz`, `t0`.
+- `src/meta/run-save.ts` : localStorage synchrone, IndexedDB si le quota déborde ; sur l'appareil seulement (ni `Meta`, ni compte en ligne). Écrite à l'onglet caché, `pagehide`, pause, choix, marchand ; jamais pendant l'action.
+- Bench : instantané à 400 ennemis 3-4 ms et 212 Ko (seuil 6 ms et 600 Ko). e2e `runsave.spec.ts` PC et mobile.
+
 ## 1.51.0 — 12 nov. 2026 (demande de Jimmy : des totems de boss)
 
 ### Ajouté
