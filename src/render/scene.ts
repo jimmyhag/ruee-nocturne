@@ -2011,7 +2011,8 @@ export class GameScene {
       const g = this.gy(bt.x, bt.z);
       const off = bt.on || closed;
       const f = off ? 0 : bt.charge / BOSSTOTEM.charge;
-      if ((bt.x - px) ** 2 + (bt.z - pz) ** 2 < POI_DRAW2) {
+      if ((bt.x - px) ** 2 + (bt.z - pz) ** 2 < TOTEM_VIEW2) {
+        // à portée de caméra seulement, comme les crânes et la stèle du totem (budget d'appels de dessin)
         this.tilt(bt.x, bt.z);
         if (off) this.cPoi.copy(this.cShrineOff);
         else
