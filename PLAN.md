@@ -894,6 +894,24 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
     Graine 43 : 73 / 46 / 15 % sans crâne, 68 / 28 / 6 % avec 2. Départ (1 arme) avec 2 crânes : victoires 16 → 7 %, morts avant 3 min 18 → 25 % (le bot prend le premier à 0:45, trop tôt pour un kit faible).
   - **Sans crâne, rien ne change** : 197 parties sur 200 identiques à la 1.49.0 à la graine près (les 3 autres : un crâne activé par accident par le bot, depuis il s'écarte des cercles) ; toutes les cibles tenues.
 - **Porte L1** : tests Vitest (placement stable, jauge, formule des apparitions et de la vie, boss, persistance entre mondes, tome après un crâne, cartes inchangées sans crâne) ; e2e PC et mobile (crâne, jauge, pastille, fiche de stats, écran de fin) ; captures lues ; relecture perf appliquée (modèle dessiné à portée de caméra seulement).
+- **Livraison 2 (1.51.0)** : totems de boss (`BOSSTOTEM` dans `balance.ts`). Deux par monde, tirés après les crânes ; 3 s dans le cercle. Chaque totem activé ajoute un boss à chaque vague de boss du monde encore à venir : boss de survie (3:00, 7:00), combat du totem, et vagues du monde infini pour ceux du monde 3. Remis à zéro au monde suivant ; fermés une fois le portail ouvert.
+  - **Boss en plus** : les autres boss du jeu, à tour de rôle, avec une part des PV du boss qu'ils accompagnent (`extraHp`). Ils ne renforcent pas les boss des mondes suivants (`bossCount` ne monte qu'une fois par totem du monde).
+  - **Portail et victoire** : seulement quand tous les boss du combat du totem sont morts (`w.totemAlive`). Seul le dernier soigne, aimante l'XP et laisse le coffre de boss ; les autres laissent un coffre d'élite, comme un boss de survie (mesuré en phase 42 : un soin par boss rendait la partie plus facile).
+  - **Affichage** : petite stèle à runes braise (géométrie du totem du monde, instanciée), colonne de lumière, losange orange sur la minicarte, jauge « Totem de boss · un boss de plus à chaque vague », pastille « Boss +1 », barre de boss « Le Gardien · encore 1 ».
+  - **Second couteau** : un boss en plus a la moitié des PV du boss de la vague (`extraHp`), ses recharges d'attaque défilent à 60 % (`extraCadence`, `Enemy.cadence` ; télégraphes inchangés) et il est dessiné plus petit (`FEEL.bossTotem.extraScale`).
+  - **Mesures** (200 parties, kit complet, graine 42 ; monde 2 atteint / monde 3 / victoires) :
+
+    | Totems de boss par monde | Monde 2 atteint | Monde 3 | Victoires | Survie p50 |
+    |---|---|---|---|---|
+    | 0 | 78 % | 46 % | 18 % | 18:33 |
+    | 1, activé après la vague de 3:00 | 65 % | 36 % | 14 % | 15:02 |
+    | 1, activé dès 0:30 | 50 % | 26 % | 13 % | 11:52 |
+    | 2, activés dès 0:30 | 26 % | 13 % | 4 % | 6:53 |
+
+    Graine 43, un totem dès 0:30 : 58 / 31 / 15 %. Départ (1 arme), un totem dès 0:30 : 21 / 11 / 9 % contre 33 / 26 / 19 %.
+  - **Réglage** : à `extraHp` 0,75 et cadence 1, un totem donnait 46 % et deux 14 %. Les PV seuls (0,5 : 48 et 17 %) ou l'arrivée du même côté (`spread` 0,5 : 46 et 12 %) ne changeaient rien, la cadence oui (deux totems : 14 → 26 à 30 %). Ce sont les attaques superposées de deux boss à 3:00 et 7:00 qui tuent, dans la minute qui suit l'arrivée ; pas la durée du combat.
+  - **Sans totem, rien ne change** : 183 parties sur 200 identiques à la 1.50.0 (les 17 autres : le bot s'écarte des cercles) ; aucune activation par accident.
+- **Porte L2** : tests Vitest (placement stable, jauge, 1 + n boss aux trois sortes de vague, portail et victoire au dernier, récompenses, remise à zéro, monde infini) ; e2e PC et mobile (jauge, deux boss à 3:00, barre « encore 1 », portail au second) ; captures lues ; relectures `perf-reviewer` et `balance-playtester`.
 
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.

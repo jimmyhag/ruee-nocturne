@@ -116,6 +116,7 @@ export function summonStageBoss(w: World): void {
     x.x = x.px = T.x + Math.sin(b) * STAGE.bossDist;
     x.z = x.pz = T.z + Math.cos(b) * STAGE.bossDist;
     x.totemExtra = true;
+    x.cadence = BOSSTOTEM.extraCadence;
     w.totemAlive++;
     w.emit(Ev.BossSpawn, x.x, 2, x.z, w.bossCount + 1, xt, 2); // y2 = 2 : boss en plus
   }
@@ -166,6 +167,7 @@ export function summonSurvivalBoss(w: World, k: number): void {
     if (n < 0) break;
     const x = w.enemies[n];
     x.hp = x.max = (e.max / ENEMIES[type].hp) * ENEMIES[xt].hp * BOSSTOTEM.extraHp;
+    x.cadence = BOSSTOTEM.extraCadence;
     w.survivalAlive++;
     w.emit(Ev.BossSpawn, x.x, 2, x.z, w.bossCount, xt, 1);
   }

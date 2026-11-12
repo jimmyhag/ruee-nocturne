@@ -116,6 +116,7 @@ if (args.has('tome-prior')) BOT_TUNE.tomePrior = +args.get('tome-prior')!; // ph
 if (args.has('skulls')) BOT_TUNE.skulls = +args.get('skulls')!;
 if (args.has('take-defi')) BOT_TUNE.takeDefi = true;
 if (args.has('boss-totems')) BOT_TUNE.bossTotems = +args.get('boss-totems')!; // totems de boss activés par monde
+if (args.has('boss-totem-at')) BOT_TUNE.bossTotemAt = +args.get('boss-totem-at')!; // s du monde à partir desquelles il y va
 // phase 47 : --held-tomes remet au tirage les tomes en réserve (TOME_HELD), pour mesurer ce qu'ils coûtent ou rapportent
 if (args.has('held-tomes')) TOME_POOL.push(...TOME_HELD);
 // phase 47 : --no-tome defi,givre retire des tomes du tirage (ablation : un tome dilue-t-il, aide-t-il, nuit-il ?)

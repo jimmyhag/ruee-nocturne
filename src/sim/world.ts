@@ -850,6 +850,7 @@ function makeEnemy(): Enemy {
     age: 0,
     enraged: false,
     totemExtra: false,
+    cadence: 1,
     combo: 0,
     hunt: 0,
     huntT: 0,
