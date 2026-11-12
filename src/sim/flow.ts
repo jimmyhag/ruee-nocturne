@@ -21,6 +21,19 @@ export class FlowField {
   private timer = 0;
   ready = false;
 
+  /** Phase 49 : état qui passe d'un pas à l'autre (le prochain calcul en dépend), pour une partie gardée en mémoire. */
+  save(): { dist: number[]; oi: number; oj: number; timer: number; ready: boolean } {
+    return { dist: Array.from(this.dist), oi: this.oi, oj: this.oj, timer: this.timer, ready: this.ready };
+  }
+  load(s: { dist: number[]; oi: number; oj: number; timer: number; ready: boolean }): void {
+    if (s.dist.length === this.dist.length) this.dist.set(s.dist);
+    else s.ready = false; // grille d'une autre version : on la recalcule
+    this.oi = s.oi;
+    this.oj = s.oj;
+    this.timer = s.timer;
+    this.ready = s.ready;
+  }
+
   /** Recalcule si la période est écoulée. */
   tick(w: World, dt: number): void {
     this.timer -= dt;

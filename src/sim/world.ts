@@ -458,6 +458,11 @@ export class World {
     const s = this.shots[this.shotCount++];
     s.alive = true;
     s.boss = false;
+    // phase 49 : champs que tous les tirs ne posent pas (le cercle du Colosse laissait `hit` d'un ancien tir) ; remis à
+    // leur valeur neuve, un emplacement repris ne dépend plus de son ancien occupant (partie gardée en mémoire)
+    s.hit = false;
+    s.ox = s.oz = 0;
+    s.t0 = 1;
     return s;
   }
   freeShot(i: number): void {
