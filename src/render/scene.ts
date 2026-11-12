@@ -27,6 +27,7 @@ import {
   POWER,
   VITRIOL,
   BALISE,
+  DIFFICULTY,
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
@@ -65,6 +66,7 @@ import { Base, MotionState } from './motion';
 import { OUTLINE, stylize, toonGradient, toonMaterial } from './toon';
 import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, softGlow, SLASH_ARC } from './textures';
 import { buildShrine } from './shrine';
+import { buildSkull } from './skull';
 import { buildTotem, TOTEM_HEIGHT } from './totem';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
@@ -227,6 +229,7 @@ export class GameScene {
   private mapChestW: InstanceWriter;
   private holdW: InstanceWriter; // anneau qui se remplit pendant l'ouverture
   private shrineW: InstanceWriter;
+  private skullW: InstanceWriter; // phase 48 : crânes de difficulté
   private shrineGlowW: InstanceWriter; // runes du sanctuaire : s'allument avec la jauge
   private beamW: InstanceWriter;
   // phase 20 : objets KayKit (CC0) ; arbres et lanternes dessinés autour du joueur seulement (≈ 300 triangles chacun)
@@ -271,6 +274,10 @@ export class GameScene {
   private cShrineOn = new THREE.Color(0x4fb8ff).multiplyScalar(1.25);
   private cShrineFull = new THREE.Color(0xd8f4ff).multiplyScalar(1.7);
   private cShrineOff = new THREE.Color(0x4a4860);
+  // phase 48 : crânes de difficulté en violet (ni le bleu des sanctuaires, ni l'or des coffres, ni le rouge du totem)
+  private cSkullOn = new THREE.Color(PAL.skull).multiplyScalar(1.25);
+  private cSkullFull = new THREE.Color(0xf3e0ff).multiplyScalar(1.7);
+  private cBeamSkull = new THREE.Color(PAL.skull);
   private cPoi = new THREE.Color();
   // phase 17 : échoppe du marchand (une seule, visible pendant sa visite) : 3 appels de rendu quand elle est là
   private stall = new THREE.Group();
@@ -585,11 +592,14 @@ export class GameScene {
     // + 4 anneaux (totem, portail)
     const shrine = buildShrine();
     this.shrineW = new InstanceWriter(makeInstanced(shrine.geometry, shrine.material, SHRINE.count));
+    // phase 48 : crânes de difficulté (`skull.ts`), un appel de plus ; leurs anneaux et colonnes sur les écrivains voisins
+    const skull = buildSkull();
+    this.skullW = new InstanceWriter(makeInstanced(skull.geometry, skull.material, DIFFICULTY.skullCount));
     this.shrineGlowW = new InstanceWriter(
       makeInstanced(
         new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2),
         additive(0xffffff, 0.7),
-        SHRINE.count + 4,
+        SHRINE.count + 4 + DIFFICULTY.skullCount,
       ),
     );
     // colonne de lumière : cylindre ouvert, additif, 16 u de haut, visible au-dessus des arbres
@@ -597,11 +607,12 @@ export class GameScene {
       makeInstanced(
         new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
         additive(0xffffff, 0.22),
-        MAPCHEST.count + SHRINE.count + 1, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem
+        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullCount, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes
       ),
     );
     this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
-    this.writers.push(this.mapChestW, this.holdW, this.shrineW, this.shrineGlowW, this.beamW);
+    this.scene.add(this.skullW.mesh);
+    this.writers.push(this.mapChestW, this.holdW, this.shrineW, this.shrineGlowW, this.beamW, this.skullW);
 
     // échoppe : corps toon à contour cuit, lanterne lumineuse, anneau au sol = zone d'entrée (MERCHANT.r)
     const stallBody = new THREE.Mesh(stallGeometry(), toonMaterial({ vertexColors: true }));
@@ -1887,6 +1898,7 @@ export class GameScene {
     this.mapChestW.begin();
     this.holdW.begin();
     this.shrineW.begin();
+    this.skullW.begin();
     this.shrineGlowW.begin();
     this.beamW.begin();
     const affordable = canOpenMapChest(w);
@@ -1935,8 +1947,49 @@ export class GameScene {
       }
       if (!sr.used) this.beamW.put(sr.x, g, sr.z, 0, 1 + f * 0.6, this.cBeamBlue, 0, 0, 1, 1 + f * 0.6);
     }
+    // phase 48 : crânes de difficulté ; orbites et cornes violettes, de plus en plus claires pendant la charge, éteintes après
+    for (let i = 0; i < w.skulls.length; i++) {
+      const sk = w.skulls[i];
+      const g = this.gy(sk.x, sk.z);
+      const f = sk.on ? 0 : sk.charge / DIFFICULTY.skullCharge;
+      if ((sk.x - px) ** 2 + (sk.z - pz) ** 2 < POI_DRAW2) {
+        this.tilt(sk.x, sk.z);
+        if (sk.on) this.cPoi.copy(this.cShrineOff);
+        else
+          this.cPoi
+            .copy(this.cSkullOn)
+            .lerp(this.cSkullFull, f)
+            .multiplyScalar(1 + Math.sin(now * 4 + i) * 0.15);
+        this.skullW.put(sk.x, g - 0.02, sk.z, 0, FEEL.skull.scale * (1 + f * 0.12), this.cPoi, this.tRx, this.tRz);
+        this.cPoi.copy(this.cBeamSkull).multiplyScalar(sk.on ? 0.1 : 0.4 + f * 1.3 + Math.sin(now * 4 + i) * 0.1);
+        this.shrineGlowW.put(
+          sk.x,
+          g + 0.12,
+          sk.z,
+          -now * 0.5,
+          DIFFICULTY.skullR * (1 + f * 0.08),
+          this.cPoi,
+          this.tRx,
+          this.tRz,
+        );
+      }
+      if (!sk.on)
+        this.beamW.put(
+          sk.x,
+          g,
+          sk.z,
+          0,
+          FEEL.skull.beam + f * 0.5,
+          this.cBeamSkull,
+          0,
+          0,
+          1,
+          FEEL.skull.beam + f * 0.5,
+        );
+    }
     this.drawTotem(w, px, pz, now);
     this.mapChestW.end();
+    this.skullW.end();
     this.holdW.end();
     this.shrineW.end();
     this.shrineGlowW.end();

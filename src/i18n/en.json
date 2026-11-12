@@ -859,5 +859,12 @@
   "notes.new": "New",
   "notes.older": "Older versions ({n})",
   "notes.loading": "Loading…",
-  "notes.error": "Couldn't load the notes. Try again once online."
+  "notes.error": "Couldn't load the notes. Try again once online.",
+  "hud.difficulty": "☠ {n}%",
+  "skull.chip": "Skull · difficulty {from}% → {to}%",
+  "banner.skull": "Difficulty {n}%",
+  "map.legend.skull": "Skull",
+  "stats.difficulty": "Difficulty",
+  "over.difficulty": "Difficulty reached: {n}% · skulls activated: {skulls}",
+  "menu.ctrl.skull": "Purple skulls on the map: stand inside to raise the run's difficulty. More monsters, tougher too, so more XP, gold and kills."
 }

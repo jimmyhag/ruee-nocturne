@@ -787,6 +787,12 @@ function renderOverScreen(): void {
   $('oLvl').textContent = String(world.player.level);
   $('oGear').innerHTML = gearHtml(world); // phase 38 : l'équipement de la partie
   $('oKills').textContent = String(world.kills);
+  // phase 48 : difficulté atteinte, si la partie l'a montée
+  $('oDiff').hidden = world.player.difficulty <= 0;
+  $('oDiff').textContent = t('over.difficulty', {
+    n: Math.round(100 + world.player.difficulty * 100),
+    skulls: world.skullsOn,
+  });
   $('oBest').textContent = fmtTime(meta.bestTime);
   $('oGold').textContent = String(o.gold);
   $('oTitle').textContent = t(world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : 'over.dead');
@@ -2147,6 +2153,15 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, 1, e.z, PAL.xp, (20 * fx) | 0, 3, 9, false);
         audio.shrine();
         hud.banner(t('banner.shrine'));
+        break;
+      case Ev.SkullOn:
+        // phase 48 : crâne de difficulté activé (e.v = difficulté ajoutée de la partie)
+        S.particles.ring(e.x, 0.2, e.z, PAL.skull, (40 * fx) | 0, 5, 7);
+        S.particles.burst(e.x, 1.6, e.z, PAL.skull, (24 * fx) | 0, 4, 10, false);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
+        audio.roar();
+        hud.banner(t('banner.skull', { n: Math.round(100 + e.v * 100) }));
+        hud.flash('skull');
         break;
       case Ev.SurvivalWarn:
         // phase 42 : un boss de survie arrive dans quelques secondes

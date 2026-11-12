@@ -16,6 +16,7 @@ export const PAL = {
   hp: 0xff5d73,
   xp: 0x5fd3ff,
   gold: 0xffd166,
+  skull: 0xb060ff, // phase 48 : crânes de difficulté (violet : ni le bleu des sanctuaires, ni le rouge du totem)
   lantern: 0xffb347, // lumière des lanternes et des halos chauds
   grass1: [94, 152, 64] as const, // phase 44 : vert de la clairière (repli tant que la texture de sol charge)
   grass2: [98, 158, 68] as const,

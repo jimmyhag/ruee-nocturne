@@ -1,4 +1,5 @@
 import {
+  DIFFICULTY,
   ENEMIES,
   ITEM_KEYS,
   ITEM_RARITY,
@@ -43,7 +44,7 @@ import {
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
-export type FlashKind = 'hurt' | 'gold';
+export type FlashKind = 'hurt' | 'gold' | 'skull'; // phase 48 : crâne de difficulté activé
 
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
 /** Phase 37 : textes de la puce d'objectif, par sorte (1 totem, 2 boss, 3 portail, 4 fermé). */
@@ -54,6 +55,7 @@ export class Hud {
   /** Noms de boss précalculés dans la langue courante : aucune chaîne construite par frame. */
   private bossNames: string[] = [];
   private els = {
+    diffLbl: $('diffLbl'),
     xpfill: $('xpfill'),
     xpsweep: $('xpsweep'),
     hpfill: $('hpfill'),
@@ -272,6 +274,18 @@ export class Hud {
         fill = T.charge / STAGE.totemCharge;
       }
     }
+    // phase 48 : crâne de difficulté tout proche : ce qu'il fera, et sa jauge
+    const kr2 = (DIFFICULTY.skullR + 2) ** 2;
+    for (let i = 0; i < w.skulls.length; i++) {
+      const s = w.skulls[i];
+      if (s.on) continue;
+      const d2 = (s.x - P.x) ** 2 + (s.z - P.z) ** 2;
+      if (d2 < kr2 && (kind === 0 || d2 < best)) {
+        best = d2;
+        kind = 5;
+        fill = s.charge / DIFFICULTY.skullCharge;
+      }
+    }
     // phase 28 : piste chronométrée en cours (prioritaire) : secondes restantes et jauge du temps
     let raceT = -1;
     for (let i = 0; i < w.races.length; i++)
@@ -285,6 +299,7 @@ export class Hud {
       this.els.poiChip.classList.toggle('shrine', kind === 2);
       this.els.poiChip.classList.toggle('race', kind === 3);
       this.els.poiChip.classList.toggle('totem', kind === 4);
+      this.els.poiChip.classList.toggle('skull', kind === 5);
       if (kind !== 1) this.els.poiChip.classList.remove('poor'); // « pas assez d'or » ne vaut que pour un coffre
     }
     if (kind === 3) {
@@ -314,6 +329,21 @@ export class Hud {
       this.cache.poiKey = -1;
       this.els.poiText.textContent = t(kind === 2 ? 'shrine.title' : 'totem.title');
       this.els.poiChip.classList.remove('poor');
+    }
+    // difficulté de la partie (phase 48) : à côté du monde, dès qu'elle dépasse 100 %
+    const diff = Math.round(P.difficulty * 100);
+    if (kind === 5 && (this.cache.poiOn !== kind || this.cache.poiKey !== diff)) {
+      this.cache.poiKey = diff;
+      this.els.poiText.textContent = t('skull.chip', {
+        from: 100 + diff,
+        to: 100 + diff + Math.round(DIFFICULTY.skullStep * 100),
+      });
+      this.els.poiChip.classList.remove('poor');
+    }
+    if (this.cache.diff !== diff) {
+      this.cache.diff = diff;
+      this.els.diffLbl.hidden = diff === 0;
+      this.els.diffLbl.textContent = t('hud.difficulty', { n: 100 + diff });
     }
     this.cache.poiOn = kind;
     if (kind !== 0) this.width('poiFill', fill);
@@ -424,6 +454,7 @@ export class Hud {
     if (this.cache.flk !== k) {
       this.cache.flk = k;
       this.els.flash.classList.toggle('gold', k === 'gold');
+      this.els.flash.classList.toggle('skull', k === 'skull');
     }
   }
   /** Phase 35 : la pastille du bonus ramassé saute (relancée même si l'effet était déjà actif). */

@@ -859,5 +859,12 @@
   "notes.new": "Nouveau",
   "notes.older": "Versions plus anciennes ({n})",
   "notes.loading": "Chargement…",
-  "notes.error": "Impossible de charger les nouveautés. Réessaie une fois en ligne."
+  "notes.error": "Impossible de charger les nouveautés. Réessaie une fois en ligne.",
+  "hud.difficulty": "☠ {n} %",
+  "skull.chip": "Crâne · difficulté {from} % → {to} %",
+  "banner.skull": "Difficulté {n} %",
+  "map.legend.skull": "Crâne",
+  "stats.difficulty": "Difficulté",
+  "over.difficulty": "Difficulté atteinte : {n} % · crânes activés : {skulls}",
+  "menu.ctrl.skull": "Crânes violets sur la carte : rester dedans monte la difficulté de la partie. Plus de monstres, plus solides, donc plus d'XP, d'or et de vaincus."
 }

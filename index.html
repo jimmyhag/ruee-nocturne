@@ -73,6 +73,7 @@
         --accent-dim: rgba(255, 179, 71, 0.16);
         --hp: #ff5d73;
         --xp: #5fd3ff;
+        --skull: #b060ff; /* phase 48 : difficulté (PAL.skull) */
         --gold: #ffd166;
         --glass: rgba(20, 28, 51, 0.9);
         --glass-2: rgba(255, 255, 255, 0.06);
@@ -148,6 +149,10 @@
       }
       #flash.gold {
         background: radial-gradient(ellipse at center, transparent 30%, var(--gold) 120%);
+        transition: opacity 0.08s;
+      }
+      #flash.skull {
+        background: radial-gradient(ellipse at center, transparent 30%, var(--skull) 125%);
         transition: opacity 0.08s;
       }
       #hud {
@@ -355,6 +360,12 @@
         color: var(--muted);
         text-shadow: none;
         margin-bottom: 2px;
+      }
+      /* phase 48 : difficulté de la partie, à côté du monde, dès qu'elle dépasse 100 % */
+      #diffLbl {
+        margin-left: 6px;
+        color: var(--skull);
+        font-weight: 800;
       }
       .time.over #time {
         color: var(--hp);
@@ -1461,6 +1472,9 @@
       .lg.shrine {
         background: #7fd8ff;
       }
+      .lg.skull {
+        background: var(--skull);
+      }
       .lg.merchant {
         background: #ff9f43;
       }
@@ -1539,6 +1553,13 @@
       }
       #poiChip.shrine #poiFill {
         background: var(--xp);
+      }
+      /* phase 48 : crâne de difficulté */
+      #poiChip.skull {
+        border-color: var(--skull);
+      }
+      #poiChip.skull #poiFill {
+        background: var(--skull);
       }
       /* 1.45.2 : totem du boss, jauge d'activation */
       #poiChip.totem {
@@ -2519,7 +2540,9 @@
           <div class="powers" id="powers"></div>
         </div>
         <!-- phase 37 : monde en cours et chrono qui descend (dépassement en rouge) -->
-        <div class="time" id="timeBox"><small id="stageLbl">Monde 1</small><span id="time">10:00</span></div>
+        <div class="time" id="timeBox">
+          <small><span id="stageLbl">Monde 1</span><b id="diffLbl" hidden></b></small><span id="time">10:00</span>
+        </div>
         <div class="hright">
           <div class="goldc" id="goldBox" aria-label="Or de la partie" data-i18n-attr="aria-label:hud.gold">
             <i class="coin"></i><span id="goldN">0</span>
@@ -2768,6 +2791,11 @@
           <dd data-i18n="menu.ctrl.spell">Sort de ta classe (chaque personnage a le sien)</dd>
           <dt><span class="cap">1 2 3</span></dt>
           <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
+          <dt><span class="cap">☠</span></dt>
+          <dd data-i18n="menu.ctrl.skull">
+            Crânes violets sur la carte : rester dedans monte la difficulté de la partie. Plus de monstres, plus
+            solides, donc plus d'XP, d'or et de vaincus.
+          </dd>
           <dt><span class="cap">10:00</span></dt>
           <dd data-i18n="menu.ctrl.worlds">
             Avant la fin du chrono, active le totem (losange rouge sur la carte) et tue son boss : le portail mène au
@@ -2886,6 +2914,7 @@
           <span><i class="lg you"></i><span data-i18n="map.legend.you">Toi</span></span
           ><span><i class="lg chest"></i><span data-i18n="map.legend.chest">Coffre</span></span
           ><span><i class="lg shrine"></i><span data-i18n="map.legend.shrine">Sanctuaire</span></span
+          ><span><i class="lg skull"></i><span data-i18n="map.legend.skull">Crâne</span></span
           ><span><i class="lg merchant"></i><span data-i18n="map.legend.merchant">Marchand</span></span
           ><span><i class="lg boss"></i><span data-i18n="map.legend.boss">Boss</span></span>
         </p>
@@ -2924,6 +2953,7 @@
           <div><b id="oBest">0:00</b><span data-i18n="over.best">Record</span></div>
         </div>
         <div class="gear static" id="oGear" aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
+        <p class="note" id="oDiff" hidden></p>
         <p class="note" id="oMsg"></p>
         <p class="note slotline" id="oNext" hidden></p>
         <p class="unlocked" id="oUnlocked" hidden></p>

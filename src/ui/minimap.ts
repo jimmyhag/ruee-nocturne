@@ -204,6 +204,17 @@ export class MapView {
         ctx.arc(this.X(s.x), this.Z(s.z), r * 1.2, 0, Math.PI * 2);
         ctx.fill();
       }
+    // phase 48 : crânes de difficulté, un petit crâne violet (disque et mâchoire) ; même règle que les sanctuaires
+    ctx.fillStyle = '#b060ff';
+    for (const s of w.skulls)
+      if (!s.on && (compass || this.seenAt(w, s.x, s.z))) {
+        const x = this.X(s.x),
+          z = this.Z(s.z);
+        ctx.beginPath();
+        ctx.arc(x, z - r * 0.25, r * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(x - r * 0.65, z + r * 0.4, r * 1.3, r * 0.9);
+      }
     const M = w.merchant;
     if (M.active) {
       ctx.fillStyle = '#ff9f43';
