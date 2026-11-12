@@ -617,7 +617,7 @@ const summary = {
   // phase 48 : crânes activés par run, difficulté moyenne en fin de partie (1 = 100 %), kills médians de la partie
   skullsPerRun: +(results.reduce((a, r) => a + r.skulls, 0) / RUNS).toFixed(2),
   bossTotemsPerRun: +(results.reduce((a, r) => a + r.bossTotems, 0) / RUNS).toFixed(2),
-  difficultyAvg: +(1 + results.reduce((a, r) => a + r.difficulty, 0) / RUNS).toFixed(3),
+  difficultyAvg: +(results.reduce((a, r) => a + r.difficulty, 0) / RUNS).toFixed(3), // phase 50 : 0 = normal
   killsP50: results.map((r) => r.kills).sort((a, b) => a - b)[RUNS >> 1],
   // phase 19 : sort de classe, lancers par minute de jeu et part des kills
   spellPerMin: +(

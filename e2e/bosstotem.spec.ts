@@ -54,12 +54,22 @@ test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au der
   // 3:00 : deux boss de survie au lieu d'un ; la barre dit qu'il en reste un autre
   await page.evaluate(() => (window as any).__game.debug.stageTime(179.5));
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 2, null, { timeout: 20_000 });
+  // phase 50 : le boss en plus est un double exact (même type, mêmes PV)
+  const pair = await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    const out: [number, number][] = [];
+    for (let i = 0; i < w.enemyCount; i++)
+      if (w.enemies[i].alive && w.enemies[i].max > 1000) out.push([w.enemies[i].type, w.enemies[i].max]);
+    return out;
+  });
+  expect(pair.length).toBe(2);
+  expect(pair[1]).toEqual(pair[0]);
   await expect(page.locator('#bossbar')).toBeVisible();
   await expect(page.locator('#bossname')).toContainText('+1');
   await expect(page.locator('#banner')).toContainText('Boss de survie'); // celle du boss de la vague, pas du boss en plus
   await page.waitForTimeout(3000); // le temps qu'ils entrent dans le champ
   await page.screenshot({ path: `shots/${p}-deux-boss.png` });
-  // deux types de boss à l'écran : relevé des appels de rendu (4 de plus qu'un seul type : corps et contour)
+  // phase 50 : deux boss du même type, aucun appel de rendu en plus (même maillage instancié)
   console.log(
     `[${p}] appels de rendu avec deux boss :`,
     await page.evaluate(() => (window as any).__game.renderer.info.render.calls),
@@ -80,5 +90,41 @@ test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au der
   expect(await page.evaluate(() => (window as any).__game.world.portal.open)).toBe(false);
   await killBoss(page);
   await page.waitForFunction(() => (window as any).__game.world.portal.open === true, null, { timeout: 20_000 });
+  expect(errors).toEqual([]);
+});
+
+test('Toxine : les coups empoisonnent le boss (teinte verte, coups de toxine)', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const errors = collectConsoleErrors(page);
+  const p = info.project.name;
+  await openGame(page);
+  await startRun(page, 23);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    const w = g.world;
+    w.player.need = 1e9;
+    w.nextWave = w.nextElite = w.nextEruption = 1e9;
+    w.merchant.next = 99;
+    g.debug.item('toxine');
+    g.debug.item('toxine');
+    g.debug.item('toxine');
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
+    g.debug.stageTime(179.5); // boss de survie
+  });
+  await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 1, null, { timeout: 20_000 });
+  await page.evaluate(() => (window as any).__game.debug.pullBoss?.());
+  await page.waitForFunction(
+    () => {
+      const w = (window as any).__game.world;
+      for (let i = 0; i < w.enemyCount; i++) if (w.enemies[i].alive && w.enemies[i].tox > 0) return true;
+      return false;
+    },
+    null,
+    { timeout: 40_000 },
+  );
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `shots/${p}-toxine.png` });
+  expect(await page.evaluate(() => (window as any).__game.world.srcKills.length)).toBeGreaterThan(20);
   expect(errors).toEqual([]);
 });
