@@ -13,6 +13,8 @@ export const FEEL = {
   },
   // phase 48 : crâne de difficulté (hauteur ≈ 1,7 × scale ; colonne plus fine que celle d'un sanctuaire)
   skull: { scale: 1.5, beam: 0.8 },
+  // phase 48 : totem de boss, la stèle du totem du monde en plus petit (hauteur en u) ; colonne entre crâne et totem
+  bossTotem: { height: 3.1, beam: 1.1 },
   shake: {
     max: 0.6, // amplitude bornée (u)
     decay: 2, // par seconde

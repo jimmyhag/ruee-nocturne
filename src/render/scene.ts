@@ -28,6 +28,7 @@ import {
   VITRIOL,
   BALISE,
   DIFFICULTY,
+  BOSSTOTEM,
 } from '../sim/balance';
 import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
@@ -67,7 +68,7 @@ import { OUTLINE, stylize, toonGradient, toonMaterial } from './toon';
 import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, softGlow, SLASH_ARC } from './textures';
 import { buildShrine } from './shrine';
 import { buildSkull } from './skull';
-import { buildTotem, TOTEM_HEIGHT } from './totem';
+import { buildTotem, stoneMaterial, TOTEM_HEIGHT } from './totem';
 import type { CharacterModel } from './characters';
 import { FEEL } from './feel';
 import { AimLines, Bolts, DamageNumbers, Particles, PowerMarks } from './fx';
@@ -230,6 +231,7 @@ export class GameScene {
   private holdW: InstanceWriter; // anneau qui se remplit pendant l'ouverture
   private shrineW: InstanceWriter;
   private skullW: InstanceWriter; // phase 48 : crânes de difficulté
+  private bossTotemW: InstanceWriter; // phase 48 : totems de boss
   private shrineGlowW: InstanceWriter; // runes du sanctuaire : s'allument avec la jauge
   private beamW: InstanceWriter;
   // phase 20 : objets KayKit (CC0) ; arbres et lanternes dessinés autour du joueur seulement (≈ 300 triangles chacun)
@@ -278,6 +280,8 @@ export class GameScene {
   private cSkullOn = new THREE.Color(PAL.skull).multiplyScalar(1.25);
   private cSkullFull = new THREE.Color(0xf3e0ff).multiplyScalar(1.7);
   private cBeamSkull = new THREE.Color(PAL.skull);
+  private cBossTotem = new THREE.Color(PAL.bossTotem);
+  private cBossTotemFull = new THREE.Color(0xffe0b0).multiplyScalar(1.7);
   private cPoi = new THREE.Color();
   // phase 17 : échoppe du marchand (une seule, visible pendant sa visite) : 3 appels de rendu quand elle est là
   private stall = new THREE.Group();
@@ -599,7 +603,7 @@ export class GameScene {
       makeInstanced(
         new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2),
         additive(0xffffff, 0.7),
-        SHRINE.count + 4 + DIFFICULTY.skullCount,
+        SHRINE.count + 4 + DIFFICULTY.skullCount + BOSSTOTEM.count,
       ),
     );
     // colonne de lumière : cylindre ouvert, additif, 16 u de haut, visible au-dessus des arbres
@@ -607,12 +611,22 @@ export class GameScene {
       makeInstanced(
         new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
         additive(0xffffff, 0.22),
-        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullCount, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes
+        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullCount + BOSSTOTEM.count, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes
       ),
     );
     this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
-    this.scene.add(this.skullW.mesh);
-    this.writers.push(this.mapChestW, this.holdW, this.shrineW, this.shrineGlowW, this.beamW, this.skullW);
+    // phase 48 : totems de boss, la géométrie du totem du monde en instances (runes à la couleur d'instance), un appel
+    this.bossTotemW = new InstanceWriter(makeInstanced(this.totem.mesh.geometry, stoneMaterial(), BOSSTOTEM.count));
+    this.scene.add(this.skullW.mesh, this.bossTotemW.mesh);
+    this.writers.push(
+      this.mapChestW,
+      this.holdW,
+      this.shrineW,
+      this.shrineGlowW,
+      this.beamW,
+      this.skullW,
+      this.bossTotemW,
+    );
 
     // échoppe : corps toon à contour cuit, lanterne lumineuse, anneau au sol = zone d'entrée (MERCHANT.r)
     const stallBody = new THREE.Mesh(stallGeometry(), toonMaterial({ vertexColors: true }));
@@ -1899,6 +1913,7 @@ export class GameScene {
     this.holdW.begin();
     this.shrineW.begin();
     this.skullW.begin();
+    this.bossTotemW.begin();
     this.shrineGlowW.begin();
     this.beamW.begin();
     const affordable = canOpenMapChest(w);
@@ -1989,9 +2004,52 @@ export class GameScene {
           FEEL.skull.beam + f * 0.5,
         );
     }
+    // phase 48 : totems de boss ; éteints une fois activés, ou quand le portail est ouvert (plus de vague à venir)
+    const closed = w.totem.state === 2 || w.endless;
+    for (let i = 0; i < w.bossTotems.length; i++) {
+      const bt = w.bossTotems[i];
+      const g = this.gy(bt.x, bt.z);
+      const off = bt.on || closed;
+      const f = off ? 0 : bt.charge / BOSSTOTEM.charge;
+      if ((bt.x - px) ** 2 + (bt.z - pz) ** 2 < POI_DRAW2) {
+        this.tilt(bt.x, bt.z);
+        if (off) this.cPoi.copy(this.cShrineOff);
+        else
+          this.cPoi
+            .copy(this.cBossTotem)
+            .lerp(this.cBossTotemFull, f)
+            .multiplyScalar(1.15 + Math.sin(now * 3 + i * 2) * 0.15);
+        this.bossTotemW.put(
+          bt.x,
+          g - 0.02,
+          bt.z,
+          i * 1.3,
+          FEEL.bossTotem.height / TOTEM_HEIGHT,
+          this.cPoi,
+          this.tRx,
+          this.tRz,
+        );
+        this.cPoi.copy(this.cBossTotem).multiplyScalar(off ? 0.1 : 0.4 + f * 1.3 + Math.sin(now * 3 + i * 2) * 0.1);
+        this.shrineGlowW.put(
+          bt.x,
+          g + 0.12,
+          bt.z,
+          now * 0.5,
+          BOSSTOTEM.r * (1 + f * 0.08),
+          this.cPoi,
+          this.tRx,
+          this.tRz,
+        );
+      }
+      if (!off) {
+        const bw = FEEL.bossTotem.beam + f * 0.6;
+        this.beamW.put(bt.x, g, bt.z, 0, bw, this.cBossTotem, 0, 0, 1, bw);
+      }
+    }
     this.drawTotem(w, px, pz, now);
     this.mapChestW.end();
     this.skullW.end();
+    this.bossTotemW.end();
     this.holdW.end();
     this.shrineW.end();
     this.shrineGlowW.end();
