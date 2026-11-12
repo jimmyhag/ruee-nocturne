@@ -1952,7 +1952,9 @@ export class GameScene {
       const sk = w.skulls[i];
       const g = this.gy(sk.x, sk.z);
       const f = sk.on ? 0 : sk.charge / DIFFICULTY.skullCharge;
-      if ((sk.x - px) ** 2 + (sk.z - pz) ** 2 < POI_DRAW2) {
+      // modèle et anneau seulement à portée de caméra (comme la stèle du totem) : un appel de dessin hors champ serait
+      // payé pour rien, le budget mobile est au plafond (relecture perf) ; la colonne, elle, se voit de loin
+      if ((sk.x - px) ** 2 + (sk.z - pz) ** 2 < TOTEM_VIEW2) {
         this.tilt(sk.x, sk.z);
         if (sk.on) this.cPoi.copy(this.cShrineOff);
         else

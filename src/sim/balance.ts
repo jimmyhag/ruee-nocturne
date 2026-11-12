@@ -182,7 +182,8 @@ export const DIFFICULTY = {
   skullSpacing: 26, // u entre deux crânes
   skullFromPoi: 12, // u au moins des coffres, sanctuaires et du totem
   skullFromStart: 30, // u du départ : jamais dans la clairière
-  skullTries: 4000,
+  skullTries: 4000, // tirages au plus pour les placer (une carte encombrée en pose parfois moins)
+  tomeAfterSkulls: 1, // crânes activés dans la partie avant que le tome de difficulté soit proposé
   hpShare: 0.5, // vie des monstres : ×(1 + 0,5 · d)
   max: 4, // garde-fou : au-delà de 500 %, plus d'effet
 };
@@ -945,6 +946,7 @@ export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
 // atteint » tombe de 76 à 59 % ; avec le Sang seul en plus, 76 %. Givre, Bastion et Défi attendent la décision de Jimmy sur
 // la façon d'élargir le tirage (bannir une carte, déblocage à la Bibliothèque) : PLAN, phase 47.
 // phase 48 (demande de Jimmy : « un tome de difficulté ») : le Défi sort de la réserve, sa première ligne monte la difficulté.
+// Il n'est proposé qu'après un crâne activé (DIFFICULTY.tomeAfterSkulls, progression.ts) : il doit rester le dernier du pool.
 export const TOME_HELD: readonly TomeKey[] = ['givre', 'bastion'];
 /** Tomes tirés aux montées de niveau et listés dans la Bibliothèque. */
 export const TOME_POOL: TomeKey[] = TOME_KEYS.filter((k) => !TOME_HELD.includes(k));

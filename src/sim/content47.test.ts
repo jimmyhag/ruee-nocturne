@@ -121,7 +121,7 @@ describe('tomes de la phase 47', () => {
       rollChoices(w);
       for (const c of w.cards) if (c.kind === 't') seen.add(c.key);
     }
-    expect(seen.size).toBe(10);
+    expect(seen.size).toBe(9); // le tome de difficulté attend un crâne activé (phase 48)
     for (const k of TOME_HELD) expect(seen.has(k), k).toBe(false);
     for (const k of ['sang', 'givre', 'bastion', 'defi'] as TomeKey[]) expect(TOMES[k].length, k).toBe(3);
   });

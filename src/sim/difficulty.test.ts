@@ -170,7 +170,7 @@ describe('effet de la difficulté', () => {
     expect(a.hp).toBeCloseTo(ENEMIES[0].hp * SPAWN.hpScale(200), 9);
     expect(b.hp / a.hp).toBeCloseTo(1 + DIFFICULTY.hpShare, 9);
     expect(b.dmg).toBe(a.dmg);
-    expect(difficultyHp(calm(9))).toBe(1); // au départ, exactement ×1 : une partie sans crâne ne change pas d'un bit
+    expect(difficultyHp(calm(9))).toBe(1); // au départ, exactement ×1 : apparitions et vie d'une partie sans crâne ne bougent pas
   });
   it('les vagues d’encerclement grossissent avec elle', () => {
     const wave = (d: number): number => {
@@ -205,17 +205,47 @@ describe('effet de la difficulté', () => {
 });
 
 describe('tome de difficulté', () => {
-  it('sorti de la réserve, tiré aux montées de niveau ; sa première ligne monte la difficulté', () => {
+  it('sorti de la réserve ; proposé seulement après un crâne activé ; sa première ligne monte la difficulté', () => {
     expect(TOME_HELD).not.toContain('defi');
-    expect(TOME_POOL).toContain('defi');
-    const w = new World(4);
-    w.maxTomes = 12;
-    let seen = false;
-    for (let k = 0; k < 400 && !seen; k++) {
-      rollChoices(w);
-      seen = w.cards.some((c) => c.kind === 't' && c.key === 'defi');
+    expect(TOME_POOL[TOME_POOL.length - 1]).toBe('defi'); // dernier du pool : l'écarter ne décale aucun tirage
+    const offered = (skulls: number): boolean => {
+      const w = new World(4);
+      w.maxTomes = 12;
+      w.skullsOn = skulls;
+      for (let k = 0; k < 400; k++) {
+        rollChoices(w);
+        if (w.cards.some((c) => c.kind === 't' && c.key === 'defi')) return true;
+      }
+      return false;
+    };
+    expect(offered(0)).toBe(false);
+    expect(offered(DIFFICULTY.tomeAfterSkulls)).toBe(true);
+    // sans crâne, les cartes tirées sont exactement celles d'un jeu sans ce tome
+    const cards = (drop: boolean): string => {
+      const i = TOME_POOL.indexOf('defi');
+      if (drop) TOME_POOL.splice(i, 1);
+      try {
+        const w = new World(4);
+        let s = '';
+        for (let k = 0; k < 60; k++) {
+          rollChoices(w);
+          s += w.cards.map((c) => `${c.kind}${c.key}${c.s0}${c.s1}${c.s2}`).join(',') + ';';
+        }
+        return s;
+      } finally {
+        if (drop) TOME_POOL.push('defi');
+      }
+    };
+    expect(cards(false)).toBe(cards(true));
+    // une fois pris, il continue de monter même si on ne touche plus aux crânes
+    const owned = new World(4);
+    owned.tomes = { defi: 1 };
+    let again = false;
+    for (let k = 0; k < 200 && !again; k++) {
+      rollChoices(owned);
+      again = owned.cards.some((c) => c.kind === 't' && c.key === 'defi');
     }
-    expect(seen).toBe(true);
+    expect(again).toBe(true);
     const i = lineIndex(TOMES.defi, 'difficulty');
     expect(i).toBe(0);
     const v = calm(9);

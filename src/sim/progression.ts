@@ -1,4 +1,4 @@
-import { CHEST, CHOICE, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_POOL, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
+import { CHEST, CHOICE, DIFFICULTY, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_POOL, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
 import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
@@ -93,6 +93,10 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
     const lv = w.tomes[k] ?? 0;
     if (lv >= LEVEL_MAX.tome) continue;
     if (lv === 0 && nT >= w.maxTomes) continue;
+    // phase 48 : le tome de difficulté n'entre dans les tirages qu'après un crâne activé. Mesuré : toujours présent, il
+    // coûtait 8 points de « monde 2 atteint » à qui ne le prenait jamais (un tome de plus pour quatre emplacements).
+    // Dernier du pool et écarté avant tout tirage : une partie sans crâne garde exactement ses cartes d'avant
+    if (k === 'defi' && lv === 0 && w.skullsOn < DIFFICULTY.tomeAfterSkulls) continue;
     const c = pool[n];
     c.kind = 't';
     c.key = k;

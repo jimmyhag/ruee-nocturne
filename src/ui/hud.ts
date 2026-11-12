@@ -330,7 +330,7 @@ export class Hud {
       this.els.poiText.textContent = t(kind === 2 ? 'shrine.title' : 'totem.title');
       this.els.poiChip.classList.remove('poor');
     }
-    // difficulté de la partie (phase 48) : à côté du monde, dès qu'elle dépasse 100 %
+    // difficulté de la partie (phase 48) : sous la barre de PV, dès qu'elle dépasse 100 %
     const diff = Math.round(P.difficulty * 100);
     if (kind === 5 && (this.cache.poiOn !== kind || this.cache.poiKey !== diff)) {
       this.cache.poiKey = diff;
