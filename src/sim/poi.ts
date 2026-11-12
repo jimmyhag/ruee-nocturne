@@ -1,7 +1,7 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BLOOD, BOON, BOON_KEYS, DIFFICULTY, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BLOOD, BOON, BOON_KEYS, BOSSTOTEM, DIFFICULTY, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { bellRing, bourseDiscount, canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card, Player } from './types';
@@ -27,6 +27,14 @@ export interface Skull {
   z: number;
   on: boolean; // activé (une fois)
   charge: number; // s (plein à DIFFICULTY.skullCharge)
+}
+
+/** Totem de boss (phase 48) : rester dedans BOSSTOTEM.charge s ajoute un boss à chaque vague de boss du monde. */
+export interface BossTotem {
+  x: number;
+  z: number;
+  on: boolean;
+  charge: number;
 }
 
 /** Piste chronométrée (phase 28) : arche de départ (en haut d'une grande piste) et d'arrivée (au pied). */
@@ -129,6 +137,22 @@ export function buildPOI(w: World, r: Rng): void {
   high(SHRINE.count, SHRINE.spacing, SHRINE.fromStart, (x, z) => w.shrines.push({ x, z, used: false, charge: 0 }));
   placeTotem(w, r, all);
   placeSkulls(w, r, all);
+  placeBossTotems(w, r, all);
+}
+
+/** Phase 48 : les totems de boss, tirés tout à la fin (après les crânes), loin les uns des autres et des autres lieux. */
+function placeBossTotems(w: World, r: Rng, all: { x: number; z: number }[]): void {
+  const B = BOSSTOTEM,
+    T = w.totem;
+  for (let t = 0; t < B.tries && w.bossTotems.length < B.count; t++) {
+    const x = r.range(-WORLD_HALF, WORLD_HALF),
+      z = r.range(-WORLD_HALF, WORLD_HALF);
+    if (x * x + z * z < B.fromStart * B.fromStart) continue;
+    if ((x - T.x) ** 2 + (z - T.z) ** 2 < (STAGE.totemSpacing + B.fromPoi) ** 2) continue;
+    if (!free(w, x, z, 3) || !spaced(all, x, z, B.fromPoi) || !spaced(w.skulls, x, z, B.fromPoi)) continue;
+    if (!spaced(w.bossTotems, x, z, B.spacing)) continue;
+    w.bossTotems.push({ x, z, on: false, charge: 0 });
+  }
 }
 
 /**
@@ -253,6 +277,22 @@ export function tickPOI(w: World, dt: number): void {
       w.skullsOn++;
       P.difficulty += DIFFICULTY.skullStep;
       w.emit(Ev.SkullOn, s.x, 0.2, s.z, P.difficulty);
+    }
+  }
+  // phase 48 : totems de boss. Fermés une fois le portail ouvert (plus aucune vague à venir dans ce monde)
+  if (w.totem.state !== 2 && !w.endless) {
+    const br2 = BOSSTOTEM.r * BOSSTOTEM.r;
+    for (let i = 0; i < w.bossTotems.length; i++) {
+      const b = w.bossTotems[i];
+      if (b.on) continue;
+      if ((b.x - P.x) ** 2 + (b.z - P.z) ** 2 < br2) b.charge += dt * fast;
+      else if (b.charge > 0) b.charge = Math.max(0, b.charge - dt * BOSSTOTEM.decay);
+      if (b.charge >= BOSSTOTEM.charge) {
+        b.on = true;
+        w.bossExtra++;
+        w.bossTotemsOn++;
+        w.emit(Ev.BossTotemOn, b.x, 0.3, b.z, w.bossExtra);
+      }
     }
   }
 }

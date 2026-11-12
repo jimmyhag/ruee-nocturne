@@ -187,6 +187,22 @@ export const DIFFICULTY = {
   hpShare: 0.5, // vie des monstres : ×(1 + 0,5 · d)
   max: 4, // garde-fou : au-delà de 500 %, plus d'effet
 };
+// phase 48, livraison 2 (demande de Jimmy) : totems de boss. Chacun, une fois activé, ajoute un boss à chaque vague de
+// boss du monde encore à venir : boss de survie (3:00, 7:00) et combat du totem (le portail attend qu'ils soient tous
+// morts). Remis à zéro à chaque monde. Les boss en plus sont les autres boss du jeu, à tour de rôle, avec `extraHp` des
+// PV du boss qu'ils accompagnent ; ils laissent un coffre d'élite, le soin complet et le coffre de boss restant au dernier.
+export const BOSSTOTEM = {
+  count: 2, // totems de boss par monde
+  r: 2.6, // rayon du cercle
+  charge: 3, // s à rester dedans
+  decay: 1.5,
+  spacing: 40, // u entre deux totems de boss
+  fromPoi: 12, // u au moins des coffres, sanctuaires, crânes et du totem du monde
+  fromStart: 35,
+  tries: 4000,
+  extraHp: 0.75, // PV d'un boss en plus, en part de ceux du boss de la vague
+  spread: 2.1, // rad entre deux boss autour du totem ou du joueur
+};
 // phase 47 (demande de Jimmy) : toutes les stats du héros, pour monter celles dont le build a besoin. L'ordre est celui
 // de w.boons ; les sept premiers sont ceux d'avant
 export const BOON_KEYS: BoonKey[] = [

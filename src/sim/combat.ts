@@ -114,7 +114,10 @@ export function killEnemy(w: World, i: number): void {
   if (def.boss) {
     // phase 42 : un boss de survie ne soigne pas et ne laisse qu'un coffre d'élite (mesuré : avec la récompense d'un
     // vrai boss, il rendait la partie plus facile, profil maxé 41 → 53 % de victoires)
-    const survival = !w.endless && e.id !== w.totemBossId;
+    // phase 48 : avec un totem de boss, le combat du totem compte plusieurs boss ; seul le dernier à tomber soigne,
+    // aimante l'XP et laisse le coffre de boss. Les autres sont récompensés comme un boss de survie
+    const totem = !w.endless && w.isTotemBoss(e);
+    const survival = !w.endless && !(totem && w.totemAlive <= 1);
     if (!survival) {
       // phase 43 : en monde infini, un boss tué ne rend plus tous les PV (ENDLESS.healFrac)
       const P = w.player;
@@ -129,9 +132,10 @@ export function killEnemy(w: World, i: number): void {
     w.emit(Ev.BossKill, e.x, e.y, e.z, e.type);
     if (w.endless) {
       // compte des boss en vie déjà mis à jour ci-dessus
-    } else if (e.id === w.totemBossId) {
-      w.totemBossId = -1;
-      stageBossDown(w, e.x, e.z); // phase 37 : boss du totem → portail, ou victoire au monde 3
+    } else if (totem) {
+      if (e.id === w.totemBossId) w.totemBossId = -1;
+      w.totemAlive = Math.max(0, w.totemAlive - 1);
+      stageBossDown(w, e.x, e.z); // phase 37 : boss du totem → portail, ou victoire au monde 3 (phase 48 : le dernier)
     } else w.survivalAlive = Math.max(0, w.survivalAlive - 1); // phase 42 : boss de survie (n'ouvre rien)
   } else {
     if (e.elite) dropChest(w, e.x, e.z, false);

@@ -295,7 +295,7 @@ function runOnce(seed: number): RunResult {
         for (let k = 0; k < w.enemyCount; k++) {
           const en = w.enemies[k];
           if (en.alive && ENEMIES[en.type].boss && !bossBorn.has(en.id))
-            bossBorn.set(en.id, { t: w.t, kind: w.endless ? 'infini' : en.id === w.totemBossId ? 'totem' : 'survie' });
+            bossBorn.set(en.id, { t: w.t, kind: w.endless ? 'infini' : w.isTotemBoss(en) ? 'totem' : 'survie' });
         }
       }
       if (e.type === Ev.Eruption) eruptions++;

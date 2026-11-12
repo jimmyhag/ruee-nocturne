@@ -44,6 +44,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.t2 = def.boss && type !== BOSS_TYPE ? BOSS.second.first : 0; // phase 43 : seconde attaque (Essaim-mère, Colosse), différée ; Gardien : seconde onde en attente
   e.age = 0;
   e.enraged = false;
+  e.totemExtra = false;
   e.combo = 0;
   e.hunt = 0;
   e.huntT = BOSS.huntFirst; // phase 45 : première Traque d'un boss peu après son arrivée
@@ -73,7 +74,7 @@ export function tickSpawner(w: World, dt: number): void {
     now = w.t;
   // boss du monde en vie : la horde se calme (pas en prolongation : elle ne doit pas amortir le renfort)
   // phase 42 : seule la présence du boss du totem (ou d'une vague du monde infini) calme la horde, pas un boss de survie
-  const calm = w.endless ? w.bossIndex >= 0 : w.totemBossId >= 0;
+  const calm = w.endless ? w.bossIndex >= 0 : w.totemAlive > 0 || w.totemBossId >= 0; // phase 48 : tant qu'un boss du totem vit
   const more = 1 + difficultyOf(w); // phase 48 : la difficulté multiplie les apparitions (crânes, tome de difficulté)
   let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1) * more;
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
