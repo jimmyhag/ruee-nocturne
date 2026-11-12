@@ -12,7 +12,7 @@ export const FEEL = {
     cooldown: 0.25,
   },
   // phase 48 : crâne de difficulté (hauteur ≈ 1,7 × scale ; colonne plus fine que celle d'un sanctuaire)
-  skull: { scale: 1.3, beam: 0.8 },
+  skull: { scale: 1.5, beam: 0.8 },
   shake: {
     max: 0.6, // amplitude bornée (u)
     decay: 2, // par seconde

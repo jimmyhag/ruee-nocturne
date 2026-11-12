@@ -11,7 +11,7 @@ async function calmRun(page: Page, seed: number): Promise<void> {
     g.debug.god();
     g.world.player.need = 1e9;
     // rendu fixé : en automatique, le repli de qualité sous SwiftShader affiche « Rendu allégé » à la place de la bannière
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
   });
 }
 const difficulty = (page: Page): Promise<number> =>
@@ -26,10 +26,10 @@ test('crâne de difficulté : visible, jauge, +10 % affichés partout', async ({
   await page.evaluate(() => {
     const g = (window as any).__game;
     const s = g.world.skulls[0];
-    g.debug.teleport(s.x + 0.6, s.z + 4.2);
+    g.debug.teleport(s.x - 4.5, s.z + 4.5); // hors de portée de la pastille (rayon du cercle + 2 u)
   });
+  await page.waitForTimeout(800);
   await expect(page.locator('#poiChip')).toBeHidden();
-  await page.waitForTimeout(600);
   await page.screenshot({ path: `shots/${p}-crane.png` });
   expect(await difficulty(page)).toBe(0); // regarder ne suffit pas
   // dans le cercle : la pastille dit ce qu'il fera, la jauge monte

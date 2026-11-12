@@ -570,6 +570,18 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           }
         }
       }
+      // phase 48 : un joueur qui ne veut pas de difficulté ne reste pas dans un cercle de crâne ; le bot s'en écarte dès
+      // que la jauge monte (mesuré sans cela : 3 parties sur 200 en activaient un par accident en tournant sur place)
+      if (BOT_TUNE.skulls === 0)
+        for (let i = 0; i < w.skulls.length; i++) {
+          const s = w.skulls[i];
+          if (s.on || s.charge <= 0) continue;
+          const dx = P.x - s.x,
+            dz = P.z - s.z,
+            l = Math.hypot(dx, dz) || 1;
+          out.mx += (dx / l) * pullFree * 4;
+          out.mz += (dz / l) * pullFree * 4;
+        }
       // phase 48 (--skulls N) : un crâne de difficulté toutes les BOT_TUNE.skullEvery s du monde, le plus proche d'abord
       if (!stay && BOT_TUNE.skulls > 0) {
         let on = 0,

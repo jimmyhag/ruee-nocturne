@@ -361,11 +361,20 @@
         text-shadow: none;
         margin-bottom: 2px;
       }
-      /* phase 48 : difficulté de la partie, à côté du monde, dès qu'elle dépasse 100 % */
-      #diffLbl {
-        margin-left: 6px;
-        color: var(--skull);
+      /* phase 48 : difficulté de la partie, sous la barre de PV, dès qu'elle dépasse 100 % */
+      .diffc {
+        align-self: flex-start;
+        padding: 1px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--skull);
+        background: var(--glass);
+        color: #d9b8ff;
+        font-size: 12px;
         font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+      .diffc[hidden] {
+        display: none;
       }
       .time.over #time {
         color: var(--hp);
@@ -2535,14 +2544,14 @@
             <span class="lvl"><span data-i18n="hud.level">Niv</span> <span id="lvl">1</span></span>
             <div class="hpbar"><em id="hpghost"></em><i id="hpfill"></i><span id="hptxt">100</span></div>
           </div>
+          <!-- phase 48 : difficulté de la partie, dès qu'elle dépasse 100 % -->
+          <div class="diffc" id="diffLbl" hidden></div>
           <div class="kit" id="kit"></div>
           <!-- phase 35 : bonus au sol actifs (icône + durée restante), remplis par Hud -->
           <div class="powers" id="powers"></div>
         </div>
         <!-- phase 37 : monde en cours et chrono qui descend (dépassement en rouge) -->
-        <div class="time" id="timeBox">
-          <small><span id="stageLbl">Monde 1</span><b id="diffLbl" hidden></b></small><span id="time">10:00</span>
-        </div>
+        <div class="time" id="timeBox"><small id="stageLbl">Monde 1</small><span id="time">10:00</span></div>
         <div class="hright">
           <div class="goldc" id="goldBox" aria-label="Or de la partie" data-i18n-attr="aria-label:hud.gold">
             <i class="coin"></i><span id="goldN">0</span>
