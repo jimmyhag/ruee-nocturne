@@ -112,6 +112,9 @@ if (args.has('set'))
     o[last] = +val;
   }
 if (args.has('tome-prior')) BOT_TUNE.tomePrior = +args.get('tome-prior')!; // phase 47 : 0 = bot d'avant (comparaison)
+// phase 48 : --skulls N, le bot active N crânes de difficulté par monde ; --take-defi, il prend le tome de difficulté
+if (args.has('skulls')) BOT_TUNE.skulls = +args.get('skulls')!;
+if (args.has('take-defi')) BOT_TUNE.takeDefi = true;
 // phase 47 : --held-tomes remet au tirage les tomes en réserve (TOME_HELD), pour mesurer ce qu'ils coûtent ou rapportent
 if (args.has('held-tomes')) TOME_POOL.push(...TOME_HELD);
 // phase 47 : --no-tome defi,givre retire des tomes du tirage (ablation : un tome dilue-t-il, aide-t-il, nuit-il ?)
@@ -192,6 +195,8 @@ interface RunResult {
   powersDropped: number; // phase 35 : bonus apparus
   powersTaken: number; // phase 35 : bonus ramassés
   shrines: number; // sanctuaires pris
+  skulls: number; // phase 48 : crânes de difficulté activés
+  difficulty: number; // difficulté ajoutée en fin de partie (0 = 100 %)
   spellCasts: number; // phase 19 : sorts lancés
   spellKills: number; // kills faits par le sort
   goldEarned: number; // or gagné (gardé + dépensé)
@@ -399,6 +404,8 @@ function runOnce(seed: number): RunResult {
     powersDropped: w.powersDropped,
     powersTaken: w.powersTaken,
     shrines: w.shrinesUsed,
+    skulls: w.skullsOn, // phase 48
+    difficulty: w.player.difficulty,
     spellCasts: w.sstate.casts,
     spellKills: w.sstate.kills,
     goldEarned: Math.round(w.gold + w.goldSpent),
@@ -603,6 +610,10 @@ const summary = {
       ),
   ),
   shrinesPerRun: +(results.reduce((a, r) => a + r.shrines, 0) / RUNS).toFixed(2),
+  // phase 48 : crânes activés par run, difficulté moyenne en fin de partie (1 = 100 %), kills médians de la partie
+  skullsPerRun: +(results.reduce((a, r) => a + r.skulls, 0) / RUNS).toFixed(2),
+  difficultyAvg: +(1 + results.reduce((a, r) => a + r.difficulty, 0) / RUNS).toFixed(3),
+  killsP50: results.map((r) => r.kills).sort((a, b) => a - b)[RUNS >> 1],
   // phase 19 : sort de classe, lancers par minute de jeu et part des kills
   spellPerMin: +(
     (60 * results.reduce((a, r) => a + r.spellCasts, 0)) /
@@ -811,6 +822,9 @@ lines.push(`vivants/min ${summary.aliveCurve.join(' ')}  (plus forte chute ${sum
 lines.push(
   `bonus       ${summary.powersPerMin} ramassés par minute · ${summary.powersTakenPct} % des bonus apparus`,
   `carte       ${summary.mapChestsPerRun} coffres de carte et ${summary.shrinesPerRun} sanctuaires par run · ${summary.goldSpentPct} % de l'or gagné dépensé en partie`,
+);
+lines.push(
+  `difficulté  ${Math.round(summary.difficultyAvg * 100)} % en fin de partie (moyenne) · ${summary.skullsPerRun} crânes par run · ${summary.killsP50} kills par partie (médiane)`,
 );
 lines.push(`sort        ${summary.spellPerMin} lancers par minute · ${summary.spellKillPct} % des kills`);
 // phase 43 : avec --endless, les cibles du monde infini s'ajoutent (s'il y a des parties gagnées à mesurer)

@@ -109,9 +109,10 @@ describe('sanctuaires : toutes les stats', () => {
 describe('tomes de la phase 47', () => {
   it('douze tomes, trois lignes chacun pour les nouveaux', () => {
     expect(TOME_KEYS.length).toBe(12);
-    // 1.46.0 : seul le Sang rejoint le tirage ; Givre, Bastion et Défi restent en réserve (dilution mesurée)
-    expect(TOME_HELD).toEqual(['givre', 'bastion', 'defi']);
-    expect(TOME_POOL.length).toBe(9);
+    // 1.46.0 : seul le Sang rejoint le tirage ; Givre et Bastion restent en réserve (dilution mesurée)
+    // phase 48 : le Défi en sort, c'est le tome de difficulté (src/sim/difficulty.test.ts)
+    expect(TOME_HELD).toEqual(['givre', 'bastion']);
+    expect(TOME_POOL.length).toBe(10);
     expect(TOME_POOL).toContain('sang');
     const w = new World(4);
     w.maxTomes = 12;
@@ -120,7 +121,7 @@ describe('tomes de la phase 47', () => {
       rollChoices(w);
       for (const c of w.cards) if (c.kind === 't') seen.add(c.key);
     }
-    expect(seen.size).toBe(9);
+    expect(seen.size).toBe(10);
     for (const k of TOME_HELD) expect(seen.has(k), k).toBe(false);
     for (const k of ['sang', 'givre', 'bastion', 'defi'] as TomeKey[]) expect(TOMES[k].length, k).toBe(3);
   });
@@ -243,10 +244,10 @@ describe('tomes de la phase 47', () => {
     expect(g.player.guard).toBeCloseTo(BASTION.guardMax, 9);
     expect(contact(g) / bare).toBeCloseTo(1 - BASTION.guardMax, 3);
   });
-  it('Défi : plus d’apparitions, élites plus fréquentes et plus généreuses', () => {
+  it('Défi (tome de difficulté, phase 48) : plus d’apparitions, élites plus fréquentes et plus généreuses', () => {
     const rate = (n: number) => {
       const w = calm(9);
-      if (n) line(w, 'defi', 'spawn', n);
+      if (n) line(w, 'defi', 'difficulty', n);
       w.diffT = 120;
       w.lastAction = w.t = 100; // pas de compensation d'ennui
       let spawned = 0;

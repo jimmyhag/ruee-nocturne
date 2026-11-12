@@ -224,8 +224,8 @@ export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void 
     case 'revenge':
       P.revenge += l.step;
       break;
-    case 'spawn':
-      P.spawnMul += l.step;
+    case 'difficulty':
+      P.difficulty += l.step;
       break;
     case 'eliteloot':
       P.eliteLoot += l.step;

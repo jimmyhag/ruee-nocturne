@@ -5,7 +5,7 @@ import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './ter
 import type { Kicker, Piste, Plateau, Ramp } from './terrain';
 import type { Race } from './poi';
 import { buildPOI } from './poi';
-import type { MapChest, Shrine } from './poi';
+import type { MapChest, Shrine, Skull } from './poi';
 import { makeMerchant } from './merchant';
 import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
@@ -244,6 +244,8 @@ export class World {
   // phase 18 : points d'intérêt (src/sim/poi.ts)
   readonly mapChests: MapChest[] = [];
   readonly shrines: Shrine[] = [];
+  readonly skulls: Skull[] = []; // phase 48 : crânes de difficulté du monde courant
+  skullsOn = 0; // crânes activés dans la partie (tous mondes)
   mapChestsOpened = 0;
   racesWon = 0; // phase 28 : pistes chronométrées réussies
   slideDist = 0; // phase 28 : u glissés dans la partie
@@ -378,13 +380,14 @@ export class World {
     this.seenT = 0;
     this.mapChests.length = 0;
     this.shrines.length = 0;
+    this.skulls.length = 0;
     this.flow.ready = false;
     const r = new Rng(seed ^ 0x9e3779b9);
     buildZones(this, r);
     buildTerrain(this, r); // phase 27 : le relief d'abord (plateaux, rampes, combes)…
     buildMap(this, r); // …puis les lieux construits, seulement sur le plat
     settlePlaces(this); // posés exactement à plat
-    buildPOI(this, r); // coffres et sanctuaires (sommets, pieds de rampes, combes), puis le totem du monde
+    buildPOI(this, r); // coffres et sanctuaires (sommets, pieds de rampes, combes), le totem du monde, puis les crânes
   }
 
   // ---------- événements ----------
@@ -693,7 +696,7 @@ export function makePlayer(opts?: WorldOptions): Player {
     airJumps: 0,
     revenge: 0,
     taken: 1,
-    spawnMul: 1,
+    difficulty: 0,
     eliteLoot: 1,
     eliteRate: 1,
     revives: 0,
@@ -791,7 +794,7 @@ const DOUBLE_FIELDS = [
   'guard',
   'revenge',
   'taken',
-  'spawnMul',
+  'difficulty',
   'eliteLoot',
   'eliteRate',
   'hp',

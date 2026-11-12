@@ -169,6 +169,23 @@ export const SHRINE = {
   decay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
   offers: 4, // phase 47 : 3 → 4, il y a 18 bonus à croiser
 };
+// phase 48 (demande de Jimmy) : la difficulté de la partie. `P.difficulty` vaut 0 au départ (affiché « 100 % ») et monte
+// par les crânes de la carte (`skullStep` chacun, pour toute la partie) et par le tome de difficulté. Elle multiplie les
+// apparitions par (1 + d) et la vie des monstres par (1 + hpShare · d) : les deux effets se multiplient, donc la vie monte
+// moitié moins vite, sinon chaque marche serait un mur. Dégâts et vitesse des monstres ne bougent pas.
+export const DIFFICULTY = {
+  skullCount: 6, // crânes par monde
+  skullStep: 0.1, // +10 % de difficulté par crâne
+  skullR: 2.4, // rayon du cercle (plus petit qu'un sanctuaire : on n'y entre pas par mégarde)
+  skullCharge: 2.5, // s à rester dedans
+  skullDecay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
+  skullSpacing: 26, // u entre deux crânes
+  skullFromPoi: 12, // u au moins des coffres, sanctuaires et du totem
+  skullFromStart: 30, // u du départ : jamais dans la clairière
+  skullTries: 4000,
+  hpShare: 0.5, // vie des monstres : ×(1 + 0,5 · d)
+  max: 4, // garde-fou : au-delà de 500 %, plus d'effet
+};
 // phase 47 (demande de Jimmy) : toutes les stats du héros, pour monter celles dont le build a besoin. L'ordre est celui
 // de w.boons ; les sept premiers sont ceux d'avant
 export const BOON_KEYS: BoonKey[] = [
@@ -904,7 +921,7 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'revenge', step: 0.08, kind: 'add', max: 8, weight: 2 }, // dégâts pendant BASTION.revengeT s après un coup reçu
   ],
   defi: [
-    { stat: 'spawn', step: 0.05, kind: 'add', max: 8, weight: 3 }, // apparitions : plus de monstres, donc plus d'XP… et de danger
+    { stat: 'difficulty', step: 0.05, kind: 'add', max: 8, weight: 3 }, // phase 48 : difficulté de la partie (DIFFICULTY) : plus de monstres, plus solides, donc plus d'XP… et de danger
     { stat: 'eliteloot', step: 0.08, kind: 'add', max: 8, weight: 2 }, // XP et or des élites
     { stat: 'eliterate', step: 0.08, kind: 'add', max: 8, weight: 2 }, // élites plus fréquentes (un coffre sur ITEM.eliteItemEvery donne un objet)
   ],
@@ -927,7 +944,8 @@ export const TOME_KEYS = Object.keys(TOMES) as TomeKey[];
 // tomes pour quatre emplacements, Projectiles (de loin le plus fort) est pris moins souvent (136 → 103 parties) et « monde 2
 // atteint » tombe de 76 à 59 % ; avec le Sang seul en plus, 76 %. Givre, Bastion et Défi attendent la décision de Jimmy sur
 // la façon d'élargir le tirage (bannir une carte, déblocage à la Bibliothèque) : PLAN, phase 47.
-export const TOME_HELD: readonly TomeKey[] = ['givre', 'bastion', 'defi'];
+// phase 48 (demande de Jimmy : « un tome de difficulté ») : le Défi sort de la réserve, sa première ligne monte la difficulté.
+export const TOME_HELD: readonly TomeKey[] = ['givre', 'bastion'];
 /** Tomes tirés aux montées de niveau et listés dans la Bibliothèque. */
 export const TOME_POOL: TomeKey[] = TOME_KEYS.filter((k) => !TOME_HELD.includes(k));
 // planchers et plafonds des effets cumulés des tomes (applyTomeLine) : la recharge ne descend pas sous 25 % de la base,

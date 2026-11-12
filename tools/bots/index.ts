@@ -11,6 +11,7 @@ import type { World } from '../../src/sim/world';
 import { ShotKind, Spell } from '../../src/sim/types';
 import { Rng } from '../../src/sim/rng';
 import {
+  DIFFICULTY,
   ELITE_TYPE,
   ENEMIES,
   HAZARDS,
@@ -206,7 +207,7 @@ const LINE_VALUE: Record<string, number> = {
   revenge: 3,
   // le Défi est un pari volontaire : un joueur moyen ne cherche pas « plus de monstres » (mesuré : pris tôt par le bot,
   // monde 2 atteint 40 % contre 64 %)
-  spawn: 0,
+  difficulty: 0,
   eliteloot: 2,
   eliterate: 1,
 };
@@ -226,7 +227,10 @@ const COMBAT_TOMES: ReadonlySet<TomeKey> = new Set([
   'bastion',
 ]);
 /** Réglages du bot ouverts à la CLI (`--tome-prior 0` : ancien comportement, pour comparer). */
-export const BOT_TUNE = { tomePrior: 8 };
+// phase 48 : `skulls` = crânes de difficulté que le bot va activer dans chaque monde (0 : il n'y touche pas, c'est le
+// joueur « moyen » des cibles) ; `takeDefi` = il prend le tome de difficulté quand il sort (sinon jamais : un joueur qui
+// ne cherche pas la difficulté ne la prend pas par hasard)
+export const BOT_TUNE = { tomePrior: 8, skulls: 0, skullEvery: 45, takeDefi: false };
 function lineValue(c: Card, s: number): number {
   if (s < 0) return 0;
   const l = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey][s] : TOMES[c.key as TomeKey][s];
@@ -240,6 +244,7 @@ function cardValue(w: World, c: Card): number {
   if (c.kind === 'heal') return w.player.hp / w.player.maxHp < 0.4 ? 100 : 5;
   if (c.kind === 'i') return itemValue(c);
   if (c.kind === 'b') return BOON_VALUE[c.key as BoonKey];
+  if (c.kind === 't' && c.key === 'defi') return BOT_TUNE.takeDefi ? 30 : -1000; // phase 48 : tome de difficulté
   let v = lineValue(c, c.s0) + lineValue(c, c.s1) + lineValue(c, c.s2);
   if (c.kind === 'w' && c.lv === 1) v += 18; // une arme de plus : une base entière
   if (c.kind === 't' && c.lv === 1 && COMBAT_TOMES.has(c.key as TomeKey)) v += BOT_TUNE.tomePrior; // phase 47
@@ -560,6 +565,35 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           else {
             const l = Math.sqrt(bd) || 1,
               k = n > 0 ? pullFleeing * 1.6 : pullFree * 1.8;
+            out.mx += (bx / l) * k;
+            out.mz += (bz / l) * k;
+          }
+        }
+      }
+      // phase 48 (--skulls N) : un crâne de difficulté toutes les BOT_TUNE.skullEvery s du monde, le plus proche d'abord
+      if (!stay && BOT_TUNE.skulls > 0) {
+        let on = 0,
+          bd = 1e12,
+          bx = 0,
+          bz = 0;
+        for (let i = 0; i < w.skulls.length; i++) {
+          const s = w.skulls[i];
+          if (s.on) {
+            on++;
+            continue;
+          }
+          const d = (s.x - P.x) ** 2 + (s.z - P.z) ** 2;
+          if (d < bd) {
+            bd = d;
+            bx = s.x - P.x;
+            bz = s.z - P.z;
+          }
+        }
+        if (on < BOT_TUNE.skulls && bd < 1e12 && w.stageT >= BOT_TUNE.skullEvery * (on + 1)) {
+          if (bd < (DIFFICULTY.skullR * 0.6) ** 2 && close < 4) stay = true;
+          else {
+            const l = Math.sqrt(bd) || 1,
+              k = n > 0 ? pullFleeing * 3 : pullFree * 3;
             out.mx += (bx / l) * k;
             out.mz += (bz / l) * k;
           }

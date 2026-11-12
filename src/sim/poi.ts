@@ -1,7 +1,7 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BLOOD, BOON, BOON_KEYS, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BLOOD, BOON, BOON_KEYS, DIFFICULTY, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { bellRing, bourseDiscount, canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card, Player } from './types';
@@ -20,6 +20,13 @@ export interface Shrine {
   z: number;
   used: boolean;
   charge: number; // s (pleine à SHRINE.charge)
+}
+/** Crâne de difficulté (phase 48) : rester dedans DIFFICULTY.skullCharge s monte la difficulté de la partie. */
+export interface Skull {
+  x: number;
+  z: number;
+  on: boolean; // activé (une fois)
+  charge: number; // s (plein à DIFFICULTY.skullCharge)
 }
 
 /** Piste chronométrée (phase 28) : arche de départ (en haut d'une grande piste) et d'arrivée (au pied). */
@@ -121,6 +128,24 @@ export function buildPOI(w: World, r: Rng): void {
   );
   high(SHRINE.count, SHRINE.spacing, SHRINE.fromStart, (x, z) => w.shrines.push({ x, z, used: false, charge: 0 }));
   placeTotem(w, r, all);
+  placeSkulls(w, r, all);
+}
+
+/**
+ * Phase 48 : les crânes de difficulté, tirés après tout le reste (coffres, sanctuaires et totem d'une graine ne bougent
+ * pas). N'importe où sur la carte, hors de la clairière, à l'écart des autres points d'intérêt et les uns des autres.
+ */
+function placeSkulls(w: World, r: Rng, all: { x: number; z: number }[]): void {
+  const D = DIFFICULTY,
+    T = w.totem;
+  for (let t = 0; t < D.skullTries && w.skulls.length < D.skullCount; t++) {
+    const x = r.range(-WORLD_HALF, WORLD_HALF),
+      z = r.range(-WORLD_HALF, WORLD_HALF);
+    if (x * x + z * z < D.skullFromStart * D.skullFromStart) continue;
+    if ((x - T.x) ** 2 + (z - T.z) ** 2 < STAGE.totemSpacing * STAGE.totemSpacing) continue;
+    if (!free(w, x, z, 2) || !spaced(all, x, z, D.skullFromPoi) || !spaced(w.skulls, x, z, D.skullSpacing)) continue;
+    w.skulls.push({ x, z, on: false, charge: 0 });
+  }
 }
 
 /**
@@ -214,6 +239,20 @@ export function tickPOI(w: World, dt: number): void {
       w.boonPicks++;
       w.emit(Ev.ShrineDone, s.x, 0.2, s.z);
       bellRing(w); // phase 47 B : Cloche de bronze
+    }
+  }
+  // phase 48 : crânes de difficulté (même jauge qu'un sanctuaire, Encens compris)
+  const kr2 = DIFFICULTY.skullR * DIFFICULTY.skullR;
+  for (let i = 0; i < w.skulls.length; i++) {
+    const s = w.skulls[i];
+    if (s.on) continue;
+    if ((s.x - P.x) ** 2 + (s.z - P.z) ** 2 < kr2) s.charge += dt * fast;
+    else if (s.charge > 0) s.charge = Math.max(0, s.charge - dt * DIFFICULTY.skullDecay);
+    if (s.charge >= DIFFICULTY.skullCharge) {
+      s.on = true;
+      w.skullsOn++;
+      P.difficulty += DIFFICULTY.skullStep;
+      w.emit(Ev.SkullOn, s.x, 0.2, s.z, P.difficulty);
     }
   }
 }

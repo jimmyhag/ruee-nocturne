@@ -239,6 +239,7 @@ export const enum Ev {
   Puddle, // phase 47 C : flaque de Vitriol posée en (x,z), v = rayon
   Beacon, // phase 47 C : balise posée en (x,z), v = portée
   Whip, // phase 47 C : claque du Fouet depuis (x,y,z), v = longueur, (x2, z2) = direction
+  SkullOn, // phase 48 : crâne activé en (x,z), v = difficulté ajoutée après coup (0,1 = 110 %) ; dernière valeur
 }
 
 export interface GameEvent {
@@ -506,7 +507,7 @@ export interface Player {
   airJumps: number; // phase 47 B : sauts en l'air déjà faits depuis le dernier appui au sol (Ailes de cire)
   revenge: number; // dégâts en plus pendant BASTION.revengeT s après un coup reçu
   taken: number; // multiplicateur courant des dégâts subis (armure, sorts, arrêt), recalculé à chaque pas
-  spawnMul: number; // apparitions (tome Défi)
+  difficulty: number; // phase 48 : difficulté ajoutée (0 = 100 %) : crânes de la carte et tome de difficulté (DIFFICULTY)
   eliteLoot: number; // XP et or des élites
   eliteRate: number; // fréquence des élites
   revives: number; // réanimations restantes (boutique)

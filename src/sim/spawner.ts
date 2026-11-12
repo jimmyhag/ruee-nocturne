@@ -1,15 +1,20 @@
-import { ARCHER, ARCHER_TYPE, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, ARCHER_TYPE, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, DIFFICULTY, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
 const TAU = Math.PI * 2;
+
+/** Difficulté ajoutée de la partie (phase 48), bornée : 0 au départ. */
+export const difficultyOf = (w: World): number => Math.min(DIFFICULTY.max, w.player.difficulty);
+/** Vie des monstres selon la difficulté : ×1 au départ (les boss la prennent aussi, stages.ts). */
+export const difficultyHp = (w: World): number => 1 + DIFFICULTY.hpShare * difficultyOf(w);
 
 export function spawnEnemy(w: World, type: number, ang: number, dist: number, elite = false): number {
   const e = w.allocEnemy();
   if (!e) return -1;
   const def = ENEMIES[type];
   // phase 37 : difficulté au temps du monde (diffT) et renfort de prolongation (over*, 1 tant que le chrono tourne)
-  let scale = SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * STAGE.bossHpPerBoss : 1);
+  let scale = SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * STAGE.bossHpPerBoss : 1) * difficultyHp(w);
   if (elite) scale *= ELITE.hpMul;
   e.type = type;
   e.elite = elite;
@@ -69,7 +74,8 @@ export function tickSpawner(w: World, dt: number): void {
   // boss du monde en vie : la horde se calme (pas en prolongation : elle ne doit pas amortir le renfort)
   // phase 42 : seule la présence du boss du totem (ou d'une vague du monde infini) calme la horde, pas un boss de survie
   const calm = w.endless ? w.bossIndex >= 0 : w.totemBossId >= 0;
-  let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1) * w.player.spawnMul; // phase 47 : tome Défi
+  const more = 1 + difficultyOf(w); // phase 48 : la difficulté multiplie les apparitions (crânes, tome de difficulté)
+  let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1) * more;
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
   if (w.boredomUntil > now) rate *= SPAWN.boredomMul;
@@ -94,7 +100,7 @@ export function tickSpawner(w: World, dt: number): void {
   }
   if (st >= w.nextWave) {
     w.nextWave += SPAWN.wavePeriod;
-    const n = Math.round(SPAWN.waveCount(t) * Math.min(STAGE.overWaveCap, w.overRate));
+    const n = Math.round(SPAWN.waveCount(t) * Math.min(STAGE.overWaveCap, w.overRate) * more);
     for (let i = 0; i < n && w.enemyCount < CAPS.enemies; i++) spawnEnemy(w, t > SPAWN.waveDardAfter ? 1 : 0, (i / n) * TAU, SPAWN.waveDist);
     w.emit(Ev.Wave, w.player.x, 0, w.player.z, n);
   }

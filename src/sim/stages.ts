@@ -6,7 +6,7 @@
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
 import { BOSS, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
-import { spawnEnemy } from './spawner';
+import { difficultyHp, spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
 import { startRun } from './step';
@@ -96,7 +96,8 @@ export function summonStageBoss(w: World): void {
     SPAWN.hpScale(STAGE.bossHpAt[w.stage]) *
     w.overHp *
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
-    Math.max(ITEM.idole.min, 1 - ITEM.idole.hp * w.itemEff[It.Idole]); // phase 47 B : Idole
+    Math.max(ITEM.idole.min, 1 - ITEM.idole.hp * w.itemEff[It.Idole]) * // phase 47 B : Idole
+    difficultyHp(w); // phase 48
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;
@@ -135,7 +136,8 @@ export function summonSurvivalBoss(w: World, k: number): void {
     SPAWN.hpScale(STAGE.bossHpAt[w.stage]) *
     w.overHp *
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
-    STAGE.survival.hp[k];
+    STAGE.survival.hp[k] *
+    difficultyHp(w); // phase 48
   w.survivalAlive++;
   if (w.bossIndex < 0) w.bossIndex = i; // la barre suit le boss du totem s'il est déjà là
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type, 1); // y2 = 1 : boss de survie
@@ -309,7 +311,8 @@ export function summonEndlessWave(w: World): void {
       ENEMIES[type].hp * BOSS.hpMul[w.stage] *
       SPAWN.hpScale(w.diffT) *
       (1 + w.bossCount * STAGE.bossHpPerBoss) *
-      (1 + ENDLESS.hpPerWave * k);
+      (1 + ENDLESS.hpPerWave * k) *
+      difficultyHp(w); // phase 48
     w.bossIndex = i;
     w.bossCount++;
     w.endlessAlive++;
