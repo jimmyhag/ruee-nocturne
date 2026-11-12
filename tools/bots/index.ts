@@ -144,6 +144,7 @@ const ITEM_VALUE: Record<ItemKey, number> = {
   idole: 14,
   dent: 18,
   grimoire: 12,
+  toxine: 14, // phase 50 : contre les boss (combats plus courts)
 };
 
 /**

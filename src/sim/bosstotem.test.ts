@@ -10,8 +10,19 @@ import type { Input } from './types';
 import { World } from './world';
 
 const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
+/** Construit un monde avec exactement `n` totems de boss (phase 50 : leur nombre est tiré avec la carte). */
+function withTotems(seed: number, n: number): World {
+  const [min, max] = [BOSSTOTEM.min, BOSSTOTEM.max];
+  BOSSTOTEM.min = BOSSTOTEM.max = n;
+  try {
+    return new World(seed);
+  } finally {
+    BOSSTOTEM.min = min;
+    BOSSTOTEM.max = max;
+  }
+}
 function calm(seed = 5): World {
-  const w = new World(seed);
+  const w = withTotems(seed, 3);
   w.player.need = 1e9;
   w.player.maxHp = w.player.hp = 1e9;
   w.weapons = {};
@@ -55,12 +66,23 @@ const slay = (w: World, i: number): void => {
 };
 
 describe('totems de boss : placement et activation', () => {
-  it('BOSSTOTEM.count par monde, loin du départ, du totem et des autres lieux ; les autres lieux ne bougent pas', () => {
-    const count = BOSSTOTEM.count;
-    try {
+  it('entre BOSSTOTEM.min et max par monde, tous posés ; stables par graine', () => {
+    const seen = new Set<number>();
+    for (let seed = 1; seed <= 60; seed++) {
+      const w = new World(seed);
+      expect(w.bossTotems.length).toBeGreaterThanOrEqual(BOSSTOTEM.min);
+      expect(w.bossTotems.length).toBeLessThanOrEqual(BOSSTOTEM.max);
+      seen.add(w.bossTotems.length);
+      if (seed <= 3) expect(new World(seed).bossTotems).toEqual(w.bossTotems);
+    }
+    expect(seen.size).toBe(BOSSTOTEM.max - BOSSTOTEM.min + 1); // chaque nombre sort
+    for (const seed of [1, 7, 42]) expect(withTotems(seed, BOSSTOTEM.max).bossTotems.length).toBe(BOSSTOTEM.max); // le maximum tient
+  });
+  it('loin du départ, du totem et des autres lieux ; les autres lieux ne bougent pas', () => {
+    {
       for (const seed of [1, 7, 42]) {
-        BOSSTOTEM.count = count;
-        const w = new World(seed);
+        const count = 2;
+        const w = withTotems(seed, count);
         expect(w.bossTotems.length, `graine ${seed}`).toBe(count);
         for (const b of w.bossTotems) {
           expect(Math.hypot(b.x, b.z)).toBeGreaterThanOrEqual(BOSSTOTEM.fromStart);
@@ -68,19 +90,16 @@ describe('totems de boss : placement et activation', () => {
           for (const p of [...w.mapChests, ...w.shrines, ...w.skulls])
             expect(Math.hypot(b.x - p.x, b.z - p.z)).toBeGreaterThanOrEqual(BOSSTOTEM.fromPoi - 1e-6);
         }
-        BOSSTOTEM.count = 0;
-        const bare = new World(seed);
+        const bare = withTotems(seed, 0);
         expect(bare.bossTotems.length).toBe(0);
         expect(bare.skulls).toEqual(w.skulls);
         expect(bare.shrines).toEqual(w.shrines);
         expect(bare.mapChests).toEqual(w.mapChests);
         expect(bare.totem).toEqual(w.totem);
-        expect(w.skulls.length).toBe(DIFFICULTY.skullCount);
+        expect(w.skulls.length).toBeGreaterThanOrEqual(DIFFICULTY.skullMin);
         expect(w.mapChests.length).toBe(MAPCHEST.count);
         expect(w.shrines.length).toBe(SHRINE.count);
       }
-    } finally {
-      BOSSTOTEM.count = count;
     }
   });
   it('rester BOSSTOTEM.charge s dedans : un boss de plus par vague, une fois par totem ; la jauge redescend dehors', () => {
@@ -101,23 +120,21 @@ describe('totems de boss : placement et activation', () => {
 });
 
 describe('totems de boss : un boss de plus à chaque vague', () => {
-  it('boss de survie : 1 + n boss, types différents, PV réduits pour ceux en plus', () => {
+  it('boss de survie : 1 + n boss, des doubles exacts (même type, mêmes PV, même rythme)', () => {
     const w = calm(7);
     activate(w, 2);
     summonSurvivalBoss(w, 0);
     const b = bosses(w);
     expect(b.length).toBe(3);
     expect(w.survivalAlive).toBe(3);
-    const types = b.map((i) => w.enemies[i].type);
-    expect(new Set(types).size).toBe(3);
     const main = w.enemies[b[0]];
     for (const i of b.slice(1)) {
       const x = w.enemies[i];
-      expect(x.max / ENEMIES[x.type].hp).toBeCloseTo((main.max / ENEMIES[main.type].hp) * BOSSTOTEM.extraHp, 6);
+      expect(x.type).toBe(main.type); // phase 50 : un double, pas un autre boss
+      expect(x.max).toBeCloseTo(main.max, 6);
       expect(w.isTotemBoss(x)).toBe(false);
-      expect(x.cadence).toBe(BOSSTOTEM.extraCadence); // second couteau : il attaque moins souvent
+      expect(x.cadence).toBe(1);
     }
-    expect(main.cadence).toBe(1);
     // aucun n'ouvre le portail
     for (const i of bosses(w).reverse()) slay(w, i);
     expect(w.portal.open).toBe(false);
@@ -132,6 +149,8 @@ describe('totems de boss : un boss de plus à chaque vague', () => {
     expect(w.totemAlive).toBe(2);
     expect(w.bossCount).toBe(count0 + 1); // le boss en plus ne renforce pas les boss des mondes suivants
     for (const i of bosses(w)) expect(w.isTotemBoss(w.enemies[i])).toBe(true);
+    const [b0, b1] = bosses(w).map((i) => w.enemies[i]);
+    expect([b1.type, b1.max]).toEqual([b0.type, b0.max]); // phase 50 : double exact du boss du totem
     w.player.maxHp = 100;
     w.player.hp = 40;
     // le boss principal tombe d'abord : pas de portail, pas de soin, un coffre d'élite
@@ -185,7 +204,7 @@ describe('totems de boss : un boss de plus à chaque vague', () => {
     nextStage(w);
     expect([w.bossExtra, w.totemAlive]).toEqual([0, 0]);
     expect(w.bossTotemsOn).toBe(1); // le compte de la partie, lui, reste
-    expect(w.bossTotems.length).toBe(BOSSTOTEM.count);
+    expect(w.bossTotems.length).toBeGreaterThanOrEqual(BOSSTOTEM.min); // la carte du monde suivant tire son nombre
     expect(w.bossTotems.every((t) => !t.on)).toBe(true);
     summonSurvivalBoss(w, 0);
     expect(bosses(w).length).toBe(1);

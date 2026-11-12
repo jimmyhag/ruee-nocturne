@@ -48,9 +48,9 @@ const place = (w: World, x: number, z: number) => {
 
 describe('seize objets de la phase 47 B', () => {
   it('six communs, sept rares, trois épiques, ajoutés en fin de liste', () => {
-    const fresh = ITEM_KEYS.slice(32);
+    const fresh = ITEM_KEYS.slice(32, 48);
     expect(fresh).toEqual(['bandage', 'savon', 'enclume', 'cle', 'encens', 'tirelire', 'fiole', 'miroir', 'glace', 'ailes', 'coquille', 'cloche', 'trophee', 'idole', 'dent', 'grimoire']);
-    expect(ITEM_RARITY.slice(32)).toEqual([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2]);
+    expect(ITEM_RARITY.slice(32, 48)).toEqual([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2]);
     for (const k of fresh) expect(k).toMatch(/^[a-z]{1,16}$/); // clés du codex
   });
   it('Bandage : soigne seulement après un moment sans coup reçu', () => {

@@ -47,6 +47,9 @@ export interface Enemy {
   burn: number; // phase 47 B : dégâts par seconde de la brûlure (Dent de dragon)
   burnT: number; // s restantes de brûlure
   burnAcc: number; // s écoulées depuis le dernier coup de brûlure
+  tox: number; // phase 50 : doses de toxine (boss)
+  toxT: number; // s restantes de toxine
+  toxAcc: number; // s écoulées depuis le dernier coup de toxine
 }
 
 export const enum ProjKind {
@@ -164,6 +167,7 @@ export const enum HitSrc {
   Patins, // phase 28 : Patins de braise (glissade)
   Horn, // phase 28 : Corne de guerre
   Burn, // phase 47 B : brûlure de la Dent de dragon
+  Toxin, // phase 50 : Toxine (boss)
   Count, // phase 41 : nombre de sources (taille de w.srcKills)
 }
 
@@ -441,7 +445,8 @@ export type ItemKey =
   | 'trophee'
   | 'idole'
   | 'dent'
-  | 'grimoire';
+  | 'grimoire'
+  | 'toxine';
 
 /**
  * Carte de montée de niveau : arme ou tome avec `n` lignes (1 à 3, indices s0..s2 dans WEAPON_LINES / TOMES), ou soin.

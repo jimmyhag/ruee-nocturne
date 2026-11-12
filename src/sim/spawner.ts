@@ -5,7 +5,7 @@ import type { World } from './world';
 const TAU = Math.PI * 2;
 
 /** Difficulté ajoutée de la partie (phase 48), bornée : 0 au départ. */
-export const difficultyOf = (w: World): number => Math.min(DIFFICULTY.max, w.player.difficulty);
+export const difficultyOf = (w: World): number => w.player.difficulty; // phase 50 : sans plafond
 /** Vie des monstres selon la difficulté : ×1 au départ (les boss la prennent aussi, stages.ts). */
 export const difficultyHp = (w: World): number => 1 + DIFFICULTY.hpShare * difficultyOf(w);
 
@@ -53,6 +53,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.stun = 0;
   e.slowT = 0;
   e.burn = e.burnT = e.burnAcc = 0;
+  e.tox = e.toxT = e.toxAcc = 0; // phase 50
   return w.enemyCount - 1;
 }
 

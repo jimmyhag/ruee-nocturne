@@ -445,6 +445,13 @@ export const ITEM_ICON: Record<ItemKey, string> = {
       star(32, 27, 11, 5, 5, GOLD) +
       hl('M14 14c1-2 3-3 5-3h6c-5 2-9 6-11 12z'),
   ),
+  // phase 50 : fiole verte, une goutte qui perle (Toxine)
+  toxine: svg(
+    path('M26 6h12v6h-2v10l10 18c4 8-2 16-14 16s-18-8-14-16l10-18V12h-2z', '#cfe8c4') +
+      path('M21 36h22l4 7c2 7-5 11-15 11s-17-4-15-11z', '#7ddc4a') +
+      path('M32 26c3 4 5 7 5 9a5 5 0 0 1-10 0c0-2 2-5 5-9z', '#3f8f2a') +
+      hl('M24 42c-2 4-1 7 3 9-5-1-8-4-6-8z'),
+  ),
 };
 
 export const BOON_ICON: Record<BoonKey, string> = {

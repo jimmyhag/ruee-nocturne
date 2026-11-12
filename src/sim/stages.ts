@@ -106,7 +106,7 @@ export function summonStageBoss(w: World): void {
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount + 1, type);
   // phase 48 : un boss de plus par totem de boss activé, autour du totem, d'un autre type, PV réduits
   for (let j = 1; j <= w.bossExtra; j++) {
-    const xt = STAGE.bosses[(w.stage + j) % STAGE.bosses.length];
+    const xt = type; // phase 50 : un double exact du boss du totem
     if (w.enemyCount >= CAPS.enemies) freeNonBoss(w);
     const k = spawnEnemy(w, xt, 0, 0);
     if (k < 0) break;
@@ -161,7 +161,7 @@ export function summonSurvivalBoss(w: World, k: number): void {
   // phase 48 : un boss de plus par totem de boss activé, autour du joueur, d'un autre type, PV réduits
   const a0 = Math.atan2(e.x - w.player.x, e.z - w.player.z);
   for (let j = 1; j <= w.bossExtra; j++) {
-    const xt = survivalType(w, k + j);
+    const xt = type; // phase 50 : un double exact du boss de la vague
     if (w.enemyCount >= CAPS.enemies) freeNonBoss(w);
     const n = spawnEnemy(w, xt, a0 + j * BOSSTOTEM.spread, STAGE.survival.dist);
     if (n < 0) break;
@@ -336,7 +336,8 @@ export function summonEndlessWave(w: World): void {
     P = w.player;
   for (let j = 0; j < n; j++) {
     if (w.endlessAlive >= ENDLESS.maxAlive) break; // trop de boss en vie : le reste de la vague attend
-    const type = STAGE.bosses[(k + j) % STAGE.bosses.length];
+    // phase 50 : au-delà des boss de la vague, les totems de boss ajoutent des doubles de son premier boss
+    const type = STAGE.bosses[(k + (j < n - w.bossExtra ? j : 0)) % STAGE.bosses.length];
     if (w.enemyCount >= CAPS.enemies) freeNonBoss(w); // un boss a toujours sa place, jamais à la place d'un autre boss
     const a = (j / n) * Math.PI * 2 + k;
     const i = spawnEnemy(w, type, a, ENDLESS.dist);

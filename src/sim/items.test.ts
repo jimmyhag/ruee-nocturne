@@ -26,9 +26,9 @@ const god = (w: World) => {
 
 describe('objets passifs', () => {
   it('48 objets (phase 22 : Rune, Collier ; phase 28 : six ; phase 31 : douze ; phase 47 B : seize), chacun avec une rareté', () => {
-    expect(ITEM_KEYS.length).toBe(48);
-    expect(new Set(ITEM_KEYS).size).toBe(48);
-    expect(ITEM_RARITY.length).toBe(48);
+    expect(ITEM_KEYS.length).toBe(49); // phase 50 : Toxine
+    expect(new Set(ITEM_KEYS).size).toBe(49);
+    expect(ITEM_RARITY.length).toBe(49);
     expect(ITEM_KEYS.indexOf('bandage')).toBe(It.Bandage); // les nouveaux en fin de liste : les index sont persistés
     expect(ITEM_KEYS.indexOf('grimoire')).toBe(It.Grimoire);
     expect(ITEM_KEYS.indexOf('corne')).toBe(It.Corne); // indices existants inchangés
@@ -56,7 +56,7 @@ describe('objets passifs', () => {
     expect(itemCount(w)).toBe(7);
     expect(w.itemOrder).toEqual([It.Coeur, It.Lanterne, It.Cape, It.Fer, It.Bourse, It.Phenix]); // une place par objet
     for (let i = 0; i < ITEM_KEYS.length; i++) gainItem(w, i);
-    expect(itemCount(w)).toBe(55);
+    expect(itemCount(w)).toBe(56);
     expect(canGainItem(w)).toBe(true); // plus de plafond
   });
   it('règle de cumul (phase 43) : deux exemplaires pleins, puis chacun à moitié ; w.itemEff suit', () => {

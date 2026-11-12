@@ -51,7 +51,7 @@ export const STAT_ROWS: StatRow[] = [
   { key: 'xp', group: 'butin', fmt: 'mul', get: (P) => P.xpMul },
   { key: 'gold', group: 'butin', fmt: 'mul', get: (P) => P.goldMul },
   // phase 48 : difficulté de la partie (crânes, tome de difficulté) : 100 % au départ
-  { key: 'difficulty', group: 'butin', fmt: 'mul', get: (P) => 1 + P.difficulty },
+  { key: 'difficulty', group: 'butin', fmt: 'pct', get: (P) => P.difficulty }, // phase 50 : 0 % = normal
 ];
 const ROW: Record<string, StatRow> = Object.fromEntries(STAT_ROWS.map((r) => [r.key, r]));
 

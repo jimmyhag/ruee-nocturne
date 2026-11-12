@@ -334,6 +334,7 @@ export class GameScene {
   private cStun = new THREE.Color(0xfff1a8);
   private cSlow = new THREE.Color(0x9fd8ff);
   private cBurn = new THREE.Color(0xffa25e); // phase 47 B : ennemi en feu (Dent de dragon)
+  private cTox = new THREE.Color(0x8fe05a); // phase 50 : boss empoisonné (Toxine)
   private cFreeze = new THREE.Color(PAL.freeze); // phase 35 : Temps figé
   private cRage = new THREE.Color(PAL.telegraph); // phase 43 : boss enragé
   private frozenPose = false; // phase 35 : poses des ennemis 3D arrêtées pendant le Temps figé
@@ -598,12 +599,12 @@ export class GameScene {
     this.shrineW = new InstanceWriter(makeInstanced(shrine.geometry, shrine.material, SHRINE.count));
     // phase 48 : crânes de difficulté (`skull.ts`), un appel de plus ; leurs anneaux et colonnes sur les écrivains voisins
     const skull = buildSkull();
-    this.skullW = new InstanceWriter(makeInstanced(skull.geometry, skull.material, DIFFICULTY.skullCount));
+    this.skullW = new InstanceWriter(makeInstanced(skull.geometry, skull.material, DIFFICULTY.skullMax));
     this.shrineGlowW = new InstanceWriter(
       makeInstanced(
         new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2),
         additive(0xffffff, 0.7),
-        SHRINE.count + 4 + DIFFICULTY.skullCount + BOSSTOTEM.count,
+        SHRINE.count + 4 + DIFFICULTY.skullMax + BOSSTOTEM.max,
       ),
     );
     // colonne de lumière : cylindre ouvert, additif, 16 u de haut, visible au-dessus des arbres
@@ -611,12 +612,12 @@ export class GameScene {
       makeInstanced(
         new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
         additive(0xffffff, 0.22),
-        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullCount + BOSSTOTEM.count, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes
+        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullMax + BOSSTOTEM.max, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes
       ),
     );
     this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
     // phase 48 : totems de boss, la géométrie du totem du monde en instances (runes à la couleur d'instance), un appel
-    this.bossTotemW = new InstanceWriter(makeInstanced(this.totem.mesh.geometry, stoneMaterial(), BOSSTOTEM.count));
+    this.bossTotemW = new InstanceWriter(makeInstanced(this.totem.mesh.geometry, stoneMaterial(), BOSSTOTEM.max));
     this.scene.add(this.skullW.mesh, this.bossTotemW.mesh);
     this.writers.push(
       this.mapChestW,
@@ -1722,15 +1723,16 @@ export class GameScene {
               ? this.cStun
               : e.slowT > 0
                 ? this.cSlow
-                : e.burnT > 0
-                  ? this.cBurn // phase 47 B : en feu (Dent de dragon), orangé
-                  : e.enraged
-                    ? this.cRage // phase 43 : boss enragé, rouge
-                    : e.elite
-                      ? this.eliteColor[e.type]
-                      : this.enemyColor[e.type];
-      // phase 48 : un boss en plus (totem de boss) est un second couteau, il se voit plus petit
-      let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1) * (e.cadence < 1 ? FEEL.bossTotem.extraScale : 1);
+                : e.toxT > 0
+                  ? this.cTox // phase 50 : boss empoisonné (Toxine), vert
+                  : e.burnT > 0
+                    ? this.cBurn // phase 47 B : en feu (Dent de dragon), orangé
+                    : e.enraged
+                      ? this.cRage // phase 43 : boss enragé, rouge
+                      : e.elite
+                        ? this.eliteColor[e.type]
+                        : this.enemyColor[e.type];
+      let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
       if (e.type === VOLANT_TYPE) {

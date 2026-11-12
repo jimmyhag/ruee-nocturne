@@ -21,7 +21,7 @@ test('crâne de difficulté : visible, jauge, +10 % affichés partout', async ({
   const p = info.project.name;
   await calmRun(page, 21);
   expect(await page.evaluate(() => (window as any).__game.world.skulls.length)).toBe(6);
-  await expect(page.locator('#diffLbl')).toBeHidden(); // 100 % : rien à dire
+  await expect(page.locator('#diffLbl')).toHaveText('▲ 0 %'); // phase 50 : 0 % = normal, affiché dès le départ
   // à quelques pas : le crâne, son anneau et sa colonne violette
   await page.evaluate(() => {
     const g = (window as any).__game;
@@ -39,11 +39,11 @@ test('crâne de difficulté : visible, jauge, +10 % affichés partout', async ({
     g.debug.teleport(s.x + 0.5, s.z + 0.9);
   });
   await expect(page.locator('#poiChip')).toHaveClass(/skull/);
-  await expect(page.locator('#poiText')).toHaveText('Crâne · difficulté 100 % → 110 %');
+  await expect(page.locator('#poiText')).toHaveText('Crâne · difficulté 0 % → 5 %');
   await page.waitForFunction(() => (window as any).__game.world.skulls[0].on === true, null, { timeout: 30000 });
   expect(await difficulty(page)).toBeCloseTo(0.1, 6);
-  await expect(page.locator('#diffLbl')).toHaveText('☠ 110 %');
-  await expect(page.locator('#banner')).toContainText('Difficulté 110 %');
+  await expect(page.locator('#diffLbl')).toHaveText('▲ 5 %');
+  await expect(page.locator('#banner')).toContainText('Difficulté 5 %');
   await expect(page.locator('#poiChip')).toBeHidden(); // activé : plus rien à charger
   await page.screenshot({ path: `shots/${p}-crane-active.png` });
   // la fiche de stats de la pause le dit aussi
@@ -51,7 +51,7 @@ test('crâne de difficulté : visible, jauge, +10 % affichés partout', async ({
   else await page.locator('#pauseBtn').click();
   await expect(page.locator('#pause')).toBeVisible();
   await expect(page.locator('#pauseStats')).toContainText('Difficulté');
-  await expect(page.locator('#pauseStats')).toContainText('110 %');
+  await expect(page.locator('#pauseStats')).toContainText('5 %');
 });
 
 test('la difficulté fait venir plus de monstres ; l’écran de fin la rappelle', async ({ page }) => {

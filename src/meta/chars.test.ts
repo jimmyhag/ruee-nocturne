@@ -26,7 +26,7 @@ describe('défis par personnage (phase 41)', () => {
   });
 
   it('au plus 32 sources de coup (phase 47 C : 20) : le drapeau critique HIT_CRIT du rendu en dépend', () => {
-    expect(HitSrc.Count).toBe(20);
+    expect(HitSrc.Count).toBe(21); // phase 50 : Toxine
     expect(HitSrc.Count).toBeLessThanOrEqual(HIT_CRIT);
     expect(HIT_CRIT & (HIT_CRIT - 1)).toBe(0); // puissance de deux : le masque des sources est HIT_CRIT − 1
   });

@@ -144,7 +144,8 @@ export function buildPOI(w: World, r: Rng): void {
 function placeBossTotems(w: World, r: Rng, all: { x: number; z: number }[]): void {
   const B = BOSSTOTEM,
     T = w.totem;
-  for (let t = 0; t < B.tries && w.bossTotems.length < B.count; t++) {
+  const count = B.min + r.int(B.max - B.min + 1); // phase 50 : tiré avec la carte
+  for (let t = 0; t < B.tries && w.bossTotems.length < count; t++) {
     const x = r.range(-WORLD_HALF, WORLD_HALF),
       z = r.range(-WORLD_HALF, WORLD_HALF);
     if (x * x + z * z < B.fromStart * B.fromStart) continue;
@@ -162,7 +163,8 @@ function placeBossTotems(w: World, r: Rng, all: { x: number; z: number }[]): voi
 function placeSkulls(w: World, r: Rng, all: { x: number; z: number }[]): void {
   const D = DIFFICULTY,
     T = w.totem;
-  for (let t = 0; t < D.skullTries && w.skulls.length < D.skullCount; t++) {
+  const count = D.skullMin + r.int(D.skullMax - D.skullMin + 1); // phase 50 : tiré avec la carte
+  for (let t = 0; t < D.skullTries && w.skulls.length < count; t++) {
     const x = r.range(-WORLD_HALF, WORLD_HALF),
       z = r.range(-WORLD_HALF, WORLD_HALF);
     if (x * x + z * z < D.skullFromStart * D.skullFromStart) continue;

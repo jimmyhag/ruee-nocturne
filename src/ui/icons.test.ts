@@ -21,7 +21,7 @@ describe('icônes', () => {
     for (const k of POWER_KEYS) valid(POWER_ICON[k]); // phase 35 : bonus au sol
     expect(new Set(POWER_KEYS.map((k) => POWER_ICON[k])).size).toBe(POWER_KEYS.length);
     for (const k of Object.keys(MISC_ICON) as (keyof typeof MISC_ICON)[]) valid(MISC_ICON[k]);
-    expect(WEAPON_KEYS.length + TOME_KEYS.length + ITEM_KEYS.length + BOON_KEYS.length + SPELL_KEYS.length).toBe(100); // phase 47 : 13 armes, 12 tomes, 18 bonus de sanctuaire, 48 objets
+    expect(WEAPON_KEYS.length + TOME_KEYS.length + ITEM_KEYS.length + BOON_KEYS.length + SPELL_KEYS.length).toBe(101); // phase 47 : 13 armes, 12 tomes, 18 bonus de sanctuaire, 48 objets ; phase 50 : Toxine
   });
   it('les objets ont chacun une image distincte (hors bourse, partagée avec le sort du même nom)', () => {
     const seen = new Set(ITEM_KEYS.map((k) => ITEM_ICON[k]));

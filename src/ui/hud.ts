@@ -354,8 +354,8 @@ export class Hud {
     if (kind === 5 && (this.cache.poiOn !== kind || this.cache.poiKey !== diff)) {
       this.cache.poiKey = diff;
       this.els.poiText.textContent = t('skull.chip', {
-        from: 100 + diff,
-        to: 100 + diff + Math.round(DIFFICULTY.skullStep * 100),
+        from: diff, // phase 50 : 0 % = difficulté normale
+        to: diff + Math.round(DIFFICULTY.skullStep * 100),
       });
       this.els.poiChip.classList.remove('poor');
     }
@@ -372,8 +372,8 @@ export class Hud {
     }
     if (this.cache.diff !== diff) {
       this.cache.diff = diff;
-      this.els.diffLbl.hidden = diff === 0;
-      this.els.diffLbl.textContent = t('hud.difficulty', { n: 100 + diff });
+      this.els.diffLbl.hidden = false; // phase 50 : affichée dès 0 %, elle monte sans plafond
+      this.els.diffLbl.textContent = t('hud.difficulty', { n: diff });
     }
     this.cache.poiOn = kind;
     if (kind !== 0) this.width('poiFill', fill);

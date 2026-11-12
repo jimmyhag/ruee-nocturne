@@ -174,25 +174,30 @@ export const SHRINE = {
 // apparitions par (1 + d) et la vie des monstres par (1 + hpShare · d) : les deux effets se multiplient, donc la vie monte
 // moitié moins vite, sinon chaque marche serait un mur. Dégâts et vitesse des monstres ne bougent pas.
 export const DIFFICULTY = {
-  skullCount: 6, // crânes par monde
-  skullStep: 0.1, // +10 % de difficulté par crâne
+  // phase 50 (retour de Jimmy) : un nombre de crânes tiré avec la carte, entre skullMin et skullMax, et un pas plus doux
+  skullMin: 7,
+  skullMax: 20,
+  skullStep: 0.05, // +5 % de difficulté par crâne (+10 % en 1.50 : ça montait trop vite)
   skullR: 2.4, // rayon du cercle (plus petit qu'un sanctuaire : on n'y entre pas par mégarde)
   skullCharge: 2.5, // s à rester dedans
   skullDecay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
-  skullSpacing: 26, // u entre deux crânes
+  skullSpacing: 18, // u entre deux crânes (26 en 1.50, pour six crânes ; vingt doivent tenir sur la carte)
   skullFromPoi: 12, // u au moins des coffres, sanctuaires et du totem
   skullFromStart: 30, // u du départ : jamais dans la clairière
   skullTries: 4000, // tirages au plus pour les placer (une carte encombrée en pose parfois moins)
   tomeAfterSkulls: 1, // crânes activés dans la partie avant que le tome de difficulté soit proposé
   hpShare: 0.5, // vie des monstres : ×(1 + 0,5 · d)
-  max: 4, // garde-fou : au-delà de 500 %, plus d'effet
+  // phase 50 (demande de Jimmy) : plus de plafond. Le nombre de monstres vivants reste borné par CAPS.enemies (perf) :
+  // au-delà, la difficulté ne joue plus que sur leur vie
 };
 // phase 48, livraison 2 (demande de Jimmy) : totems de boss. Chacun, une fois activé, ajoute un boss à chaque vague de
 // boss du monde encore à venir : boss de survie (3:00, 7:00) et combat du totem (le portail attend qu'ils soient tous
 // morts). Remis à zéro à chaque monde. Les boss en plus sont les autres boss du jeu, à tour de rôle, avec `extraHp` des
 // PV du boss qu'ils accompagnent ; ils laissent un coffre d'élite, le soin complet et le coffre de boss restant au dernier.
 export const BOSSTOTEM = {
-  count: 2, // totems de boss par monde
+  // phase 50 (retour de Jimmy) : un nombre tiré avec la carte, entre min et max
+  min: 1,
+  max: 3,
   r: 2.6, // rayon du cercle
   charge: 3, // s à rester dedans
   decay: 1.5,
@@ -200,12 +205,11 @@ export const BOSSTOTEM = {
   fromPoi: 12, // u au moins des coffres, sanctuaires, crânes et du totem du monde
   fromStart: 35,
   tries: 4000,
-  // Un boss en plus est un second couteau : moitié des PV du boss de la vague, et ses recharges d'attaque défilent à
-  // 60 % de la vitesse (les télégraphes gardent leur durée). Mesuré (200 parties, kit complet, totems activés dès 0:30) :
-  // à PV 0,75 et cadence 1, monde 2 atteint 78 → 46 % avec un totem et 14 % avec deux ; les PV seuls (0,5) ou l'arrivée
-  // du même côté ne changent rien (48 et 17 %) : ce sont les attaques qui se superposent à 3:00 et 7:00 qui tuent
-  extraHp: 0.5,
-  extraCadence: 0.6,
+  // phase 50 (demande de Jimmy) : un boss en plus est un double exact du boss de la vague, même type, mêmes PV, même
+  // rythme (1.51 : un autre boss, moitié des PV, attaques à 60 %). C'est l'objet Toxine qui aide une bonne partie à en
+  // appeler plusieurs. Mesuré en 1.51 : à PV 0,75 et pleine cadence, « monde 2 atteint » 78 → 46 % avec un totem
+  extraHp: 1,
+  extraCadence: 1,
   spread: 2.1, // rad entre deux boss autour du totem ou du joueur
 };
 // phase 47 (demande de Jimmy) : toutes les stats du héros, pour monter celles dont le build a besoin. L'ordre est celui
@@ -943,7 +947,7 @@ export const TOMES: Record<TomeKey, StatLine[]> = {
     { stat: 'revenge', step: 0.08, kind: 'add', max: 8, weight: 2 }, // dégâts pendant BASTION.revengeT s après un coup reçu
   ],
   defi: [
-    { stat: 'difficulty', step: 0.05, kind: 'add', max: 8, weight: 3 }, // phase 48 : difficulté de la partie (DIFFICULTY) : plus de monstres, plus solides, donc plus d'XP… et de danger
+    { stat: 'difficulty', step: 0.05, kind: 'add', weight: 3 }, // phase 48 : difficulté de la partie (DIFFICULTY) : plus de monstres, plus solides, donc plus d'XP… et de danger
     { stat: 'eliteloot', step: 0.08, kind: 'add', max: 8, weight: 2 }, // XP et or des élites
     { stat: 'eliterate', step: 0.08, kind: 'add', max: 8, weight: 2 }, // élites plus fréquentes (un coffre sur ITEM.eliteItemEvery donne un objet)
   ],
@@ -1084,7 +1088,9 @@ export const CHARACTERS: CharacterDef[] = [
 // objets passifs (phase 17, PLAN §3.6) : une règle de jeu chacun ; phase 38 : cumulables, sans limite
 export const ITEM_KEYS: ItemKey[] = ['phenix', 'cape', 'lanterne', 'coeur', 'talisman', 'sablier', 'epines', 'bottes', 'oeil', 'aimant', 'fer', 'bourse', 'rune', 'collier', 'patins', 'echarpe', 'plume', 'boussole', 'bouclier', 'corne', 'croc', 'calice', 'mousse', 'souffle', 'pierre', 'de', 'gant', 'brume', 'sandales', 'amulette', 'ecorce', 'couronne',
   // phase 47 B : six communs, sept rares, trois épiques
-  'bandage', 'savon', 'enclume', 'cle', 'encens', 'tirelire', 'fiole', 'miroir', 'glace', 'ailes', 'coquille', 'cloche', 'trophee', 'idole', 'dent', 'grimoire'];
+  'bandage', 'savon', 'enclume', 'cle', 'encens', 'tirelire', 'fiole', 'miroir', 'glace', 'ailes', 'coquille', 'cloche', 'trophee', 'idole', 'dent', 'grimoire',
+  // phase 50 (demande de Jimmy) : contre les boss, disponible d'office
+  'toxine'];
 /** Index fixes (comptes de w.items) : l'ordre suit ITEM_KEYS. */
 export const enum It {
   Phenix = 0,
@@ -1135,6 +1141,7 @@ export const enum It {
   Idole,
   Dent,
   Grimoire,
+  Toxine, // phase 50
 }
 /** Rareté par objet : 0 commun, 1 rare, 2 épique (couleur de carte, prix, poids de tirage). */
 export const ITEM_RARITY: number[] = [
@@ -1144,6 +1151,8 @@ export const ITEM_RARITY: number[] = [
   // phase 47 B : bandage, savon, enclume, clé, encens, tirelire · fiole, miroir, cœur de glace, ailes, coquille, cloche,
   // trophée · idole, dent de dragon, grimoire
   0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2,
+  // phase 50 : toxine
+  1,
 ];
 export const ITEM = {
   // phase 38 (demande de Jimmy) : plus de limite, un objet déjà pris peut revenir et se cumule. Les trois premiers
@@ -1216,6 +1225,10 @@ export const ITEM = {
   trophee: { perElite: 0.01, max: 0.3 }, // dégâts par élite vaincue dans la partie, plafonnés
   idole: { hp: 0.15, min: 0.55 }, // PV du boss du totem −15 % par exemplaire, jamais sous 55 %
   dent: { frac: 0.3, t: 3, tick: 0.5 }, // un coup critique embrase : `frac` des dégâts du coup en plus, sur `t` s
+  // phase 50 (demande de Jimmy) : Toxine. Un coup porté à un boss a `chance` (× exemplaires) d'injecter une dose ; chaque
+  // dose retire `frac` de ses PV max par seconde, pendant `t` s (une nouvelle dose relance la durée de toutes) ; au plus
+  // `stacks` doses par exemplaire. En part des PV max : elle garde son poids quand la difficulté gonfle les boss
+  toxine: { chance: 0.12, frac: 0.002, t: 5, stacks: 4, tick: 0.5 },
   grimoire: { offers: 1, two: 0.08, three: 0.04 }, // un bonus de sanctuaire de plus ; cartes à 2 et 3 lignes plus fréquentes
   healReport: 1, // s : les soins des objets sont annoncés (chiffre vert) au plus une fois par seconde
 };

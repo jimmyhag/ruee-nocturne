@@ -42,6 +42,14 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
     if (P.slowChance > 0 && !def.boss && w.rng.next() < P.slowChance) e.slowT = Math.max(e.slowT, FROST.slowT * P.slowMul);
     if (src === HitSrc.Foudre && s.stun > 0 && !def.boss && w.rng.next() < s.stun) e.stun = Math.max(e.stun, CRIT.stunT);
   }
+  if (def.boss && w.items[It.Toxine]) {
+    // phase 50 : Toxine, une chance d'injecter une dose au boss (le tirage n'a lieu qu'avec l'objet : parties inchangées)
+    const X = ITEM.toxine;
+    if (w.rng.next() < X.chance * w.itemEff[It.Toxine]) {
+      if (e.tox < X.stacks * w.items[It.Toxine]) e.tox++;
+      e.toxT = X.t;
+    }
+  }
   if (crit && w.items[It.Dent]) {
     // phase 47 B : Dent de dragon, un critique embrase (la brûlure la plus forte l'emporte, la durée repart)
     const D = ITEM.dent,
@@ -73,15 +81,15 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   return false;
 }
 
-/** Phase 47 B : un coup de brûlure (Dent de dragon). Dégâts déjà calculés : ni multiplicateur ni critique ni vol de vie. */
-export function burnEnemy(w: World, i: number, dmg: number): void {
+/** Phase 47 B : un coup de brûlure (Dent de dragon) ; phase 50 : ou de toxine (`src`). Dégâts déjà calculés : ni multiplicateur ni critique ni vol de vie. */
+export function burnEnemy(w: World, i: number, dmg: number, src: HitSrc = HitSrc.Burn): void {
   const e = w.enemies[i];
   if (!e.alive) return;
   e.hp -= dmg;
   e.flash = 0.1;
-  w.emit(Ev.Hit, e.x, e.y, e.z, dmg, HitSrc.Burn, 0, 0);
+  w.emit(Ev.Hit, e.x, e.y, e.z, dmg, src, 0, 0);
   if (e.hp <= 0) {
-    w.srcKills[HitSrc.Burn]++;
+    w.srcKills[src]++;
     killEnemy(w, i);
   }
 }

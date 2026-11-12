@@ -40,10 +40,27 @@ function run(w: World, seconds: number, ev: Ev): number {
 }
 
 describe('crânes : placement', () => {
-  it('DIFFICULTY.skullCount par monde, hors de la clairière, à l’écart des autres lieux et les uns des autres', () => {
+  it('entre skullMin et skullMax par monde (phase 50), tous posés même au maximum, stables par graine', () => {
+    const seen: number[] = [];
+    for (let seed = 1; seed <= 80; seed++) {
+      const n = new World(seed).skulls.length;
+      expect(n).toBeGreaterThanOrEqual(DIFFICULTY.skullMin);
+      expect(n).toBeLessThanOrEqual(DIFFICULTY.skullMax);
+      seen.push(n);
+    }
+    expect(Math.min(...seen)).toBeLessThanOrEqual(DIFFICULTY.skullMin + 2);
+    expect(Math.max(...seen)).toBeGreaterThanOrEqual(DIFFICULTY.skullMax - 2);
+    const min = DIFFICULTY.skullMin;
+    DIFFICULTY.skullMin = DIFFICULTY.skullMax; // le maximum tient sur toutes les cartes
+    try {
+      for (let seed = 1; seed <= 40; seed++) expect(new World(seed).skulls.length, `graine ${seed}`).toBe(DIFFICULTY.skullMax);
+    } finally {
+      DIFFICULTY.skullMin = min;
+    }
+  });
+  it('hors de la clairière, à l’écart des autres lieux et les uns des autres', () => {
     for (const seed of [1, 3, 11, 42]) {
       const w = new World(seed);
-      expect(w.skulls.length, `graine ${seed}`).toBe(DIFFICULTY.skullCount);
       for (const s of w.skulls) {
         expect(Math.hypot(s.x, s.z)).toBeGreaterThanOrEqual(DIFFICULTY.skullFromStart);
         expect(Math.hypot(s.x - w.totem.x, s.z - w.totem.z)).toBeGreaterThanOrEqual(STAGE.totemSpacing);
@@ -61,12 +78,12 @@ describe('crânes : placement', () => {
     }
   });
   it('tirés en dernier : coffres, sanctuaires et totem d’une graine sont ceux d’avant la phase', () => {
-    const count = DIFFICULTY.skullCount;
+    const [min, max] = [DIFFICULTY.skullMin, DIFFICULTY.skullMax];
     try {
       for (const seed of [1, 42]) {
-        DIFFICULTY.skullCount = count;
+        [DIFFICULTY.skullMin, DIFFICULTY.skullMax] = [min, max];
         const withSkulls = new World(seed);
-        DIFFICULTY.skullCount = 0;
+        DIFFICULTY.skullMin = DIFFICULTY.skullMax = 0;
         const without = new World(seed);
         expect(without.skulls.length).toBe(0);
         expect(withSkulls.mapChests).toEqual(without.mapChests);
@@ -76,7 +93,7 @@ describe('crânes : placement', () => {
         expect(withSkulls.shrines.length).toBe(SHRINE.count);
       }
     } finally {
-      DIFFICULTY.skullCount = count;
+      [DIFFICULTY.skullMin, DIFFICULTY.skullMax] = [min, max];
     }
   });
 });
@@ -130,7 +147,7 @@ describe('crânes : activation', () => {
     nextStage(w);
     expect(w.player.difficulty).toBeCloseTo(DIFFICULTY.skullStep, 9);
     expect(w.skullsOn).toBe(1);
-    expect(w.skulls.length).toBe(DIFFICULTY.skullCount);
+    expect(w.skulls.length).toBeGreaterThanOrEqual(DIFFICULTY.skullMin); // la carte du monde suivant tire son nombre
     expect(w.skulls.every((s) => !s.on && s.charge === 0)).toBe(true);
   });
 });
@@ -197,10 +214,11 @@ describe('effet de la difficulté', () => {
     expect(boss(1, true) / boss(0, true)).toBeCloseTo(1 + DIFFICULTY.hpShare, 9);
     expect(boss(1, false) / boss(0, false)).toBeCloseTo(1 + DIFFICULTY.hpShare, 9);
   });
-  it('garde-fou : au-delà de DIFFICULTY.max, plus d’effet', () => {
+  it('sans plafond (phase 50) : à 600 %, la vie des monstres est ×4', () => {
     const w = calm(9);
-    w.player.difficulty = DIFFICULTY.max + 3;
-    expect(difficultyOf(w)).toBe(DIFFICULTY.max);
+    w.player.difficulty = 6;
+    expect(difficultyOf(w)).toBe(6);
+    expect(difficultyHp(w)).toBeCloseTo(1 + 6 * DIFFICULTY.hpShare, 9);
   });
 });
 

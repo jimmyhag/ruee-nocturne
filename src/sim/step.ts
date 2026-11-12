@@ -463,6 +463,18 @@ function stepEnemies(w: World, dt: number): void {
       }
       if (e.burnT <= 0) e.burn = e.burnAcc = 0;
     }
+    if (e.toxT > 0) {
+      // phase 50 : Toxine, un coup toutes les ITEM.toxine.tick s, en part des PV max du boss par dose
+      const X = ITEM.toxine;
+      e.toxT -= dt;
+      e.toxAcc += dt;
+      if (e.toxAcc >= X.tick) {
+        e.toxAcc -= X.tick;
+        burnEnemy(w, i, e.tox * X.frac * e.max * X.tick, HitSrc.Toxin);
+        if (!e.alive) continue;
+      }
+      if (e.toxT <= 0) e.tox = e.toxAcc = 0;
+    }
     if (e.type === ARCHER_TYPE || e.type === CRACHEUR_TYPE || e.type === SORCIER_TYPE) shooters++;
     e.px = e.x;
     e.pz = e.z;

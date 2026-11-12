@@ -921,7 +921,7 @@ function renderOverScreen(): void {
   // … et totems de boss activés (livraison 2)
   const oDiff: string[] = [];
   if (world.player.difficulty > 0)
-    oDiff.push(t('over.difficulty', { n: Math.round(100 + world.player.difficulty * 100), skulls: world.skullsOn }));
+    oDiff.push(t('over.difficulty', { n: Math.round(world.player.difficulty * 100), skulls: world.skullsOn }));
   if (world.bossTotemsOn > 0) oDiff.push(t('over.bossTotems', { n: world.bossTotemsOn }));
   $('oDiff').hidden = oDiff.length === 0;
   $('oDiff').textContent = oDiff.join(' · ');
@@ -1966,7 +1966,7 @@ $('installBtn').onclick = async () => {
 
 // ---------- événements de la sim → effets ----------
 // Règle 3 de CLAUDE.md : chaque coup porté produit flash (sim), recul (sim), son, chiffre et particules.
-// HitSrc : les treize armes dans l'ordre de WEAPON_KEYS, puis Fire, Thorns, Talisman, Spell, Patins, Horn, Burn
+// HitSrc : les treize armes dans l'ordre de WEAPON_KEYS, puis Fire, Thorns, Talisman, Spell, Patins, Horn, Burn, Toxin
 /**
  * Retour visuel d'un sort (phase 19, règle 3) : au lancement (x2, z2 = point visé ou d'arrivée), à l'impact (x2 = rayon).
  * Les effets qui durent (filet, Tourbillon, Voile, ennemis étourdis) sont dessinés par la scène.
@@ -2057,6 +2057,7 @@ const HIT_COLORS = [
   0xff8a3d, // phase 28 : Patins de braise
   0xffe08a, // Corne de guerre
   0xff6a2a, // phase 47 B : brûlure de la Dent de dragon
+  0x7ddc4a, // phase 50 : Toxine
 ];
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
@@ -2321,7 +2322,7 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, 1.6, e.z, PAL.skull, (24 * fx) | 0, 4, 10, false);
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
         audio.roar();
-        hud.banner(t('banner.skull', { n: Math.round(100 + e.v * 100) }));
+        hud.banner(t('banner.skull', { n: Math.round(e.v * 100) }));
         hud.flash('skull');
         break;
       case Ev.BossTotemOn:

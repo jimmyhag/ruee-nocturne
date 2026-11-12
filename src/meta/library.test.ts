@@ -30,7 +30,7 @@ describe('Bibliothèque (phase 40)', () => {
     const m = fresh();
     expect(bannedItems(m).sort()).toEqual([...LOCKED_ITEMS].sort());
     expect(activeItems(m)).toBe(ITEM_KEYS.length - 22);
-    expect(activeItems(m)).toBe(26);
+    expect(activeItems(m)).toBe(27); // phase 50 : la Toxine est disponible d'office
     for (const k of LOCKED_ITEMS) expect(entryState(m, 'i', k)).toBe('locked');
     expect(entryState(m, 'i', 'lanterne')).toBe('owned');
     expect(unlockedWeapons(m)).toEqual(['orbe', 'aura', 'lames', 'foudre']);

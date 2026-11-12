@@ -865,12 +865,17 @@ function makeEnemy(): Enemy {
     burn: 0,
     burnT: 0,
     burnAcc: 0,
+    tox: 0,
+    toxT: 0,
+    toxAcc: 0,
     slowT: 0,
   };
   // phase 47 B (relecture perf) : la brûlure est fractionnaire ; forme « double » dès la création, comme pour Player,
   // sinon le premier embrasement déprécie la forme de tous les ennemis en plein combat
   e.burn = e.burnT = e.burnAcc = 0.5;
   e.burn = e.burnT = e.burnAcc = 0;
+  e.toxT = e.toxAcc = 0.5; // phase 50 : même raison (durées fractionnaires)
+  e.toxT = e.toxAcc = 0;
   return e;
 }
 function makeProj(): Projectile {
