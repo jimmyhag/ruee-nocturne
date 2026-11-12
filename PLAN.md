@@ -98,14 +98,14 @@ Maximum 4 armes + 4 tomes par run (forcer les choix). **Phase 10** : on part ave
 ### 3.2 Tomes (12 : 8 en phase 12, 4 en phase 47 ; remplacent les passifs)
 Dégâts (dégâts, élites et boss, recul, dégâts critiques) · Cadence (recharge, durée des projectiles, recharge du sort) · Projectiles (+1 projectile pour toutes les armes, taille, vitesse) · Vitalité (PV max, régénération, dégâts subis, PV par kill) · Mouvement (course, recharge et puissance du sort, saut) · Savoir (XP, collecte, soin à chaque niveau) · Chance (lignes rares, coffres, 4e carte, critique global) · Or (or, or par élite, prix du marchand). Une carte de tome tire elle aussi 1 à 3 lignes dans sa famille (`TOMES` dans `balance.ts`), jusqu'à 100 par tome.
 
-**Phase 47 (demande de Jimmy : plus de tomes, dont un de vol de vie)** — quatre tomes écrits, trois lignes chacun. **Seul le Sang est au tirage en 1.46.0** ; Givre, Bastion et Défi sont en réserve (`TOME_HELD`, voir « Phase 47 ») :
+**Phase 47 (demande de Jimmy : plus de tomes, dont un de vol de vie)** — quatre tomes écrits, trois lignes chacun. **Seul le Sang est au tirage en 1.46.0** ; Givre et Bastion sont en réserve (`TOME_HELD`, voir « Phase 47 ») ; le Défi en est sorti en phase 48, c'est le tome de difficulté :
 
 | Tome | Lignes (par carte) | Ce qu'il change |
 |---|---|---|
 | **Sang** | vol de vie +2 % · réserve de soin +0,6 PV/s (proposée seulement si un soin y puise déjà) · dégâts +6 % sous 50 % de PV | se soigner en frappant, sans objet ; fort quand on est bas |
 | **Givre** | 6 % de chance de ralentir à chaque coup d'arme (1,5 s, pas les boss) · dégâts +10 % aux ennemis ralentis ou étourdis · durée des ralentissements +15 % | contrôle ; se marie avec le Halo, la Foudre, le Sablier |
 | **Bastion** | riposte : l'ennemi au contact reçoit ses dégâts ×1 de plus par ligne (l'objet Épines : ×3) · garde : dégâts de contact subis −5 % (plafond −30 %, en plus de l'armure) · revanche : dégâts +8 % pendant 3 s après un coup reçu | le corps à corps : tenir dans la masse |
-| **Défi** | apparitions +5 % · XP et or des élites +8 % · élites +8 % plus fréquentes | un pari : plus de monstres contre plus de butin |
+| **Difficulté** (ex-Défi, phase 48) | difficulté +5 % · XP et or des élites +8 % · élites +8 % plus fréquentes | un pari : plus de monstres, plus solides, contre plus de butin ; proposé après un crâne activé |
 
 Le vol de vie du héros (`Player.steal`) passe par la même **réserve de soin par seconde** que le Croc et la Couronne (`healCap`, `src/sim/items.ts`) : 2 % de vol de vie ouvrent 0,6 PV/s de réserve (`BLOOD.capPerSteal`), la ligne « réserve » en ajoute. Sans cette borne, les dégâts de fin de partie rendraient le héros immortel.
 
@@ -875,13 +875,33 @@ Chaque phase = une branche, une PR, une porte. Claude Code **ne passe pas à la 
 - **Porte C** : chaque arme seule 30 s (source, dégâts, recul, flash : test générique étendu) ; tests de ligne, de flaque, d'esprits, de balise et des quatre synergies ; captures lues des quatre armes ; e2e « chaque arme a un effet visible » étendu aux onze armes dessinées, Bibliothèque (13 armes, 9 verrouillées) ; bench et test de charge inchangés ; relecture perf.
 - **Porte A** : tests Vitest des 18 bonus, des lignes des quatre tomes, de la réserve de soin et de la fiche de stats ; captures lues (sanctuaire à quatre cartes et fiche de stats, PC et téléphone) ; e2e exploration ; bench inchangé.
 
+### Phase 48 — Difficulté : crânes, tome de difficulté, totems de boss (1.50.0 puis 1.51.0)
+- **Demande de Jimmy (12 nov.)** : une difficulté que le joueur monte lui-même, pour avoir plus d'ennemis et un meilleur score de kills ; des crânes activables sur la carte, un tome de difficulté, des totems de boss qui ajoutent un boss à chaque vague de boss du monde ; plus de vie et plus d'apparitions, en crescendo.
+- **Livraison 1 (1.50.0)** : `P.difficulty` (0 = 100 %, `DIFFICULTY` dans `balance.ts`). Apparitions × (1 + d), vie des monstres × (1 + 0,5 · d), boss compris ; dégâts et vitesse inchangés.
+  - **Crânes** : 6 par monde, tirés après le totem (les autres lieux d'une graine ne bougent pas) ; 2,5 s dans le cercle (Encens compris), +10 % pour toute la partie. Modèle procédural (`src/render/skull.ts`), violet, colonne de lumière, icône sur la minicarte, jauge « Crâne · difficulté 100 % → 110 % ».
+  - **Tome de difficulté** (l'ancien Défi, sorti de la réserve) : difficulté +5 %, élites +8 % plus fréquentes, XP et or des élites +8 %. **Proposé seulement après un crâne activé.**
+  - **Affichage** : pastille sous la barre de PV, ligne de la fiche de stats, ligne de l'écran de fin.
+  - **Écart au plan approuvé** : le tome n'est pas dans les tirages dès le départ. Mesuré : présent et jamais pris, il coûtait 8 points de « monde 2 atteint » (77 → 69 %). Crânes violets et non rouges (le rouge est le totem du monde).
+  - **Mesuré** (200 parties, kit complet, graine 42 ; N crânes par monde activés par le bot) :
+
+    | Crânes par monde | Difficulté en fin de partie | Monde 2 atteint | Monde 3 | Victoires | Kills à 10 min | Meilleure partie (kills) |
+    |---|---|---|---|---|---|---|
+    | 0 | 100 % | 77 % | 46 % | 17 % | 1 467 | 10 198 |
+    | 2 | 139 % | 63 % | 32 % | 8 % | 1 743 | 14 269 |
+    | 4 | 171 % | 56 % | 25 % | 7 % | 2 005 | 16 544 |
+    | 6 | 194 % | 48 % | 17 % | 4 % | 2 261 | 21 123 |
+
+    Graine 43 : 73 / 46 / 15 % sans crâne, 68 / 28 / 6 % avec 2. Départ (1 arme) avec 2 crânes : victoires 16 → 7 %, morts avant 3 min 18 → 25 % (le bot prend le premier à 0:45, trop tôt pour un kit faible).
+  - **Sans crâne, rien ne change** : 197 parties sur 200 identiques à la 1.49.0 à la graine près (les 3 autres : un crâne activé par accident par le bot, depuis il s'écarte des cercles) ; toutes les cibles tenues.
+- **Porte L1** : tests Vitest (placement stable, jauge, formule des apparitions et de la vie, boss, persistance entre mondes, tome après un crâne, cartes inchangées sans crâne) ; e2e PC et mobile (crâne, jauge, pastille, fiche de stats, écran de fin) ; captures lues ; relecture perf appliquée (modèle dessiné à portée de caméra seulement).
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.
 - **Série sans dégât** : un multiplicateur d'XP qui monte tant qu'on n'est pas touché et retombe au premier coup.
 - **Figures utiles** : glisses parfaites et longs envols remplissent une jauge qui recharge le sort.
 - **Bannir** une carte de montée de niveau pour la partie, à côté des relances.
-- **Sanctuaires de défi** : accepter une malédiction (plus d'ennemis, PV réduits) contre un objet rare garanti.
+- **Sanctuaires de défi** : accepter une malédiction (plus d'ennemis, PV réduits) contre un objet rare garanti. *(Phase 48 : les crânes montent la difficulté, sans objet en échange ; l'idée d'une récompense reste ouverte.)*
 - **Quêtes par personnage**, par exemple « 50 kills en l'air avec la Revenante », qui débloquent objets ou armes.
 - **Événements de carte** : élite « recherchée » qui fuit avec un coffre, horde annoncée d'une direction, pluie de météores sur une zone.
 - **Écran de fin détaillé** : dégâts par arme, cause de la mort, trajet sur la carte.

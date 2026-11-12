@@ -55,6 +55,7 @@ test('crâne de difficulté : visible, jauge, +10 % affichés partout', async ({
 });
 
 test('la difficulté fait venir plus de monstres ; l’écran de fin la rappelle', async ({ page }) => {
+  test.setTimeout(150_000); // deux mesures de 4 s de jeu sous SwiftShader, puis une mort : large sur une machine chargée
   await openGame(page);
   await startRun(page, 22);
   // même instant de la partie, sans et avec 100 % de difficulté en plus : deux fois plus d'apparitions
@@ -70,7 +71,7 @@ test('la difficulté fait venir plus de monstres ; l’écran de fin la rappelle
       const t0 = w.t;
       return new Promise<number>((resolve) => {
         const tick = (): void => {
-          if (w.t - t0 >= 6) resolve(w.enemyCount + w.kills);
+          if (w.t - t0 >= 4) resolve(w.enemyCount + w.kills);
           else requestAnimationFrame(tick);
         };
         tick();

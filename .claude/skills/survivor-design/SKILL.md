@@ -140,6 +140,16 @@ Les lignes d'arme en pourcentage se multiplient, les monstres montent en ligne d
 - **Monde infini** : le temps de difficulté avance à 40 % de sa vitesse (`ENDLESS.diffRate`). À pleine vitesse, avec le plafond, la horde tuait en 3 min quelle que soit la build.
 - Leçon : régler un levier à la fois (`npm run sim -- --set BOSS.hpMul.0=1,XP.late=0`). Sur le kit à deux armes, les PV des boss, les nouvelles attaques et l'économie pesaient chacun 4 à 5 points de victoire ; le plafond de niveau et l'XP, zéro.
 
+## 8 ter. Difficulté choisie par le joueur (phase 48)
+Demande de Jimmy : pouvoir faire venir plus d'ennemis pour un meilleur score de kills. `P.difficulty` (0 = 100 %) :
+apparitions × (1 + d), vie des monstres × (1 + `DIFFICULTY.hpShare` · d), boss compris ; dégâts et vitesse inchangés.
+- **Sources** : crânes sur la carte (6 par monde, +10 % chacun, pour toute la partie) et tome de difficulté (+5 % par ligne).
+- **Les deux effets se multiplient** : à vie égale à la difficulté (hpShare 1), 150 % demande 2,25 fois plus de dégâts par seconde. Avec 0,5, la marche reste une pente.
+- **Mesuré** (200 parties, kit complet, bot qui active N crânes par monde, un toutes les 45 s) : monde 2 atteint 77 / 63 / 56 / 48 % pour 0 / 2 / 4 / 6 crânes ; victoires 17 / 8 / 7 / 4 % ; kills à 10 min +19 / +37 / +54 % ; meilleure partie 10 200 → 14 300 → 16 500 → 21 100 kills. Le pari paie pour qui tient, coûte à qui monte trop tôt (départ, 2 crânes : morts avant 3 min 18 → 25 %).
+- **Une option que le joueur n'a pas choisie ne doit rien lui coûter.** Le tome de difficulté, toujours dans les tirages et jamais pris, coûtait 8 points de « monde 2 atteint » (dilution, comme en phase 47). Il n'est proposé qu'après un crâne activé (`DIFFICULTY.tomeAfterSkulls`), écarté avant tout tirage : la partie sans crâne garde ses cartes au tirage près.
+- **Le bot des cibles n'y touche pas**, et s'écarte d'un cercle dont la jauge monte (3 parties sur 200 en activaient un par accident). Mesurer la difficulté : `--skulls N`, `--take-defi` ; les cibles de la table restent celles du jeu à 100 %.
+- **Un lieu ajouté à la carte se tire en dernier** (après le totem) : les lieux d'une graine déjà connue ne bougent pas (défi du jour, tests de carte).
+
 ## 9. Cibles d'équilibrage mesurées par simulation
 Deux profils (phase 17), `npm run sim -- --runs 200 --bot average --profile naked|maxed` (`tools/targets.ts`) :
 | Métrique | Nu (`--profile naked`) | Maxé (`--profile maxed`) |

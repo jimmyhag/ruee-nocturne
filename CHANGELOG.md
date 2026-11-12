@@ -2,6 +2,22 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.50.0 — 12 nov. 2026 (demande de Jimmy : la difficulté, des crânes sur la carte, un tome de difficulté)
+
+### Ajouté
+
+- **Difficulté de la partie** : elle part de 100 % et c'est toi qui la montes. À 150 %, il apparaît une fois et demie plus de monstres, et ils ont un quart de vie en plus ; leurs dégâts et leur vitesse ne changent pas. Plus de monstres, c'est plus d'XP, d'or et de vaincus : de quoi viser plus haut au classement des vaincus. Monter trop vite, c'est mourir plus tôt. Si tu n'actives aucun crâne, rien ne change.
+- **Crânes** : six crânes violets par monde, marqués d'une colonne de lumière et sur la carte. Reste 2,5 s dans le cercle : difficulté +10 %, jusqu'à la fin de la partie, mondes suivants compris.
+- **Tome de difficulté** : il rejoint tes cartes dès que tu as activé un crâne. Chaque ligne : difficulté +5 %, élites 8 % plus fréquentes, ou XP et or des élites +8 %.
+- La difficulté s'affiche sous la barre de vie, dans la fiche de stats de la pause et sur l'écran de fin.
+
+### Technique
+
+- `P.difficulty` (0 = 100 %), `DIFFICULTY` dans `balance.ts` : apparitions × (1 + d), vie × (1 + 0,5 · d), boss compris. Crânes tirés après le totem : les lieux d'une graine connue ne bougent pas.
+- Mesuré sur 200 parties (kit complet, graine 42) avec 0 / 2 / 4 / 6 crânes par monde : monde 2 atteint 77 / 63 / 56 / 48 %, victoires 17 / 8 / 7 / 4 %, kills à 10 min 1 467 / 1 743 / 2 005 / 2 261, meilleure partie 10 198 / 14 269 / 16 544 / 21 123 kills.
+- Le tome n'entre dans les tirages qu'après un crâne : toujours présent et jamais pris, il coûtait 8 points de « monde 2 atteint » (dilution du tirage).
+- CLI : `--skulls N` (le bot active N crânes par monde), `--take-defi`.
+
 ## 1.49.0 — 12 nov. 2026 (demande de Jimmy : un récap de tous les patchs dans le menu)
 
 ### Ajouté

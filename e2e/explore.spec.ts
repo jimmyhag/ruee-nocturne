@@ -139,7 +139,7 @@ test('sanctuaire : rester dans le cercle remplit la jauge, puis un bonus pour la
   else await page.locator('#pauseBtn').click();
   await expect(page.locator('#pause')).toBeVisible();
   await expect(page.locator('#pauseStats .statgroup')).toHaveCount(5);
-  await expect(page.locator('#pauseStats li')).toHaveCount(20);
+  await expect(page.locator('#pauseStats li')).toHaveCount(21); // phase 48 : + la difficulté
   await expect(page.locator('#pauseStats')).toContainText('Vol de vie');
   await expect(page.locator('#pauseStats')).toContainText('Chance');
 });
