@@ -2706,7 +2706,6 @@ loadMeta().then((m) => {
   }
 });
 setPerf(perfOn);
-requestAnimationFrame(frame);
 
 // hooks de debug / tests (jamais en prod sans ?debug=1)
 const debugRt = installDebugHooks({
@@ -2779,6 +2778,8 @@ const debugRt = installDebugHooks({
     return { sent, saves };
   },
 });
+// la boucle démarre après l'installation des hooks : `debugRt` est défini avant la première frame
+requestAnimationFrame(frame);
 
 // Module de rendu : déjà téléchargé (modulepreload), il n'est évalué et la scène construite qu'à la première
 // interaction du joueur (geste, touche, survol de « Jouer ») : le menu reste léger tant qu'on ne joue pas, et

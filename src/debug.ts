@@ -235,7 +235,11 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     slowFrames(ms: number): void {
       runtime.slowFrames = Math.max(0, ms);
     },
-    /** Fixe le nombre d'ennemis à maintenir (0 = arrêt). Équivaut à `?stress=n`. */
+    /**
+     * Fixe le nombre d'ennemis à maintenir (0 = arrêt). Équivaut à `?stress=n`.
+     * Attention : le recomplètement tire `world.rng` hors de `step()`, un run en mode stress n'est donc
+     * pas reproductible seed à seed. Outil de mesure, jamais pour reproduire un bug.
+     */
     stress(n: number): void {
       stressTarget = Math.min(CAPS.enemies, Math.max(0, n | 0));
       stressWorld = null;
@@ -249,7 +253,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     speed: 1,
     slowFrames: 0,
     onFrame(world) {
-      if (stressTarget <= 0) return;
+      if (stressTarget <= 0 || world.mode !== Mode.Play) return;
       if (stressWorld !== world) {
         stressWorld = world;
         world.player.maxHp = world.player.hp = 1e9; // on mesure le rendu, pas la survie

@@ -20,3 +20,5 @@ README.md
 lighthouse/
 # généré par npm run audio
 src/platform/sfx.json
+# worktrees créés par l'app Claude
+.claude/worktrees/

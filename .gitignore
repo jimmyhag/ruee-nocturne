@@ -15,3 +15,4 @@ test-results/
 all time frame.docx
 firebase-debug.log
 /.cache/
+.claude/worktrees/
