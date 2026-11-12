@@ -1,7 +1,23 @@
 // Phase 48, livraison 2 (demande de Jimmy) : totems de boss. Un totem activé ajoute un boss à chaque vague de boss du
 // monde ; le portail attend qu'ils soient tous vaincus.
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { collectConsoleErrors, openGame, startRun } from './helpers';
+
+/**
+ * Tue le boss suivi par la barre. Attend d'abord qu'il soit en vie : juste après une mise à mort, `bossIndex` désigne
+ * encore le boss tombé jusqu'au pas de sim suivant (à 5 images/s sur le runner, un second appel le frappait dans le vide).
+ */
+async function killBoss(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const w = (window as any).__game.world;
+      return w.bossIndex >= 0 && w.enemies[w.bossIndex].alive === true;
+    },
+    null,
+    { timeout: 20_000 },
+  );
+  await page.evaluate(() => (window as any).__game.debug.killBoss());
+}
 
 test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au dernier', async ({ page }, info) => {
   test.setTimeout(150_000); // trois combats de boss à la suite : plus d'une minute sur le runner (SwiftShader)
@@ -48,10 +64,10 @@ test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au der
     `[${p}] appels de rendu avec deux boss :`,
     await page.evaluate(() => (window as any).__game.renderer.info.render.calls),
   );
-  await page.evaluate(() => (window as any).__game.debug.killBoss());
+  await killBoss(page);
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 1, null, { timeout: 20_000 });
   await expect(page.locator('#bossname')).not.toContainText('encore');
-  await page.evaluate(() => (window as any).__game.debug.killBoss());
+  await killBoss(page);
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 0, null, { timeout: 20_000 });
   // le totem du monde : deux boss ; le portail ne s'ouvre qu'au second
   await page.evaluate(() => {
@@ -59,11 +75,10 @@ test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au der
     g.debug.teleport(g.world.totem.x, g.world.totem.z);
   });
   await page.waitForFunction(() => (window as any).__game.world.totemAlive === 2, null, { timeout: 30_000 });
-  await page.evaluate(() => (window as any).__game.debug.killBoss());
+  await killBoss(page);
   await page.waitForFunction(() => (window as any).__game.world.totemAlive === 1, null, { timeout: 20_000 });
   expect(await page.evaluate(() => (window as any).__game.world.portal.open)).toBe(false);
-  await page.waitForFunction(() => (window as any).__game.world.bossIndex >= 0, null, { timeout: 10_000 });
-  await page.evaluate(() => (window as any).__game.debug.killBoss());
+  await killBoss(page);
   await page.waitForFunction(() => (window as any).__game.world.portal.open === true, null, { timeout: 20_000 });
   expect(errors).toEqual([]);
 });
