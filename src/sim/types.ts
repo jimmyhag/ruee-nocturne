@@ -35,6 +35,7 @@ export interface Enemy {
   t2: number;
   age: number;
   enraged: boolean;
+  totemExtra: boolean; // phase 48 : boss en plus du combat du totem (un totem de boss activé) ; compte pour le portail
   combo: number;
   /** Phase 45, Traque : cercles restant dans la salve en cours, et temps avant le prochain cercle ou la prochaine salve. */
   hunt: number;
@@ -239,7 +240,8 @@ export const enum Ev {
   Puddle, // phase 47 C : flaque de Vitriol posée en (x,z), v = rayon
   Beacon, // phase 47 C : balise posée en (x,z), v = portée
   Whip, // phase 47 C : claque du Fouet depuis (x,y,z), v = longueur, (x2, z2) = direction
-  SkullOn, // phase 48 : crâne activé en (x,z), v = difficulté ajoutée après coup (0,1 = 110 %) ; dernière valeur
+  SkullOn, // phase 48 : crâne activé en (x,z), v = difficulté ajoutée après coup (0,1 = 110 %)
+  BossTotemOn, // phase 48 : totem de boss activé en (x,z), v = boss en plus par vague dans ce monde ; dernière valeur
 }
 
 export interface GameEvent {

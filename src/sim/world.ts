@@ -5,7 +5,7 @@ import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './ter
 import type { Kicker, Piste, Plateau, Ramp } from './terrain';
 import type { Race } from './poi';
 import { buildPOI } from './poi';
-import type { MapChest, Shrine, Skull } from './poi';
+import type { BossTotem, MapChest, Shrine, Skull } from './poi';
 import { makeMerchant } from './merchant';
 import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
@@ -110,6 +110,15 @@ export class World {
   survivalWarned = false; // préavis du prochain envoyé
   survivalAlive = 0; // boss de survie en vie (la barre passe au suivant)
   totemBossId = -1; // id de l'ennemi boss du totem, -1 sinon
+  // phase 48 : totems de boss. `bossExtra` boss en plus à chaque vague de boss du monde (remis à zéro au monde suivant) ;
+  // `totemAlive` boss du combat du totem encore en vie (le principal et ceux en plus) : le portail attend zéro
+  bossExtra = 0;
+  totemAlive = 0;
+  bossTotemsOn = 0; // totems de boss activés dans la partie (tous mondes)
+  /** Phase 48 : boss du combat du totem (le principal, ou un boss en plus appelé par un totem de boss). */
+  isTotemBoss(e: Enemy): boolean {
+    return e.totemExtra || e.id === this.totemBossId;
+  }
   timeUp = false; // fin du chrono annoncée
   // multiplicateurs de prolongation, recalculés à chaque pas (1 tant que le chrono tourne)
   overRate = 1;
@@ -245,6 +254,7 @@ export class World {
   readonly mapChests: MapChest[] = [];
   readonly shrines: Shrine[] = [];
   readonly skulls: Skull[] = []; // phase 48 : crânes de difficulté du monde courant
+  readonly bossTotems: BossTotem[] = []; // phase 48 : totems de boss du monde courant
   skullsOn = 0; // crânes activés dans la partie (tous mondes)
   mapChestsOpened = 0;
   racesWon = 0; // phase 28 : pistes chronométrées réussies
@@ -381,6 +391,7 @@ export class World {
     this.mapChests.length = 0;
     this.shrines.length = 0;
     this.skulls.length = 0;
+    this.bossTotems.length = 0;
     this.flow.ready = false;
     const r = new Rng(seed ^ 0x9e3779b9);
     buildZones(this, r);
@@ -838,6 +849,7 @@ function makeEnemy(): Enemy {
     t2: 0,
     age: 0,
     enraged: false,
+    totemExtra: false,
     combo: 0,
     hunt: 0,
     huntT: 0,

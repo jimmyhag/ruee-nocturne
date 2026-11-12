@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { BOSS, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
+import { BOSS, BOSSTOTEM, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
 import { difficultyHp, spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
@@ -101,9 +101,25 @@ export function summonStageBoss(w: World): void {
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;
-  w.totemBossId = e.id; // phase 42 : seul ce boss ouvre le portail
-  w.bossCount++;
-  w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type);
+  w.totemBossId = e.id; // phase 42 : seul ce boss ouvre le portail ; phase 48 : avec ceux en plus (totemAlive)
+  w.totemAlive = 1;
+  w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount + 1, type);
+  // phase 48 : un boss de plus par totem de boss activé, autour du totem, d'un autre type, PV réduits
+  for (let j = 1; j <= w.bossExtra; j++) {
+    const xt = STAGE.bosses[(w.stage + j) % STAGE.bosses.length];
+    if (w.enemyCount >= CAPS.enemies) freeNonBoss(w);
+    const k = spawnEnemy(w, xt, 0, 0);
+    if (k < 0) break;
+    const x = w.enemies[k];
+    x.hp = x.max = (e.max / ENEMIES[type].hp) * ENEMIES[xt].hp * BOSSTOTEM.extraHp;
+    const b = a + j * BOSSTOTEM.spread;
+    x.x = x.px = T.x + Math.sin(b) * STAGE.bossDist;
+    x.z = x.pz = T.z + Math.cos(b) * STAGE.bossDist;
+    x.totemExtra = true;
+    w.totemAlive++;
+    w.emit(Ev.BossSpawn, x.x, 2, x.z, w.bossCount + 1, xt, 2); // y2 = 2 : boss en plus
+  }
+  w.bossCount++; // une fois par totem du monde : les boss en plus ne renforcent pas ceux des mondes suivants
 }
 
 /** Phase 42 : préavis puis apparition des boss de survie aux heures STAGE.survival.at du monde. */
@@ -141,6 +157,18 @@ export function summonSurvivalBoss(w: World, k: number): void {
   w.survivalAlive++;
   if (w.bossIndex < 0) w.bossIndex = i; // la barre suit le boss du totem s'il est déjà là
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type, 1); // y2 = 1 : boss de survie
+  // phase 48 : un boss de plus par totem de boss activé, autour du joueur, d'un autre type, PV réduits
+  const a0 = Math.atan2(e.x - w.player.x, e.z - w.player.z);
+  for (let j = 1; j <= w.bossExtra; j++) {
+    const xt = survivalType(w, k + j);
+    if (w.enemyCount >= CAPS.enemies) freeNonBoss(w);
+    const n = spawnEnemy(w, xt, a0 + j * BOSSTOTEM.spread, STAGE.survival.dist);
+    if (n < 0) break;
+    const x = w.enemies[n];
+    x.hp = x.max = (e.max / ENEMIES[type].hp) * ENEMIES[xt].hp * BOSSTOTEM.extraHp;
+    w.survivalAlive++;
+    w.emit(Ev.BossSpawn, x.x, 2, x.z, w.bossCount, xt, 1);
+  }
 }
 
 /**
@@ -150,6 +178,7 @@ export function summonSurvivalBoss(w: World, k: number): void {
 export function stageBossDown(w: World, x: number, z: number): void {
   const T = w.totem;
   if (T.state !== 1) return;
+  if (w.totemAlive > 0) return; // phase 48 : un totem de boss a été activé, il reste des boss du combat en vie
   if (w.stage >= STAGE.count - 1) {
     T.state = 2;
     w.mode = Mode.Won;
@@ -196,6 +225,8 @@ export function nextStage(w: World): void {
   w.survivalWarned = false;
   w.survivalAlive = 0;
   w.totemBossId = -1;
+  w.totemAlive = 0; // phase 48
+  w.bossExtra = 0; // les totems de boss valent pour leur monde
   w.portal.open = false;
   w.portal.charge = 0;
   w.merchant = makeMerchant();
@@ -266,7 +297,7 @@ export function startEndless(w: World): void {
  */
 export function retargetBoss(w: World): void {
   // phase 42 : aussi en monde, quand un boss de survie (ou celui du totem) reste en vie
-  if (w.bossIndex >= 0 || (w.endless ? w.endlessAlive : w.survivalAlive) <= 0) return;
+  if (w.bossIndex >= 0 || (w.endless ? w.endlessAlive : w.survivalAlive + w.totemAlive) <= 0) return; // phase 48 : boss du totem en plus
   for (let i = 0; i < w.enemyCount; i++) {
     const e = w.enemies[i];
     if (e.alive && ENEMIES[e.type].boss) {
@@ -297,7 +328,7 @@ function tickEndless(w: World, dt: number): void {
 /** Vague de boss du monde infini : autour du joueur, PV de la règle du totem × (1 + hpPerWave · vague). */
 export function summonEndlessWave(w: World): void {
   const k = w.endlessWave++;
-  const n = endlessBosses(k),
+  const n = endlessBosses(k) + w.bossExtra, // phase 48 : totems de boss activés au monde 3, dans la limite de maxAlive
     P = w.player;
   for (let j = 0; j < n; j++) {
     if (w.endlessAlive >= ENDLESS.maxAlive) break; // trop de boss en vie : le reste de la vague attend
