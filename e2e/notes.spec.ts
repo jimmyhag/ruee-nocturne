@@ -69,6 +69,8 @@ test('Nouveautés : les versions arrivées depuis la dernière lecture sont marq
   await setMeta(page, { runs: 3, seenNotes: '1.47.0' });
   await expect(page.locator('#notesDot')).toBeVisible();
   await page.locator('#notesBtn').click();
+  // le journal arrive par un import à la demande : count() n'attend pas, on attend d'abord qu'il soit rendu
+  await expect(page.locator('#notesList details[data-v="1.48.0"]')).toBeVisible();
   const fresh = page.locator('#notesList details:has(.badge.new)');
   expect(await fresh.count()).toBeGreaterThanOrEqual(3); // 1.48.0, 1.48.1, 1.49.0 au moins
   await expect(page.locator('#notesList details[data-v="1.48.0"] .badge.new')).toHaveCount(1);
