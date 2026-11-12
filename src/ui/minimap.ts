@@ -215,6 +215,23 @@ export class MapView {
         ctx.fill();
         ctx.fillRect(x - r * 0.65, z + r * 0.4, r * 1.3, r * 0.9);
       }
+    // phase 48 : totems de boss, un petit losange braise (même règle de découverte), tant qu'ils servent encore
+    if (w.totem.state !== 2 && !w.endless) {
+      ctx.fillStyle = '#ff8a3d';
+      for (const b of w.bossTotems)
+        if (!b.on && (compass || this.seenAt(w, b.x, b.z))) {
+          const x = this.X(b.x),
+            z = this.Z(b.z),
+            a = r * 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x, z - a);
+          ctx.lineTo(x + a, z);
+          ctx.lineTo(x, z + a);
+          ctx.lineTo(x - a, z);
+          ctx.closePath();
+          ctx.fill();
+        }
+    }
     const M = w.merchant;
     if (M.active) {
       ctx.fillStyle = '#ff9f43';

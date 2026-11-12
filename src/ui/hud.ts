@@ -1,4 +1,5 @@
 import {
+  BOSSTOTEM,
   DIFFICULTY,
   ENEMIES,
   ITEM_KEYS,
@@ -56,6 +57,7 @@ export class Hud {
   private bossNames: string[] = [];
   private els = {
     diffLbl: $('diffLbl'),
+    bossXLbl: $('bossXLbl'),
     xpfill: $('xpfill'),
     xpsweep: $('xpsweep'),
     hpfill: $('hpfill'),
@@ -286,6 +288,20 @@ export class Hud {
         fill = s.charge / DIFFICULTY.skullCharge;
       }
     }
+    // phase 48 : totem de boss tout proche (tant qu'il sert : pas une fois le portail ouvert)
+    if (!w.endless && T.state !== 2) {
+      const br2 = (BOSSTOTEM.r + 2) ** 2;
+      for (let i = 0; i < w.bossTotems.length; i++) {
+        const b = w.bossTotems[i];
+        if (b.on) continue;
+        const d2 = (b.x - P.x) ** 2 + (b.z - P.z) ** 2;
+        if (d2 < br2 && (kind === 0 || d2 < best)) {
+          best = d2;
+          kind = 6;
+          fill = b.charge / BOSSTOTEM.charge;
+        }
+      }
+    }
     // phase 28 : piste chronométrée en cours (prioritaire) : secondes restantes et jauge du temps
     let raceT = -1;
     for (let i = 0; i < w.races.length; i++)
@@ -300,6 +316,7 @@ export class Hud {
       this.els.poiChip.classList.toggle('race', kind === 3);
       this.els.poiChip.classList.toggle('totem', kind === 4);
       this.els.poiChip.classList.toggle('skull', kind === 5);
+      this.els.poiChip.classList.toggle('bosstotem', kind === 6);
       if (kind !== 1) this.els.poiChip.classList.remove('poor'); // « pas assez d'or » ne vaut que pour un coffre
     }
     if (kind === 3) {
@@ -339,6 +356,17 @@ export class Hud {
         to: 100 + diff + Math.round(DIFFICULTY.skullStep * 100),
       });
       this.els.poiChip.classList.remove('poor');
+    }
+    if (kind === 6 && this.cache.poiOn !== kind) {
+      this.cache.poiKey = -2;
+      this.els.poiText.textContent = t('bosstotem.chip');
+      this.els.poiChip.classList.remove('poor');
+    }
+    // boss en plus par vague dans ce monde (totems de boss activés)
+    if (this.cache.bossX !== w.bossExtra) {
+      this.cache.bossX = w.bossExtra;
+      this.els.bossXLbl.hidden = w.bossExtra === 0;
+      this.els.bossXLbl.textContent = t('hud.bossExtra', { n: w.bossExtra });
     }
     if (this.cache.diff !== diff) {
       this.cache.diff = diff;
@@ -401,7 +429,15 @@ export class Hud {
     if (bossOn) {
       const b = w.enemies[w.bossIndex];
       this.width('bossfill', b.hp / b.max);
-      this.text('bossname', this.bossNames[b.type]);
+      // phase 48 : plusieurs boss à la fois (totems de boss, boss de survie encore en vie) : la barre en suit un et dit
+      // combien il en reste d'autres
+      const others = (w.endless ? w.endlessAlive : w.survivalAlive + w.totemAlive) - 1;
+      const key = b.type * 16 + Math.max(0, others);
+      if (this.cache.bossKey !== key) {
+        this.cache.bossKey = key;
+        this.els.bossname.textContent =
+          others > 0 ? t('boss.more', { name: this.bossNames[b.type], n: others }) : this.bossNames[b.type];
+      }
     }
     // phase 35 : bonus actifs, pastille visible et barre de durée (écrite par pas de 2 %)
     for (let k = 1; k < this.pw.length; k++) {

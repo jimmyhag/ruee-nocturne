@@ -74,6 +74,7 @@
         --hp: #ff5d73;
         --xp: #5fd3ff;
         --skull: #b060ff; /* phase 48 : difficulté (PAL.skull) */
+        --bosstotem: #ff8a3d; /* phase 48 : totems de boss (PAL.bossTotem) */
         --gold: #ffd166;
         --glass: rgba(20, 28, 51, 0.9);
         --glass-2: rgba(255, 255, 255, 0.06);
@@ -375,6 +376,10 @@
       }
       .diffc[hidden] {
         display: none;
+      }
+      .diffc.bossx {
+        border-color: var(--bosstotem);
+        color: #ffd2a8;
       }
       .time.over #time {
         color: var(--hp);
@@ -1484,6 +1489,11 @@
       .lg.skull {
         background: var(--skull);
       }
+      .lg.bosstotem {
+        background: var(--bosstotem);
+        border-radius: 2px;
+        transform: rotate(45deg) scale(0.85);
+      }
       .lg.merchant {
         background: #ff9f43;
       }
@@ -1569,6 +1579,13 @@
       }
       #poiChip.skull #poiFill {
         background: var(--skull);
+      }
+      /* phase 48 : totem de boss */
+      #poiChip.bosstotem {
+        border-color: var(--bosstotem);
+      }
+      #poiChip.bosstotem #poiFill {
+        background: var(--bosstotem);
       }
       /* 1.45.2 : totem du boss, jauge d'activation */
       #poiChip.totem {
@@ -2546,6 +2563,7 @@
           </div>
           <!-- phase 48 : difficulté de la partie, dès qu'elle dépasse 100 % -->
           <div class="diffc" id="diffLbl" hidden></div>
+          <div class="diffc bossx" id="bossXLbl" hidden></div>
           <div class="kit" id="kit"></div>
           <!-- phase 35 : bonus au sol actifs (icône + durée restante), remplis par Hud -->
           <div class="powers" id="powers"></div>
@@ -2805,6 +2823,11 @@
             Crânes violets sur la carte : rester dedans monte la difficulté de la partie. Plus de monstres, plus
             solides, donc plus d'XP, d'or et de vaincus.
           </dd>
+          <dt><span class="cap">◆</span></dt>
+          <dd data-i18n="menu.ctrl.bosstotem">
+            Totems de boss (orange) : chacun ajoute un boss à toutes les vagues de boss du monde. Le portail attend
+            qu'ils soient tous vaincus.
+          </dd>
           <dt><span class="cap">10:00</span></dt>
           <dd data-i18n="menu.ctrl.worlds">
             Avant la fin du chrono, active le totem (losange rouge sur la carte) et tue son boss : le portail mène au
@@ -2924,6 +2947,7 @@
           ><span><i class="lg chest"></i><span data-i18n="map.legend.chest">Coffre</span></span
           ><span><i class="lg shrine"></i><span data-i18n="map.legend.shrine">Sanctuaire</span></span
           ><span><i class="lg skull"></i><span data-i18n="map.legend.skull">Crâne</span></span
+          ><span><i class="lg bosstotem"></i><span data-i18n="map.legend.bosstotem">Totem de boss</span></span
           ><span><i class="lg merchant"></i><span data-i18n="map.legend.merchant">Marchand</span></span
           ><span><i class="lg boss"></i><span data-i18n="map.legend.boss">Boss</span></span>
         </p>

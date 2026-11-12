@@ -11,6 +11,7 @@ import type { World } from '../../src/sim/world';
 import { ShotKind, Spell } from '../../src/sim/types';
 import { Rng } from '../../src/sim/rng';
 import {
+  BOSSTOTEM,
   DIFFICULTY,
   ELITE_TYPE,
   ENEMIES,
@@ -230,7 +231,8 @@ const COMBAT_TOMES: ReadonlySet<TomeKey> = new Set([
 // phase 48 : `skulls` = crânes de difficulté que le bot va activer dans chaque monde (0 : il n'y touche pas, c'est le
 // joueur « moyen » des cibles) ; `takeDefi` = il prend le tome de difficulté quand il sort (sinon jamais : un joueur qui
 // ne cherche pas la difficulté ne la prend pas par hasard)
-export const BOT_TUNE = { tomePrior: 8, skulls: 0, skullEvery: 45, takeDefi: false };
+// `bossTotems` = totems de boss que le bot va activer dans chaque monde (0 : il n'y touche pas), dès `bossTotemAt` s
+export const BOT_TUNE = { tomePrior: 8, skulls: 0, skullEvery: 45, takeDefi: false, bossTotems: 0, bossTotemAt: 30 };
 function lineValue(c: Card, s: number): number {
   if (s < 0) return 0;
   const l = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey][s] : TOMES[c.key as TomeKey][s];
@@ -611,6 +613,45 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           }
         }
       }
+      // phase 48 (--boss-totems N) : les totems de boss, tôt dans le monde (ils valent pour les vagues à venir)
+      if (!stay && BOT_TUNE.bossTotems > 0 && w.totem.state === 0 && w.stageT >= BOT_TUNE.bossTotemAt) {
+        let on = 0,
+          bd = 1e12,
+          bx = 0,
+          bz = 0;
+        for (let i = 0; i < w.bossTotems.length; i++) {
+          const b = w.bossTotems[i];
+          if (b.on) {
+            on++;
+            continue;
+          }
+          const d = (b.x - P.x) ** 2 + (b.z - P.z) ** 2;
+          if (d < bd) {
+            bd = d;
+            bx = b.x - P.x;
+            bz = b.z - P.z;
+          }
+        }
+        if (on < BOT_TUNE.bossTotems && bd < 1e12) {
+          if (bd < (BOSSTOTEM.r * 0.6) ** 2 && close < 4) stay = true;
+          else {
+            const l = Math.sqrt(bd) || 1,
+              k = n > 0 ? pullFleeing * 3 : pullFree * 3;
+            out.mx += (bx / l) * k;
+            out.mz += (bz / l) * k;
+          }
+        }
+      } else if (BOT_TUNE.bossTotems === 0)
+        // comme pour les crânes : le bot « moyen » ne reste pas dans un cercle de totem de boss
+        for (let i = 0; i < w.bossTotems.length; i++) {
+          const b = w.bossTotems[i];
+          if (b.on || b.charge <= 0) continue;
+          const dx = P.x - b.x,
+            dz = P.z - b.z,
+            l = Math.hypot(dx, dz) || 1;
+          out.mx += (dx / l) * pullFree * 4;
+          out.mz += (dz / l) * pullFree * 4;
+        }
       // phase 37 : à l'heure prévue, le totem (on reste dans le cercle tant que personne ne colle), puis le portail
       const T = w.totem;
       const goTotem = T.state === 0 && w.stageT >= BOT_TOTEM_AT;

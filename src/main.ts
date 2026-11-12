@@ -788,11 +788,13 @@ function renderOverScreen(): void {
   $('oGear').innerHTML = gearHtml(world); // phase 38 : l'équipement de la partie
   $('oKills').textContent = String(world.kills);
   // phase 48 : difficulté atteinte, si la partie l'a montée
-  $('oDiff').hidden = world.player.difficulty <= 0;
-  $('oDiff').textContent = t('over.difficulty', {
-    n: Math.round(100 + world.player.difficulty * 100),
-    skulls: world.skullsOn,
-  });
+  // … et totems de boss activés (livraison 2)
+  const oDiff: string[] = [];
+  if (world.player.difficulty > 0)
+    oDiff.push(t('over.difficulty', { n: Math.round(100 + world.player.difficulty * 100), skulls: world.skullsOn }));
+  if (world.bossTotemsOn > 0) oDiff.push(t('over.bossTotems', { n: world.bossTotemsOn }));
+  $('oDiff').hidden = oDiff.length === 0;
+  $('oDiff').textContent = oDiff.join(' · ');
   $('oBest').textContent = fmtTime(meta.bestTime);
   $('oGold').textContent = String(o.gold);
   $('oTitle').textContent = t(world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : 'over.dead');
@@ -2163,6 +2165,14 @@ function handleEvents(w: World, now: number): void {
         hud.banner(t('banner.skull', { n: Math.round(100 + e.v * 100) }));
         hud.flash('skull');
         break;
+      case Ev.BossTotemOn:
+        // phase 48 : totem de boss activé (e.v = boss en plus par vague dans ce monde)
+        S.particles.ring(e.x, 0.3, e.z, PAL.bossTotem, (40 * fx) | 0, 6, 8);
+        S.particles.burst(e.x, 1.6, e.z, PAL.bossTotem, (24 * fx) | 0, 4, 10, false);
+        if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+        audio.roar();
+        hud.banner(t('banner.bossTotem', { n: e.v }));
+        break;
       case Ev.SurvivalWarn:
         // phase 42 : un boss de survie arrive dans quelques secondes
         hud.banner(t('banner.survivalSoon'));
@@ -2240,7 +2250,8 @@ function handleEvents(w: World, now: number): void {
         {
           const k = 'banner.boss.' + ENEMIES[e.x2 | 0].key; // événement rare : la concaténation est acceptable
           const name = t(has(k) ? k : 'banner.boss.default');
-          hud.banner(e.y2 === 1 ? t('banner.survival', { name }) : name); // phase 42 : boss de survie
+          // phase 42 : boss de survie ; phase 48 : un boss en plus (y2 = 2) n'écrase pas la bannière du boss du totem
+          if (e.y2 !== 2) hud.banner(e.y2 === 1 ? t('banner.survival', { name }) : name);
         }
         audio.boss();
         if (!reduced) S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
