@@ -2,6 +2,27 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.53.0 — 12 nov. 2026 (demande de Jimmy : une difficulté sans limite, des crânes et des totems en nombre variable, un objet contre les boss)
+
+La difficulté part de 0 % et monte aussi haut que tu oses : plus de crânes, plus de boss, et un poison pour en venir à bout.
+
+### Ajouté
+
+- **Toxine** (objet rare, disponible dès le départ) : tes coups sur un boss peuvent l'empoisonner. Chaque dose lui retire un peu de sa vie chaque seconde, et les doses s'empilent ; plus tu en as d'exemplaires, plus elle empoisonne souvent et plus elle empile de doses. Un boss empoisonné vire au vert.
+
+### Modifié
+
+- **Difficulté** : elle part de **0 %** (la partie normale) et n'a plus de maximum. Elle s'affiche dès le début, sous ta barre de vie (« ▲ 0 % »).
+- **Crânes** : entre **7 et 20 par monde**, selon la carte. Chacun monte la difficulté de **5 %** (au lieu de 10 %) : on monte plus doucement, mais aussi loin qu'on veut.
+- **Tome de difficulté** : plus de limite de lignes.
+- **Totems de boss** : entre **1 et 3 par monde**, selon la carte. Chacun ajoute un **double exact** du boss de chaque vague : le même boss, avec la même vie et les mêmes attaques.
+
+### Technique
+
+- `DIFFICULTY` : `skullMin` 7, `skullMax` 20, `skullStep` 0,05, `skullSpacing` 18, plus de `max` ; `BOSSTOTEM` : `min` 1, `max` 3, `extraHp` 1, `extraCadence` 1 ; nombres tirés avec le rng de la carte, après le totem (les autres lieux d'une graine ne bougent pas). Ligne `difficulty` du tome sans `max`.
+- Toxine : `ITEM.toxine` (chance 0,12 × exemplaires, 0,2 % des PV max par dose et par seconde, 5 s, 4 doses par exemplaire), champs `tox`, `toxT`, `toxAcc` d'Enemy, `HitSrc.Toxin` ; le tirage n'a lieu qu'avec l'objet.
+- MESURES_50
+
 ## 1.52.0 — 12 nov. 2026 (demande de Jimmy : ne plus perdre une partie en cours)
 
 Une partie en cours ne se perd plus : ferme l'app, reviens, et reprends-la là où tu l'avais laissée.

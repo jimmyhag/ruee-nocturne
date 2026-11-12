@@ -927,6 +927,17 @@ Demande de Jimmy (12 nov. 2026) : « une partie en cours pas finie, même si on 
 - **Mises à jour** : une partie gardée est reprise sur la version suivante (champ absent : valeur neuve ; champ inconnu : ignoré). `SNAP_FORMAT` ne monte que si un changement rend les anciennes sauvegardes fausses ; le menu dit alors « Ta partie en cours n'a pas pu être reprise après la mise à jour ».
 - **Porte** : Vitest (reprise identique, couverture des champs, format, stockage) ; e2e PC et mobile (rafraîchir puis reprendre à l'identique, Menu de la pause, abandon confirmé, mort qui efface, choix de cartes conservé) ; captures lues ; bench ; relecture perf.
 
+### Phase 50 — Difficulté sans plafond, crânes et totems en nombre tiré, Toxine (1.53.0)
+
+Retour de Jimmy après avoir joué la 1.52 (12 nov. 2026) : un nombre de crânes aléatoire par monde, qui fasse monter la difficulté moins vite ; une difficulté qui part de 0 % et n'a pas de limite ; des totems de boss en nombre aléatoire, dont le boss en plus est un double exact ; des objets pour venir à bout des boss (exemple : une toxine qui empile des dégâts sur la durée).
+
+- **Difficulté** : 0 % = normal, sans plafond (`difficultyOf` sans borne). Apparitions × (1 + d), vie × (1 + 0,5·d) inchangées ; le plafond de 520 monstres vivants (perf) borne leur nombre, au-delà la difficulté ne joue plus que sur la vie. Affichée dès le départ, « ▲ n % ».
+- **Crânes** : 7 à 20 par monde (`skullMin`, `skullMax`), +5 % chacun ; tirés avec le rng de la carte, après le totem (les autres lieux d'une graine ne bougent pas) ; espacement 18 u (20 crânes tiennent sur toutes les cartes, test sur 40 graines). Tome de difficulté sans limite de lignes.
+- **Totems de boss** : 1 à 3 par monde ; le boss en plus est un double exact (même type, mêmes PV, même rythme). Même type = même maillage instancié : aucun appel de dessin en plus.
+- **Toxine** (rare, sans déblocage) : `ITEM.toxine`. Un coup sur un boss a 12 % × exemplaires de chance d'injecter une dose ; chaque dose retire 0,2 % des PV max par seconde pendant 5 s ; 4 doses par exemplaire. En part des PV max : elle garde son poids quand la difficulté gonfle les boss. Boss teinté de vert, coups de toxine affichés.
+- **Mesures** : MESURES_50
+- **Porte** : Vitest (bornes et stabilité par graine des crânes et totems, 20 crânes posés partout, difficulté sans plafond, doubles exacts aux trois sortes de vague, Toxine : boss seulement, doses bornées, dégâts par seconde, aucun tirage sans l'objet) ; e2e PC et mobile (« ▲ 0 % » puis « ▲ 5 % », deux boss du même type, Toxine qui teinte le boss) ; captures lues ; bench ; relectures perf et équilibrage.
+
 ### Idées pour la suite (retenues par Jimmy le 8 nov. 2026, à planifier une par une)
 - **Nuits** : des niveaux de difficulté débloqués après le Faucheur. Chaque Nuit ajoute une règle (ennemis plus rapides, élites plus fréquentes, moins de soins, boss plus agressifs) contre plus d'or et une récompense cosmétique par personnage. C'est l'objectif de rejeu à long terme.
 - **Esquive parfaite** : un dash ou un saut au dernier moment devant une attaque déclenche un bref ralenti et +10 % de dégâts pendant 3 s.
