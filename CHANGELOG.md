@@ -25,6 +25,7 @@ La difficulté part de 0 % et monte aussi haut que tu oses : plus de crânes, pl
 - `LEVEL_MAX` : 40 → 100 (armes et tomes). Mesuré contre 40, parties gagnées qui continuent : kit complet identique ; kit à une arme, monde infini tenu 2:49 → 4:24 en médiane, 6:23 → 11:08 pour une partie sur dix, cibles tenues sans toucher à la rampe.
 - Mesures (200 parties, graine 42, monde 2 atteint / monde 3 / victoire) : sans rien activer, kit complet 78 / 52 / 25 %, départ 29 / 25 / 19 % ; 1 / 2 / 3 totems de boss par monde 46 / 17 / 7, 34 / 10 / 5, 34 / 12 / 4 % ; 10 crânes par monde 24 / 5 / 0 % (dont le détour du bot : 35 / 10 / 1 % avec des crânes à 0 %). Toxine : boss de survie environ 30 % plus courts quand on la possède, valeur en survie égale à celle de l'objet moyen. Détail dans PLAN.md, phase 50.
 - Test de reprise des neuf personnages allégé et délai porté à 120 s : il dépassait 30 s sur le runner de CI avec la couverture (CI rouge de la 1.52.0, jeu non touché).
+- Tests navigateur corrigés après la CI de la 1.53.0 (jeu non touché) : la Bibliothèque compte 49 objets avec la Toxine ; le test de reprise après rafraîchissement rend le joueur invincible dans le même appel que le saut dans le temps (il mourait entre les deux sur le runner).
 
 ## 1.52.0 — 12 nov. 2026 (demande de Jimmy : ne plus perdre une partie en cours)
 

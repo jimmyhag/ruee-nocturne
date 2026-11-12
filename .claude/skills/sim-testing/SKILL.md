@@ -63,6 +63,8 @@ cibles      ✔ survie  ✔ faucheur  ✔ picks  ✘ kills@10 (1180 < 900–1500
 
 ## 6. Hooks de debug (`src/debug.ts`)
 `warp(seconds)`, `kill()`, `give(weapon, lv)`, `spawn(type, n)`, `god()`, `seed(n)`. Indispensables pour les tests et les captures ; jamais inclus en prod sans `?debug=1`.
+- `warp` rend au joueur ses PV normaux à la fin : s'il doit rester en vie ensuite, appeler `god()` **dans le même `page.evaluate`**. Dans deux appels séparés, le joueur immobile au milieu de la horde mourait entre les deux sur le runner de CI, lent (vert en local, rouge en CI : `e2e/runsave.spec.ts`, 1.53.0).
+- Ajouter un contenu (objet, arme, succès) : chercher les nombres en dur dans **tous** les specs (`grep -rn toHaveCount e2e/`), pas seulement ceux de la phase. La Toxine a cassé `e2e/library.spec.ts` (48 → 49 objets) sans que les tests de la phase le voient.
 
 ## 7. Ce qu'on ne teste pas
 - Le rendu Three pixel par pixel (fragile). On teste : pas d'erreur, nombre de draw calls, et on **regarde** les captures.

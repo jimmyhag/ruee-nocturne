@@ -31,14 +31,17 @@ test('rafraîchir garde la partie : Reprendre la rouvre en pause, à l’identiq
   await openGame(page);
   await expect(page.locator('#resumeRunBtn')).toBeHidden();
   await startRun(page, 7);
-  await page.evaluate(() => (window as any).__game.debug.warp(200)); // 3:20, cartes prises en route
+  // un seul appel : après warp le joueur retrouve ses PV normaux au milieu de la horde de 3:20. Avec god() dans un
+  // second appel, il mourait entre les deux sur le runner de CI (partie finie : rien à reprendre, CI rouge de la 1.53.0)
   await page.evaluate(() => {
     const g = (window as any).__game;
+    g.debug.warp(200); // 3:20, cartes prises en route
     g.debug.god();
     g.debug.speed(0); // la partie ne bouge plus entre la mesure et le rechargement
   });
   const before = await state(page);
   expect(before.t).toBeGreaterThan(190);
+  expect(before.mode, 'le joueur doit être en vie avant le rechargement').not.toBe(2); // Mode.Dead
 
   await page.reload(); // pagehide : la partie est écrite avant que la page parte
   await ready(page);
