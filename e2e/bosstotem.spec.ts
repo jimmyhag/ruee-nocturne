@@ -55,7 +55,7 @@ test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au der
   await page.evaluate(() => (window as any).__game.debug.stageTime(179.5));
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 2, null, { timeout: 20_000 });
   await expect(page.locator('#bossbar')).toBeVisible();
-  await expect(page.locator('#bossname')).toContainText('encore 1');
+  await expect(page.locator('#bossname')).toContainText('+1');
   await expect(page.locator('#banner')).toContainText('Boss de survie'); // celle du boss de la vague, pas du boss en plus
   await page.waitForTimeout(3000); // le temps qu'ils entrent dans le champ
   await page.screenshot({ path: `shots/${p}-deux-boss.png` });
@@ -66,7 +66,7 @@ test('totem de boss : jauge, un boss de plus à 3:00 et au totem, portail au der
   );
   await killBoss(page);
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 1, null, { timeout: 20_000 });
-  await expect(page.locator('#bossname')).not.toContainText('encore');
+  await expect(page.locator('#bossname')).not.toContainText('+');
   await killBoss(page);
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 0, null, { timeout: 20_000 });
   // le totem du monde : deux boss ; le portail ne s'ouvre qu'au second

@@ -869,7 +869,7 @@
   "menu.ctrl.skull": "Purple skulls on the map: stand inside to raise the run's difficulty. More monsters, tougher too, so more XP, gold and kills.",
   "bosstotem.chip": "Boss totem · one more boss in every wave",
   "hud.bossExtra": "Bosses +{n}",
-  "boss.more": "{name} · {n} more",
+  "boss.more": "{name} +{n}",
   "banner.bossTotem": "Extra bosses: +{n} per wave",
   "map.legend.bosstotem": "Boss totem",
   "over.bossTotems": "boss totems activated: {n}",

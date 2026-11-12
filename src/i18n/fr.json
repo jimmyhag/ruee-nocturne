@@ -869,7 +869,7 @@
   "menu.ctrl.skull": "Crânes violets sur la carte : rester dedans monte la difficulté de la partie. Plus de monstres, plus solides, donc plus d'XP, d'or et de vaincus.",
   "bosstotem.chip": "Totem de boss · un boss de plus à chaque vague",
   "hud.bossExtra": "Boss +{n}",
-  "boss.more": "{name} · encore {n}",
+  "boss.more": "{name} +{n}",
   "banner.bossTotem": "Boss en plus : +{n} par vague",
   "map.legend.bosstotem": "Totem de boss",
   "over.bossTotems": "totems de boss activés : {n}",

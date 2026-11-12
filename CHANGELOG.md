@@ -9,7 +9,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 - **Totems de boss** : deux petits totems orange par monde, marqués d'une colonne de lumière et sur la carte. Reste 3 s dans le cercle : **un boss de plus à chaque vague de boss de ce monde**, celles de 3:00 et de 7:00 si elles ne sont pas passées, et le combat du totem. Deux totems activés, deux boss de plus.
 - Un boss en plus est un second couteau, plus petit que le boss de la vague : moitié moins de vie, et il attaque moins souvent. Deux boss à la fois restent un vrai pari : active un totem trop tôt, avec un équipement faible, et la vague de 3:00 ne pardonne pas.
 - Le portail ne s'ouvre que lorsque tous les boss du totem sont vaincus. Chaque boss en plus laisse un coffre ; le soin complet et le grand coffre arrivent avec le dernier.
-- La barre de boss dit combien il en reste (« Le Gardien · encore 1 ») et une pastille « Boss +1 » rappelle les totems activés dans le monde.
+- La barre de boss dit combien il en reste (« Le Gardien +1 ») et une pastille « Boss +1 » rappelle les totems activés dans le monde.
 - Les totems de boss valent pour leur monde : au monde suivant, tout repart de zéro. Au monde 3, ils comptent aussi pour les vagues du monde infini.
 
 ### Technique
