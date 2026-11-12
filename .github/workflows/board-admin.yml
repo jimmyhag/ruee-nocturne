@@ -1,0 +1,44 @@
+name: 'Classement : corriger un score'
+
+# Lancement manuel seulement (onglet Actions) : remplace les scores « tous les temps » d'un joueur par ceux de sa semaine
+# en cours, quand son record date d'avant un rééquilibrage (tools/board-admin.ts). Sans « appliquer », lecture seule.
+# Les journaux sont publics : l'outil n'imprime ni pseudo ni identifiant.
+on:
+  workflow_dispatch:
+    inputs:
+      view:
+        description: 'Vue du classement dont on prend le rang'
+        type: choice
+        options: [best, time, kills]
+        default: best
+      rank:
+        description: 'Rang du joueur dans cette vue (1 = le premier)'
+        type: number
+        default: 1
+      apply:
+        description: 'Appliquer (sinon lecture seule)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  board:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lire ou corriger le score
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          BOARD_VIEW: ${{ inputs.view }}
+          BOARD_RANK: ${{ inputs.rank }}
+          BOARD_APPLY: ${{ inputs.apply }}
+        run: npx tsx tools/board-admin.ts
