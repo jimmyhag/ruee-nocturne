@@ -200,7 +200,12 @@ export const BOSSTOTEM = {
   fromPoi: 12, // u au moins des coffres, sanctuaires, crânes et du totem du monde
   fromStart: 35,
   tries: 4000,
-  extraHp: 0.75, // PV d'un boss en plus, en part de ceux du boss de la vague
+  // Un boss en plus est un second couteau : moitié des PV du boss de la vague, et ses recharges d'attaque défilent à
+  // 60 % de la vitesse (les télégraphes gardent leur durée). Mesuré (200 parties, kit complet, totems activés dès 0:30) :
+  // à PV 0,75 et cadence 1, monde 2 atteint 78 → 46 % avec un totem et 14 % avec deux ; les PV seuls (0,5) ou l'arrivée
+  // du même côté ne changent rien (48 et 17 %) : ce sont les attaques qui se superposent à 3:00 et 7:00 qui tuent
+  extraHp: 0.5,
+  extraCadence: 0.6,
   spread: 2.1, // rad entre deux boss autour du totem ou du joueur
 };
 // phase 47 (demande de Jimmy) : toutes les stats du héros, pour monter celles dont le build a besoin. L'ordre est celui

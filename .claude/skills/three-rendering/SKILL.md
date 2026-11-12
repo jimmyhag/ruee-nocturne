@@ -129,3 +129,4 @@ mesh.frustumCulled = false;                                // la boîte engloban
 - `frustumCulled` oublié → instances qui disparaissent en bord d'écran.
 - `lookAt` chaque frame sur un `InstancedMesh` → inutile et coûteux ; composer la rotation dans le dummy.
 - Changer `material.opacity` sur un matériau partagé → change toutes les instances ; utiliser la couleur d'instance ou un second mesh.
+- Lieu de la carte ajouté (phase 48 : crânes, totems de boss) : un `InstancedMesh` à `count = 0` ne coûte aucun appel, mais dès qu'une instance est écrite l'appel est payé, même hors champ (`frustumCulled = false`). N'écrire le modèle et son anneau que sous `TOTEM_VIEW2` (38 u, ce que la caméra voit), pas sous `POI_DRAW2` (50 u) ; seule la colonne de lumière se dessine de loin. Le budget mobile d'appels est au plafond : tout appel ajouté au centre de l'écran doit être mesuré par `e2e/stress.spec.ts`.

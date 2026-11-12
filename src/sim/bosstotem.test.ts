@@ -115,7 +115,9 @@ describe('totems de boss : un boss de plus à chaque vague', () => {
       const x = w.enemies[i];
       expect(x.max / ENEMIES[x.type].hp).toBeCloseTo((main.max / ENEMIES[main.type].hp) * BOSSTOTEM.extraHp, 6);
       expect(w.isTotemBoss(x)).toBe(false);
+      expect(x.cadence).toBe(BOSSTOTEM.extraCadence); // second couteau : il attaque moins souvent
     }
+    expect(main.cadence).toBe(1);
     // aucun n'ouvre le portail
     for (const i of bosses(w).reverse()) slay(w, i);
     expect(w.portal.open).toBe(false);

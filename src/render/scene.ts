@@ -1729,7 +1729,8 @@ export class GameScene {
                     : e.elite
                       ? this.eliteColor[e.type]
                       : this.enemyColor[e.type];
-      let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
+      // phase 48 : un boss en plus (totem de boss) est un second couteau, il se voit plus petit
+      let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1) * (e.cadence < 1 ? FEEL.bossTotem.extraScale : 1);
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
       if (e.type === VOLANT_TYPE) {

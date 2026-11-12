@@ -2,6 +2,24 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.51.0 — 12 nov. 2026 (demande de Jimmy : des totems de boss)
+
+### Ajouté
+
+- **Totems de boss** : deux petits totems orange par monde, marqués d'une colonne de lumière et sur la carte. Reste 3 s dans le cercle : **un boss de plus à chaque vague de boss de ce monde**, celles de 3:00 et de 7:00 si elles ne sont pas passées, et le combat du totem. Deux totems activés, deux boss de plus.
+- Un boss en plus est un second couteau, plus petit que le boss de la vague : moitié moins de vie, et il attaque moins souvent. Deux boss à la fois restent un vrai pari : active un totem trop tôt, avec un équipement faible, et la vague de 3:00 ne pardonne pas.
+- Le portail ne s'ouvre que lorsque tous les boss du totem sont vaincus. Chaque boss en plus laisse un coffre ; le soin complet et le grand coffre arrivent avec le dernier.
+- La barre de boss dit combien il en reste (« Le Gardien · encore 1 ») et une pastille « Boss +1 » rappelle les totems activés dans le monde.
+- Les totems de boss valent pour leur monde : au monde suivant, tout repart de zéro. Au monde 3, ils comptent aussi pour les vagues du monde infini.
+
+### Technique
+
+- `BOSSTOTEM` dans `balance.ts`, `w.bossExtra` (remis à zéro au monde suivant), `w.totemAlive` (le portail attend zéro), `Enemy.cadence` (recharges d'attaque d'un boss en plus à 60 %, télégraphes inchangés). Totems tirés après les crânes : les lieux d'une graine connue ne bougent pas.
+- Mesuré sur 200 parties (kit complet, graine 42), monde 2 atteint / monde 3 / victoires : sans totem 78 / 46 / 18 % ; un totem par monde activé après la vague de 3:00 : 65 / 36 / 14 % ; un totem dès 0:30 : 50 / 26 / 13 % (graine 43 : 58 / 31 / 15 %) ; deux totems dès 0:30 : 26 / 13 / 4 %. Départ (1 arme), un totem dès 0:30 : 21 / 11 / 9 % contre 33 / 26 / 19 %.
+- Réglage : à 75 % des PV et cadence normale, un totem donnait 46 % et deux 14 %. Baisser les PV seuls (48 et 17 %) ou faire arriver les boss du même côté (46 et 12 %) ne changeait rien : ce sont les attaques superposées à 3:00 et 7:00 qui tuent, d'où la cadence réduite.
+- Sans totem activé, les parties sont celles de la 1.50.0 (17 parties sur 200 diffèrent : le bot s'écarte des cercles de totem de boss ; aucune activation par accident).
+- CLI : `--boss-totems N` (le bot active N totems de boss par monde), `--boss-totem-at S` (à partir de S secondes dans le monde).
+
 ## 1.50.0 — 12 nov. 2026 (demande de Jimmy : la difficulté, des crânes sur la carte, un tome de difficulté)
 
 ### Ajouté

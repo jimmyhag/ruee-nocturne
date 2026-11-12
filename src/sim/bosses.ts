@@ -35,7 +35,7 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
     e.enraged = true;
     w.emit(Ev.BossEnrage, e.x, e.y, e.z, e.type);
   }
-  const dtA = e.enraged ? dt * BOSS.enrage.haste : dt;
+  const dtA = (e.enraged ? dt * BOSS.enrage.haste : dt) * e.cadence;
   const sp = def.speed * e.spd * (e.enraged ? BOSS.enrage.speed : 1);
   mv[0] = ux * sp;
   mv[1] = uz * sp;
