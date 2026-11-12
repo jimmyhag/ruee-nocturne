@@ -882,5 +882,5 @@
   "banner.bossTotem": "Boss en plus : +{n} par vague",
   "map.legend.bosstotem": "Totem de boss",
   "over.bossTotems": "totems de boss activés : {n}",
-  "menu.ctrl.bosstotem": "Totems de boss (orange) : chacun ajoute un boss à toutes les vagues de boss du monde. Le portail attend qu'ils soient tous vaincus."
+  "menu.ctrl.bosstotem": "Totems de boss (orange) : chacun ajoute un double du boss à toutes les vagues de boss du monde. Le portail attend qu'ils soient tous vaincus."
 }

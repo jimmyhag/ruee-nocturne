@@ -882,5 +882,5 @@
   "banner.bossTotem": "Extra bosses: +{n} per wave",
   "map.legend.bosstotem": "Boss totem",
   "over.bossTotems": "boss totems activated: {n}",
-  "menu.ctrl.bosstotem": "Boss totems (orange): each adds one boss to every boss wave of the world. The portal waits until they are all defeated."
+  "menu.ctrl.bosstotem": "Boss totems (orange): each adds a copy of the boss to every boss wave of the world. The portal waits until they are all defeated."
 }
