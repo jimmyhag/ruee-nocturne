@@ -64,7 +64,7 @@ console.log(
   `steps 600 · ennemis ~${w.enemyCount} · p50 ${p(0.5)} ms · p95 ${p(0.95)} ms · max ${times[times.length - 1].toFixed(3)} ms · tas ${heapMb >= 0 ? '+' : ''}${heapMb.toFixed(2)} Mo`,
 );
 // phase 49 : partie gardée sur l'appareil. Un instantané (instantané + texte) à 400 ennemis : hors de la boucle de
-// pas (pause, fermeture, toutes les 20 s de jeu), mais il ne doit pas faire sauter une image sur téléphone
+// pas (pause, fermeture, choix de cartes, marchand), mais il ne doit pas faire sauter une image sur téléphone
 const snapTimes: number[] = [];
 let snapLen = 0;
 for (let i = 0; i < 20; i++) {

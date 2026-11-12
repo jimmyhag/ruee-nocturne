@@ -10,7 +10,7 @@ Une partie en cours ne se perd plus : ferme l'app, reviens, et reprends-la là o
 
 - **Ta partie t'attend** : rafraîchir la page, fermer l'app ou passer à une autre app ne fait plus perdre la partie. Au retour, le menu propose **Reprendre**, avec le monde et le chrono où tu en étais.
 - La partie reprend **en pause**, exactement comme tu l'avais laissée : mêmes monstres, mêmes boss, même vie, même équipement. Si tu étais en train de choisir une carte, un objet de coffre, un bonus de sanctuaire ou d'acheter chez le marchand, ce choix revient avec les mêmes propositions.
-- Le défi du jour se reprend aussi.
+- Le défi du jour se reprend aussi, et compte pour le jour où tu l'as commencé.
 
 ### Modifié
 

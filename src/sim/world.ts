@@ -458,8 +458,9 @@ export class World {
     const s = this.shots[this.shotCount++];
     s.alive = true;
     s.boss = false;
-    // phase 49 : champs que tous les tirs ne posent pas (le cercle du Colosse laissait `hit` d'un ancien tir) ; remis à
-    // leur valeur neuve, un emplacement repris ne dépend plus de son ancien occupant (partie gardée en mémoire)
+    // phase 49 : champs que tous les tirs ne posent pas (seule l'onde lit `hit`, et le rendu `ox`, `oz`, `t0`, qui
+    // les posent eux-mêmes) ; remis à leur valeur neuve, un emplacement repris ne dépend plus de son ancien occupant
+    // (l'instantané d'une partie gardée ne garde que les tirs vivants)
     s.hit = false;
     s.ox = s.oz = 0;
     s.t0 = 1;

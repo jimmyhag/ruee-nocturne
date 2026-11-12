@@ -196,6 +196,10 @@ let dailyRun = false; // partie en cours = défi du jour
 let savedRun: SavedRun | null = null;
 let runChar = 'eclaireuse';
 let runOutfit = 0;
+let runDay = ''; // défi du jour : le jour de la partie (reprise le lendemain, elle compte pour son jour)
+/** Choix faits dans la partie (cartes, relances, achats) : avec le temps de jeu, dit si l'état a changé depuis l'écriture. */
+let runEdits = 0;
+let runSavedKey = '';
 /** Lancement en attente d'une confirmation d'abandon (« Jouer » ou défi du jour alors qu'une partie attend). */
 let abandonFor: { daily: boolean } | null = null;
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
@@ -552,10 +556,12 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
     daily = resume.daily;
     runChar = resume.character;
     runOutfit = resume.outfit;
+    runDay = resume.day ?? todayKey();
   } else {
     forgetRun(); // une nouvelle partie remplace celle qui attendait (abandon confirmé au menu)
     runChar = daily ? 'eclaireuse' : meta.character;
     runOutfit = daily ? 0 : outfitOf(meta, meta.character);
+    runDay = todayKey();
   }
   S.setCharacter(runChar as CharacterKey, runOutfit);
   audio.init();
@@ -565,6 +571,8 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   runStats.elites = resume?.runStats.elites ?? 0;
   runStats.bosses = resume?.runStats.bosses ?? 0;
   runStats.won = false;
+  runEdits = 0;
+  runSavedKey = '';
   if (restored) world = restored;
   else {
     // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
@@ -600,6 +608,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   $('update').hidden = true; // jamais de bannière de mise à jour en jeu
   last = performance.now();
   if (restored) {
+    runSavedKey = runKey(world); // la sauvegarde lue est déjà à jour : pas de réécriture à la reprise
     // phase 49 : on rouvre ce que le joueur avait devant lui ; une partie en cours reprend en pause
     if (world.mode === Mode.LevelUp) openLevelUp();
     else if (world.mode === Mode.Merchant) openMerchant();
@@ -619,12 +628,19 @@ function runOngoing(): boolean {
 }
 /**
  * Écrit la partie en cours sur l'appareil : en quittant (onglet caché, fermeture), en pause, aux choix de cartes et chez le
- * marchand. Jamais pendant l'action : un instantané à 400 ennemis coûte ≈ 4 ms et 165 Ko (npm run bench), une image
+ * marchand. Jamais pendant l'action : un instantané à 400 ennemis coûte ≈ 3-4 ms et 212 Ko (npm run bench), une image
  * perdue sur téléphone ; les montées de niveau (une toutes les 15 s environ) le rafraîchissent déjà souvent.
  */
+/** Ce qui change quand la partie avance : temps de jeu, mode, choix faits. */
+function runKey(w: World): string {
+  return `${w.t}|${w.mode}|${runEdits}`;
+}
 function saveRun(): void {
   if (!world || !runOngoing()) return;
   const w = world;
+  const key = runKey(w);
+  if (key === runSavedKey) return; // quitter l'app enchaîne pause, onglet caché et pagehide : une seule écriture
+  runSavedKey = key;
   try {
     savedRun = {
       v: 1,
@@ -634,6 +650,7 @@ function saveRun(): void {
       character: runChar,
       outfit: runOutfit,
       daily: dailyRun,
+      day: runDay,
       runStats: { dards: runStats.dards, elites: runStats.elites, bosses: runStats.bosses },
       summary: { stage: w.stage + 1, stageT: w.stageT, t: w.t, endless: w.endless, kills: w.kills },
     };
@@ -795,6 +812,7 @@ function renderMerchant(): void {
 /** Achat (0–3), relance ou départ : un pas de sim dans l'échoppe, puis retour au jeu si l'on est parti. */
 function merchantAct(code: number): void {
   if (!world || app !== 'merchant') return;
+  runEdits++;
   const before = world.itemOrder.length;
   inp.pick = code;
   step(world, inp, STEP);
@@ -827,6 +845,7 @@ addEventListener('keydown', (e) => {
 /** Relance des cartes de montée de niveau (phase 31) : un pas de sim, puis nouvelles cartes en cascade. */
 function rerollCards(): void {
   if (!world || app !== 'levelup' || choosing || !canReroll(world)) return;
+  runEdits++;
   inp.pick = LEVEL_REROLL;
   step(world, inp, STEP);
   inp.pick = -1;
@@ -843,6 +862,7 @@ addEventListener('keydown', (e) => {
 let choosing = false;
 function choose(i: number): void {
   if (!world || app !== 'levelup' || choosing || i < 0 || i >= world.cards.length) return;
+  runEdits++;
   // flash de la carte + son selon le type, puis fermeture (160 ms, ou tout de suite en mode réduit)
   const c = world.cards[i];
   // son selon le type ; une carte à 3 lignes (épique) sonne comme une nouvelle arme
@@ -966,7 +986,7 @@ function gameOver(won = false): void {
   addCharRun(meta.chars, played, runCharStats(played, world, won)); // phase 41 : défis par personnage
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
-  if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t));
+  if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t), runDay); // phase 49 : le jour de la partie, même reprise le lendemain
   saveMeta(meta);
   lastOver = { won, rec, gold, dailyRank, miss: missingTime(meta, world.t), fresh };
   // phase 38 : classement en ligne (joueurs connectés) ; personnage de la partie (défi du jour : l'Éclaireuse)
@@ -1317,6 +1337,7 @@ $('resetBtn').onclick = () => {
   // on garde ce qui relève de l'appareil et du confort : son, effets, réglages
   meta = resetProgress(meta);
   saveMeta(meta);
+  if (!world) forgetRun(); // phase 49 : depuis le menu, la partie gardée part avec la progression
   applySettings();
   $('settingsMsg').textContent = t('settings.resetDone');
 };

@@ -15,6 +15,7 @@ export interface SavedRun {
   character: string;
   outfit: number;
   daily: boolean;
+  day?: string; // défi du jour : jour de la partie (todayKey)
   runStats: { dards: number; elites: number; bosses: number };
   summary: { stage: number; stageT: number; t: number; endless: boolean; kills: number };
 }
