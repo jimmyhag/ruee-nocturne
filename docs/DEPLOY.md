@@ -67,6 +67,16 @@ gcloud projects add-iam-policy-binding ruee-nocturne --member serviceAccount:git
 
 Si le job `rules` remonte un `PERMISSION_DENIED` nommant `serviceusage.services.get`, ajouter aussi `roles/serviceusage.serviceUsageViewer`.
 
+### Corriger le classement (12 nov. 2026)
+
+Le workflow manuel « Classement : corriger un score » (`.github/workflows/board-admin.yml`, `tools/board-admin.ts`) lit le joueur à un rang du classement et peut remplacer ou retirer son score, quand un record date d'avant un rééquilibrage. Les règles Firestore interdisent à un joueur de baisser son score : seul le compte de service le peut. Avec `roles/datastore.viewer`, l'outil ne fait que **lire** (écriture et suppression refusées, 403). Pour qu'il puisse écrire, une fois, avec le compte propriétaire :
+
+```bash
+gcloud projects add-iam-policy-binding ruee-nocturne --member serviceAccount:github-action-hosting@ruee-nocturne.iam.gserviceaccount.com --role roles/datastore.user
+```
+
+Sans ce rôle, la même correction se fait à la main dans la console Firebase (Firestore, collections `scores` et `weeks/{semaine}/scores`). Les journaux d'Actions sont publics : l'outil n'y écrit ni pseudo ni identifiant.
+
 Console Firebase (projet `ruee-nocturne`), à faire une fois : app web liée au site Hosting (c'est ce qui sert `/__/firebase/init.json`, lu par le jeu : rien à coller dans le dépôt), Authentication → fournisseurs **Google** et **E-mail / Mot de passe**, Firestore → base `(default)` en mode production (région irréversible, `europe-west1`), client OAuth Google → URI de redirection `https://ruee-nocturne.web.app/__/auth/handler`. Détail pas à pas dans `docs/GATES.md` (phase 13).
 
 Dev local : la configuration web n'est pas servie par `vite dev` / `vite preview` ; coller la sortie de `curl -s https://ruee-nocturne.web.app/__/firebase/init.json` dans `.env.local` (ignoré par git) :
