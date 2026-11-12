@@ -1,7 +1,7 @@
 name: 'Classement : corriger un score'
 
-# Lancement manuel seulement (onglet Actions) : remplace les scores « tous les temps » d'un joueur par ceux de sa semaine
-# en cours, quand son record date d'avant un rééquilibrage (tools/board-admin.ts). Sans « appliquer », lecture seule.
+# Lancement manuel seulement (onglet Actions) : lit, corrige ou retire le score d'un joueur du classement quand son
+# record date d'avant un rééquilibrage (tools/board-admin.ts). Par défaut, lecture seule.
 # Les journaux sont publics : l'outil n'imprime ni pseudo ni identifiant.
 on:
   workflow_dispatch:
@@ -15,10 +15,23 @@ on:
         description: 'Rang du joueur dans cette vue (1 = le premier)'
         type: number
         default: 1
-      apply:
-        description: 'Appliquer (sinon lecture seule)'
-        type: boolean
-        default: false
+      action:
+        description: 'lire = ne rien changer · semaine = reprendre ses scores de la semaine · fixer = écrire la partie ci-dessous · supprimer = retirer le joueur'
+        type: choice
+        options: [lire, semaine, fixer, supprimer]
+        default: lire
+      stage:
+        description: 'fixer : monde atteint (1 à 3, 4 = les trois mondes terminés)'
+        type: string
+        default: ''
+      time:
+        description: 'fixer : temps de la partie, minutes:secondes (ex. 24:10)'
+        type: string
+        default: ''
+      kills:
+        description: 'fixer : monstres vaincus'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -40,5 +53,8 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
           BOARD_VIEW: ${{ inputs.view }}
           BOARD_RANK: ${{ inputs.rank }}
-          BOARD_APPLY: ${{ inputs.apply }}
+          BOARD_ACTION: ${{ inputs.action }}
+          BOARD_STAGE: ${{ inputs.stage }}
+          BOARD_TIME: ${{ inputs.time }}
+          BOARD_KILLS: ${{ inputs.kills }}
         run: npx tsx tools/board-admin.ts

@@ -2,14 +2,18 @@
 // rééquilibrages). Lancé à la main par le workflow « Classement : corriger un score » (.github/workflows/board-admin.yml),
 // avec le compte de service du déploiement : les règles Firestore interdisent à un joueur de baisser un score.
 //
-// Ce que fait l'outil : il prend le joueur au rang demandé du classement de tous les temps (`scores`), lit son document
-// de la semaine en cours (`weeks/{semaine}/scores/{uid}`) et, si `BOARD_APPLY=true`, remplace ses scores de tous les
-// temps par ceux de la semaine. Sans `BOARD_APPLY`, il ne fait que lire.
+// Ce que fait l'outil : il prend le joueur au rang demandé du classement de tous les temps (`scores`) et lit son document
+// de la semaine en cours (`weeks/{semaine}/scores/{uid}`). Selon `BOARD_ACTION` :
+//   lire      : rien d'autre (défaut) ;
+//   semaine   : remplace ses scores de tous les temps par ceux de la semaine (record d'une semaine passée) ;
+//   fixer     : écrit la partie donnée (`BOARD_STAGE`, `BOARD_TIME`, `BOARD_KILLS`) dans les deux documents (le serveur
+//               ne garde que le meilleur de chaque joueur : une partie moins bonne n'est stockée nulle part) ;
+//   supprimer : retire le joueur des deux classements ; sa prochaine partie l'y remet.
 //
 // Le dépôt est public, les journaux d'Actions aussi : l'outil n'imprime ni pseudo ni identifiant, seulement des scores
 // et des dates (le classement n'est lisible que par les joueurs connectés, CLAUDE.md règle 8).
 import { createSign } from 'node:crypto';
-import { BOARD, BOARD_VIEWS, isoWeek, stageOfBest, timeOfBest, type BoardView } from '../src/meta/board';
+import { BOARD, BOARD_VIEWS, bestOf, isoWeek, stageOfBest, timeOfBest, type BoardView } from '../src/meta/board';
 
 type Value = { integerValue?: string; doubleValue?: number; stringValue?: string };
 interface Doc {
@@ -26,7 +30,8 @@ const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}') as Partial<S
 const project = process.env.FIREBASE_PROJECT_ID || sa.project_id || '';
 const view = (process.env.BOARD_VIEW || 'best') as BoardView;
 const rank = Math.floor(Number(process.env.BOARD_RANK || 1));
-const apply = process.env.BOARD_APPLY === 'true';
+const ACTIONS = ['lire', 'semaine', 'fixer', 'supprimer'] as const;
+const action = (process.env.BOARD_ACTION || 'lire') as (typeof ACTIONS)[number];
 const SCORE_FIELDS = ['best', 'time', 'kills', 'char', 'at'] as const;
 
 function fail(msg: string): never {
@@ -35,6 +40,7 @@ function fail(msg: string): never {
 }
 if (!sa.client_email || !sa.private_key || !project) fail('Compte de service ou projet manquant.');
 if (!BOARD_VIEWS.includes(view)) fail(`Vue inconnue : ${view}`);
+if (!ACTIONS.includes(action)) fail(`Action inconnue : ${action}`);
 if (!(rank >= 1 && rank <= BOARD.top)) fail(`Rang hors du classement affiché (1 à ${BOARD.top}).`);
 
 const b64 = (s: string | Buffer): string => Buffer.from(s).toString('base64url');
@@ -105,34 +111,64 @@ async function main(): Promise<void> {
   show('Tous les temps', all);
   if (rows[rank]) show('Rang suivant', rows[rank]);
 
-  const w = await fetch(`${root}/weeks/${week}/scores/${uid}`, { headers: auth });
-  if (w.status === 404) {
-    console.log('Aucun score cette semaine pour ce joueur : rien à mettre à la place.');
-    if (apply) fail('Rien de changé.');
+  const weekPath = `${root}/weeks/${week}/scores/${uid}`;
+  const w = await fetch(weekPath, { headers: auth });
+  if (!w.ok && w.status !== 404) fail(`Lecture de la semaine refusée (${w.status}).`);
+  const wk = w.ok ? ((await w.json()) as Doc) : null;
+  if (wk) show('Cette semaine', wk);
+  else console.log('Aucun score cette semaine pour ce joueur.');
+  if (action === 'lire') {
+    console.log('Lecture seule : rien de changé.');
     return;
   }
-  if (!w.ok) fail(`Lecture de la semaine refusée (${w.status}).`);
-  const wk = (await w.json()) as Doc;
-  show('Cette semaine', wk);
-  if (!apply) {
+
+  /** Écrit `fields` dans un document existant (jamais de création : le joueur a pu le supprimer entre-temps). */
+  const patch = async (path: string, fields: Record<string, Value>, label: string): Promise<void> => {
+    const mask = Object.keys(fields)
+      .map((k) => `updateMask.fieldPaths=${k}`)
+      .join('&');
+    const p = await fetch(`${path}?${mask}&currentDocument.exists=true`, {
+      method: 'PATCH',
+      headers: auth,
+      body: JSON.stringify({ fields }),
+    });
+    if (!p.ok) fail(`Écriture refusée (${p.status}).`);
+    show(label, (await p.json()) as Doc);
+  };
+  if (action === 'supprimer') {
+    for (const path of wk ? [`${root}/scores/${uid}`, weekPath] : [`${root}/scores/${uid}`]) {
+      const d = await fetch(path, { method: 'DELETE', headers: auth });
+      if (!d.ok) fail(`Suppression refusée (${d.status}).`);
+    }
     console.log(
-      'Lecture seule : relancer avec « appliquer » pour remplacer les scores de tous les temps par ceux de la semaine.',
+      `Joueur retiré du classement${wk ? ' (tous les temps et semaine)' : ''} : sa prochaine partie l'y remet.`,
     );
     return;
   }
-  const fields: Record<string, Value> = {};
-  for (const k of SCORE_FIELDS) if (wk.fields[k]) fields[k] = wk.fields[k];
-  const mask = Object.keys(fields)
-    .map((k) => `updateMask.fieldPaths=${k}`)
-    .join('&');
-  // currentDocument.exists : ne recrée pas un document que le joueur aurait supprimé entre-temps
-  const p = await fetch(`${root}/scores/${uid}?${mask}&currentDocument.exists=true`, {
-    method: 'PATCH',
-    headers: auth,
-    body: JSON.stringify({ fields }),
-  });
-  if (!p.ok) fail(`Écriture refusée (${p.status}).`);
-  show('Tous les temps, après', (await p.json()) as Doc);
+  if (action === 'semaine') {
+    if (!wk) fail('Rien à mettre à la place : rien de changé.');
+    const fields: Record<string, Value> = {};
+    for (const k of SCORE_FIELDS) if (wk.fields[k]) fields[k] = wk.fields[k];
+    await patch(`${root}/scores/${uid}`, fields, 'Tous les temps, après');
+    return;
+  }
+  // fixer : la partie donnée devient le score du joueur, dans les deux classements
+  const stage = Math.floor(Number(process.env.BOARD_STAGE));
+  const t = /^(\d+):(\d{2})$/.exec(process.env.BOARD_TIME || '');
+  const time = t ? Number(t[1]) * 60 + Number(t[2]) : NaN;
+  const kills = Math.floor(Number(process.env.BOARD_KILLS));
+  if (!(stage >= 1 && stage <= BOARD.stageMax))
+    fail(`Monde attendu : 1 à ${BOARD.stageMax} (4 = les trois mondes terminés).`);
+  if (!(time >= 0 && time <= BOARD.timeMax)) fail('Temps attendu au format minutes:secondes, par exemple 24:10.');
+  if (!(kills >= 0 && kills <= BOARD.killsMax)) fail('Nombre de vaincus invalide.');
+  const fields: Record<string, Value> = {
+    best: { integerValue: String(bestOf(stage, time)) },
+    time: { integerValue: String(time) },
+    kills: { integerValue: String(kills) },
+    at: { integerValue: String(Date.now()) },
+  };
+  await patch(`${root}/scores/${uid}`, fields, 'Tous les temps, après');
+  if (wk) await patch(weekPath, fields, 'Cette semaine, après');
 }
 
 void main();
