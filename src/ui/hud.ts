@@ -133,7 +133,7 @@ export class Hud {
   relabel(): void {
     this.bossNames = ENEMIES.map((_, i) => enemyName(i).toUpperCase());
     delete this.cache.bossname;
-    delete this.cache.bossKey; // phase 48 : la barre (« nom · encore n ») et la pastille « Boss +n » se réécrivent
+    delete this.cache.bossKey; // phase 48 : la barre (« nom +n ») et la pastille « Boss +n » se réécrivent
     delete this.cache.bossX;
   }
 
