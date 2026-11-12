@@ -113,7 +113,12 @@ test('Toxine : les coups empoisonnent le boss (teinte verte, coups de toxine)', 
     g.debug.stageTime(179.5); // boss de survie
   });
   await page.waitForFunction(() => (window as any).__game.world.survivalAlive === 1, null, { timeout: 20_000 });
-  await page.evaluate(() => (window as any).__game.debug.pullBoss?.());
+  // le Halo frappe tout ce qui l'entoure : le boss, tiré contre le héros, est touché à coup sûr
+  await page.evaluate(() => {
+    const d = (window as any).__game.debug;
+    d.give('aura', 6);
+    d.pullBoss(1.5);
+  });
   await page.waitForFunction(
     () => {
       const w = (window as any).__game.world;

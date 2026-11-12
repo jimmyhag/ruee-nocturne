@@ -17,10 +17,12 @@ async function calmRun(page: Page, seed: number): Promise<void> {
 const difficulty = (page: Page): Promise<number> =>
   page.evaluate(() => (window as any).__game.world.player.difficulty as number);
 
-test('crâne de difficulté : visible, jauge, +10 % affichés partout', async ({ page, hasTouch }, info) => {
+test('crâne de difficulté : visible, jauge, +5 % affichés partout', async ({ page, hasTouch }, info) => {
   const p = info.project.name;
   await calmRun(page, 21);
-  expect(await page.evaluate(() => (window as any).__game.world.skulls.length)).toBe(6);
+  const nSkulls = await page.evaluate(() => (window as any).__game.world.skulls.length);
+  expect(nSkulls).toBeGreaterThanOrEqual(7); // phase 50 : 7 à 20, tirés avec la carte
+  expect(nSkulls).toBeLessThanOrEqual(20);
   await expect(page.locator('#diffLbl')).toHaveText('▲ 0 %'); // phase 50 : 0 % = normal, affiché dès le départ
   // à quelques pas : le crâne, son anneau et sa colonne violette
   await page.evaluate(() => {
@@ -41,7 +43,7 @@ test('crâne de difficulté : visible, jauge, +10 % affichés partout', async ({
   await expect(page.locator('#poiChip')).toHaveClass(/skull/);
   await expect(page.locator('#poiText')).toHaveText('Crâne · difficulté 0 % → 5 %');
   await page.waitForFunction(() => (window as any).__game.world.skulls[0].on === true, null, { timeout: 30000 });
-  expect(await difficulty(page)).toBeCloseTo(0.1, 6);
+  expect(await difficulty(page)).toBeCloseTo(0.05, 6); // phase 50 : +5 % par crâne
   await expect(page.locator('#diffLbl')).toHaveText('▲ 5 %');
   await expect(page.locator('#banner')).toContainText('Difficulté 5 %');
   await expect(page.locator('#poiChip')).toBeHidden(); // activé : plus rien à charger
@@ -91,5 +93,5 @@ test('la difficulté fait venir plus de monstres ; l’écran de fin la rappelle
   });
   await page.waitForFunction(() => (window as any).__game.app === 'over');
   await expect(page.locator('#over')).toBeVisible();
-  await expect(page.locator('#oDiff')).toHaveText('Difficulté atteinte : 130 % · crânes activés : 3');
+  await expect(page.locator('#oDiff')).toHaveText('Difficulté atteinte : 30 % · crânes activés : 3'); // phase 50 : 0 % = normal
 });
