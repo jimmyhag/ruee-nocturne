@@ -93,8 +93,18 @@ const shadowMaterial = (opacity: number) =>
     opacity,
     depthWrite: false,
   });
+// 1.53.1 : `forceSinglePass`. Sans lui, three dessine tout matériau transparent à double face en deux appels (faces
+// arrière, puis avant). Pour une forme plate (anneau, disque, plan), les deux faces sont les mêmes triangles : la
+// seconde passe ne change pas un pixel et coûtait un appel par famille (cercles d'attaque, disques, arcs de lame)
 const flat = (color: number, opacity: number) =>
-  new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+  new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    forceSinglePass: true,
+  });
 
 // rendu net (phase 9) : DPR plafonné à 2, hauteur interne ≤ 1600 px, niveau intermédiaire ×0,75
 const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
@@ -104,6 +114,9 @@ const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
 /** Distance² sous laquelle coffres de carte et sanctuaires sont dessinés (phase 18 : au-delà, seule la colonne). */
 const POI_DRAW2 = 50 * 50;
 const TOTEM_VIEW2 = 38 * 38; // 1.42.1 : distance² sous laquelle la stèle du totem est dessinée
+// 1.53.1 : marge (u) du test « dans le champ de la caméra » des lieux de la carte. Le champ est celui de la frame
+// précédente (la caméra est posée en fin de render) : la marge couvre son déplacement, le tremblement et le relief
+const POI_SEEN_PAD = 6;
 const PROP_DRAW = 48; // phase 20 : rayon des arbres autour du joueur (la vue s'arrête à ≈ 36 u au zoom le plus large)
 const GRAVES = 40; // phase 20 : petits cimetières semés sur la carte…
 const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k triangles chacun)
@@ -232,6 +245,11 @@ export class GameScene {
   private shrineW: InstanceWriter;
   private skullW: InstanceWriter; // phase 48 : crânes de difficulté
   private bossTotemW: InstanceWriter; // phase 48 : totems de boss
+  // 1.53.1 : champ de la caméra (frame précédente), pour ne payer l'appel de dessin d'un lieu que s'il est à l'écran
+  private readonly viewProj = new THREE.Matrix4();
+  private readonly frustum = new THREE.Frustum();
+  private readonly seenBall = new THREE.Sphere();
+  private frustumReady = false;
   private shrineGlowW: InstanceWriter; // runes du sanctuaire : s'allument avec la jauge
   private beamW: InstanceWriter;
   // phase 20 : objets KayKit (CC0) ; arbres et lanternes dessinés autour du joueur seulement (≈ 300 triangles chacun)
@@ -550,7 +568,12 @@ export class GameScene {
         new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2),
         // 1.42.1 : arcs de lame et de faux lisibles sur l'herbe (cœur blanc, bord dans la couleur de l'arme)
         softGlow(
-          new THREE.MeshBasicMaterial({ color: 0xffffff, map: slashTexture(), side: THREE.DoubleSide }),
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            map: slashTexture(),
+            side: THREE.DoubleSide,
+            forceSinglePass: true, // plan : une passe suffit (voir `flat`)
+          }),
           0.8,
           0.3,
         ),
@@ -1312,6 +1335,7 @@ export class GameScene {
     this.camera.aspect = wpx / hpx;
     this.camera.updateProjectionMatrix();
     this.camScale = wpx < hpx ? 1.35 : 1;
+    this.frustumReady = false; // le champ change : tout est dessiné une frame, puis le test reprend
   }
   private applySize(): void {
     const w = this.sizeW,
@@ -1413,6 +1437,24 @@ export class GameScene {
   }
 
   /**
+   * Vrai si une boule de rayon `r` posée en (x, y, z) touche le champ de la caméra. Un lieu à 35 u derrière la caméra
+   * coûtait un appel de dessin pour rien : avec 7 à 20 crânes et 1 à 3 totems de boss par carte (phase 50), le budget
+   * mobile (40 appels) était dépassé une partie sur deux au point de départ (41 à 43 mesurés en CI).
+   */
+  private seen(x: number, y: number, z: number, r: number): boolean {
+    if (!this.frustumReady) return true;
+    this.seenBall.center.set(x, y, z);
+    this.seenBall.radius = r + POI_SEEN_PAD;
+    return this.frustum.intersectsSphere(this.seenBall);
+  }
+  /** À appeler après un rendu : la caméra et ses matrices sont à jour. */
+  private keepFrustum(): void {
+    this.viewProj.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.viewProj);
+    this.frustumReady = true;
+  }
+
+  /**
    * Phase 37 : totem du monde (pierre de sanctuaire rouge, plus haute, anneau qui se remplit, colonne rouge visible de
    * loin) puis, boss tué à temps, portail (trois anneaux debout qui respirent, colonne cyan). Dans les écrivains des
    * sanctuaires et des colonnes : aucun appel de dessin en plus.
@@ -1422,10 +1464,11 @@ export class GameScene {
     const T = w.totem;
     const g = this.gy(T.x, T.z);
     const d2 = (T.x - px) ** 2 + (T.z - pz) ** 2;
-    const near = d2 < POI_DRAW2;
+    // 1.53.1 : anneaux et stèle seulement dans le champ de la caméra (≈ 5,4 u de haut)
+    const near = d2 < POI_DRAW2 && this.seen(T.x, g + STAGE.totemR, T.z, STAGE.totemR * 1.8);
     // la stèle elle-même n'est dessinée que dans le champ de la caméra (≈ 36 u au zoom le plus large) : au-delà, la
     // colonne de lumière suffit, et l'appel de rendu est rendu au budget (40 sur mobile, mesuré à 40 sans cela)
-    const inView = d2 < TOTEM_VIEW2;
+    const inView = near && d2 < TOTEM_VIEW2;
     if (w.portal.open) {
       if (near)
         for (let k = 0; k < 3; k++) {
@@ -1925,7 +1968,7 @@ export class GameScene {
       if (c.open) continue;
       const g = this.gy(c.x, c.z);
       // le coffre ne se dessine qu'à moins de 50 u (au-delà, brouillard) ; la colonne de lumière, elle, se voit de loin
-      const nearC = (c.x - px) ** 2 + (c.z - pz) ** 2 < POI_DRAW2;
+      const nearC = (c.x - px) ** 2 + (c.z - pz) ** 2 < POI_DRAW2 && this.seen(c.x, g, c.z, MAPCHEST.r);
       if (nearC) {
         this.tilt(c.x, c.z);
         this.mapChestW.put(c.x, g - 0.02, c.z, i * 1.7, 1.05, WHITE, this.tRx, this.tRz);
@@ -1950,7 +1993,7 @@ export class GameScene {
       const sr = w.shrines[i];
       const g = this.gy(sr.x, sr.z);
       const f = sr.used ? 0 : sr.charge / SHRINE.charge;
-      if ((sr.x - px) ** 2 + (sr.z - pz) ** 2 < POI_DRAW2) {
+      if ((sr.x - px) ** 2 + (sr.z - pz) ** 2 < POI_DRAW2 && this.seen(sr.x, g, sr.z, SHRINE.r)) {
         this.tilt(sr.x, sr.z);
         // runes : éteintes (gris) une fois le sanctuaire utilisé ; bleues, puis de plus en plus claires pendant la charge
         if (sr.used) this.cPoi.copy(this.cShrineOff);
@@ -1972,7 +2015,7 @@ export class GameScene {
       const f = sk.on ? 0 : sk.charge / DIFFICULTY.skullCharge;
       // modèle et anneau seulement à portée de caméra (comme la stèle du totem) : un appel de dessin hors champ serait
       // payé pour rien, le budget mobile est au plafond (relecture perf) ; la colonne, elle, se voit de loin
-      if ((sk.x - px) ** 2 + (sk.z - pz) ** 2 < TOTEM_VIEW2) {
+      if ((sk.x - px) ** 2 + (sk.z - pz) ** 2 < TOTEM_VIEW2 && this.seen(sk.x, g, sk.z, DIFFICULTY.skullR)) {
         this.tilt(sk.x, sk.z);
         if (sk.on) this.cPoi.copy(this.cShrineOff);
         else
@@ -2014,7 +2057,10 @@ export class GameScene {
       const g = this.gy(bt.x, bt.z);
       const off = bt.on || closed;
       const f = off ? 0 : bt.charge / BOSSTOTEM.charge;
-      if ((bt.x - px) ** 2 + (bt.z - pz) ** 2 < TOTEM_VIEW2) {
+      if (
+        (bt.x - px) ** 2 + (bt.z - pz) ** 2 < TOTEM_VIEW2 &&
+        this.seen(bt.x, g + FEEL.bossTotem.height / 2, bt.z, Math.max(BOSSTOTEM.r, FEEL.bossTotem.height))
+      ) {
         // à portée de caméra seulement, comme les crânes et la stèle du totem (budget d'appels de dessin)
         this.tilt(bt.x, bt.z);
         if (off) this.cPoi.copy(this.cShrineOff);
@@ -2429,6 +2475,7 @@ export class GameScene {
     }
     this.camera.lookAt(this.camLook);
     this.renderer.render(this.scene, this.camera);
+    this.keepFrustum();
   }
 
   /** Écran large (PC paysage) : le personnage se place dans le tiers droit, le logo et les boutons à gauche (phase 14). */
@@ -2474,6 +2521,7 @@ export class GameScene {
     this.camera.position.copy(this.camPos);
     this.camera.lookAt(this.camLook);
     this.renderer.render(this.scene, this.camera);
+    this.keepFrustum();
   }
 
   snapCamera(w: World): void {
@@ -2486,6 +2534,7 @@ export class GameScene {
     this.camGy = this.gy(w.player.x, w.player.z);
     this.camPos.set(w.player.x, this.camGy + 12.5 * this.camScale, w.player.z + 10.5 * this.camScale);
     this.camLook.set(w.player.x, this.camGy + 0.8, w.player.z);
+    this.frustumReady = false; // la caméra saute : le champ de la frame précédente ne vaut plus rien
   }
 
   info(): { calls: number; triangles: number; width: number; height: number; level: number } {

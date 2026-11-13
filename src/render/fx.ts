@@ -167,7 +167,16 @@ export class Bolts {
   constructor(scene: THREE.Scene) {
     const mesh = makeInstanced(
       new THREE.PlaneGeometry(1, 1),
-      softGlow(new THREE.MeshBasicMaterial({ color: 0xffffff, map: beamTexture(), side: THREE.DoubleSide }), 0.6, 0.7),
+      softGlow(
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          map: beamTexture(),
+          side: THREE.DoubleSide,
+          forceSinglePass: true, // plans : une passe suffit, deux appels sinon (1.53.1)
+        }),
+        0.6,
+        0.7,
+      ),
       BOLT_MAX * BOLT_SEG * 2,
     );
     scene.add(mesh);

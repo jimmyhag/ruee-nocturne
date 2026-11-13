@@ -2,6 +2,22 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.53.1 — 12 nov. 2026 (budget de rendu du téléphone tenu avec les crânes et les totems de boss)
+
+Un réglage de fluidité pour les téléphones, sans rien changer au jeu.
+
+### Corrigé
+
+- **Fluidité sur téléphone** : les crânes, les totems de boss, les coffres et les sanctuaires qui ne sont pas à l'écran ne demandent plus aucun travail d'affichage. Avec jusqu'à 20 crânes et 3 totems de boss par monde, le téléphone en affichait parfois pour rien.
+- Les cercles d'attaque au sol, leurs disques et les arcs de lame sont affichés en une seule fois au lieu de deux, sans changer d'aspect.
+
+### Technique
+
+- `GameScene.seen()` : test d'une boule contre le champ de la caméra (frame précédente, marge de 6 u, sans allocation) avant d'écrire le modèle et l'anneau d'un lieu (crâne, totem de boss, coffre de carte, sanctuaire, stèle et anneaux du totem). Les colonnes de lumière restent visibles de loin. Champ ignoré une frame après un changement de taille ou un saut de caméra.
+- `forceSinglePass` sur les matériaux transparents à double face des formes plates (`flat()` : cercles d'attaque, disques, filet, aura, eau des lacs ; arcs de lame ; éclairs) : three les dessinait en deux appels (faces arrière puis avant), pour une image identique.
+- Cause : `e2e/stress.spec.ts` rouge en CI sur mobile, 41 à 43 appels de dessin pour un budget de 40 (4 armes au niveau 8, 400 ennemis) ; 40 sur 40 dès la 1.50.0. Scène de base mesurée objet par objet : 36 à 38 appels, plus 2 par crâne à l'écran et 1 par coffre. Après les deux correctifs, mobile, rendu net : 33 à 37 appels sur huit cartes tirées, 33 et 37 au test, pire point de la carte 36.
+- Test de capture du boss du totem : attente portée de 15 à 45 s (la charge prend 11 à 14 s réelles en rendu logiciel, autant en 1.52.0 qu'en 1.53.0).
+
 ## 1.53.0 — 12 nov. 2026 (demande de Jimmy : une difficulté sans limite, des crânes et des totems en nombre variable, un objet contre les boss)
 
 La difficulté part de 0 % et monte aussi haut que tu oses : plus de crânes, plus de boss, et un poison pour en venir à bout.
