@@ -16,6 +16,7 @@ interface StatRow {
   group: Group;
   fmt: Fmt;
   get: (P: Player, w: World) => number;
+  hidden?: true; // hors de la fiche (déjà comptée dans une autre ligne), mais lisible par une carte de sanctuaire
 }
 
 const GROUPS: Group[] = ['survie', 'attaque', 'mouvement', 'sort', 'butin'];
@@ -35,6 +36,12 @@ export const STAT_ROWS: StatRow[] = [
       ITEM.fiole.steal * w.itemEff[It.Fiole],
   },
   { key: 'healcap', group: 'survie', fmt: 'd1', get: (_P, w) => healCap(w) },
+  // phase 52 : toutes les stats du jeu sont dans la fiche (et dans les sanctuaires)
+  { key: 'stealcap', group: 'survie', fmt: 'd1', get: (P) => P.stealCap, hidden: true }, // comptée dans « réserve de soin »
+  { key: 'killheal', group: 'survie', fmt: 'd1', get: (P) => P.killHeal },
+  { key: 'lvlheal', group: 'survie', fmt: 'n', get: (P) => P.lvlHeal },
+  { key: 'guard', group: 'survie', fmt: 'pct', get: (P) => P.guard },
+  { key: 'thorns', group: 'survie', fmt: 'n', get: (P) => P.thorns },
   { key: 'dmg', group: 'attaque', fmt: 'mul', get: (P) => P.dmgMul },
   { key: 'crit', group: 'attaque', fmt: 'pct', get: (P) => P.crit },
   { key: 'critdmg', group: 'attaque', fmt: 'x', get: (P) => P.critMul },
@@ -42,6 +49,14 @@ export const STAT_ROWS: StatRow[] = [
   { key: 'cd', group: 'attaque', fmt: 'mul', get: (P) => P.cdMul },
   { key: 'size', group: 'attaque', fmt: 'mul', get: (P) => P.sizeMul },
   { key: 'proj', group: 'attaque', fmt: 'n', get: (P) => P.projAdd },
+  { key: 'life', group: 'attaque', fmt: 'mul', get: (P) => P.projLifeMul },
+  { key: 'pspeed', group: 'attaque', fmt: 'mul', get: (P) => P.projSpeedMul },
+  { key: 'kb', group: 'attaque', fmt: 'mul', get: (P) => P.kbMul },
+  { key: 'lowdmg', group: 'attaque', fmt: 'pct', get: (P) => P.lowDmg },
+  { key: 'revenge', group: 'attaque', fmt: 'pct', get: (P) => P.revenge },
+  { key: 'slowchance', group: 'attaque', fmt: 'pct', get: (P) => P.slowChance },
+  { key: 'slowdur', group: 'attaque', fmt: 'mul', get: (P) => P.slowMul },
+  { key: 'chilldmg', group: 'attaque', fmt: 'pct', get: (P) => P.chillDmg },
   { key: 'speed', group: 'mouvement', fmt: 'd1', get: (P) => P.speed },
   { key: 'jump', group: 'mouvement', fmt: 'mul', get: (P) => P.jumpMul },
   { key: 'spell', group: 'sort', fmt: 'mul', get: (P) => P.spellCdMul },
@@ -50,6 +65,11 @@ export const STAT_ROWS: StatRow[] = [
   { key: 'magnet', group: 'butin', fmt: 'd1', get: (P) => P.magnet },
   { key: 'xp', group: 'butin', fmt: 'mul', get: (P) => P.xpMul },
   { key: 'gold', group: 'butin', fmt: 'mul', get: (P) => P.goldMul },
+  { key: 'chestgold', group: 'butin', fmt: 'mul', get: (P) => P.chestGoldMul },
+  { key: 'elitegold', group: 'butin', fmt: 'n', get: (P) => P.eliteGold },
+  { key: 'shop', group: 'butin', fmt: 'mul', get: (P) => P.shopMul },
+  { key: 'eliteloot', group: 'butin', fmt: 'mul', get: (P) => P.eliteLoot },
+  { key: 'eliterate', group: 'butin', fmt: 'mul', get: (P) => P.eliteRate },
   // phase 48 : difficulté de la partie (crânes, tome de difficulté) : 100 % au départ
   { key: 'difficulty', group: 'butin', fmt: 'pct', get: (P) => P.difficulty }, // phase 50 : 0 % = normal
 ];
@@ -84,7 +104,7 @@ export function boonNow(w: World, key: BoonKey): string {
 /** Fiche de stats (écran de pause) : une colonne par famille. */
 export function statsHTML(w: World): string {
   return GROUPS.map((g) => {
-    const rows = STAT_ROWS.filter((r) => r.group === g)
+    const rows = STAT_ROWS.filter((r) => r.group === g && !r.hidden)
       .map((r) => `<li><span>${statName(r.key)}</span><b>${statValue(r.key, w)}</b></li>`)
       .join('');
     return `<div class="statgroup g-${g}"><h4>${t(`stats.g.${g}`)}</h4><ul>${rows}</ul></div>`;

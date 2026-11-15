@@ -44,20 +44,20 @@ const dealt = (w: World, i: number): number => {
 };
 
 describe('sanctuaires : toutes les stats', () => {
-  it('18 bonus, quatre choix distincts, chacun avec sa valeur', () => {
-    expect(BOON_KEYS.length).toBe(18);
-    expect(new Set(BOON_KEYS).size).toBe(18);
+  it('38 bonus (18 en phase 47, 20 de plus en phase 52), quatre choix distincts, chacun avec sa valeur', () => {
+    expect(BOON_KEYS.length).toBe(38);
+    expect(new Set(BOON_KEYS).size).toBe(38);
     expect(SHRINE.offers).toBe(4);
     for (const k of BOON_KEYS) expect(BOON[k], k).toBeGreaterThan(0);
     const w = calm();
     const out: Card[] = [];
     const seen = new Set<string>();
-    for (let k = 0; k < 200; k++) {
+    for (let k = 0; k < 600; k++) {
       rollBoonChoices(w, out);
       expect(new Set(out.map((c) => c.key)).size).toBe(4);
       for (const c of out) seen.add(c.key);
     }
-    expect(seen.size).toBe(18); // tous finissent par sortir
+    expect(seen.size).toBe(36); // tous finissent par sortir, sauf les deux à condition (soin, crâne activé)
   });
   it('chaque bonus nouveau monte la bonne stat', () => {
     const w = calm();
@@ -91,7 +91,8 @@ describe('sanctuaires : toutes les stats', () => {
   it('un bonus au plafond de sa stat n’est plus proposé', () => {
     const w = calm();
     const P = w.player;
-    expect(BOON_KEYS.some((k) => boonCapped(w, k))).toBe(false);
+    // phase 52 : au départ, seuls les deux bonus à condition manquent (un soin à plafonner, un crâne activé)
+    expect(BOON_KEYS.filter((k) => boonCapped(w, k))).toEqual(['stealcap', 'difficulty']);
     P.armor = TOME_CAPS.armorMax;
     P.cdMul = TOME_CAPS.cdMin;
     P.spellCdMul = TOME_CAPS.spellCdMin;

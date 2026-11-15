@@ -1,11 +1,11 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BLOOD, BOON, BOON_KEYS, BOSSTOTEM, DIFFICULTY, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BASTION, BLOOD, BOON, BOON_KEYS, BOON_MAX, BOON_STAT, BOON_WEIGHT, BOON_WEIGHT_DEFAULT, BOSSTOTEM, CRIT, DIFFICULTY, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { bellRing, bourseDiscount, canGainItem } from './items';
 import { Ev } from './types';
 import type { BoonKey, Card, Player } from './types';
-import { refreshStats } from './weapons/defs';
+import { applyStat, refreshStats } from './weapons/defs';
 import type { Rng } from './rng';
 import type { World } from './world';
 
@@ -299,18 +299,35 @@ export function tickPOI(w: World, dt: number): void {
   }
 }
 
-/** Un bonus au plafond de sa stat (armure, recharges) n'apporterait rien : il n'est plus proposé. */
+/**
+ * Un bonus au plafond de sa stat (armure, recharges, garde, prix) n'apporterait rien : il n'est plus proposé. Phase 52 :
+ * de même une fois pris BOON_MAX fois, et tant que sa condition manque (difficulté : un crâne activé, comme le tome de
+ * difficulté ; réserve de soin : un soin qui y puise, comme la ligne du tome Sang).
+ */
 export function boonCapped(w: World, key: BoonKey): boolean {
   const P = w.player;
-  return key === 'armor'
-    ? P.armor >= TOME_CAPS.armorMax - 1e-9
-    : key === 'cd'
-      ? P.cdMul <= TOME_CAPS.cdMin + 1e-9
-      : key === 'spell'
-        ? P.spellCdMul <= TOME_CAPS.spellCdMin + 1e-9
-        : key === 'steal'
-          ? P.steal * BLOOD.capPerSteal + P.stealCap >= BLOOD.heroMax - 1e-9 // réserve du héros pleine : plus rien à gagner
-          : false;
+  const max = BOON_MAX[key];
+  if (max !== undefined && w.boons[BOON_KEYS.indexOf(key)] >= max) return true;
+  switch (key) {
+    case 'armor':
+      return P.armor >= TOME_CAPS.armorMax - 1e-9;
+    case 'cd':
+      return P.cdMul <= TOME_CAPS.cdMin + 1e-9;
+    case 'spell':
+      return P.spellCdMul <= TOME_CAPS.spellCdMin + 1e-9;
+    case 'steal':
+      return P.steal * BLOOD.capPerSteal + P.stealCap >= BLOOD.heroMax - 1e-9; // réserve du héros pleine : plus rien à gagner
+    case 'guard':
+      return P.guard >= BASTION.guardMax - 1e-9;
+    case 'shop':
+      return P.shopMul <= CRIT.shopMin + 1e-9;
+    case 'difficulty':
+      return w.skullsOn < DIFFICULTY.tomeAfterSkulls;
+    case 'stealcap':
+      return !(P.steal > 0 || w.items[It.Croc] + w.items[It.Calice] + w.items[It.Couronne] > 0);
+    default:
+      return false;
+  }
 }
 
 /** Tire SHRINE.offers bonus distincts dans `out` (kind 'b'). Allocation de cartes : hors boucle chaude (un sanctuaire). */
@@ -319,7 +336,15 @@ export function rollBoonChoices(w: World, out: Card[]): void {
   const pool = BOON_KEYS.filter((k) => !boonCapped(w, k));
   const offers = SHRINE.offers + Math.round(ITEM.grimoire.offers * w.items[It.Grimoire]); // phase 47 B : Grimoire
   for (let k = 0; k < offers && pool.length > 0; k++) {
-    const i = Math.floor(w.rng.next() * pool.length);
+    // phase 52 : tirage pondéré (BOON_WEIGHT : « +1 projectile » est rare), toujours un seul tirage par offre
+    let total = 0;
+    for (const b of pool) total += BOON_WEIGHT[b] ?? BOON_WEIGHT_DEFAULT;
+    let r = w.rng.next() * total,
+      i = 0;
+    for (; i < pool.length - 1; i++) {
+      r -= BOON_WEIGHT[pool[i]] ?? BOON_WEIGHT_DEFAULT;
+      if (r < 0) break;
+    }
     out.push({ kind: 'b', key: pool[i], lv: 0, n: 1, s0: -1, s1: -1, s2: -1 });
     pool.splice(i, 1);
   }
@@ -387,6 +412,9 @@ export function boonApply(P: Player, key: BoonKey): void {
     case 'xp':
       P.xpMul += BOON.xp;
       break;
+    default:
+      // phase 52 : les stats venues des tomes, par le même code que leurs lignes (plafonds compris)
+      applyStat(P, BOON_STAT[key] ?? key, BOON[key]);
   }
 }
 

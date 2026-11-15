@@ -1,5 +1,5 @@
 import { BASTION, CRIT, SYN, Syn, TOMES, TOME_CAPS, WEAPON_LINES } from '../balance';
-import type { TomeKey, WeaponKey } from '../types';
+import type { Player, TomeKey, WeaponKey } from '../types';
 import type { World } from '../world';
 
 // Les noms et descriptions vivent côté UI (src/ui/cards.ts + src/i18n) : la sim ne porte que des clés et des stats.
@@ -114,8 +114,16 @@ export function refreshStats(w: World): void {
 /** Applique au joueur une ligne de tome (clé `stat` de TOMES[k]). Les effets se cumulent de façon additive sur la base. */
 export function applyTomeLine(w: World, tome: TomeKey, lineIndex: number): void {
   const l = TOMES[tome][lineIndex];
-  const P = w.player;
-  switch (l.stat) {
+  applyStat(w.player, l.stat, l.step);
+}
+
+/**
+ * Ajoute `step` à la stat `stat` (clé des lignes de TOMES) du joueur `P`, plafonds compris. Ne touche que `P` : les
+ * sanctuaires (phase 52) l'appliquent aussi à une copie du héros pour afficher « valeur actuelle → nouvelle valeur ».
+ */
+export function applyStat(P: Player, stat: string, step: number): void {
+  const l = { step };
+  switch (stat) {
     case 'dmg':
       P.dmgMul += l.step;
       break;

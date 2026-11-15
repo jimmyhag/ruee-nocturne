@@ -502,6 +502,27 @@ export const BOON_ICON: Record<BoonKey, string> = {
       pole('M32 34l8 24', '#56806a', 3),
   ),
   xp: svg(path('M32 4l18 22-18 34-18-34z', '#59d8ff') + path('M32 4l-18 22h36z', '#bff1ff') + hl('M22 28l8 20-12-20z')),
+  // phase 52 : les stats des tomes portent l'icône de leur tome
+  proj: TOME_ICON.projectiles,
+  life: TOME_ICON.projectiles,
+  pspeed: TOME_ICON.projectiles,
+  kb: TOME_ICON.degats,
+  killheal: TOME_ICON.vitalite,
+  lvlheal: TOME_ICON.savoir,
+  stealcap: TOME_ICON.sang,
+  lowdmg: TOME_ICON.sang,
+  slowchance: TOME_ICON.givre,
+  chilldmg: TOME_ICON.givre,
+  slowdur: TOME_ICON.givre,
+  thorns: TOME_ICON.bastion,
+  guard: TOME_ICON.bastion,
+  revenge: TOME_ICON.bastion,
+  chestgold: TOME_ICON.chance,
+  elitegold: TOME_ICON.or,
+  shop: TOME_ICON.or,
+  eliteloot: TOME_ICON.defi,
+  eliterate: TOME_ICON.defi,
+  difficulty: TOME_ICON.defi,
 };
 
 export const SPELL_ICON: Record<SpellKey, string> = {

@@ -233,6 +233,28 @@ export const BOON_KEYS: BoonKey[] = [
   'spellpow',
   'luck',
   'xp',
+  // phase 52 (demande de Jimmy : « toutes les stats du jeu dans les sanctuaires, des projectiles en plus et tout ») :
+  // les vingt stats que seuls les tomes portaient. À la suite : l'ordre de w.boons, donc les parties gardées, ne bouge pas
+  'proj',
+  'life',
+  'pspeed',
+  'kb',
+  'killheal',
+  'lvlheal',
+  'stealcap',
+  'lowdmg',
+  'slowchance',
+  'chilldmg',
+  'slowdur',
+  'thorns',
+  'guard',
+  'revenge',
+  'chestgold',
+  'elitegold',
+  'shop',
+  'eliteloot',
+  'eliterate',
+  'difficulty',
 ];
 // valeur d'un sanctuaire : celle d'une ligne de tome de la même stat, ou un peu plus (un sanctuaire se mérite : il faut
 // y aller et tenir 4 s dans son cercle). spell : phase 22, recharge du sort
@@ -255,7 +277,53 @@ export const BOON: Record<BoonKey, number> = {
   spellpow: 0.08,
   luck: 0.5,
   xp: 0.06,
+  // phase 52 : une ligne de tome de la même stat (TOMES), ni plus ni moins
+  proj: 1, // +1 projectile pour toutes les armes : rare (BOON_WEIGHT) et borné (BOON_MAX)
+  life: 0.06,
+  pspeed: 0.06,
+  kb: 0.1,
+  killheal: 0.1,
+  lvlheal: 8,
+  stealcap: 0.6,
+  lowdmg: 0.06,
+  slowchance: 0.06,
+  chilldmg: 0.1,
+  slowdur: 0.15,
+  thorns: 1,
+  guard: 0.05, // dans le plafond BASTION.guardMax
+  revenge: 0.08,
+  chestgold: 0.2,
+  elitegold: 1,
+  shop: 0.06, // jusqu'au plancher CRIT.shopMin
+  eliteloot: 0.08,
+  eliterate: 0.08,
+  difficulty: 0.05, // comme une ligne du tome de difficulté : proposé seulement après un crâne activé
 };
+/** Les BOON_OWN_TEXT premiers bonus ont leur texte propre (`boon.<clé>.text`) ; les suivants reprennent celui de leur ligne de tome. */
+export const BOON_OWN_TEXT = 18;
+/** Stat de tome portée par un bonus, quand sa clé diffère (applyStat, et test « toute stat de TOMES a son bonus »). */
+export const BOON_STAT: Partial<Record<BoonKey, string>> = { spell: 'spellcd' };
+// Nombre de prises au plus par partie, pour les bonus sans plafond de stat. Les lignes de tome bornées gardent ici la
+// même borne (un sanctuaire double au plus ce que donne le tome). `proj` : la stat la plus forte du jeu, 2 en plus des 3
+// du tome ; `life` : le pool de projectiles (CAPS.projectiles) ne doit pas saturer
+export const BOON_MAX: Partial<Record<BoonKey, number>> = {
+  proj: 2,
+  life: 3,
+  killheal: 5,
+  lvlheal: 6,
+  stealcap: 8,
+  lowdmg: 8,
+  slowchance: 8,
+  chilldmg: 8,
+  slowdur: 8,
+  thorns: 6,
+  revenge: 8,
+  eliteloot: 8,
+  eliterate: 8,
+};
+/** Poids de tirage d'un bonus (3 par défaut, comme une ligne courante de tome) ; `proj` est rare, comme sa ligne. */
+export const BOON_WEIGHT: Partial<Record<BoonKey, number>> = { proj: 1 };
+export const BOON_WEIGHT_DEFAULT = 3;
 // phase 37 (Jimmy) : trois mondes de 10 min. Un totem appelle le boss du monde ; boss tué avant la fin du chrono → portail
 // vers le monde suivant. Chrono à 0 : les monstres se renforcent de minute en minute (prolongation), il faut partir.
 export const STAGE = {

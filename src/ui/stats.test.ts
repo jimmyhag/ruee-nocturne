@@ -34,7 +34,7 @@ describe('fiche de stats', () => {
   it('HTML : cinq familles, toutes les lignes, aucun texte manquant', () => {
     const html = statsHTML(new World(3));
     expect(html.match(/class="statgroup g-/g)?.length).toBe(5);
-    expect(html.match(/<li>/g)?.length).toBe(STAT_ROWS.length);
+    expect(html.match(/<li>/g)?.length).toBe(STAT_ROWS.filter((r) => !r.hidden).length); // phase 52 : la réserve du héros est comptée dans « réserve de soin »
     expect(html).not.toMatch(/stats\.[a-z.]+/); // une clé i18n absente ressortirait telle quelle
   });
 });

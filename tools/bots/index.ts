@@ -92,6 +92,28 @@ const BOON_VALUE: Record<BoonKey, number> = {
   luck: 7,
   spellpow: 5,
   jump: 2,
+  // phase 52 : stats des tomes. Un projectile de plus pour toutes les armes passe avant tout ; le reste suit l'ordre
+  // des lignes de tome (ce qui tue, ce qui fait tenir, puis le confort et le butin)
+  proj: 20,
+  lowdmg: 9,
+  chilldmg: 7,
+  revenge: 7,
+  guard: 10,
+  killheal: 9,
+  lvlheal: 8,
+  thorns: 6,
+  stealcap: 6,
+  slowchance: 6,
+  slowdur: 3,
+  life: 5,
+  pspeed: 4,
+  kb: 4,
+  chestgold: 4,
+  elitegold: 4,
+  shop: 4,
+  eliteloot: 5,
+  eliterate: 4,
+  difficulty: 1, // le bot ne monte pas la difficulté de lui-même (--take-defi le fait pour le tome)
 };
 /** Valeur d'un objet passif pour le bot (phase 17) : ordre de préférence d'un joueur moyen. */
 const ITEM_VALUE: Record<ItemKey, number> = {

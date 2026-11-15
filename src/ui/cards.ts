@@ -1,7 +1,18 @@
 // Libellés du contenu (armes, tomes, lignes de stats, ennemis, personnages, boutique, succès) : la sim ne porte que
 // des clés (PLAN.md §4.2), les textes vivent ici, dans les deux langues. Aucun DOM : testable sous Vitest.
 import type { Achievement } from '../meta/achievements';
-import { BOON, CHARACTERS, CHOICE, ENEMIES, SYNERGIES, TOMES, WEAPON_LINES } from '../sim/balance';
+import {
+  BOON,
+  BOON_KEYS,
+  BOON_OWN_TEXT,
+  BOON_STAT,
+  CHARACTERS,
+  CHOICE,
+  ENEMIES,
+  SYNERGIES,
+  TOMES,
+  WEAPON_LINES,
+} from '../sim/balance';
 import type { StatLine } from '../sim/balance';
 import type { BoonKey, Card, CharacterKey, ItemKey, SpellKey, TomeKey, WeaponKey } from '../sim/types';
 import type { World } from '../sim/world';
@@ -22,8 +33,13 @@ export const enemyName = (type: number): string => t(`enemy.${ENEMIES[type].key}
 export const boonName = (k: BoonKey): string => t(`boon.${k}.name`);
 /** Bonus donnés en valeur absolue (PV, PV/s, points de chance) ; les autres sont des pourcentages. */
 const BOON_ABSOLUTE = new Set<BoonKey>(['hp', 'regen', 'luck']);
+/** Ligne de tome de chaque stat (la première qui la porte) : texte des bonus de sanctuaire venus des tomes. */
+const TOME_LINE: Record<string, StatLine> = {};
+for (const k of Object.keys(TOMES) as TomeKey[]) for (const l of TOMES[k]) TOME_LINE[l.stat] ??= l;
 export const boonText = (k: BoonKey): string => {
   const v = BOON[k];
+  // phase 52 : un bonus venu d'un tome se lit comme sa ligne (« +1 projectile pour toutes les armes »), à sa valeur
+  if (BOON_KEYS.indexOf(k) >= BOON_OWN_TEXT) return lineText('t', { ...TOME_LINE[BOON_STAT[k] ?? k], step: v });
   return t(`boon.${k}.text`, { v: BOON_ABSOLUTE.has(k) ? fmtNum(v) : fmtNum(Math.round(v * 100)) });
 };
 export const BOON_GLYPH: Record<BoonKey, string> = {
@@ -46,6 +62,27 @@ export const BOON_GLYPH: Record<BoonKey, string> = {
   spellpow: '✦',
   luck: '☘',
   xp: '✎',
+  // phase 52 : les stats des tomes
+  proj: '⁂',
+  life: '⌛',
+  pspeed: '➤',
+  kb: '⇥',
+  killheal: '✚',
+  lvlheal: '❖',
+  stealcap: '♦',
+  lowdmg: '☠',
+  slowchance: '❄',
+  chilldmg: '❅',
+  slowdur: '❆',
+  thorns: '✴',
+  guard: '⛨',
+  revenge: '⚡',
+  chestgold: '◈',
+  elitegold: '◉',
+  shop: '%',
+  eliteloot: '♛',
+  eliterate: '♚',
+  difficulty: '▲',
 };
 // phase 19 : sorts de classe
 export const spellName = (k: SpellKey): string => t(`spell.${k}.name`);
