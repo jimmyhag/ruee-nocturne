@@ -122,7 +122,7 @@ test('sanctuaire : rester dans le cercle remplit la jauge, puis un bonus pour la
   await expect(page.locator('#poiChip')).toHaveClass(/shrine/);
   await page.waitForSelector('#levelup:not([hidden])', { timeout: 30000 });
   await expect(page.locator('#luTitle')).toHaveText('Sanctuaire');
-  await expect(page.locator('#cards .card')).toHaveCount(4); // phase 47 : quatre bonus parmi dix-huit
+  await expect(page.locator('#cards .card')).toHaveCount(4); // phase 47 : quatre bonus ; phase 52 : parmi trente-huit
   await expect(page.locator('#cards .badge.boon').first()).toBeVisible();
   // chaque carte dit où en est la stat : « Vol de vie : 0 % → 1 % »
   await expect(page.locator('#cards .card p.now')).toHaveCount(4);
@@ -139,7 +139,7 @@ test('sanctuaire : rester dans le cercle remplit la jauge, puis un bonus pour la
   else await page.locator('#pauseBtn').click();
   await expect(page.locator('#pause')).toBeVisible();
   await expect(page.locator('#pauseStats .statgroup')).toHaveCount(5);
-  await expect(page.locator('#pauseStats li')).toHaveCount(21); // phase 48 : + la difficulté
+  await expect(page.locator('#pauseStats li')).toHaveCount(38); // phase 48 : + la difficulté ; phase 52 : + 17 stats des tomes
   await expect(page.locator('#pauseStats')).toContainText('Vol de vie');
   await expect(page.locator('#pauseStats')).toContainText('Chance');
 });
