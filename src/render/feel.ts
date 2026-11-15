@@ -61,6 +61,35 @@ export const FEEL = {
   },
   // phase 30 : effets d'armes stylisés (rendu seulement)
   bolt: { life: 0.18, jitter: 0.45, glowW: 0.7, coreW: 0.16, whipJitter: 0.14 }, // éclair : durée, zigzag, largeur lueur / cœur (u)
+  // phase 51 (retour de Jimmy : « ils ressemblent trop aux monstres de base ») : une élite se reconnaît de loin.
+  // `scale` : taille à l'image (la collision reste à ELITE.rMul = 1,25) ; `bright` et `pulse` : or surexposé qui bat ;
+  // anneau au sol élargi et doublé ; aura (× rayon, intensité) ; couronne (cristal au-dessus de la tête)
+  elite: {
+    scale: 1.4,
+    bright: 1.35,
+    pulse: 0.14,
+    ring: 1.65,
+    ring2: 1.2,
+    aura: 5,
+    auraA: 0.85,
+    crown: 1.7,
+    crownLift: 0.45,
+    crownBob: 0.12,
+    top: 2.7, // × rayon : hauteur de la tête sans modèle chargé (repli procédural)
+  },
+  // phase 51 : coffre lâché par une élite ou un boss. Colonne fine et courte (celles des coffres de carte font 1 × 1),
+  // halo au sol, apparition 0 → `over` → 1 en `pop` s
+  chestDrop: {
+    scale: 1.3,
+    boss: 1.4,
+    pop: 0.3,
+    over: 1.3,
+    beam: 0.55,
+    beamH: 0.45,
+    beamBoss: 0.8,
+    halo: 3.4,
+    haloA: 0.6,
+  },
   // phase 35 : bonus au sol (cristal ×scale, flottement, apparition, clignotement avant de disparaître)
   power: { scale: 2.6, lift: 0.9, bob: 0.18, pop: 0.18, blinkHz: 7, iconLift: 0.9 },
   glow: {

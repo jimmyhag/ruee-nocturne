@@ -498,6 +498,7 @@ let startWanted: { variant?: number; daily: boolean; resume: SavedRun | null } |
 let modelsWaited = false;
 function startGame(variant?: number, daily = false, resume: SavedRun | null = null): void {
   timestopOn = false; // phase 35
+  bossTotemNote = -1; // phase 51 : le nombre de totems de boss se réannonce à chaque partie
   document.body.classList.remove('timestop');
   if (!meta.seenReset) {
     meta.seenReset = true; // la bannière « nouvelle progression » a été vue
@@ -1374,6 +1375,8 @@ input.onPause = () => {
 // ---------- carte (phase 27) : M, appui sur la minicarte, bouton de la pause ; la partie est en pause ----------
 const mapView = new MapView($('minimap') as HTMLCanvasElement, $('bigmap') as HTMLCanvasElement);
 let mapFrom: 'play' | 'pause' = 'play';
+let bossTotemNote = -1; // phase 51 : monde dont le nombre de totems de boss a été annoncé
+const BOSS_TOTEM_NOTE_AT = 2.5; // s du monde
 let slideBtnOn = false; // bouton GLISSE allumé pendant la glissade
 function openMap(): void {
   if (!world || (app !== 'play' && app !== 'pause')) return;
@@ -1382,6 +1385,7 @@ function openMap(): void {
   showOnly('map');
   const f = mapView.drawBig(world);
   $('mapExplored').textContent = t('map.explored', { pct: Math.round(f * 100) });
+  $('lgBossTotem').textContent = t('map.legend.bosstotems', { n: world.bossTotems.length }); // phase 51 : leur nombre varie (1 à 3)
 }
 function closeMap(): void {
   if (app !== 'map') return;
@@ -2282,6 +2286,12 @@ function handleEvents(w: World, now: number): void {
       case Ev.LevelUp:
         S.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
         break;
+      case Ev.ChestDrop:
+        // phase 51 : le coffre qui tombe s'annonce (gerbe dorée, son à lui) ; il passait inaperçu dans la mêlée
+        S.particles.burst(e.x, 0.8, e.z, PAL.gold, ((e.v ? 30 : 16) * fx) | 0, 5, 7);
+        S.particles.ring(e.x, 0.4, e.z, PAL.gold, ((e.v ? 22 : 12) * fx) | 0, 3, 3);
+        audio.chestDrop(e.v === 1);
+        break;
       case Ev.Chest:
         S.particles.ring(e.x, 0.5, e.z, PAL.gold, (24 * fx) | 0, 4, 5);
         audio.chest();
@@ -2571,6 +2581,13 @@ function frame(nowMs: number): void {
       document.body.classList.toggle('timestop', frozenNow);
     }
     mapView.update(world, realDt); // phase 27 : minicarte (4 fois par seconde)
+    // phase 51 : le nombre de totems de boss du monde s'annonce une fois, après la bannière d'arrivée (elle dure 1,8 s).
+    // Une partie reprise plus loin dans le monde ne le répète pas
+    if (bossTotemNote !== world.stage && world.stageT > BOSS_TOTEM_NOTE_AT) {
+      if (world.stageT < BOSS_TOTEM_NOTE_AT + 2 && !world.endless && world.mode === Mode.Play)
+        hud.banner(t('banner.bossTotems', { n: world.bossTotems.length }));
+      bossTotemNote = world.stage;
+    }
     const slideOn = world.player.sliding;
     if (slideOn !== slideBtnOn) {
       slideBtnOn = slideOn;

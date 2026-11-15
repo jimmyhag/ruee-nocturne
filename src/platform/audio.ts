@@ -14,7 +14,8 @@ const AUDIO_URL = (file: string) => `${import.meta.env.BASE_URL}audio/${file}`;
 const BUS = { sfx: 0.42, ui: 0.4, music: 0.25 }; // 1.31.1 : effets −1,5 dB
 
 /** Priorité d'une voix (skill game-feel §7) : joueur touché > niveau > boss > kill > hit > ramassage. */
-const PRIO = { hurt: 6, levelUp: 5, boss: 4, kill: 3, move: 3, hit: 2, pickup: 1, shoot: 0, ui: 5 } as const;
+// phase 51 : `drop` (coffre ou bonus qui tombe au sol), au-dessus de `kill` : jamais refusé par les seuils de mêlée
+const PRIO = { hurt: 6, levelUp: 5, boss: 4, drop: 4, kill: 3, move: 3, hit: 2, pickup: 1, shoot: 0, ui: 5 } as const;
 const MAX_VOICES = 24;
 /**
  * 1.31.1 : sons secondaires (tirs, coups, ramassage : priorité < kill) refusés au-delà de 4 voix actives, kills et
@@ -86,6 +87,7 @@ export class AudioBus {
   private hitAcc = 0;
   private lastHitSound = 0;
   private lastPlay: Partial<Record<SfxKey, number>> = {}; // dernière lecture de chaque son (currentTime)
+  private drops = 0; // phase 51 : sons de drop réellement partis (lu par les tests : ils doivent passer en mêlée)
   private killAcc = 0; // kills fusionnés dans le même son (rafale d'aura ou de météore)
   private lastKillSound = 0;
   private musicFailed = false; // navigateur sans MediaElementSource : on n'essaie plus
@@ -262,8 +264,9 @@ export class AudioBus {
     this.lowpass.frequency.setTargetAtTime(on ? 900 : 20000, c.currentTime, 0.25);
   }
   /** Phase 36 : état pour les tests (crochet de débogage). */
-  get state(): { ctx: string; samples: boolean; music: string; sfx: number; musicGain: number } {
+  get state(): { ctx: string; samples: boolean; music: string; sfx: number; musicGain: number; drops: number } {
     return {
+      drops: this.drops,
       ctx: this.ctx ? this.ctx.state : 'none',
       samples: this.buf !== null,
       music: this.musicPlaying,
@@ -528,10 +531,38 @@ export class AudioBus {
     this.tone(this.ui, 659, 0.1, 'triangle', 0.26, 0, PRIO.levelUp, 0.08);
     this.tone(this.ui, 784, 0.2, 'triangle', 0.3, 0, PRIO.levelUp, 0.16);
   }
-  /** Phase 35 : un bonus apparaît au sol, tintement discret. */
+  /**
+   * Phase 35 : un bonus apparaît au sol. Phase 51 (retour de Jimmy : « on ne l'entend pas ») : il jouait 0,15 s à 70 %
+   * avec la priorité la plus basse, donc refusé dès 4 voix actives, presque toujours en combat. Deux notes, plein
+   * volume, priorité `drop`.
+   */
   powerDrop(): void {
-    if (this.sample('powerDrop', this.ui, 0.7, PRIO.pickup)) return;
-    this.tone(this.ui, 1568, 0.09, 'sine', 0.1, 0, PRIO.pickup);
+    const P = PRIO.drop,
+      before = this.lastPlay.powerDrop;
+    if (this.sample('powerDrop', this.ui, 1, P, 1, 0, 0)) {
+      this.sample('powerDrop', this.ui, 1, P, 1.5, 0.09, 0);
+      if (this.lastPlay.powerDrop !== before) this.drops++;
+      return;
+    }
+    this.tone(this.ui, 1568, 0.09, 'sine', 0.16, 0, P);
+    this.tone(this.ui, 2349, 0.14, 'sine', 0.16, 0, P, 0.09);
+  }
+  /**
+   * Phase 51 : un coffre tombe au sol (élite, boss). Il n'avait aucun son à lui. Pièces qui tintent puis carillon,
+   * composés des échantillons existants à d'autres hauteurs ; plus grave et plus long pour un coffre de boss.
+   */
+  chestDrop(boss = false): void {
+    const P = PRIO.drop,
+      before = this.lastPlay.coin;
+    if (this.sample('coin', this.ui, 1, P, boss ? 0.7 : 0.9, 0, 0)) {
+      this.sample('coin', this.ui, 0.8, P, boss ? 0.95 : 1.2, 0.07, 0);
+      this.sample('powerDrop', this.ui, 1, P, boss ? 0.6 : 0.8, 0.13, 0);
+      if (boss) this.sample('powerDrop', this.ui, 1, P, 0.9, 0.26, 0);
+      if (this.lastPlay.coin !== before) this.drops++;
+      return;
+    }
+    this.tone(this.ui, boss ? 660 : 880, 0.08, 'triangle', 0.22, 0, P);
+    this.tone(this.ui, boss ? 990 : 1318, 0.16, 'triangle', 0.24, 0, P, 0.08);
   }
   /** Phase 35 : bonus ramassé, un son par bonus (Pw : Aimant, Pluie d'or, Élan, Temps figé, Rage). */
   power(k: number): void {

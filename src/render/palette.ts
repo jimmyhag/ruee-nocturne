@@ -42,8 +42,9 @@ export const PAL = {
   gem: 0x59d8ff,
   gem2: 0xff7ad0,
   gem3: 0xffcc4d,
-  // phase 35 : bonus au sol (ordre Pw : aimant, or, vitesse, gel, rage), gel des ennemis
-  power: [0xc08cff, 0xffcc4d, 0x7ee0a1, 0x9fe8ff, 0xff5a3c],
+  // phase 35 : bonus au sol (ordre Pw : aimant, or, vitesse, gel, rage), gel des ennemis. Phase 51 : l'Aimant passe du
+  // violet (0xc08cff) au rose vif : sur la minicarte il se confondait avec les crânes de difficulté (PAL.skull)
+  power: [0xff6ad5, 0xffcc4d, 0x7ee0a1, 0x9fe8ff, 0xff5a3c],
   freeze: 0xd6f4ff,
   // cycle de lumière : crépuscule (0:00) → nuit (8:00) → aube (20:00)
   light: {

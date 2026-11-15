@@ -172,8 +172,28 @@ export class MapView {
     return (z - this.oz) * this.k;
   }
 
+  /** Trace une étoile à quatre branches (rayon `R`, creux `q`) ; à remplir ou cercler par l'appelant. */
+  private star(ctx: CanvasRenderingContext2D, x: number, z: number, R: number, q: number): void {
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4,
+        d = i % 2 ? q : R;
+      if (i) ctx.lineTo(x + Math.sin(a) * d, z - Math.cos(a) * d);
+      else ctx.moveTo(x, z - d);
+    }
+    ctx.closePath();
+  }
+
   /** Repères (coffres non ouverts et sanctuaires découverts, marchand, boss) et joueur. `k` : pixels par unité. */
-  private marks(ctx: CanvasRenderingContext2D, w: World, ox: number, oz: number, k: number, r: number): void {
+  private marks(
+    ctx: CanvasRenderingContext2D,
+    w: World,
+    ox: number,
+    oz: number,
+    k: number,
+    r: number,
+    edge = 0, // minicarte : côté du cadre (px) ; un totem de boss hors cadre y laisse une flèche. 0 : grande carte
+  ): void {
     this.ox = ox;
     this.oz = oz;
     this.k = k;
@@ -182,6 +202,17 @@ export class MapView {
     for (const c of w.mapChests)
       if (!c.open && (compass || this.seenAt(w, c.x, c.z)))
         ctx.fillRect(this.X(c.x) - r, this.Z(c.z) - r, r * 2, r * 2);
+    // phase 51 : coffres lâchés par les élites et les boss, petit carré doré cerclé, toujours visible (on vient de le
+    // gagner ; il ne figurait pas sur la carte)
+    ctx.strokeStyle = '#0c0f1a';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < w.chestCount; i++) {
+      const c = w.chests[i],
+        h = r * (c.boss ? 1.1 : 0.9);
+      ctx.fillStyle = '#ffe9a0';
+      ctx.fillRect(this.X(c.x) - h, this.Z(c.z) - h, h * 2, h * 2);
+      ctx.strokeRect(this.X(c.x) - h, this.Z(c.z) - h, h * 2, h * 2);
+    }
     // départs des pistes chronométrées : losange cyan (gris une fois gagnée)
     for (const q of w.races)
       if (this.seenAt(w, q.sx, q.sz)) {
@@ -215,23 +246,6 @@ export class MapView {
         ctx.fill();
         ctx.fillRect(x - r * 0.65, z + r * 0.4, r * 1.3, r * 0.9);
       }
-    // phase 48 : totems de boss, un petit losange braise (même règle de découverte), tant qu'ils servent encore
-    if (w.totem.state !== 2 && !w.endless) {
-      ctx.fillStyle = '#ff8a3d';
-      for (const b of w.bossTotems)
-        if (!b.on && (compass || this.seenAt(w, b.x, b.z))) {
-          const x = this.X(b.x),
-            z = this.Z(b.z),
-            a = r * 1.5;
-          ctx.beginPath();
-          ctx.moveTo(x, z - a);
-          ctx.lineTo(x + a, z);
-          ctx.lineTo(x, z + a);
-          ctx.lineTo(x - a, z);
-          ctx.closePath();
-          ctx.fill();
-        }
-    }
     const M = w.merchant;
     if (M.active) {
       ctx.fillStyle = '#ff9f43';
@@ -239,13 +253,65 @@ export class MapView {
       ctx.arc(this.X(M.x), this.Z(M.z), r * 1.4, 0, Math.PI * 2);
       ctx.fill();
     }
-    // phase 35 : bonus au sol, un point de la couleur du bonus (toujours visibles : ils durent 30 s)
+    // phase 35 : bonus au sol, de la couleur du bonus (toujours visibles : ils durent 30 s). Phase 51 : une étoile à
+    // quatre branches cerclée, plus un disque : l'Aimant se confondait avec un crâne, le Temps figé avec un sanctuaire
+    ctx.strokeStyle = '#0c0f1a';
+    ctx.lineWidth = 1;
     for (let i = 0; i < w.powerCount; i++) {
       const p = w.powers[i];
       ctx.fillStyle = POWER_CSS[p.kind];
-      ctx.beginPath();
-      ctx.arc(this.X(p.x), this.Z(p.z), r * 1.1, 0, Math.PI * 2);
+      this.star(ctx, this.X(p.x), this.Z(p.z), r * 1.9, r * 0.7);
       ctx.fill();
+      ctx.stroke();
+    }
+    // phase 48 : totems de boss, losange braise. Phase 51 (retour de Jimmy : « pas visible sur la minicarte ») : toujours
+    // affichés, sans exploration, comme le totem du monde ; plus grands, cerclés, un « + » clair au centre ; dessinés
+    // après le marchand et les bonus. Éteints (activés, portail ouvert, monde infini) : gris. Hors du cadre de la
+    // minicarte : une flèche sur le bord
+    const spent = w.totem.state === 2 || w.endless;
+    for (const b of w.bossTotems) {
+      const off = b.on || spent,
+        a = r * 1.9;
+      let x = this.X(b.x),
+        z = this.Z(b.z);
+      if (edge > 0 && (x < a || z < a || x > edge - a || z > edge - a)) {
+        if (off) continue;
+        // hors cadre : pointe posée sur le bord, tournée vers le totem
+        const cx = edge / 2,
+          dx = x - cx,
+          dz = z - cx,
+          m = (cx - a) / Math.max(Math.abs(dx), Math.abs(dz)),
+          d = Math.hypot(dx, dz) || 1;
+        x = cx + dx * m;
+        z = cx + dz * m;
+        const ux = dx / d,
+          uz = dz / d;
+        ctx.fillStyle = '#ff8a3d';
+        ctx.beginPath();
+        ctx.moveTo(x + ux * a, z + uz * a);
+        ctx.lineTo(x - ux * a * 0.6 - uz * a * 0.8, z - uz * a * 0.6 + ux * a * 0.8);
+        ctx.lineTo(x - ux * a * 0.6 + uz * a * 0.8, z - uz * a * 0.6 - ux * a * 0.8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        continue;
+      }
+      ctx.fillStyle = off ? '#6b7088' : '#ff8a3d';
+      ctx.beginPath();
+      ctx.moveTo(x, z - a);
+      ctx.lineTo(x + a, z);
+      ctx.lineTo(x, z + a);
+      ctx.lineTo(x - a, z);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      if (!off) {
+        ctx.fillStyle = '#fff3e0';
+        const t = Math.max(1, r * 0.35),
+          l = a * 0.5;
+        ctx.fillRect(x - l, z - t / 2, l * 2, t);
+        ctx.fillRect(x - t / 2, z - l, t, l * 2);
+      }
     }
     // phase 37 : totem du monde (losange rouge, toujours visible : c'est l'objectif), portail ouvert en cyan
     const T = w.totem;
@@ -315,7 +381,7 @@ export class MapView {
     ctx.drawImage(this.base, ox + WORLD_HALF, oz + WORLD_HALF, VIEW, VIEW, 0, 0, W, W);
     const f = DISCOVER.cell;
     ctx.drawImage(this.fog, (ox + WORLD_HALF) / f, (oz + WORLD_HALF) / f, VIEW / f, VIEW / f, 0, 0, W, W);
-    this.marks(ctx, w, ox, oz, k, Math.max(2.5, W / 48));
+    this.marks(ctx, w, ox, oz, k, Math.max(2.5, W / 48), W);
   }
 
   /** Grande carte : toute la carte, dessinée à l'ouverture. Renvoie la part découverte (0–1). */

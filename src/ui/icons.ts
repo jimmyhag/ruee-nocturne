@@ -540,7 +540,7 @@ export const SPELL_ICON: Record<SpellKey, string> = {
 
 /** Phase 35 : bonus au sol (dessins propres, distincts des objets et des bonus de sanctuaire). */
 export const POWER_ICON: Record<PowerKey, string> = {
-  aimant: svg(magnet() + star(52, 12, 8, 3, 4, '#c08cff') + star(10, 54, 6, 2.5, 4, '#c08cff')),
+  aimant: svg(magnet() + star(52, 12, 8, 3, 4, '#ff6ad5') + star(10, 54, 6, 2.5, 4, '#ff6ad5')),
   or: svg(coin(24, 38, 16) + coin(42, 26, 16) + star(54, 52, 7, 2.5, 4, PAPER)),
   vitesse: svg(chevrons('#7ee0a1') + hl('M12 16l12 14-3 3-11-13z')),
   gel: svg(hourglass() + pole('M50 4v20M40 14h20M43 7l14 14M57 7L43 21', '#9fe8ff', 3) + circle(50, 14, 3, PAPER)),

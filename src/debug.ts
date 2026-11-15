@@ -33,7 +33,7 @@ export interface DebugHost {
   afterStage(): void;
   audioVoices(): number;
   /** Phase 36 : état du son (planche décodée, musique en cours, gains des bus). */
-  audioState(): { samples: boolean; music: string; sfx: number; musicGain: number };
+  audioState(): { samples: boolean; music: string; sfx: number; musicGain: number; drops: number };
   /** Méta (phase 4) : lecture et remplacement (tests « nouveau joueur », export/import). */
   getMeta(): unknown;
   setMeta(m: unknown): void;
@@ -218,6 +218,13 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       if (!world) return;
       const i = spawnEnemy(world, type, 0, dist);
       if (i >= 0) world.enemies[i].hp = hp;
+    },
+    /** Phase 51 : pose une élite de `type` à `dist` u, à l'angle `ang` (rad) ; `hp` > 0 fixe ses PV. */
+    elite(type: number, dist = 3, ang = 0, hp = 0): void {
+      const world = w();
+      if (!world) return;
+      const i = spawnEnemy(world, type, ang, dist, true);
+      if (i >= 0 && hp > 0) world.enemies[i].hp = hp;
     },
     /** Rapproche le boss vivant à `dist` u devant le joueur (captures). */
     pullBoss(dist = 6): void {

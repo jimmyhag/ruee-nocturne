@@ -34,7 +34,7 @@ import { canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadGroundTexture, loadNature, loadProps, tintedNature } from './models';
-import { enemyOutlineMaterial, loadEnemyModels } from './enemyModels';
+import { ENEMY_LOOKS, enemyOutlineMaterial, loadEnemyModels } from './enemyModels';
 import type { BakedEnemy } from './enemyModels';
 import { writeLoopPose, writeOncePose } from './pose';
 import type { NatureKey, NatureSet, PropGeometry, PropKey } from './models';
@@ -129,7 +129,8 @@ const SCATTER = { cell: 2, draw: 32, drawPixel: 26, grass: 480, flowers: 72, bus
 const TREE_H = 4.7; // hauteur des arbres stylisés avant l'échelle de chaque arbre (≈ ×0,75)
 const GROUND_TILE = 7; // unités monde par répétition des textures de sol (phase 44)
 const FOG = { near: 30, far: 115 }; // phase 44 : brume au loin seulement (la caméra est à ≈ 16 u du joueur)
-const ELITE_RINGS = 48; // anneaux dorés des élites à l'écran, au plus
+const ELITE_MARKS = 48; // élites marquées à l'écran, au plus (anneaux, aura, couronne)
+const ELITE_RINGS = 2 * ELITE_MARKS; // phase 51 : deux anneaux dorés par élite
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
 const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (hors de la vue)
@@ -193,6 +194,14 @@ export class GameScene {
   private enemyRoll = 1;
   private cFlash = WHITE; // flash du coup : blanc sur les couleurs de sommet, surexposé sur une texture
   private eliteColor: THREE.Color[] = [];
+  // phase 51 : élites vues pendant la boucle des ennemis (x, y de la tête, z, rayon, phase), marquées plus bas quand
+  // les écrivains des lueurs et des cristaux sont ouverts ; tableau fixe, aucune allocation par frame
+  private eliteBuf = new Float32Array(ELITE_MARKS * 5);
+  private eliteN = 0;
+  private cEliteNow = new THREE.Color();
+  private cEliteAura = new THREE.Color(PAL.gold).multiplyScalar(FEEL.elite.auraA);
+  private cCrown = new THREE.Color(0xffb020).multiplyScalar(1.3); // or soutenu : se détache du corps, jaune clair
+  private cChestHalo = new THREE.Color(PAL.gold).multiplyScalar(FEEL.chestDrop.haloA);
   private shadowW: InstanceWriter; // ombres douces de tous les ennemis (phase 9)
   /** Phase 30 : sprites lumineux additifs (Orbe, boule de feu, météore, Lance, mines, boomerang) : un appel. */
   private glowW: InstanceWriter;
@@ -459,7 +468,7 @@ export class GameScene {
       this.scene.add(m);
       this.enemyW.push(new InstanceWriter(m));
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
-      this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.55));
+      this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.75).multiplyScalar(FEEL.elite.bright));
     }
     // phase 21 : modèles des ennemis dès qu'enemies.glb est là ; nouvel essai
     // après un échec (réseau mobile), état lisible dans l'onglet perf
@@ -635,7 +644,8 @@ export class GameScene {
       makeInstanced(
         new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
         additive(0xffffff, 0.22),
-        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullMax + BOSSTOTEM.max, // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes
+        // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes ; phase 51 : coffres lâchés
+        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullMax + BOSSTOTEM.max + CAPS.chests,
       ),
     );
     this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
@@ -1213,7 +1223,8 @@ export class GameScene {
     for (let t = 0; t < this.enemyW.length; t++) {
       if (!en[t]) continue;
       this.enemyColor[t].set(PAL.enemy[t]).lerp(WHITE, ENEMY_TINT_KEEP);
-      this.eliteColor[t].set(PAL.enemy[t]).lerp(this.cGold, 0.7).lerp(WHITE, 0.2);
+      // phase 51 : or franc et surexposé (la couleur d'instance multiplie une texture déjà colorée : à 1, il se lisait mal)
+      this.eliteColor[t].set(PAL.enemy[t]).lerp(this.cGold, 0.85).multiplyScalar(FEEL.elite.bright);
     }
     this.cFlash = ENEMY_FLASH;
     this.enemyHop = 0.25;
@@ -1736,6 +1747,7 @@ export class GameScene {
     for (let t = 0; t < this.enemyW.length; t++) this.enemyW[t].begin();
     this.shadowW.begin();
     this.metW.begin(); // anneaux des élites (ici) puis cercles des météores (plus bas)
+    this.eliteN = 0;
     this.aims.begin();
     this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
     const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé, ennemis givrés et sans sautillement
@@ -1757,7 +1769,7 @@ export class GameScene {
             (e.type === 1 ? 0.12 : 0.1) *
             (e.type === VOLANT_TYPE ? 1 : this.enemyHop);
       // phase 19 : un ennemi étourdi pâlit (jaune), un ennemi ralenti bleuit ; le flash blanc du coup passe avant
-      const col =
+      let col =
         e.flash > 0
           ? this.cFlash
           : frozen
@@ -1775,9 +1787,23 @@ export class GameScene {
                       : e.elite
                         ? this.eliteColor[e.type]
                         : this.enemyColor[e.type];
-      let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? 1.25 : 1);
+      let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? FEEL.elite.scale : 1);
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
+      if (e.elite) {
+        // l'or bat (sauf pendant un flash, un gel, une brûlure : ces teintes passent avant)
+        if (col === this.eliteColor[e.type])
+          col = this.cEliteNow.copy(col).multiplyScalar(1 + FEEL.elite.pulse * Math.sin(now * 5 + e.bob));
+        if (this.eliteN < ELITE_MARKS) {
+          const o = this.eliteN++ * 5,
+            look = this.enemyMorph[e.type] ? ENEMY_LOOKS[e.type] : null;
+          this.eliteBuf[o] = ex;
+          this.eliteBuf[o + 1] = ey + (look ? look.height * FEEL.elite.scale : e.r * FEEL.elite.top);
+          this.eliteBuf[o + 2] = ez;
+          this.eliteBuf[o + 3] = e.r;
+          this.eliteBuf[o + 4] = e.bob;
+        }
+      }
       if (e.type === VOLANT_TYPE) {
         // ombre au sol : grossit pendant le télégraphe (0,6 s avant la plongée)
         const tele = e.state === 1 ? 1 + (1 - Math.max(0, e.timer / VOLANT.telegraph)) * 1.6 : 1;
@@ -1841,7 +1867,12 @@ export class GameScene {
       if (e.type !== VOLANT_TYPE || e.elite) this.tilt(ex, ez);
       if (e.type !== VOLANT_TYPE)
         this.shadowW.put(ex, eg + 0.05, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow, this.tRx, this.tRz);
-      if (e.elite) this.metW.put(ex, eg + 0.08, ez, now * 1.5, e.r * 1.37, this.cEliteRing, this.tRx, this.tRz);
+      if (e.elite) {
+        // phase 51 : deux anneaux qui tournent en sens inverse, plus larges que l'ancien (× 1,37)
+        const EL = FEEL.elite;
+        this.metW.put(ex, eg + 0.08, ez, now * 1.5, e.r * EL.ring, this.cEliteRing, this.tRx, this.tRz);
+        this.metW.put(ex, eg + 0.09, ez, -now * 2.2, e.r * EL.ring2, this.cEliteRing, this.tRx, this.tRz);
+      }
     }
     for (let t = 0; t < this.enemyW.length; t++) {
       const wr = this.enemyW[t];
@@ -1937,18 +1968,32 @@ export class GameScene {
     if ((this.propsReady || this.natureReady) && (px - this.propX) ** 2 + (pz - this.propZ) ** 2 > 16)
       this.sortNearDecor(px, pz);
 
-    // coffres : flottent et tournent ; coffre de boss plus gros
+    // coffres : flottent et tournent ; coffre de boss plus gros. Phase 51 (retour de Jimmy : ils passaient inaperçus) :
+    // apparition avec rebond, halo doré au sol ; la colonne de lumière est écrite plus bas, avec les autres
     this.chestW.begin();
+    const CD = FEEL.chestDrop;
     for (let i = 0; i < w.chestCount; i++) {
       const c = w.chests[i];
-      const pop = Math.min(1, c.age / 0.25);
+      const t = Math.min(1, c.age / CD.pop);
+      const pop = t < 0.6 ? (CD.over * t) / 0.6 : CD.over - ((CD.over - 1) * (t - 0.6)) / 0.4;
+      const g = this.gy(c.x, c.z);
       this.chestW.put(
         c.x,
-        this.gy(c.x, c.z) + 0.45 + Math.sin(now * 2.5 + i) * 0.12,
+        g + 0.45 + Math.sin(now * 2.5 + i) * 0.12,
         c.z,
         now * 1.2,
-        (c.boss ? 1.4 : 1) * pop,
+        CD.scale * (c.boss ? CD.boss : 1) * pop,
         this.cChest,
+      );
+      this.glowW.put(
+        c.x,
+        g + 0.5,
+        c.z,
+        0,
+        CD.halo * (c.boss ? CD.boss : 1) * pop * (0.9 + 0.1 * Math.sin(now * 4 + i)),
+        this.cChestHalo,
+        this.particles.billboardRx,
+        now * 0.8,
       );
     }
     this.chestW.end();
@@ -1962,6 +2007,12 @@ export class GameScene {
     this.bossTotemW.begin();
     this.shrineGlowW.begin();
     this.beamW.begin();
+    for (let i = 0; i < w.chestCount; i++) {
+      // phase 51 : colonne dorée, fine et courte (celles des coffres de carte : largeur 1, hauteur 1)
+      const c = w.chests[i],
+        bw = (c.boss ? CD.beamBoss : CD.beam) * (1 + Math.sin(now * 3 + i) * 0.08) * Math.min(1, c.age / CD.pop);
+      this.beamW.put(c.x, this.gy(c.x, c.z), c.z, 0, bw, this.cBeamGold, 0, 0, CD.beamH, bw);
+    }
     const affordable = canOpenMapChest(w);
     for (let i = 0; i < w.mapChests.length; i++) {
       const c = w.mapChests[i];
@@ -2163,6 +2214,34 @@ export class GameScene {
         this.cPowerHalo[pw.kind],
         brx,
         now,
+      );
+    }
+    // phase 51 : élites relevées dans la boucle des ennemis ; aura dorée autour du corps, couronne au-dessus de la tête
+    const EL = FEEL.elite;
+    for (let i = 0; i < this.eliteN; i++) {
+      const o = i * 5,
+        ex = this.eliteBuf[o],
+        top = this.eliteBuf[o + 1],
+        ez = this.eliteBuf[o + 2],
+        er = this.eliteBuf[o + 3],
+        ph = this.eliteBuf[o + 4];
+      this.gemW.put(
+        ex,
+        top + EL.crownLift + Math.sin(now * 3 + ph) * EL.crownBob,
+        ez,
+        now * 2.6 + ph,
+        EL.crown,
+        this.cCrown,
+      );
+      this.glowW.put(
+        ex,
+        top * 0.5 + this.gy(ex, ez) * 0.5,
+        ez,
+        0,
+        er * EL.aura * (0.92 + 0.08 * Math.sin(now * 4 + ph)),
+        this.cEliteAura,
+        brx,
+        now * 0.7 + ph,
       );
     }
     this.gemW.end();

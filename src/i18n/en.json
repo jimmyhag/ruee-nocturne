@@ -882,5 +882,11 @@
   "banner.bossTotem": "Extra bosses: +{n} per wave",
   "map.legend.bosstotem": "Boss totem",
   "over.bossTotems": "boss totems activated: {n}",
-  "menu.ctrl.bosstotem": "Boss totems (orange): each adds a copy of the boss to every boss wave of the world. The portal waits until they are all defeated."
+  "menu.ctrl.bosstotem": "Boss totems (orange, 1 to 3 per world, always shown on the map): each adds a copy of the boss to every boss wave of the world. The portal waits until they are all defeated.",
+  "map.legend.drop": "Dropped chest",
+  "map.legend.power": "Ground bonus",
+  "map.legend.bosstotems_one": "{n} boss totem",
+  "map.legend.bosstotems_other": "{n} boss totems",
+  "banner.bossTotems_one": "{n} boss totem in this world",
+  "banner.bossTotems_other": "{n} boss totems in this world"
 }

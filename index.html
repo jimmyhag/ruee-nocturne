@@ -1522,6 +1522,19 @@
         border-radius: 2px;
         transform: rotate(45deg) scale(0.85);
       }
+      /* phase 51 : coffre lâché (petit carré doré cerclé) et bonus au sol (étoile à quatre branches) */
+      .lg.drop {
+        background: #ffe9a0;
+        border-radius: 1px;
+        box-shadow: 0 0 0 1px #0c0f1a;
+        transform: scale(0.75);
+      }
+      .lg.power {
+        background: #ff6ad5;
+        border-radius: 0;
+        clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+        transform: scale(1.25);
+      }
       .lg.merchant {
         background: #ff9f43;
       }
@@ -2991,7 +3004,11 @@
           ><span><i class="lg chest"></i><span data-i18n="map.legend.chest">Coffre</span></span
           ><span><i class="lg shrine"></i><span data-i18n="map.legend.shrine">Sanctuaire</span></span
           ><span><i class="lg skull"></i><span data-i18n="map.legend.skull">Crâne</span></span
-          ><span><i class="lg bosstotem"></i><span data-i18n="map.legend.bosstotem">Totem de boss</span></span
+          ><span
+            ><i class="lg bosstotem"></i
+            ><span id="lgBossTotem" data-i18n="map.legend.bosstotem">Totem de boss</span></span
+          ><span><i class="lg drop"></i><span data-i18n="map.legend.drop">Coffre lâché</span></span
+          ><span><i class="lg power"></i><span data-i18n="map.legend.power">Bonus au sol</span></span
           ><span><i class="lg merchant"></i><span data-i18n="map.legend.merchant">Marchand</span></span
           ><span><i class="lg boss"></i><span data-i18n="map.legend.boss">Boss</span></span>
         </p>

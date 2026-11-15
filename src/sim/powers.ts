@@ -48,7 +48,15 @@ export function powerOnKill(w: World, x: number, z: number, elite: boolean, boss
     }
     return;
   }
-  if (w.rng.next() < (elite ? POWER.eliteChance : POWER.killChance)) dropPower(w, x, z, rollPowerKind(w));
+  if (w.rng.next() >= (elite ? POWER.eliteChance : POWER.killChance)) return;
+  if (elite) {
+    // phase 51 : une élite laisse aussi un coffre au même endroit ; le bonus tombe à POWER.eliteScatter u, dans une
+    // direction tirée de la position (aucun tirage de plus : la suite du rng, donc toute la partie, ne change pas)
+    const a = x * 12.9898 + z * 78.233;
+    x += Math.sin(a) * POWER.eliteScatter;
+    z += Math.cos(a) * POWER.eliteScatter;
+  }
+  dropPower(w, x, z, rollPowerKind(w));
 }
 
 /** Bonus de carte : devant le joueur (cône autour de sa direction), sur une place libre hors du lac. */
