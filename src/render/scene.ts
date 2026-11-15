@@ -535,7 +535,12 @@ export class GameScene {
     // phase 44 : cristaux à facettes (nuances cuites par face : sommet clair, base sombre, un éclat) au lieu d'un
     // octaèdre uni qui se lisait comme un carré plat ; toujours sans éclairage (lisibles la nuit), un seul appel
     this.gemW = new InstanceWriter(
-      makeInstanced(crystalGeometry(0.2, 0.36), new THREE.MeshBasicMaterial({ vertexColors: true }), 900),
+      // gemmes, bonus au sol (phase 35) et couronnes des élites (phase 51)
+      makeInstanced(
+        crystalGeometry(0.2, 0.36),
+        new THREE.MeshBasicMaterial({ vertexColors: true }),
+        CAPS.gems + CAPS.powers + ELITE_MARKS,
+      ),
     );
     this.scene.add(
       this.shadowW.mesh,
@@ -1790,11 +1795,13 @@ export class GameScene {
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? FEEL.elite.scale : 1);
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
+      let marked = false;
       if (e.elite) {
         // l'or bat (sauf pendant un flash, un gel, une brûlure : ces teintes passent avant)
         if (col === this.eliteColor[e.type])
           col = this.cEliteNow.copy(col).multiplyScalar(1 + FEEL.elite.pulse * Math.sin(now * 5 + e.bob));
-        if (this.eliteN < ELITE_MARKS) {
+        marked = this.eliteN < ELITE_MARKS; // au-delà (jamais en jeu : une élite toutes les 40 s), plus de marques
+        if (marked) {
           const o = this.eliteN++ * 5,
             look = this.enemyMorph[e.type] ? ENEMY_LOOKS[e.type] : null;
           this.eliteBuf[o] = ex;
@@ -1867,7 +1874,7 @@ export class GameScene {
       if (e.type !== VOLANT_TYPE || e.elite) this.tilt(ex, ez);
       if (e.type !== VOLANT_TYPE)
         this.shadowW.put(ex, eg + 0.05, ez, 0, e.r * 1.15 * (1 - hop * 0.6), this.cShadow, this.tRx, this.tRz);
-      if (e.elite) {
+      if (marked) {
         // phase 51 : deux anneaux qui tournent en sens inverse, plus larges que l'ancien (× 1,37)
         const EL = FEEL.elite;
         this.metW.put(ex, eg + 0.08, ez, now * 1.5, e.r * EL.ring, this.cEliteRing, this.tRx, this.tRz);

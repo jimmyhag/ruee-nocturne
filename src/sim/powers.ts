@@ -51,7 +51,8 @@ export function powerOnKill(w: World, x: number, z: number, elite: boolean, boss
   if (w.rng.next() >= (elite ? POWER.eliteChance : POWER.killChance)) return;
   if (elite) {
     // phase 51 : une élite laisse aussi un coffre au même endroit ; le bonus tombe à POWER.eliteScatter u, dans une
-    // direction tirée de la position (aucun tirage de plus : la suite du rng, donc toute la partie, ne change pas)
+    // direction tirée de la position, sans tirage de plus : la suite du rng ne change pas. Le bonus, lui, change de
+    // place : une partie ne se rejoue donc pas à l'identique de la 1.53
     const a = x * 12.9898 + z * 78.233;
     x += Math.sin(a) * POWER.eliteScatter;
     z += Math.cos(a) * POWER.eliteScatter;

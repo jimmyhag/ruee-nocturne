@@ -68,6 +68,13 @@ Durée 0,3–0,6 s, scale ∝ vie restante. Cap global 500 ; au-delà, on **remp
 - Sorts de classe (phase 19) : chaque sort a son son (`audio.spell`), une gerbe ou un anneau au lancement et à l'impact (`spellFx` dans `main.ts`), et ce qui dure se voit (filet du Collet, bras dorés du Tourbillon, silhouettes du Voile, ennemis étourdis teintés en jaune pâle, ralentis en bleu). Le joueur ne clignote que pendant l'invulnérabilité d'un coup encaissé, jamais pendant celle d'un sort.
 - Réglage « réduction des effets » : shake 0, particules ÷2, hit-stop off, flash CSS atténué. Respecte aussi `prefers-reduced-motion`.
 
+## 9 bis. Ce qui compte doit se reconnaître en une demi-seconde (phase 51)
+- **Une teinte ne suffit pas sur un modèle texturé** : la couleur d'instance multiplie la texture, l'or des élites se lisait à peine. Une chose importante se signale par une **forme en plus** (couronne au-dessus de la tête, anneau doublé, aura), pas seulement par une couleur ou une taille.
+- **Ce qui tombe au sol s'annonce** : un événement de sim à l'apparition, puis colonne de lumière, halo, rebond 0 → 1,3 → 1, gerbe, et un son à lui. Un coffre sans événement d'apparition n'a ni son ni effet : il passait inaperçu.
+- **Deux objets au même endroit se cachent** : le bonus d'une élite tombait sur son coffre. Décaler d'un rayon de ramassage.
+- **Un son important ne prend pas la priorité `pickup`** : au-delà de 4 voix actives elle est refusée, donc en combat le son n'existe pas. Priorité `drop` ou plus, et au moins 0,3 s (deux notes).
+- **Minicarte** : une forme par sorte de repère (disque = lieu, étoile = bonus, carré = coffre, losange = totem). Deux disques de couleurs proches sur 3 px sont le même repère pour l'œil. Ce que le joueur doit pouvoir aller chercher (totem de boss) s'affiche sans exploration, avec une flèche de bord hors cadre.
+
 ## 10. Checklist de validation (à coller dans la PR de phase 2)
 - [ ] Flash + recul + son + chiffre sur 100 % des armes (test : chaque arme seule, 30 s)
 - [ ] Hit-stop sur kill et sur dégâts joueur, désactivable

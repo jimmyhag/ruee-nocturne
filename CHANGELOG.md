@@ -2,6 +2,33 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.54.0 — 15 nov. 2026 (retours de Jimmy : élites, coffres lâchés, sons de drop, minicarte, totems de boss)
+
+Ce qui compte se voit et s'entend : les élites, ce qu'elles lâchent, et les totems de boss sur la carte.
+
+### Ajouté
+
+- **Coffres lâchés par les élites et les boss** : une colonne de lumière dorée, un halo au sol, une apparition avec rebond et une gerbe d'étincelles. Ils ont enfin **leur son**, et ils figurent sur la minicarte (petit carré doré cerclé).
+- **Totems de boss sur la carte** : toujours affichés sur la minicarte et la grande carte, même dans les zones pas encore explorées. Quand ils sont hors du cadre de la minicarte, une **flèche orange** sur le bord donne leur direction.
+- Au début de chaque monde, une ligne annonce **combien de totems de boss** il contient (il y en a toujours entre 1 et 3) ; la légende de la grande carte le rappelle.
+
+### Modifié
+
+- **Élites** : elles se reconnaissent de loin. Une **couronne** dorée tourne au-dessus de leur tête, une **aura** les entoure, leur anneau au sol est plus large et doublé, leur or est plus franc et il bat. Elles sont aussi un peu plus grandes à l'image (leur taille de collision ne change pas).
+- **Sons de drop** : le son d'un bonus qui tombe au sol est plus fort, plus long (deux notes) et ne se fait plus couper par le bruit du combat. Même traitement pour le son des coffres lâchés.
+- **Minicarte** : les bonus au sol sont des **étoiles** cerclées, plus des points ronds, pour ne plus les confondre avec un crâne, un sanctuaire ou un boss.
+- **Aimant** (le bonus qui attire toute l'XP) : **rose vif** au lieu du violet, qui reste la couleur des crânes.
+- Le bonus lâché par une élite tombe à côté de son coffre : il le cachait.
+- Un totem de boss déjà activé reste sur la carte, en gris.
+
+### Technique
+
+- Sim : `Ev.ChestDrop` (x, z, v = 1 pour un boss) émis par `dropChest` ; `POWER.eliteScatter` (le bonus d'une élite est décalé, sans tirage de plus : la suite du rng ne change pas). Test : au moins `BOSSTOTEM.min` totems de boss aux trois mondes sur 100 graines (900 cartes comptées à la main : 0 échec ; le retour « pas dans chaque monde » venait de la minicarte).
+- Rendu, aucun appel de dessin en plus : couronne dans `gemW`, aura et halo des coffres dans `glowW`, second anneau dans `metW` (`ELITE_RINGS` 48 → 96), colonne des coffres dans `beamW` (capacité + `CAPS.chests`). Élites relevées dans la boucle des ennemis (`eliteBuf`, tableau fixe) et marquées quand les écrivains sont ouverts. `FEEL.elite`, `FEEL.chestDrop`.
+- Son : `PRIO.drop` (4, au-dessus de `kill`) ; `powerDrop()` passait à 70 % en priorité `pickup`, refusée dès 4 voix actives ; `chestDrop(boss)` composé des échantillons `coin` et `powerDrop`, sans nouveau fichier audio. Compteur `drops` dans l'état audio pour les tests.
+- Minicarte (`src/ui/minimap.ts`) : `star()`, totems de boss sans `seenAt`, dessinés après le marchand et les bonus, flèche de bord (minicarte seulement). `debug.elite()` pour les tests.
+- Budget d'appels de dessin inchangé (`e2e/stress.spec.ts`, mobile, rendu net) : 33 avec quatre armes, 37 au pire point de la carte, pour 40. Bench : p95 1,00 ms, tas +0,38 Mo, instantané 3,9 ms. Relecture perf approuvée ; ses remarques appliquées (capacité de `gemW`, anneaux seulement pour une élite marquée, test du nombre d'appels).
+
 ## 1.53.1 — 12 nov. 2026 (budget de rendu du téléphone tenu avec les crânes et les totems de boss)
 
 Un réglage de fluidité pour les téléphones, sans rien changer au jeu.

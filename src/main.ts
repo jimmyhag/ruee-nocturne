@@ -1377,6 +1377,7 @@ const mapView = new MapView($('minimap') as HTMLCanvasElement, $('bigmap') as HT
 let mapFrom: 'play' | 'pause' = 'play';
 let bossTotemNote = -1; // phase 51 : monde dont le nombre de totems de boss a été annoncé
 const BOSS_TOTEM_NOTE_AT = 2.5; // s du monde
+const BOSS_TOTEM_NOTE_LATE = 12; // s du monde : au-delà, on ne l'annonce plus
 let slideBtnOn = false; // bouton GLISSE allumé pendant la glissade
 function openMap(): void {
   if (!world || (app !== 'play' && app !== 'pause')) return;
@@ -2581,12 +2582,15 @@ function frame(nowMs: number): void {
       document.body.classList.toggle('timestop', frozenNow);
     }
     mapView.update(world, realDt); // phase 27 : minicarte (4 fois par seconde)
-    // phase 51 : le nombre de totems de boss du monde s'annonce une fois, après la bannière d'arrivée (elle dure 1,8 s).
-    // Une partie reprise plus loin dans le monde ne le répète pas
+    // phase 51 : le nombre de totems de boss du monde s'annonce une fois, après la bannière d'arrivée. L'annonce attend
+    // qu'aucune autre bannière ne soit affichée (elle écrasait celle d'un bonus ramassé tôt) et se tait passé
+    // BOSS_TOTEM_NOTE_LATE s : une partie reprise plus loin dans le monde ne la répète pas
     if (bossTotemNote !== world.stage && world.stageT > BOSS_TOTEM_NOTE_AT) {
-      if (world.stageT < BOSS_TOTEM_NOTE_AT + 2 && !world.endless && world.mode === Mode.Play)
+      if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless) bossTotemNote = world.stage;
+      else if (world.mode === Mode.Play && !hud.bannerOn) {
         hud.banner(t('banner.bossTotems', { n: world.bossTotems.length }));
-      bossTotemNote = world.stage;
+        bossTotemNote = world.stage;
+      }
     }
     const slideOn = world.player.sliding;
     if (slideOn !== slideBtnOn) {

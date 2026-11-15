@@ -537,6 +537,10 @@ export class Hud {
     this.els.kit.innerHTML = parts.join('');
   }
 
+  /** Une bannière est affichée (phase 51 : une annonce secondaire attend son tour au lieu de l'écraser). */
+  get bannerOn(): boolean {
+    return this.els.banner.classList.contains('on');
+  }
   banner(txt: string): void {
     const b = this.els.banner;
     b.textContent = txt;

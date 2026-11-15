@@ -38,19 +38,24 @@ test('élite : couronne, aura, double anneau ; tuée, son coffre s’annonce (co
         calls: g.renderer.info.render.calls as number,
       };
     });
+  // d'abord le monstre de base seul : la mesure « avant » a déjà son maillage et son ombre
+  await page.evaluate(() => (window as any).__game.debug.spawn(0, 1, 3.2));
+  await page.waitForTimeout(2000); // quelques images, même à 1 image par seconde en rendu logiciel
   const before = await count();
   expect(before.elites).toBe(0);
-  await page.evaluate(() => {
-    const g = (window as any).__game;
-    g.debug.spawn(0, 1, 3.2); // monstre de base, devant
-    g.debug.elite(0, 3.2, 1.2, 1); // élite du même type, à côté (1 PV : elle tombera au premier coup)
-  });
-  await page.waitForTimeout(500);
+  // puis l'élite du même type, à côté (1 PV : elle tombera au premier coup)
+  await page.evaluate(() => (window as any).__game.debug.elite(0, 3.2, 1.2, 1));
+  // on attend l'image où l'élite est dessinée (ses deux anneaux), pas une durée
+  await expect.poll(async () => (await count()).met - before.met, { timeout: 20_000 }).toBe(2);
   const marks = await count();
   expect(marks.elites).toBe(1);
   expect(marks.met - before.met, 'deux anneaux dorés').toBe(2);
   expect(marks.gem - before.gem, 'la couronne').toBe(1);
   expect(marks.glow - before.glow, 'l’aura').toBeGreaterThanOrEqual(1);
+  // aucun maillage nouveau : une élite n'ajoute d'appel que si un de ses trois écrivains (anneaux, cristaux, lueurs)
+  // était vide, comme ici en tout début de partie. En combat ils sont déjà dessinés (gemmes au sol, armes lumineuses)
+  expect(marks.calls - before.calls, 'appels de dessin ajoutés par une élite, au pire').toBeLessThanOrEqual(3);
+  expect(marks.calls, 'budget d’appels').toBeLessThanOrEqual(p === 'mobile' ? 40 : 80);
   await page.screenshot({ path: `shots/${p}-elite.png` });
 
   // l'élite meurt : un coffre lâché, sa colonne, son halo, et le son de drop part
@@ -63,12 +68,18 @@ test('élite : couronne, aura, double anneau ; tuée, son coffre s’annonce (co
   });
   await page.waitForFunction(() => (window as any).__game.world.chestCount === 1, null, { timeout: 30_000 });
   await page.evaluate(() => (window as any).__game.debug.speed(0));
-  await page.waitForTimeout(500);
-  const drop = (await page.evaluate(() => {
-    const g = (window as any).__game,
-      s = g.scene;
-    return { chest: s.chestW.mesh.count, beam: s.beamW.mesh.count, drops: g.audio.drops };
-  })) as Record<string, number>;
+  const readDrop = () =>
+    page.evaluate(() => {
+      const g = (window as any).__game,
+        s = g.scene;
+      return {
+        chest: s.chestW.mesh.count as number,
+        beam: s.beamW.mesh.count as number,
+        drops: g.audio.drops as number,
+      };
+    });
+  await expect.poll(async () => (await readDrop()).chest, { timeout: 20_000 }).toBe(1);
+  const drop = await readDrop();
   expect(drop.chest).toBe(1);
   expect(drop.beam - before.beam, 'colonne du coffre lâché').toBe(1);
   expect(drop.drops - drops0, 'le son du coffre est parti').toBe(1);
