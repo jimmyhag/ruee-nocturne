@@ -881,7 +881,7 @@
   "stats.ehp": "Monster HP",
   "stats.edmg": "Monster damage",
   "stats.espd": "Monster speed",
-  "stats.erate": "Monster count",
+  "stats.erate": "Monster spawn rate",
   "hud.enemies": "Enemies {x}",
   "boss.more": "{name} +{n}",
   "banner.bossTotem": "Extra bosses: +{n} per wave",

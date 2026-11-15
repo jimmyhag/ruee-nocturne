@@ -22,7 +22,7 @@ import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
 import { BOON_ICON, ITEM_ICON, POWER_ICON, SPELL_ICON, TOME_ICON, WEAPON_ICON } from './icons';
-import { boonNow, multText } from './stats';
+import { boonNow, multQuant, multText } from './stats';
 
 const PAL_POWER = PAL.power;
 import type { World } from '../sim/world';
@@ -380,18 +380,24 @@ export class Hud {
       this.els.diffLbl.textContent = t('hud.difficulty', { n: diff });
     }
     // phase 53 (demande de Jimmy) : intensité des monstres, « Ennemis ×2,4 » = leurs PV par rapport au début de partie.
-    // Le texte n'est refait que quand le dixième change : aucune chaîne construite par image
-    const foes = Math.round(enemyIntensity(w, this.foes).hp * 10);
+    // Le texte n'est refait que quand la valeur affichée change (multQuant) : aucune chaîne construite par image,
+    // même en prolongation où les PV montent de plusieurs dixièmes par image
+    const foes = multQuant(enemyIntensity(w, this.foes).hp);
     if (this.cache.foes !== foes) {
       this.cache.foes = foes;
       this.els.foesLbl.hidden = false;
-      this.els.foesLbl.textContent = t('hud.enemies', { x: multText(foes / 10) });
+      this.els.foesLbl.textContent = t('hud.enemies', { x: multText(foes) });
     }
     this.cache.poiOn = kind;
     if (kind !== 0) this.width('poiFill', fill);
     // fantôme de PV : rattrape en 400 ms (transition CSS) → lisibilité de la quantité perdue
     this.width('hpghost', P.hp / P.maxHp);
-    this.text('hptxt', Math.ceil(Math.max(0, P.hp)) + ' / ' + P.maxHp);
+    const hpShown = Math.ceil(Math.max(0, P.hp));
+    if (this.cache.hpShown !== hpShown || this.cache.hpMax !== P.maxHp) {
+      this.cache.hpShown = hpShown;
+      this.cache.hpMax = P.maxHp;
+      this.els.hptxt.textContent = hpShown + ' / ' + P.maxHp; // construite seulement quand les PV affichés changent
+    }
     this.text('lvl', String(P.level));
     // phase 37 : « Monde 2 », chrono qui descend ; après 0:00, le dépassement en rouge (+0:45)
     const stageKey = w.endless ? -1 : w.stage;

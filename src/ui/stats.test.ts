@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BOON, BOON_KEYS } from '../sim/balance';
 import { applyBoon } from '../sim/poi';
 import { World } from '../sim/world';
-import { STAT_ROWS, boonNow, statValue, statsHTML } from './stats';
+import { STAT_ROWS, boonNow, multQuant, multText, statValue, statsHTML } from './stats';
 
 describe('fiche de stats', () => {
   it('chaque bonus de sanctuaire a sa ligne dans la fiche', () => {
@@ -36,5 +36,22 @@ describe('fiche de stats', () => {
     expect(html.match(/class="statgroup g-/g)?.length).toBe(6);
     expect(html.match(/<li>/g)?.length).toBe(STAT_ROWS.filter((r) => !r.hidden).length); // phase 52 : la réserve du héros est comptée dans « réserve de soin »
     expect(html).not.toMatch(/stats\.[a-z.]+/); // une clé i18n absente ressortirait telle quelle
+  });
+  // relecture perf de la phase 53 : la pastille « Ennemis × » ne doit pas changer de texte à chaque image
+  it('multiplicateur : un dixième sous ×10, l’unité sous ×100, la dizaine au-delà', () => {
+    expect(multText(1)).toBe('×1,0');
+    expect(multText(2.44)).toBe('×2,4');
+    expect(multText(9.96)).toBe('×10');
+    expect(multText(37.4)).toBe('×37');
+    expect(multText(592.3)).toBe('×590');
+    // en prolongation les PV gagnent ≈ 0,7 par image vers ×590 : la valeur affichée ne bouge qu'une fois sur quatorze
+    let changes = 0,
+      last = multQuant(590);
+    for (let v = 590; v < 690; v += 0.7) {
+      const q = multQuant(v);
+      if (q !== last) changes++;
+      last = q;
+    }
+    expect(changes).toBe(10);
   });
 });

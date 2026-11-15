@@ -170,6 +170,19 @@ describe('monde infini resserré (phase 43)', () => {
     expect(arrivals).toBe(8);
     expect(w.merchant.endlessVisits).toBe(8);
   });
+  it('partie reprise tard (sauvegarde d’avant la 1.56) : un seul passage, le suivant à la prochaine vague', () => {
+    const w = endless(42);
+    w.merchant.active = false;
+    w.merchant.endlessNext = ENDLESS.merchantAt + 2 * ENDLESS.period; // figé au troisième créneau par l'ancienne limite
+    w.endlessT = ENDLESS.merchantAt + 11 * ENDLESS.period + 20;
+    let arrivals = 0;
+    for (let f = 0; f < 30; f++) {
+      step(w, still, STEP);
+      arrivals += count(w, Ev.MerchantArrive);
+    }
+    expect(arrivals).toBe(1);
+    expect(w.merchant.endlessNext).toBeCloseTo(ENDLESS.merchantAt + 12 * ENDLESS.period, 6);
+  });
   it('les PV de tous les boss sont relevés (BOSS.hpMul)', () => {
     const w = new World(43);
     w.player.maxHp = w.player.hp = 1e9;

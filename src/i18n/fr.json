@@ -881,7 +881,7 @@
   "stats.ehp": "PV des monstres",
   "stats.edmg": "Dégâts des monstres",
   "stats.espd": "Vitesse des monstres",
-  "stats.erate": "Nombre de monstres",
+  "stats.erate": "Apparitions de monstres",
   "hud.enemies": "Ennemis {x}",
   "boss.more": "{name} +{n}",
   "banner.bossTotem": "Boss en plus : +{n} par vague",

@@ -41,7 +41,10 @@ export function tickMerchant(w: World): void {
     // phase 53 (demande de Jimmy) : il revient entre chaque vague, sans limite. La phase 43 l'arrêtait après deux
     // passages ; ses prix (+35 % par visite, +25 % par objet porté, relance qui double) le freinent déjà
     if (w.endlessT >= M.endlessNext) {
-      M.endlessNext += ENDLESS.period;
+      // prochain passage après maintenant : une partie de la 1.55 reprise tard (son compteur s'était arrêté au
+      // deuxième passage) ne rattrape pas les passages manqués un par un
+      do M.endlessNext += ENDLESS.period;
+      while (M.endlessNext <= w.endlessT);
       M.endlessVisits++;
       if (!M.active) arrive(w); // encore là (rare) : on saute cette visite
     }

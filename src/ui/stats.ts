@@ -82,9 +82,18 @@ export const STAT_ROWS: StatRow[] = [
 ];
 const ROW: Record<string, StatRow> = Object.fromEntries(STAT_ROWS.map((r) => [r.key, r]));
 
-/** « ×2,4 » : un multiplicateur à une décimale (fiche de pause et pastille du HUD). */
-export const multText = (v: number): string =>
-  `×${(Math.round(v * 10) / 10).toFixed(1).replace('.', getLang() === 'fr' ? ',' : '.')}`;
+/**
+ * Arrondit un multiplicateur à la précision qu'on affiche : un dixième sous ×10, l'unité sous ×100, la dizaine au-delà.
+ * Le HUD compare cette valeur d'une image à l'autre : en prolongation les PV des monstres gagnent plusieurs dixièmes
+ * par image, et un cache au dixième aurait refait le texte à chaque fois (relecture perf de la phase 53).
+ */
+export const multQuant = (v: number): number =>
+  v < 9.95 ? Math.round(v * 10) / 10 : v < 99.5 ? Math.round(v) : Math.round(v / 10) * 10;
+/** « ×2,4 », « ×37 », « ×590 » : un multiplicateur à la précision de multQuant (fiche de pause et pastille du HUD). */
+export function multText(v: number): string {
+  const q = multQuant(v);
+  return `×${q < 9.95 ? q.toFixed(1).replace('.', getLang() === 'fr' ? ',' : '.') : fmtNum(q)}`;
+}
 
 function show(fmt: Fmt, v: number): string {
   switch (fmt) {
