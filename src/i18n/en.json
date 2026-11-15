@@ -784,8 +784,6 @@
   "banner.survivalSoon": "A survival boss is coming!",
   "banner.survival": "Survival boss · {name}",
   "banner.enrage": "The boss is enraged!",
-  "banner.merchantLast": "The merchant's last visit",
-  "merchant.last": "This is his last visit: he will not come back.",
   "card.itemMax": "Item ×{n} · max",
   "gear.max": "{name} (max)",
   "lib.copies": "Up to ×{n} per run",

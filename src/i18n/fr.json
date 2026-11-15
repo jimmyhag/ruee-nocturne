@@ -784,8 +784,6 @@
   "banner.survivalSoon": "Un boss de survie arrive !",
   "banner.survival": "Boss de survie · {name}",
   "banner.enrage": "Le boss enrage !",
-  "banner.merchantLast": "Dernier passage du marchand",
-  "merchant.last": "C'est son dernier passage : il ne reviendra plus.",
   "card.itemMax": "Objet ×{n} · max",
   "gear.max": "{name} (max)",
   "lib.copies": "Jusqu'à ×{n} par partie",

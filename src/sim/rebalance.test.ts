@@ -155,22 +155,20 @@ describe('monde infini resserré (phase 43)', () => {
     expect(c.picks).toBe(ENDLESS.chestPicks);
     expect(ENDLESS.chestPicks).toBeLessThan(CHEST.bossPicks);
   });
-  it(`le marchand passe ${ENDLESS.merchantVisits} fois, annonce son dernier passage, puis ne revient plus`, () => {
+  it('phase 53 : le marchand revient à chaque vague, sans limite (la phase 43 l’arrêtait après deux passages)', () => {
     const w = endless(42);
     w.merchant.active = false;
-    let arrivals = 0,
-      last = 0;
+    let arrivals = 0;
     for (let k = 0; k < 8; k++) {
       w.endlessT = ENDLESS.merchantAt + k * ENDLESS.period - 0.05;
       for (let f = 0; f < 12; f++) {
         step(w, still, STEP);
         arrivals += count(w, Ev.MerchantArrive);
-        last += count(w, Ev.MerchantLast);
       }
       w.merchant.active = false; // reparti
     }
-    expect(arrivals).toBe(ENDLESS.merchantVisits);
-    expect(last).toBe(1);
+    expect(arrivals).toBe(8);
+    expect(w.merchant.endlessVisits).toBe(8);
   });
   it('les PV de tous les boss sont relevés (BOSS.hpMul)', () => {
     const w = new World(43);

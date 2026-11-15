@@ -394,7 +394,6 @@ export const ENDLESS = {
   // (laissé par le dernier boss en vie), avec chestPicks objet
   healFrac: 0.6,
   chestPicks: 1,
-  merchantVisits: 2, // le marchand passe deux fois (1:15 et 3:45), puis plus jamais (demande de Jimmy)
   // phase 43 : en monde infini le temps de difficulté (diffT) avance `diffRate` fois moins vite qu'en monde. Avant, il
   // continuait à pleine vitesse (PV des monstres +7,5 par minute, dégâts +1,3) en plus de la rampe ci-dessous : avec le
   // plafond de niveau 40, c'est la horde qui tuait en 3 min, pas les boss (qui tombaient en 18 s). La rampe reste le
@@ -408,7 +407,9 @@ export const ENDLESS = {
   ramp: { rate: [0.02, 0.0005], hp: [0.04, 0.002], dmg: [0.03, 0.0015], spd: [0.01, 0], spdMax: 1.5 },
   maxAlive: 6, // boss vivants au plus (au-delà, la vague attend) ; le rendu a la même capacité par type de boss
   dist: 12, // u du joueur, répartis en cercle
-  merchantAt: 75, // 1.34.1 : le marchand repasse à 1:15, puis toutes les ENDLESS.period s (entre deux vagues de boss)
+  // 1.34.1 : le marchand repasse à 1:15, puis toutes les ENDLESS.period s (entre deux vagues de boss). Phase 43 : deux
+  // passages puis plus jamais ; phase 53 (demande de Jimmy) : de nouveau à chaque vague, sans limite
+  merchantAt: 75,
 };
 
 // zones de terrain (PLAN §3.4) : lacs qui ralentissent, bois denses qui canalisent

@@ -22,7 +22,7 @@ export interface MerchantState {
   inside: boolean; // le joueur est dans l'échoppe (il doit en sortir pour la rouvrir)
   rerolls: number;
   endlessNext: number; // 1.34.1 : endlessT de la prochaine visite en monde infini
-  endlessVisits: number; // phase 43 : passages faits en monde infini (ENDLESS.merchantVisits au plus)
+  endlessVisits: number; // phase 43 : passages faits en monde infini (phase 53 : sans limite)
 }
 export function makeMerchant(): MerchantState {
   return { active: false, x: 0, z: 0, until: 0, visit: -1, next: 0, rolled: false, inside: false, rerolls: 0, endlessNext: ENDLESS.merchantAt, endlessVisits: 0 };
@@ -38,14 +38,12 @@ export function tickMerchant(w: World): void {
   // phase 37 : aux heures MERCHANT.times de chaque monde (chrono du monde) ; 1.34.1 : en monde infini, entre deux vagues
   // de boss (ENDLESS.merchantAt après chaque vague, sur le chrono du monde infini)
   if (w.endless) {
-    // phase 43 (demande de Jimmy) : ENDLESS.merchantVisits passages, puis plus de marchand
-    if (M.endlessVisits < ENDLESS.merchantVisits && w.endlessT >= M.endlessNext) {
+    // phase 53 (demande de Jimmy) : il revient entre chaque vague, sans limite. La phase 43 l'arrêtait après deux
+    // passages ; ses prix (+35 % par visite, +25 % par objet porté, relance qui double) le freinent déjà
+    if (w.endlessT >= M.endlessNext) {
       M.endlessNext += ENDLESS.period;
       M.endlessVisits++;
-      if (!M.active) {
-        arrive(w); // encore là (rare) : on saute cette visite
-        if (M.endlessVisits >= ENDLESS.merchantVisits) w.emit(Ev.MerchantLast, M.x, 0, M.z);
-      }
+      if (!M.active) arrive(w); // encore là (rare) : on saute cette visite
     }
   } else if (!M.active && M.next < MERCHANT.times.length && w.stageT >= MERCHANT.times[M.next]) {
     M.next++;

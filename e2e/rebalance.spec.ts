@@ -1,5 +1,5 @@
 // Phase 43 (grand rééquilibrage, demande de Jimmy) : relance du marchand qui double, objet au plafond marqué « max »,
-// dernier passage du marchand en monde infini, nouvelles attaques des boss et rage (captures à lire).
+// marchand du monde infini (phase 53 : à chaque vague), nouvelles attaques des boss et rage (captures à lire).
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { collectConsoleErrors, openGame, startRun } from './helpers';
@@ -58,11 +58,9 @@ test('marchand : la relance coûte 60 or puis double ; un objet au plafond est m
   expect(errors).toEqual([]);
 });
 
-test('monde infini : le marchand passe deux fois, annonce son dernier passage, puis ne revient plus', async ({
-  page,
-  hasTouch,
-}) => {
-  test.setTimeout(120_000);
+// phase 53 (demande de Jimmy) : la phase 43 l'arrêtait après deux passages, il revient maintenant à chaque vague
+test('monde infini : le marchand revient entre chaque vague, sans dernier passage', async ({ page, hasTouch }) => {
+  test.setTimeout(150_000);
   const errors = collectConsoleErrors(page);
   await openGame(page);
   await startRun(page);
@@ -79,30 +77,28 @@ test('monde infini : le marchand passe deux fois, annonce son dernier passage, p
       w.nextEndlessBoss = 1e9; // pas de vague de boss : on observe le marchand
     });
   await leave();
-  // premier passage à 1:15
-  await page.evaluate(() => (window as any).__game.debug.endlessTime(74.5));
-  await expect(page.locator('#banner')).toContainText(/marchand est arrivé|merchant/i, { timeout: 15_000 });
-  expect(await visits()).toBe(1);
-  await leave();
-  // second et dernier passage à 3:45 : annoncé
-  await page.evaluate(() => (window as any).__game.debug.endlessTime(224.5));
-  await expect(page.locator('#banner')).toContainText(/Dernier passage|last visit/i, { timeout: 15_000 });
-  expect(await visits()).toBe(2);
-  // dans l'échoppe, la note le dit aussi
-  await page.evaluate(() => {
-    const g = (window as any).__game;
-    g.debug.teleport(g.world.merchant.x, g.world.merchant.z);
-  });
-  await page.waitForSelector('#merchant:not([hidden])');
-  await expect(page.locator('#mNote')).toContainText(/dernier passage|last visit/i);
-  await press(page, hasTouch, 'Escape', '#mLeave');
-  await page.waitForFunction(() => (window as any).__game.app === 'play');
-  await leave();
-  // plus jamais ensuite
-  await page.evaluate(() => (window as any).__game.debug.endlessTime(374.5));
-  await page.waitForFunction(() => (window as any).__game.world.endlessT > 376, null, { timeout: 20_000 });
-  expect(await visits()).toBe(2);
-  expect(await page.evaluate(() => (window as any).__game.world.merchant.active)).toBe(false);
+  // passages à 1:15, 3:45, 6:15 et 8:45 : le troisième et le quatrième n'existaient pas avant
+  for (let k = 0; k < 4; k++) {
+    await page.evaluate((at) => (window as any).__game.debug.endlessTime(at), 74.5 + k * 150);
+    await page.waitForFunction((n) => (window as any).__game.world.merchant.endlessVisits === n, k + 1, {
+      timeout: 20_000,
+    });
+    expect(await page.evaluate(() => (window as any).__game.world.merchant.active)).toBe(true);
+    if (k === 2) {
+      // au troisième passage, l'échoppe s'ouvre comme d'habitude et ne parle plus de dernier passage
+      await page.evaluate(() => {
+        const g = (window as any).__game;
+        g.debug.teleport(g.world.merchant.x, g.world.merchant.z);
+      });
+      await page.waitForSelector('#merchant:not([hidden])');
+      await expect(page.locator('#mNote')).not.toContainText(/dernier passage|last visit/i);
+      await expect(page.locator('#mcards .card').first()).toBeVisible();
+      await press(page, hasTouch, 'Escape', '#mLeave');
+      await page.waitForFunction(() => (window as any).__game.app === 'play');
+    }
+    await leave();
+  }
+  expect(await visits()).toBe(4);
   expect(errors).toEqual([]);
 });
 

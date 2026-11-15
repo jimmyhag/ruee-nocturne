@@ -1,15 +1,4 @@
-import {
-  ELITE_TYPE,
-  ENDLESS,
-  ENEMIES,
-  ITEM_KEYS,
-  MAP,
-  POWER_KEYS,
-  REAPER_TYPE,
-  SLIDE,
-  STAGE,
-  STEP,
-} from './sim/balance';
+import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STAGE, STEP } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell, HIT_CRIT, HitSrc } from './sim/types';
 import { POWER_ICON } from './ui/icons';
@@ -797,13 +786,7 @@ function openMerchant(): void {
 function renderMerchant(): void {
   if (!world) return;
   $('mGold').textContent = t('gold', { n: Math.floor(world.gold) });
-  // phase 43 : en monde infini, le dernier passage est dit dans l'échoppe aussi
-  const lastVisit = world.endless && world.merchant.endlessVisits >= ENDLESS.merchantVisits;
-  $('mNote').textContent = !canGainItem(world)
-    ? t('merchant.full')
-    : lastVisit
-      ? `${t('merchant.hint')} ${t('merchant.last')}`
-      : t('merchant.hint');
+  $('mNote').textContent = !canGainItem(world) ? t('merchant.full') : t('merchant.hint');
   renderCards($('mcards'), world.offers, world, { gold: world.gold, full: !canGainItem(world) });
   const cost = rerollCost(world);
   const rr = $('mReroll') as HTMLButtonElement;
@@ -2310,9 +2293,6 @@ function handleEvents(w: World, now: number): void {
       case Ev.MerchantArrive:
         hud.banner(t('banner.merchant'));
         audio.chest();
-        break;
-      case Ev.MerchantLast:
-        hud.banner(t('banner.merchantLast')); // phase 43 : émis juste après MerchantArrive, il remplace sa bannière
         break;
       case Ev.Explored:
         // phase 53 (demande de Jimmy) : carte du monde explorée à 100 %, prime d'or

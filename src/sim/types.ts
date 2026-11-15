@@ -241,7 +241,6 @@ export const enum Ev {
   EndlessStart, // phase 39 : le joueur continue en monde infini
   EndlessWave, // phase 39 : vague de boss du monde infini, v = numéro (1..), x2 = nombre de boss
   BossEnrage, // phase 43 : un boss en vie depuis BOSS.enrage.after s enrage, en (x,y,z), v = type
-  MerchantLast, // phase 43 : dernier passage du marchand en monde infini, échoppe en (x,z)
   Puddle, // phase 47 C : flaque de Vitriol posée en (x,z), v = rayon
   Beacon, // phase 47 C : balise posée en (x,z), v = portée
   Whip, // phase 47 C : claque du Fouet depuis (x,y,z), v = longueur, (x2, z2) = direction
