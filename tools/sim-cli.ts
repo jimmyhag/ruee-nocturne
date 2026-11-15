@@ -197,6 +197,7 @@ interface RunResult {
   powersDropped: number; // phase 35 : bonus apparus
   powersTaken: number; // phase 35 : bonus ramassés
   shrines: number; // sanctuaires pris
+  boons: number[]; // phase 52 : prises par bonus de sanctuaire (ordre BOON_KEYS)
   skulls: number; // phase 48 : crânes de difficulté activés
   difficulty: number; // difficulté ajoutée en fin de partie (0 = 100 %)
   bossTotems: number; // totems de boss activés
@@ -407,6 +408,7 @@ function runOnce(seed: number): RunResult {
     powersDropped: w.powersDropped,
     powersTaken: w.powersTaken,
     shrines: w.shrinesUsed,
+    boons: Array.from(w.boons),
     skulls: w.skullsOn, // phase 48
     difficulty: w.player.difficulty,
     bossTotems: w.bossTotemsOn,
@@ -587,6 +589,11 @@ const summary = {
   ),
   // phase 17 : objets par run, part achetée, objets vus sur l'ensemble des runs, synergies
   itemsPerRun: +(results.reduce((a, r) => a + r.itemN, 0) / RUNS).toFixed(2),
+  // phase 52 : part des runs avec au moins une prise de chaque bonus de sanctuaire, et prises moyennes de « proj »
+  boonShare: Object.fromEntries(
+    BALANCE.BOON_KEYS.map((k, i) => [k, Math.round((results.filter((r) => r.boons[i] > 0).length / RUNS) * 100)]),
+  ),
+  projBoonsPerRun: +(results.reduce((a, r) => a + r.boons[BALANCE.BOON_KEYS.indexOf('proj')], 0) / RUNS).toFixed(2),
   distinctPerRun: +(results.reduce((a, r) => a + r.items.length, 0) / RUNS).toFixed(2),
   topStackP90: pct(
     results.map((r) => r.topStack),
@@ -826,6 +833,11 @@ lines.push(
 lines.push(`vivants/min ${summary.aliveCurve.join(' ')}  (plus forte chute ${summary.maxDrop} pts en 1 min)`);
 lines.push(
   `bonus       ${summary.powersPerMin} ramassés par minute · ${summary.powersTakenPct} % des bonus apparus`,
+  `sanctuaires ${Object.entries(summary.boonShare)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${k} ${v} %`)
+    .join(' · ')} · +1 projectile : ${summary.projBoonsPerRun} par run`,
   `carte       ${summary.mapChestsPerRun} coffres de carte et ${summary.shrinesPerRun} sanctuaires par run · ${summary.goldSpentPct} % de l'or gagné dépensé en partie`,
 );
 lines.push(
