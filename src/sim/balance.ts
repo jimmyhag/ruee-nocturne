@@ -127,6 +127,10 @@ export const DISCOVER = {
   cell: 4,
   radius: 26,
   period: 0.25, // s entre deux mises à jour
+  // phase 53 (demande de Jimmy) : la carte d'un monde explorée « à 100 % » s'annonce et rapporte une prime d'or.
+  // 99,5 % des cases suffisent : c'est l'arrondi de la grande carte (« 100 % exploré »), on ne cherche pas la dernière case
+  full: 0.995,
+  gold: 200, // × l'or du héros ; un à deux coffres de carte en milieu de partie
 };
 
 // pistes chronométrées (phase 28) : passer l'arche du haut, atteindre celle du bas à temps (en glissant, pas en

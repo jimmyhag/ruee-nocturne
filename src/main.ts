@@ -2314,6 +2314,15 @@ function handleEvents(w: World, now: number): void {
       case Ev.MerchantLast:
         hud.banner(t('banner.merchantLast')); // phase 43 : émis juste après MerchantArrive, il remplace sa bannière
         break;
+      case Ev.Explored:
+        // phase 53 (demande de Jimmy) : carte du monde explorée à 100 %, prime d'or
+        hud.banner(t('banner.explored', { n: e.v }));
+        S.particles.burst(e.x, 1, e.z, PAL.gold, (40 * fx) | 0, 7, 8);
+        S.particles.ring(e.x, 0.2, e.z, PAL.gold, (30 * fx) | 0, 5, 6);
+        audio.levelUp();
+        audio.mapChest();
+        hud.flash('gold');
+        break;
       case Ev.MapChestOpen:
         // phase 18 : coffre de carte payé : pièces qui jaillissent, puis le choix d'objet
         S.particles.burst(e.x, e.y, e.z, PAL.gold, (26 * fx) | 0, 6, 7);

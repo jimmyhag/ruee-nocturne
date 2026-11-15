@@ -515,6 +515,7 @@
   "power.rage": "Rage",
   "banner.synergy": "Synergie : {name} !",
   "banner.merchant": "Le marchand est arrivé",
+  "banner.explored": "Carte explorée à 100 % · +{n} or",
   "syn.bonus": "Chaque synergie : +PV max et armure, plus à chaque nouvelle.",
   "hud.gold": "Or de la partie",
   "boon.hp.name": "Sanctuaire de vie",

@@ -228,6 +228,8 @@ export class World {
   /** Phase 27 : cases découvertes (DISCOVER.cell u, SEEN_N × SEEN_N), leur nombre, et l'attente avant la prochaine mise à jour. */
   readonly seen = new Uint8Array(SEEN_N * SEEN_N);
   seenCount = 0;
+  /** Phase 53 : la carte de ce monde a été explorée à 100 % (annonce et prime données une seule fois par monde). */
+  exploredAll = false;
   seenT = 0;
   /** Cases pleines de toute la carte (FLOW.cell), lues par le champ de flux ; solidN cases de côté. */
   readonly solidN = Math.ceil((2 * WORLD_HALF) / FLOW.cell);
@@ -387,6 +389,7 @@ export class World {
     this.height.fill(0);
     this.seen.fill(0);
     this.seenCount = 0;
+    this.exploredAll = false;
     this.seenT = 0;
     this.mapChests.length = 0;
     this.shrines.length = 0;
@@ -659,6 +662,13 @@ export function discover(w: World, dt: number): void {
         w.seenCount++;
       }
     }
+  // phase 53 : carte explorée à 100 % (DISCOVER.full), une fois par monde : annonce et prime d'or
+  if (!w.exploredAll && w.seenCount >= DISCOVER.full * SEEN_N * SEEN_N) {
+    w.exploredAll = true;
+    const gold = Math.round(DISCOVER.gold * P.goldMul);
+    w.gold += gold;
+    w.emit(Ev.Explored, P.x, P.y, P.z, gold);
+  }
 }
 
 export function makePlayer(opts?: WorldOptions): Player {

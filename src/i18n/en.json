@@ -515,6 +515,7 @@
   "power.rage": "Rage",
   "banner.synergy": "Synergy: {name}!",
   "banner.merchant": "The merchant has arrived",
+  "banner.explored": "Map 100% explored · +{n} gold",
   "syn.bonus": "Each synergy: more max HP and armor, more with every new one.",
   "hud.gold": "Run gold",
   "boon.hp.name": "Shrine of Life",

@@ -1,12 +1,13 @@
 // Phase 37 : trois mondes (chrono, totem, boss, portail, prolongation, victoire), carte reconstruite à l'identique.
 import { describe, expect, it } from 'vitest';
-import { ENDLESS, ENEMIES, GOLD, STAGE, STEP } from './balance';
+import { DISCOVER, ENDLESS, ENEMIES, GOLD, STAGE, STEP } from './balance';
 import { hitEnemy } from './combat';
 import { endlessBosses, nextStage, stageSeed, startEndless, survivalType } from './stages';
 import { startRun, step } from './step';
 import { Ev, Mode } from './types';
 import type { Input } from './types';
-import { World } from './world';
+import { restoreWorld, snapshotWorld } from './snapshot';
+import { SEEN_N, World } from './world';
 
 const still: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
 const count = (w: World, t: Ev) => {
@@ -456,5 +457,75 @@ describe('boss de survie (phase 42)', () => {
       return [v.enemyCount, v.bossIndex, v.player.x, v.rng.next()];
     };
     expect(play()).toEqual(play());
+  });
+});
+
+// phase 53 (demande de Jimmy) : explorer toute la carte d'un monde s'annonce et rapporte de l'or
+describe('carte explorée à 100 %', () => {
+  /** Tout est découvert sauf `left` cases d'un coin, loin du joueur (il est au centre). */
+  function almost(w: World, left: number): void {
+    w.seen.fill(1);
+    for (let k = 0; k < left; k++) w.seen[k] = 0;
+    w.seenCount = w.seen.length - left;
+  }
+  const TOTAL = SEEN_N * SEEN_N;
+  const over = Math.floor(TOTAL * (1 - DISCOVER.full)); // cases qu'on peut laisser sans perdre les « 100 % »
+
+  it('sous le seuil rien ne se passe ; au seuil, une annonce et la prime d’or, une seule fois', () => {
+    const w = lab(11);
+    step(w, still, STEP);
+    almost(w, over + 2);
+    expect(run(w, 1, still, Ev.Explored)).toBe(0);
+    expect(w.exploredAll).toBe(false);
+    almost(w, over);
+    const gold = w.gold;
+    let prize = 0,
+      n = 0;
+    for (let f = 0; f < 60; f++) {
+      step(w, still, STEP);
+      for (let i = 0; i < w.eventCount; i++)
+        if (w.events[i].type === Ev.Explored) {
+          n++;
+          prize = w.events[i].v;
+        }
+    }
+    expect(n).toBe(1);
+    expect(prize).toBe(Math.round(DISCOVER.gold * w.player.goldMul));
+    expect(w.gold - gold).toBeGreaterThanOrEqual(prize); // la prime est créditée (l'or du temps s'y ajoute)
+    expect(w.exploredAll).toBe(true);
+    expect(run(w, 2, still, Ev.Explored)).toBe(0);
+  });
+  it('l’or du héros (tome Or, objets) multiplie la prime', () => {
+    const w = lab(12);
+    w.player.goldMul = 1.5;
+    step(w, still, STEP);
+    almost(w, 0);
+    let prize = 0;
+    for (let f = 0; f < 60 && !prize; f++) {
+      step(w, still, STEP);
+      for (let i = 0; i < w.eventCount; i++) if (w.events[i].type === Ev.Explored) prize = w.events[i].v;
+    }
+    expect(prize).toBe(Math.round(DISCOVER.gold * 1.5));
+  });
+  it('chaque monde a sa carte : la prime se regagne au monde suivant', () => {
+    const w = lab(13);
+    step(w, still, STEP);
+    almost(w, 0);
+    expect(run(w, 1, still, Ev.Explored)).toBe(1);
+    nextStage(w);
+    expect(w.exploredAll).toBe(false);
+    expect(w.seenCount).toBeLessThan(TOTAL * 0.1);
+    step(w, still, STEP);
+    almost(w, 0);
+    expect(run(w, 1, still, Ev.Explored)).toBe(1);
+  });
+  it('partie gardée puis reprise : la prime déjà donnée ne retombe pas', () => {
+    const w = lab(14);
+    step(w, still, STEP);
+    almost(w, 0);
+    expect(run(w, 1, still, Ev.Explored)).toBe(1);
+    const back = restoreWorld(JSON.parse(JSON.stringify(snapshotWorld(w))));
+    expect(back.exploredAll).toBe(true);
+    expect(run(back, 2, still, Ev.Explored)).toBe(0);
   });
 });

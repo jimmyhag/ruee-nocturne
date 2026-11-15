@@ -247,7 +247,8 @@ export const enum Ev {
   Whip, // phase 47 C : claque du Fouet depuis (x,y,z), v = longueur, (x2, z2) = direction
   SkullOn, // phase 48 : crâne activé en (x,z), v = difficulté ajoutée après coup (0,1 = 110 %)
   BossTotemOn, // phase 48 : totem de boss activé en (x,z), v = boss en plus par vague dans ce monde
-  ChestDrop, // phase 51 : coffre lâché au sol en (x,z), v = 1 pour un coffre de boss ; dernière valeur
+  ChestDrop, // phase 51 : coffre lâché au sol en (x,z), v = 1 pour un coffre de boss
+  Explored, // phase 53 : carte du monde explorée à 100 %, v = or gagné ; dernière valeur
 }
 
 export interface GameEvent {

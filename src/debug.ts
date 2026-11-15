@@ -219,6 +219,13 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       const i = spawnEnemy(world, type, 0, dist);
       if (i >= 0) world.enemies[i].hp = hp;
     },
+    /** Phase 53 : révèle toute la carte du monde (la prime des 100 % tombe au prochain point de découverte). */
+    reveal(): void {
+      const world = w();
+      if (!world) return;
+      world.seen.fill(1);
+      world.seenCount = world.seen.length;
+    },
     /** Phase 51 : pose une élite de `type` à `dist` u, à l'angle `ang` (rad) ; `hp` > 0 fixe ses PV. */
     elite(type: number, dist = 3, ang = 0, hp = 0): void {
       const world = w();
