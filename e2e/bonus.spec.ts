@@ -57,9 +57,21 @@ test('bonus au sol : visibles, ramassés en marchant dessus, effet affiché au H
   expect(await page.evaluate(() => (window as any).__game.world.powerCount)).toBe(5);
   await expect(page.locator('#dmg .pmark:not([hidden])')).toHaveCount(5);
   await page.screenshot({ path: `shots/${info.project.name}-bonus-sol.png` });
-  // marcher dessus
+  // marcher dessus. La bannière « Rage » dure 1,8 s et l'annonce des totems de boss (phase 51) prend sa place dès
+  // qu'elle s'efface : sur un runner lent, lire #banner après coup arrive trop tard. On note donc chaque texte affiché
+  await page.evaluate(() => {
+    const b = document.getElementById('banner')!;
+    const seen: string[] = ((window as any).__banners = []);
+    new MutationObserver(() => seen.push(b.textContent ?? '')).observe(b, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+  });
   await walkRightUntil(page, hasTouch, () => (window as any).__game.world.powerT[4] > 0);
-  await expect(page.locator('#banner')).toContainText('Rage');
+  await expect
+    .poll(() => page.evaluate(() => ((window as any).__banners as string[]).join(' | ')), { timeout: 10_000 })
+    .toContain('Rage');
   const pastille = page.locator('#powers .pw[data-k="rage"]');
   await expect(pastille).toBeVisible();
   await page.screenshot({ path: `shots/${info.project.name}-bonus-rage.png` });

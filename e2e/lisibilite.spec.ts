@@ -60,6 +60,7 @@ test('élite : couronne, aura, double anneau ; tuée, son coffre s’annonce (co
 
   // l'élite meurt : un coffre lâché, sa colonne, son halo, et le son de drop part
   const drops0 = await page.evaluate(() => (window as any).__game.audio.drops as number);
+  const powers0 = await page.evaluate(() => (window as any).__game.world.powerCount as number);
   await page.evaluate(() => {
     const g = (window as any).__game;
     for (const k of Object.keys(g.world.weapons)) delete g.world.weapons[k];
@@ -76,13 +77,17 @@ test('élite : couronne, aura, double anneau ; tuée, son coffre s’annonce (co
         chest: s.chestW.mesh.count as number,
         beam: s.beamW.mesh.count as number,
         drops: g.audio.drops as number,
+        powers: g.world.powerCount as number,
       };
     });
   await expect.poll(async () => (await readDrop()).chest, { timeout: 20_000 }).toBe(1);
   const drop = await readDrop();
   expect(drop.chest).toBe(1);
   expect(drop.beam - before.beam, 'colonne du coffre lâché').toBe(1);
-  expect(drop.drops - drops0, 'le son du coffre est parti').toBe(1);
+  // une élite lâche aussi un bonus au sol une fois sur cinq (POWER.eliteChance), qui a son propre son de drop :
+  // un son au moins (le coffre), un de plus au plus par bonus tombé
+  expect(drop.drops - drops0, 'le son du coffre est parti').toBeGreaterThanOrEqual(1);
+  expect(drop.drops - drops0, 'pas de son de drop en trop').toBeLessThanOrEqual(1 + (drop.powers - powers0));
   await page.screenshot({ path: `shots/${p}-coffre-lache.png` });
   expect(errors).toEqual([]);
 });
