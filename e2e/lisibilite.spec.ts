@@ -125,8 +125,9 @@ test('minicarte : totem de boss sans exploration, flèche de bord, étoile des b
   await openGame(page);
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
   await startRun(page, 7);
-  // le nombre de totems de boss du monde s'annonce après la bannière d'arrivée
-  await expect(page.locator('#banner')).toContainText(/\d totems? de boss dans ce monde/, { timeout: 20_000 });
+  // le nombre de totems de boss du monde s'annonce après la bannière d'arrivée, à 2,5 s de temps de jeu : sur une
+  // machine chargée le jeu tourne à un sixième de l'horloge, 20 s n'y suffisaient pas
+  await expect(page.locator('#banner')).toContainText(/\d totems? de boss dans ce monde/, { timeout: 45_000 });
   const R = 140 / 48; // rayon de base des repères (Math.max(2.5, W / 48))
   const A = R * 1.9; // demi-diagonale du losange d'un totem de boss
   const bt = (await page.evaluate(() => {

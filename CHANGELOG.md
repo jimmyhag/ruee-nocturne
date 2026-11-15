@@ -2,6 +2,38 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.55.0 — 15 nov. 2026 (demande de Jimmy : toutes les stats du jeu dans les sanctuaires)
+
+Les sanctuaires peuvent maintenant donner n'importe quelle stat du jeu, un projectile de plus compris.
+
+### Ajouté
+
+- **Vingt bonus de sanctuaire de plus** : tout ce que seuls les tomes donnaient se trouve aussi dans les sanctuaires.
+  - **+1 projectile pour toutes les armes** (Sanctuaire de la volée). C'est un bonus **rare**, et un sanctuaire en donne **deux au plus** par partie, en plus de ceux du tome.
+  - Projectiles : durée, vitesse. Recul.
+  - Survie : PV par ennemi tué, PV soignés à chaque niveau, réserve de soin, garde, riposte.
+  - Attaque : dégâts à bas PV, revanche, chance de ralentir, durée des ralentissements, dégâts aux ennemis ralentis.
+  - Butin : or des coffres, or par élite, prix du marchand, butin et fréquence des élites, difficulté.
+- La **fiche de stats** de la pause montre maintenant toutes ces stats (38 lignes).
+
+### Modifié
+
+- Un sanctuaire propose toujours **4 choix**, tirés parmi 38 bonus au lieu de 18 : les sanctuaires sont plus variés, une stat précise revient moins souvent.
+- Un bonus qui ne te servirait à rien n'est pas proposé : la **difficulté** attend que tu aies activé un crâne, la **réserve de soin** que tu aies un soin qui y puise, et les deux bonus du **givre** (dégâts aux ennemis ralentis, durée des ralentissements) que tu aies de quoi ralentir ou étourdir.
+- Tome Bastion, ligne de riposte : affichée « +100 % des dégâts de contact renvoyés » (elle disait « +1 »).
+
+### Technique
+
+- `BoonKey`, `BOON_KEYS`, `BOON` : 20 clés de plus, à la suite (l'ordre de `w.boons` et les parties gardées ne bougent pas ; une sauvegarde à 18 cases se reprend). `BOON_MAX` (prises au plus), `BOON_WEIGHT` (`proj` : 1 contre 3), `BOON_STAT`, `BOON_OWN_TEXT`.
+- `applyStat(P, stat, step)` extrait de `applyTomeLine` : un seul code pour une ligne de tome et un bonus de sanctuaire, plafonds compris. Test garde-fou : toute stat de `TOMES` a son bonus.
+- `boonCapped` : bornes de prises, plafonds de garde et de prix, conditions de la difficulté et de la réserve de soin. `rollBoonChoices` pondéré, un tirage par offre comme avant.
+- Outil de simulation : part des parties qui prennent chaque bonus (ligne `sanctuaires`).
+- Mesures (200 parties par graine, bot moyen ; monde 2 atteint / monde 3 / victoire). Kit complet, graines 42 à 45 : 75 / 49 / 23, 70 / 43 / 20, 71 / 45 / 19 et 73 / 47 / 20 % avant ; 70 / 43 / 18, 73 / 41 / 22, 69 / 41 / 21 et 74 / 39 / 20 % après. Kit de départ, graines 42 à 45 : 33 / 26 / 19, 32 / 27 / 22, 28 / 23 / 18 et 28 / 25 / 19 % avant ; 28 / 23 / 19, 32 / 24 / 20, 33 / 28 / 21 et 28 / 22 / 17 % après. Monde infini, temps tenu médian : kit complet 2:54, 3:04, 2:32 et 2:56 avant, 2:46, 3:38, 3:22 et 3:12 après ; kit de départ 7:32, 7:05, 4:24 et 5:03 avant, 3:36, 3:09, 5:03 et 7:05 après (≈ 40 parties seulement continuent en monde infini : la médiane bouge de 3 à 7 min d'une graine à l'autre pour un même réglage). Aucune cible ne change de côté. Un seul écart approche le seuil de lecture : le kit complet atteint le monde 3 dans 41 % des parties au lieu de 46 % (quatre graines dans le même sens, cible ≥ 35 % tenue, victoires inchangées à 20 %) ; piste, non prouvée : un des quatre bonus les plus forts est proposé dans 38 % des sanctuaires au lieu de 67 %. Ablations : sans « +1 projectile » aux sanctuaires 70 / 41 / 18 % (kit complet, graine 42), aucun effet mesurable ; à 5 choix 73 / 46 / 24 et 77 / 43 / 23 % (graines 42 et 43), entre les deux. Le bot prend 2,3 sanctuaires par partie avec le kit complet, 1,6 au départ, et « +1 projectile » 0,06 fois par partie ; aucun bonus ne dépasse 9 % des prises.
+- Cibles à leur limite, avant comme après, non corrigées ici : « monde 2 atteint ≥ 75 % » du kit complet (72 % en moyenne de quatre graines) ; « morts avant 3 min ≤ 20 % » du kit de départ (22 % avant, 20 % après) ; monde infini du kit de départ depuis le niveau 100 (médiane 5:18 en moyenne de quatorze échantillons, de 3:09 à 7:32, pour une cible de 2:30–6 ; neuvième décile au-dessus de 12 min une fois sur deux ; 2:49 et 6:23 avec le plafond à 40).
+- Relecture d'équilibrage : deux bonus du givre (dégâts aux ennemis ralentis, durée des ralentissements) pouvaient être proposés à un héros qui ne ralentit rien ; ils demandent maintenant une source (`chills`, `boonCapped`). Contrôle après cette règle (graine 42) : kit complet 71 / 44 / 18 %, départ 31 / 26 / 20 %.
+- Bench : p95 1,09 ms, tas +0,39 Mo, instantané 3,4 ms. Vitest : 1031 verts. Tests navigateur PC et mobile : `e2e/sanctuaires.spec.ts` (carte « +1 projectile » avec « 0 → 1 », riposte en pourcentage, prix du marchand, bonus pris, fiche de stats à 38 lignes) et 44 autres tests verts (bonus au sol, lisibilité, exploration, difficulté, mondes, partie gardée, fumée, langue, nouveautés) ; deux tests PC hors délai pendant que des simulations occupaient la machine, verts une fois la machine libre ; captures lues (`shots/*-sanctuaire-stats.png`, `shots/*-pause-stats.png`).
+- Tests e2e de la 1.54.0 corrigés (CI rouge sur mobile) : `bonus.spec` lisait la bannière « Rage » après que l'annonce des totems de boss l'avait remplacée, `lisibilite.spec` ne comptait pas le son du bonus qu'une élite lâche une fois sur cinq. Échec reproduit puis vert.
+
 ## 1.54.0 — 15 nov. 2026 (retours de Jimmy : élites, coffres lâchés, sons de drop, minicarte, totems de boss)
 
 Ce qui compte se voit et s'entend : les élites, ce qu'elles lâchent, et les totems de boss sur la carte.

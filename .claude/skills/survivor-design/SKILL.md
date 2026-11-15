@@ -92,8 +92,20 @@ Les objets n'ont pas d'emplacements : seize de plus (32 → 48) n'ont rien chang
 ### Vol de vie et soin (phase 47)
 Tout soin « par coup » passe par la réserve de soin par seconde (`healCap` dans `src/sim/items.ts`) : Croc, Couronne, vol de vie du héros (tome Sang, sanctuaire du sang). Les dégâts montent en multiplicatif, le soin non : un vol de vie sans plafond en PV/s rend le héros immortel en fin de partie. Une nouvelle source de vol de vie ajoute à `Player.steal` et, si besoin, à la réserve ; elle ne soigne jamais directement.
 
-### Sanctuaires (phase 47)
-Dix-huit bonus, un par stat du héros (`BOON`), quatre proposés par sanctuaire. Règles : un bonus = une stat, la même valeur qu'une ligne de tome ou un peu plus (le sanctuaire coûte 4 s immobile dans la horde) ; un bonus plafonné n'est plus proposé (`boonCapped`) ; la carte dit « actuel → nouveau » (`boonNow`, calculé par `boonApply` sur une copie du héros) ; toute stat ajoutée au héros a sa ligne dans la fiche de stats (`STAT_ROWS`, test).
+### Sanctuaires (phases 47 et 52)
+Trente-huit bonus, quatre proposés par sanctuaire : **toute stat qu'un tome porte a son bonus** (`BOON`, test garde-fou dans `src/sim/shrines52.test.ts` : une stat ajoutée à `TOMES` sans son bonus fait échouer la suite). Règles :
+- un bonus = une stat, la valeur d'une ligne de tome (les 18 de la phase 47 un peu plus : le sanctuaire coûte 4 s immobile dans la horde) ; les 20 de la phase 52 passent par `applyStat`, le code des lignes de tome, plafonds compris ;
+- un bonus plafonné n'est plus proposé (`boonCapped`) : plafond de la stat, nombre de prises (`BOON_MAX`, repris des lignes de tome bornées), conditions du tome (difficulté après un crâne, réserve de soin s'il y a un soin), et **pas de carte morte** : un bonus qui n'agit qu'avec une source (dégâts aux ennemis ralentis, durée des ralentissements) n'est proposé que si le héros a cette source (`chills` dans `src/sim/poi.ts` : toute nouvelle façon de ralentir ou d'étourdir s'y déclare) ;
+- **+1 projectile** est rare (`BOON_WEIGHT`, 1 contre 3) et borné à 2 prises. Mesuré : le bot en prend 0,06 par partie, le retirer ne change aucune cible ;
+- la carte dit « actuel → nouveau » (`boonNow`, calculé par `boonApply` sur une copie du héros) ; toute stat ajoutée au héros a sa ligne dans la fiche de stats (`STAT_ROWS`, test) ;
+- un bonus nouveau a une valeur pour le bot (`BOON_VALUE` dans `tools/bots/index.ts`), sinon la simulation le prend au hasard.
+
+Passer de 18 à 38 bonus pour 4 choix n'a fait changer de côté aucune cible (phase 52, 4 graines par profil) : le bot prend ≈ 2 sanctuaires par partie, et chaque bonus vaut une ligne quand une partie en a déjà ≈ 55 à 10 min (niveau 38, 1,5 ligne par carte). Seul écart proche du seuil de lecture : le kit complet atteint le monde 3 dans 41 % des parties au lieu de 46 % (victoires inchangées) ; un des quatre bonus les plus forts n'est plus proposé que dans 38 % des sanctuaires contre 67 %. `SHRINE.offers` à 5 en rend la moitié (46 %) : c'est le levier si les sanctuaires paraissent trop dilués.
+
+**Lire un écart** (relecture de la phase 52) : à 200 parties, une proportion bouge de 4 à 8 points entre deux graines du même réglage (bruit binomial, écart-type ≈ 3 points). Deux fichiers isolés doivent différer de plus de 9 points, deux moyennes de 4 graines de 4,5 à 5 points. L'appariement par graine ne vaut rien : le premier sanctuaire fait diverger la partie.
+
+**Bruit du monde infini** (phase 52) : sur 200 parties, ≈ 40 seulement gagnent et continuent. La médiane du temps tenu va de 3 à 7 min d'une graine à l'autre **pour le même réglage** (kit de départ). Deux graines qui s'accordent ne prouvent rien (elles s'accordaient à 7:32 et 7:05, les deux suivantes ont donné 4:24 et 5:03). Avant de dire qu'un réglage change le monde infini : quatre graines au moins, lire la moyenne des médianes, et garder les sorties (`--out`) pour regrouper les parties. Déplacer un objet au sol de 1,4 u, sans tirage de plus, suffit à faire diverger toutes les parties.
+
 Plus d'évolutions (décision de Jimmy, 4 nov. 2026) : la récompense de run est une arme à 25+ améliorations (succès « Érudit ») et les cartes épiques (succès « Triple ligne »).
 
 ## 6. Ennemis : rôles, pas stats
