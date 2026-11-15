@@ -54,6 +54,38 @@ describe('combat', () => {
     expect(w.chestCount).toBe(1);
     expect(w.chests[0].boss).toBe(false);
   });
+  it('phase 51 : un coffre lâché s’annonce (Ev.ChestDrop, v = 1 pour un coffre de boss)', () => {
+    const drops = (w: World): number[] => {
+      const out: number[] = [];
+      for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.ChestDrop) out.push(w.events[k].v);
+      return out;
+    };
+    // élite : un coffre d'élite
+    const w = new World(4);
+    const i = spawnEnemy(w, 0, 0, 6);
+    w.enemies[i].elite = true;
+    w.clearEvents();
+    killEnemy(w, i);
+    expect(drops(w)).toEqual([0]);
+    expect(w.events.slice(0, w.eventCount).find((e) => e.type === Ev.ChestDrop)).toMatchObject({
+      x: w.chests[0].x,
+      z: w.chests[0].z,
+    });
+    // monstre de base : rien
+    const j = spawnEnemy(w, 0, 0, 6);
+    w.clearEvents();
+    killEnemy(w, j);
+    expect(drops(w)).toEqual([]);
+    // boss du totem (le dernier en vie) : un coffre de boss
+    const b = new World(5);
+    const k = spawnEnemy(b, BOSS_TYPE, 0, 10);
+    b.totemBossId = b.enemies[k].id;
+    b.totemAlive = 1;
+    b.clearEvents();
+    killEnemy(b, k);
+    expect(b.chests[b.chestCount - 1].boss).toBe(true);
+    expect(drops(b)).toEqual([1]);
+  });
   it('au-delà de gemMergeAbove, les gemmes fusionnent au lieu de s’ajouter', () => {
     const w = new World(3);
     for (let k = 0; k < XP.gemMergeAbove; k++) dropGem(w, k, k, 1);

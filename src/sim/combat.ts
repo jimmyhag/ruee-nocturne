@@ -185,6 +185,7 @@ export function dropChest(w: World, x: number, z: number, boss: boolean, picks =
   c.age = 0;
   c.boss = boss;
   c.picks = picks;
+  w.emit(Ev.ChestDrop, x, 0, z, boss ? 1 : 0); // phase 51 : le coffre s'annonce (son, gerbe), il passait inaperçu
 }
 
 /** Retire du pool tous les ennemis marqués morts (swap-remove, ordre non préservé). */

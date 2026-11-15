@@ -78,6 +78,18 @@ describe('totems de boss : placement et activation', () => {
     expect(seen.size).toBe(BOSSTOTEM.max - BOSSTOTEM.min + 1); // chaque nombre sort
     for (const seed of [1, 7, 42]) expect(withTotems(seed, BOSSTOTEM.max).bossTotems.length).toBe(BOSSTOTEM.max); // le maximum tient
   });
+  it('phase 51 : au moins BOSSTOTEM.min totems dans chacun des trois mondes, sur 100 graines', () => {
+    // retour de Jimmy : « le totem de boss n'est pas dans chaque monde ». Il y est (c'est la minicarte qui le cachait) ;
+    // ce test le garantit : placeBossTotems n'a pas de repli si ses essais s'épuisent
+    for (let seed = 1; seed <= 100; seed++) {
+      const w = new World(seed);
+      for (let st = 0; st < STAGE.count; st++) {
+        if (st) nextStage(w);
+        expect(w.bossTotems.length, `graine ${seed}, monde ${st + 1}`).toBeGreaterThanOrEqual(BOSSTOTEM.min);
+        expect(w.bossTotems.length).toBeLessThanOrEqual(BOSSTOTEM.max);
+      }
+    }
+  }, 180_000);
   it('loin du départ, du totem et des autres lieux ; les autres lieux ne bougent pas', () => {
     {
       for (const seed of [1, 7, 42]) {
