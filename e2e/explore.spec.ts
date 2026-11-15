@@ -138,8 +138,8 @@ test('sanctuaire : rester dans le cercle remplit la jauge, puis un bonus pour la
   if (hasTouch) await page.locator('#pauseBtn').tap();
   else await page.locator('#pauseBtn').click();
   await expect(page.locator('#pause')).toBeVisible();
-  await expect(page.locator('#pauseStats .statgroup')).toHaveCount(5);
-  await expect(page.locator('#pauseStats li')).toHaveCount(38); // phase 48 : + la difficulté ; phase 52 : + 17 stats des tomes
+  await expect(page.locator('#pauseStats .statgroup')).toHaveCount(6); // phase 53 : + les ennemis
+  await expect(page.locator('#pauseStats li')).toHaveCount(42); // phase 48 : + la difficulté ; phase 52 : + 17 stats des tomes ; phase 53 : + 4 lignes d'ennemis
   await expect(page.locator('#pauseStats')).toContainText('Vol de vie');
   await expect(page.locator('#pauseStats')).toContainText('Chance');
 });

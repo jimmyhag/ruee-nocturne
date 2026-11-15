@@ -66,7 +66,7 @@ test('sanctuaire : « +1 projectile », lu comme une ligne de tome, avec sa vale
   if (hasTouch) await page.locator('#pauseBtn').tap();
   else await page.locator('#pauseBtn').click();
   await expect(page.locator('#pause')).toBeVisible();
-  await expect(page.locator('#pauseStats li')).toHaveCount(38);
+  await expect(page.locator('#pauseStats li')).toHaveCount(42); // 38 stats du héros, 4 lignes d'ennemis (phase 53)
   await expect(page.locator('#pauseStats li', { hasText: 'Projectiles en plus' }).locator('b')).toHaveText('1');
   for (const name of [
     'Riposte',

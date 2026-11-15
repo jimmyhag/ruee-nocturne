@@ -31,9 +31,9 @@ describe('fiche de stats', () => {
     expect(statValue('steal', w)).toBe(`${Math.round(BOON.steal * 200)} %`);
     expect(statValue('healcap', w)).not.toBe('0');
   });
-  it('HTML : cinq familles, toutes les lignes, aucun texte manquant', () => {
+  it('HTML : six familles (phase 53 : les ennemis), toutes les lignes, aucun texte manquant', () => {
     const html = statsHTML(new World(3));
-    expect(html.match(/class="statgroup g-/g)?.length).toBe(5);
+    expect(html.match(/class="statgroup g-/g)?.length).toBe(6);
     expect(html.match(/<li>/g)?.length).toBe(STAT_ROWS.filter((r) => !r.hidden).length); // phase 52 : la réserve du héros est comptée dans « réserve de soin »
     expect(html).not.toMatch(/stats\.[a-z.]+/); // une clé i18n absente ressortirait telle quelle
   });

@@ -2,15 +2,16 @@
 // choisir, il faut voir où on en est. Lue par l'écran de pause (toutes les lignes) et par les cartes de sanctuaire
 // (« Vol de vie : 2 % → 3 % »). Construite à l'ouverture d'un écran, jamais dans la boucle de jeu.
 import { ITEM, It } from '../sim/balance';
-import { fmtNum, t } from '../i18n';
+import { fmtNum, getLang, t } from '../i18n';
 import { healCap } from '../sim/items';
 import { boonApply } from '../sim/poi';
+import { enemyIntensity, type Intensity } from '../sim/spawner';
 import type { BoonKey, Player } from '../sim/types';
 import type { World } from '../sim/world';
 
-type Group = 'survie' | 'attaque' | 'mouvement' | 'sort' | 'butin';
-/** n : entier ; d1 : une décimale ; pct : part → « 12 % » ; mul : multiplicateur → « 108 % » ; x : « ×2,15 ». */
-type Fmt = 'n' | 'd1' | 'pct' | 'mul' | 'x';
+type Group = 'survie' | 'attaque' | 'mouvement' | 'sort' | 'butin' | 'ennemis';
+/** n : entier ; d1 : une décimale ; pct : part → « 12 % » ; mul : multiplicateur → « 108 % » ; x : « ×2,15 » ; x1 : « ×2,4 ». */
+type Fmt = 'n' | 'd1' | 'pct' | 'mul' | 'x' | 'x1';
 interface StatRow {
   key: string;
   group: Group;
@@ -19,7 +20,8 @@ interface StatRow {
   hidden?: true; // hors de la fiche (déjà comptée dans une autre ligne), mais lisible par une carte de sanctuaire
 }
 
-const GROUPS: Group[] = ['survie', 'attaque', 'mouvement', 'sort', 'butin'];
+const GROUPS: Group[] = ['survie', 'attaque', 'mouvement', 'sort', 'butin', 'ennemis'];
+const INT: Intensity = { hp: 1, dmg: 1, spd: 1, rate: 1 }; // phase 53 : intensité des monstres, relue à chaque ligne
 export const STAT_ROWS: StatRow[] = [
   { key: 'hp', group: 'survie', fmt: 'n', get: (P) => P.maxHp },
   { key: 'regen', group: 'survie', fmt: 'd1', get: (P) => P.regen },
@@ -72,8 +74,17 @@ export const STAT_ROWS: StatRow[] = [
   { key: 'eliterate', group: 'butin', fmt: 'mul', get: (P) => P.eliteRate },
   // phase 48 : difficulté de la partie (crânes, tome de difficulté) : 100 % au départ
   { key: 'difficulty', group: 'butin', fmt: 'pct', get: (P) => P.difficulty }, // phase 50 : 0 % = normal
+  // phase 53 (demande de Jimmy) : ce que valent les monstres qui apparaissent maintenant, par rapport au début de partie
+  { key: 'ehp', group: 'ennemis', fmt: 'x1', get: (_P, w) => enemyIntensity(w, INT).hp },
+  { key: 'edmg', group: 'ennemis', fmt: 'x1', get: (_P, w) => enemyIntensity(w, INT).dmg },
+  { key: 'espd', group: 'ennemis', fmt: 'x1', get: (_P, w) => enemyIntensity(w, INT).spd },
+  { key: 'erate', group: 'ennemis', fmt: 'x1', get: (_P, w) => enemyIntensity(w, INT).rate },
 ];
 const ROW: Record<string, StatRow> = Object.fromEntries(STAT_ROWS.map((r) => [r.key, r]));
+
+/** « ×2,4 » : un multiplicateur à une décimale (fiche de pause et pastille du HUD). */
+export const multText = (v: number): string =>
+  `×${(Math.round(v * 10) / 10).toFixed(1).replace('.', getLang() === 'fr' ? ',' : '.')}`;
 
 function show(fmt: Fmt, v: number): string {
   switch (fmt) {
@@ -86,6 +97,8 @@ function show(fmt: Fmt, v: number): string {
       return `${fmtNum(Math.round(v * 100))} %`;
     case 'x':
       return `×${fmtNum(Math.round(v * 100) / 100)}`;
+    case 'x1':
+      return multText(v);
   }
 }
 

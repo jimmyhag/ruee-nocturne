@@ -9,6 +9,28 @@ export const difficultyOf = (w: World): number => w.player.difficulty; // phase 
 /** Vie des monstres selon la difficulté : ×1 au départ (les boss la prennent aussi, stages.ts). */
 export const difficultyHp = (w: World): number => 1 + DIFFICULTY.hpShare * difficultyOf(w);
 
+/** Multiplicateurs des monstres (phase 53) : voir enemyIntensity. */
+export interface Intensity {
+  hp: number;
+  dmg: number;
+  spd: number;
+  rate: number;
+}
+/**
+ * Phase 53 (demande de Jimmy : « voir l'intensité des ennemis ») : ce que valent les monstres ordinaires qui
+ * apparaissent maintenant, par rapport au tout début d'une partie. PV, dégâts et vitesse reprennent les termes de
+ * spawnEnemy ; `rate` ceux de tickSpawner, sans ses à-coups (accalmie d'un boss, compensation d'ennui). Range le
+ * résultat dans `out` : lue par le HUD à chaque image, aucune allocation.
+ */
+export function enemyIntensity(w: World, out: Intensity): Intensity {
+  const t = w.diffT;
+  out.hp = SPAWN.hpScale(t) * w.overHp * difficultyHp(w);
+  out.dmg = SPAWN.dmgScale(t) * w.overDmg;
+  out.spd = SPAWN.spdScale(t) * w.overSpd;
+  out.rate = (SPAWN.rate(t) / SPAWN.rate(0)) * w.overRate * (1 + difficultyOf(w));
+  return out;
+}
+
 export function spawnEnemy(w: World, type: number, ang: number, dist: number, elite = false): number {
   const e = w.allocEnemy();
   if (!e) return -1;

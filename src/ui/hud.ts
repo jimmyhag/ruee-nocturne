@@ -15,13 +15,14 @@ import {
 import { PAL } from '../render/palette';
 import { canGainItem, maxCopies } from '../sim/items';
 import { mapChestPrice } from '../sim/poi';
+import { enemyIntensity, type Intensity } from '../sim/spawner';
 import { stageLeft } from '../sim/stages';
 import { spellCooldown } from '../sim/spells';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
 import { BOON_ICON, ITEM_ICON, POWER_ICON, SPELL_ICON, TOME_ICON, WEAPON_ICON } from './icons';
-import { boonNow } from './stats';
+import { boonNow, multText } from './stats';
 
 const PAL_POWER = PAL.power;
 import type { World } from '../sim/world';
@@ -55,8 +56,10 @@ export class Hud {
   private cache: Record<string, string | number | boolean | undefined> = {};
   /** Noms de boss précalculés dans la langue courante : aucune chaîne construite par frame. */
   private bossNames: string[] = [];
+  private foes: Intensity = { hp: 1, dmg: 1, spd: 1, rate: 1 }; // phase 53 : rempli par enemyIntensity, jamais réalloué
   private els = {
     diffLbl: $('diffLbl'),
+    foesLbl: $('foesLbl'),
     bossXLbl: $('bossXLbl'),
     xpfill: $('xpfill'),
     xpsweep: $('xpsweep'),
@@ -135,6 +138,7 @@ export class Hud {
     delete this.cache.bossname;
     delete this.cache.bossKey; // phase 48 : la barre (« nom +n ») et la pastille « Boss +n » se réécrivent
     delete this.cache.bossX;
+    delete this.cache.foes; // phase 53 : « Ennemis ×… » suit la langue
   }
 
   reset(): void {
@@ -374,6 +378,14 @@ export class Hud {
       this.cache.diff = diff;
       this.els.diffLbl.hidden = false; // phase 50 : affichée dès 0 %, elle monte sans plafond
       this.els.diffLbl.textContent = t('hud.difficulty', { n: diff });
+    }
+    // phase 53 (demande de Jimmy) : intensité des monstres, « Ennemis ×2,4 » = leurs PV par rapport au début de partie.
+    // Le texte n'est refait que quand le dixième change : aucune chaîne construite par image
+    const foes = Math.round(enemyIntensity(w, this.foes).hp * 10);
+    if (this.cache.foes !== foes) {
+      this.cache.foes = foes;
+      this.els.foesLbl.hidden = false;
+      this.els.foesLbl.textContent = t('hud.enemies', { x: multText(foes / 10) });
     }
     this.cache.poiOn = kind;
     if (kind !== 0) this.width('poiFill', fill);

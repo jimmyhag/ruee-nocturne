@@ -1,7 +1,7 @@
 // Spawner : densité intégrée, vagues, boss, compensation d'ennui, replacement (sim-testing §1).
 import { describe, expect, it } from 'vitest';
-import { ARCHER_TYPE, CAPS, CRACHEUR_TYPE, SORCIER_TYPE, SPAWN, STEP } from './balance';
-import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
+import { ARCHER_TYPE, CAPS, CRACHEUR_TYPE, DIFFICULTY, ENEMIES, SORCIER_TYPE, SPAWN, STEP } from './balance';
+import { enemyIntensity, respawnNear, spawnEnemy, tickSpawner } from './spawner';
 import { startRun, step } from './step';
 import { Ev } from './types';
 import type { Input } from './types';
@@ -113,5 +113,34 @@ describe('spawner', () => {
     const w = new World(7);
     for (let i = 0; i < CAPS.enemies; i++) expect(spawnEnemy(w, 0, i, 20)).toBe(i);
     expect(spawnEnemy(w, 0, 0, 20)).toBe(-1);
+  });
+
+  // phase 53 (demande de Jimmy) : l'intensité affichée au HUD et en pause est celle des monstres qui apparaissent
+  it('intensité : ×1 partout au début d’une partie ; elle annonce les PV, dégâts et vitesse du prochain monstre', () => {
+    const out = { hp: 0, dmg: 0, spd: 0, rate: 0 };
+    const w = new World(4);
+    startRun(w);
+    expect(enemyIntensity(w, out)).toEqual({ hp: 1, dmg: 1, spd: 1, rate: 1 });
+    // plus tard dans le monde, en prolongation, avec de la difficulté : les trois sources se multiplient
+    w.diffT = 400;
+    w.overHp = 1.5;
+    w.overDmg = 1.2;
+    w.overSpd = 1.1;
+    w.overRate = 2;
+    w.player.difficulty = 0.4;
+    enemyIntensity(w, out);
+    expect(out.hp).toBeCloseTo(SPAWN.hpScale(400) * 1.5 * (1 + DIFFICULTY.hpShare * 0.4), 9);
+    expect(out.rate).toBeCloseTo((SPAWN.rate(400) / SPAWN.rate(0)) * 2 * 1.4, 9);
+    const e = w.enemies[spawnEnemy(w, 0, 0, 10)];
+    expect(e.max).toBeCloseTo(ENEMIES[0].hp * out.hp, 6);
+    expect(e.dmgMul).toBeCloseTo(out.dmg, 9);
+    expect(e.spd / out.spd).toBeGreaterThanOrEqual(0.9 - 1e-9); // la vitesse d'un monstre varie de ±10 % autour
+    expect(e.spd / out.spd).toBeLessThanOrEqual(1.1 + 1e-9);
+  });
+  it('intensité : range son résultat dans l’objet donné, sans rien allouer', () => {
+    const out = { hp: 0, dmg: 0, spd: 0, rate: 0 };
+    const w = new World(4);
+    startRun(w);
+    expect(enemyIntensity(w, out)).toBe(out);
   });
 });
