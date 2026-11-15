@@ -57,7 +57,7 @@ describe('sanctuaires : toutes les stats', () => {
       expect(new Set(out.map((c) => c.key)).size).toBe(4);
       for (const c of out) seen.add(c.key);
     }
-    expect(seen.size).toBe(36); // tous finissent par sortir, sauf les deux à condition (soin, crâne activé)
+    expect(seen.size).toBe(34); // tous finissent par sortir, sauf les quatre à condition (soin, ralentissement ×2, crâne activé)
   });
   it('chaque bonus nouveau monte la bonne stat', () => {
     const w = calm();
@@ -91,8 +91,8 @@ describe('sanctuaires : toutes les stats', () => {
   it('un bonus au plafond de sa stat n’est plus proposé', () => {
     const w = calm();
     const P = w.player;
-    // phase 52 : au départ, seuls les deux bonus à condition manquent (un soin à plafonner, un crâne activé)
-    expect(BOON_KEYS.filter((k) => boonCapped(w, k))).toEqual(['stealcap', 'difficulty']);
+    // phase 52 : au départ, seuls les bonus à condition manquent (un soin à plafonner, de quoi ralentir, un crâne activé)
+    expect(BOON_KEYS.filter((k) => boonCapped(w, k))).toEqual(['stealcap', 'chilldmg', 'slowdur', 'difficulty']);
     P.armor = TOME_CAPS.armorMax;
     P.cdMul = TOME_CAPS.cdMin;
     P.spellCdMul = TOME_CAPS.spellCdMin;

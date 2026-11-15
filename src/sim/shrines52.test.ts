@@ -9,13 +9,15 @@ import {
   BOON_STAT,
   CRIT,
   DIFFICULTY,
+  It,
   SHRINE,
   TOMES,
   TOME_KEYS,
 } from './balance';
-import { applyBoon, boonApply, boonCapped, rollBoonChoices } from './poi';
+import { applyBoon, boonApply, boonCapped, chills, rollBoonChoices } from './poi';
 import { restoreWorld, snapshotWorld, type RunSnap } from './snapshot';
 import { startRun } from './step';
+import { Spell, Trait } from './types';
 import type { BoonKey, Card, Player, TomeKey } from './types';
 import { applyTomeLine } from './weapons/defs';
 import { World } from './world';
@@ -91,9 +93,10 @@ describe('sanctuaires : toutes les stats du jeu', () => {
     const ratio = seen.get('proj')! / seen.get('kb')!;
     expect(ratio).toBeGreaterThan(0.25);
     expect(ratio).toBeLessThan(0.45);
-    // tous les bonus proposables sortent (les deux à condition restent dehors au départ)
+    // tous les bonus proposables sortent (les quatre à condition restent dehors au départ)
+    const GATED = ['difficulty', 'stealcap', 'chilldmg', 'slowdur'];
     for (const k of BOON_KEYS) {
-      if (k === 'difficulty' || k === 'stealcap') expect(seen.has(k), k).toBe(false);
+      if (GATED.includes(k)) expect(seen.has(k), k).toBe(false);
       else expect(seen.get(k) ?? 0, k).toBeGreaterThan(0);
     }
   });
@@ -112,6 +115,7 @@ describe('sanctuaires : toutes les stats du jeu', () => {
     for (const key of Object.keys(BOON_MAX) as BoonKey[]) {
       const w = fresh();
       w.player.steal = 0.02; // la réserve de soin demande un soin
+      w.player.slowChance = 0.06; // les bonus du givre demandent de quoi ralentir
       for (let k = 0; k < BOON_MAX[key]!; k++) {
         expect(boonCapped(w, key), `${key} avant la borne`).toBe(false);
         applyBoon(w, key);
@@ -136,6 +140,32 @@ describe('sanctuaires : toutes les stats du jeu', () => {
     expect(boonCapped(w, 'stealcap')).toBe(true);
     applyBoon(w, 'steal');
     expect(boonCapped(w, 'stealcap')).toBe(false);
+  });
+
+  it('givre : dégâts aux ennemis ralentis et durée des ralentissements seulement si le héros ralentit quelque chose', () => {
+    const w = fresh();
+    expect(chills(w)).toBe(false); // Éclaireuse, Orbe, Bond : rien ne ralentit ni n'étourdit
+    expect(boonCapped(w, 'chilldmg')).toBe(true);
+    expect(boonCapped(w, 'slowdur')).toBe(true);
+    expect(boonCapped(w, 'slowchance')).toBe(false); // la source, elle, est toujours proposée
+    applyBoon(w, 'slowchance');
+    expect(boonCapped(w, 'chilldmg')).toBe(false);
+    expect(boonCapped(w, 'slowdur')).toBe(false);
+    // une autre source suffit pour les dégâts (sort, arme, objet, passif), pas pour la durée : elle ne règle que
+    // les ralentissements du Givre et du Halo
+    for (const set of [
+      (v: World) => void (v.spell = Spell.Voile),
+      (v: World) => void (v.trait = Trait.DejaMorte),
+      (v: World) => void (v.weapons.vitriol = 1),
+      (v: World) => void (v.items[It.Corne] = 1),
+      (v: World) => void (v.items[It.Cloche] = 1),
+    ]) {
+      const v = fresh();
+      set(v);
+      expect(chills(v)).toBe(true);
+      expect(boonCapped(v, 'chilldmg')).toBe(false);
+      expect(boonCapped(v, 'slowdur')).toBe(true);
+    }
   });
 
   it('boonApply ne touche que le joueur donné : la carte « actuel → nouveau » travaille sur une copie', () => {

@@ -3,7 +3,7 @@
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
 import { BASTION, BLOOD, BOON, BOON_KEYS, BOON_MAX, BOON_STAT, BOON_WEIGHT, BOON_WEIGHT_DEFAULT, BOSSTOTEM, CRIT, DIFFICULTY, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { bellRing, bourseDiscount, canGainItem } from './items';
-import { Ev } from './types';
+import { Ev, Spell, Trait } from './types';
 import type { BoonKey, Card, Player } from './types';
 import { applyStat, refreshStats } from './weapons/defs';
 import type { Rng } from './rng';
@@ -300,6 +300,20 @@ export function tickPOI(w: World, dt: number): void {
 }
 
 /**
+ * Le héros a de quoi ralentir ou étourdir un ennemi : c'est ce que demande le bonus « dégâts aux ennemis ralentis ».
+ * Sources : chance de ralentir (tome Givre, sanctuaire), Déjà-morte, sorts Éclat, Collet et Voile, Vitriol, ligne de
+ * ralentissement du Halo, ligne d'étourdissement de la Foudre, Corne et Cloche. Une source ajoutée ailleurs se déclare ici.
+ */
+export function chills(w: World): boolean {
+  if (w.player.slowChance > 0 || w.trait === Trait.DejaMorte) return true;
+  if (w.spell === Spell.Eclat || w.spell === Spell.Collet || w.spell === Spell.Voile) return true;
+  if (w.weapons.vitriol !== undefined) return true;
+  if (w.weapons.aura !== undefined && w.wstats.aura.slow > 0) return true;
+  if (w.weapons.foudre !== undefined && w.wstats.foudre.stun > 0) return true;
+  return w.items[It.Corne] + w.items[It.Cloche] > 0;
+}
+
+/**
  * Un bonus au plafond de sa stat (armure, recharges, garde, prix) n'apporterait rien : il n'est plus proposé. Phase 52 :
  * de même une fois pris BOON_MAX fois, et tant que sa condition manque (difficulté : un crâne activé, comme le tome de
  * difficulté ; réserve de soin : un soin qui y puise, comme la ligne du tome Sang).
@@ -325,6 +339,12 @@ export function boonCapped(w: World, key: BoonKey): boolean {
       return w.skullsOn < DIFFICULTY.tomeAfterSkulls;
     case 'stealcap':
       return !(P.steal > 0 || w.items[It.Croc] + w.items[It.Calice] + w.items[It.Couronne] > 0);
+    // relecture d'équilibrage de la phase 52 : sans rien qui ralentisse ou étourdisse, ces deux bonus seraient des
+    // cartes mortes (le tome Givre, lui, apporte sa chance de ralentir dans la même famille)
+    case 'chilldmg':
+      return !chills(w);
+    case 'slowdur':
+      return !(P.slowChance > 0 || (w.weapons.aura !== undefined && w.wstats.aura.slow > 0));
     default:
       return false;
   }
