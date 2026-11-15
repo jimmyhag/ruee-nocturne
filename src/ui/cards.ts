@@ -182,12 +182,14 @@ export const achUnlock = (a: Achievement): string =>
 
 /** Lignes de tome qui réduisent quelque chose (recharge, recharge du sort, dégâts subis) : affichées avec « − ». */
 const REDUCES = new Set(['cd', 'spellcd', 'armor', 'shop', 'guard']);
+/** Parts qui valent 1 ou plus (riposte : +1 = +100 % des dégâts du contact) : affichées en pourcentage (phase 52). */
+const WHOLE = new Set(['thorns']);
 /** Lignes en valeur absolue bien que < 1 (PV/s, points de chance). */
 const ABSOLUTE = new Set(['regen', 'luck', 'killheal', 'stealcap']);
 /** Valeur affichée d'une ligne : « +7 % », « −4 % », « +1 », « +8 », « +0,25 ». */
 function lineValue(l: StatLine, kind: 'w' | 't'): string {
   const sign = l.step > 0 !== (kind === 't' && REDUCES.has(l.stat)) ? '+' : '−';
-  if (l.kind === 'pct' || (l.kind === 'add' && Math.abs(l.step) < 1 && !ABSOLUTE.has(l.stat))) {
+  if (l.kind === 'pct' || (l.kind === 'add' && (Math.abs(l.step) < 1 || WHOLE.has(l.stat)) && !ABSOLUTE.has(l.stat))) {
     return `${sign}${Math.round(Math.abs(l.step) * 100)} %`;
   }
   return `${sign}${fmtNum(Math.abs(l.step))}`;

@@ -41,7 +41,7 @@ export const STAT_ROWS: StatRow[] = [
   { key: 'killheal', group: 'survie', fmt: 'd1', get: (P) => P.killHeal },
   { key: 'lvlheal', group: 'survie', fmt: 'n', get: (P) => P.lvlHeal },
   { key: 'guard', group: 'survie', fmt: 'pct', get: (P) => P.guard },
-  { key: 'thorns', group: 'survie', fmt: 'n', get: (P) => P.thorns },
+  { key: 'thorns', group: 'survie', fmt: 'pct', get: (P) => P.thorns }, // +1 = 100 % des dégâts du contact renvoyés
   { key: 'dmg', group: 'attaque', fmt: 'mul', get: (P) => P.dmgMul },
   { key: 'crit', group: 'attaque', fmt: 'pct', get: (P) => P.crit },
   { key: 'critdmg', group: 'attaque', fmt: 'x', get: (P) => P.critMul },
