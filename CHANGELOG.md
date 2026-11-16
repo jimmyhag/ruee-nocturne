@@ -2,6 +2,17 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.56.1 — 16 nov. 2026 (choix de Jimmy : la nouvelle icône)
+
+### Modifié
+
+- **Nouvelle icône de l'app** : le « S » doré du titre sur la nuit bleue du jeu, cerné par la nuée aux yeux rouges. Elle remplace le dessin de l'époque « Ruée Nocturne ». Sur un téléphone où le jeu est déjà installé, l'ancienne icône peut rester jusqu'à ce que tu réinstalles l'app.
+
+### Technique
+
+- `assets/icon.svg` redessiné, la lettre en contour du glyphe de Lilita One (aucune police à charger) ; `npm run icons` régénère `public/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`, `favicon.svg` et `docs/store/icon-1024.png`. Fond en dégradé vertical : 31 ko en 512 px, contre 116 ko avec un dégradé radial.
+- Trois propositions montrées (héroïne, crâne couronné, lettre), chacune en carré, rond, carré arrondi et 48 px ; la lettre a été retenue.
+
 ## 1.56.0 — 16 nov. 2026 (idées de Jimmy : coffres, marchand du monde infini, intensité des ennemis, carte à 100 %)
 
 Les coffres de carte restent achetables toute la partie, le marchand revient en monde infini, et tu vois ce que valent les monstres.

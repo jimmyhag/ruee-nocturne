@@ -1,48 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Icône de Swarmageddon. Le contenu important reste dans le cercle central (marge 12 % : icône maskable). -->
+  <!-- Icône de Swarmageddon (1.56.1, choisie par Jimmy) : le « S » du titre, cerné par la nuée aux yeux rouges.
+       La lettre est le contour du glyphe de Lilita One (SIL OFL, public/fonts/), tracé en chemin : aucune police à charger.
+       Tout ce qui compte tient dans le cercle central de 80 % (icône maskable) ; les monstres du bord peuvent être rognés. -->
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1c1226"/>
-      <stop offset="1" stop-color="#3d2b52"/>
+    <!-- dégradé vertical (chaque ligne d'une seule couleur) : les PNG pèsent cinq fois moins qu'avec un dégradé radial -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#31447f"/>
+      <stop offset="1" stop-color="#101830"/>
     </linearGradient>
+    <!-- le chemin est en unités de police, axe y vers le haut : le dégradé est donc écrit de bas en haut -->
+    <linearGradient id="gold" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0.1" stop-color="#fff3c4"/>
+      <stop offset="0.5" stop-color="#ffd166"/>
+      <stop offset="0.95" stop-color="#ff9f2e"/>
+    </linearGradient>
+    <path id="s" d="M76 244Q95 229 141.5 203.0Q188 177 230.5 177.0Q273 177 273 210Q273 225 261.0 236.5Q249 248 217.0 263.0Q185 278 169.0 286.5Q153 295 126.5 314.5Q100 334 86 355Q46 412 46.0 500.0Q46 588 111.5 648.5Q177 709 283 709Q355 709 416.0 693.5Q477 678 479 653Q479 650 479 647Q479 612 457.0 558.5Q435 505 426 499Q362 532 311.5 532.0Q261 532 261 496Q261 474 298 457Q306 453 321.0 446.0Q336 439 355.5 429.5Q375 420 397.5 405.5Q420 391 446 367Q499 317 499 235Q499 128 440.0 60.0Q381 -8 258 -10Q198 -10 149.5 0.0Q101 10 65.0 39.0Q29 68 29.0 109.0Q29 150 44.0 190.5Q59 231 76 244Z"/>
   </defs>
-  <rect width="512" height="512" fill="url(#sky)"/>
-  <!-- étoiles -->
-  <g fill="#fff1db" opacity="0.8">
-    <rect x="96" y="92" width="8" height="8"/>
-    <rect x="392" y="140" width="6" height="6"/>
-    <rect x="150" y="160" width="5" height="5"/>
-    <rect x="430" y="90" width="5" height="5"/>
-    <rect x="300" y="70" width="6" height="6"/>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- la nuée -->
+  <g fill="#0b1020">
+    <circle cx="96" cy="150" r="30"/><circle cx="418" cy="120" r="24"/><circle cx="430" cy="360" r="32"/>
+    <circle cx="86" cy="372" r="26"/><circle cx="256" cy="452" r="22"/><circle cx="256" cy="62" r="18"/>
   </g>
-  <!-- lune -->
-  <circle cx="330" cy="150" r="78" fill="#ffcc4d"/>
-  <circle cx="362" cy="128" r="70" fill="#1c1226"/>
-  <circle cx="362" cy="128" r="70" fill="url(#sky)" opacity="0.9"/>
-  <!-- collines -->
-  <path d="M0 372 Q 110 300 230 344 T 512 336 V512 H0 Z" fill="#2b1d3a"/>
-  <path d="M0 420 Q 140 372 256 404 T 512 392 V512 H0 Z" fill="#1c1226"/>
-  <!-- sapins -->
-  <g fill="#2b1d3a">
-    <path d="M60 372 L92 300 L124 372 Z"/>
-    <path d="M404 352 L440 268 L476 352 Z"/>
+  <g fill="#ff5d73">
+    <circle cx="86" cy="150" r="6"/><circle cx="106" cy="150" r="6"/>
+    <circle cx="410" cy="120" r="5"/><circle cx="426" cy="120" r="5"/>
+    <circle cx="419" cy="360" r="6.5"/><circle cx="441" cy="360" r="6.5"/>
+    <circle cx="77" cy="372" r="5.5"/><circle cx="95" cy="372" r="5.5"/>
+    <circle cx="249" cy="452" r="4.5"/><circle cx="263" cy="452" r="4.5"/>
+    <circle cx="250" cy="62" r="4"/><circle cx="262" cy="62" r="4"/>
   </g>
-  <!-- spectres (ennemis) -->
-  <g fill="#ff5470">
-    <path d="M118 330 L142 306 L166 330 L142 354 Z"/>
-    <path d="M372 318 L392 298 L412 318 L392 338 Z"/>
-  </g>
-  <!-- héroïne qui saute par-dessus la horde -->
-  <g>
-    <rect x="236" y="196" width="44" height="40" rx="6" fill="#fff1db"/>
-    <rect x="236" y="196" width="44" height="12" rx="4" fill="#ff5470"/>
-    <rect x="246" y="216" width="24" height="5" fill="#1c1226"/>
-    <rect x="224" y="238" width="68" height="60" rx="10" fill="#ff8a3d"/>
-    <rect x="232" y="298" width="20" height="26" rx="5" fill="#fff1db" transform="rotate(-18 242 311)"/>
-    <rect x="264" y="298" width="20" height="26" rx="5" fill="#fff1db" transform="rotate(18 274 311)"/>
-  </g>
-  <!-- orbe filante -->
-  <circle cx="330" cy="262" r="14" fill="#ffcc4d"/>
-  <circle cx="300" cy="270" r="7" fill="#ffcc4d" opacity="0.6"/>
-  <circle cx="278" cy="276" r="4" fill="#ffcc4d" opacity="0.35"/>
+  <!-- ombre portée du titre, puis la lettre -->
+  <use href="#s" transform="translate(0 14) translate(256 252) scale(0.385 -0.385) translate(-264 -349.5)" fill="#0b1020" stroke="#0b1020" stroke-width="68" stroke-linejoin="round"/>
+  <use href="#s" transform="translate(256 252) scale(0.385 -0.385) translate(-264 -349.5)" fill="url(#gold)" stroke="#0b1020" stroke-width="31" stroke-linejoin="round" paint-order="stroke"/>
 </svg>

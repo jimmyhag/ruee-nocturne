@@ -25,7 +25,7 @@ try {
   for (const [name, size] of Object.entries(ICONS)) {
     const page = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: 1 });
     await page.setContent(
-      `<!doctype html><html><body style="margin:0;background:#1c1226"><img src="${dataUrl}" style="display:block;width:${size}px;height:${size}px"></body></html>`,
+      `<!doctype html><html><body style="margin:0;background:#0f1628"><img src="${dataUrl}" style="display:block;width:${size}px;height:${size}px"></body></html>`,
     );
     await page.waitForLoadState('load');
     const png = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: size, height: size } });
@@ -40,7 +40,7 @@ try {
       deviceScaleFactor: 1,
     });
     await page.setContent(
-      `<!doctype html><html><body style="margin:0;background:#1c1226"><img src="${dataUrl}" style="display:block;width:${STORE_ICON.size}px;height:${STORE_ICON.size}px"></body></html>`,
+      `<!doctype html><html><body style="margin:0;background:#0f1628"><img src="${dataUrl}" style="display:block;width:${STORE_ICON.size}px;height:${STORE_ICON.size}px"></body></html>`,
     );
     await page.waitForLoadState('load');
     writeFileSync(`${STORE_ICON.dir}/${STORE_ICON.name}`, await page.screenshot({ type: 'png' }));
