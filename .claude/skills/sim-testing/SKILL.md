@@ -46,6 +46,8 @@ cibles      ✔ survie  ✔ faucheur  ✔ picks  ✘ kills@10 (1180 < 900–1500
 - Les cibles viennent de `survivor-design` §9, codées dans `tools/targets.ts`. Le CLI retourne un code ≠ 0 si une cible échoue → utilisable en CI (job `balance`, non bloquant mais commenté sur la PR).
 - Vitesse : > 50 runs/min sur un portable (sim pure, pas de rendu). Si plus lent, profiler la sim : c'est aussi un test de perf.
 - Toujours fixer `--seed` dans les PR pour comparer avant/après.
+- **Plusieurs graines, parties regroupées** (phases 52 et 53) : une proportion bouge de 4 à 8 points entre deux graines du même réglage, et le monde infini ne garde que ≈ 40 parties sur 200. Pour juger un réglage : au moins 4 graines par profil, chacune avec `--out sim/<préfixe>-<profil>-<graine>.json`, puis `node tools/sim-pool.mjs sim <préfixe>…` qui donne les chiffres sur toutes les parties réunies (mondes atteints, victoires, coffres, objets, temps tenu en monde infini). `--set A.b=1,C.d.0=2` essaie un réglage sans toucher au code : on peut donc mesurer des candidats depuis un worktree de `main` pendant qu'on code ailleurs.
+- La machine a 4 cœurs : `xargs -P 4` sur une liste de tâches, les profils complets d'abord (≈ 19 min les quatre, ≈ 11 min pour le kit de départ). Rien d'autre de lourd pendant ce temps (les e2e dépassent leurs délais).
 - Cause de mort : la dernière source de dégâts (`w.lastHurt`) pour les dangers nommés (éruption, anneau, charge, crachat, zone) ; pour le contact, l'ennemi le plus proche au dernier coup (approximatif : la Brute, large, est sur-attribuée).
 
 ## 4. Bench (`tools/bench.ts`, `npm run bench`)

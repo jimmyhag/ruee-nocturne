@@ -187,7 +187,7 @@ interface RunResult {
   eruptionHits: number; // …et combien l'ont touché (lisibilité du télégraphe pour le bot)
   stuck: number; // phase 16 : ennemis au sol immobiles plus de 3 s à moins de 30 u du joueur, hors foule (porte : 0)
   gold: number; // or gardé en fin de run (après les achats au marchand)
-  goldSpent: number; // phase 17 : or dépensé au marchand
+  goldSpent: number; // or dépensé en partie : marchand (phase 17) et coffres de carte (phase 18)
   items: string[]; // phase 17 : objets obtenus (coffres et marchand), dans l'ordre
   itemN: number; // phase 38 : exemplaires compris
   topStack: number; // phase 38 : plus gros cumul d'un même objet
@@ -578,7 +578,7 @@ const summary = {
     ),
   ),
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
-  // économie : or gardé médian par run (après le marchand), or dépensé au marchand
+  // économie : or gardé médian par run (après les achats), or dépensé en partie (marchand et coffres de carte)
   goldP50: pct(
     results.map((r) => r.gold),
     50,
@@ -789,7 +789,7 @@ lines.push(
   `morts <3min ${summary.deadBefore3minPct.toFixed(0)} %   niveau@10 p50 ${summary.levelAt10p50}   kills@10 p50 ${summary.killsAt10p50}`,
 );
 lines.push(
-  `or          gardé p50 ${summary.goldP50} (×${(summary.goldP50 / REF_PRICE).toFixed(1)} emplacement n°2) · dépensé au marchand p50 ${summary.goldSpentP50}`,
+  `or          gardé p50 ${summary.goldP50} (×${(summary.goldP50 / REF_PRICE).toFixed(1)} emplacement n°2) · dépensé en partie (marchand et coffres) p50 ${summary.goldSpentP50}`,
 );
 lines.push(
   `objets      ${summary.itemsPerRun} par run (${summary.distinctPerRun} différents, plus gros cumul p90 ×${summary.topStackP90}, ${summary.boughtPerRun} achetés) · ${Object.entries(
