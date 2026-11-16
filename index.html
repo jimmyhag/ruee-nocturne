@@ -382,13 +382,24 @@
         color: #ffd2a8;
       }
       .diffc.foes {
+        display: flex;
+        align-items: center;
+        gap: 4px;
         border-color: var(--hp);
         color: #ffc9c9;
       }
-      .diffrow {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
+      .diffc.foes svg {
+        width: 11px;
+        height: 11px;
+        flex: none;
+      }
+      .diffc.foes b {
+        font-variant-numeric: tabular-nums;
+      }
+      @media (max-width: 480px) {
+        .diffc.foes .lbl {
+          display: none;
+        }
       }
       .time.over #time {
         color: var(--hp);
@@ -2620,12 +2631,19 @@
             <div class="hpbar"><em id="hpghost"></em><i id="hpfill"></i><span id="hptxt">100</span></div>
           </div>
           <!-- phase 48 : difficulté de la partie, dès qu'elle dépasse 100 % -->
-          <!-- phase 53 : sur une même ligne, la difficulté ajoutée, l'intensité des monstres et les boss en plus -->
-          <div class="diffrow">
-            <div class="diffc" id="diffLbl" hidden></div>
-            <div class="diffc foes" id="foesLbl" hidden></div>
-            <div class="diffc bossx" id="bossXLbl" hidden></div>
+          <div class="diffc" id="diffLbl" hidden></div>
+          <!-- phase 53 : intensité des monstres (leurs PV par rapport au début de partie). Sur téléphone, l'icône et la
+               valeur seulement : une pastille plus large passerait sous la puce d'objectif, au centre -->
+          <div class="diffc foes" id="foesLbl" hidden>
+            <svg viewBox="0 0 12 12" aria-hidden="true">
+              <path
+                fill="currentColor"
+                fill-rule="evenodd"
+                d="M6 .8C3.2.8 1.2 2.7 1.2 5.3c0 1.5.7 2.6 1.8 3.2v1.4c0 .5.4.9.9.9h4.2c.5 0 .9-.4.9-.9V8.5c1.1-.6 1.8-1.7 1.8-3.2C10.800 2.7 8.800.8 6 .8ZM4.200 6.900a1.300 1.300 0 1 1 0-2.600 1.300 1.300 0 0 1 0 2.600Zm3.600 0a1.300 1.300 0 1 1 0-2.600 1.300 1.300 0 0 1 0 2.600Z"
+              /></svg
+            ><span class="lbl" data-i18n="hud.enemiesWord">Ennemis</span><b id="foesTxt"></b>
           </div>
+          <div class="diffc bossx" id="bossXLbl" hidden></div>
           <div class="kit" id="kit"></div>
           <!-- phase 35 : bonus au sol actifs (icône + durée restante), remplis par Hud -->
           <div class="powers" id="powers"></div>

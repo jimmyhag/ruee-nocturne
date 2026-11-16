@@ -60,6 +60,7 @@ export class Hud {
   private els = {
     diffLbl: $('diffLbl'),
     foesLbl: $('foesLbl'),
+    foesTxt: $('foesTxt'),
     bossXLbl: $('bossXLbl'),
     xpfill: $('xpfill'),
     xpsweep: $('xpsweep'),
@@ -385,8 +386,10 @@ export class Hud {
     const foes = multQuant(enemyIntensity(w, this.foes).hp);
     if (this.cache.foes !== foes) {
       this.cache.foes = foes;
+      const x = multText(foes);
       this.els.foesLbl.hidden = false;
-      this.els.foesLbl.textContent = t('hud.enemies', { x: multText(foes) });
+      this.els.foesTxt.textContent = x;
+      this.els.foesLbl.setAttribute('aria-label', t('hud.enemies', { x })); // sur téléphone le mot est masqué
     }
     this.cache.poiOn = kind;
     if (kind !== 0) this.width('poiFill', fill);
