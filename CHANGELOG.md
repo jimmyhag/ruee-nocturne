@@ -2,6 +2,33 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.56.0 — 16 nov. 2026 (idées de Jimmy : coffres, marchand du monde infini, intensité des ennemis, carte à 100 %)
+
+Les coffres de carte restent achetables toute la partie, le marchand revient en monde infini, et tu vois ce que valent les monstres.
+
+### Ajouté
+
+- **Intensité des ennemis** : sous ta barre de vie, une pastille « Ennemis ×2,4 » (une tête de mort et la valeur sur téléphone) dit combien les monstres ont de PV par rapport au début de la partie. En pause, la fiche de stats donne le détail : PV, dégâts, vitesse et apparitions des monstres.
+- **Carte explorée à 100 %** : explorer toute la carte d'un monde s'annonce et rapporte **200 or** (davantage avec tes bonus d'or), une fois par monde.
+
+### Modifié
+
+- **Coffres de carte moins chers à la longue** : le prix monte de **50 % par coffre** au lieu de doubler. Le premier coûte toujours 20 or, le 5e 101 or au lieu de 320, le 8e 342 au lieu de 2 560, le 10e 769 au lieu de 10 240. À or égal on en ouvre à peu près moitié plus, et ils restent achetables jusqu'au dernier monde.
+- **Marchand en monde infini** : il revient entre chaque vague de boss, sans limite. Il s'arrêtait après deux passages.
+
+### Technique
+
+- `enemyIntensity(w, out)` (`src/sim/spawner.ts`) : PV, dégâts, vitesse et apparitions des monstres par rapport au début de partie, avec les mêmes termes que `spawnEnemy` et `tickSpawner` (temps du monde, prolongation ou monde infini, difficulté). Le HUD ne refait son texte que quand le dixième change.
+- `Ev.Explored`, `DISCOVER.full` (99,5 % des cases, l'arrondi de la grande carte) et `DISCOVER.gold` ; drapeau `w.exploredAll` par monde, gardé dans la partie sauvegardée ; `debug.reveal()` pour les tests.
+- `ENDLESS.merchantVisits`, `Ev.MerchantLast` et les textes « dernier passage » sont retirés.
+- `MAPCHEST.growth` 1 → 0,5, choisi par simulation entre +35, +50 et +65 % (bot moyen, 400 parties par candidat, 800 pour la référence et le réglage retenu ; monde 2 atteint / monde 3 / victoire, coffres par partie). Kit complet : ×2 71,0 / 40,3 / 19,4 % et 6,6 ; +65 % 76,0 / 46,0 / 24,0 % et 8,8 ; +50 % 73,5 / 49,3 / 25,3 % et 10,1 ; +35 % 77,3 / 53,3 / 28,5 % et 12,6 (au-dessus de la cible de victoires, 5–28 %). Kit de départ : 31,0 / 25,9 / 21,0 % et 4,6 avec ×2 ; 31,8 / 26,8 / 21,5 % et 6,6 à +50 %.
+- Réglage livré (coffres à +50 %, marchand à chaque vague), 4 graines × 200 parties par profil. Kit complet : 73,5 / 50,0 / 23,9 % (monde 3 +9,7 points, victoires +4,5, dans leurs cibles ; « monde 2 ≥ 75 % » reste manquée de peu, comme avant), 10,1 coffres, monde infini tenu 2:47 en médiane (3:08 avant, cible tenue). Kit de départ : 32,0 / 27,3 / 22,1 %, 6,5 coffres, morts avant 3 min 22,3 % (20,5 % avant, cible ≤ 20 %, déjà dépassée avant ; écart dans le bruit), monde infini tenu 6:39 en médiane (4:01 avant) et 12:36 au neuvième décile (10:34 avant) : **hors de ses cibles** (2:30–6 min et ≤ 12 min) ; en moyenne les parties y durent 1:12 de plus. Cet allongement vient des coffres, pas du marchand : sur les mêmes graines, avec et sans marchand illimité, les parties sont identiques jusqu'à son troisième passage et l'écart ensuite est nul (−31 s ± 35). Levier chiffré mais non appliqué, la décision revient à Jimmy : durcir le terme tardif de `ENDLESS.ramp` raccourcit les très longues parties (neuvième décile 12:39 → 10:30 sur deux graines, écart encore dans le bruit) sans toucher au kit complet.
+- `tools/sim-pool.mjs` : regroupe les sorties `--out` de plusieurs graines d'un même réglage.
+- Relecture perf : la pastille d'intensité est arrondie à la précision affichée (`multQuant`), sans quoi son texte était refait jusqu'à 58 fois par seconde en prolongation ; le texte des PV du héros n'est plus construit à chaque image.
+- Relecture d'équilibrage : choix de +50 % confirmé, prix de base inchangé ; l'outil de simulation dit maintenant « dépensé en partie (marchand et coffres) » là où il disait « au marchand ».
+- Contrôle : 50 parties par profil rejouées sur le code livré, identiques une à une à celles du réglage mesuré (qui tournait sur la 1.55 avec `--set`).
+- Bench : p95 1,12 ms, tas +0,37 Mo, instantané 3,5 ms. Vitest : 1039 verts. Tests navigateur PC et mobile : pastille d'intensité (compacte sur téléphone, sans recouvrir la puce d'objectif) et groupe « Ennemis » de la pause, annonce des 100 %, marchand au 3e et au 4e passage du monde infini ; captures lues.
+
 ## 1.55.0 — 15 nov. 2026 (demande de Jimmy : toutes les stats du jeu dans les sanctuaires)
 
 Les sanctuaires peuvent maintenant donner n'importe quelle stat du jeu, un projectile de plus compris.
