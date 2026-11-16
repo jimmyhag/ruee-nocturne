@@ -11,6 +11,7 @@ export default tseslint.config(
       'dev-dist/**',
       'node_modules/**',
       'prototype/**', // référence historique, jamais touchée
+      '.claude/worktrees/**', // worktrees créés par l'app Claude : un autre tsconfig, hors lint
       'shots/**',
       'sim/**',
       'coverage/**',

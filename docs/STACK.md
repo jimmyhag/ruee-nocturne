@@ -28,7 +28,8 @@
 - `tools/` : `sim-cli` (3 bots, percentiles, cibles, JSON), `bench` (p95, tas), `icons` (PNG depuis `assets/icon.svg` via Chromium Playwright).
 - `e2e/` : `smoke` (canvas, console, partie, draw calls ≤ 40, hors-ligne via service worker), `touch` (joystick + saut), `restart` (< 2 s), `shots` (captures menu / 3 min / niveau / mort).
 - Hit-stop, recul au tir, squash du corps, fantôme de PV, balayage de la barre d'XP, pop du compteur de kills, mode « effets réduits ».
-- Onglet perf (F3) : frame p50/p95 glissants sur 2 s, draw calls, triangles, entités, voix audio, résolution interne.
+- Onglet perf (F3 ou bouton « Perf » de la pause) : fps réels, temps JS p50/p95 glissants sur 2 s, draw calls, triangles, entités, voix audio, résolution interne. Mode stress `?debug=1&stress=400` pour mesurer sur téléphone.
+- `tools/bots` : `naive`, `average` (référence des cibles), `greedy` ; CLI `--weapons` pour isoler une arme.
 
 ## Mesures (PC de Jimmy, Windows 11, Node 25, Chromium SwiftShader)
 
@@ -41,8 +42,8 @@
 ## Reste pour franchir les portes
 
 - Phase 0 : secret `FIREBASE_SERVICE_ACCOUNT` + variable `FIREBASE_PROJECT_ID` sur GitHub, CI verte, test d'installation Android/iOS par Jimmy (voir `docs/GATES.md`).
-- Phase 1 : mesure fps sur le téléphone de Jimmy (onglet perf, 400 ennemis).
-- Phase 2 : checklist game-feel (traînée de dash, hit-stop bornable, GIF), musique réelle.
+- Phase 1 : franchie (60 fps à 400 ennemis sur le téléphone de Jimmy, 2 nov. 2026). Suivis : vitesse de la sim 40 runs/min sous charge (61 runs/min sur machine libre, revue perf : cible 50 tenue). La cible « pick max » de `tools/targets.ts` (`max: 100`, inopérante) a été corrigée depuis (`max: 35`) et le hit-stop continu borné en phase 2.
+- Phase 2 : franchie (checklist game-feel 11/11, PR #5, puis correctifs iPhone #6 à #8 : squash & stretch retiré, taille du rendu vérifiée à chaque frame, musique procédurale retirée). Musique réelle reportée en phase 5.
 - Phase 3 : Boomerang, Mines, évolutions, Volant, Cracheur, élites, coffres, 3 boss, zones de terrain, équilibrage aux cibles (survie p50 9–13 min, fin de run 8–15 %).
 
 ## Phase 5 (3 nov. 2026)
