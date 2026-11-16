@@ -159,8 +159,14 @@ export const MAPCHEST = {
   // 1.33.1 (demande de Jimmy) : le prix ne monte qu'à chaque coffre acheté ; tant qu'on n'achète pas, il ne bouge pas.
   // 1.33.2 (demande de Jimmy) : premier coffre à 20 or, puis ×2 par coffre acheté. 100 runs : ×2 donne 46 % de victoires
   // nues et 49 % maxées (5 et 7,5 coffres par partie) ; +80 % : 59 % / 42 % (le bon marché du début pèse plus)
-  price: 20, // or, premier coffre : 20, 40, 80, 160, 320, 640…
-  growth: 1, // ×2 par coffre acheté
+  // phase 53 (retour de Jimmy : « trop chers, il en reste toujours plein sur la carte ») : le doublement plafonnait
+  // les coffres ouverts quel que soit l'or gagné (le 8e coûtait 2 560 or, pour 90 coffres posés en trois mondes).
+  // +50 % par coffre, sans remise par monde (son choix). Mesuré, 400 à 800 parties par réglage, monde 2 / monde 3 /
+  // victoire et coffres par partie : ×2 71 / 40 / 19 % et 6,6 (kit complet), 31 / 26 / 21 % et 4,6 (départ) ;
+  // +65 % 76 / 46 / 24 % et 8,8 ; +50 % 74 / 49 / 25 % et 10,1 (départ 32 / 27 / 22 % et 6,6) ; +35 % 77 / 53 / 29 %
+  // et 12,6 : au-dessus de la cible de victoires du kit complet (5–28 %)
+  price: 20, // or, premier coffre : 20, 30, 45, 68, 101, 152, 228, 342, 513, 769…
+  growth: 0.5, // +50 % par coffre acheté (×2 de la 1.33.2 à la 1.55)
   placeShare: 0.3, // part des coffres posés dans les lieux construits…
   glideShare: 0.25, // …au pied des rampes et au fond des combes (phase 27) ; campements en plus ; le reste sur les hauteurs
 };
