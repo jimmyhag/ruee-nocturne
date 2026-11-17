@@ -2499,6 +2499,11 @@ let fps = 0;
 // ratio temps de jeu / temps réel sur la même fenêtre : vérifie que le hit-stop reste borné (≈ 0,9–1 attendu en jeu)
 let simT0 = 0;
 let simRatio = 1;
+// 17 nov. 2026 : la part du temps réel que le hit-stop laisse passer, sur la même fenêtre. Contrairement à `simRatio`,
+// elle ne dépend pas de la vitesse de rendu (rattrapage borné à 4 pas) : c'est elle que l'e2e de stress vérifie
+let stopReal = 0;
+let stopFed = 0;
+let stopRatio = 1;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
@@ -2536,7 +2541,10 @@ function frame(nowMs: number): void {
       dtIn *= R.from + (1 - R.from) * (1 - resumeEase / R.ease);
       resumeEase = Math.max(0, resumeEase - realDt);
     }
-    acc += hitStop.advance(dtIn);
+    const fed = hitStop.advance(dtIn);
+    acc += fed;
+    stopReal += dtIn;
+    stopFed += fed;
     let n = 0;
     while (acc >= STEP && n < 4) {
       input.poll(inp);
@@ -2619,12 +2627,15 @@ function frame(nowMs: number): void {
       fpsT0 = nowMs;
       fpsFrames = 0;
       simT0 = world ? world.t : 0;
+      stopReal = stopFed = 0;
     } else if (nowMs - fpsT0 >= 2000) {
       fps = (fpsFrames * 1000) / (nowMs - fpsT0);
       if (world && app === 'play') simRatio = ((world.t - simT0) * 1000) / (nowMs - fpsT0);
+      if (world && app === 'play' && stopReal > 0) stopRatio = stopFed / stopReal;
       fpsT0 = nowMs;
       fpsFrames = 0;
       simT0 = world ? world.t : 0;
+      stopReal = stopFed = 0;
     }
     if (frameIdx % 10 === 0) {
       frameSorted.set(frameTimes);
@@ -2634,7 +2645,7 @@ function frame(nowMs: number): void {
       const info = scene.info();
       hud.perf(
         `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
-          `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'}\n` +
+          `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'} ×${stopRatio.toFixed(2)}\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world
             ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}  part. ${scene.particles.alive}\n`
