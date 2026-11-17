@@ -60,6 +60,7 @@ export const enum HeroAnim {
   Land,
   Hit,
   Death,
+  /** @public — l'ordre des membres suit celui des clips (HERO_CLIPS), même si aucun code ne nomme celui-ci */
   Cheer,
   SpellDash,
   SpellSpin,

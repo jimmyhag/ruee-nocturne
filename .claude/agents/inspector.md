@@ -1,0 +1,1 @@
+../../.agents/inspector.md

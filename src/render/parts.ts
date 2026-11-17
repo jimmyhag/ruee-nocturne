@@ -29,9 +29,6 @@ let detail = 12;
 export function setDetail(seg: number): void {
   detail = Math.max(3, seg | 0);
 }
-export function getDetail(): number {
-  return detail;
-}
 
 /** Géométrie non indexée d'une primitive, déjà placée. `round` : les boîtes assez épaisses sont arrondies. */
 export function primGeometry(p: Prim, round = false): THREE.BufferGeometry {

@@ -1,0 +1,17 @@
+// Code mort et dépendances (harnais, 17 nov. 2026) : `just deadcode`, dans `just preflight`.
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // scripts Node lancés directement (`node tools/….mjs`)
+  "entry": ["tools/*.mjs"],
+  // référence historique, jamais touchée (CLAUDE.md, règle 7)
+  "ignore": ["prototype/**"],
+  // outils système de `npm run audio`, pas des paquets npm
+  "ignoreBinaries": ["ffmpeg", "ffprobe"],
+  // un export utilisé dans son propre fichier n'est pas du code mort
+  "ignoreExportsUsedInFile": true,
+  "ignoreIssues": {
+    // exception datée (17 nov. 2026), décision de Jimmy en attente : buildHero (et assemble, addBody, finish)
+    // n'est plus appelé par `npm run assets` depuis les héros KayKit (phase 46). À supprimer ou à rebrancher.
+    "tools/assets/heroes.ts": ["exports"],
+  },
+}

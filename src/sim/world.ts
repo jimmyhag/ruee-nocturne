@@ -18,7 +18,6 @@ import type {
   Enemy,
   GameEvent,
   Gem,
-  Input,
   Power,
   TomeKey,
   Player,
@@ -918,4 +917,3 @@ function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };
 }
 
-export const NO_INPUT: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };

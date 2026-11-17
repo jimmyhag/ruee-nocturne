@@ -1,5 +1,5 @@
 // CLI d'équilibrage : fait jouer un bot N fois, imprime des percentiles, compare aux cibles.
-//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre]
+//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--no-targets]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -858,4 +858,6 @@ if (OUT) {
   writeFileSync(OUT, JSON.stringify({ summary, checks, results }, null, 1));
   console.log(`→ ${OUT}`);
 }
-process.exit(checks.every((c) => c.ok) ? 0 : 1);
+// --no-targets : simulation de fumée (`just check`) ; elle doit tourner sans erreur, sans juger l'équilibrage sur
+// une poignée de parties (une exception sort toujours en erreur)
+process.exit(args.has('no-targets') || checks.every((c) => c.ok) ? 0 : 1);

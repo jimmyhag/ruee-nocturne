@@ -3,7 +3,6 @@ import { stageBossDown } from './stages';
 import { WEAPON_KEYS } from './weapons/defs';
 import { Ev, HIT_CRIT, HitSrc, Mode, Pw, Trait } from './types';
 import { powerOnKill } from './powers';
-import type { Enemy } from './types';
 import type { World } from './world';
 import { itemHeal, lifesteal, talismanKill } from './items';
 
@@ -198,6 +197,3 @@ export function compactEnemies(w: World): void {
   }
 }
 
-export function enemyY(e: Enemy): number {
-  return e.y;
-}

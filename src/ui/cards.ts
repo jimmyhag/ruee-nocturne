@@ -87,17 +87,6 @@ export const BOON_GLYPH: Record<BoonKey, string> = {
 // phase 19 : sorts de classe
 export const spellName = (k: SpellKey): string => t(`spell.${k}.name`);
 export const spellText = (k: SpellKey): string => t(`spell.${k}.text`);
-export const SPELL_GLYPH: Record<SpellKey, string> = {
-  bond: '»',
-  tourbillon: '✣',
-  clignement: 'ϟ',
-  eclat: '✺',
-  collet: '#',
-  petard: '✸',
-  comete: '☄',
-  voile: '☾',
-  bourse: '¤',
-};
 export const itemName = (k: ItemKey): string => t(`item.${k}.name`);
 export const itemText = (k: ItemKey): string => t(`item.${k}.text`);
 export const ITEM_GLYPH: Record<ItemKey, string> = {
@@ -270,4 +259,3 @@ export function weaponSummary(w: World, k: WeaponKey): string {
 export const achValue = (a: Achievement, v: number): string => (a.time ? fmtTime(v) : fmtNum(v));
 
 /** Personnage par clé (cartes du menu). */
-export const characterDef = (k: CharacterKey) => CHARACTERS.find((c) => c.key === k);
