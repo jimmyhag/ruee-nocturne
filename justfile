@@ -1,5 +1,5 @@
-# Task runner. `just check` is the gate, locally and in CI.
-# `harness-setup` replaces every recipe that fails with "TO DEFINE".
+# Task runner. `just check` is the gate, locally and in CI; `just preflight` is the edit-loop subset.
+# Every recipe calls the project's npm scripts: the old commands (`npm run lint`, `npm test`…) keep working.
 
 # cmd.exe on Windows (sh is not guaranteed to be on PATH); sh elsewhere.
 [windows]
@@ -9,29 +9,56 @@ set shell := ["cmd.exe", "/c"]
 default:
     @just --list
 
-# Start the application locally
+# Start the game locally (Vite, http://localhost:5173); run it in the background, it never returns
 dev:
-    @echo "TO DEFINE: the command that runs the app" && exit 1
+    npm run dev
 
-# Run the test suite once; `just test <filter>` runs a subset
+# Unit tests once (Vitest, simulation and UI logic); `just test src/sim/poi.test.ts` runs a subset
 test *args:
-    @echo "TO DEFINE: the test runner (filtered when args are given: {{args}})" && exit 1
+    npx vitest run {{args}}
 
-# Type-check, strict
+# Type-check, strict (tsc --noEmit)
 typecheck:
-    @echo "TO DEFINE: the type checker" && exit 1
+    npm run -s typecheck
 
-# Lint; warnings fail
+# Lint: ESLint with zero warnings (layer boundaries included), then Prettier
 lint:
-    @echo "TO DEFINE: the linter with warnings as errors" && exit 1
+    npm run -s lint
 
-# Dead code and dependency boundaries
+# Dead code, orphan files, undeclared dependencies (knip)
 deadcode:
-    @echo "TO DEFINE: the dead-code and boundaries tool" && exit 1
+    npx knip --no-progress
+
+# Unit tests under coverage, with the thresholds of vite.config.ts (simulation ≥ 80 %); ~3× slower than `just test`
+coverage:
+    npx vitest run --coverage
 
 # Edit-loop gate, run after every change (check stays the gate before a commit)
 preflight: typecheck lint test deadcode
 
-# Everything that must pass before a commit: preflight plus the build and the slow suites
-check: preflight
-    @echo "TO DEFINE: the production build and anything too slow for preflight" && exit 1
+# Production build (dist/)
+build:
+    npm run -s build
+
+# Simulation step budget at 400 enemies (PLAN.md §4.3); fails over budget
+bench:
+    npm run -s bench
+
+# Smoke simulation: a few games of the bot must run without error (balance is judged by `just sim`, not here)
+sim-smoke:
+    npm run -s sim -- --runs 6 --bot average --seed 42 --until 300 --no-targets
+
+# Smoke e2e, desktop and mobile: the page loads, a run starts within the draw-call budget, offline reload works
+e2e-smoke:
+    npx playwright test e2e/smoke.spec.ts --trace off
+
+# Everything that must pass before a commit: preflight (tests under coverage), the build, the bench, a smoke simulation and the smoke e2e
+check: typecheck lint coverage deadcode build bench sim-smoke e2e-smoke
+
+# The whole Playwright suite, desktop and mobile (long: run by CI on every pull request)
+e2e *args:
+    npx playwright test --trace off {{args}}
+
+# Balance simulation with targets (`just sim --runs 200 --profile maxed --seed 42`)
+sim *args:
+    npm run -s sim -- {{args}}
