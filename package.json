@@ -9,7 +9,7 @@
     "build:single": "SINGLE=1 vite build --outDir dist-single",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . && prettier --check .",
+    "lint": "eslint . --max-warnings 0 && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:e2e": "playwright test",
