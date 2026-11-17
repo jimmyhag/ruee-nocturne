@@ -1,4 +1,5 @@
-# Task runner. `just check` is the gate before every commit (CI runs `just ci`: the same with the whole e2e suite);
+# Task runner. `just check` is the gate before every commit (CI runs the gates of `just ci`, the same with the whole
+# e2e suite, as parallel jobs);
 # `just preflight` is the edit-loop subset.
 # Every recipe calls the project's npm scripts: the old commands (`npm run lint`, `npm test`…) keep working.
 

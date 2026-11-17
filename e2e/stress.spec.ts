@@ -67,10 +67,14 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   expect(state.perfHidden).toBe(false);
   expect(state.perf).toMatch(/fps \d+/);
   expect(state.perf).toMatch(/ennemis (3[89]\d|4\d\d|5\d\d)/);
-  // phase 2 : le hit-stop est borné, le temps de jeu suit le temps réel même avec des kills à chaque frame
-  // (SwiftShader rend trop lentement pour un seuil strict : on vérifie la mesure et qu'elle n'est pas figée)
+  // phase 2 : le hit-stop est borné, le temps de jeu suit le temps réel même avec des kills à chaque frame.
+  // 17 nov. 2026 : on vérifie la part du temps réel que le hit-stop laisse passer (« hit-stop on ×0,9 »), qui ne dépend
+  // pas de la vitesse de rendu ; « temps × » la mesurait aussi (rattrapage borné à 4 pas par frame) et tombait sous
+  // 0,3 sur un runner lent, sur main comme sur les branches (0,19 et 0,28 en CI, 0 à 0,28 en local chargé).
+  const stop = +(state.perf.match(/hit-stop on ×([\d.]+)/)?.[1] ?? '0');
+  expect(stop, 'temps injecté / temps réel (hit-stop)').toBeGreaterThan(0.5);
   const ratio = +(state.perf.match(/temps ×([\d.]+)/)?.[1] ?? '0');
-  expect(ratio, 'temps de jeu / temps réel').toBeGreaterThan(0.3);
+  expect(ratio, 'temps de jeu / temps réel : pas figé').toBeGreaterThan(0);
   await page.screenshot({ path: `shots/${info.project.name}-stress.png`, animations: 'disabled' });
   console.log(`[${info.project.name}] ${state.perf.replace(/\n/g, ' | ')}`);
   expect(errors).toEqual([]);
