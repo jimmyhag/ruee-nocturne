@@ -346,7 +346,7 @@ export const STAGE = {
   // phase 43 (grand rééquilibrage, « plus dur vers la fin ») : [0, 300, 540] → [0, 320, 580]. Le kit concentré sur une
   // arme sortait du monde 1 puis gagnait 8 fois sur 10 ; avec la hausse, victoires 32 → 22 % (nu) et 32 → 22 % (maxé)
   offset: [0, 320, 580],
-  bosses: [3, 6, 7], // Gardien, Essaim-mère, Colosse (types ; BOSSES dans l'ordre)
+  bosses: [3, 6, 7], // Gardien, Essaim-mère, Colosse (types, dans l'ordre d'apparition)
   // PV du boss du monde : ceux des anciens boss à 5:00, 10:00, 15:00 (hpScale à ce temps), quelle que soit l'heure
   // d'activation. Farmer plus longtemps rend donc le boss relativement plus facile ; le risque, c'est le chrono.
   // Mesuré : PV au temps de l'appel (8:00 → ×1,6), 32 % des runs maxés mouraient au boss du monde 1
@@ -644,7 +644,6 @@ export const COLOSSUS_TYPE = 7; // Colosse (15:00)
 export const REAPER_TYPE = 8; // Faucheur (20:00)
 export const ARCHER_TYPE = 9; // phase 16
 export const SORCIER_TYPE = 10; // phase 16
-export const BOSSES = [BOSS_TYPE, SWARM_TYPE, COLOSSUS_TYPE]; // par ordre d'apparition
 export const ENEMY_SEPARATION = 3.2;
 export const KNOCKBACK_DECAY = 0.004; // facteur par seconde
 

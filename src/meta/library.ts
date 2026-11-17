@@ -2,7 +2,7 @@
 // Règle de Jimmy : un succès rend une arme ou un objet achetable, l'or le débloque. On peut aussi retirer un objet
 // débloqué du tirage. Module pur : aucun DOM.
 import { ITEM_KEYS, ITEM_RARITY, SYNERGIES, TOME_KEYS, UNLOCK } from '../sim/balance';
-import type { ItemKey, WeaponKey } from '../sim/types';
+import type { ItemKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { WEAPON_KEYS } from '../sim/weapons/defs';
 import { UNLOCKABLE } from './achievements';
@@ -78,4 +78,3 @@ export function recordCodex(m: Meta, w: World): void {
 }
 
 /** Entrées de la Bibliothèque par onglet (ordre d'affichage). */
-export const LIB_WEAPONS: readonly WeaponKey[] = WEAPON_KEYS;

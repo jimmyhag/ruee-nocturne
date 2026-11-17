@@ -8,10 +8,6 @@ const out2 = new Float64Array(2);
 let weightSum = 0;
 for (let i = 0; i < POWER.weights.length; i++) weightSum += POWER.weights[i];
 
-/** Effet temporaire en cours ? */
-export function powerActive(w: World, k: Pw): boolean {
-  return w.powerT[k] > 0;
-}
 
 /** Tirage pondéré d'un bonus (POWER.weights). */
 export function rollPowerKind(w: World): Pw {
