@@ -20,6 +20,7 @@
     "bestiary": "tsx tools/bestiary.ts",
     "icons": "tsx tools/icons.ts",
     "sim": "tsx tools/sim-cli.ts",
+    "retention": "tsx tools/retention.ts",
     "bench": "node --expose-gc --import tsx tools/bench.ts",
     "prepare": "simple-git-hooks",
     "assets": "tsx tools/assets/build.ts",

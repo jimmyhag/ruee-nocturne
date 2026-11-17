@@ -2,7 +2,7 @@
 
 A 3D survivor game, low-poly, shipped as a PWA for phones and PCs (TypeScript, Three.js,
 Vite, Firebase Hosting): https://ruee-nocturne.web.app. Its players are the public, on
-their phone first. It must never send a player's data off the device without an account,
+their phone first. It must never send a player's data off the device without an account or their consent,
 never stutter in the hot loop (zero allocation per frame), and never ship an unbalanced
 change: every difficulty setting is chosen and checked with the simulation.
 
@@ -80,7 +80,7 @@ in dev), `npm run shot` (Playwright screenshots in `shots/`), `npm run store`,
 
 ## Business invariants (non-negotiable)
 
-### Règles non négociables (reprises de `CLAUDE.md`, mot pour mot, numéros conservés)
+### Règles non négociables (reprises de `CLAUDE.md`, mot pour mot, numéros conservés ; règle 8 complétée au lot L1)
 
 1. **Zéro allocation par frame** en régime permanent : pools d'objets, tableaux réutilisés, pas de `filter/map` dans la boucle chaude, pas de closures créées dans `step()`.
 2. **Les budgets perf de PLAN.md §4.3 sont des tests** : `npm run bench` échoue si dépassés.
@@ -89,7 +89,7 @@ in dev), `npm run shot` (Playwright screenshots in `shots/`), `npm run store`,
 5. **Pas de dépendance ajoutée sans justification** dans la PR (taille gz, alternative native évaluée). Pas de framework UI.
 6. **Three.js épinglé** : vérifier l'API de la version installée dans `node_modules/three/` avant d'utiliser une méthode. Version actuelle : 0.187 (`docs/STACK.md`). On garde le schéma « allouer les couleurs à pleine capacité puis `count = 0` » (`src/render/instancing.ts`) : il est correct sur toutes les versions.
 7. **Ne jamais modifier `prototype/`** : c'est une référence historique, pas du code vivant.
-8. Sans compte, aucune donnée utilisateur ne quitte l'appareil. Avec un compte (décision de Jimmy, phase 13), seule la progression (`PROGRESS_KEYS` de `src/meta/sync.ts`) est écrite dans Firestore `saves/{uid}` : jamais les réglages, jamais d'analytics sans décision explicite de Jimmy. Seul `src/platform/account.ts` importe `firebase`, chargé à la demande ; un joueur sans compte n'émet aucune requête (test e2e). Classement en ligne (décision de Jimmy, phase 38) : un joueur connecté qui a choisi un pseudo publie ses meilleurs scores (`scores/{uid}`, `weeks/{semaine}/scores/{uid}`, forme dans `src/meta/board.ts`), lisibles par les seuls joueurs connectés ; rien d'autre.
+8. Sans compte, aucune donnée utilisateur ne quitte l'appareil. Avec un compte (décision de Jimmy, phase 13), seule la progression (`PROGRESS_KEYS` de `src/meta/sync.ts`) est écrite dans Firestore `saves/{uid}` : jamais les réglages, jamais d'analytics sans décision explicite de Jimmy. Seul `src/platform/account.ts` importe `firebase`, chargé à la demande ; un joueur sans compte n'émet aucune requête (test e2e). Classement en ligne (décision de Jimmy, phase 38) : un joueur connecté qui a choisi un pseudo publie ses meilleurs scores (`scores/{uid}`, `weeks/{semaine}/scores/{uid}`, forme dans `src/meta/board.ts`), lisibles par les seuls joueurs connectés ; rien d'autre. Mesure de fréquentation (décision de Jimmy, lot L1, 17 nov. 2026) : un joueur, avec ou sans compte, qui l'a **acceptée** écrit un seul document anonyme `retention/{id}` (identifiant aléatoire, jour de l'accord, jours d'ouverture jusqu'à J30, expiration ; forme dans `docs/specs/l1-mesure-retention.md`) par l'API REST de Firestore, sans SDK ; sans accord, aucune requête (test e2e).
 
 ### Chantier mobile (décisions de Jimmy, 17 nov. 2026)
 
