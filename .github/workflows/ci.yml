@@ -11,9 +11,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  # La porte de `just ci`, découpée en tâches parallèles (17 nov. 2026, demande de Jimmy : une CI plus courte, sans
+  # retirer de test). Le dépôt est public : les runners de GitHub sont gratuits, la suite e2e tourne en 5 morceaux.
+  checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 130 # 1.56.1 : ≈ 100 min, et le harnais ajoute knip et la simulation de fumée ; tests Playwright sous SwiftShader puis Lighthouse (3 runs) : annulé à 30 min sur la #30 (25 min sur la #29), à 45 min en 1.30.2 (e2e bonus et glisse) ; 56 min en 1.40.0, relevé à 90 en 1.41.0 (décor plus riche, rendu logiciel plus lent) ; 81 min en 1.42.1 (Playwright seul : 77 min), relevé à 110 en 1.43.0 pour garder de la marge avant Lighthouse
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,6 +26,30 @@ jobs:
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
         with:
           just-version: 1.59.0
+      # types, lint et frontières entre couches, tests sous couverture, code mort, build, bench, simulation de fumée
+      - name: just (porte de just check sans les e2e)
+        run: just typecheck lint coverage deadcode build bench sim-smoke
+      - name: Taille du build (gzip)
+        run: |
+          du -sh dist
+          find dist -name '*.js' -exec gzip -k9 {} \;
+          echo "JS gzip total : $(cat dist/assets/*.js.gz dist/*.js.gz | wc -c | awk '{printf "%.0f ko", $1/1024}')"
+
+  e2e:
+    runs-on: ubuntu-latest
+    # un morceau ≈ 1/5 de la suite (≈ 90 min sur un seul runner en 1.57.0), plus le build du serveur de preview
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Navigateur de Playwright
         run: |
           npx playwright install chromium
@@ -31,24 +57,34 @@ jobs:
           # runner (trois CI rouges avant le premier test). L'image a déjà les bibliothèques de Chromium, il ne manque
           # que des polices ; si une bibliothèque manquait vraiment, le lancement du navigateur échouerait juste après.
           npx playwright install-deps chromium || echo "::warning::Dépendances système de Playwright non installées (miroirs injoignables)"
-      # La porte de just check (types, lint et frontières entre couches, tests sous couverture, code mort, build, bench,
-      # simulation de fumée), avec la suite Playwright complète à la place de la fumée qu'elle contient (justfile).
-      - name: just ci (porte de just check, suite e2e complète)
-        run: just ci
+      # la suite Playwright complète (desktop et mobile), répartie en 5 morceaux : aucun test retiré
+      - name: Playwright (morceau ${{ matrix.shard }}/5)
+        run: npx playwright test --trace off --shard=${{ matrix.shard }}/5
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: captures
+          name: captures-${{ matrix.shard }}
           path: |
             shots/
             playwright-report/
             test-results/
           retention-days: 14
-      - name: Taille du build (gzip)
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Navigateur de Playwright
         run: |
-          du -sh dist
-          find dist -name '*.js' -exec gzip -k9 {} \;
-          echo "JS gzip total : $(cat dist/assets/*.js.gz dist/*.js.gz | wc -c | awk '{printf "%.0f ko", $1/1024}')"
+          npx playwright install chromium
+          npx playwright install-deps chromium || echo "::warning::Dépendances système de Playwright non installées (miroirs injoignables)"
+      - run: npm run build
       - name: 'Lighthouse (porte de phase 5 : perf mobile ≥ 85, accessibilité ≥ 90, PWA 100 ; médiane de 3 runs)'
         run: npm run lh
       - uses: actions/upload-artifact@v4
@@ -57,6 +93,19 @@ jobs:
           name: lighthouse
           path: lighthouse/*.json
           retention-days: 14
+
+  # Une seule coche à lire avant de fusionner : verte si les trois tâches de la porte le sont.
+  verify:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [checks, e2e, lighthouse]
+    steps:
+      - name: Porte complète
+        run: |
+          echo "checks=${{ needs.checks.result }} e2e=${{ needs.e2e.result }} lighthouse=${{ needs.lighthouse.result }}"
+          test "${{ needs.checks.result }}" = success
+          test "${{ needs.e2e.result }}" = success
+          test "${{ needs.lighthouse.result }}" = success
 
   balance:
     runs-on: ubuntu-latest
