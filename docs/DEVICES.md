@@ -13,6 +13,21 @@ PLAN.md §5 demande des tests sur 4 appareils réels avant la sortie. Voici ce d
 
 Risque assumé (décision du 3 nov. 2026) : la cible Android n'est vérifiée que par émulation et par les mesures Lighthouse mobile (CPU ×4, 4G lente) ; la première remontée d'un joueur Android est à traiter en priorité après la sortie.
 
+## Chantier mobile (17 nov. 2026)
+
+Décision 10 de `docs/specs/swarmageddon-mobile.md` : le jeu a été testé sur de vrais téléphones et il tourne. Ce qui n'a pas été précisé est noté « non renseigné » ; Jimmy complète ce tableau quand il a l'information.
+
+| Appareil                            | Modèle        | Système et navigateur          | Fluidité                      | Chauffe       | Contrôles     | Source              |
+| ----------------------------------- | ------------- | ------------------------------ | ----------------------------- | ------------- | ------------- | ------------------- |
+| iPhone de Jimmy                     | non renseigné | non renseigné (Safari iOS)     | tourne ; détail non renseigné | non renseigné | non renseigné | Jimmy, 17 nov. 2026 |
+| Android d'amis de Jimmy (plusieurs) | non renseigné | non renseigné (Chrome Android) | tourne ; détail non renseigné | non renseigné | non renseigné | Jimmy, 17 nov. 2026 |
+
+**Mesure de référence à demander à un ami sur Android** : ouvrir `https://ruee-nocturne.web.app/?debug=1&stress=400`, lancer une partie, attendre 30 s, puis envoyer une capture du compteur d'images par seconde affiché en haut de l'écran (avec le modèle du téléphone). Elle donne un chiffre de référence à 400 ennemis, la charge du budget de PLAN.md §4.3.
+
+| Date          | Appareil               | Images par seconde à 400 ennemis | Remarques                       |
+| ------------- | ---------------------- | -------------------------------- | ------------------------------- |
+| non renseigné | Android (ami de Jimmy) | non renseigné                    | mesure demandée le 17 nov. 2026 |
+
 ## Protocole par appareil (checklist `pwa-release` §6)
 
 Sur l'URL de preview de la PR, puis sur le live après merge. Cocher, noter la durée ou le chiffre quand il y en a un.
