@@ -112,7 +112,7 @@ test('a player who has not answered yet sends no request', async ({ page }) => {
   expect(hits).toEqual([]);
 });
 
-test('the request appears once, after the first run', async ({ page }) => {
+test('the consent prompt appears once, after the first run', async ({ page }) => {
   await page.goto(ASK_URL);
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await expect(page.locator('#consent')).toBeHidden(); // pas avant d'avoir joué
@@ -219,11 +219,34 @@ test('withdrawal deletes the document and forgets the identifier', async ({ page
   await expect(toggle).toHaveText('Mesure anonyme de fréquentation : non');
   await expect.poll(() => fake.calls.length).toBe(2);
   expect(fake.calls[1]).toEqual({ method: 'DELETE', url: DOC_URL(id), body: null });
-  expect(await state(page)).toEqual({ consent: 'no', id: null, c: 0, f: false, o: [], sent: 0 });
+  // suppression confirmée : plus d'identifiant, plus rien en attente
+  await expect.poll(() => state(page)).toEqual({ consent: 'no', id: null, c: 0, f: false, o: [], sent: 0, del: [] });
   await reopen(page);
   await foreground(page);
   await page.waitForTimeout(QUIET);
   expect(fake.calls).toHaveLength(2);
+});
+
+test('an offline withdrawal is deleted at the next opening', async ({ page }) => {
+  await seed(page, { consent: 'yes', c: 0, o: [0], sent: 1 });
+  const fake = await fakeFirebase(page, { fail: true });
+  await openGame(page);
+  await page.locator('#settingsBtn').click();
+  const toggle = page.locator('#setRetentionBtn');
+  await expect(toggle).toHaveText('Mesure anonyme de fréquentation : oui');
+  await toggle.click(); // retrait hors ligne : la suppression échoue
+  await expect(toggle).toHaveText('Mesure anonyme de fréquentation : non');
+  await page.waitForTimeout(QUIET);
+  expect(fake.calls).toEqual([]);
+  expect(await state(page)).toMatchObject({ consent: 'no', id: null, del: [ID] });
+  fake.fail = false; // de retour en ligne
+  await reopen(page);
+  await expect.poll(() => fake.calls.length).toBe(1);
+  expect(fake.calls[0]).toEqual({ method: 'DELETE', url: DOC_URL(ID), body: null });
+  await expect.poll(() => state(page)).toMatchObject({ consent: 'no', del: [] });
+  await foreground(page);
+  await page.waitForTimeout(QUIET);
+  expect(fake.calls).toHaveLength(1);
 });
 
 test('the measure never loads the Firebase SDK', async ({ page }) => {
@@ -261,7 +284,7 @@ test('without configuration the measure does nothing', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('the request plays with the keyboard as with the finger', async ({ page }) => {
+test('the consent prompt plays with the keyboard as with the finger', async ({ page }) => {
   const sheet = page.locator('#consent');
   const yes = page.locator('#consentYesBtn');
   const no = page.locator('#consentNoBtn');

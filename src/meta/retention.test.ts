@@ -6,12 +6,14 @@ import {
   RETENTION,
   acceptState,
   dayOf,
+  deleted,
   docOf,
   docUrl,
   formatTable,
   fromFirestore,
   markOpen,
   readState,
+  refusedState,
   retentionTable,
   shouldSend,
   toFirestore,
@@ -33,13 +35,13 @@ describe('état local (ruee-retention)', () => {
   });
   it('un refus ne garde ni identifiant ni jour : rien ne part', () => {
     const s = readState(JSON.stringify({ consent: 'no', id: ID, c: TODAY, f: true, o: [0], sent: 0 }));
-    expect(s).toEqual({ consent: 'no', id: null, c: 0, f: false, o: [], sent: 0 });
+    expect(s).toEqual({ consent: 'no', id: null, c: 0, f: false, o: [], sent: 0, del: [] });
     expect(markOpen(s, TODAY)).toBe(false);
     expect(shouldSend(s, TODAY)).toBe(false);
   });
   it('accord : cohorte du jour, ouverture du jour notée, nouveau joueur si au plus une partie finie', () => {
     const s = acceptState(ID, TODAY, 1);
-    expect(s).toEqual({ consent: 'yes', id: ID, c: TODAY, f: true, o: [0], sent: 0 });
+    expect(s).toEqual({ consent: 'yes', id: ID, c: TODAY, f: true, o: [0], sent: 0, del: [] });
     expect(acceptState(ID, TODAY, 2).f).toBe(false);
     expect(shouldSend(s, TODAY)).toBe(true);
   });
@@ -189,5 +191,40 @@ describe('firestore.rules (retention)', () => {
     expect(block).toContain('duration.value(100, "d")');
     expect(block).toContain('request.resource.data.c == resource.data.c');
     expect(RETENTION.keepDays).toBeLessThan(100);
+  });
+  it("un accord donné hors ligne reste accepté jusqu'à J30 (cohorte jusqu'à 31 jours avant la création)", () => {
+    expect(block).toContain(`request.time - duration.value(${RETENTION.lastDay + 1}, "d")`);
+    expect(block).toContain('request.time + duration.value(2, "d")');
+  });
+});
+
+describe('retrait hors ligne (suppression en attente)', () => {
+  const ID2 = '1f8fad5b-d9cb-469f-a165-70867728950e';
+  it("le retrait garde l'identifiant à supprimer, relu après redémarrage, et un nouvel accord ne l'efface pas", () => {
+    const s = refusedState([ID]);
+    expect(s.consent).toBe('no');
+    expect(s.id).toBeNull();
+    const back = readState(JSON.stringify(s));
+    expect(back.del).toEqual([ID]);
+    expect(acceptState(ID2, TODAY, 3, back.del).del).toEqual([ID]);
+  });
+  it("une suppression confirmée retire l'identifiant ; la liste est bornée", () => {
+    const s = refusedState([ID, ID2]);
+    deleted(s, ID);
+    expect(s.del).toEqual([ID2]);
+    const many = Array.from({ length: 9 }, (_, i) => ID.slice(0, -1) + i);
+    expect(refusedState(many).del).toHaveLength(RETENTION.maxDel);
+    expect(readState(JSON.stringify({ consent: null, del: ['court', ID] })).del).toEqual([ID]);
+  });
+});
+
+describe('la mesure ne charge jamais le SDK Firebase (sources)', () => {
+  it("ni src/platform/retention.ts ni src/platform/firebase-config.ts n'importent firebase ou le module du compte", () => {
+    for (const f of ['../platform/retention.ts', '../platform/firebase-config.ts']) {
+      const src = readFileSync(new URL(f, import.meta.url), 'utf8');
+      expect(src).not.toMatch(/from ['"]firebase/);
+      expect(src).not.toMatch(/import\(['"]firebase/);
+      expect(src).not.toMatch(/['"]\.\/account['"]/);
+    }
   });
 });

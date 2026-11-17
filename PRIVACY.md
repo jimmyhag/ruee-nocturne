@@ -53,7 +53,7 @@ Rien d'autre : ni version, ni appareil, ni langue, ni score, ni contenu de parti
 
 - Sans compte : pas de classement en ligne (le défi du jour est classé localement), pas de pseudo, pas de contenu partagé.
 - Pas de mesure d'audience hors la mesure anonyme de fréquentation que tu as acceptée, pas de traceur, pas de cookie, pas de publicité, pas de SDK tiers hors Firebase (chargé seulement si tu ouvres le panneau Compte ou si tu es connecté).
-- Aucun appel réseau pendant une partie. Les seules requêtes sont le téléchargement des fichiers du jeu et de ses mises à jour (le service worker vérifie s'il existe une nouvelle version quand tu ouvres l'app), si tu es connecté, l'envoi de ta progression et de tes scores entre deux parties et la lecture du classement quand tu l'ouvres, et, si tu as accepté la mesure de fréquentation, l'écriture de son document à l'ouverture du jeu (au plus une fois par jour, pendant 30 jours).
+- Presque aucun appel réseau pendant une partie. Les seules requêtes sont le téléchargement des fichiers du jeu et de ses mises à jour (le service worker vérifie s'il existe une nouvelle version quand tu ouvres l'app), si tu es connecté, l'envoi de ta progression et de tes scores entre deux parties et la lecture du classement quand tu l'ouvres, et, si tu as accepté la mesure de fréquentation, l'écriture de son document à l'ouverture du jeu ou quand tu y reviens, même en pleine partie (au plus une fois par jour, pendant 30 jours), et sa suppression si tu la coupes (retentée à chaque ouverture tant que le serveur ne l'a pas confirmée).
 
 ## Hébergement
 
