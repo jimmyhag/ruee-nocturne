@@ -6,6 +6,7 @@ import {
   RETENTION,
   acceptState,
   dayOf,
+  deleted,
   docOf,
   docUrl,
   markOpen,
@@ -46,6 +47,7 @@ export class Retention {
   /** Envoi ou suppression en cours : les requêtes partent l'une après l'autre (un retrait passe après l'envoi). */
   private queue: Promise<void> = Promise.resolve();
   private sending = false;
+  private purging = false;
 
   /** `config` : src/platform/firebase-config.ts, appelé seulement quand une requête doit partir. */
   constructor(private readonly config: () => Promise<FirebaseConfig | null>) {}
@@ -58,24 +60,44 @@ export class Retention {
   open(now = Date.now()): void {
     const today = dayOf(now);
     if (markOpen(this.s, today)) store(this.s);
+    this.purge();
     this.flush(today);
   }
 
   /** « Oui, compter » ou interrupteur des Réglages : nouvel identifiant, cohorte du jour. */
   accept(runs: number, now = Date.now()): void {
     const today = dayOf(now);
-    this.s = acceptState(newId(), today, runs);
+    this.s = acceptState(newId(), today, runs, this.s.del);
     store(this.s);
     this.flush(today);
   }
 
-  /** « Non merci » ou retrait : plus rien ne part ; le document existant est supprimé et l'identifiant oublié. */
+  /**
+   * « Non merci » ou retrait : plus rien ne part ; l'identifiant n'est plus utilisé et son document est supprimé. Tant
+   * que le serveur n'a pas confirmé la suppression (hors ligne), l'identifiant reste en attente et la suppression est
+   * retentée à chaque ouverture : l'effacement promis au joueur ne dépend pas du réseau du moment.
+   */
   refuse(): void {
     const id = this.s.id;
-    this.s = refusedState();
+    this.s = refusedState(id ? [...this.s.del, id] : this.s.del);
     store(this.s);
-    if (id)
-      void this.enqueue(async (cfg) => void (await fetch(docUrl(cfg.projectId, cfg.apiKey, id), { method: 'DELETE' })));
+    this.purge();
+  }
+
+  /** Suppressions en attente : une requête DELETE par identifiant ; 2xx ou 404 (déjà effacé) la retire de la liste. */
+  private purge(): void {
+    if (this.purging || !this.s.del.length) return;
+    this.purging = true;
+    const ids = this.s.del.slice();
+    void this.enqueue(async (cfg) => {
+      for (const id of ids) {
+        const r = await fetch(docUrl(cfg.projectId, cfg.apiKey, id), { method: 'DELETE' });
+        if (r.ok || r.status === 404) {
+          deleted(this.s, id);
+          store(this.s);
+        }
+      }
+    }).finally(() => (this.purging = false));
   }
 
   private flush(today: number): void {

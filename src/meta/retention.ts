@@ -11,6 +11,7 @@ export const RETENTION = {
   keepDays: 90, // expiration x = cohorte + 90 jours (règle TTL de Firestore)
   days: [1, 7, 30] as const, // colonnes du tableau
   idLength: 36, // crypto.randomUUID()
+  maxDel: 4, // suppressions en attente gardées au plus (retraits répétés hors ligne)
 };
 const DAY_MS = 86_400_000;
 
@@ -26,6 +27,7 @@ export interface RetentionState {
   f: boolean;
   o: number[];
   sent: number;
+  del: string[]; // retraits dont la suppression n'a pas encore été confirmée par le serveur (hors ligne) : retentés
 }
 /** Ce qui part, et rien d'autre (l'identifiant n'est que dans l'URL). `x` : expiration, en ms. */
 export interface RetentionDoc {
@@ -35,9 +37,24 @@ export interface RetentionDoc {
   x: number;
 }
 
-const blank = (consent: Consent): RetentionState => ({ consent, id: null, c: 0, f: false, o: [], sent: 0 });
-/** Refus ou retrait : plus d'identifiant, plus rien à envoyer. */
-export const refusedState = (): RetentionState => blank('no');
+const blank = (consent: Consent, del: string[] = []): RetentionState => ({
+  consent,
+  id: null,
+  c: 0,
+  f: false,
+  o: [],
+  sent: 0,
+  del,
+});
+/** Refus ou retrait : plus d'identifiant, plus rien à envoyer ; l'ancien identifiant attend sa suppression. */
+export const refusedState = (del: string[] = []): RetentionState => blank('no', del.slice(-RETENTION.maxDel));
+
+const isId = (v: unknown): v is string => typeof v === 'string' && v.length === RETENTION.idLength;
+/** Retire un identifiant des suppressions en attente (réponse 2xx ou 404 du serveur). */
+export function deleted(s: RetentionState, id: string): void {
+  const i = s.del.indexOf(id);
+  if (i >= 0) s.del.splice(i, 1);
+}
 
 const isDay = (v: unknown): v is number =>
   Number.isInteger(v) && (v as number) >= 0 && (v as number) <= RETENTION.lastDay;
@@ -52,17 +69,17 @@ export function readState(raw: string | null): RetentionState {
   } catch {
     return blank(null);
   }
-  if (o.consent === 'no') return blank('no');
-  if (o.consent !== 'yes' || typeof o.id !== 'string' || o.id.length !== RETENTION.idLength || !Number.isInteger(o.c))
-    return blank(null);
+  const del = Array.isArray(o.del) ? [...new Set(o.del.filter(isId))].slice(-RETENTION.maxDel) : [];
+  if (o.consent === 'no') return blank('no', del);
+  if (o.consent !== 'yes' || !isId(o.id) || !Number.isInteger(o.c)) return blank(null, del);
   const days = Array.isArray(o.o) ? [...new Set(o.o.filter(isDay))].sort((a, b) => a - b) : [];
   const sent = Number.isInteger(o.sent) ? Math.min(Math.max(o.sent as number, 0), days.length) : 0;
-  return { consent: 'yes', id: o.id, c: o.c as number, f: o.f === true, o: days, sent };
+  return { consent: 'yes', id: o.id, c: o.c as number, f: o.f === true, o: days, sent, del };
 }
 
 /** Accord : nouvel identifiant, cohorte du jour, nouveau joueur s'il avait fini au plus une partie ; le jour compte. */
-export function acceptState(id: string, today: number, runs: number): RetentionState {
-  return { consent: 'yes', id, c: today, f: runs <= 1, o: [0], sent: 0 };
+export function acceptState(id: string, today: number, runs: number, del: string[] = []): RetentionState {
+  return { consent: 'yes', id, c: today, f: runs <= 1, o: [0], sent: 0, del };
 }
 
 /** Ouverture de l'app : note le jour (J0 à J30). Vrai si l'état a changé. */

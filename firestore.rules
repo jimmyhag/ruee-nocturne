@@ -73,8 +73,8 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
     // Mesure de fréquentation (lot L1, décision de Jimmy) : un document anonyme par appareil qui l'a acceptée, écrit par
-    // l'API REST sans compte (src/meta/retention.ts). Clés fermées, cohorte `c` (jours depuis 1970) proche du jour de la
-    // création puis figée, 31 jours d'ouverture au plus, expiration `x` (règle TTL) à moins de 100 jours. Aucune
+    // l'API REST sans compte (src/meta/retention.ts). Clés fermées, cohorte `c` (jours depuis 1970) dans les 31 jours
+    // avant la création (jamais dans le futur) puis figée, 31 jours d'ouverture au plus, expiration `x` (règle TTL) à moins de 100 jours. Aucune
     // lecture depuis le jeu : seul Jimmy lit, avec ses droits d'administrateur (`npm run retention`).
     match /retention/{id} {
       function retentionOk() {
@@ -89,7 +89,9 @@ service cloud.firestore {
       }
       allow get, list: if false;
       allow create: if retentionOk()
-        && timestamp.value(request.resource.data.c * 86400000) > request.time - duration.value(2, "d")
+        // borne basse à 31 jours : un joueur qui accepte hors ligne et ne revient en ligne que plus tard est compté
+        // (le client n'écrit plus après J30) ; borne haute à 2 jours : pas de cohorte dans le futur
+        && timestamp.value(request.resource.data.c * 86400000) > request.time - duration.value(31, "d")
         && timestamp.value(request.resource.data.c * 86400000) < request.time + duration.value(2, "d");
       allow update: if retentionOk() && request.resource.data.c == resource.data.c;
       allow delete: if true;
