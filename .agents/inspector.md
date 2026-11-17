@@ -18,7 +18,7 @@ unsure; never invent a rule.
 ## Inputs
 
 - A range to review: a branch (compared with the default branch,
-  [TO DEFINE: `origin/main`]) or a commit range. Without one, review the default
+  `origin/main`) or a commit range. Without one, review the default
   branch against `HEAD`.
 - The spec in `docs/specs/` the change implements, when there is one. If the request
   names none, look for the one the commit message names; if there is none, say so and
@@ -60,15 +60,23 @@ carry, a state derived where it should be received, are the usual shapes.
 a layer that must stay passive; a dependency that crosses a layer through a path the
 lint cannot see (a string, a dynamic import, a re-export); a side effect outside the
 place `AGENTS.md` reserves for it; a type of an external SDK crossing a contract.
-[TO DEFINE: the two or three shapes most likely in this codebase.]
+In this codebase, look first for: an allocation in the hot loop (`step()`, the render
+loop, the HUD update: a literal object, a closure, `filter`/`map`, a string built every
+frame instead of behind a cache); the render or the UI writing into the world instead of
+reading it, or the simulation calling back into a subscriber instead of emitting an
+event; a numeric gameplay constant outside `src/sim/balance.ts` (render constants live in
+`src/render/feel.ts` and `palette.ts`); a network call that a player without an account
+could trigger (rule 8).
 
 ### 2. Wording and interface text
 
 If the project has user-facing text (`AGENTS.md`, "Interface" or equivalent): every
 string a user can see is in the language the rules fix, lives where the rules say
 (a labels file, a translation catalogue), uses the typography of that language;
-identifiers and comments stay in English. [TO DEFINE: where the strings live, or
-"not applicable".]
+identifiers and comments stay in English. Every player-facing string lives in
+`src/i18n/fr.json` and `src/i18n/en.json` (same keys in both), static HTML text carries
+`data-i18n`; French typography (non-breaking space before `: ; ? !`, « guillemets »);
+`CHANGELOG.md`'s player sections are written for players, without code or names.
 
 ### 3. Accessibility
 
@@ -76,13 +84,21 @@ If the project has a user interface (`AGENTS.md`, "Accessibility" or equivalent)
 semantic elements before ARIA; a keyboard path for every action; focus managed when a
 dialog opens and closes; target sizes; unavailable actions explained, not merely
 disabled; meaning never carried by colour alone; reduced motion respected.
-[TO DEFINE: the project's conventions, or "not applicable".]
+Here: keyboard and touch parity for every
+input (rule 4, tested in both Playwright projects); every button has a label
+(`aria-label`, translated through `data-i18n-attr`); the « réduction des effets »
+setting and `prefers-reduced-motion` disable shake, hit-stop and flashes; nothing is
+told by colour alone on the minimap and the HUD.
 
 ### 4. Project conventions
 
 The sections of `AGENTS.md` specific to this project (a visual direction, a pipeline
-discipline, a data model rule…): [TO DEFINE: list the sections and the shapes to look
-for, or "none yet"].
+discipline, a data model rule…): "Business invariants" (rules 1 to 13: the
+budgets of PLAN.md §4.3, a feedback on every hit, Three.js pinned, `prototype/` untouched,
+one retention mechanic at a time, PWA only), "Contributing workflow" (the end of a lot:
+`CHANGELOG.md` for players with the version on top, `docs/GATES.md`, screenshots read),
+and PLAN.md as the source of truth of the game's content: a change of content that
+PLAN.md does not describe, or a balance change with no simulation numbers, is a finding.
 
 ### Then, always: working rules
 

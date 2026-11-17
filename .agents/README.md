@@ -91,7 +91,7 @@ one file per round.
 - A skill or role is added or changed in its own commit, reviewed by an owner like any
   other change. An assistant never edits a role it is playing.
 - Roles and skills are written in English like the rest of the repository; sessions
-  with the owners are in [TO DEFINE: the owners' language].
+  with the owners are in French.
 - No empty folder and no placeholder: a role appears with its first use. The
   `TO DEFINE` markers of the kit are the one exception, and `harness-setup` removes
   them all.

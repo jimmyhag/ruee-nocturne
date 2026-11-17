@@ -8,5 +8,5 @@ Levels: `discovered` (has heard of it), `applied` (uses it with the pattern in f
 them), `mastered` (explains why, chooses between alternatives, spots a misuse). An empty
 cell means not assessed yet.
 
-| Concept | Where it is applied | [TO DEFINE: owner 1] | Last session |
-| ------- | ------------------- | -------------------- | ------------ |
+| Concept | Where it is applied | Jimmy | Last session |
+| ------- | ------------------- | ----- | ------------ |

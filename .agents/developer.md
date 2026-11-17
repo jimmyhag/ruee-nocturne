@@ -25,7 +25,7 @@ say so in your report.
 
 1. A fresh worktree has no installed dependencies: install first, once, with the
    command `AGENTS.md` gives under "Getting started"
-   ([TO DEFINE: the exact install command, e.g. `pnpm install --frozen-lockfile`]).
+   (`npm ci`).
 2. Read the spec entirely: context, decisions table, scenarios, out of scope. Read the
    files it names and the tests next to them: new code looks like its neighbours.
 3. One scenario at a time, test first:
@@ -53,7 +53,9 @@ say so in your report.
 ## Never
 
 - Relax a gate: no change to the type, lint, test, dead-code or CI configuration
-  ([TO DEFINE: list the configuration files of this project]), the `justfile`, and no
+  (`tsconfig.json`, `eslint.config.js`, `.prettierrc`, `.prettierignore`, `knip.jsonc`,
+  `playwright.config.ts`, `vite.config.ts`, the scripts of `package.json`, `.github/workflows/`,
+  `.claude/settings.json`), the `justfile`, and no
   test skipped, deleted or weakened. When a gate blocks you, the code is wrong, not the
   gate; if you believe the rule itself is wrong, say it in the report.
 - Edit `.agents/`, `.claude/` or `docs/specs/` (the status line above excepted): the
@@ -61,7 +63,7 @@ say so in your report.
   (step 5), rules do not. A spec that proves impossible to follow goes in the report,
   not in a silent rewrite.
 - Introduce a dependency the spec did not decide. When one is needed, resolve its
-  version with the registry ([TO DEFINE: `npm view`, `pip index versions`, …]), never
+  version with the registry (`npm view <package> version`), never
   from memory.
 - Write user-facing text in another language than the one `AGENTS.md` fixes, or
   identifiers in another language than English.
