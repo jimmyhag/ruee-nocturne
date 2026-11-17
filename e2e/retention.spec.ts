@@ -285,6 +285,7 @@ test('without configuration the measure does nothing', async ({ page }) => {
 });
 
 test('the consent prompt plays with the keyboard as with the finger', async ({ page }) => {
+  test.setTimeout(180_000); // quatre parties et trois rechargements : plus de 60 s sur une machine chargée ou sous SwiftShader
   const sheet = page.locator('#consent');
   const yes = page.locator('#consentYesBtn');
   const no = page.locator('#consentNoBtn');
