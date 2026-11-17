@@ -9,6 +9,7 @@ import { collectConsoleErrors } from './helpers';
  * carte aléatoire sur trois passait à 41–45 avec 4 armes au niveau 8. Le budget mobile reste tenu (≤ 39 mesurés).
  */
 const callBudget = (project: string): number => (project === 'mobile' ? 40 : 80);
+// lot L2 : mesures faites avec tout dévoilé (`reveal: 4` : totem, sanctuaires, crânes), la scène la plus chargée
 
 test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisible', async ({ page }, info) => {
   const errors = collectConsoleErrors(page);
@@ -19,7 +20,7 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   // en résolution native (phase 9) tourne trop lentement sur le runner de CI pour que le ratio temps de jeu tienne
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'pixel' } });
   });
 
   await page.locator('#playBtn').click();
@@ -83,7 +84,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'pixel' } });
   });
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
@@ -146,7 +147,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   // phase 21 : en rendu net, squelettes détaillés (≈ 330 triangles) ; budget mobile relevé à 250 k (décision de Jimmy)
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'net' } });
   });
   await page.waitForTimeout(800);
   const net = { calls: 0, triangles: 0 };
@@ -190,7 +191,7 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
   const measure = async (quality: 'pixel' | 'net') => {
     await page.evaluate((q) => {
       const g = (window as any).__game;
-      g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: q } });
+      g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: q } });
     }, quality);
     const worst = { calls: 0, triangles: 0 };
     for (const [x, z] of [
@@ -250,7 +251,7 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'pixel' } });
   });
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
@@ -291,7 +292,7 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
   const px = await measure();
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'net' } });
   });
   await page.waitForTimeout(800);
   const net = await measure();

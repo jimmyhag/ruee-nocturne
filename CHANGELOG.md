@@ -2,6 +2,33 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.58.0 — 17 nov. 2026 (décision de Jimmy, lot L2 : premières parties)
+
+Un nouveau joueur découvre le jeu pas à pas. Rien ne change pour ceux qui ont déjà joué.
+
+### Ajouté
+
+- **Découverte pas à pas** : ta toute première partie va à l'essentiel (se déplacer, sauter, armes automatiques, cartes de niveau, coffres et bonus au sol). La glisse arrive à la 2e partie, les sanctuaires à la 3e, le marchand à la 4e, le totem et les crânes (donc les mondes suivants) à la 5e.
+- **« Nouveau ! »** : au début de la partie qui t'apporte quelque chose, une bannière te dit ce que c'est et quoi en faire. Le premier sanctuaire, le premier passage du marchand et le premier totem portent une étiquette « Nouveau » sur la minicarte jusqu'à ce que tu t'en serves.
+
+### Modifié
+
+- **Si tu as déjà joué, tu gardes tout** : glisse, sanctuaires, marchand, totem et crânes restent là, sur cet appareil comme sur ton compte, avec ton or, tes succès, tes personnages et tes emplacements.
+- **Défi du jour** : il se joue toujours avec tout, la même partie pour tout le monde.
+- L'aide « Comment jouer » et la légende de la grande carte ne parlent que de ce que tu as déjà découvert. Le bouton GLISSE et sa touche apparaissent avec la glisse.
+
+### Technique
+
+- `Meta.reveal` (0 à 4, clé de progression synchronisée, `firestore.rules` : entier 0–4 facultatif) monte d'une étape à chaque partie finie (mort, victoire, ou abandon après `REVEAL.abandonAfter` = 60 s de jeu), jamais au défi du jour. `Meta.seenReveal` (clé d'appareil) retient la dernière étape annoncée. `src/meta/reveal.ts` : `readReveal`, `revealAfterRun`, `revealNews`.
+- Migration : une sauvegarde ou une progression du nuage sans `reveal` qui a fini au moins une partie reçoit 4 (tout), sans bannière ; sans partie, 0. Fusion du nuage : le plus grand des deux. La remise à zéro de la progression garde le dévoilement.
+- Sim : `WorldOptions.reveal` (absent = 4). `hideUnrevealed` (`src/sim/poi.ts`) retire sanctuaires (< 2), crânes et totems de boss (< 4) et cache le totem du monde (`TOTEM_HIDDEN`, < 4) après tous les tirages de la carte : coffres, bonus et lieux d'une graine ne bougent pas. Le marchand ne passe pas (< 3) ; la glisse est refusée (< 1). Avec `reveal` à 4, les parties sont identiques à la 1.57.0 (contrôle : 20 parties du kit de départ et 10 du kit complet en monde infini, identiques une à une).
+- `FIRST_RUNS` (`balance.ts`) : les monstres apparus pendant les 180 premières secondes des deux premières parties ont ×0,975 PV et dégâts (cadence ×1). Gardé par l'instantané : une partie reprise est identique.
+- Interface : bannière à deux lignes (`hud.banner(texte, sous-titre, durée)`), 4 s, son de niveau ; étiquette « Nouveau » sur la minicarte (`MapView.setNew`) ; `data-reveal` sur les lignes de l'aide et de la légende de la carte (`showRevealed`) ; bouton GLISSE et touche masqués (`hud.kit`).
+- CLI : `npm run sim -- --reveal 0..4` ; `tools/sim-pool.mjs` donne aussi la survie médiane regroupée.
+- Équilibrage (règle 13, bot moyen, kit de départ, 4 graines × 200 parties regroupées) : morts avant 3 min **22,3 %** et survie médiane 4:52 avant le lot (tout dévoilé) ; **19,1 %** et **4:51** aux dévoilements 0 et 1 avec l'adoucissement retenu (cible ≤ 20 % et ≤ 7:00). Sans adoucissement, le dévoilement 0 meurt plus tôt (25,3 %, 2 graines). Les dévoilements 0 et 1 donnent les mêmes parties au bit près : le bot de référence ne glisse pas. Adoucir toute la partie fait sauter la médiane au-delà de 7:00 (pas de totem avant la 5e partie, la survie après le boss de 3:00 s'étire jusqu'à la fin du chrono) : la fenêtre des 180 premières secondes évite ce saut. Détail et candidats essayés : `docs/GATES.md`, lot L2.
+- Sans totem, une partie des étapes 0 à 3 se termine dans la prolongation du premier monde (toutes les parties encore en vie meurent entre 10:00 et 12:00) : la cible « plus forte chute des vivants en une minute ≤ 22 points » n'a pas de sens pour ces parties (29 à 31 points mesurés).
+- Tests : Vitest `src/sim/reveal.test.ts` et `src/meta/reveal.test.ts` (un test par scénario de la spec, en anglais), `e2e/reveal.spec.ts` (PC et mobile). Les specs e2e d'avant le lot partent d'un joueur qui a tout découvert (`openGame`, `e2e/helpers.ts`) ; les mesures de `e2e/stress.spec.ts` se font avec tout dévoilé, la scène la plus chargée.
+
 ## 1.57.0 — 17 nov. 2026 (décision de Jimmy, lot L1 : mesurer la rétention, sur accord)
 
 Le jeu peut compter, si tu es d'accord, les jours où tu l'ouvres. Sans ton accord, rien ne part.

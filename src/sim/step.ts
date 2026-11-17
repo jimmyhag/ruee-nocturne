@@ -1,4 +1,4 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, REVEAL, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { burnEnemy, compactEnemies } from './combat';
@@ -193,7 +193,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   }
   // phase 27 : glisse à l'appui (front montant : la tenir ne compte qu'une fois) ; au sol, un appui lance la glissade
   // ou relève le joueur ; 1.30.1 : en l'air, il prépare la réception (glisse parfaite si le sol arrive à temps)
-  const slideIn = input.slide === true;
+  const slideIn = input.slide === true && w.reveal >= REVEAL.slide; // lot L2 : refusée tant qu'elle n'est pas dévoilée
   let slidePress = slideIn && !P.slideHeld;
   P.slideHeld = slideIn;
   if (P.elanT > 0) P.elanT -= dt;

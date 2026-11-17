@@ -179,6 +179,34 @@ export const SHRINE = {
   decay: 1.5, // la jauge redescend à cette vitesse (×) hors du cercle
   offers: 4, // phase 47 : 3 → 4, il y a 18 bonus à croiser
 };
+// lot L2 (décisions de Jimmy, docs/specs/l2-premieres-parties.md) : dévoilement progressif. `Meta.reveal` compte les
+// étapes dévoilées (0 à `max`), une de plus par partie finie ; la sim reçoit ce nombre (`WorldOptions.reveal`, absent =
+// tout). Seuils : un système existe dans la partie à partir de son étape. Sur mobile, tout recevoir dès la première
+// partie (glisse, sanctuaires, marchand, totem, crânes) était trop d'un coup ; le totem ouvre les mondes suivants, il vient
+// en dernier.
+export const REVEAL = {
+  max: 4, // tout dévoilé : la cinquième partie, un joueur d'avant le lot, le défi du jour
+  slide: 1, // partie 2 : la glisse (refusée par la sim avant)
+  shrines: 2, // partie 3 : les sanctuaires
+  merchant: 3, // partie 4 : le marchand
+  totem: 4, // partie 5 : le totem du monde (donc les mondes 2 et 3), les crânes et les totems de boss
+  abandonAfter: 60, // s de jeu : un abandon plus tardif compte comme une partie finie (un départ manqué, non)
+};
+// lot L2 (décision 9) : les deux premières parties (dévoilement 0 et 1 au lancement) sont adoucies, sans que le joueur le
+// voie. Cible : ≤ 20 % de morts avant 3 min du kit de départ, survie médiane ≤ 7:00 (cible du profil nu + 1 min).
+// Mesuré au bot moyen, 4 graines × 200 parties regroupées (docs/GATES.md, lot L2) : 22,3 % avant le lot (tout dévoilé),
+// 25,3 % au dévoilement 0 sans adoucissement (2 graines : ni sanctuaire ni marchand). Adoucir toute la partie ne tient
+// pas la médiane : sans totem, elle saute de 4:15 à 8–11 min dès que plus de la moitié des parties passent le boss de
+// survie de 3:00 (×0,95 sur toute la partie, 2 graines : 12 % et 7:50–10:42). D'où une fenêtre : seuls les monstres
+// apparus avant `until` sont adoucis. Les PV portent l'effet, par paliers (×0,975 : 22,5 % ; ×0,965 : 19,8 % ; ×0,96 :
+// 20,3 % ; ×0,95 : 11,4 % mais médiane 8:09) ; les dégâts presque pas (×0,9 : 19,1 % au lieu de 19,8 %).
+export const FIRST_RUNS = {
+  below: 2, // dévoilement au lancement sous lequel la partie est adoucie (parties 1 et 2)
+  until: 180, // s de jeu : la fenêtre adoucie, jusqu'au premier boss de survie (exclu)
+  hp: 0.965, // PV des ennemis apparus dans la fenêtre (×0,95 franchit un palier : médiane 8:09, hors cible)
+  dmg: 0.9, // leurs dégâts (contact, tirs) : 19,1 % de morts avant 3 min, médiane 4:51
+  rate: 1, // cadence d'apparition dans la fenêtre (flux continu et vagues) : pas utilisée, le levier n'a pas été mesuré
+};
 // phase 48 (demande de Jimmy) : la difficulté de la partie. `P.difficulty` vaut 0 au départ (affiché « 100 % ») et monte
 // par les crânes de la carte (`skullStep` chacun, pour toute la partie) et par le tome de difficulté. Elle multiplie les
 // apparitions par (1 + d) et la vie des monstres par (1 + hpShare · d) : les deux effets se multiplient, donc la vie monte

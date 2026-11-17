@@ -11,7 +11,7 @@ import { PAL } from './render/palette';
 import { FEEL, HitStop } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
-import { Hud, flashCard, gearHtml, renderCards } from './ui/hud';
+import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
 import { achName, achUnlock, itemName, synergyName } from './ui/cards';
@@ -76,6 +76,7 @@ import type { PatchNote } from './meta/patch-notes';
 import { hasUnseenNotes, renderNotes } from './ui/notes';
 import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
+import { revealAfterRun, revealNews } from './meta/reveal';
 import {
   bestLine,
   esc,
@@ -366,7 +367,7 @@ function openScreen(
     renderCharacters($('chars'), meta, $('charInfo'));
     return;
   } else if (id === 'help') {
-    /* statique */
+    showRevealed($('help'), meta.reveal); // lot L2 : l'aide ne montre que les systèmes dévoilés
   } else if (id === 'notes') {
     showOnly(id);
     void openNotes();
@@ -577,6 +578,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
     runOutfit = resume.outfit;
     runDay = resume.day ?? todayKey();
   } else {
+    countAbandon(); // lot L2 : la partie remplacée compte pour le dévoilement après une minute de jeu
     forgetRun(); // une nouvelle partie remplace celle qui attendait (abandon confirmé au menu)
     runChar = daily ? 'eclaireuse' : meta.character;
     runOutfit = daily ? 0 : outfitOf(meta, meta.character);
@@ -618,6 +620,14 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   $('touch').hidden = !input.isTouch;
   hud.reset();
   hud.kit(world);
+  // lot L2 : une étape dévoilée s'annonce au début de la partie qui l'apporte (pas à la reprise, pas au défi du jour)
+  const news = restored ? null : revealNews(meta, daily);
+  mapView.setNew(news === null || news === 'slide' ? null : news, t('reveal.tag'));
+  if (news) {
+    saveMeta(meta);
+    hud.banner(t('reveal.new'), t(`reveal.${news}`), REVEAL_BANNER_MS);
+    audio.levelUp();
+  }
   S.dmg.clear();
   S.snapCamera(world);
   S.resetHero();
@@ -677,6 +687,13 @@ function saveRun(): void {
   } catch {
     /* jamais bloquant : la partie continue, au pire sans sauvegarde */
   }
+}
+/** Lot L2 : la partie gardée, abandonnée pour une nouvelle, compte comme finie après REVEAL.abandonAfter s de jeu. */
+function countAbandon(): void {
+  if (!savedRun) return;
+  const before = meta.reveal;
+  revealAfterRun(meta, { daily: savedRun.daily, t: savedRun.summary.t, abandoned: true });
+  if (meta.reveal !== before) saveMeta(meta);
 }
 function forgetRun(): void {
   savedRun = null;
@@ -970,6 +987,7 @@ function gameOver(won = false): void {
   forgetRun(); // phase 49 : une partie finie n'est plus à reprendre
   const rec = world.t > meta.bestTime;
   meta.runs++;
+  revealAfterRun(meta, { daily: dailyRun, t: world.t, abandoned: false }); // lot L2 : une étape de plus (pas au défi du jour)
   meta.totalKills += world.kills;
   if (rec) meta.bestTime = world.t;
   if (world.kills > meta.bestKills) meta.bestKills = world.kills;
@@ -1065,6 +1083,7 @@ $('resumeRunBtn').onclick = () => {
 };
 $('abandonYesBtn').onclick = () => {
   const d = abandonFor?.daily ?? false;
+  countAbandon();
   forgetRun();
   updateResumeBtn();
   startGame(undefined, d);
@@ -1402,6 +1421,7 @@ input.onPause = () => {
 const mapView = new MapView($('minimap') as HTMLCanvasElement, $('bigmap') as HTMLCanvasElement);
 let mapFrom: 'play' | 'pause' = 'play';
 let bossTotemNote = -1; // phase 51 : monde dont le nombre de totems de boss a été annoncé
+const REVEAL_BANNER_MS = 4000; // lot L2 : la bannière « Nouveau ! » reste 4 s (le temps de lire la phrase)
 const BOSS_TOTEM_NOTE_AT = 2.5; // s du monde
 const BOSS_TOTEM_NOTE_LATE = 12; // s du monde : au-delà, on ne l'annonce plus
 let slideBtnOn = false; // bouton GLISSE allumé pendant la glissade
@@ -1413,6 +1433,7 @@ function openMap(): void {
   const f = mapView.drawBig(world);
   $('mapExplored').textContent = t('map.explored', { pct: Math.round(f * 100) });
   $('lgBossTotem').textContent = t('map.legend.bosstotems', { n: world.bossTotems.length }); // phase 51 : leur nombre varie (1 à 3)
+  showRevealed($('map'), world.reveal); // lot L2 : la légende ne nomme que ce qui existe dans la partie
 }
 function closeMap(): void {
   if (app !== 'map') return;

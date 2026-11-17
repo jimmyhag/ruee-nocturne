@@ -1,5 +1,5 @@
 // CLI d'équilibrage : fait jouer un bot N fois, imprime des percentiles, compare aux cibles.
-//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--no-targets]
+//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--reveal 0..4] [--no-targets]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -12,6 +12,7 @@ import {
   ITEM_KEYS,
   MAX_PASSIVES,
   MAX_WEAPONS,
+  REVEAL,
   SLOTS_START,
   STEP,
   SYNERGIES,
@@ -67,6 +68,9 @@ const SLOT_OPT =
     : SLOTS_ARG === 'start'
       ? { ...SLOTS_START }
       : { weapons: +SLOTS_ARG.split(',')[0] || 1, passives: +SLOTS_ARG.split(',')[1] || 2 };
+// lot L2 : --reveal 0..4, étapes dévoilées (0 : première partie, sans glisse ni sanctuaire ni marchand ni totem ;
+// 0 et 1 : adoucies, FIRST_RUNS) ; absent = 4, tout (le jeu d'avant le lot, les cibles des profils)
+const REVEAL_OPT = args.has('reveal') ? Math.max(0, Math.min(REVEAL.max, +args.get('reveal')! | 0)) : undefined;
 // --no-item phenix,talisman : objets jamais obtenus (sim d'ablation de la porte 17)
 const NO_ITEM = new Set((args.get('no-item') ?? '').split(',').filter((k) => k.length > 0));
 for (const k of NO_ITEM)
@@ -211,7 +215,7 @@ interface RunResult {
 }
 
 function runOnce(seed: number): RunResult {
-  const w = new World(seed, { character: CHARACTER, slots: SLOT_OPT });
+  const w = new World(seed, { character: CHARACTER, slots: SLOT_OPT, reveal: REVEAL_OPT });
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   // ablation : un objet exclu n'est jamais tiré (coffres et marchand)
   for (const k of NO_ITEM) w.itemBan[ITEM_KEYS.indexOf(k as never)] = 1;
@@ -480,6 +484,7 @@ const summary = {
   noItem: [...NO_ITEM],
   slots: `${SLOT_OPT.weapons},${SLOT_OPT.passives}`,
   profile: PROFILE,
+  reveal: REVEAL_OPT ?? REVEAL.max,
   survival: {
     p10: pct(times, 10),
     p50: pct(times, 50),
@@ -735,7 +740,7 @@ for (let m = 1; m < summary.aliveCurve.length; m++)
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,

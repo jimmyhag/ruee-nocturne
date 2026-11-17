@@ -111,7 +111,10 @@ test('gaucher : la barre passe du côté droit, les boutons à gauche, sans chev
 }, info) => {
   test.skip(!hasTouch, 'boutons tactiles seulement');
   await openGame(page);
-  await page.evaluate(() => (window as any).__game.setMeta({ version: 3, settings: { lefty: true } }));
+  // lot L2 : un joueur qui a tout découvert, pour que les trois boutons (GLISSE compris) soient là
+  await page.evaluate(() =>
+    (window as any).__game.setMeta({ version: 3, reveal: 4, seenReveal: 4, settings: { lefty: true } }),
+  );
   await startRun(page);
   await equip(page, ['pierre', 'de', 'brume']);
   const boxes = await gearBoxes(page);

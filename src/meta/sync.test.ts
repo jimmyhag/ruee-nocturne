@@ -37,7 +37,18 @@ describe('frontière progression / appareil', () => {
     const all = Object.keys(DEFAULT_META).sort();
     expect([...PROGRESS_KEYS, ...DEVICE_KEYS].sort()).toEqual(all);
     // 1.49.0 : seenNotes (dernière version dont les Nouveautés ont été lues) reste sur l'appareil, comme l'aide vue
-    expect(DEVICE_KEYS).toEqual(['muted', 'reducedFx', 'fxChosen', 'settings', 'seenReset', 'seenHelp', 'seenNotes']);
+    // lot L2 : seenReveal (dernière étape annoncée par « Nouveau ! ») aussi ; `reveal` lui est une progression
+    expect(DEVICE_KEYS).toEqual([
+      'muted',
+      'reducedFx',
+      'fxChosen',
+      'settings',
+      'seenReset',
+      'seenHelp',
+      'seenNotes',
+      'seenReveal',
+    ]);
+    expect(PROGRESS_KEYS).toContain('reveal');
   });
   it('progressOf ne transporte ni réglages, ni son, ni effets, ni aide vue', () => {
     const p = progressOf(played()) as unknown as Record<string, unknown>;

@@ -1,4 +1,4 @@
-import { ARCHER, ARCHER_TYPE, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, DIFFICULTY, ELITE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, ARCHER_TYPE, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, DIFFICULTY, ELITE, FIRST_RUNS, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, VOLANT, VOLANT_TYPE } from './balance';
 import { Ev } from './types';
 import type { World } from './world';
 
@@ -8,6 +8,12 @@ const TAU = Math.PI * 2;
 export const difficultyOf = (w: World): number => w.player.difficulty; // phase 50 : sans plafond
 /** Vie des monstres selon la difficulté : ×1 au départ (les boss la prennent aussi, stages.ts). */
 export const difficultyHp = (w: World): number => 1 + DIFFICULTY.hpShare * difficultyOf(w);
+
+/**
+ * Lot L2 : adoucissement des deux premières parties (`k` : w.softHp, w.softDmg ou w.softRate, 1 pour les autres),
+ * pendant les FIRST_RUNS.until premières secondes de jeu seulement : il vise les morts du début sans allonger la partie.
+ */
+export const soft = (w: World, k: number): number => (w.t < FIRST_RUNS.until ? k : 1);
 
 /** Multiplicateurs des monstres (phase 53) : voir enemyIntensity. */
 export interface Intensity {
@@ -36,7 +42,9 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   if (!e) return -1;
   const def = ENEMIES[type];
   // phase 37 : difficulté au temps du monde (diffT) et renfort de prolongation (over*, 1 tant que le chrono tourne)
-  let scale = SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * STAGE.bossHpPerBoss : 1) * difficultyHp(w);
+  // lot L2 : PV et dégâts (et cadence dans tickSpawner) adoucis au début des deux premières parties (soft)
+  let scale =
+    SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * STAGE.bossHpPerBoss : 1) * difficultyHp(w) * soft(w, w.softHp);
   if (elite) scale *= ELITE.hpMul;
   e.type = type;
   e.elite = elite;
@@ -54,7 +62,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.lastPatins = -9;
   e.face = 0;
   e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.diffT) * w.overSpd;
-  e.dmgMul = SPAWN.dmgScale(w.diffT) * w.overDmg;
+  e.dmgMul = SPAWN.dmgScale(w.diffT) * w.overDmg * soft(w, w.softDmg);
   e.bob = w.rng.range(0, TAU);
   e.state = 0;
   // plongées et premiers tirs désynchronisés (phase 16 : un tireur qui arrive ne tire pas tout de suite)
@@ -100,7 +108,7 @@ export function tickSpawner(w: World, dt: number): void {
   // phase 42 : seule la présence du boss du totem (ou d'une vague du monde infini) calme la horde, pas un boss de survie
   const calm = w.endless ? w.bossIndex >= 0 : w.totemAlive > 0 || w.totemBossId >= 0; // phase 48 : tant qu'un boss du totem vit
   const more = 1 + difficultyOf(w); // phase 48 : la difficulté multiplie les apparitions (crânes, tome de difficulté)
-  let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1) * more;
+  let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1) * more * soft(w, w.softRate);
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
   if (w.boredomUntil > now) rate *= SPAWN.boredomMul;
@@ -125,7 +133,7 @@ export function tickSpawner(w: World, dt: number): void {
   }
   if (st >= w.nextWave) {
     w.nextWave += SPAWN.wavePeriod;
-    const n = Math.round(SPAWN.waveCount(t) * Math.min(STAGE.overWaveCap, w.overRate) * more);
+    const n = Math.round(SPAWN.waveCount(t) * Math.min(STAGE.overWaveCap, w.overRate) * more * soft(w, w.softRate));
     for (let i = 0; i < n && w.enemyCount < CAPS.enemies; i++) spawnEnemy(w, t > SPAWN.waveDardAfter ? 1 : 0, (i / n) * TAU, SPAWN.waveDist);
     w.emit(Ev.Wave, w.player.x, 0, w.player.z, n);
   }

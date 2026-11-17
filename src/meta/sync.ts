@@ -14,6 +14,7 @@ export const DEVICE_KEYS = [
   'seenReset',
   'seenHelp',
   'seenNotes',
+  'seenReveal', // lot L2 : bannière « Nouveau ! » déjà vue sur cet appareil
 ] as const;
 export type DeviceKey = (typeof DEVICE_KEYS)[number];
 export type Progress = Omit<Meta, DeviceKey>;
@@ -58,7 +59,7 @@ export function progressOf(m: Meta): Progress {
 /** Progression reçue (nuage, autre appareil) appliquée sur la méta locale : normalisée et bornée, réglages locaux gardés. */
 export function withProgress(local: Meta, raw: unknown): Meta {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  return normalizeMeta({
+  const m = normalizeMeta({
     ...r,
     // sans version, la progression est v3 au moins par construction (pas de remise à zéro) ; une v4 venue d'un ancien
     // client passe par la migration de la phase 40
@@ -70,7 +71,14 @@ export function withProgress(local: Meta, raw: unknown): Meta {
     seenReset: local.seenReset,
     seenHelp: local.seenHelp,
     seenNotes: local.seenNotes,
+    seenReveal: local.seenReveal,
   });
+  // lot L2 : dévoilement, le plus grand des deux (un ancien client sans le champ : migré par normalizeMeta). Les étapes
+  // venues d'un autre appareil y ont été annoncées : pas de bannière ici ; celle gagnée sur cet appareil reste à annoncer
+  const theirs = m.reveal;
+  m.reveal = Math.max(local.reveal, theirs);
+  m.seenReveal = theirs > local.reveal ? Math.max(local.seenReveal, theirs) : local.seenReveal;
+  return m;
 }
 
 export function sameProgress(a: Meta, b: Meta): boolean {
