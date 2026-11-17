@@ -20,6 +20,8 @@ README.md
 .agents/
 AGENTS.template.md
 AGENTS.md
+# specs : texte issu du sparring avec Jimmy, recopié mot pour mot
+docs/specs/
 .firebaserc
 lighthouse/
 # généré par npm run audio
