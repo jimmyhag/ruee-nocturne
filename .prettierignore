@@ -26,3 +26,5 @@ docs/specs/
 lighthouse/
 # généré par npm run audio
 src/platform/sfx.json
+# maquettes de Jimmy (canvas de design), copiées telles quelles
+docs/design/
