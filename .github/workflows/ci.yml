@@ -21,19 +21,21 @@ jobs:
           node-version: 22 # Vite 8 exige Node ≥ 22.12
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test -- --coverage
-      - run: npm run build
-      - run: npm run bench
-      - name: Playwright (fumée WebGL, tactile, relance, captures)
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: 1.59.0
+      - name: Navigateur de Playwright
         run: |
           npx playwright install chromium
           # Dépendances système à part, sans bloquer : le 11 nov. 2026 les miroirs Ubuntu ne répondaient plus depuis le
           # runner (trois CI rouges avant le premier test). L'image a déjà les bibliothèques de Chromium, il ne manque
           # que des polices ; si une bibliothèque manquait vraiment, le lancement du navigateur échouerait juste après.
           npx playwright install-deps chromium || echo "::warning::Dépendances système de Playwright non installées (miroirs injoignables)"
-          npm run test:e2e
+      # La porte, identique en local : types, lint (frontières entre couches), tests sous couverture, code mort, build,
+      # bench, simulation de fumée, e2e de fumée (justfile).
+      - run: just check
+      - name: Playwright, suite complète (tactile, relance, captures)
+        run: just e2e
       - uses: actions/upload-artifact@v4
         if: always()
         with:
