@@ -25,8 +25,8 @@ of truth for the game's content; `docs/GATES.md` records what each phase deliver
 
 ## Contributing workflow
 
-- Never push to `main`. Work on a branch and open a pull request: CI runs `just check`,
-  the whole Playwright suite, Lighthouse and the balance simulation (commented on the PR).
+- Never push to `main`. Work on a branch and open a pull request: CI runs `just ci` (the gates of `just check`
+  with the whole Playwright suite), Lighthouse and the balance simulation (commented on the PR).
 - Merge only when CI is green, and only on Jimmy's explicit order. Merging deploys:
   every push to `main` publishes the live site (`.github/workflows/deploy.yml`); each pull
   request gets its own preview channel, whose URL the deploy job comments.
@@ -70,6 +70,7 @@ of truth for the game's content; `docs/GATES.md` records what each phase deliver
 | `just preflight` | typecheck + lint + test + deadcode: the edit-loop gate (about 1 min)                      |
 | `just check`     | preflight + build + bench + smoke simulation + smoke e2e: the commit gate (about 4 min)   |
 | `just e2e`       | The whole Playwright suite, desktop and mobile (long; CI runs it on every pull request)   |
+| `just ci`        | What CI runs: check with the whole Playwright suite instead of the smoke                  |
 | `just sim`       | Balance simulation with targets: `just sim --runs 200 --bot average --seed 42 --profile maxed` |
 | `just bench`     | 600 simulation steps at 400 enemies; fails over the budgets of PLAN.md §4.3               |
 

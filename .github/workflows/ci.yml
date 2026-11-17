@@ -13,7 +13,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 110 # tests Playwright sous SwiftShader puis Lighthouse (3 runs) : annulé à 30 min sur la #30 (25 min sur la #29), à 45 min en 1.30.2 (e2e bonus et glisse) ; 56 min en 1.40.0, relevé à 90 en 1.41.0 (décor plus riche, rendu logiciel plus lent) ; 81 min en 1.42.1 (Playwright seul : 77 min), relevé à 110 en 1.43.0 pour garder de la marge avant Lighthouse
+    timeout-minutes: 130 # 1.56.1 : ≈ 100 min, et le harnais ajoute knip et la simulation de fumée ; tests Playwright sous SwiftShader puis Lighthouse (3 runs) : annulé à 30 min sur la #30 (25 min sur la #29), à 45 min en 1.30.2 (e2e bonus et glisse) ; 56 min en 1.40.0, relevé à 90 en 1.41.0 (décor plus riche, rendu logiciel plus lent) ; 81 min en 1.42.1 (Playwright seul : 77 min), relevé à 110 en 1.43.0 pour garder de la marge avant Lighthouse
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,11 +31,10 @@ jobs:
           # runner (trois CI rouges avant le premier test). L'image a déjà les bibliothèques de Chromium, il ne manque
           # que des polices ; si une bibliothèque manquait vraiment, le lancement du navigateur échouerait juste après.
           npx playwright install-deps chromium || echo "::warning::Dépendances système de Playwright non installées (miroirs injoignables)"
-      # La porte, identique en local : types, lint (frontières entre couches), tests sous couverture, code mort, build,
-      # bench, simulation de fumée, e2e de fumée (justfile).
-      - run: just check
-      - name: Playwright, suite complète (tactile, relance, captures)
-        run: just e2e
+      # La porte de just check (types, lint et frontières entre couches, tests sous couverture, code mort, build, bench,
+      # simulation de fumée), avec la suite Playwright complète à la place de la fumée qu'elle contient (justfile).
+      - name: just ci (porte de just check, suite e2e complète)
+        run: just ci
       - uses: actions/upload-artifact@v4
         if: always()
         with:

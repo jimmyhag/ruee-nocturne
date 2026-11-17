@@ -1,4 +1,5 @@
-# Task runner. `just check` is the gate, locally and in CI; `just preflight` is the edit-loop subset.
+# Task runner. `just check` is the gate before every commit (CI runs `just ci`: the same with the whole e2e suite);
+# `just preflight` is the edit-loop subset.
 # Every recipe calls the project's npm scripts: the old commands (`npm run lint`, `npm test`…) keep working.
 
 # cmd.exe on Windows (sh is not guaranteed to be on PATH); sh elsewhere.
@@ -54,6 +55,9 @@ e2e-smoke:
 
 # Everything that must pass before a commit: preflight (tests under coverage), the build, the bench, a smoke simulation and the smoke e2e
 check: typecheck lint coverage deadcode build bench sim-smoke e2e-smoke
+
+# The CI gate: check with the whole Playwright suite instead of the smoke (which it contains)
+ci: typecheck lint coverage deadcode build bench sim-smoke e2e
 
 # The whole Playwright suite, desktop and mobile (long: run by CI on every pull request)
 e2e *args:
