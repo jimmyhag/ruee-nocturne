@@ -2978,6 +2978,23 @@
       </div>
     </section>
 
+    <!-- lot L1 : la mesure anonyme de fréquentation, demandée une fois après la première partie (Échap = Non merci) -->
+    <section id="consent" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" id="consentTitle" data-i18n="consent.title">Aider à améliorer le jeu ?</h2>
+        </header>
+        <p class="tag" data-i18n="consent.text">
+          Avec ton accord, le jeu compte de façon anonyme les jours où tu l'ouvres, pendant 30 jours. Rien d'autre : ni
+          compte, ni score, ni appareil. Tu peux changer d'avis dans les Réglages.
+        </p>
+        <div class="btnrow">
+          <button class="big" id="consentYesBtn" data-i18n="consent.yes">Oui, compter</button
+          ><button class="ghost" id="consentNoBtn" data-i18n="consent.no">Non merci</button>
+        </div>
+      </div>
+    </section>
+
     <section id="levelup" class="screen" hidden>
       <div class="panel">
         <div>
@@ -3160,7 +3177,8 @@
             ><button class="ghost" id="setFxBtn">Effets : complets</button
             ><button class="ghost" id="setQualityBtn">Rendu : auto</button
             ><button class="ghost" id="setLeftyBtn">Gaucher : non</button
-            ><button class="ghost" id="setLangBtn">Langue : auto</button>
+            ><button class="ghost" id="setLangBtn">Langue : auto</button
+            ><button class="ghost" id="setRetentionBtn">Mesure anonyme de fréquentation : non</button>
           </div>
           <!-- phase 36 : volumes séparés des effets et de la musique -->
           <div class="vols">

@@ -76,7 +76,8 @@ of truth for the game's content; `docs/GATES.md` records what each phase deliver
 
 Other npm scripts: `npm run preview` (serves `dist/`: test the service worker there, never
 in dev), `npm run shot` (Playwright screenshots in `shots/`), `npm run store`,
-`npm run icons`, `npm run assets`, `npm run audio`, `npm run lh` (Lighthouse).
+`npm run icons`, `npm run assets`, `npm run audio`, `npm run lh` (Lighthouse), `npm run retention` (the
+retention table, read with an administrator token: `docs/DEPLOY.md`).
 
 ## Business invariants (non-negotiable)
 
@@ -109,11 +110,11 @@ HUD subscribe to them, never the reverse.
 | sim | `src/sim/` | Pure, deterministic game logic, fixed 60 Hz step; every numeric constant lives in `src/sim/balance.ts` | `src/sim/` only; no `three`, no DOM, no `Math.random` or `Date.now` (randomness through `w.rng`) |
 | render | `src/render/` | Three.js: reads the world, never writes to it; `InstancedMesh` for everything that repeats | `three`, `src/sim/` |
 | ui | `src/ui/` | Native DOM (no UI framework): HUD, sheets, cards | `src/sim/`, `src/render/`, `src/platform/`, `src/meta/`, `src/i18n/` |
-| platform | `src/platform/` | Input, audio, storage, PWA, the account (the only Firebase import) | `src/sim/`, `src/meta/` |
-| meta | `src/meta/` | Saved progression, achievements, library, sync, leaderboard shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
+| platform | `src/platform/` | Input, audio, storage, PWA, the account (the only Firebase import), the retention measure (Firestore REST, no SDK) | `src/sim/`, `src/meta/` |
+| meta | `src/meta/` | Saved progression, achievements, library, sync, leaderboard and retention shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
 | i18n | `src/i18n/` | French and English strings, number formats | `src/sim/`, `src/meta/` |
 | entry | `src/main.ts`, `src/debug.ts` | Composition: the loop, the event handlers, the debug hooks (`?debug=1`) | everything |
-| tools | `tools/` | Node CLIs: simulation and bots, bench, assets, audio, icons, Lighthouse | `src/` |
+| tools | `tools/` | Node CLIs: simulation and bots, bench, assets, audio, icons, Lighthouse, retention reading | `src/` |
 
 The lint enforces the `sim` and `render` rows and the Firebase rule (`eslint.config.js`);
 the test « frontière sim/render » (`src/sim/sim.test.ts`) checks the sim row again.
@@ -121,8 +122,8 @@ the test « frontière sim/render » (`src/sim/sim.test.ts`) checks the sim row 
 ### External services and the platform boundary
 
 - Everything that depends on the browser or a service (input, audio, storage, the
-  service worker, vibration, sharing, the account) goes through `src/platform/`, with a
-  fallback when the API is missing.
+  service worker, vibration, sharing, the account, the retention measure) goes through
+  `src/platform/`, with a fallback when the API is missing.
 - Firebase is imported by `src/platform/account.ts` alone, loaded on demand; a player
   without an account never loads it (rule 8, e2e test `e2e/account.spec.ts`).
 - The simulation is tested headless by Vitest and played by bots (`tools/bots/`); the
@@ -136,10 +137,10 @@ the test « frontière sim/render » (`src/sim/sim.test.ts`) checks the sim row 
 src/sim/            simulation (pure, deterministic), its tests next to each module
 src/render/         Three.js scene, instancing, effects, models
 src/ui/             DOM screens and HUD
-src/platform/       input, audio, storage, PWA, account
-src/meta/           saved progression, achievements, library, sync, leaderboard
+src/platform/       input, audio, storage, PWA, account, Firebase configuration, retention measure
+src/meta/           saved progression, achievements, library, sync, leaderboard, retention
 src/i18n/           fr.json, en.json and the formatting helpers
-tools/              simulation CLI and bots, bench, asset and audio pipelines, icons, Lighthouse
+tools/              simulation CLI and bots, bench, asset and audio pipelines, icons, Lighthouse, retention
 e2e/                Playwright specs (desktop 1280×720 and iPhone 13)
 public/             static files: icons, models, sounds, fonts
 assets/             sources of generated files (icon.svg)

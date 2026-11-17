@@ -70,6 +70,28 @@ service cloud.firestore {
       allow create, update: if week.matches('^[0-9]{4}-W[0-9]{2}$') && scoreOk(uid);
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
+    // Mesure de fréquentation (lot L1, décision de Jimmy) : un document anonyme par appareil qui l'a acceptée, écrit par
+    // l'API REST sans compte (src/meta/retention.ts). Clés fermées, cohorte `c` (jours depuis 1970) proche du jour de la
+    // création puis figée, 31 jours d'ouverture au plus, expiration `x` (règle TTL) à moins de 100 jours. Aucune
+    // lecture depuis le jeu : seul Jimmy lit, avec ses droits d'administrateur (`npm run retention`).
+    match /retention/{id} {
+      function retentionOk() {
+        let d = request.resource.data;
+        return id.size() == 36
+          && d.keys().hasOnly(['c', 'f', 'o', 'x'])
+          && d.keys().hasAll(['c', 'f', 'o', 'x'])
+          && d.c is int
+          && d.f is bool
+          && d.o is list && d.o.size() <= 31
+          && d.x is timestamp && d.x > request.time && d.x < request.time + duration.value(100, "d");
+      }
+      allow get, list: if false;
+      allow create: if retentionOk()
+        && timestamp.value(request.resource.data.c * 86400000) > request.time - duration.value(2, "d")
+        && timestamp.value(request.resource.data.c * 86400000) < request.time + duration.value(2, "d");
+      allow update: if retentionOk() && request.resource.data.c == resource.data.c;
+      allow delete: if true;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

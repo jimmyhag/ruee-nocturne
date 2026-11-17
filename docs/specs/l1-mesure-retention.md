@@ -1,6 +1,6 @@
 # L1 — Mesure de la rétention
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 17 novembre 2026, avec Jimmy. Sparring mené **en délégation** : Jimmy a demandé
 de tout réaliser sans lui redemander de confirmation (« fais tout ce que je t'ai envoyé

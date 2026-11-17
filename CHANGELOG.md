@@ -2,6 +2,25 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.57.0 — 17 nov. 2026 (décision de Jimmy, lot L1 : mesurer la rétention, sur accord)
+
+Le jeu peut compter, si tu es d'accord, les jours où tu l'ouvres. Sans ton accord, rien ne part.
+
+### Ajouté
+
+- **« Aider à améliorer le jeu ? »** : après ta première partie, une question s'affiche une seule fois au menu. Si tu réponds « Oui, compter », le jeu note de façon anonyme les jours où tu l'ouvres pendant 30 jours, sous un identifiant tiré au hasard : ni compte, ni score, ni appareil. « Non merci » (ou Échap) et rien ne part, la question ne revient jamais.
+- **Réglages → Mesure anonyme de fréquentation** : tu changes d'avis quand tu veux. La couper efface ce qui a été envoyé ; la remettre repart de zéro avec un nouvel identifiant.
+
+### Technique
+
+- `src/platform/retention.ts` : un document Firestore `retention/{id}` par appareil qui a accepté (`c` jour de l'accord en jours depuis 1970, `f` au plus une partie finie à l'accord, `o` jours d'ouverture J0 à J30, `x` expiration à cohorte + 90 jours), écrit par l'API REST (`PATCH`, clé d'API web dans l'URL) avec `fetch`, sans SDK Firebase. Une écriture par jour UTC au plus (lancement ou retour au premier plan), aucune après J30 ; hors ligne ou en échec, le jour reste noté et la liste complète repart à l'ouverture suivante, sans boucle ni erreur visible. Retrait : `DELETE` du document, identifiant oublié. État dans `localStorage` `ruee-retention`, hors de `Meta` (ni sauvegarde, ni export, ni synchronisation).
+- `src/meta/retention.ts` (pur) : état local, corps de la requête, lecture des documents et tableau D1/D7/D30 par semaine de cohorte (Dn sur les seuls joueurs d'au moins n jours, « — » pour une cohorte trop jeune).
+- `src/platform/firebase-config.ts` : `loadConfig()` et `FirebaseConfig` quittent `account.ts` (sans import de `firebase`) ; sans configuration, la mesure ne fait rien.
+- `firestore.rules` : bloc `retention/{id}` (identifiant de 36 caractères, clés `c`, `f`, `o`, `x` seules et toutes présentes, cohorte à ±2 jours à la création puis figée, 31 jours au plus, expiration à moins de 100 jours, suppression permise, aucune lecture). Règle TTL sur `x` à activer une fois (`docs/DEPLOY.md`).
+- `npm run retention` (`tools/retention.ts`) : lit la collection avec un jeton administrateur (`RETENTION_TOKEN=$(gcloud auth print-access-token) npm run retention`) et imprime le tableau, nouveaux joueurs et tous, sans aucun identifiant.
+- La demande s'affiche au retour au menu (`toMenu`) quand au moins une partie est finie ; masquée en debug comme l'aide du premier lancement, sauf avec `?consent=1`.
+- Tests : Vitest (état, document, URL, tableau, règles) et `e2e/retention.spec.ts` (un test par scénario de la spec, PC et mobile, Firestore et `/__/firebase/init.json` simulés par `page.route`).
+
 ## 1.56.1 — 16 nov. 2026 (choix de Jimmy : la nouvelle icône)
 
 ### Modifié

@@ -932,5 +932,11 @@
   "stats.elitegold": "Or par élite",
   "stats.shop": "Prix du marchand",
   "stats.eliteloot": "XP et or des élites",
-  "stats.eliterate": "Fréquence des élites"
+  "stats.eliterate": "Fréquence des élites",
+  "consent.title": "Aider à améliorer le jeu ?",
+  "consent.text": "Avec ton accord, le jeu compte de façon anonyme les jours où tu l'ouvres, pendant 30 jours. Rien d'autre : ni compte, ni score, ni appareil. Tu peux changer d'avis dans les Réglages.",
+  "consent.yes": "Oui, compter",
+  "consent.no": "Non merci",
+  "settings.retention.on": "Mesure anonyme de fréquentation : oui",
+  "settings.retention.off": "Mesure anonyme de fréquentation : non"
 }

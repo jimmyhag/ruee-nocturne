@@ -932,5 +932,11 @@
   "stats.elitegold": "Gold per elite",
   "stats.shop": "Merchant prices",
   "stats.eliteloot": "Elite XP and gold",
-  "stats.eliterate": "Elite frequency"
+  "stats.eliterate": "Elite frequency",
+  "consent.title": "Help improve the game?",
+  "consent.text": "With your consent, the game anonymously counts the days you open it, for 30 days. Nothing else: no account, no score, no device. You can change your mind in Settings.",
+  "consent.yes": "Yes, count",
+  "consent.no": "No thanks",
+  "settings.retention.on": "Anonymous visit count: on",
+  "settings.retention.off": "Anonymous visit count: off"
 }
