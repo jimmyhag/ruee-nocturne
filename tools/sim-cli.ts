@@ -5,6 +5,9 @@ import { dirname } from 'node:path';
 import {
   CHARACTERS,
   DAILY,
+  DAILY_ARMORY,
+  DAILY_RULE_KEYS,
+  DAILY_RULES,
   STAGE,
   ENDLESS,
   ENEMIES,
@@ -48,7 +51,18 @@ const SEED = +(args.get('seed') ?? 42);
 // lot L3 : --daily (ou --profile daily), le défi du jour court tel que le jeu le lance (worldOptions du défi : Éclaireuse,
 // kit de départ, tout dévoilé, monde 1 seul jusqu'à DAILY.duration) ; cibles du profil « daily »
 const DAILY_ON = args.has('daily') || args.get('profile') === 'daily';
-const UNTIL = +(args.get('until') ?? (DAILY_ON ? DAILY.duration + 1 : 2400)); // phase 37 : trois mondes de 10 min, plus la prolongation
+// défi v2 : le bot continue toujours en monde infini après 5:00 ; la partie s'arrête quand la médaille est jouée (mort,
+// ou DAILY.goldAt passé sans boss final en vie), au plus à --until
+const UNTIL = +(args.get('until') ?? 2400); // phase 37 : trois mondes de 10 min, plus la prolongation
+// défi v2 : --rule swift|elites|swarm|glass|giants|armory impose la règle du jour ; sans elle, les six à tour de rôle
+const RULE_ARG = args.get('rule');
+const RULE = RULE_ARG === undefined ? -1 : (DAILY_RULE_KEYS as readonly string[]).indexOf(RULE_ARG);
+if (RULE_ARG !== undefined && (RULE < 0 || !DAILY_ON)) {
+  console.error(`--rule : « ${RULE_ARG} » inconnue ou sans --daily. Valeurs : ${DAILY_RULE_KEYS.join(', ')}`);
+  process.exit(2);
+}
+/** Arme imposée : les armes de DAILY_ARMORY à tour de rôle (le jeu la tire par la date) ; --armory all : toutes sauf l'Orbe. */
+const ARMORY = args.get('armory') === 'all' ? WEAPON_KEYS.filter((k) => k !== CHARACTERS[0].weapon) : [...DAILY_ARMORY];
 const OUT = args.get('out');
 const ENDLESS_ON = args.has('endless'); // phase 39 : continuer en monde infini après la victoire
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
@@ -173,6 +187,10 @@ interface RunResult {
   level: number;
   reachedEnd: boolean; // phase 37 : victoire (boss du monde 3 tué à temps)
   stage: number; // phase 37 : monde atteint (1..3)
+  rule: string; // défi v2 : règle du jour ('' hors défi)
+  startWeapon: string; // défi v2 : arme de départ (Arme imposée)
+  medal: number; // défi v2 : 0 aucune, 1 bronze, 2 argent, 3 or
+  finalBossAt: number; // défi v2 : s de partie à la mort du boss final (-1 : pas abattu)
   endless: boolean; // phase 39 : la partie a continué en monde infini
   chal: number[]; // phase 41 : valeur de chacun des 3 défis du personnage dans cette partie
   endlessT: number;
@@ -219,10 +237,20 @@ interface RunResult {
   aliveAtMinute: number[];
 }
 
-function runOnce(seed: number): RunResult {
+function runOnce(seed: number, run: number): RunResult {
+  // défi v2 : règle imposée (--rule), ou les six à tour de rôle ; Arme imposée : les douze armes à tour de rôle
+  const rule = RULE >= 0 ? RULE : run % DAILY_RULE_KEYS.length;
+  const dopts = worldOptions(DEFAULT_META, undefined, true);
+  if (DAILY_ON) {
+    dopts.rule = rule;
+    if (DAILY_RULES[DAILY_RULE_KEYS[rule]].armory)
+      dopts.weapon = ARMORY[Math.floor(run / (RULE >= 0 ? 1 : DAILY_RULE_KEYS.length)) % ARMORY.length];
+  }
   const w = DAILY_ON
-    ? new World(seed, worldOptions(DEFAULT_META, undefined, true))
+    ? new World(seed, dopts)
     : new World(seed, { character: CHARACTER, slots: SLOT_OPT, reveal: REVEAL_OPT });
+  const startWeapon = Object.keys(w.weapons)[0];
+  let finalBossAt = -1;
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   // ablation : un objet exclu n'est jamais tiré (coffres et marchand)
   for (const k of NO_ITEM) w.itemBan[ITEM_KEYS.indexOf(k as never)] = 1;
@@ -313,6 +341,7 @@ function runOnce(seed: number): RunResult {
             bossBorn.set(en.id, { t: w.t, kind: w.endless ? 'infini' : w.isTotemBoss(en) ? 'totem' : 'survie' });
         }
       }
+      if (e.type === Ev.BossKill && w.dailyBoss === 2 && finalBossAt < 0) finalBossAt = w.t; // défi v2
       if (e.type === Ev.Eruption) eruptions++;
       if (e.type === Ev.PlayerHurt && w.lastHurt === HurtSrc.Eruption) eruptionHits++;
       if (e.type === Ev.PlayerHurt && frame % 15 === 0) {
@@ -372,12 +401,14 @@ function runOnce(seed: number): RunResult {
         last.set(en.id, rec);
       }
     }
-    // phase 39 : --endless, le bot continue en monde infini après la victoire
-    if (w.mode === Mode.Won && ENDLESS_ON) {
+    // phase 39 : --endless, le bot continue en monde infini après la victoire ; défi v2 : toujours au défi du jour
+    if (w.mode === Mode.Won && (ENDLESS_ON || DAILY_ON)) {
       atWin = { items: w.items.reduce((a, n) => a + n, 0), level: w.player.level, weaponLv: w.weaponLvBest };
       startEndless(w);
     }
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
+    // défi v2 : passé l'heure de l'or, la médaille est jouée si le boss final n'est plus en vie
+    if (DAILY_ON && w.t > DAILY.goldAt && w.dailyBoss !== 1) break;
   }
   return {
     seed,
@@ -385,6 +416,10 @@ function runOnce(seed: number): RunResult {
     kills: w.kills,
     level: w.player.level,
     reachedEnd: w.mode === Mode.Won || w.endless,
+    rule: DAILY_ON ? DAILY_RULE_KEYS[rule] : '',
+    startWeapon,
+    medal: w.medal,
+    finalBossAt,
     chal: charChal.map((a) => a.get(DEFAULT_META.stats, runCharStats(CHARACTER, w, w.mode === Mode.Won || w.endless))),
     endless: w.endless,
     endlessT: w.endlessT,
@@ -441,7 +476,7 @@ const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).
 const t0 = Date.now();
 const results: RunResult[] = [];
 for (let i = 0; i < RUNS; i++) {
-  results.push(runOnce(SEED * 1000 + i));
+  results.push(runOnce(SEED * 1000 + i, i));
 }
 const elapsed = (Date.now() - t0) / 1000;
 
@@ -499,6 +534,10 @@ const summary = {
     mean: times.reduce((a, b) => a + b, 0) / RUNS,
   },
   reachedEndPct: (100 * results.filter((r) => r.reachedEnd).length) / RUNS,
+  // défi v2 : médailles (bronze = vivant à 5:00, argent = et le boss final abattu, or = et vivant à 10:00)
+  bronzePct: (100 * results.filter((r) => r.medal >= 1).length) / RUNS,
+  silverPct: (100 * results.filter((r) => r.medal >= 2).length) / RUNS,
+  goldPct: (100 * results.filter((r) => r.medal >= 3).length) / RUNS,
   // phase 37 : mondes atteints, victoires, prolongation, totems
   stage2Pct: (100 * results.filter((r) => r.stage >= 2).length) / RUNS,
   stage3Pct: (100 * results.filter((r) => r.stage >= 3).length) / RUNS,
@@ -754,7 +793,29 @@ lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
 );
 if (DAILY_ON) {
-  // lot L3 : défi du jour court ; réussi = vivant à DAILY.duration (Mode.Won)
+  // défi v2 : médailles, par règle (et par arme pour Arme imposée), boss final
+  const medalLine = (rs: RunResult[]) => {
+    const share = (k: number) => ((100 * rs.filter((r) => r.medal >= k).length) / Math.max(1, rs.length)).toFixed(1);
+    return `bronze ${share(1)} % · argent ${share(2)} % · or ${share(3)} %`;
+  };
+  lines.push(
+    `médailles   ${medalLine(results)} · règle ${RULE >= 0 ? DAILY_RULE_KEYS[RULE] : 'les six à tour de rôle'} · boss final ${DAILY.bossAt} s ×${DAILY.bossHp}`,
+  );
+  if (RULE < 0)
+    for (const k of DAILY_RULE_KEYS) lines.push(`  ${k.padEnd(10)}${medalLine(results.filter((r) => r.rule === k))}`);
+  const armory = results.filter((r) => r.rule === 'armory');
+  if (armory.length > 0)
+    lines.push(
+      `armes       ${ARMORY.map((k) => {
+        const rs = armory.filter((r) => r.startWeapon === k);
+        return `${k} ${rs.length ? Math.round((100 * rs.filter((r) => r.medal >= 1).length) / rs.length) : 0}/${rs.length ? Math.round((100 * rs.filter((r) => r.medal >= 2).length) / rs.length) : 0} %`;
+      }).join(' · ')}  (bronze/argent)`,
+    );
+  const fb = results.filter((r) => r.finalBossAt >= 0).map((r) => r.finalBossAt);
+  lines.push(
+    `boss final  abattu dans ${((100 * fb.length) / RUNS).toFixed(1)} % des parties, ${((100 * fb.filter((t) => t < DAILY.duration).length) / RUNS).toFixed(1)} % avant 5:00 · à p50 ${mmss(pct(fb, 50))}`,
+  );
+  // lot L3 : défi du jour court ; réussi = vivant à DAILY.duration
   const ok = results.filter((r) => r.reachedEnd);
   lines.push(
     `défi        réussi ${summary.reachedEndPct.toFixed(1)} % (à ${mmss(DAILY.duration)}, diffRate ${DAILY.diffRate}) · kills p50 ${pct(

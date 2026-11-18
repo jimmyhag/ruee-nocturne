@@ -214,7 +214,7 @@ test('A past day’s challenge does not count for the streak', async ({ page }) 
   await expect(page.locator('#oBeat')).toHaveText('Défi battu !');
   const meta = await page.evaluate(() => (window as any).__game.meta);
   expect(meta.streak).toEqual(before); // ni série…
-  expect(meta.daily).toEqual(daily); // … ni classement du jour (local)
+  expect(meta.daily).toEqual({ ...daily, medals: [0] }); // … ni classement du jour (local) ; défi v2 : médaille 0 par défaut
   await page.waitForFunction(() => (window as any).__fake.sent.length === 1);
   const sent = await page.evaluate(() => (window as any).__fake.sent[0]);
   expect(sent.day).toBeUndefined(); // … ni classement du jour entre amis

@@ -2225,6 +2225,104 @@
       #dailyBtn[data-state='done'] .q-ico .flame {
         display: none;
       }
+      /* défi v2 : la meilleure médaille du jour remplace la coche (pastille bronze, argent ou or) */
+      #dailyBtn .q-ico .medal,
+      #dailyBtn[data-medal] .q-ico .check {
+        display: none;
+      }
+      #dailyBtn[data-medal] .q-ico .medal {
+        display: block;
+        width: 16px;
+        height: 16px;
+      }
+      /* défi v2 : médailles (bronze #C98A4B, argent #C9D3E0, or = lanterne), sans image ni police */
+      .medal {
+        display: inline-block;
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--medal, var(--moon-55));
+        box-shadow:
+          inset 0 0 0 2px rgba(0, 0, 0, 0.18),
+          0 0 0 1px rgba(255, 255, 255, 0.12);
+        vertical-align: middle;
+      }
+      [data-m='1'],
+      [data-medal='1'] {
+        --medal: #c98a4b;
+      }
+      [data-m='2'],
+      [data-medal='2'] {
+        --medal: #c9d3e0;
+      }
+      [data-m='3'],
+      [data-medal='3'] {
+        --medal: var(--lantern);
+      }
+      #dailyBtn[data-medal] #dailyRail {
+        color: var(--medal);
+        font-weight: 600;
+      }
+      .medals {
+        display: grid;
+        gap: 6px;
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 12.5px;
+        line-height: 17px;
+        color: var(--moon-70);
+      }
+      .medals li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #dailyTimes > span > .medal {
+        margin-bottom: 4px;
+      }
+      #dailyRuleName,
+      #challengeRuleName {
+        color: var(--lantern);
+        font-weight: 600;
+      }
+      .vmedal {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        margin: 6px 0 2px;
+        font-family: var(--f-cond);
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--medal, var(--moon));
+      }
+      .vmedal .medal {
+        width: 22px;
+        height: 22px;
+      }
+      #vNext {
+        margin: 6px 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 13px;
+        line-height: 19px;
+        color: var(--moon-70);
+      }
+      .pauserule {
+        margin: 10px 0 0;
+        font-size: 13px;
+        line-height: 18px;
+        text-align: center;
+        color: var(--moon-70);
+      }
+      .pauserule b {
+        color: var(--lantern);
+        font-weight: 600;
+      }
       .quick .streak {
         display: flex;
         align-items: center;
@@ -5197,7 +5295,8 @@
             <span class="q-ico" aria-hidden="true"
               ><svg class="flame" viewBox="0 0 24 24">
                 <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-6 1 2 2 3 3 3 0-3-1-5 0-8z" /></svg
-              ><svg class="ln check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span
+              ><svg class="ln check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg
+              ><i class="medal"></i></span
             ><span class="q-txt"
               ><span class="q-t" data-i18n="menu.dailyName">Défi du jour</span
               ><span class="q-s"
@@ -5443,6 +5542,11 @@
           </div>
         </div>
         <dl class="rules">
+          <!-- défi v2 : la règle du jour (nom et phrase, textContent) -->
+          <div>
+            <dt class="lbl" data-i18n="daily.rule.k">Règle du jour</dt>
+            <dd><span id="dailyRuleName"></span> · <span id="dailyRuleText"></span></dd>
+          </div>
           <div>
             <dt class="lbl" data-i18n="daily.same.k">Pour tous</dt>
             <dd data-i18n="daily.same.v">La carte et le hasard du jour sont les mêmes pour tous les joueurs.</dd>
@@ -5464,6 +5568,15 @@
             <dd data-i18n="daily.gain.v">L'or et les succès comptent comme dans une partie normale.</dd>
           </div>
         </dl>
+        <!-- défi v2 : les trois médailles -->
+        <div class="lbl group" data-i18n="daily.medals.k">Médailles</div>
+        <ul class="medals">
+          <li><i class="medal" data-m="1"></i><span data-i18n="daily.medal.1">Bronze : en vie à 5:00</span></li>
+          <li>
+            <i class="medal" data-m="2"></i><span data-i18n="daily.medal.2">Argent : et le boss final abattu</span>
+          </li>
+          <li><i class="medal" data-m="3"></i><span data-i18n="daily.medal.3">Or : et en vie à 10:00</span></li>
+        </ul>
         <div class="daytimes">
           <span class="lbl" data-i18n="daily.timesLbl">Tes temps du jour</span><span id="dailyTimes"></span>
         </div>
@@ -5496,6 +5609,10 @@
           </div>
         </div>
         <dl class="rules">
+          <div>
+            <dt class="lbl" data-i18n="daily.rule.k">Règle du jour</dt>
+            <dd><span id="challengeRuleName"></span> · <span id="challengeRuleText"></span></dd>
+          </div>
           <div>
             <dt class="lbl" data-i18n="daily.same.k">Pour tous</dt>
             <dd data-i18n="daily.same.v">La carte et le hasard du jour sont les mêmes pour tous les joueurs.</dd>
@@ -5953,6 +6070,7 @@
     <section id="pause" class="screen overlay" hidden>
       <div class="panel">
         <h2 class="h1" data-i18n="pause.title">Pause</h2>
+        <p class="pauserule" id="pauseRule" hidden><b id="pauseRuleName"></b> · <span id="pauseRuleText"></span></p>
         <button class="btn-full" id="resumeBtn" data-i18n="pause.resume">Reprendre</button>
         <div class="pausenav">
           <button class="btn-act" id="pauseMapBtn" data-i18n="map.title">Carte</button
@@ -5997,21 +6115,25 @@
     <!-- phase 39 : victoire au monde 3, puis monde infini au choix (clavier : 1 ou Entrée continuer, 2 ou Échap terminer) -->
     <section id="victory" class="screen overlay" hidden>
       <div class="panel">
-        <h2 class="h1 win" data-i18n="victory.title">Victoire !</h2>
+        <h2 class="h1 win" id="vTitle">Victoire !</h2>
+        <!-- défi v2 : la médaille du moment et ce qui reste pour la suivante (défi du jour seulement) -->
+        <p class="vmedal" id="vMedal" hidden><i class="medal"></i><span id="vMedalName"></span></p>
         <div class="stats two">
           <div><b id="vTime">0:00</b><span data-i18n="over.time">Temps</span></div>
           <div><b id="vKills">0</b><span data-i18n="over.kills">Vaincus</span></div>
         </div>
-        <p class="note" data-i18n="victory.text">
+        <ul id="vNext" hidden></ul>
+        <p class="note" id="vText">
           Les trois mondes sont tombés. Tu peux rester : des boss arrivent toutes les 2:30, de plus en plus nombreux.
         </p>
-        <button class="btn-full" id="vContinue" data-i18n="victory.continue">Continuer (monde infini)</button>
+        <button class="btn-full" id="vContinue">Continuer (monde infini)</button>
         <div class="overnav"><button class="btn-act" id="vEnd" data-i18n="victory.end">Terminer</button></div>
       </div>
     </section>
     <section id="over" class="screen overlay" hidden>
       <div class="panel">
         <h2 class="h1 dead" id="oTitle">La horde t'a eu</h2>
+        <p class="vmedal" id="oMedal" hidden><i class="medal"></i><span id="oMedalName"></span></p>
         <div class="stats">
           <div><b id="oStage">Monde 1</b><span data-i18n="over.world">Monde</span></div>
           <div><b id="oTime">0:00</b><span data-i18n="over.time">Temps</span></div>

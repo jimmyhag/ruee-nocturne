@@ -1,6 +1,6 @@
 # Défi du jour v2 — règle du jour, boss final, médailles, suite en monde infini
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 18 novembre 2026, avec Jimmy, après la 1.63.2. Jimmy : « Le principe du défi du jour
 n'est pas assez challengeant, faut faire mieux, propose-moi des idées. » Parmi les idées

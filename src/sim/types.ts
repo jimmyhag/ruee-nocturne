@@ -186,7 +186,7 @@ export const enum Ev {
   LevelUp,
   PlayerHurt,
   Wave,
-  BossSpawn, // v = index du boss (1..), x2 = type
+  BossSpawn, // v = index du boss (1..), x2 = type, y2 = 1 boss de survie, 2 boss en plus, 3 boss final du défi (v2)
   Bolt, // éclair : (x,y,z) → (x2,y2,z2) ; lot L5 : v = 1 + index de l'arme qui le lance (WEAPON_KEYS), 0 hors arme
   AuraPulse,
   Death,
@@ -198,7 +198,7 @@ export const enum Ev {
   Throw, // boomerang lancé
   MineBlast, // v = rayon
   ZoneBlast, // Colosse : fin d'un cercle rouge, v = rayon
-  Victory, // Faucheur vaincu
+  Victory, // victoire (boss du monde 3) ou défi du jour tenu (v = temps, x2 = médaille du défi : 0 hors défi)
   Revive, // réanimation (boutique) : v = réanimations restantes
   Eruption, // phase 11 : pic sorti du sol en (x,y,z), v = rayon
   Ring, // phase 11 : anneau de choc émis par le Gardien, v = rayon final
@@ -214,7 +214,7 @@ export const enum Ev {
   MapChestOpen, // phase 18 : coffre de carte ouvert en (x,z), v = prix payé
   ShrineDone, // phase 18 : sanctuaire chargé en (x,z) → choix d'un bonus
   BossWarn, // phase 37 : plus qu'une minute pour activer le totem, en (x,z) = totem, v = monde (1..), x2 = type du boss
-  SurvivalWarn, // phase 42 : un boss de survie arrive dans STAGE.survival.warn s ; v = type du boss
+  SurvivalWarn, // phase 42 : un boss de survie arrive dans STAGE.survival.warn s ; v = type du boss ; défi v2 : x2 = 1, le boss final
   SlideStart, // phase 27 : glissade lancée en (x,z), v = vitesse
   SlideEnd, // phase 27 : fin de glissade
   Launch, // phase 27 : envol sur une crête ou saut glissé, v = vitesse horizontale
@@ -248,7 +248,8 @@ export const enum Ev {
   BossTotemOn, // phase 48 : totem de boss activé en (x,z), v = boss en plus par vague dans ce monde
   ChestDrop, // phase 51 : coffre lâché au sol en (x,z), v = 1 pour un coffre de boss
   Explored, // phase 53 : carte du monde explorée à 100 %, v = or gagné
-  WeaponTier, // lot L5 : arme arrivée à un palier visuel en (x,y,z) = héros, v = palier (1..3), x2 = index dans WEAPON_KEYS ; dernière valeur
+  WeaponTier, // lot L5 : arme arrivée à un palier visuel en (x,y,z) = héros, v = palier (1..3), x2 = index dans WEAPON_KEYS
+  Medal, // défi v2 : médaille gagnée en (x,y,z) = héros, v = médaille (1 bronze, 2 argent, 3 or) ; dernière valeur
 }
 
 export interface GameEvent {
@@ -341,6 +342,8 @@ export interface WorldOptions {
   bannedItems?: ItemKey[]; // phase 40 : objets jamais proposés (verrouillés ou retirés du tirage) ; undefined = aucun
   reveal?: number; // lot L2 : étapes dévoilées (0 à REVEAL.max) ; undefined = tout (défi du jour, joueur d'avant le lot)
   daily?: boolean; // lot L3 : défi du jour court (DAILY), monde 1 seul, fin à DAILY.duration s
+  rule?: number; // défi v2 : règle du jour (index dans DAILY_RULE_KEYS) ; undefined = aucune
+  weapon?: WeaponKey; // défi v2 : arme de départ imposée (règle « Arme imposée ») ; undefined = celle du personnage
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey =

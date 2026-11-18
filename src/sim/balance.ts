@@ -213,7 +213,59 @@ export const FIRST_RUNS = {
 export const DAILY = {
   duration: 300, // s : une session mobile (règle 12)
   diffRate: 1, // vitesse du temps de difficulté (diffT) pendant le défi ; 1 = celle d'une partie complète
+  // défi v2 (docs/specs/defi-v2.md, décisions 3 et 4) : boss final à 4:00 à la place des boss de survie, médailles
+  bossAt: 240, // s de partie : le boss final (celui du totem du monde 1) sort autour du joueur
+  bossWarn: 10, // s de préavis (bannière « Boss final »), comme un boss de survie
+  bossDist: 12, // u du joueur à l'apparition
+  bossHp: 1.8, // PV du boss final, × ceux du boss du totem du monde 1 (même règle de calcul), réglé par `npm run sim -- --daily`
+  // rythme de ses attaques (comme BOSSTOTEM.extraCadence) : face au kit de départ, c'est lui qui tue, pas ses PV
+  bossCadence: 0.6,
+  goldAt: 600, // s de partie : vivant à 10:00 (5 minutes de monde infini) avec l'argent, c'est l'or
+  // vitesse du temps de difficulté pendant la suite en monde infini du défi (ENDLESS.diffRate pour celle d'une partie
+  // complète, qui part de bien plus haut : diffT ≈ 1 200 après le monde 3, 300 après le défi)
+  endlessDiffRate: 2,
 };
+// défi v2 (décision 2) : une règle du jour, tirée par la date (src/meta/daily.ts, `dailyRule`), la même pour tous et
+// jamais celle de la veille. Chaque règle passe par un levier existant, lu au moment de l'apparition ou du coup :
+// vitesse et vie des monstres et cadence d'apparition (spawner.ts), élites (période et première, s du monde), PV max et
+// dégâts du héros (world.ts, combat.ts), arme de départ (`armory` : une autre arme, tirée par la date). Valeurs réglées
+// par `npm run sim -- --daily --rule <clé>` : pour chaque règle, bronze 35–65 %, argent 10–35 %, or 1–12 % (tools/targets.ts)
+export interface DailyRule {
+  spd: number; // vitesse des monstres (boss compris)
+  rate: number; // apparitions (flux continu et vagues d'encerclement)
+  hp: number; // vie des monstres ordinaires et des élites (les boss ont leur propre calcul)
+  heroHp: number; // PV max du héros au départ
+  heroDmg: number; // dégâts du héros (tous les coups)
+  elitePeriod: number; // s entre deux élites (0 : la cadence normale, SPAWN.elitePeriod)
+  eliteFirst: number; // s du monde : première élite (0 : la normale, SPAWN.eliteAfter)
+  armory: number; // 1 : l'arme de départ est remplacée par celle du jour (WorldOptions.weapon)
+}
+export const NO_RULE: DailyRule = { spd: 1, rate: 1, hp: 1, heroHp: 1, heroDmg: 1, elitePeriod: 0, eliteFirst: 0, armory: 0 };
+/** Ordre fixe : l'index est la règle gardée dans le monde (`w.dailyRule`) et dans la partie sauvegardée. */
+export const DAILY_RULE_KEYS = ['swift', 'elites', 'swarm', 'glass', 'giants', 'armory'] as const;
+export type DailyRuleKey = (typeof DAILY_RULE_KEYS)[number];
+export const DAILY_RULES: Record<DailyRuleKey, DailyRule> = {
+  swift: { ...NO_RULE, spd: 1.08 }, // Horde rapide
+  elites: { ...NO_RULE, elitePeriod: 20, eliteFirst: 45 }, // Chasse aux élites
+  swarm: { ...NO_RULE, rate: 1.3, hp: 0.95 }, // Nuée
+  glass: { ...NO_RULE, heroHp: 0.7, heroDmg: 1.1 }, // Verre
+  giants: { ...NO_RULE, hp: 1.15, rate: 0.75 }, // Colosses
+  armory: { ...NO_RULE, armory: 1 }, // Arme imposée
+};
+// Arme imposée : l'arme du jour est tirée parmi celles qui tiennent seules le défi (bronze ≥ 25 % au bot moyen). La Faux,
+// les Esprits et la Balise, armes de départ de l'Éclaireuse, n'en tiennent que 3 %, 10 % et 22 % (2 graines × 200) :
+// un jour à la Faux serait perdu d'avance
+export const DAILY_ARMORY: readonly WeaponKey[] = [
+  'aura',
+  'lames',
+  'foudre',
+  'boomerang',
+  'mines',
+  'lance',
+  'meteores',
+  'fouet',
+  'vitriol',
+];
 // phase 48 (demande de Jimmy) : la difficulté de la partie. `P.difficulty` vaut 0 au départ (affiché « 100 % ») et monte
 // par les crânes de la carte (`skullStep` chacun, pour toute la partie) et par le tome de difficulté. Elle multiplie les
 // apparitions par (1 + d) et la vie des monstres par (1 + hpShare · d) : les deux effets se multiplient, donc la vie monte

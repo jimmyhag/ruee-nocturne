@@ -531,6 +531,9 @@ test('interface : écrans du lot L3 (série, missions, défi du jour, défi réu
     g.debug.god();
     g.world.t = g.world.stageT = 299.5; // vivant à 5:00 : le défi est réussi
   });
+  // défi v2 : l'écran « Défi réussi ! » propose de continuer ; on termine pour l'écran de fin
+  await expect(page.locator('#victory')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#vEnd').click();
   await expect(page.locator('#over')).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1200); // fin du fondu de l'écran de fin
   await page.screenshot(ui('l3-fin'));

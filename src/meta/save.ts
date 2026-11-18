@@ -77,7 +77,9 @@ export interface Meta {
   character: CharacterKey;
   outfits: CharacterKey[]; // personnages dont la tenue alternative est achetée (phase 7)
   outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
-  daily: { date: string; times: number[]; kills: number[] }; // défi du jour : date UTC, 10 meilleurs temps et leurs kills (lot L3)
+  // défi du jour : date UTC, 10 meilleurs temps et leurs kills (lot L3), et leurs médailles (défi v2 : 0 à 3, gardées
+  // sur l'appareil seulement, voir sync.ts)
+  daily: { date: string; times: number[]; kills: number[]; medals: number[] };
   streak: Streak; // lot L3 : série de jours de défi (src/meta/daily.ts) ; synchronisée (la plus récente, puis la plus longue)
   missions: Missions; // lot L3 : missions du jour (src/meta/missions.ts) ; synchronisées
   friends: Friend[]; // lot L4 : amis ajoutés par leur lien de défi (src/meta/friends.ts) ; synchronisés, 50 au plus
@@ -132,7 +134,7 @@ export const DEFAULT_META: Meta = {
   character: 'eclaireuse',
   outfits: [],
   outfit: {},
-  daily: { date: '', times: [], kills: [] },
+  daily: { date: '', times: [], kills: [], medals: [] },
   streak: { last: '', count: 0, best: 0, jokerWeek: '', jokerDay: '' },
   missions: { date: '', list: [] },
   friends: [],
@@ -340,20 +342,23 @@ function normalizeUnlocks(r: Record<string, unknown>, runs: number, achievements
 }
 /**
  * Défi du jour : 10 parties au plus, temps > 0 ; lot L3 : les kills de chaque partie (0 pour une sauvegarde d'avant le
- * lot, qui n'avait que les temps).
+ * lot, qui n'avait que les temps) ; défi v2 : la médaille de chaque partie (0 à 3 ; 0 pour les parties d'avant).
  */
 function normalizeDaily(da: Record<string, unknown>): Meta['daily'] {
   const times: number[] = [],
-    kills: number[] = [];
+    kills: number[] = [],
+    medals: number[] = [];
   const rt = Array.isArray(da.times) ? da.times : [],
-    rk = Array.isArray(da.kills) ? da.kills : [];
+    rk = Array.isArray(da.kills) ? da.kills : [],
+    rm = Array.isArray(da.medals) ? da.medals : [];
   for (let i = 0; i < rt.length && times.length < 10; i++) {
     const t = num(rt[i]);
     if (t <= 0) continue;
     times.push(t);
     kills.push(Math.max(0, Math.floor(num(rk[i]))));
+    medals.push(Math.max(0, Math.min(3, Math.floor(num(rm[i])))));
   }
-  return { date: typeof da.date === 'string' ? da.date.slice(0, 10) : '', times, kills };
+  return { date: typeof da.date === 'string' ? da.date.slice(0, 10) : '', times, kills, medals };
 }
 const CODEX_KEY = /^[wits]:[a-z]{1,16}$/;
 /** Compteurs de la Bibliothèque : clés de forme connue, entiers bornés, 160 entrées au plus (règles Firestore). */

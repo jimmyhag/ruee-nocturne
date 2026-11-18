@@ -109,8 +109,12 @@ export const MAXED: Target[] = [
 // toujours non plus
 // Relecture d'équilibrage : les cibles du profil nu sur les morts précoces et la difficulté lisse valent aussi pour le
 // défi (≈ 21 % et 18–24 pts mesurés au lot L3 : écart laissé visible, la réponse est une proposition à Jimmy)
+// Défi v2 (docs/specs/defi-v2.md, décision 9) : médailles, pour chacune des six règles (`--daily --rule <clé>`), 4 graines ×
+// 200 parties regroupées. Le bronze est l'ancien « défi réussi » ; l'argent demande le boss final, l'or 10:00 tenues
 const DAILY_TARGETS: Target[] = [
-  { name: 'défi réussi 35–65 %', min: 35, max: 65, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'bronze 35–65 %', min: 35, max: 65, get: (s) => s.bronzePct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'argent 10–35 %', min: 10, max: 35, get: (s) => s.silverPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'or 1–12 %', min: 1, max: 12, get: (s) => s.goldPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' },
 ];

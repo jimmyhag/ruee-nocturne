@@ -224,12 +224,12 @@ describe('défi du jour', () => {
     const m = fresh();
     for (let i = 1; i <= 12; i++) recordDaily(m, i * 10, i, '2026-11-03');
     expect(m.daily.times.length).toBe(10);
-    expect(dailyRuns(m, '2026-11-03')[0]).toEqual({ t: 120, k: 12 });
+    expect(dailyRuns(m, '2026-11-03')[0]).toEqual({ t: 120, k: 12, medal: 0 });
     expect(recordDaily(m, 500, 0, '2026-11-03')).toBe(1);
     expect(recordDaily(m, 5, 3, '2026-11-04')).toBe(1);
     expect(m.daily.times).toEqual([5]);
     // 1.48.1 : la feuille du défi liste les temps du jour (aucun si le dernier défi date d'un autre jour)
-    expect(dailyRuns(m, '2026-11-04')).toEqual([{ t: 5, k: 3 }]);
+    expect(dailyRuns(m, '2026-11-04')).toEqual([{ t: 5, k: 3, medal: 0 }]);
     expect(dailyRuns(m, '2026-11-05')).toEqual([]);
     // … et le délai avant le prochain défi : minuit UTC, là où la date du défi change
     expect(msToNextDaily(new Date('2026-11-11T21:30:00Z'))).toBe(2.5 * 3600e3);

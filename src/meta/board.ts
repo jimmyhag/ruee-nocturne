@@ -4,7 +4,6 @@
 // indépendant (la meilleure partie, la plus longue survie, le plus de kills ne viennent pas forcément du même run).
 // Lot L4 : le défi du jour entre amis, `days/{AAAA-MM-JJ}/scores/{uid}` (meilleure partie du jour d'un joueur connecté
 // avec un pseudo), lu par identifiants (soi et ses amis, src/meta/friends.ts).
-import { DAILY } from '../sim/balance';
 import type { Friend } from './friends';
 
 /** Bornes communes au client et aux règles Firestore (un test vérifie qu'elles y figurent). */
@@ -19,7 +18,7 @@ export const BOARD = {
   pendingKey: 'ruee-score', // scores en attente d'envoi (hors ligne, sans pseudo), liés au compte qui a joué
   pendingMax: 5,
   // lot L4 : classement du jour entre amis
-  dayTimeMax: DAILY.duration, // s : le défi s'arrête là
+  dayTimeMax: 3600, // s : défi v2, les 5:00 du défi puis la suite en monde infini (une heure au plus ; lot L4 : 5:00)
   dayKillsMax: 20000,
   dayQuery: 30, // identifiants par requête (limite de l'opérateur `in` de Firestore)
   dayTtlDays: 7, // `x` = début du jour + 7 jours : la règle TTL de Firestore efface ensuite le document

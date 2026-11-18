@@ -29,22 +29,24 @@ export interface Intensity {
  * résultat dans `out` : lue par le HUD à chaque image, aucune allocation.
  */
 export function enemyIntensity(w: World, out: Intensity): Intensity {
-  const t = w.diffT;
-  out.hp = SPAWN.hpScale(t) * w.overHp * difficultyHp(w);
+  const t = w.diffT,
+    R = w.rule(); // défi v2 : la règle du jour
+  out.hp = SPAWN.hpScale(t) * w.overHp * difficultyHp(w) * R.hp;
   out.dmg = SPAWN.dmgScale(t) * w.overDmg;
-  out.spd = SPAWN.spdScale(t) * w.overSpd;
-  out.rate = (SPAWN.rate(t) / SPAWN.rate(0)) * w.overRate * (1 + difficultyOf(w));
+  out.spd = SPAWN.spdScale(t) * w.overSpd * R.spd;
+  out.rate = (SPAWN.rate(t) / SPAWN.rate(0)) * w.overRate * (1 + difficultyOf(w)) * R.rate;
   return out;
 }
 
 export function spawnEnemy(w: World, type: number, ang: number, dist: number, elite = false): number {
   const e = w.allocEnemy();
   if (!e) return -1;
-  const def = ENEMIES[type];
+  const def = ENEMIES[type],
+    R = w.rule(); // défi v2 : vie et vitesse de la règle du jour (NO_RULE hors défi)
   // phase 37 : difficulté au temps du monde (diffT) et renfort de prolongation (over*, 1 tant que le chrono tourne)
   // lot L2 : PV et dégâts (et cadence dans tickSpawner) adoucis au début des deux premières parties (soft)
   let scale =
-    SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * STAGE.bossHpPerBoss : 1) * difficultyHp(w) * soft(w, w.softHp);
+    SPAWN.hpScale(w.diffT) * w.overHp * (def.boss ? 1 + w.bossCount * STAGE.bossHpPerBoss : 1) * difficultyHp(w) * soft(w, w.softHp) * R.hp;
   if (elite) scale *= ELITE.hpMul;
   e.type = type;
   e.elite = elite;
@@ -61,7 +63,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.lanceBits = 0;
   e.lastPatins = -9;
   e.face = 0;
-  e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.diffT) * w.overSpd;
+  e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.diffT) * w.overSpd * R.spd;
   e.dmgMul = SPAWN.dmgScale(w.diffT) * w.overDmg * soft(w, w.softDmg);
   e.bob = w.rng.range(0, TAU);
   e.state = 0;
@@ -106,8 +108,10 @@ export function tickSpawner(w: World, dt: number): void {
     now = w.t;
   // boss du monde en vie : la horde se calme (pas en prolongation : elle ne doit pas amortir le renfort)
   // phase 42 : seule la présence du boss du totem (ou d'une vague du monde infini) calme la horde, pas un boss de survie
-  const calm = w.endless ? w.bossIndex >= 0 : w.totemAlive > 0 || w.totemBossId >= 0; // phase 48 : tant qu'un boss du totem vit
-  const more = 1 + difficultyOf(w); // phase 48 : la difficulté multiplie les apparitions (crânes, tome de difficulté)
+  // phase 48 : tant qu'un boss du totem vit ; défi v2 : le boss final est celui du totem du monde 1, la horde se calme aussi
+  const calm = w.endless ? w.bossIndex >= 0 : w.totemAlive > 0 || w.totemBossId >= 0 || w.dailyBoss === 1;
+  const R = w.rule(); // défi v2 : règle du jour (Nuée, Colosses, Chasse aux élites)
+  const more = (1 + difficultyOf(w)) * R.rate; // phase 48 : la difficulté multiplie les apparitions (crânes, tome de difficulté)
   let rate = SPAWN.rate(t) * w.overRate * (calm && w.overT === 0 ? STAGE.bossRate : 1) * more * soft(w, w.softRate);
   // compensation d'ennui : rien ne s'est passé depuis 4 s → densité ×2 pendant 6 s
   if (now - w.lastAction > SPAWN.boredomAfter && w.boredomUntil < now) w.boredomUntil = now + SPAWN.boredomFor;
@@ -126,7 +130,7 @@ export function tickSpawner(w: World, dt: number): void {
   }
   // élite : variante dorée d'un type de masse, lâche un coffre
   if (st >= w.nextElite) {
-    w.nextElite += SPAWN.elitePeriod / w.player.eliteRate; // phase 47 : tome Défi, élites plus fréquentes
+    w.nextElite += (R.elitePeriod > 0 ? R.elitePeriod : SPAWN.elitePeriod) / w.player.eliteRate; // phase 47 : tome Défi, élites plus fréquentes
     const type = SPAWN.pick(t, w.rng.next());
     // jamais un Cracheur ni un Sorcier élite (ils fuient et le coffre serait hors d'atteinte) ; l'Archer élite tire en éventail
     spawnEnemy(w, type === CRACHEUR_TYPE || type === SORCIER_TYPE ? ELITE_TYPE : type, w.rng.range(0, TAU), SPAWN.ringMin, true);

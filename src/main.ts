@@ -1,5 +1,6 @@
 import {
   CHARACTERS,
+  DAILY,
   ELITE_TYPE,
   ENEMIES,
   ITEM_KEYS,
@@ -89,7 +90,9 @@ import { LIB_TABS, renderLibrary } from './ui/library';
 import { initKeySettings, loadKeyboardLayout, renderKeyHints } from './ui/keys';
 import type { LibTab } from './ui/library';
 import {
+  bestMedal,
   dailyMapSeed,
+  dailyRule,
   dailyRuns,
   dailySeed,
   msToNextDaily,
@@ -104,6 +107,7 @@ import type { StreakGain } from './meta/daily';
 import { ensureMissions, missionGold, missionsAfterRun } from './meta/missions';
 import type { Mission } from './meta/missions';
 import { missionText, renderMissions } from './ui/missions';
+import { medalName, medalNext, ruleName, ruleText } from './ui/daily-rule';
 import type { PatchNote } from './meta/patch-notes';
 import { hasUnseenNotes, renderNotes } from './ui/notes';
 import { MapView } from './ui/minimap';
@@ -486,12 +490,16 @@ function updateBestLine(): void {
     // passe d'ergonomie (décision 8) : « à jouer » tant qu'aucune partie du défi n'est enregistrée aujourd'hui (flamme
     // et contour lanterne), « fait » ensuite (coche) ; le nom accessible dit tout : durée, série, état, temps ou délai
     const best = dailyRuns(meta)[0]?.t ?? 0; // meilleure partie du jour (temps tenu)
-    const state = t(best > 0 ? 'menu.dailyDone' : 'menu.dailyTodo');
+    // défi v2 (UI & Layout Contract) : « fait » devient la meilleure médaille du jour (pastille bronze, argent, or)
+    const medal = bestMedal(meta);
+    const state = medal > 0 ? t(`medal.name.${medal}`) : t(best > 0 ? 'menu.dailyDone' : 'menu.dailyTodo');
     $('dailyBtn').dataset.state = best > 0 ? 'done' : 'todo';
+    if (medal > 0) $('dailyBtn').dataset.medal = String(medal);
+    else delete $('dailyBtn').dataset.medal;
     $('dailyRail').textContent = state;
     const parts = [t('menu.dailyAria')];
     if (streak > 0) parts.push(t('menu.streakAria', { n: streak }));
-    parts.push(state);
+    parts.push(medal > 0 ? t('menu.dailyAriaMedal', { medal: state }) : state); // « meilleure médaille : argent »
     parts.push(
       best > 0 ? t('menu.dailyAriaBest', { time: fmtTime(best) }) : t('menu.dailyAriaLeft', { time: dailyLeft() }),
     );
@@ -700,7 +708,13 @@ function renderDailyScreen(): void {
     day: 'numeric',
     month: 'long',
   });
-  // lot L3 : parties du jour classées au temps tenu, puis aux vaincus (les trois meilleures en grands chiffres)
+  // défi v2 : la règle du jour, la même pour tous (textContent)
+  const today0 = todayKey(),
+    rule = dailyRule(today0);
+  $('dailyRuleName').textContent = ruleName(rule);
+  $('dailyRuleText').textContent = ruleText(rule, today0);
+  // lot L3 : parties du jour classées au temps tenu, puis aux vaincus (les trois meilleures en grands chiffres) ;
+  // défi v2 : la médaille de chacune (pastille, et son nom pour les lecteurs d'écran)
   const runs = dailyRuns(meta);
   const el = $('dailyTimes');
   el.classList.toggle('none', runs.length === 0);
@@ -709,15 +723,22 @@ function renderDailyScreen(): void {
     runs.length
       ? t('daily.times', {
           list: runs
-            .map((r, i) => t('daily.run', { rank: ordinal(i + 1), time: fmtTime(r.t), kills: String(r.k) }))
+            .map((r, i) => {
+              const p = { rank: ordinal(i + 1), time: fmtTime(r.t), kills: String(r.k) };
+              return r.medal > 0 ? t('daily.runMedal', { ...p, medal: medalName(r.medal) }) : t('daily.run', p);
+            })
             .join(' · '),
         })
       : t('daily.noTime'),
   );
+  // seul HTML écrit ici : des nombres, des chaînes traduites passées par esc() et des pastilles sans texte
   el.innerHTML = runs.length
     ? runs
         .slice(0, 3)
-        .map((r) => `<span><b>${fmtTime(r.t)}</b><small>${esc(t('daily.kills', { n: r.k }))}</small></span>`)
+        .map(
+          (r) =>
+            `<span>${r.medal > 0 ? `<i class="medal" data-m="${r.medal | 0}"></i>` : ''}<b>${fmtTime(r.t)}</b><small>${esc(t('daily.kills', { n: r.k }))}</small></span>`,
+        )
         .join('')
     : esc(t('daily.noTime'));
   // lot L3 : série, joker de la semaine, ce que le défi d'aujourd'hui rapporte (sans rien écrire)
@@ -781,6 +802,9 @@ function applyLang(): void {
   else if (app === 'library') renderLibraryScreen();
   else if (app === 'daily') renderDailyScreen();
   else if (app === 'challenge') renderChallenge();
+  else if (app === 'victory')
+    renderVictory(); // défi v2
+  else if (app === 'pause') renderPauseRule();
   else if (app === 'notes') renderNotesScreen();
   if (world) hud.setBeat(beatText()); // lot L4
 }
@@ -937,7 +961,11 @@ function startGame(
   if (restored) world = restored;
   else {
     // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
-    world = new World(mapSeedFor(variant, daily, runDay), worldOptions(meta, unlockedWeapons(meta), daily));
+    // défi v2 : la règle du jour de la partie (un défi d'ami joue celle de son jour)
+    world = new World(
+      mapSeedFor(variant, daily, runDay),
+      worldOptions(meta, unlockedWeapons(meta), daily, daily ? runDay : ''),
+    );
   }
   if (world.seed !== decorSeed) {
     S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
@@ -968,7 +996,14 @@ function startGame(
     saveMeta(meta);
     hud.banner(t('reveal.new'), 'reward', t(`reveal.${news}`), REVEAL_BANNER_MS);
     audio.levelUp();
-  }
+  } else if (!restored && world.dailyRule >= 0)
+    // défi v2 : la règle du jour s'annonce au départ (la pause la rappelle)
+    hud.banner(
+      t('rule.banner', { name: ruleName(world.dailyRule) }),
+      'info',
+      ruleText(world.dailyRule, runDay),
+      REVEAL_BANNER_MS,
+    );
   S.dmg.clear();
   S.snapCamera(world);
   S.resetHero();
@@ -1140,8 +1175,16 @@ function pauseGame(): void {
   if (app !== 'play') return;
   app = 'pause';
   if (world) $('pauseStats').innerHTML = statsHTML(world); // phase 47 : fiche de stats, à jour à chaque pause
+  renderPauseRule();
   showOnly('pause');
   saveRun(); // phase 49
+}
+/** Défi v2 : la règle du jour rappelée dans la pause (cachée hors du défi, ou pour un défi gardé avant les règles). */
+function renderPauseRule(): void {
+  const rule = world?.dailyRule ?? -1;
+  $('pauseRule').hidden = rule < 0;
+  $('pauseRuleName').textContent = ruleName(rule);
+  $('pauseRuleText').textContent = ruleText(rule, runDay);
 }
 function resumeGame(): void {
   if (app !== 'pause') return;
@@ -1299,6 +1342,7 @@ let lastOver: {
   miss: ReturnType<typeof missingTime>;
   fresh: Achievement[];
   dailyOk: boolean; // lot L3 : défi du jour tenu jusqu'au bout
+  medal: number; // défi v2 : médaille du défi (0 : aucune, ou pas un défi)
   streak: StreakGain | null; // lot L3 : jour compté dans la série (défi du jour terminé)
   missions: Mission[]; // lot L3 : missions remplies par cette partie
   card: CardRun | null; // lot L4 : carte de résultat (défi du jour, aussi celui d'un ami)
@@ -1339,10 +1383,14 @@ function renderOverScreen(): void {
   $('oDiff').textContent = oDiff.join(' · ');
   $('oBest').textContent = fmtTime(meta.bestTime);
   $('oGold').textContent = String(o.gold);
+  // défi v2 : un défi réussi le reste après la suite en monde infini (sa médaille sous le titre)
   $('oTitle').textContent = t(
-    world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : o.dailyOk ? 'over.dailyDone' : 'over.dead',
+    o.dailyOk ? 'over.dailyDone' : world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : 'over.dead',
   );
   $('oTitle').classList.toggle('win', o.won || o.dailyOk);
+  $('oMedal').hidden = o.medal === 0;
+  $('oMedal').dataset.m = String(o.medal);
+  $('oMedalName').textContent = medalName(o.medal);
   // lot L3 : série du jour, tenue offerte, missions remplies (et leur or)
   const rewards: string[] = [];
   if (o.streak) rewards.push(t('over.streak', { n: o.streak.count, gold: t('gold', { n: o.streak.gold }) }));
@@ -1414,18 +1462,24 @@ function gameOver(won = false): void {
   st.tricksBest = Math.max(st.tricksBest, world.tricks);
   st.mapChests += world.mapChestsOpened;
   st.bestStage = Math.max(st.bestStage, won ? 4 : world.stage + 1); // phase 37
-  if (world.endless) st.endlessBest = Math.max(st.endlessBest, Math.floor(world.endlessT)); // phase 39
+  // phase 39 ; défi v2 (décision 10, récompenses inchangées) : la suite d'un défi du jour ne compte pas pour le monde
+  // infini d'après la victoire (succès « infini1 »)
+  if (world.endless && !dailyRun) st.endlessBest = Math.max(st.endlessBest, Math.floor(world.endlessT));
   recordCodex(meta, world); // phase 40 : parties avec chaque arme, objet, tome, synergie (Bibliothèque)
   const played = runChar as CharacterKey; // défi du jour : toujours l'Éclaireuse ; phase 49 : celui de la partie, même reprise
   addCharRun(meta.chars, played, runCharStats(played, world, won)); // phase 41 : défis par personnage
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
   let streak: StreakGain | null = null;
-  const dailyOk = dailyRun && world.mode === Mode.Won; // lot L3 : vivant à la fin du chrono du défi
+  // lot L3 : vivant à la fin du chrono du défi ; défi v2 : la partie peut finir plus tard (mort en monde infini), la
+  // médaille dit si le défi a été tenu
+  const medal = dailyRun ? world.medal : 0;
+  const dailyOk = medal > 0;
   if (dailyRun && runRanked) {
     // phase 49 : le jour de la partie, même reprise le lendemain ; lot L3 : temps tenu puis vaincus, et la série ;
-    // lot L4 : pas le défi d'un ami d'un jour passé (il compte pour l'or et les missions, comme une partie)
-    dailyRank = recordDaily(meta, Math.floor(world.t), world.kills, runDay);
+    // lot L4 : pas le défi d'un ami d'un jour passé (il compte pour l'or et les missions, comme une partie) ;
+    // défi v2 : le temps total tenu (5:00 et la suite) et la médaille
+    dailyRank = recordDaily(meta, Math.floor(world.t), world.kills, runDay, medal);
     streak = recordStreak(meta, runDay);
   }
   // lot L3 : missions du jour, dans toutes les parties (or crédité une fois, à la fin de la partie qui les remplit)
@@ -1452,6 +1506,7 @@ function gameOver(won = false): void {
         t: Math.floor(world.t),
         k: world.kills,
         ok: dailyOk,
+        medal,
         streak: runRanked ? streakNow(meta, todayKey()) : 0,
       }
     : null;
@@ -1464,6 +1519,7 @@ function gameOver(won = false): void {
     miss: missingTime(meta, world.t),
     fresh,
     dailyOk,
+    medal,
     streak,
     missions,
     card,
@@ -1483,11 +1539,11 @@ function gameOver(won = false): void {
   renderOverScreen();
   S.particles.burst(world.player.x, 1, world.player.z, won || dailyOk ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) S.shake = 0.5;
-  if ((won && !world.endless) || dailyOk) audio.victory();
+  if ((won && !world.endless) || (dailyOk && !world.endless)) audio.victory();
   else audio.death();
   // lot L3 : bannière « Défi réussi ! » (et la tenue offerte au 7e jour de série) avant l'écran de fin
   const gift = streak?.outfit ? t('over.outfitGift', { character: characterName(streak.outfit) }) : '';
-  if (dailyOk) hud.banner(t('over.dailyDone'), 'reward', gift);
+  if (dailyOk && !world.endless) hud.banner(t('over.dailyDone'), 'reward', gift);
   else if (gift) hud.banner(gift);
   setTimeout(() => {
     if (app !== 'over') return;
@@ -1500,18 +1556,40 @@ function gameOver(won = false): void {
 /** Le boss du monde 3 est tombé à temps : « Victoire ! », continuer en monde infini ou terminer (stats comptées à la fin). */
 function openVictory(): void {
   if (!world || app === 'victory' || app === 'over') return;
-  if (world.dailyEnd > 0) {
-    gameOver(); // lot L3 : le défi du jour tenu jusqu'au bout s'arrête là (« Défi réussi ! »), sans monde infini
-    return;
-  }
   app = 'victory';
-  $('vTime').textContent = fmtTime(world.t);
-  $('vKills').textContent = String(world.kills);
+  // défi v2 : au défi du jour, la médaille gagnée à 5:00 est annoncée par la feuille elle-même (sa ligne de médaille) ;
+  // une bannière du HUD se lisait en transparence derrière, au milieu des chiffres
+  renderVictory();
   showOnly('victory');
   scene?.particles.burst(world.player.x, 1, world.player.z, PAL.gold, 40, 8, 8);
   audio.victory();
   vibrate(120);
   if (!input.isTouch) ($('vContinue') as HTMLElement).focus({ preventScroll: true });
+}
+/**
+ * Feuille de victoire (phase 39) ; défi v2 (décision 5) : au défi du jour, « Défi réussi ! », la médaille du moment, ce
+ * qui reste pour la suivante et « Continuer en monde infini ». Textes par textContent ; re-rendue au changement de langue.
+ */
+function renderVictory(): void {
+  if (!world) return;
+  const daily = world.dailyEnd > 0;
+  $('vTitle').textContent = t(daily ? 'over.dailyDone' : 'victory.title');
+  $('vTime').textContent = fmtTime(world.t);
+  $('vKills').textContent = String(world.kills);
+  $('vMedal').hidden = !daily || world.medal === 0;
+  $('vMedal').dataset.m = String(world.medal);
+  $('vMedalName').textContent = medalName(world.medal);
+  const next = daily ? medalNext(world.medal) : [];
+  $('vNext').hidden = next.length === 0;
+  $('vNext').replaceChildren(
+    ...next.map((s) => {
+      const li = document.createElement('li');
+      li.textContent = s;
+      return li;
+    }),
+  );
+  $('vText').textContent = t(daily ? 'victory.dailyText' : 'victory.text');
+  $('vContinue').textContent = t(daily ? 'victory.dailyContinue' : 'victory.continue');
 }
 function victoryContinue(): void {
   if (!world || app !== 'victory') return;
@@ -1523,7 +1601,7 @@ function victoryContinue(): void {
 }
 function victoryEnd(): void {
   if (!world || app !== 'victory') return;
-  gameOver(true);
+  gameOver(world.dailyEnd <= 0); // défi v2 : terminer un défi réussi n'est pas la victoire des trois mondes
 }
 $('vContinue').onclick = () => victoryContinue();
 $('vEnd').onclick = () => victoryEnd();
@@ -1591,6 +1669,9 @@ function renderChallenge(): void {
   $('challengeTitle').textContent = c.name ? t('challenge.title', { name: c.name }) : t('challenge.titleAnon');
   $('challengeScore').textContent = t('challenge.score', { time: fmtTime(c.t), kills: String(c.k) });
   $('challengeDay').textContent = t('share.title', { date: fmtDay(c.date) });
+  const rule = dailyRule(c.date); // défi v2 (décision 8) : la règle se déduit de la date du défi
+  $('challengeRuleName').textContent = ruleName(rule);
+  $('challengeRuleText').textContent = ruleText(rule, c.date);
 }
 function openChallenge(c: Challenge): void {
   linkChallenge = c;
@@ -1998,6 +2079,7 @@ const mapView = new MapView($('minimap') as HTMLCanvasElement, $('bigmap') as HT
 let mapFrom: 'play' | 'pause' = 'play';
 let bossTotemNote = -1; // phase 51 : monde dont le nombre de totems de boss a été annoncé
 const REVEAL_BANNER_MS = 4000; // lot L2 : la bannière « Nouveau ! » reste 4 s (le temps de lire la phrase)
+const MEDAL_BANNER_MS = 3000; // défi v2 : une médaille gagnée reste annoncée 3 s
 const BOSS_TOTEM_NOTE_AT = 2.5; // s du monde
 const BOSS_TOTEM_NOTE_LATE = 12; // s du monde : au-delà, on ne l'annonce plus
 let slideBtnOn = false; // bouton GLISSE allumé pendant la glissade
@@ -3022,8 +3104,9 @@ function handleEvents(w: World, now: number): void {
         hud.banner(t('banner.bossTotem', { n: e.v }), 'danger');
         break;
       case Ev.SurvivalWarn:
-        // phase 42 : un boss de survie arrive dans quelques secondes
-        hud.banner(t('banner.survivalSoon'), 'danger');
+        // phase 42 : un boss de survie arrive dans quelques secondes ; défi v2 : x2 = 1, le boss final
+        if (e.x2 === 1) hud.banner(t('banner.final'), 'danger', t('banner.finalSoon', { n: DAILY.bossWarn }));
+        else hud.banner(t('banner.survivalSoon'), 'danger');
         audio.roar();
         vibrate(40);
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite * 0.6);
@@ -3050,6 +3133,15 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.StageStart:
         onStageStart(e.v);
+        break;
+      case Ev.Medal:
+        // défi v2 : argent (boss final abattu après 5:00) ou or (10:00 tenues) : bannière, gerbe dorée, son
+        hud.banner(t(`medal.banner.${e.v | 0}`), 'reward', '', MEDAL_BANNER_MS);
+        hud.flash('gold');
+        S.particles.ring(e.x, 0.4, e.z, PAL.gold, (40 * fx) | 0, 6, 6);
+        S.particles.burst(e.x, e.y, e.z, PAL.gold, (30 * fx) | 0, 6, 8);
+        audio.evolve();
+        vibrate(80);
         break;
       case Ev.EndlessStart:
         hud.banner(t('banner.endless'), 'info');
@@ -3099,7 +3191,12 @@ function handleEvents(w: World, now: number): void {
           const k = 'banner.boss.' + ENEMIES[e.x2 | 0].key; // événement rare : la concaténation est acceptable
           const name = t(has(k) ? k : 'banner.boss.default');
           // phase 42 : boss de survie ; phase 48 : un boss en plus (y2 = 2) n'écrase pas la bannière du boss du totem
-          if (e.y2 !== 2) hud.banner(e.y2 === 1 ? t('banner.survival', { name }) : name, 'danger');
+          // défi v2 : y2 = 3, le boss final du défi
+          if (e.y2 !== 2)
+            hud.banner(
+              e.y2 === 1 ? t('banner.survival', { name }) : e.y2 === 3 ? t('banner.finalBoss', { name }) : name,
+              'danger',
+            );
         }
         audio.boss();
         if (!reduced) S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
@@ -3249,7 +3346,8 @@ function frame(nowMs: number): void {
     if (n === 4) acc = 0; // on ne rattrape pas : évite la spirale de la mort
     if (debugRt) debugRt.onFrame(world); // mode stress (debug uniquement) ; null en prod
     if (world.mode === Mode.Dead)
-      gameOver(world.endless); // phase 39 : la victoire est acquise si l'on est en monde infini
+      // phase 39 : la victoire est acquise si l'on est en monde infini ; défi v2 : pas après un défi du jour (sa médaille compte)
+      gameOver(world.endless && world.dailyEnd <= 0);
     else if (world.mode === Mode.Won) openVictory();
     else if (world.mode === Mode.LevelUp) openLevelUp();
     else if (world.mode === Mode.Merchant) openMerchant();

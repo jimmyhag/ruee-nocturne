@@ -112,6 +112,13 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       if (!world) return;
       world.player.maxHp = world.player.hp = 1e9;
     },
+    /** Défi v2 : abat le boss suivi par la barre (le boss final compris) par un vrai coup : récompenses et médailles. */
+    slayBoss(): void {
+      const world = w();
+      if (!world || world.bossIndex < 0) return;
+      world.enemies[world.bossIndex].hp = 1;
+      hitEnemy(world, world.bossIndex, 1e12, 0, world.player.x, world.player.z);
+    },
     /** Force une montée de niveau au prochain step. */
     levelUp(): void {
       const world = w();

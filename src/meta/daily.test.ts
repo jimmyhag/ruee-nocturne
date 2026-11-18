@@ -158,15 +158,15 @@ describe('défi du jour court (lot L3)', () => {
     expect(recordDaily(m, 300, 500, '2026-11-18')).toBe(1); // même temps, plus de vaincus : devant
     expect(recordDaily(m, 240, 900, '2026-11-18')).toBe(3);
     expect(dailyRuns(m, '2026-11-18')).toEqual([
-      { t: 300, k: 500 },
-      { t: 300, k: 412 },
-      { t: 240, k: 900 },
+      { t: 300, k: 500, medal: 0 },
+      { t: 300, k: 412, medal: 0 },
+      { t: 240, k: 900, medal: 0 },
     ]);
     // sauvegarde d'avant le lot : des temps sans vaincus
     const old = normalizeMeta({ version: 5, daily: { date: '2026-11-18', times: [431, 95] } });
     expect(dailyRuns(old, '2026-11-18')).toEqual([
-      { t: 431, k: 0 },
-      { t: 95, k: 0 },
+      { t: 431, k: 0, medal: 0 },
+      { t: 95, k: 0, medal: 0 },
     ]);
   });
 });
@@ -301,7 +301,7 @@ describe('série de jours (lot L3)', () => {
     expect(m.achievements).toEqual(before.achievements);
     expect(m.outfits).toEqual(['eclaireuse']);
     expect(m.outfit).toEqual({ eclaireuse: 1 });
-    expect(m.daily).toEqual({ date: '2026-11-17', times: [301.2, 188.7], kills: [0, 0] });
+    expect(m.daily).toEqual({ date: '2026-11-17', times: [301.2, 188.7], kills: [0, 0], medals: [0, 0] }); // défi v2 : sans médaille
     expect(m.streak).toEqual({ last: '', count: 0, best: 0, jokerWeek: '', jokerDay: '' });
     expect(m.missions).toEqual({ date: '', list: [] }); // tirées à la première ouverture
     expect(streakNow(m, '2026-11-18')).toBe(0);

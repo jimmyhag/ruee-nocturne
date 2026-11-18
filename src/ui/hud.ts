@@ -431,8 +431,13 @@ export class Hud {
       this.cache.over = over;
       this.els.timeBox.classList.toggle('over', over);
     }
-    // phase 39 : en monde infini, le temps tenu compte vers le haut
-    const secs = w.endless ? Math.floor(w.endlessT) : over ? Math.floor(w.overT) : Math.ceil(stageLeft(w));
+    // phase 39 : en monde infini, le temps tenu compte vers le haut ; défi v2 : après les 5:00 du défi, le temps total
+    // (c'est le score du jour), plus le compte à rebours
+    const secs = w.endless
+      ? Math.floor(w.dailyEnd > 0 ? w.t : w.endlessT)
+      : over
+        ? Math.floor(w.overT)
+        : Math.ceil(stageLeft(w));
     if (this.cache.secs !== secs) {
       this.cache.secs = secs;
       this.els.time.textContent = over ? '+' + fmtTime(secs) : fmtTime(secs);

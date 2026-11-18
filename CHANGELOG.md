@@ -2,6 +2,29 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.64.0 — 18 nov. 2026 (défi du jour v2)
+
+Le défi du jour devient un vrai défi : une règle qui change chaque jour, un boss final, des médailles, et la liberté de tenir aussi longtemps que tu peux.
+
+### Ajouté
+
+- **Règle du jour** : chaque jour, le défi se joue avec une règle, la même pour tout le monde et jamais celle de la veille. Horde rapide, Chasse aux élites, Nuée, Verre, Colosses ou Arme imposée : elle est expliquée sur la feuille du défi, annoncée au départ et rappelée dans la pause.
+- **Boss final** : à 4:00, le Gardien vient te chercher, annoncé quelques secondes avant. Plus de boss de survie pendant les 5 minutes du défi : c'est lui le sommet.
+- **Médailles** : bronze si tu es en vie à 5:00, argent si tu as aussi abattu le boss final, or si tu tiens en plus jusqu'à 10:00. Chaque médaille gagnée s'annonce en jeu.
+- **Continuer en monde infini** : à 5:00, l'écran « Défi réussi ! » montre ta médaille et ce qui te manque pour la suivante, puis te laisse t'arrêter là ou continuer. Le boss final, s'il est encore debout, te suit ; la règle du jour aussi.
+- **Ta meilleure médaille du jour** sur le bouton du défi au menu, et la médaille de chacune de tes parties sur la feuille du défi.
+
+### Modifié
+
+- **Score du défi** : le temps total tenu, 5:00 et la suite comprises, puis les vaincus. Le chrono du défi décompte jusqu'à 5:00, puis compte le temps total si tu continues.
+- **Défi d'un ami** : il se joue avec la règle du jour de ce défi, montrée sur sa feuille.
+- **Carte de résultat** : ta médaille y figure. Elle reste sur ton appareil : ni le classement entre amis ni le lien de défi ne la montrent.
+
+### Technique
+
+- Spec : `docs/specs/defi-v2.md` (13 scénarios : `src/meta/defi-v2.test.ts`, `e2e/defi-v2.spec.ts`, `tools/daily.test.ts`). Sim : `w.dailyRule` (index de `DAILY_RULE_KEYS`, multiplicateurs `DAILY_RULES` lus à l'apparition, au coup et à la création, `w.rule()` sans allocation), boss final (`DAILY.bossAt`, `bossHp`, `bossCadence`, compté comme boss de survie, sans Traque avant 5:00 ni rage, horde calmée comme pour le boss du totem), médailles (`w.medal`, `Ev.Medal`, `Ev.Victory` x2), suite du défi en monde infini à `DAILY.endlessDiffRate`. Méta : `dailyRule` (jamais celle de la veille), `dailyWeapon` (parmi `DAILY_ARMORY`), `Meta.daily.medals` gardées hors du nuage (`progressOf`, `keepMedals`), borne du temps du classement du jour et du lien 300 → 3 600 s (`firestore.rules`, `BOARD.dayTimeMax`). CLI : `--daily` continue toujours en monde infini, `--rule <clé>`, médailles par règle et par arme ; cibles bronze 35–65 %, argent 10–35 %, or 1–12 % (`tools/targets.ts`). Partie reprise : règle, boss final et médaille dans l'instantané ; un défi gardé avant la mise à jour reprend sans règle (`adoptDaily`). Crochet de débogage `slayBoss()`.
+- Équilibrage (règle 13), Éclaireuse au kit de départ, bot moyen, 4 graines × 200 défis par règle (bronze / argent / or) : Horde rapide 40,8 / 19,9 / 2,9 % ; Chasse aux élites 39,6 / 29,0 / 5,5 % ; Nuée 47,6 / 29,1 / 6,5 % ; Verre 46,4 / 22,4 / 2,9 % ; Colosses 49,6 / 17,9 / 2,3 % ; Arme imposée 46,5 / 17,5 / 5,6 %. Avant : 49,4 % de défis réussis (lot L3), sans médailles. Réglages retenus : `DAILY.bossHp` 1,8, `bossCadence` 0,6, `endlessDiffRate` 2 ; vitesse ×1,08 ; une élite toutes les 20 s dès 0:45 ; apparitions ×1,3 et vie ×0,95 ; PV ×0,7 et dégâts ×1,1 ; vie ×1,15 et apparitions ×0,75 ; arme tirée parmi neuf (`DAILY_ARMORY`, sans la Faux, les Esprits ni la Balise : 3 à 22 % de bronze seules). Détail dans `docs/GATES.md`.
+
 ## 1.63.2 — 18 nov. 2026 (retour de Jimmy : les couleurs de rareté)
 
 Commune, rare, épique : la rareté se voit de nouveau à sa couleur.

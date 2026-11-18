@@ -15,7 +15,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   if (!e.alive) return false;
   const def = ENEMIES[e.type];
   const P = w.player;
-  let dealt = dmg * P.dmgMul * (e.elite || def.boss ? P.eliteDmgMul : 1); // tome Dégâts : élites et boss
+  let dealt = dmg * P.dmgMul * (e.elite || def.boss ? P.eliteDmgMul : 1) * w.rule().heroDmg; // tome Dégâts : élites et boss ; défi v2 : Verre
   // phase 31 : Gant du bourreau (ennemi affaibli), Couronne du berserker (selon les PV manquants du héros)
   if (w.items[It.Gant] && e.hp < e.max * ITEM.gant.below) dealt *= 1 + ITEM.gant.dmg * w.itemEff[It.Gant]; // phase 38 : × exemplaires
   if (w.items[It.Couronne]) dealt *= 1 + ITEM.couronne.dmg * w.itemEff[It.Couronne] * Math.max(0, 1 - P.hp / P.maxHp);
@@ -124,7 +124,13 @@ export function killEnemy(w: World, i: number): void {
     // phase 48 : avec un totem de boss, le combat du totem compte plusieurs boss ; seul le dernier à tomber soigne,
     // aimante l'XP et laisse le coffre de boss. Les autres sont récompensés comme un boss de survie
     const totem = !w.endless && w.isTotemBoss(e);
-    const survival = !w.endless && !(totem && w.totemAlive <= 1);
+    // défi v2 : le boss final (avant ou après 5:00) ; avant 5:00, récompensé comme le boss du totem (soin, aimant, coffre de boss)
+    const final = e.id === w.dailyBossId;
+    if (final) {
+      w.dailyBossId = -1;
+      w.dailyBoss = 2; // la médaille d'argent suit (tickMedals, stages.ts)
+    }
+    const survival = !w.endless && !final && !(totem && w.totemAlive <= 1);
     if (!survival) {
       // phase 43 : en monde infini, un boss tué ne rend plus tous les PV (ENDLESS.healFrac)
       const P = w.player;
