@@ -79,16 +79,19 @@ export interface CardRun {
   t: number;
   k: number;
   ok: boolean; // tenu jusqu'au bout
+  medal: number; // défi v2 : médaille (0 à 3), dessinée sur la carte, jamais dans le lien ni le classement (décision 8)
   streak: number; // série en cours (montrée à partir de 2)
 }
+/** Défi v2 : la médaille dessinée sur la carte (aucune : rien). */
+const MEDAL_GLYPH = ['', ' 🥉', ' 🥈', ' 🥇'];
 /**
  * Texte de la carte (décision 1), dans la langue du joueur, sans rien dévoiler de la partie (ni arme, ni objet, ni
- * personnage, ni carte) : le jour, le temps, la réussite, les kills, la série, le lien.
+ * personnage, ni carte) : le jour, le temps, la réussite et sa médaille (défi v2), les kills, la série, le lien.
  */
 export function cardText(run: CardRun, url: string): string {
   const lines = [
     `Swarmageddon · ${t('share.title', { date: fmtDay(run.date) })}`,
-    `⏱ ${fmtTime(run.t)} ${run.ok ? '✅' : '❌'}  💀 ${Math.max(0, Math.floor(run.k))}`,
+    `⏱ ${fmtTime(run.t)} ${run.ok ? '✅' : '❌'}${MEDAL_GLYPH[run.medal] ?? ''}  💀 ${Math.max(0, Math.floor(run.k))}`,
   ];
   if (run.streak >= 2) lines.push(`🔥 ${t('share.streak', { n: run.streak })}`);
   lines.push(`${t('share.beatMe')} ${url}`);

@@ -1,12 +1,22 @@
 // Achats permanents à l'or : personnages, tenues, emplacements (phase 17 : plus de boutique par personnage), et
 // traduction de la méta en options de monde pour la sim.
-import { CHARACTERS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS, SLOTS_START } from '../sim/balance';
+import {
+  CHARACTERS,
+  DAILY_RULE_KEYS,
+  DAILY_RULES,
+  OUTFIT,
+  REROLL_SHOP,
+  RUN_REROLL,
+  SLOTS,
+  SLOTS_START,
+} from '../sim/balance';
 import type { CharacterKey } from '../sim/types';
 import type { WorldOptions } from '../sim/types';
 import { DEFAULT_META } from './save';
 import type { Meta } from './save';
 import { bannedItems } from './library';
 import { unlockedWeapons } from './achievements';
+import { dailyRule, dailyWeapon } from './daily';
 
 /** Prix d'un personnage en or (0 : pas en vente, il se débloque par un succès). */
 export function characterPrice(key: CharacterKey): number {
@@ -88,10 +98,12 @@ export const runRerolls = (m: Meta): number => RUN_REROLL.base + m.slots.rerolls
  * Options de monde issues de la méta (personnage choisi, armes débloquées, emplacements).
  * `daily` (lot L3, décision 1) : le même kit pour tous, celui d'un nouveau joueur — l'Éclaireuse, les emplacements de
  * départ, les armes et les objets disponibles d'office (rien de la Bibliothèque en plus) —, tout dévoilé, défi court.
+ * `day` (défi v2, décision 2) : le jour du défi (AAAA-MM-JJ) donne la règle du jour et, pour « Arme imposée », l'arme de
+ * départ ; '' : sans règle.
  */
-export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily = false): WorldOptions {
-  if (daily)
-    return {
+export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily = false, day = ''): WorldOptions {
+  if (daily) {
+    const opts: WorldOptions = {
       character: 'eclaireuse',
       unlocked: unlockedWeapons(DEFAULT_META),
       slots: { ...SLOTS_START },
@@ -99,6 +111,12 @@ export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily 
       bannedItems: bannedItems(DEFAULT_META),
       daily: true, // `reveal` absent : tout est dévoilé, pour tous (lot L2)
     };
+    if (day) {
+      opts.rule = dailyRule(day);
+      if (DAILY_RULES[DAILY_RULE_KEYS[opts.rule]].armory) opts.weapon = dailyWeapon(day);
+    }
+    return opts;
+  }
   return {
     character: m.character,
     unlocked,

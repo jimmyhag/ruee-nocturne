@@ -46,6 +46,15 @@ for (const prefix of prefixes)
     const endless = all.filter((r) => r.endless);
     const held = endless.map((r) => r.endlessT);
     console.log(`== ${prefix} · ${profile} · ${n} parties (${files.length} graines)`);
+    if (profile === 'daily') {
+      // défi v2 : médailles (bronze = défi réussi, argent = et le boss final abattu, or = et vivant à 10:00), par graine
+      const medal = (rs, k) => pct(rs.filter((r) => (r.medal ?? 0) >= k).length, rs.length);
+      console.log(`   médailles bronze ${medal(all, 1)} % · argent ${medal(all, 2)} % · or ${medal(all, 3)} %`);
+      const byFile = files.map((f) => JSON.parse(readFileSync(`${dir}/${f}`, 'utf8')).results);
+      console.log(
+        `   par graine (bronze / argent / or) ${byFile.map((rs, i) => `${files[i].slice(prefix.length + profile.length + 2, -5)} : ${medal(rs, 1)} / ${medal(rs, 2)} / ${medal(rs, 3)}`).join(' · ')}`,
+      );
+    }
     if (profile === 'daily')
       console.log(
         `   défi réussi ${pct(

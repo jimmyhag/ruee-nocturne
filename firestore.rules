@@ -124,7 +124,7 @@ service cloud.firestore {
           && d.keys().hasAll(['name', 'time', 'kills', 'at', 'x'])
           && d.x is timestamp && d.x == dayStart() + duration.value(7, 'd')
           && d.name is string && d.name.size() >= 2 && d.name.size() <= 16
-          && d.time is int && d.time >= 0 && d.time <= 300
+          && d.time is int && d.time >= 0 && d.time <= 3600
           && d.kills is int && d.kills >= 0 && d.kills <= 20000
           && d.at is number
           && (resource == null

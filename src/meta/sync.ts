@@ -4,7 +4,7 @@
 import { DEFAULT_META, normalizeMeta } from './save';
 import type { Meta } from './save';
 import { SLOTS_START } from '../sim/balance';
-import { mergeStreak } from './daily';
+import { keepMedals, mergeStreak } from './daily';
 import { mergeMissions } from './missions';
 
 /** Clés de Meta qui ne quittent jamais l'appareil. */
@@ -55,6 +55,8 @@ export type Decision = 'none' | 'push' | 'pull' | 'adopt' | 'ask';
 export function progressOf(m: Meta): Progress {
   const p: Record<string, unknown> = {};
   for (const k of PROGRESS_KEYS) p[k] = m[k];
+  // défi v2 (décision 8) : la médaille de chaque partie du jour reste sur l'appareil
+  p.daily = { date: m.daily.date, times: m.daily.times, kills: m.daily.kills };
   return p as Progress;
 }
 
@@ -83,6 +85,7 @@ export function withProgress(local: Meta, raw: unknown): Meta {
   // lot L3 : changer d'appareil ne casse pas la série (la plus récente, puis la plus longue) ; les missions du jour
   // gardent la meilleure progression des deux (un ancien client sans ces champs : valeurs par défaut, la nôtre gagne)
   m.streak = mergeStreak(local.streak, m.streak);
+  m.daily.medals = keepMedals(local.daily, m.daily); // défi v2 : les médailles ne viennent jamais du nuage
   m.missions = mergeMissions(local.missions, m.missions);
   return m;
 }

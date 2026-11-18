@@ -1,9 +1,9 @@
 // Défi du jour : seed = hash(date UTC), même tirage pour tout le monde, classement local des 10 meilleures parties.
 // Lot L3 (docs/specs/l3-defi-serie-missions.md) : défi court (DAILY), classé au temps tenu puis aux ennemis tués, et
 // série de jours (`Meta.streak`) avec un joker par semaine ISO. Module pur, sans DOM.
-import { CHARACTERS, OUTFIT, STREAK } from '../sim/balance';
+import { CHARACTERS, DAILY_ARMORY, DAILY_RULE_KEYS, OUTFIT, STREAK } from '../sim/balance';
 import { hashString } from '../sim/rng';
-import type { CharacterKey } from '../sim/types';
+import type { CharacterKey, WeaponKey } from '../sim/types';
 import { unlockedCharacters } from './achievements';
 import { isoWeek } from './board';
 import type { Meta } from './save';
@@ -19,24 +19,72 @@ export function dailyMapSeed(date: string): number {
   return (hashString('carte-' + date) % 1_000_000) + 1;
 }
 
+// ---------- défi v2 (docs/specs/defi-v2.md, décision 2) : règle du jour ----------
+const DAY_KEY_MS = 86400000;
+/** Premier jour des règles : la règle d'un jour se déduit de la veille, en remontant jusqu'ici (≈ 365 pas par an). */
+const RULE_EPOCH = '2026-01-01';
+/**
+ * Règle du jour `date` (index dans DAILY_RULE_KEYS), la même pour tous, tirée par la date (`hash('regle-' + date)`) et
+ * jamais celle de la veille : chaque jour avance de 1 à 5 crans depuis la règle d'hier. Avant RULE_EPOCH (aucun défi
+ * jouable : les liens de défi commencent en 2026), le tirage seul.
+ */
+export function dailyRule(date: string): number {
+  const n = DAILY_RULE_KEYS.length;
+  const start = Date.parse(RULE_EPOCH + 'T00:00:00Z'),
+    end = Date.parse(date + 'T00:00:00Z');
+  if (!Number.isFinite(end) || end <= start) return hashString('regle-' + date) % n;
+  let r = hashString('regle-' + RULE_EPOCH) % n;
+  for (let ms = start + DAY_KEY_MS; ms <= end; ms += DAY_KEY_MS)
+    r = (r + 1 + (hashString('regle-' + new Date(ms).toISOString().slice(0, 10)) % (n - 1))) % n;
+  return r;
+}
+/** Règle « Arme imposée » : l'arme de départ du jour, tirée par la date parmi DAILY_ARMORY (jamais l'Orbe de l'Éclaireuse). */
+export function dailyWeapon(date: string): WeaponKey {
+  return DAILY_ARMORY[hashString('arme-' + date) % DAILY_ARMORY.length];
+}
+
 /**
  * Enregistre une partie du jour (temps tenu, ennemis tués) ; remet le classement à zéro si la date a changé. Classement :
  * le temps, puis les kills à égalité (lot L3). Retourne le rang (1 = meilleure) ou 0 si hors des 10 premières.
+ * Défi v2 (décision 7) : la médaille de la partie (0 à 3) est gardée avec elle, sur l'appareil seulement (sync.ts).
  */
-export function recordDaily(m: Meta, seconds: number, kills: number, date = todayKey()): number {
-  if (m.daily.date !== date) m.daily = { date, times: [], kills: [] };
-  const runs = m.daily.times.map((t, i) => ({ t, k: m.daily.kills[i] ?? 0, me: false }));
-  const mine = { t: seconds, k: kills, me: true };
+export function recordDaily(m: Meta, seconds: number, kills: number, date = todayKey(), medal = 0): number {
+  if (m.daily.date !== date) m.daily = { date, times: [], kills: [], medals: [] };
+  const runs = m.daily.times.map((t, i) => ({ t, k: m.daily.kills[i] ?? 0, md: m.daily.medals[i] ?? 0, me: false }));
+  const mine = { t: seconds, k: kills, md: medal, me: true };
   runs.push(mine);
   runs.sort((a, b) => b.t - a.t || b.k - a.k);
   const top = runs.slice(0, 10);
   m.daily.times = top.map((r) => r.t);
   m.daily.kills = top.map((r) => r.k);
+  m.daily.medals = top.map((r) => r.md);
   return top.indexOf(mine) + 1;
 }
 /** Parties du jour, de la meilleure à la moins bonne (10 au plus) ; vide si le dernier défi joué date d'un autre jour. */
-export function dailyRuns(m: Meta, date = todayKey()): { t: number; k: number }[] {
-  return m.daily.date === date ? m.daily.times.map((t, i) => ({ t, k: m.daily.kills[i] ?? 0 })) : [];
+export function dailyRuns(m: Meta, date = todayKey()): { t: number; k: number; medal: number }[] {
+  return m.daily.date === date
+    ? m.daily.times.map((t, i) => ({ t, k: m.daily.kills[i] ?? 0, medal: m.daily.medals[i] ?? 0 }))
+    : [];
+}
+/** Défi v2 : la meilleure médaille du jour (0 : aucune partie réussie, ou des parties d'avant les médailles). */
+export function bestMedal(m: Meta, date = todayKey()): number {
+  return m.daily.date === date ? m.daily.medals.reduce((a, b) => Math.max(a, b), 0) : 0;
+}
+/**
+ * Défi v2 (décision 8) : les médailles restent sur l'appareil. La progression reçue du nuage n'en a pas ; chaque partie
+ * reprend la médaille de la même partie locale (même jour, même temps, mêmes vaincus), 0 sinon.
+ */
+export function keepMedals(local: Meta['daily'], theirs: Meta['daily']): number[] {
+  const used = new Array<boolean>(local.times.length).fill(false);
+  return theirs.times.map((t, i) => {
+    if (local.date !== theirs.date) return 0;
+    for (let j = 0; j < local.times.length; j++)
+      if (!used[j] && local.times[j] === t && (local.kills[j] ?? 0) === (theirs.kills[i] ?? 0)) {
+        used[j] = true;
+        return local.medals[j] ?? 0;
+      }
+    return 0;
+  });
 }
 /** Millisecondes avant le prochain défi (minuit UTC, là où todayKey change). */
 export function msToNextDaily(now = new Date()): number {

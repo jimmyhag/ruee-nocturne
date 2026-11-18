@@ -1,4 +1,5 @@
-import { BOON_KEYS, CAPS, FIRST_RUNS, REVEAL, DAILY, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
+import type { DailyRule } from './balance';
+import { DAILY_RULE_KEYS, DAILY_RULES, NO_RULE, BOON_KEYS, CAPS, FIRST_RUNS, REVEAL, DAILY, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -297,6 +298,23 @@ export class World {
   softRate = 1.5;
   // lot L3 : fin du défi du jour (s du monde ; 0 = partie complète). Fixé à la création, gardé par l'instantané
   dailyEnd = 0;
+  // défi v2 (docs/specs/defi-v2.md) : règle du jour (index dans DAILY_RULE_KEYS, -1 aucune : partie complète, ou défi
+  // gardé avant la mise à jour), boss final (0 à venir, 1 en vie, 2 abattu, 3 jamais venu : partie reprise d'avant la
+  // mise à jour, déjà passée 4:00), son id dans le pool, préavis envoyé, et médaille (0 aucune, 1 bronze, 2 argent, 3 or)
+  dailyRule = -1;
+  dailyBoss = 0;
+  dailyBossId = -1;
+  dailyBossWarned = false;
+  medal = 0;
+  /**
+   * Règle du jour en cours (NO_RULE hors défi) : lue à l'apparition d'un monstre ou au coup, sans allocation. Un index
+   * hors de la liste (sauvegarde abîmée, ou écrite par une version plus récente puis relue après un retour en arrière)
+   * vaut « aucune règle » plutôt que de casser la partie (relecture perf du défi v2).
+   */
+  rule(): DailyRule {
+    const key = this.dailyRule >= 0 ? DAILY_RULE_KEYS[this.dailyRule] : undefined;
+    return key ? DAILY_RULES[key] : NO_RULE;
+  }
 
   constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
@@ -318,7 +336,8 @@ export class World {
       this.wtier[k] = 0;
     }
     for (const k of TOME_KEYS) this.tmods[k] = new Int16Array(8); // préalloués : aucune allocation ni changement de forme en run
-    this.weapons = { [ch.weapon]: 1 };
+    // défi v2, « Arme imposée » : l'arme du jour remplace celle du personnage (l'Éclaireuse n'a pas de lignes de départ)
+    this.weapons = { [opts?.weapon ?? ch.weapon]: 1 };
     if (ch.weapon2) this.weapons[ch.weapon2] = 1;
     this.bladeRangeMul = ch.bladeRangeMul;
     this.trait = ch.trait;
@@ -354,6 +373,12 @@ export class World {
     if (opts?.rerolls !== undefined) this.rerolls = Math.max(0, opts.rerolls | 0);
     if (opts?.reveal !== undefined) this.reveal = Math.max(0, Math.min(REVEAL.max, opts.reveal | 0));
     if (opts?.daily) this.dailyEnd = DAILY.duration;
+    if (opts?.daily && opts.rule !== undefined && opts.rule >= 0 && opts.rule < DAILY_RULE_KEYS.length) {
+      this.dailyRule = opts.rule | 0;
+      const R = this.rule();
+      this.player.maxHp = this.player.hp = Math.round(this.player.maxHp * R.heroHp); // Verre
+      if (R.eliteFirst > 0) this.nextElite = R.eliteFirst; // Chasse aux élites
+    }
     const soft = this.reveal < FIRST_RUNS.below;
     this.softHp = soft ? FIRST_RUNS.hp : 1;
     this.softDmg = soft ? FIRST_RUNS.dmg : 1;

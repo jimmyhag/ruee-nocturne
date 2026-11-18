@@ -31,7 +31,8 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
   if (!e.phase2 && e.hp <= e.max * BOSS.phase2At) e.phase2 = true;
   // phase 43 : rage. Les recharges d'attaque défilent `haste` fois plus vite (dtA), les télégraphes gardent leur durée (dt)
   e.age += dt;
-  if (!e.enraged && e.age >= BOSS.enrage.after && e.type !== REAPER_TYPE && (w.endless || w.isTotemBoss(e))) {
+  // défi v2 : jamais le boss final du défi (décision 3), même s'il passe en monde infini
+  if (!e.enraged && e.age >= BOSS.enrage.after && e.type !== REAPER_TYPE && e.id !== w.dailyBossId && (w.endless || w.isTotemBoss(e))) {
     e.enraged = true;
     w.emit(Ev.BossEnrage, e.x, e.y, e.z, e.type);
   }
@@ -47,6 +48,7 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
       if (e.hunt === 0) {
         // boss du totem et du monde infini : salve entière ; boss de survie (3:00 et 7:00, kit encore faible) : réduite
         const n = e.phase2 ? H.n2 : H.n;
+        // défi v2 : le boss final arrive face au kit de départ, comme un boss de survie (salve entière en monde infini)
         e.hunt = w.endless || w.isTotemBoss(e) ? n : Math.round(n * BOSS.huntSurvival);
       }
       if (e.hunt === 0) e.huntT = H.period;

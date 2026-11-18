@@ -28,9 +28,13 @@ export function stageLeft(w: World): number {
  * défi court à la reprise : fin à DAILY.duration s de partie, et le totem du passage disparaît s'il n'a pas servi.
  */
 export function adoptDaily(w: World): void {
-  if (w.dailyEnd > 0) return;
-  w.dailyEnd = DAILY.duration;
-  if (w.totem.state === 0) w.totem.state = TOTEM_HIDDEN;
+  if (w.dailyEnd <= 0) {
+    w.dailyEnd = DAILY.duration;
+    if (w.totem.state === 0) w.totem.state = TOTEM_HIDDEN;
+  }
+  // défi v2 (décision 11) : une partie gardée avant la mise à jour reprend sans règle (dailyRule reste à -1) et avec le
+  // boss final s'il n'est pas encore passé. Un défi gardé par cette version a déjà son boss en vie ou abattu après 4:00
+  if (w.dailyBoss === 0 && w.t > DAILY.bossAt) w.dailyBoss = 3;
 }
 
 const poly = (c: readonly number[], m: number): number => 1 + c[0] * m + c[1] * m * m;
@@ -40,9 +44,11 @@ export function tickStage(w: World, dt: number): void {
   w.stageT += dt;
   const T = w.totem,
     P = w.player;
+  if (w.dailyEnd > 0) tickMedals(w); // défi v2 : argent et or se gagnent aussi pendant la suite en monde infini
   if (w.endless) {
     tickEndless(w, dt); // phase 39 : ni prolongation, ni totem, ni portail
-    w.diffT = w.endlessDiff0 + w.endlessT * ENDLESS.diffRate; // phase 43 : la difficulté avance moins vite qu'en monde
+    // phase 43 : la difficulté avance moins vite qu'en monde ; défi v2 : à son rythme pour la suite du défi du jour
+    w.diffT = w.endlessDiff0 + w.endlessT * (w.dailyEnd > 0 ? DAILY.endlessDiffRate : ENDLESS.diffRate);
     return;
   }
   if (w.dailyEnd > 0) {
@@ -70,7 +76,9 @@ export function tickStage(w: World, dt: number): void {
       w.emit(Ev.TimeUp, P.x, 0, P.z, w.stage + 1, T.state === 2 ? 1 : T.state === 1 ? 2 : 0);
     }
   }
-  if (T.state !== 2) tickSurvival(w); // phase 42 : boss de survie tant que le portail n'est pas ouvert
+  // phase 42 : boss de survie tant que le portail n'est pas ouvert ; défi v2 : au défi du jour, le boss final à leur place
+  if (w.dailyEnd > 0) tickFinalBoss(w);
+  else if (T.state !== 2) tickSurvival(w);
   if (over <= 0 && !w.stageWarned && T.state === 0 && STAGE.dur - w.stageT <= STAGE.warnLeft) {
     // rappel : plus qu'une minute pour appeler le boss
     w.stageWarned = true;
@@ -97,12 +105,60 @@ export function tickStage(w: World, dt: number): void {
 /**
  * Lot L3 : le chrono du défi du jour est arrivé au bout, le joueur est en vie : « Défi réussi ! ». Comme une victoire,
  * la partie s'arrête (Mode.Won) avec le bonus d'or de fin (secondes survécues / 10) ; Ev.Victory, v = temps tenu.
+ * Défi v2 : la médaille de bronze, ou d'argent si le boss final est déjà tombé (x2 = médaille : l'écran « Défi
+ * réussi ! » la montre) ; le joueur choisit ensuite de continuer en monde infini (startEndless) ou de terminer.
  */
 function dailyDone(w: World): void {
   w.mode = Mode.Won;
   w.gold += (w.t - w.goldBonusT) * GOLD.perSecond * w.player.goldMul;
   w.goldBonusT = w.t;
-  w.emit(Ev.Victory, w.player.x, 1, w.player.z, w.t);
+  w.medal = w.dailyBoss === 2 ? 2 : 1;
+  w.emit(Ev.Victory, w.player.x, 1, w.player.z, w.t, w.medal);
+}
+
+/** Défi v2 (décision 4) : argent quand le boss final tombe après 5:00, or vivant à DAILY.goldAt avec l'argent. */
+function tickMedals(w: World): void {
+  if (w.medal === 1 && w.dailyBoss === 2) {
+    w.medal = 2;
+    w.emit(Ev.Medal, w.player.x, w.player.y + 1, w.player.z, 2);
+  }
+  if (w.medal === 2 && w.t >= DAILY.goldAt) {
+    w.medal = 3;
+    w.emit(Ev.Medal, w.player.x, w.player.y + 1, w.player.z, 3);
+  }
+}
+
+/** Défi v2 (décision 3) : préavis, puis le boss final à DAILY.bossAt s de partie. */
+function tickFinalBoss(w: World): void {
+  if (w.dailyBoss !== 0) return;
+  if (!w.dailyBossWarned && w.t >= DAILY.bossAt - DAILY.bossWarn) {
+    w.dailyBossWarned = true;
+    w.emit(Ev.SurvivalWarn, w.player.x, 0, w.player.z, STAGE.bosses[0], 1);
+  }
+  if (w.t >= DAILY.bossAt) summonFinalBoss(w);
+}
+
+/**
+ * Le boss final du défi : le boss du totem du monde 1, autour du joueur, PV du boss du totem × DAILY.bossHp. Compté
+ * comme un boss de survie (barre, et boss du monde infini si le joueur continue) ; pas de rage (bosses.ts).
+ */
+function summonFinalBoss(w: World): void {
+  const type = STAGE.bosses[0];
+  w.dailyBoss = 1;
+  if (w.enemyCount >= CAPS.enemies) freeNonBoss(w);
+  const i = spawnEnemy(w, type, w.rng.range(0, Math.PI * 2), DAILY.bossDist);
+  if (i < 0) {
+    w.dailyBoss = 3; // pool plein de boss (jamais en pratique) : pas de boss, pas d'argent
+    return;
+  }
+  const e = w.enemies[i];
+  e.hp = e.max =
+    ENEMIES[type].hp * BOSS.hpMul[0] * SPAWN.hpScale(STAGE.bossHpAt[0]) * DAILY.bossHp * difficultyHp(w); // phase 48
+  e.cadence = DAILY.bossCadence;
+  w.dailyBossId = e.id;
+  w.survivalAlive++;
+  w.bossIndex = i;
+  w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount + 1, type, 3); // y2 = 3 : boss final
 }
 
 /** Le totem est activé : le boss du monde sort de terre de l'autre côté du totem (le joueur le voit arriver). */

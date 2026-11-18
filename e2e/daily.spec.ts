@@ -30,7 +30,7 @@ test('défi du jour : la feuille explique, liste les parties du jour et lance la
   expect(await appMode(page)).toBe('daily'); // plus de lancement direct
   const sheet = page.locator('#daily');
   await expect(sheet).toBeVisible();
-  await expect(sheet.locator('dd')).toHaveCount(4);
+  await expect(sheet.locator('dd')).toHaveCount(5); // défi v2 : la règle du jour en tête
   await expect(sheet).toContainText('Éclaireuse');
   // lot L3 : le temps tenu, puis les vaincus ; interface Nocturne : en grands chiffres, la phrase complète pour les
   // lecteurs d'écran, le délai sous son libellé
@@ -54,8 +54,16 @@ test('défi du jour : la feuille explique, liste les parties du jour et lance la
   if (hasTouch) await page.locator('#dailyPlayBtn').tap();
   else await page.keyboard.press('Enter');
   await page.waitForFunction(() => (window as any).__game.app === 'play');
-  // le défi se joue avec l'Éclaireuse, quel que soit le personnage choisi
-  expect(await page.evaluate(() => Object.keys((window as any).__game.world.weapons))).toEqual(['orbe']);
+  // le défi se joue avec l'Éclaireuse (son sort, le Bond), quel que soit le personnage choisi ; défi v2 : avec son
+  // Orbe, sauf le jour de la règle « Arme imposée » (une autre arme, la même pour tous)
+  const kit = await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    return { spell: w.spell, weapons: Object.keys(w.weapons), armory: w.dailyRule === 5 };
+  });
+  expect(kit.spell).toBe(0);
+  expect(kit.weapons).toHaveLength(1);
+  if (kit.armory) expect(kit.weapons).not.toEqual(['orbe']);
+  else expect(kit.weapons).toEqual(['orbe']);
   // lot L3 : cinq minutes au monde 1, le kit de départ (une arme, deux tomes)
   expect(
     await page.evaluate(() => {
@@ -214,12 +222,15 @@ test('fin du défi du jour : « Défi réussi ! », la série du jour, la tenue 
   await page.locator('#dailyBtn').click();
   await page.locator('#dailyPlayBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
-  // vivant à 5:00 : le défi est réussi
+  // vivant à 5:00 : le défi est réussi ; défi v2 : l'écran « Défi réussi ! » propose de continuer, on termine
   await page.evaluate(() => {
     const g = (window as any).__game;
     g.debug.god();
     g.world.t = g.world.stageT = 299.5;
   });
+  await page.waitForFunction(() => (window as any).__game.app === 'victory');
+  if (hasTouch) await page.locator('#vEnd').tap();
+  else await page.keyboard.press('Digit2');
   await page.waitForFunction(() => (window as any).__game.app === 'over');
   await expect(page.locator('#over')).toBeVisible();
   await expect(page.locator('#oTitle')).toHaveText('Défi réussi !');

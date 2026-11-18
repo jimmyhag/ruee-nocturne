@@ -33,7 +33,7 @@ afterEach(() => setLang('fr'));
 describe('The result card reveals nothing about the run', () => {
   const url = challengeUrl('https://ruee-nocturne.web.app', { date: TODAY, t: 300, k: 412 });
   it('contient la date, le temps, les kills, la série et un lien de défi', () => {
-    const text = cardText({ date: TODAY, t: 300, k: 412, ok: true, streak: 4 }, url);
+    const text = cardText({ date: TODAY, t: 300, k: 412, ok: true, medal: 0, streak: 4 }, url);
     expect(text).toBe(
       [
         'Swarmageddon · Défi du 17 nov.',
@@ -44,7 +44,7 @@ describe('The result card reveals nothing about the run', () => {
     );
   });
   it('ne contient aucune arme, aucun objet, aucun personnage', () => {
-    const text = cardText({ date: TODAY, t: 300, k: 412, ok: true, streak: 4 }, url).toLowerCase();
+    const text = cardText({ date: TODAY, t: 300, k: 412, ok: true, medal: 0, streak: 4 }, url).toLowerCase();
     const names = [
       ...WEAPON_KEYS.flatMap((k) => [k, t(`weapon.${k}.name`)]),
       ...ITEM_KEYS.flatMap((k) => [k, t(`item.${k}.name`)]),
@@ -54,7 +54,7 @@ describe('The result card reveals nothing about the run', () => {
   });
   it('partie ratée : ❌ ; pas de série en dessous de 2 ; dans la langue du joueur', () => {
     setLang('en');
-    const text = cardText({ date: TODAY, t: 221, k: 120, ok: false, streak: 1 }, url);
+    const text = cardText({ date: TODAY, t: 221, k: 120, ok: false, medal: 0, streak: 1 }, url);
     expect(text.split('\n')).toEqual(['Swarmageddon · Challenge of Nov 17', '⏱ 3:41 ❌  💀 120', `Beat me: ${url}`]);
   });
   it('le lien ne porte que la date, le temps, les kills, et le pseudo et l’identifiant s’ils sont donnés', () => {
@@ -143,7 +143,7 @@ describe('An invalid link opens the normal menu', () => {
     '#defi=2026-13-01&t=10&k=1',
     '#defi=2026-02-30&t=10&k=1',
     '#defi=2025-12-31&t=10&k=1',
-    '#defi=2026-11-17&t=301&k=1',
+    '#defi=2026-11-17&t=3601&k=1', // défi v2 : 5:00 puis la suite en monde infini, une heure au plus
     '#defi=2026-11-17&t=-5&k=1',
     '#defi=2026-11-17&t=1e3&k=1',
     '#defi=2026-11-17&t=12.5&k=1',
@@ -166,7 +166,7 @@ describe('An invalid link opens the normal menu', () => {
       uid: '', // un identifiant sans pseudo n'ajoute personne
     });
     expect(validDay('2028-02-29')).toBe(true);
-    expect(CHALLENGE.timeMax).toBe(300);
+    expect(CHALLENGE.timeMax).toBe(3600); // défi v2 (décision 8) : 300 → 3 600 s
   });
 });
 
@@ -241,7 +241,7 @@ describe('The daily board shows you and your friends', () => {
     expect(mergeDay(first, 100, 1, 'Moi2', 3)).toEqual({ name: 'Moi2', time: 200, kills: 50, at: 3 });
     expect(mergeDay(null, 9999, 1e9, 'Moi', 1)).toMatchObject({ time: BOARD.dayTimeMax, kills: BOARD.dayKillsMax });
     expect(readDay({ name: '<b>', time: 1, kills: 1 })).toBeNull();
-    expect(readDay({ name: 'Zoé', time: 1e6, kills: -4, at: 5 })).toEqual({ name: 'Zoé', time: 300, kills: 0, at: 5 });
+    expect(readDay({ name: 'Zoé', time: 1e6, kills: -4, at: 5 })).toEqual({ name: 'Zoé', time: 3600, kills: 0, at: 5 });
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
     const block = rules.slice(rules.indexOf('match /days/{day}/scores/{uid}'));
     expect(block).toContain("hasOnly(['name', 'time', 'kills', 'at', 'x'])");
