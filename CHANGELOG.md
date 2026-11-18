@@ -2,6 +2,24 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.63.1 — 18 nov. 2026 (retour de Jimmy : l'accueil à la verticale sur tous les écrans)
+
+Ton héros reprend sa place à l'accueil, quel que soit l'écran tenu à la verticale.
+
+### Modifié
+
+- **Héros plus grand à l'accueil** sur les écrans courts ou larges tenus à la verticale (iPhone dans le navigateur, téléphone à deux écrans, téléphone déplié, tablette) : il était devenu tout petit, il occupe de nouveau le centre de l'écran.
+- **Objectif et missions côte à côte** sur ces écrans plus larges : la place gagnée va au héros.
+- **La lune derrière ton héros** : sur tablette et téléphone déplié elle passait derrière le titre du jeu ; elle éclaire maintenant ton héros, et le titre se lit sur le ciel.
+
+### Corrigé
+
+- **Petits écrans** (320 px de large, petit iPhone dans le navigateur) : « Jouer » passait sous la barre d'onglets, l'accroche tenait sur deux lignes, le titre « Bibliothèque » et le nom du héros étaient coupés, les libellés des onglets se touchaient.
+
+### Technique
+
+- Spec : `docs/specs/ui-ergonomie.md`, constat 8 et décisions 18 à 21 ; quatre scénarios de plus dans `e2e/ergonomie.spec.ts`. CSS seul et une enveloppe `.goalpair` (`display: contents` hors de la rangée) autour de l'objectif et des missions : aucun script, image, police ni dépendance. Part du héros dans la hauteur de l'écran : 25 → 32 % à 375 × 667, 30 → 43 % à 540 × 720, 28 → 42 % à 717 × 880, 26 → 40 % à 768 × 1024, 36 → 45 % à 820 × 1180 ; iPhone dans Safari avec l'aide d'installation (390 × 664) : 19 → 27 %.
+
 ## 1.63.0 — 18 nov. 2026 (retour de Jimmy : passe d'ergonomie de l'interface)
 
 L'interface s'adapte à ton écran : tablette, téléphone déplié ou tenu à l'horizontale, et chaque appui répond tout de suite.

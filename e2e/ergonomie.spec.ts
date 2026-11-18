@@ -842,3 +842,157 @@ test('Nothing overflows at the usual sizes', async ({ page }) => {
     }
   }
 });
+
+// ----- formats verticaux (décisions 18 à 21, retour de Jimmy après la 1.63.0) -----
+
+test('The hero keeps its place in portrait', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  await veteran(page);
+  // [largeur, hauteur, part minimale de la hauteur de l'écran prise par le portrait du héros] ; les seuils comptent
+  // la ligne d'aide d'installation, montrée sur iPhone dans Safari (projet mobile)
+  for (const [width, height, share] of [
+    [320, 568, 0.2],
+    [375, 548, 0.2],
+    [375, 667, 0.26],
+    [390, 664, 0.26],
+    [390, 844, 0.35],
+    [540, 720, 0.38],
+    [717, 880, 0.36],
+    [768, 1024, 0.34],
+    [820, 1180, 0.4],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const where = `${width} × ${height}`;
+    await expect(page.locator('#heroPortrait')).toBeVisible();
+    const hero = await box(page, '#heroPortrait');
+    expect(hero.height / height, `part du héros (${where})`).toBeGreaterThanOrEqual(share);
+    // le héros grandit sans rien recouvrir : ni les deux boutons au-dessus, ni son nom, ni la suite
+    const parts = ['#dailyBtn', '#heroPortrait', '.carousel', '#missions summary', '#playBtn', '#tabBar'];
+    for (const s of parts) await expectInside(page, s);
+    await expectApart(page, parts);
+    await expectApart(page, ['#notesBtn', '#heroPortrait', '#playBtn']);
+    // le prochain objectif ne s'efface que sous 600 px de haut ; ailleurs il garde sa place, sans rien recouvrir
+    if (height >= 600) await expectApart(page, ['.carousel', '#goalBtn', '#playBtn']);
+    else await expect(page.locator('#goalBtn')).toBeHidden();
+  }
+  expect(errors).toEqual([]);
+});
+
+test('The moon stands behind the hero, not behind the logo', async ({ page }) => {
+  await openGame(page);
+  await veteran(page);
+  // le haut de la lune est à 21,2 % de la hauteur de l'illustration (public/ui/bg-night.webp)
+  const MOON_TOP = 0.212;
+  for (const [width, height] of [
+    [375, 667],
+    [540, 720],
+    [717, 880],
+    [768, 1024],
+    [820, 1180],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const where = `${width} × ${height}`;
+    const bg = await box(page, '.home-bg');
+    // l'illustration couvre toujours l'écran
+    expect(bg.top, `fond en haut (${where})`).toBeLessThanOrEqual(0.5);
+    expect(bg.bottom, `fond en bas (${where})`).toBeGreaterThanOrEqual(height - 0.5);
+    expect(bg.left, `fond à gauche (${where})`).toBeLessThanOrEqual(0.5);
+    expect(bg.right, `fond à droite (${where})`).toBeGreaterThanOrEqual(width - 0.5);
+    const moonTop = bg.top + MOON_TOP * bg.height;
+    expect(moonTop, `lune sous le logo (${where})`).toBeGreaterThanOrEqual((await box(page, '.home .logo')).bottom);
+    expect(moonTop, `lune derrière le héros (${where})`).toBeLessThan((await box(page, '#heroName')).top);
+  }
+});
+
+test('The goal and the missions share a row on a wide portrait screen', async ({ page, hasTouch }) => {
+  await openGame(page);
+  await veteran(page);
+  for (const [width, height] of [
+    [540, 720],
+    [717, 880],
+    [820, 1180],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const where = `${width} × ${height}`;
+    const goal = await box(page, '#goalBtn');
+    const line = await box(page, '#missions summary');
+    expect(Math.abs(goal.top - line.top), `même rangée (${where})`).toBeLessThan(4);
+    expect(line.left, `missions à droite de l'objectif (${where})`).toBeGreaterThanOrEqual(goal.right);
+    expect(line.height, `cible des missions (${where})`).toBeGreaterThanOrEqual(43.5);
+    // le nom de l'objectif et son compteur tiennent dans leur moitié
+    const name = await box(page, '#goalName');
+    const val = await box(page, '#goalVal');
+    expect(name.right, `nom et compteur de l'objectif (${where})`).toBeLessThanOrEqual(val.left + 0.5);
+    expect(val.right).toBeLessThanOrEqual(goal.right + 0.5);
+    // dépliées, les missions s'ouvrent au-dessus de la rangée, sur toute sa largeur
+    await press(page.locator('#missions summary'), hasTouch);
+    await expect(page.locator('#missionList .mission')).toHaveCount(3);
+    const panel = await box(page, '#missionsPanel');
+    expect(panel.left, `panneau à gauche (${where})`).toBeLessThanOrEqual(goal.left + 0.5);
+    expect(panel.right, `panneau à droite (${where})`).toBeGreaterThanOrEqual(line.right - 0.5);
+    expect(panel.bottom, `panneau au-dessus de la rangée (${where})`).toBeLessThanOrEqual(goal.top + 0.5);
+    await expectInside(page, '#missionsPanel');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#missionList .mission').first()).toBeHidden();
+  }
+  // téléphone : l'objectif et les missions restent l'un sous l'autre
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await box(page, '#missions summary')).top).toBeGreaterThanOrEqual((await box(page, '#goalBtn')).bottom);
+});
+
+test('Nothing breaks on a narrow screen', async ({ page, hasTouch }) => {
+  test.setTimeout(120_000);
+  await openGame(page);
+  await veteran(page);
+  const tabs = ['#charsBtn', '#shopBtn', '#achBtn', '#libBtn', '#boardBtn'];
+  for (const [width, height] of [
+    [320, 568],
+    [344, 882],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const where = `${width} × ${height}`;
+    const wide = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, inner: innerWidth }));
+    expect(wide.doc, `défilement horizontal (${where})`).toBeLessThanOrEqual(wide.inner);
+    // « Jouer » entier au-dessus de la barre d'onglets
+    await expectInside(page, '#playBtn');
+    await expectApart(page, ['#heroPortrait', '.carousel', '#missions summary', '#playBtn', '#tabBar']);
+    // l'accroche, quand elle est montrée, tient sur une ligne
+    if (await page.locator('.tagline').isVisible())
+      expect((await box(page, '.tagline')).height, `accroche sur une ligne (${where})`).toBeLessThanOrEqual(32);
+    // les libellés des cinq onglets ne se touchent pas, chaque onglet garde 44 px
+    await expectApart(
+      page,
+      tabs.map((t) => `${t} > span:last-child`),
+    );
+    for (const t of tabs) {
+      await expectInside(page, t);
+      expect((await box(page, t)).width, `${t} (${where})`).toBeGreaterThanOrEqual(43.5);
+    }
+    // écrans intérieurs : le titre tient sur une ligne, le nom du héros reste dans l'écran
+    for (const [tab, screen] of [
+      ['#charsBtn', '#characters'],
+      ['#shopBtn', '#shop'],
+      ['#libBtn', '#library'],
+      ['#boardBtn', '#board'],
+    ]) {
+      await press(page.locator(tab), hasTouch);
+      await expect(page.locator(`${screen} .h1`)).toBeVisible();
+      const title = await box(page, `${screen} .h1`);
+      expect(title.height, `titre de ${screen} sur une ligne (${where})`).toBeLessThanOrEqual(48);
+      expect(title.right, `titre de ${screen} dans l'écran (${where})`).toBeLessThanOrEqual(width + 0.5);
+    }
+    await press(page.locator('#charsBtn'), hasTouch);
+    await expect(page.locator('#characters .herohead h3')).toBeVisible();
+    const heroName = await page.evaluate(() => {
+      const el = document.querySelector('#characters .herohead h3')!;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect().right;
+    });
+    expect(heroName, `nom du héros dans l'écran (${where})`).toBeLessThanOrEqual(width - 8);
+    await press(page.locator('#charactersBackBtn'), hasTouch);
+    await expect(page.locator('#playBtn')).toBeVisible();
+  }
+});

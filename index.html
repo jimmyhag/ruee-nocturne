@@ -2357,6 +2357,11 @@
         background: var(--lantern);
       }
       /* prochain objectif : nom, progression lanterne, filet de 2 px, flèche et récompense ; ouvre Succès */
+      /* rangée « prochain objectif + missions » : sans boîte par défaut (ses deux enfants restent ceux de l'accueil,
+         colonne ou grille) ; une vraie rangée seulement en colonne assez large (plus bas) */
+      .goalpair {
+        display: contents;
+      }
       .nextgoal {
         display: flex;
         flex-direction: column;
@@ -4494,6 +4499,157 @@
           display: none;
         }
       }
+      /* ----- une colonne, pas assez de hauteur : le héros d'abord (décisions 18 à 20) -----
+         Tout ce qui entoure le héros a une hauteur fixe (≈ 500 px, agrandie du facteur du gabarit) ; il ne lui reste que
+         le reliquat. Sur un téléphone haut c'est 40 % de l'écran ; sur un écran court ou large (iPhone dans Safari,
+         deux écrans accolés de 540 × 720, pliable ouvert, tablette en portrait) il tombait à 25 % : une figurine.
+         « Une colonne » = ni le large (≥ 10/9) ni le bas (paysage sous 600 px de haut). */
+      /* plus large que l'illustration (390 × 844) et en portrait : centrée, elle perdait son ciel et la lune montait
+         derrière le logo. On ne rogne que 10 % de l'excédent en haut : la lune se tient derrière le héros, sous le
+         logo et au-dessus de son nom, à toutes les tailles mesurées (375 × 667 à 820 × 1180) */
+      @media (max-aspect-ratio: 999/1000) {
+        .home-bg {
+          top: calc((100vh - max(100vh, 100vw * 844 / 390)) * 0.1);
+          transform: translateX(-50%);
+        }
+      }
+      /* serré : les marges se resserrent autour du héros */
+      @media (max-width: 599.98px) and (orientation: portrait) and (max-height: 839.98px),
+        (min-width: 600px) and (min-height: 600px) and (max-aspect-ratio: 1099/1000) {
+        .home .logo {
+          margin-top: 6px;
+        }
+        .quickrow {
+          margin-top: 6px;
+        }
+        #iosHint {
+          margin-top: 4px; /* l'aide d'installation (iPhone dans Safari) prend sa ligne, pas plus */
+        }
+        .stage {
+          margin-top: 4px;
+        }
+        .carousel {
+          margin-top: 2px;
+        }
+        .nextgoal {
+          margin-top: 8px;
+        }
+        .playrow {
+          margin-top: 10px;
+        }
+      }
+      /* assez large (deux écrans accolés, pliable ouvert, tablette en portrait) : le prochain objectif et la ligne
+         des missions partagent une rangée au lieu de s'empiler ; la hauteur d'une ligne revient au héros. Dépliées, les
+         missions s'ouvrent au-dessus de la rangée entière */
+      @media (min-width: 520px) and (max-width: 599.98px) and (orientation: portrait),
+        (min-width: 600px) and (min-height: 600px) and (max-aspect-ratio: 1099/1000) {
+        .goalpair {
+          position: relative;
+          display: flex;
+          align-items: flex-start;
+          gap: 24px;
+          margin-top: 8px;
+          flex: none;
+        }
+        .goalpair > .nextgoal,
+        .goalpair > .missions {
+          flex: 1 1 0;
+          min-width: 0;
+          margin-top: 0;
+        }
+        .goalpair > .missions {
+          position: static;
+        }
+        .goalpair .ng-top > :first-child {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        /* la ligne des missions s'aligne sur le nom de l'objectif (sa cible garde 44 px de haut) */
+        .goalpair .missions summary {
+          align-items: flex-start;
+          padding-top: 2px;
+        }
+      }
+      /* plus court encore : l'accroche laisse sa hauteur au héros (le logo dit déjà le nom du jeu) */
+      @media (max-width: 599.98px) and (orientation: portrait) and (max-height: 739.98px),
+        (min-width: 600px) and (min-height: 600px) and (max-height: 924.98px) and (max-aspect-ratio: 1099/1000),
+        (min-width: 760px) and (min-height: 1000px) and (max-height: 1109.98px) and (max-aspect-ratio: 1099/1000) {
+        .tagline {
+          display: none;
+        }
+        .quickrow {
+          margin-top: 16px; /* la pastille « Nouveau » dépasse de 10 px : elle ne touche pas le logo */
+        }
+      }
+      /* très court (petit iPhone dans Safari, barres comprises : 375 × 548 ; téléphone de 568 px de haut) : le
+         prochain objectif s'efface aussi (il se lit dans Succès) ; restent le héros, les missions du jour et « Jouer » */
+      @media (orientation: portrait) and (max-height: 599.98px) {
+        .nextgoal {
+          display: none;
+        }
+      }
+      /* étroit (320 à 359 px : petit iPhone, pliable fermé) : rien ne passe à la ligne ni ne sort de l'écran */
+      @media (max-width: 359.98px) {
+        .home {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+        .stage {
+          margin-left: -16px;
+          margin-right: -16px;
+        }
+        .tagline {
+          gap: 8px;
+          letter-spacing: 0.3em;
+          padding: 7px 12px 7px calc(12px + 0.3em);
+          white-space: nowrap;
+        }
+        .tagline::before,
+        .tagline::after {
+          width: 14px;
+        }
+        .quick {
+          min-width: 0;
+        }
+        #iosHint {
+          padding-left: 8px;
+          padding-right: 8px;
+          font-size: 11px;
+          white-space: nowrap;
+        }
+        .h1 {
+          font-size: 34px;
+          line-height: 38px;
+        }
+        /* le titre garde sa ligne : la valeur de droite (« Armes 1/1 · Tomes 0/2 ») passe dessous si elle ne tient pas */
+        .sheet-title {
+          flex-wrap: wrap;
+          row-gap: 2px;
+        }
+        .sheet-title .h1 {
+          overflow-wrap: normal;
+        }
+        .herohead {
+          gap: 10px;
+        }
+        .herohead h3 {
+          font-size: 27px;
+          line-height: 30px;
+        }
+        /* les cinq onglets : chacun à la largeur de son libellé (44 px au moins) au lieu de cinq parts égales, où
+           « Emplacements » et « Bibliothèque » se touchaient */
+        .tabbar {
+          grid-template-columns: repeat(5, auto);
+          justify-content: space-between;
+          padding-left: 6px;
+          padding-right: 6px;
+        }
+        .tabbar button {
+          min-width: 44px;
+        }
+      }
       /* ----- large : deux zones (décision 4) ----- */
       @media (min-height: 600px) and (min-aspect-ratio: 10/9) {
         /* à gauche le héros en grand (portrait, nom, armes, carrousel) ; à droite le panneau : logo, défi du jour et
@@ -5051,29 +5207,31 @@
           Ta partie en cours n'a pas pu être reprise après la mise à jour.
         </p>
         <!-- prochain objectif (décision 9) : le succès le plus proche qui débloque quelque chose ; ouvre Succès -->
-        <button class="nextgoal" id="goalBtn">
-          <span class="ng-top"><span id="goalName"></span><span id="goalVal"></span></span>
-          <span class="prog"><i id="goalBar"></i></span>
-          <span class="ng-rew"
-            ><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6" /></svg
-            ><span id="goalRew"></span
-          ></span>
-        </button>
-        <!-- lot L3 : missions du jour, au style du prochain objectif. Passe d'ergonomie (décision 9) : une ligne repliée
+        <div class="goalpair">
+          <button class="nextgoal" id="goalBtn">
+            <span class="ng-top"><span id="goalName"></span><span id="goalVal"></span></span>
+            <span class="prog"><i id="goalBar"></i></span>
+            <span class="ng-rew"
+              ><svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6" /></svg
+              ><span id="goalRew"></span
+            ></span>
+          </button>
+          <!-- lot L3 : missions du jour, au style du prochain objectif. Passe d'ergonomie (décision 9) : une ligne repliée
              par défaut ; dépliées, elles s'ouvrent par-dessus l'accueil (Échap ou un toucher ailleurs les referme). La
              liste est hors du <details> : sur un écran large la mise en page (CSS seule) la montre toujours -->
-        <div class="missions">
-          <details id="missions">
-            <summary aria-controls="missionsPanel">
-              <span class="lbl" data-i18n="missions.title">Missions du jour</span
-              ><span class="cnt" id="missionsCount">0/3</span>
-            </summary>
-          </details>
-          <div class="mpanel" id="missionsPanel">
-            <div id="missionList"></div>
-            <p class="note" id="missionsDone" hidden data-i18n="missions.allDone">
-              Missions du jour terminées — reviens demain
-            </p>
+          <div class="missions">
+            <details id="missions">
+              <summary aria-controls="missionsPanel">
+                <span class="lbl" data-i18n="missions.title">Missions du jour</span
+                ><span class="cnt" id="missionsCount">0/3</span>
+              </summary>
+            </details>
+            <div class="mpanel" id="missionsPanel">
+              <div id="missionList"></div>
+              <p class="note" id="missionsDone" hidden data-i18n="missions.allDone">
+                Missions du jour terminées — reviens demain
+              </p>
+            </div>
           </div>
         </div>
         <div class="playrow">
