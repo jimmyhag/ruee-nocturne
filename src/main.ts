@@ -58,7 +58,7 @@ import type { CloudDoc, SyncRecord } from './meta/sync';
 import { errorKey, initialAccountView, renderAccount } from './ui/account';
 import { initialBoardState, renderBoard, viewOf } from './ui/board';
 import { BOARD, cleanPseudo, friendRows, isoWeek, suggestPseudo } from './meta/board';
-import { CHALLENGE_PARAMS, cardText, challengeGap, challengeUrl, parseChallenge } from './meta/share-card';
+import { cardText, challengeGap, challengeUrl, isChallengeHash, parseChallenge } from './meta/share-card';
 import type { CardRun, Challenge } from './meta/share-card';
 import { addFriend, removeFriend } from './meta/friends';
 import { shareText } from './platform/share';
@@ -1166,7 +1166,14 @@ function gameOver(won = false): void {
   );
   saveMeta(meta);
   const card: CardRun | null = dailyRun
-    ? { date: runDay, t: Math.floor(world.t), k: world.kills, ok: dailyOk, streak: streakNow(meta, todayKey()) }
+    ? // la série d'aujourd'hui ne figure pas sur la carte d'un défi d'un jour passé
+      {
+        date: runDay,
+        t: Math.floor(world.t),
+        k: world.kills,
+        ok: dailyOk,
+        streak: runRanked ? streakNow(meta, todayKey()) : 0,
+      }
     : null;
   const gap = runBeat ? challengeGap({ t: world.t, k: world.kills }, runBeat) : undefined;
   lastOver = {
@@ -3034,14 +3041,17 @@ if (matchMedia('(max-width: 700px), (max-height: 560px)').matches) $<HTMLDetails
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
 retention.open(); // lot L1 : le lancement est une ouverture (rien ne part sans accord)
-// lot L4 : un lien de défi ouvre sa feuille au menu (l'aide du premier lancement attendra la prochaine ouverture). Ses
-// paramètres sont retirés de l'adresse : un rechargement ne la rouvre pas. Paramètres invalides : menu normal.
-const linked = parseChallenge(location.search, todayKey());
-if (new URLSearchParams(location.search).has('defi')) {
-  const url = new URL(location.href);
-  for (const k of CHALLENGE_PARAMS) url.searchParams.delete(k);
-  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+// lot L4 : un lien de défi (`/#defi=…`, dans le fragment : rien ne part vers l'hébergeur) ouvre sa feuille au menu
+// (l'aide du premier lancement attendra la prochaine ouverture). Le fragment est retiré de l'adresse une fois lu : un
+// rechargement ne rouvre pas la feuille. Paramètres invalides : menu normal.
+/** Lit le fragment de l'adresse : le défi qu'il porte (null s'il est invalide), et le retire de l'adresse. */
+function takeLinked(): Challenge | null {
+  if (!isChallengeHash(location.hash)) return null;
+  const c = parseChallenge(location.hash, todayKey());
+  history.replaceState(history.state, '', location.pathname + location.search);
+  return c;
 }
+let linked = takeLinked();
 /** Lot L4 : le lien d'un joueur connecté avec un pseudo l'ajoute aux amis (une fois, jamais soi-même). */
 function befriendLinked(): void {
   if (!linked?.uid) return;
@@ -3052,6 +3062,14 @@ if (linked) {
   befriendLinked();
   openChallenge(linked);
 }
+// un lien ouvert dans l'onglet où le jeu tourne déjà (même document) : la feuille s'ouvre si le joueur est au menu
+addEventListener('hashchange', () => {
+  const c = takeLinked();
+  if (!c || app !== 'menu') return;
+  linked = c;
+  befriendLinked();
+  openChallenge(c);
+});
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
 if (!linked && !meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   meta.seenHelp = true;

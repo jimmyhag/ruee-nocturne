@@ -35,12 +35,13 @@ import {
   orderBy,
   query,
   setDoc,
+  Timestamp,
   where,
 } from 'firebase/firestore/lite';
 import type { Firestore } from 'firebase/firestore/lite';
 import { SYNC, fromCloudDoc } from '../meta/sync';
 import type { CloudDoc } from '../meta/sync';
-import { BOARD, isoWeek, mergeDay, mergeScore, readDay, readScore } from '../meta/board';
+import { BOARD, dayExpiry, dayWritable, isoWeek, mergeDay, mergeScore, readDay, readScore } from '../meta/board';
 import type { BoardRow, BoardView, DayDoc, RunScore, ScoreDoc } from '../meta/board';
 import { todayKey } from '../meta/daily';
 import type { FirebaseConfig } from './firebase-config';
@@ -167,13 +168,18 @@ export class Account {
       const next = mergeScore(snap.exists() ? readScore(snap.data()) : null, run, name, Date.now());
       if (next) await setDoc(ref, next);
     }
-    // lot L4 : un défi du jour qui compte publie aussi la meilleure partie du jour (classement entre amis)
-    if (run.day) {
+    // lot L4 : un défi du jour qui compte publie aussi la meilleure partie du jour (classement entre amis), tant que
+    // les règles acceptent ce jour (J-2 à J+1) : une partie restée hors ligne plus longtemps ne bloque pas les suivantes
+    if (run.day && dayWritable(run.day, Date.now())) {
       const ref = this.dayRef(uid, run.day);
       const snap = await getDoc(ref);
       const next = mergeDay(snap.exists() ? readDay(snap.data()) : null, run.time, run.kills, name, Date.now());
-      if (next) await setDoc(ref, next);
+      if (next) await setDoc(ref, this.dayDoc(next, run.day));
     }
+  }
+  /** Document du jour tel qu'écrit : avec son expiration `x` (horodatage, règle TTL de Firestore), exigée par les règles. */
+  private dayDoc(d: DayDoc, day: string) {
+    return { name: d.name, time: d.time, kills: d.kills, at: d.at, x: Timestamp.fromMillis(dayExpiry(day)) };
   }
   // ---- lot L4 : défi du jour entre amis, `days/{jour}/scores/{uid}` ----
   private dayRef(uid: string, day: string) {
@@ -224,10 +230,11 @@ export class Account {
       const prev = snap.exists() ? readScore(snap.data()) : null;
       if (prev && prev.name !== name) await setDoc(ref, { ...prev, name, at: Date.now() });
     }
-    const ref = this.dayRef(uid, todayKey()); // lot L4 : le défi du jour aussi
+    const day = todayKey(); // lot L4 : le défi du jour aussi
+    const ref = this.dayRef(uid, day);
     const snap = await getDoc(ref);
     const prev = snap.exists() ? readDay(snap.data()) : null;
-    if (prev && prev.name !== name) await setDoc(ref, { ...prev, name, at: Date.now() });
+    if (prev && prev.name !== name) await setDoc(ref, this.dayDoc({ ...prev, name, at: Date.now() }, day));
   }
   /** Retire le joueur du classement (tous les temps, semaine en cours, défi du jour) : suppression du compte. */
   async deleteScores(uid: string): Promise<void> {

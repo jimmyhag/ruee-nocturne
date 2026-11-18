@@ -33,11 +33,13 @@ async function press(page: Page, sel: string, hasTouch: boolean): Promise<void> 
 }
 
 /**
- * Ouvre un lien de défi (mode debug) et attend le jeu prêt ; `scene` faux : seulement le module d'entrée (le lien est lu
- * à son chargement), sans attendre la scène 3D.
+ * Ouvre un lien de défi (mode debug, paramètres dans le fragment) et attend le jeu prêt ; `scene` faux : seulement le
+ * module d'entrée (le lien est lu à son chargement), sans attendre la scène 3D. Passer par une page vide force un vrai
+ * chargement : sinon, depuis le jeu, seul le fragment changerait.
  */
 async function openLink(page: Page, params: string, scene = true): Promise<void> {
-  await page.goto(`${DEBUG_URL}&${params}`);
+  await page.goto('about:blank');
+  await page.goto(`${DEBUG_URL}#${params}`);
   if (scene) await page.waitForFunction(() => (window as any).__game?.ready === true);
   else await page.waitForFunction(() => (window as any).__game !== undefined);
 }
@@ -111,7 +113,7 @@ test('The result card reveals nothing about the run', async ({ page }, info) => 
   expect(lines[1]).toBe(`⏱ 0:20 ❌  💀 ${kills}`);
   expect(lines[2]).toBe('🔥 Série : 4 jours');
   const origin = new URL(page.url()).origin;
-  expect(lines[3]).toBe(`Bats-moi : ${origin}/?defi=${today()}&t=20&k=${kills}`);
+  expect(lines[3]).toBe(`Bats-moi : ${origin}/#defi=${today()}&t=20&k=${kills}`);
   expect(lines).toHaveLength(4);
   // ni arme, ni objet, ni personnage
   expect(text).not.toMatch(/Orbe|Éclaireuse|eclaireuse|orbe|Tome/);
@@ -158,7 +160,9 @@ test('A challenge sent to a friend opens the same run', async ({ page, hasTouch 
   await expect(page.locator('#challengeTitle')).toHaveText('Défi de Jimmy');
   await expect(page.locator('#challengeScore')).toHaveText('5:00 · 412 kills — à toi !');
   await expect(page.locator('#challengePlayBtn')).toBeFocused();
-  expect(new URL(page.url()).search).toBe('?debug=1'); // le lien est lu, puis retiré de l'adresse
+  // le lien est lu, puis son fragment retiré de l'adresse
+  expect(new URL(page.url()).search).toBe('?debug=1');
+  expect(new URL(page.url()).hash).toBe('');
   await page.screenshot({ path: `shots/${info.project.name}-l4-feuille-defi.png` });
   if (hasTouch) await page.locator('#challengePlayBtn').tap();
   else await page.keyboard.press('Enter');
@@ -262,11 +266,17 @@ test('Opening a link without an account sends no request', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('A link from a signed-in friend adds them to friends', async ({ page }) => {
+test('A link from a signed-in friend adds them to friends', async ({ page, hasTouch }) => {
   const errors = collectConsoleErrors(page);
   const link = `defi=${today()}&t=120&k=40&n=Jimmy&u=${UID_A}`;
   await openLink(page, link);
   await expect(page.locator('#challengeTitle')).toHaveText('Défi de Jimmy');
+  // la feuille se ferme : Échap au clavier, la croix au doigt ; retour au menu
+  if (hasTouch) await page.locator('#challengeBackBtn').tap();
+  else await page.keyboard.press('Escape');
+  await expect(page.locator('#challenge')).toBeHidden();
+  await expect(page.locator('#menu')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__game.app)).toBe('menu');
   await openLink(page, link); // le même lien rouvert : toujours un seul ami
   const friends = await page.evaluate(() => (window as any).__game.meta.friends);
   expect(friends).toEqual([{ uid: UID_A, name: 'Jimmy' }]);

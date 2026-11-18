@@ -93,6 +93,18 @@ gcloud firestore fields ttls update x --collection-group=retention --enable-ttl 
 RETENTION_TOKEN=$(gcloud auth print-access-token) npm run retention
 ```
 
+## Défi du jour entre amis (lot L4)
+
+Un joueur connecté avec un pseudo écrit sa meilleure partie du jour dans `days/{AAAA-MM-JJ}/scores/{uid}` (forme : `src/meta/board.ts`, règles : `firestore.rules`). Chaque document porte son expiration `x` (début du jour + 7 jours), exigée par les règles.
+
+**Règle TTL, à activer une fois** (gratuite), comme celle de `retention` : Console Firebase → Firestore → **Durée de vie (TTL)** → Créer une règle : groupe de collections `scores`, champ d'horodatage `x`. Le groupe `scores` comprend aussi `scores/{uid}` et `weeks/{semaine}/scores/{uid}` : leurs documents n'ont pas de champ `x`, la règle ne les touche pas. Ou avec `gcloud` connecté sur le compte propriétaire :
+
+```bash
+gcloud firestore fields ttls update x --collection-group=scores --enable-ttl --project=ruee-nocturne
+```
+
+Tant que cette règle n'est pas activée, les résultats des jours passés restent dans la base (le jeu ne lit que le jour en cours).
+
 ## Vérifier un déploiement
 
 - Onglet **Actions** du dépôt : job « Déploiement Firebase Hosting » vert, URL dans le résumé (et en commentaire sur la PR).

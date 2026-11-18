@@ -22,6 +22,8 @@ export const BOARD = {
   dayTimeMax: DAILY.duration, // s : le défi s'arrête là
   dayKillsMax: 20000,
   dayQuery: 30, // identifiants par requête (limite de l'opérateur `in` de Firestore)
+  dayTtlDays: 7, // `x` = début du jour + 7 jours : la règle TTL de Firestore efface ensuite le document
+  dayWindow: [-2, 1] as const, // jours d'écart permis avec aujourd'hui (UTC) pour écrire un document du jour (règles)
 };
 
 export type BoardView = 'best' | 'time' | 'kills';
@@ -148,6 +150,23 @@ export interface FriendRow {
   kills: number;
   played: boolean;
   me: boolean;
+}
+
+const DAY_MS = 86400000;
+const dayStart = (day: string): number => Date.parse(day + 'T00:00:00Z');
+/** Expiration (ms) du document `days/{day}/scores/{uid}` : début du jour + BOARD.dayTtlDays (exigée par les règles). */
+export function dayExpiry(day: string): number {
+  return dayStart(day) + BOARD.dayTtlDays * DAY_MS;
+}
+/**
+ * Le document du jour `day` peut-il encore être écrit à `now` (ms) ? Les règles n'acceptent que J-2 à J+1 autour de
+ * l'heure du serveur : une partie restée en attente plus longtemps (hors ligne) ne publie plus son jour.
+ */
+export function dayWritable(day: string, now: number): boolean {
+  const start = dayStart(day);
+  if (!Number.isFinite(start)) return false;
+  const gap = Math.floor(start / DAY_MS) - Math.floor(now / DAY_MS);
+  return gap >= BOARD.dayWindow[0] && gap <= BOARD.dayWindow[1];
 }
 
 /**

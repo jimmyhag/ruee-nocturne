@@ -5,13 +5,21 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { CHARACTERS, ITEM_KEYS } from '../sim/balance';
 import { WEAPON_KEYS } from '../sim/weapons/defs';
 import { setLang, t } from '../i18n';
-import { BOARD, friendRows, mergeDay, readDay } from './board';
+import { BOARD, dayExpiry, dayWritable, friendRows, mergeDay, readDay } from './board';
 import type { DayDoc } from './board';
 import { dailyMapSeed, dailySeed } from './daily';
 import { FRIENDS, addFriend, normalizeFriends, removeFriend } from './friends';
 import type { Friend } from './friends';
 import { DEFAULT_META, normalizeMeta } from './save';
-import { CHALLENGE, cardText, challengeGap, challengeUrl, parseChallenge, validDay } from './share-card';
+import {
+  CHALLENGE,
+  cardText,
+  challengeGap,
+  challengeUrl,
+  isChallengeHash,
+  parseChallenge,
+  validDay,
+} from './share-card';
 import { PROGRESS_KEYS, withProgress } from './sync';
 import { shareText } from '../platform/share';
 
@@ -31,7 +39,7 @@ describe('The result card reveals nothing about the run', () => {
         'Swarmageddon · Défi du 17 nov.',
         '⏱ 5:00 ✅  💀 412',
         '🔥 Série : 4 jours',
-        'Bats-moi : https://ruee-nocturne.web.app/?defi=2026-11-17&t=300&k=412',
+        'Bats-moi : https://ruee-nocturne.web.app/#defi=2026-11-17&t=300&k=412',
       ].join('\n'),
     );
   });
@@ -51,10 +59,10 @@ describe('The result card reveals nothing about the run', () => {
   });
   it('le lien ne porte que la date, le temps, les kills, et le pseudo et l’identifiant s’ils sont donnés', () => {
     expect(challengeUrl('http://localhost:4173', { date: TODAY, t: 221.7, k: 120 }, 'Jim my!', UID_A)).toBe(
-      `http://localhost:4173/?defi=${TODAY}&t=221&k=120&n=Jim+my&u=${UID_A}`,
+      `http://localhost:4173/#defi=${TODAY}&t=221&k=120&n=Jim+my&u=${UID_A}`,
     );
     // pas de pseudo : ni nom ni identifiant
-    expect(challengeUrl('http://x', { date: TODAY, t: 5, k: 1 }, '', UID_A)).toBe(`http://x/?defi=${TODAY}&t=5&k=1`);
+    expect(challengeUrl('http://x', { date: TODAY, t: 5, k: 1 }, '', UID_A)).toBe(`http://x/#defi=${TODAY}&t=5&k=1`);
   });
 });
 
@@ -95,13 +103,17 @@ describe('Without native share the result is copied', () => {
 describe('A challenge sent to a friend opens the same run', () => {
   it('le lien rend le jour, le score à battre et l’expéditeur', () => {
     const url = challengeUrl('https://ruee-nocturne.web.app', { date: TODAY, t: 300, k: 412 }, 'Jimmy', UID_A);
-    expect(parseChallenge(new URL(url).search, TODAY)).toEqual({
+    expect(parseChallenge(new URL(url).hash, TODAY)).toEqual({
       date: TODAY,
       t: 300,
       k: 412,
       name: 'Jimmy',
       uid: UID_A,
     });
+    // règle 8 : tout est dans le fragment, que le navigateur n'envoie jamais à l'hébergeur
+    expect(new URL(url).search).toBe('');
+    expect(isChallengeHash(new URL(url).hash)).toBe(true);
+    expect(isChallengeHash('#debug=1')).toBe(false);
   });
   it('la graine du défi ne dépend que du jour : même carte et même hasard pour l’ami', () => {
     expect(dailyMapSeed(TODAY)).toBe(dailyMapSeed(TODAY));
@@ -118,35 +130,35 @@ describe('A challenge sent to a friend opens the same run', () => {
 
 describe('A past day’s challenge does not count for the streak', () => {
   it('un lien d’hier est un défi valide (même graine que ce jour-là), un lien de demain ne l’est pas', () => {
-    expect(parseChallenge('?defi=2026-11-16&t=120&k=50', TODAY)?.date).toBe('2026-11-16');
-    expect(parseChallenge('?defi=2026-11-18&t=120&k=50', TODAY)).toBeNull();
+    expect(parseChallenge('#defi=2026-11-16&t=120&k=50', TODAY)?.date).toBe('2026-11-16');
+    expect(parseChallenge('#defi=2026-11-18&t=120&k=50', TODAY)).toBeNull();
   });
 });
 
 describe('An invalid link opens the normal menu', () => {
   it.each([
     '',
-    '?debug=1',
-    '?defi=hier&t=10&k=1',
-    '?defi=2026-13-01&t=10&k=1',
-    '?defi=2026-02-30&t=10&k=1',
-    '?defi=2025-12-31&t=10&k=1',
-    '?defi=2026-11-17&t=301&k=1',
-    '?defi=2026-11-17&t=-5&k=1',
-    '?defi=2026-11-17&t=1e3&k=1',
-    '?defi=2026-11-17&t=12.5&k=1',
-    '?defi=2026-11-17&t=10',
-    '?defi=2026-11-17&t=10&k=20001',
-    '?defi=2026-11-17&t=10&k=abc',
-    '?defi=2026-11-17&t=10&k=9999999999',
-    '?defi=<img src=x onerror=alert(1)>&t=10&k=1',
+    '#debug=1',
+    '#defi=hier&t=10&k=1',
+    '#defi=2026-13-01&t=10&k=1',
+    '#defi=2026-02-30&t=10&k=1',
+    '#defi=2025-12-31&t=10&k=1',
+    '#defi=2026-11-17&t=301&k=1',
+    '#defi=2026-11-17&t=-5&k=1',
+    '#defi=2026-11-17&t=1e3&k=1',
+    '#defi=2026-11-17&t=12.5&k=1',
+    '#defi=2026-11-17&t=10',
+    '#defi=2026-11-17&t=10&k=20001',
+    '#defi=2026-11-17&t=10&k=abc',
+    '#defi=2026-11-17&t=10&k=9999999999',
+    '#defi=<img src=x onerror=alert(1)>&t=10&k=1',
   ])('%s → menu normal', (search) => {
     expect(parseChallenge(search, TODAY)).toBeNull();
   });
   it('un pseudo ou un identifiant illisible ne casse rien : « un ami », sans ami ajouté', () => {
-    const c = parseChallenge(`?defi=${TODAY}&t=10&k=1&n=%3Cscript%3Ealert(1)%3C%2Fscript%3E&u=..%2F..%2Fsaves`, TODAY);
+    const c = parseChallenge(`#defi=${TODAY}&t=10&k=1&n=%3Cscript%3Ealert(1)%3C%2Fscript%3E&u=..%2F..%2Fsaves`, TODAY);
     expect(c).toEqual({ date: TODAY, t: 10, k: 1, name: 'scriptalert1scri', uid: '' }); // chevrons retirés, 16 caractères
-    expect(parseChallenge(`?defi=${TODAY}&t=10&k=1&n=%3C%3E&u=${UID_A}`, TODAY)).toEqual({
+    expect(parseChallenge(`#defi=${TODAY}&t=10&k=1&n=%3C%3E&u=${UID_A}`, TODAY)).toEqual({
       date: TODAY,
       t: 10,
       k: 1,
@@ -191,6 +203,7 @@ describe('A link from a signed-in friend adds them to friends', () => {
     expect(PROGRESS_KEYS).toContain('friends');
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
     expect(rules).toContain(`p().friends.size() <= ${FRIENDS.max}`);
+    expect(rules).toContain("p().friends[0] is map && p().friends[0].keys().hasOnly(['uid', 'name'])");
     const local = normalizeMeta({ version: 5 });
     expect(withProgress(local, { friends: [{ uid: UID_A, name: 'Jimmy' }] }).friends).toEqual([
       { uid: UID_A, name: 'Jimmy' },
@@ -231,7 +244,18 @@ describe('The daily board shows you and your friends', () => {
     expect(readDay({ name: 'Zoé', time: 1e6, kills: -4, at: 5 })).toEqual({ name: 'Zoé', time: 300, kills: 0, at: 5 });
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
     const block = rules.slice(rules.indexOf('match /days/{day}/scores/{uid}'));
-    expect(block).toContain("hasOnly(['name', 'time', 'kills', 'at'])");
+    expect(block).toContain("hasOnly(['name', 'time', 'kills', 'at', 'x'])");
+    // relecture : expiration exigée (début du jour + 7 jours, règle TTL) et jour dans une fenêtre de J-2 à J+1
+    expect(block).toContain(`d.x == dayStart() + duration.value(${BOARD.dayTtlDays}, 'd')`);
+    expect(block).toContain("dayStart() > request.time - duration.value(3, 'd')");
+    expect(block).toContain("dayStart() < request.time + duration.value(1, 'd')");
+    expect(BOARD.dayWindow).toEqual([-2, 1]);
+    expect(dayExpiry('2026-11-17')).toBe(Date.UTC(2026, 10, 24));
+    const noon = Date.UTC(2026, 10, 17, 12);
+    expect(
+      ['2026-11-14', '2026-11-15', '2026-11-17', '2026-11-18', '2026-11-19'].map((d) => dayWritable(d, noon)),
+    ).toEqual([false, true, true, true, false]);
+    expect(dayWritable('nimporte', noon)).toBe(false);
     expect(block).toContain(`d.time <= ${BOARD.dayTimeMax}`);
     expect(block).toContain(`d.kills <= ${BOARD.dayKillsMax}`);
     expect(block).toContain('allow get: if request.auth != null');

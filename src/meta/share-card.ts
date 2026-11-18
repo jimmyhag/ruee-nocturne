@@ -1,5 +1,7 @@
 // Lot L4 (docs/specs/l4-partage-defi-amis.md, décisions 1 à 5) : la carte de résultat d'un défi du jour et le lien de
-// défi lancé à un ami. Module pur, sans DOM : main.ts lit `location`, src/platform/share.ts partage le texte.
+// défi lancé à un ami. Module pur, sans DOM : main.ts lit `location.hash`, src/platform/share.ts partage le texte.
+// Le lien porte ses paramètres dans le fragment (`/#defi=…`) : un navigateur ne l'envoie jamais au serveur, donc ni le
+// pseudo ni l'identifiant ne partent vers l'hébergeur (règle 8, décision 3 revue après relecture).
 // Un lien de défi vient de n'importe qui : chaque paramètre est validé et borné, le reste est ignoré ; rien de ce qu'il
 // contient n'est jamais écrit en HTML (textContent seulement).
 import { fmtDay, fmtTime, t } from '../i18n';
@@ -33,14 +35,14 @@ function readInt(raw: string | null, max: number): number {
 }
 
 /**
- * Lit un lien de défi (`location.search`). Null si ce n'en est pas un, ou si la date (illisible, d'avant 2026, ou après
+ * Lit un lien de défi (`location.hash`, `#` compris ou non). Null si ce n'en est pas un, ou si la date (illisible, d'avant 2026, ou après
  * `today`), le temps ou les kills sont invalides : le jeu s'ouvre alors au menu normal. Un pseudo illisible devient
  * « un ami » ; l'identifiant n'est gardé qu'avec un pseudo (décision 6 : un ami a un nom).
  */
-export function parseChallenge(search: string, today: string): Challenge | null {
+export function parseChallenge(hash: string, today: string): Challenge | null {
   let q: URLSearchParams;
   try {
-    q = new URLSearchParams(search);
+    q = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
   } catch {
     return null;
   }
@@ -54,10 +56,12 @@ export function parseChallenge(search: string, today: string): Challenge | null 
   return { date, t: time, k: kills, name, uid: name && UID.test(u) ? u : '' };
 }
 
-/** Paramètres d'un lien de défi, retirés de l'adresse une fois lus (un rechargement ne rouvre pas la feuille). */
-export const CHALLENGE_PARAMS = ['defi', 't', 'k', 'n', 'u'] as const;
+/** Le fragment est-il un lien de défi (valide ou non) ? main.ts le retire alors de l'adresse une fois lu. */
+export function isChallengeHash(hash: string): boolean {
+  return /^#?defi=/.test(hash);
+}
 
-/** Lien de défi (décision 3) : `origin` est `location.origin` (la preview marche aussi). */
+/** Lien de défi (décision 3) : `origin` est `location.origin` (la preview marche aussi) ; paramètres dans le fragment. */
 export function challengeUrl(origin: string, run: { date: string; t: number; k: number }, name = '', uid = ''): string {
   const q = new URLSearchParams();
   q.set('defi', run.date);
@@ -66,7 +70,7 @@ export function challengeUrl(origin: string, run: { date: string; t: number; k: 
   const n = cleanPseudo(name);
   if (n) q.set('n', n);
   if (n && UID.test(uid)) q.set('u', uid);
-  return `${origin}/?${q.toString()}`;
+  return `${origin}/#${q.toString()}`;
 }
 
 /** Une partie du défi, telle que la carte la montre. */
