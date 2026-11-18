@@ -26,6 +26,7 @@ function collector(): Meta {
     achievements: ['survie3', 'survie10', 'kills500'],
     bought: ['veilleuse'],
     unlocks: ['w:boomerang', 'w:faux'],
+    slots: { weapons: 2, passives: 2, rerolls: 0 }, // une nouvelle arme peut entrer en partie
     reveal: 4,
   });
 }
@@ -79,8 +80,13 @@ describe('missions du jour (lot L3)', () => {
     ensureMissions(newbie, '2026-11-18');
     expect(newbie.missions.list).toHaveLength(MISSIONS.count);
     expect(newbie.missions.list.some((x) => x.k === 'char')).toBe(false);
-    for (const x of newbie.missions.list)
-      if (x.k !== 'weapon') expect(MISSIONS.goals[x.k as keyof typeof MISSIONS.goals]).toContain(x.goal);
+    // relecture du lot L3 : avec un seul emplacement d'arme, aucune nouvelle arme n'entre en partie : pas de mission d'arme
+    expect(newbie.missions.list.some((x) => x.k === 'weapon')).toBe(false);
+    const oneSlot = collector();
+    oneSlot.slots.weapons = 1;
+    expect(drawMissions(oneSlot, '2026-11-18').some((x) => x.k === 'weapon')).toBe(false);
+    expect(drawMissions(oneSlot, '2026-11-18').some((x) => x.k === 'char')).toBe(true);
+    for (const x of newbie.missions.list) expect(MISSIONS.goals[x.k as keyof typeof MISSIONS.goals]).toContain(x.goal);
     // les objectifs chiffrés ne dépendent pas du contenu possédé (même tirage pour tous)
     const numeric = (list: Mission[]) => list.filter((x) => x.k !== 'char' && x.k !== 'weapon');
     expect(numeric(drawMissions(newbie, '2026-11-18'))[0]).toEqual(numeric(drawMissions(m, '2026-11-18'))[0]);
@@ -104,6 +110,16 @@ describe('missions du jour (lot L3)', () => {
     // le lendemain : nouvelle liste, progression à zéro
     expect(ensureMissions(reopened, '2026-11-19')).toBe(true);
     expect(reopened.missions.list.every((x) => x.prog === 0 && !x.done)).toBe(true);
+    // horloge reculée (relecture du lot L3) : pas de nouveau tirage, et une partie « d'hier » ne paie rien
+    const drawn = JSON.stringify(reopened.missions);
+    expect(ensureMissions(reopened, '2026-11-18')).toBe(false);
+    expect(JSON.stringify(reopened.missions)).toBe(drawn);
+    const back = fresh();
+    back.missions = { date: '2026-11-19', list: [kills300()] };
+    const gold = back.gold;
+    expect(missionsAfterRun(back, run({ kills: 900 }), '2026-11-18')).toEqual([]);
+    expect(back.missions).toEqual({ date: '2026-11-19', list: [kills300()] });
+    expect(back.gold).toBe(gold);
   });
 
   it('A completed mission pays at the end of the run', () => {

@@ -12,6 +12,28 @@ service cloud.firestore {
       function p() {
         return request.resource.data.progress;
       }
+      // lot L3 : série de jours, clés fermées et toutes présentes, valeurs bornées (src/meta/daily.ts)
+      function streakOk(s) {
+        return s is map
+          && s.keys().hasOnly(['last', 'count', 'best', 'jokerWeek', 'jokerDay'])
+          && s.keys().hasAll(['last', 'count', 'best', 'jokerWeek', 'jokerDay'])
+          && s.last is string && s.last.size() <= 10
+          && s.count is int && s.count >= 0
+          && s.best is int && s.best >= 0
+          && s.jokerWeek is string && s.jokerWeek.size() <= 8
+          && s.jokerDay is string && s.jokerDay.size() <= 10;
+      }
+      // lot L3 : une mission du jour (k, p, goal, prog, done) ; les règles ne bouclent pas : chaque index est vérifié
+      function missionOk(l, i) {
+        return l.size() <= i || (l[i] is map && l[i].size() <= 5);
+      }
+      function missionsOk(ms) {
+        return ms is map
+          && ms.keys().hasOnly(['date', 'list'])
+          && ms.date is string && ms.date.size() <= 10
+          && ms.list is list && ms.list.size() <= 3
+          && missionOk(ms.list, 0) && missionOk(ms.list, 1) && missionOk(ms.list, 2);
+      }
       allow get, delete: if me();
       allow list: if false;
       allow create, update: if me()
@@ -43,11 +65,10 @@ service cloud.firestore {
         && (!('chars' in p()) || (p().chars is map && p().chars.size() <= 16))
         // lot L2 : étapes dévoilées (0 à 4), facultatives (un ancien client ne les écrit pas)
         && (!('reveal' in p()) || (p().reveal is int && p().reveal >= 0 && p().reveal <= 4))
-        // lot L3 : série de jours (last, count, best, jokerWeek) et missions du jour (date, 3 missions au plus),
-        // facultatives (un ancien client ne les écrit pas)
-        && (!('streak' in p()) || (p().streak is map && p().streak.keys().hasOnly(['last', 'count', 'best', 'jokerWeek'])))
-        && (!('missions' in p()) || (p().missions is map && p().missions.keys().hasOnly(['date', 'list'])
-             && p().missions.list is list && p().missions.list.size() <= 3));
+        // lot L3 : série de jours et missions du jour (date, 3 missions au plus), facultatives (un ancien client ne
+        // les écrit pas), bornées en clés et en valeurs
+        && (!('streak' in p()) || streakOk(p().streak))
+        && (!('missions' in p()) || missionsOk(p().missions));
     }
     // Classement (phase 38, décision de Jimmy) : un document par joueur, ses meilleurs scores (src/meta/board.ts).
     // Lisible par les seuls joueurs connectés, 100 lignes au plus par requête ; chacun n'écrit que le sien, avec des

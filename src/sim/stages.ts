@@ -7,6 +7,7 @@
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
 import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
 import { difficultyHp, soft, spawnEnemy } from './spawner';
+import { TOTEM_HIDDEN } from './poi';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
 import { startRun } from './step';
@@ -17,9 +18,19 @@ export function stageSeed(start: number, k: number): number {
   return k === 0 ? start : (start + k * STAGE.seedMul) >>> 0;
 }
 
-/** Chrono restant du monde (s, ≥ 0) ; lot L3 : celui du défi du jour (DAILY.duration). */
+/** Chrono restant du monde (s, ≥ 0) ; lot L3 : celui du défi du jour (DAILY.duration, sur le temps de partie). */
 export function stageLeft(w: World): number {
-  return Math.max(0, (w.dailyEnd > 0 ? w.dailyEnd : STAGE.dur) - w.stageT);
+  return Math.max(0, w.dailyEnd > 0 ? w.dailyEnd - w.t : STAGE.dur - w.stageT);
+}
+
+/**
+ * Relecture du lot L3 : une partie de défi du jour gardée avant la mise à jour (instantané sans `dailyEnd`) devient le
+ * défi court à la reprise : fin à DAILY.duration s de partie, et le totem du passage disparaît s'il n'a pas servi.
+ */
+export function adoptDaily(w: World): void {
+  if (w.dailyEnd > 0) return;
+  w.dailyEnd = DAILY.duration;
+  if (w.totem.state === 0) w.totem.state = TOTEM_HIDDEN;
 }
 
 const poly = (c: readonly number[], m: number): number => 1 + c[0] * m + c[1] * m * m;
@@ -35,7 +46,8 @@ export function tickStage(w: World, dt: number): void {
     return;
   }
   if (w.dailyEnd > 0) {
-    if (w.stageT >= w.dailyEnd) {
+    // sur le temps de partie (égal au temps du monde : le défi reste au monde 1), pour une partie reprise d'avant le lot
+    if (w.t >= w.dailyEnd) {
       dailyDone(w);
       return;
     }
