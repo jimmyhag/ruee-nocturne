@@ -121,7 +121,7 @@ test('the consent prompt appears once, after the first run', async ({ page }) =>
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText('Aider à améliorer le jeu ?');
   await expect(sheet).toContainText('pendant 30 jours');
-  await expect(page.locator('#consentYesBtn')).toHaveText('Oui, compter');
+  await expect(page.locator('#consentYesBtn')).toHaveText("Oui, j'aide");
   await expect(page.locator('#consentYesBtn')).toBeFocused();
   await page.locator('#consentNoBtn').click();
   await expect(sheet).toBeHidden();
@@ -209,14 +209,14 @@ test('withdrawal deletes the document and forgets the identifier', async ({ page
   await openGame(page);
   await page.locator('#settingsBtn').click();
   const toggle = page.locator('#setRetentionBtn');
-  await expect(toggle).toHaveText('Mesure anonyme de fréquentation : non');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await toggle.click();
-  await expect(toggle).toHaveText('Mesure anonyme de fréquentation : oui');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => fake.calls.length).toBe(1);
   const id = (await state(page))!.id as string;
   expect(fake.calls[0]).toMatchObject({ method: 'PATCH', url: DOC_URL(id) });
   await toggle.click(); // retrait
-  await expect(toggle).toHaveText('Mesure anonyme de fréquentation : non');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect.poll(() => fake.calls.length).toBe(2);
   expect(fake.calls[1]).toEqual({ method: 'DELETE', url: DOC_URL(id), body: null });
   // suppression confirmée : plus d'identifiant, plus rien en attente
@@ -233,9 +233,9 @@ test('an offline withdrawal is deleted at the next opening', async ({ page }) =>
   await openGame(page);
   await page.locator('#settingsBtn').click();
   const toggle = page.locator('#setRetentionBtn');
-  await expect(toggle).toHaveText('Mesure anonyme de fréquentation : oui');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await toggle.click(); // retrait hors ligne : la suppression échoue
-  await expect(toggle).toHaveText('Mesure anonyme de fréquentation : non');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await page.waitForTimeout(QUIET);
   expect(fake.calls).toEqual([]);
   expect(await state(page)).toMatchObject({ consent: 'no', id: null, del: [ID] });
@@ -279,7 +279,7 @@ test('without configuration the measure does nothing', async ({ page }) => {
   await page.waitForTimeout(QUIET);
   expect(await state(page)).toMatchObject({ consent: 'yes', sent: 0 });
   await page.locator('#settingsBtn').click();
-  await expect(page.locator('#setRetentionBtn')).toHaveText('Mesure anonyme de fréquentation : oui'); // l'interrupteur marche
+  await expect(page.locator('#setRetentionBtn')).toHaveAttribute('aria-pressed', 'true'); // l'interrupteur marche
   expect(google).toEqual([]);
   expect(errors).toEqual([]);
 });

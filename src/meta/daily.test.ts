@@ -21,6 +21,7 @@ import {
   recordStreak,
   settleStreak,
   streakNow,
+  streakPreview,
 } from './daily';
 import { bannedItems } from './library';
 import { drawMissions } from './missions';
@@ -355,5 +356,31 @@ describe('série de jours (lot L3)', () => {
     const one = drawMissions(fresh(), '2026-11-18')[0];
     expect(rules).toContain(`l[i].size() <= ${Object.keys(one).length}`);
     for (let i = 0; i < MISSIONS.count; i++) expect(rules).toContain(`missionOk(ms.list, ${i})`);
+  });
+});
+
+// Interface Nocturne : la feuille du défi du jour annonce la série, le joker et la récompense du jour sans rien écrire.
+describe('daily sheet: streak, joker and reward preview', () => {
+  it('previews the next day of a live streak, then the day already counted, without writing', () => {
+    const m = fresh();
+    m.streak = normalizeStreak({ last: '2026-11-17', count: 6, best: 6, jokerWeek: '' });
+    const before = JSON.stringify(m.streak);
+    const p = streakPreview(m, '2026-11-18');
+    expect(p).toEqual({
+      count: 7,
+      done: false,
+      gold: STREAK.gold + STREAK.perDay * Math.min(7, STREAK.cap),
+      outfitIn: 0,
+      joker: true,
+    });
+    expect(JSON.stringify(m.streak)).toBe(before);
+    const gain = recordStreak(m, '2026-11-18')!;
+    expect(gain.gold).toBe(p.gold);
+    expect(streakPreview(m, '2026-11-18')).toMatchObject({ count: 7, done: true, gold: 0 });
+  });
+  it('starts again at 1 after a lost streak, and says when the weekly joker is spent', () => {
+    const m = fresh();
+    m.streak = normalizeStreak({ last: '2026-11-10', count: 4, best: 4, jokerWeek: '2026-W47' });
+    expect(streakPreview(m, '2026-11-18')).toMatchObject({ count: 1, outfitIn: STREAK.outfitEvery - 1, joker: false });
   });
 });

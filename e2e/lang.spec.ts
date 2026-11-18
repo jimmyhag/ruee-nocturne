@@ -9,20 +9,26 @@ test('réglages : passer en anglais traduit le menu, les cartes et l’écran de
   await openGame(page);
   await expect(page.locator('#playBtn')).toHaveText('Jouer');
   await page.locator('#settingsBtn').click();
-  // auto → fr → en
-  await page.locator('#setLangBtn').click();
-  await expect(page.locator('#setLangBtn')).toHaveText('Langue : français');
-  await page.locator('#setLangBtn').click();
-  await expect(page.locator('#setLangBtn')).toHaveText('Language: English');
+  // interface Nocturne : auto, français, anglais en choix soulignés
+  const lang = (v: string) => page.locator(`#setLang [data-lang="${v}"]`);
+  await expect(lang('auto')).toHaveAttribute('aria-pressed', 'true');
+  await lang('fr').click();
+  await expect(lang('fr')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#settings h2')).toHaveText('Réglages');
+  await lang('en').click();
+  await expect(lang('en')).toHaveAttribute('aria-pressed', 'true');
+  await expect(lang('fr')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#settings h2')).toHaveText('Settings');
-  await expect(page.locator('#setSoundBtn')).toHaveText('Sound: on');
+  await expect(page.locator('#setSoundBtn')).toHaveAttribute('aria-label', 'Sound');
+  await expect(page.locator('#setSoundBtn')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await page.locator('#settingsBackBtn').click();
   await expect(page.locator('#playBtn')).toHaveText('Play');
-  await expect(page.locator('#shopBtn')).toContainText('gold');
+  await expect(page.locator('#menuGold')).toHaveAttribute('aria-label', /^Gold: \d/);
+  await expect(page.locator('#shopBtn')).toContainText('Slots');
   await openCharacters(page);
-  await expect(page.locator('#chars .card.char').first()).toContainText('Scout');
-  await expect(page.locator('#characters h2')).toHaveText('Character');
+  await expect(page.locator('#chars .char').first()).toContainText('Scout');
+  await expect(page.locator('#characters h2')).toHaveText('Heroes');
   await page.locator('#charactersBackBtn').click();
 
   // en jeu : montée de niveau puis mort, tout en anglais
@@ -49,7 +55,7 @@ test.describe('navigateur en anglais', () => {
     await openGame(page);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('#playBtn')).toHaveText('Play');
-    await expect(page.locator('#bestLine')).toHaveText('No record yet');
+    await expect(page.locator('#bestLine')).toHaveText('No record');
   });
   test('un réglage explicite « français » prime sur le navigateur, même via setMeta', async ({ page }) => {
     await openGame(page);

@@ -156,6 +156,28 @@ export function closest(m: Meta, n: number, char?: CharacterKey): Achievement[] 
     .slice(0, n);
 }
 
+/**
+ * Prochain objectif de l'accueil (interface Nocturne, décision 9) : le succès général non obtenu le plus avancé qui
+ * débloque quelque chose. À la première ouverture (`reveal` 0, décision 10) : « Première nuit », qui ouvre le défi du jour.
+ */
+export function nextGoal(m: Meta): Achievement | null {
+  if (m.reveal === 0) {
+    const first = ACHIEVEMENTS.find((a) => a.unlocks?.daily);
+    if (first && !m.achievements.includes(first.id)) return first;
+  }
+  let best: Achievement | null = null;
+  let bestP = -1;
+  for (const a of ACHIEVEMENTS) {
+    if (a.char || !a.unlocks || m.achievements.includes(a.id)) continue;
+    const p = progress(a, m);
+    if (p > bestP) {
+      best = a;
+      bestP = p;
+    }
+  }
+  return best;
+}
+
 /** « Il te manquait 42 s pour… » : prochain succès de temps non atteint par rapport au temps du run. */
 export function missingTime(m: Meta, runTime: number): { seconds: number; a: Achievement } | null {
   for (const a of ACHIEVEMENTS) {

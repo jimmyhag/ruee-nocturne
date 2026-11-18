@@ -2,6 +2,37 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.61.0 — 18 nov. 2026 (décision de Jimmy : interface « Nocturne »)
+
+Nouvelle interface : tout le jeu passe à la nuit, plus épuré, du menu jusqu'au dernier chiffre en partie.
+
+### Ajouté
+
+- **Nouvel accueil** : ton héros en grand sur une clairière de nuit (au crépuscule quand une partie t'attend), des yeux rouges qui clignent dans les buissons, des lucioles. Les flèches (ou ← → au clavier) font défiler les neuf héros ; un héros encore verrouillé montre ce qu'il faut faire pour l'avoir.
+- **Prochain objectif** : sous ton héros, le succès le plus proche qui débloque quelque chose, avec sa progression et sa récompense. Le toucher ouvre les Succès.
+- **Barre d'onglets** en bas : Héros, Emplacements, Succès, Bibliothèque, Classement. Ton profil (et ton record) en haut à gauche ouvre le Compte, l'icône à droite ouvre les Réglages ; le défi du jour et les nouveautés sont sur les bords de l'écran.
+- À ta toute première ouverture, Emplacements, Bibliothèque et Classement attendent ta première partie.
+
+### Modifié
+
+- **Toute l'interface est redessinée** : nouvelles polices, un seul bouton plein par écran, des listes à filets fins à la place des cartes et des cadres, partout (héros, emplacements, succès, bibliothèque, classement, défi du jour, nouveautés, compte, réglages, aide).
+- **En partie**, mêmes informations aux mêmes places, plus lisibles : chiffres fins, barres de vie et d'expérience en filets, aucune boîte derrière les compteurs. Les boutons tactiles deviennent des anneaux, la recharge du sort se lit sur un anneau doré.
+- **Cartes de niveau, coffre et marchand** : une liste claire, la rareté écrite en toutes lettres (commune, rare, épique). Les bannières disent leur sens par leur couleur : doré pour une récompense, rouge pour un danger.
+- **Réglages** : de vrais interrupteurs et des choix d'un toucher (effets, rendu, langue), un groupe « Vie privée » pour la mesure de fréquentation.
+- Le menu ne fait plus tourner la 3D derrière lui : moins de batterie au menu, la partie démarre comme avant.
+
+### Technique
+
+- Interface « Nocturne » (`docs/specs/ui-nocturne.md`, maquette `docs/design/menus/`) : jetons du kit en variables CSS (`--night`, `--moon`, `--lantern`, `--swarm`, `--moon-70`, `--moon-55`, `--rule`) et classes réutilisables (`.btn-full`, `.btn-act`, `.btn-link`, `.lbl`, `.prog`, `.switch`, `.seg`, `.tabs`, `.row`, `.dot`, `.lockico`) dans `index.html`. Animations de la maquette en CSS (`breathe`, `blink`, `fly`, `soft`), coupées par `prefers-reduced-motion` et par « Effets réduits » (`body.calm`).
+- Polices : Barlow (400, 500, 600) et Barlow Condensed (300, 500, 600, 700), SIL OFL, latin + latin étendu, auto-hébergées (`public/fonts/`, 14 fichiers, ≈ 255 ko dont 155 ko de latin, précaché ; le latin étendu, hors précache, ne se charge que s'il sert ; la graisse 300 du chrono se charge avec la scène) ; Lilita One et Rubik retirées (la page « À propos » suit).
+- Images : `npm run ui-images` (`tools/ui-images.ts`, sharp, déjà là) tire de `assets/ui/` 9 portraits, 9 avatars, les fonds nuit, crépuscule et nuit floutée en WebP, et le logo SVG (`public/ui/`, ≈ 376 ko au total, plafonds de la spec vérifiés par le script) ; `webp` ajouté au précache du service worker.
+- Accueil : `src/ui/home.ts` (carrousel, prochain objectif `nextGoal` dans `src/meta/achievements.ts`, onglets fermés tant que `Meta.reveal` vaut 0). Plus de `renderIdle` : la scène 3D se charge comme avant mais ne rend que la partie (`gameShown`, `src/main.ts`) ; menu et écrans intérieurs ont un fond illustré opaque et le canvas n'y est pas composité. Le héros glTF est compilé (`compileAsync`) et ses textures envoyées avant d'être posé, puisque le menu ne le rend plus ; le carrousel ne le pose qu'après 300 ms d'arrêt.
+- Écrans refaits : `src/ui/meta-ui.ts` (héros, emplacements par section, succès avec onglets, défis), `src/ui/library.ts` (fiche + grille), `src/ui/board.ts` (avatars, podium), `src/ui/account.ts` (« Invité » ou pseudo sur la puce de profil). Échap ferme tout écran intérieur, le focus revient sur ce qui l'a ouvert.
+- HUD : même DOM, mêmes caches, aucune écriture de plus par image (règle 1) ; seul le CSS change. `hud.banner(texte, ton, sous-titre, durée)` : ton `reward`, `danger` ou `info`. Rareté des cartes : `.rar` (commune, rare `#7FB4FF`, épique lanterne).
+- Lot L5 au kit : le palier visuel d'une arme est un filet de 2 px au-dessus de son icône dans la barre d'équipement (I argent bleuté, II lanterne, III prisme animé, coupé par « Effets réduits » et `prefers-reduced-motion`), comme la rareté d'un objet, au lieu d'un cadre.
+- Lot L3 au kit : flamme et série sur le rail « Défi du jour · 5 min » (le temps du jour s'efface quand une série est en cours), note du joker en lanterne sous l'accroche, missions du jour en lignes à filets comme le prochain objectif (`src/ui/missions.ts` ; repliées en surimpression sur téléphone, colonne à droite sur PC), feuille du défi avec lignes Série, Joker et Récompense (`streakPreview`, `src/meta/daily.ts`) et parties du jour en colonnes (temps, vaincus), récompenses de fin en lignes lanterne, bannière « Défi réussi ! » au ton `reward`.
+- Tests : `e2e/nocturne.spec.ts` (un test par scénario de la spec, PC et mobile), `src/ui/home.test.ts` ; specs e2e mises à jour pour les `id` et textes changés (réglages en interrupteurs et choix, avatars `.char`, achat d'un héros depuis sa fiche, fiche de la Bibliothèque). Captures avant / après : `docs/captures/nocturne/`.
+
 ## 1.60.0 — 18 nov. 2026 (décision de Jimmy, lot L3 : défi du jour court, série, missions)
 
 Un rendez-vous de 5 minutes chaque jour, une série à faire grandir et trois missions qui changent tous les jours.

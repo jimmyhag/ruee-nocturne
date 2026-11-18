@@ -39,7 +39,8 @@ test.describe('défilement tactile', () => {
       // le haut du panneau est visible au départ (pas coupé par le centrage)
       expect(await el.evaluate((s) => s.scrollTop)).toBe(0);
       await page.screenshot({ path: `shots/mobile-${screen}-haut.png` });
-      await swipeUp(page, 187, 380, 300);
+      // le geste part du contenu, au-dessus de la barre d'onglets fixée en bas (interface Nocturne, 58 px)
+      await swipeUp(page, 187, 340, 300);
       await expect.poll(() => el.evaluate((s) => s.scrollTop), { timeout: 3000 }).toBeGreaterThan(40);
       await page.screenshot({ path: `shots/mobile-${screen}-bas.png` });
       await page.locator('#' + back).click();

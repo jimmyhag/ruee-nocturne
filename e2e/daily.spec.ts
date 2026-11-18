@@ -30,11 +30,14 @@ test('défi du jour : la feuille explique, liste les parties du jour et lance la
   await expect(sheet).toBeVisible();
   await expect(sheet.locator('dd')).toHaveCount(4);
   await expect(sheet).toContainText('Éclaireuse');
-  // lot L3 : le temps tenu, puis les vaincus
-  await expect(page.locator('#dailyTimes')).toHaveText(
+  // lot L3 : le temps tenu, puis les vaincus ; interface Nocturne : en grands chiffres, la phrase complète pour les
+  // lecteurs d'écran, le délai sous son libellé
+  await expect(page.locator('#dailyTimes')).toHaveAttribute(
+    'aria-label',
     'Tes parties du jour : 1er 5:00 · 412 vaincus · 2e 1:35 · 30 vaincus',
   );
-  await expect(page.locator('#dailyNext')).toHaveText(/^Nouveau défi dans (\d+ h \d\d|\d+ min)$/);
+  await expect(page.locator('#dailyTimes > span')).toHaveText(['5:00412 vaincus', '1:3530 vaincus']);
+  await expect(page.locator('#daily .countdown')).toHaveText(/^Nouveau défi dans\s*(\d+ h \d\d|\d+ min)$/);
   // la feuille tient dans l'écran, bouton compris
   const vp = page.viewportSize()!;
   const btn = (await page.locator('#dailyPlayBtn').boundingBox())!;
