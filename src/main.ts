@@ -1,4 +1,15 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STAGE, STEP } from './sim/balance';
+import {
+  ELITE_TYPE,
+  ENEMIES,
+  ITEM_KEYS,
+  MAP,
+  POWER_KEYS,
+  REAPER_TYPE,
+  REVEAL,
+  SLIDE,
+  STAGE,
+  STEP,
+} from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell, HIT_CRIT, HitSrc } from './sim/types';
 import { POWER_ICON } from './ui/icons';
@@ -952,7 +963,12 @@ function renderOverScreen(): void {
   // … et totems de boss activés (livraison 2)
   const oDiff: string[] = [];
   if (world.player.difficulty > 0)
-    oDiff.push(t('over.difficulty', { n: Math.round(world.player.difficulty * 100), skulls: world.skullsOn }));
+    // lot L2 : avant le dévoilement des crânes, « crânes activés : 0 » parlerait d'un système encore caché
+    oDiff.push(
+      world.reveal >= REVEAL.totem
+        ? t('over.difficulty', { n: Math.round(world.player.difficulty * 100), skulls: world.skullsOn })
+        : t('over.difficultyOnly', { n: Math.round(world.player.difficulty * 100) }),
+    );
   if (world.bossTotemsOn > 0) oDiff.push(t('over.bossTotems', { n: world.bossTotemsOn }));
   $('oDiff').hidden = oDiff.length === 0;
   $('oDiff').textContent = oDiff.join(' · ');
@@ -2648,7 +2664,9 @@ function frame(nowMs: number): void {
     // qu'aucune autre bannière ne soit affichée (elle écrasait celle d'un bonus ramassé tôt) et se tait passé
     // BOSS_TOTEM_NOTE_LATE s : une partie reprise plus loin dans le monde ne la répète pas
     if (bossTotemNote !== world.stage && world.stageT > BOSS_TOTEM_NOTE_AT) {
-      if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless) bossTotemNote = world.stage;
+      // lot L2 : avant le dévoilement du totem, le monde n'a aucun totem de boss ; rien à annoncer (« 0 totem » sinon)
+      if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless || world.bossTotems.length === 0)
+        bossTotemNote = world.stage;
       else if (world.mode === Mode.Play && !hud.bannerOn) {
         hud.banner(t('banner.bossTotems', { n: world.bossTotems.length }));
         bossTotemNote = world.stage;

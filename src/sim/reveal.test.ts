@@ -76,6 +76,24 @@ describe('dévoilement progressif (lot L2)', () => {
     }
   });
 
+  it("un envol sans glisse dévoilée ne lance pas de glissade à la réception (relecture du lot L2)", () => {
+    for (const reveal of [0, 1]) {
+      const w = calm(new World(11, { reveal }));
+      const P = w.player;
+      // en l'air avec l'élan d'un envol (tremplin), bien au-dessus du seuil de fin de glisse
+      P.onGround = false;
+      P.y = 0.6;
+      P.vy = 0;
+      P.airMom = true;
+      P.slideJump = false;
+      P.mvx = 30;
+      P.mvz = 0;
+      const starts = run(w, still, 1, Ev.SlideStart);
+      expect(P.onGround, `dévoilement ${reveal} : posé`).toBe(true);
+      expect(starts, `dévoilement ${reveal}`).toBe(reveal >= REVEAL.slide ? 1 : 0);
+    }
+  });
+
   it('Everything is revealed by the fifth run', () => {
     const w = calm(new World(7, { reveal: REVEAL.max }));
     const d = calm(new World(7)); // sans option : tout, comme avant le lot
