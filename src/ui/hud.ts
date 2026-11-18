@@ -627,7 +627,8 @@ export function gearHtml(w: World, hide = 0): string {
       name = max
         ? t('gear.max', { name: `${weaponName(k as WeaponKey)} ${lv}` })
         : `${weaponName(k as WeaponKey)} ${lv}`;
-    s += `<span class="gi gw" title="${name}" aria-label="${name}">${WEAPON_ICON[k as WeaponKey]}<b${max ? ' class="max"' : ''}>${lv}</b></span>`;
+    const tier = w.wtier[k as WeaponKey]; // lot L5 : liseré à la couleur du palier visuel (index.html, .gw.tier1..3)
+    s += `<span class="gi gw${tier > 0 ? ` tier${tier}` : ''}" title="${name}" aria-label="${name}">${WEAPON_ICON[k as WeaponKey]}<b${max ? ' class="max"' : ''}>${lv}</b></span>`;
   }
   const order = heldItems(w);
   if (order.length === 0) return s;

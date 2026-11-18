@@ -1,6 +1,6 @@
 // Mode stress (?stress=400) : 400 ennemis maintenus, budgets de rendu tenus (PLAN.md §4.3).
 // Les fps ne sont pas vérifiés ici (SwiftShader) : ils se lisent sur un vrai téléphone, voir docs/GATES.md phase 1.
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { collectConsoleErrors } from './helpers';
 
 /**
@@ -248,8 +248,8 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
 });
 
 // Phase 30 (relecture perf) : les effets d'armes (sprites lumineux, arcs, éclairs, halo) sous charge. Le kit de départ
-// n'a qu'une arme : ici, 4 armes (le plafond d'emplacements) parmi les plus chargées à l'écran, niveau 8, 400 ennemis.
-test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ page }, info) => {
+// n'a qu'une arme : ici, 4 armes (le plafond d'emplacements) parmi les plus chargées à l'écran, 400 ennemis.
+async function weaponsBudget(page: Page, info: TestInfo, kit: [string, number][], label: string): Promise<void> {
   const errors = collectConsoleErrors(page);
   await page.goto('/?debug=1&stress=400');
   await page.waitForFunction(() => (window as any).__game?.ready === true);
@@ -267,12 +267,12 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
     null,
     { timeout: 20_000 },
   );
-  await page.evaluate(() => {
+  await page.evaluate((kit) => {
     const g = (window as any).__game;
     g.world.player.need = 1e9;
     for (const k of Object.keys(g.world.weapons)) delete g.world.weapons[k];
-    for (const k of ['lames', 'meteores', 'foudre', 'orbe']) g.debug.give(k, 8);
-  });
+    for (const [k, lv] of kit) g.debug.give(k, lv);
+  }, kit);
   await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
   await page.waitForTimeout(1500);
   const measure = async () => {
@@ -301,7 +301,7 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
   await page.waitForTimeout(800);
   const net = await measure();
   console.log(
-    `[${info.project.name}] 4 armes : pixel ${px.calls} appels, ${(px.triangles / 1000).toFixed(1)} k tris ; net ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris ; lueurs ≤ ${Math.max(px.glow, net.glow)}`,
+    `[${info.project.name}] ${label} : pixel ${px.calls} appels, ${(px.triangles / 1000).toFixed(1)} k tris ; net ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris ; lueurs ≤ ${Math.max(px.glow, net.glow)}`,
   );
   expect(px.glow, 'des lueurs sont à l’écran').toBeGreaterThan(0);
   expect(px.calls, `draw calls ≤ ${callBudget(info.project.name)}`).toBeLessThanOrEqual(callBudget(info.project.name));
@@ -311,4 +311,64 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
   );
   expect(net.triangles, 'triangles ≤ 250 k (net)').toBeLessThan(250_000);
   expect(errors).toEqual([]);
+}
+
+test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ page }, info) => {
+  await weaponsBudget(
+    page,
+    info,
+    [
+      ['lames', 8],
+      ['meteores', 8],
+      ['foudre', 8],
+      ['orbe', 8],
+    ],
+    '4 armes',
+  );
+});
+
+// Lot L5 : une arme de chaque palier visuel à l'écran (0, I, II, III), les mêmes armes que ci-dessus. Teintes, tailles
+// et lueurs des paliers passent par les écrivains déjà ouverts : aucun appel de dessin en plus.
+test('The draw call budget holds with tiers', async ({ page }, info) => {
+  await weaponsBudget(
+    page,
+    info,
+    [
+      ['meteores', 8],
+      ['foudre', 25],
+      ['lames', 50],
+      ['orbe', 100],
+    ],
+    'paliers 0, I, II, III',
+  );
+  // même image, avec et sans paliers : boucle figée, les armes à lueur ajoutée (Halo, Mines, Esprits, Vitriol) en plus,
+  // le nombre d'appels ne bouge pas (décision 4 : tout passe par les couleurs et matrices d'instance existantes)
+  await page.evaluate(() => {
+    const d = (window as any).__game.debug;
+    for (const [k, lv] of [
+      ['aura', 25],
+      ['mines', 50],
+      ['esprits', 100],
+      ['vitriol', 25],
+    ] as const)
+      d.give(k, lv);
+  });
+  await page.waitForTimeout(2500); // flaques, esprits et mines en place
+  const ab = await page.evaluate(async () => {
+    const g = (window as any).__game;
+    const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(0))));
+    g.debug.speed(0);
+    await frames();
+    const tiered = g.renderer.info.render.calls as number;
+    const saved = { ...g.world.wtier };
+    for (const k of Object.keys(saved)) g.world.wtier[k] = 0;
+    await frames();
+    const plain = g.renderer.info.render.calls as number;
+    Object.assign(g.world.wtier, saved);
+    g.debug.speed(1);
+    return { tiered, plain, tiers: saved };
+  });
+  console.log(`[${info.project.name}] même image : ${ab.plain} appels sans paliers, ${ab.tiered} avec`);
+  expect(ab.tiers.mines).toBe(2);
+  expect(ab.tiered, 'aucun appel de dessin en plus avec les paliers').toBe(ab.plain);
 });

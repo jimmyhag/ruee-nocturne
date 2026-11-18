@@ -513,6 +513,7 @@
   "power.gel": "Time stop",
   "power.rage": "Rage",
   "banner.synergy": "Synergy: {name}!",
+  "banner.tier": "Tier {n} — {name}",
   "banner.merchant": "The merchant has arrived",
   "banner.explored": "Map 100% explored: +{n} gold",
   "reveal.new": "New!",

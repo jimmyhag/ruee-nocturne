@@ -146,7 +146,7 @@ Fonctionnalité: Défi du jour court, série de jours et missions
 
 ## Livraison
 
-Version **1.61.0** ; `CHANGELOG.md` pour les joueurs ; `docs/GATES.md` (Lot L3, mesures
+Version **1.60.0** (sorti avant l'interface Nocturne, prêt le premier) ; `CHANGELOG.md` pour les joueurs ; `docs/GATES.md` (Lot L3, mesures
 du défi) ; l'aide « Comment jouer » mentionne le défi, la série et les missions.
 
 ## Hors périmètre

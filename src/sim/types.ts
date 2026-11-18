@@ -187,7 +187,7 @@ export const enum Ev {
   PlayerHurt,
   Wave,
   BossSpawn, // v = index du boss (1..), x2 = type
-  Bolt, // éclair : (x,y,z) → (x2,y2,z2)
+  Bolt, // éclair : (x,y,z) → (x2,y2,z2) ; lot L5 : v = 1 + index de l'arme qui le lance (WEAPON_KEYS), 0 hors arme
   AuraPulse,
   Death,
   Chest, // coffre ramassé : v = nombre de cartes
@@ -247,7 +247,8 @@ export const enum Ev {
   SkullOn, // phase 48 : crâne activé en (x,z), v = difficulté ajoutée après coup (0,1 = 110 %)
   BossTotemOn, // phase 48 : totem de boss activé en (x,z), v = boss en plus par vague dans ce monde
   ChestDrop, // phase 51 : coffre lâché au sol en (x,z), v = 1 pour un coffre de boss
-  Explored, // phase 53 : carte du monde explorée à 100 %, v = or gagné ; dernière valeur
+  Explored, // phase 53 : carte du monde explorée à 100 %, v = or gagné
+  WeaponTier, // lot L5 : arme arrivée à un palier visuel en (x,y,z) = héros, v = palier (1..3), x2 = index dans WEAPON_KEYS ; dernière valeur
 }
 
 export interface GameEvent {

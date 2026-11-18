@@ -2,7 +2,7 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
-## 1.61.0 — 18 nov. 2026 (décision de Jimmy, lot L3 : défi du jour court, série, missions)
+## 1.60.0 — 18 nov. 2026 (décision de Jimmy, lot L3 : défi du jour court, série, missions)
 
 Un rendez-vous de 5 minutes chaque jour, une série à faire grandir et trois missions qui changent tous les jours.
 
@@ -26,6 +26,24 @@ Un rendez-vous de 5 minutes chaque jour, une série à faire grandir et trois mi
 - Joueurs existants : série à 0, missions tirées à la première ouverture, vaincus du défi à 0 pour les temps déjà enregistrés ; rien d'autre ne change.
 - Interface : `#dailyStreak` (flamme et nombre) sur le bouton du défi, `#streakNote` (joker), bloc `<details id="missions">` (`src/ui/missions.ts`, replié au départ sur un petit écran), `#oRewards` à l'écran de fin, bannière « Défi réussi ! » ; HUD « Défi du jour » et chrono de 5:00. `debug.warp` s'arrête à la fin du défi.
 - Tests : Vitest `src/meta/daily.test.ts`, `src/meta/missions.test.ts`, `tools/daily.test.ts` (un test par scénario de la spec, en anglais) ; `e2e/daily.spec.ts` (PC et mobile).
+
+## 1.59.0 — 18 nov. 2026 (décision de Jimmy, lot L5 : paliers visuels d'arme)
+
+Une arme que tu fais grandir change d'allure : chaque cap se voit, et se fête.
+
+### Ajouté
+
+- **Paliers d'arme** : aux niveaux 25, 50 et 100, une arme passe un palier. Palier I : ses tirs et ses effets prennent une teinte argent bleuté ; palier II : l'or ; palier III : un prisme dont les couleurs tournent lentement. À chaque palier ses projectiles grossissent un peu, les bombes et les flaques de Vitriol gagnent une lueur, les Esprits un halo plus large et le disque du Halo luit davantage. Rien ne change aux dégâts, à la portée ni à la cadence : c'est pour les yeux.
+- **Le palier se fête** : bannière « Palier II — Orbe filante », gerbe de lumière à la couleur du palier autour de toi, son de niveau plus aigu, petite secousse. Avec « Réduction des effets », la bannière et le son seulement. Chaque palier n'est fêté qu'une fois par partie, et une partie reprise garde les siens.
+- **Barre d'équipement** : l'icône d'une arme garde un liseré à la couleur de son palier.
+
+### Technique
+
+- Sim : `WEAPON_TIERS` [25, 50, 100] (`balance.ts`) ; `src/sim/tiers.ts` : `reachTiers` à la prise d'une carte d'arme (un `Ev.WeaponTier` par palier franchi, v = palier, x2 = index dans `WEAPON_KEYS`), `syncTiers` en silence à la reprise d'une partie (une partie gardée avant les paliers les retrouve sans célébration) et dans `debug.give` / `debug.upgrade`. `w.wtier` (palier atteint par arme) est gardé par l'instantané. `Ev.Bolt` porte en v l'arme qui le lance (Foudre, Balise ; 0 pour un objet ou un sort). Aucune statistique ne lit `w.wtier`.
+- Rendu : `src/render/tiers.ts` (`tierColor` : teinte du palier à la clarté de la couleur remplacée, plus 12 % d'éclat par palier ; prisme HSL à 0,1 tour par seconde, décalé d'un fantôme de traînée au suivant ; `tierScale` : +8 % par palier ; `TierTint`). Les couleurs d'arme de `scene.ts` sont des `TierTint` refaites une fois par image (`tintWeapons`), sans allocation ; éclairs de la Foudre et de la Balise, claque du Fouet (`Bolts`) et étincelles de coup (`hitTint`, `main.ts`, par `GameScene.tint` : three reste hors du chunk principal) suivent. Les zones de dégâts (Halo, flaques, cercles des Météores, arcs de la Faux, croissant des Lames) gardent leur vraie taille : seuls projectiles et objets grandissent. Lueurs ajoutées dans les écrivains que l'arme utilise déjà : aucun appel de dessin en plus.
+- Célébration : `tierCelebration` (`feel.ts`, `FEEL.tier` : tremblement 0,3, hit-stop de rendu 80 ms, son de niveau ×1,19 / ×1,33 / ×1,5 selon le palier, `AudioBus.levelUp(rate)`), bannière `banner.tier` (FR, EN). Liseré de la barre d'équipement : classes `.gw.tier1..3` (`index.html`, `--tier1`), prisme animé en CSS, fixe en mouvement réduit.
+- Tests : Vitest (`src/sim/tiers.test.ts`, `src/render/tiers.test.ts`, `src/render/feel.test.ts`, `src/ui/gear.test.ts`) et `e2e/paliers.spec.ts` (PC et mobile, carte prise au clavier et au doigt, captures des paliers 0 à III) ; « The draw call budget holds with tiers » dans `e2e/stress.spec.ts`.
+- Mesures : même image figée avec et sans paliers (huit armes) : autant d'appels de dessin des deux côtés (37 et 43 sur PC, 35 sur mobile) ; à 400 ennemis, budget mobile de 40 tenu (27 à 35). Bench p95 0,87–1,09 ms, tas +0,38 Mo. Chunk principal 135,03 → 135,64 ko gz. Détail dans `docs/GATES.md` (Lot L5), captures dans `docs/captures/l5/`.
 
 ## 1.58.0 — 17 nov. 2026 (décision de Jimmy, lot L2 : premières parties)
 
