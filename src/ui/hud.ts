@@ -406,10 +406,15 @@ export class Hud {
     }
     this.text('lvl', String(P.level));
     // phase 37 : « Monde 2 », chrono qui descend ; après 0:00, le dépassement en rouge (+0:45)
-    const stageKey = w.endless ? -1 : w.stage;
+    const stageKey = w.endless ? -1 : w.dailyEnd > 0 ? -2 : w.stage;
     if (this.cache.stage !== stageKey) {
       this.cache.stage = stageKey;
-      this.els.stageLbl.textContent = w.endless ? t('hud.endless') : t('hud.stage', { n: w.stage + 1 }); // phase 39
+      // phase 39 : monde infini ; lot L3 : défi du jour (son chrono de 5:00 descend)
+      this.els.stageLbl.textContent = w.endless
+        ? t('hud.endless')
+        : w.dailyEnd > 0
+          ? t('hud.daily')
+          : t('hud.stage', { n: w.stage + 1 });
     }
     const over = !w.endless && w.overT > 0;
     if (this.cache.over !== over) {

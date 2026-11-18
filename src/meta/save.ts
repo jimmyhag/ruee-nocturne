@@ -18,6 +18,10 @@ import {
 import { ACHIEVEMENTS, ACHIEVEMENT_IDS, UNLOCKABLE } from './achievements';
 import { normalizeChars } from './chars';
 import { readReveal } from './reveal';
+import { normalizeStreak } from './daily';
+import type { Streak } from './daily';
+import { normalizeMissions } from './missions';
+import type { Missions } from './missions';
 import type { CharStats } from './chars';
 import type { CharacterKey, ItemKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -71,7 +75,9 @@ export interface Meta {
   character: CharacterKey;
   outfits: CharacterKey[]; // personnages dont la tenue alternative est achetée (phase 7)
   outfit: Partial<Record<CharacterKey, number>>; // tenue choisie par personnage (0 = classique, absent = 0)
-  daily: { date: string; times: number[] }; // défi du jour : date UTC et 10 meilleurs temps
+  daily: { date: string; times: number[]; kills: number[] }; // défi du jour : date UTC, 10 meilleurs temps et leurs kills (lot L3)
+  streak: Streak; // lot L3 : série de jours de défi (src/meta/daily.ts) ; synchronisée (la plus récente, puis la plus longue)
+  missions: Missions; // lot L3 : missions du jour (src/meta/missions.ts) ; synchronisées
   slots: { weapons: number; passives: number; rerolls: number }; // phase 31 : `rerolls` = relances achetées (rangées ici : les règles Firestore bornent les clés de progress) ; emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
   unlocks: string[]; // phase 40 : armes et objets achetés dans la Bibliothèque ('w:faux', 'i:phenix')
   itemsOff: ItemKey[]; // phase 40 : objets retirés du tirage par le joueur
@@ -123,7 +129,9 @@ export const DEFAULT_META: Meta = {
   character: 'eclaireuse',
   outfits: [],
   outfit: {},
-  daily: { date: '', times: [] },
+  daily: { date: '', times: [], kills: [] },
+  streak: { last: '', count: 0, best: 0, jokerWeek: '', jokerDay: '' },
+  missions: { date: '', list: [] },
   slots: { ...SLOTS_START, rerolls: 0 },
   unlocks: [],
   itemsOff: [],
@@ -278,15 +286,9 @@ export function normalizeMeta(raw: unknown): Meta {
     character,
     outfits: Array.isArray(r.outfits) ? r.outfits.filter(isKey) : [],
     outfit: outfitSel,
-    daily: {
-      date: typeof da.date === 'string' ? da.date.slice(0, 10) : '',
-      times: Array.isArray(da.times)
-        ? da.times
-            .map((t) => num(t))
-            .filter((t) => t > 0)
-            .slice(0, 10)
-        : [],
-    },
+    daily: normalizeDaily(da),
+    streak: normalizeStreak(r.streak),
+    missions: normalizeMissions(r.missions),
     unlocks: normalizeUnlocks(r, runs, achievements),
     itemsOff: Array.isArray(r.itemsOff)
       ? [
@@ -330,6 +332,23 @@ function normalizeUnlocks(r: Record<string, unknown>, runs: number, achievements
       if (a.unlocks?.weapon && achievements.includes(a.id)) out.add(`w:${a.unlocks.weapon}`);
     }
   return [...out];
+}
+/**
+ * Défi du jour : 10 parties au plus, temps > 0 ; lot L3 : les kills de chaque partie (0 pour une sauvegarde d'avant le
+ * lot, qui n'avait que les temps).
+ */
+function normalizeDaily(da: Record<string, unknown>): Meta['daily'] {
+  const times: number[] = [],
+    kills: number[] = [];
+  const rt = Array.isArray(da.times) ? da.times : [],
+    rk = Array.isArray(da.kills) ? da.kills : [];
+  for (let i = 0; i < rt.length && times.length < 10; i++) {
+    const t = num(rt[i]);
+    if (t <= 0) continue;
+    times.push(t);
+    kills.push(Math.max(0, Math.floor(num(rk[i]))));
+  }
+  return { date: typeof da.date === 'string' ? da.date.slice(0, 10) : '', times, kills };
 }
 const CODEX_KEY = /^[wits]:[a-z]{1,16}$/;
 /** Compteurs de la Bibliothèque : clés de forme connue, entiers bornés, 160 entrées au plus (règles Firestore). */

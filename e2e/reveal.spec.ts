@@ -221,7 +221,7 @@ test('The daily challenge is the same for everyone', async ({ page }) => {
     expect(w.reveal).toBe(4);
     expect(w.shrines).toBeGreaterThan(0);
     expect(w.skulls).toBeGreaterThan(0);
-    expect(w.totem).toBe(0);
+    expect(w.totem).toBe(3); // lot L3 : TOTEM_HIDDEN, le défi se joue au monde 1 seul (pas de passage au suivant)
   }
   expect(b).toEqual(a); // même graine, mêmes systèmes
   expect(errors).toEqual([]);

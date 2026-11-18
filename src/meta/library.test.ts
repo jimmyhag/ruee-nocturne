@@ -73,12 +73,15 @@ describe('Bibliothèque (phase 40)', () => {
     expect(m.itemsOff).not.toContain(back);
   });
 
-  it('options de monde : objets bannis transmis ; le défi du jour garde tout', () => {
+  it('options de monde : objets bannis transmis ; le défi du jour garde les objets d’un nouveau joueur (lot L3)', () => {
     const m = fresh();
     m.itemsOff.push('cape');
     expect(worldOptions(m, unlockedWeapons(m)).bannedItems).toContain('cape');
     expect(worldOptions(m, unlockedWeapons(m)).bannedItems).toContain('phenix');
-    expect(worldOptions(m, unlockedWeapons(m), true).bannedItems).toBeUndefined();
+    // lot L3 : ni les objets retirés par le joueur ni ceux de la Bibliothèque ; les 22 verrouillés d'un nouveau joueur
+    const daily = worldOptions(m, unlockedWeapons(m), true).bannedItems;
+    expect(daily).not.toContain('cape');
+    expect([...(daily ?? [])].sort()).toEqual([...LOCKED_ITEMS].sort());
   });
 
   it('un monde ne propose jamais un objet banni, ni en coffre ni chez le marchand', () => {

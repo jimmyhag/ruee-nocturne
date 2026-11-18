@@ -1104,6 +1104,61 @@
         color: var(--hp);
         border-color: currentColor;
       }
+      /* lot L3 : série de jours sur le bouton du défi (flamme + nombre) et missions du jour */
+      #dailyBtn .streak {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        margin-left: 8px;
+        color: var(--gold);
+      }
+      #dailyBtn .streak svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+        stroke: none;
+      }
+      .streaknote {
+        color: var(--gold);
+      }
+      .rewards p {
+        margin: 2px 0;
+        font-size: 14px;
+        color: var(--gold);
+      }
+      .missions {
+        width: min(420px, 100%);
+        text-align: left;
+        color: var(--paper);
+      }
+      .missions summary {
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 14px;
+        padding: 4px 0;
+      }
+      .missions summary small {
+        color: var(--muted);
+        font-weight: 600;
+        margin-left: 4px;
+      }
+      .missions .achs {
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .missions .ach {
+        padding: 6px 10px;
+      }
+      .missions .achtop {
+        font-size: 13px;
+      }
+      .missions .bar {
+        height: 6px;
+        margin-top: 4px;
+      }
+      .missions .note {
+        margin: 6px 0 0;
+      }
       /* barre d'icônes : rangée en bas sur téléphone, colonne à gauche sur grand écran */
       .menubar {
         display: flex;
@@ -2787,8 +2842,19 @@
           <button class="big resume" id="resumeRunBtn" hidden>
             <span data-i18n="menu.resume">Reprendre</span><small id="resumeRunInfo"></small></button
           ><button class="big" id="playBtn" data-i18n="menu.play">Jouer</button
-          ><button class="ghost" id="dailyBtn" hidden data-i18n="menu.daily">Défi du jour</button>
+          ><button class="ghost" id="dailyBtn" hidden>
+            <span data-i18n="menu.daily">Défi du jour · 5 min</span
+            ><span class="streak" id="dailyStreak" hidden
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-6 1 2 2 3 3 3 0-3-1-5 0-8z" /></svg
+              ><b id="dailyStreakN">0</b></span
+            >
+          </button>
         </div>
+        <!-- lot L3 : un jour manqué, pardonné par le joker de la semaine (dit dès l'ouverture) -->
+        <p class="runnote streaknote" id="streakNote" hidden data-i18n="menu.jokerSaved">
+          Ta série est sauvée par le joker
+        </p>
         <!-- phase 49 : une partie attend ; en commencer une autre l'abandonne -->
         <div class="abandonrow" id="abandonRow" hidden role="alertdialog" aria-labelledby="abandonText">
           <p id="abandonText" data-i18n="menu.abandon.q">Abandonner la partie en cours ?</p>
@@ -2798,6 +2864,16 @@
         <p class="runnote" id="runLostNote" hidden data-i18n="menu.runLost">
           Ta partie en cours n'a pas pu être reprise après la mise à jour.
         </p>
+        <!-- lot L3 : missions du jour, sous les boutons (repliées au départ sur un petit écran) -->
+        <details class="missions" id="missions" open>
+          <summary>
+            <span data-i18n="missions.title">Missions du jour</span> <small id="missionsCount">0/3</small>
+          </summary>
+          <div class="achs" id="missionList"></div>
+          <p class="note" id="missionsDone" hidden data-i18n="missions.allDone">
+            Missions du jour terminées — reviens demain
+          </p>
+        </details>
         <nav class="menubar" id="menuBar" aria-label="Menu">
           <button class="btn-icon" id="charsBtn">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2976,6 +3052,14 @@
             Avant la fin du chrono, active le totem (losange rouge sur la carte) et tue son boss : le portail mène au
             monde suivant. Chrono écoulé, la horde ne fait que grossir.
           </dd>
+          <dt><span class="cap">5:00</span></dt>
+          <dd data-i18n="menu.ctrl.daily">
+            Défi du jour : 5 minutes, la même partie pour tous. Le terminer chaque jour fait grandir ta série.
+          </dd>
+          <dt><span class="cap">✓</span></dt>
+          <dd data-i18n="menu.ctrl.missions">
+            Missions du jour : trois objectifs qui changent chaque jour, à remplir dans n'importe quelle partie.
+          </dd>
         </dl>
         <div class="btnrow"><button class="big" id="helpPlayBtn" data-i18n="menu.play">Jouer</button></div>
       </div>
@@ -2991,7 +3075,7 @@
           </button>
         </header>
         <p class="tag" data-i18n="daily.tag">
-          Une partie par jour, la même pour tout le monde. Combien de temps tiendras-tu ?
+          Une partie de 5 minutes par jour, la même pour tout le monde. Tiendras-tu jusqu'au bout ?
         </p>
         <dl class="ctrl">
           <dt><span class="cap" data-i18n="daily.same.k">Pour tous</span></dt>
@@ -3000,15 +3084,17 @@
           </dd>
           <dt><span class="cap" data-i18n="daily.fair.k">À égalité</span></dt>
           <dd data-i18n="daily.fair.v">
-            Tu joues l'Éclaireuse, avec toutes les armes, tous les objets et tous les emplacements : tes déblocages ne
-            comptent pas.
+            L'Éclaireuse et le kit de départ (une arme, deux tomes) : tes déblocages ne comptent pas.
           </dd>
           <dt><span class="cap" data-i18n="daily.goal.k">Le but</span></dt>
           <dd data-i18n="daily.goal.v">
-            Tenir le plus longtemps possible. Rejoue autant que tu veux : tes 10 meilleurs temps du jour sont gardés.
+            Tenir 5 minutes dans le premier monde. Score : le temps tenu, puis les vaincus. Tes 10 meilleures parties du
+            jour sont gardées.
           </dd>
           <dt><span class="cap" data-i18n="daily.gain.k">Gains</span></dt>
-          <dd data-i18n="daily.gain.v">L'or et les succès comptent comme dans une partie normale.</dd>
+          <dd data-i18n="daily.gain.v">
+            L'or et les succès comptent comme d'habitude. Ton premier défi du jour fait grandir ta série.
+          </dd>
         </dl>
         <p class="note daily-times" id="dailyTimes"></p>
         <p class="note" id="dailyNext"></p>
@@ -3152,6 +3238,8 @@
         <div class="gear static" id="oGear" aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
         <p class="note" id="oDiff" hidden></p>
         <p class="note" id="oMsg"></p>
+        <!-- lot L3 : série du jour, tenue offerte et missions remplies par cette partie, avec leur or -->
+        <div class="rewards" id="oRewards" hidden></div>
         <p class="note slotline" id="oNext" hidden></p>
         <p class="unlocked" id="oUnlocked" hidden></p>
         <div class="achs" id="oProgress"></div>

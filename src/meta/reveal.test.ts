@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { REVEAL } from '../sim/balance';
 import { World } from '../sim/world';
+import { TOTEM_HIDDEN } from '../sim/poi';
 import { snapshotWorld } from '../sim/snapshot';
 import { DEFAULT_META, normalizeMeta, resetProgress } from './save';
 import type { Meta } from './save';
@@ -230,7 +231,8 @@ describe('dévoilement progressif : méta (lot L2)', () => {
       wb = new World(seed, b);
     expect(wa.reveal).toBe(REVEAL.max);
     expect(wa.shrines.length).toBeGreaterThan(0);
-    expect(wa.totem.state).toBe(0);
+    expect(wa.skulls.length).toBeGreaterThan(0);
+    expect(wa.totem.state).toBe(TOTEM_HIDDEN); // lot L3 : le défi se joue au monde 1 seul, sans le totem du passage
     expect(wa.softHp).toBe(1);
     expect(snapshotWorld(wa)).toEqual(snapshotWorld(wb));
     // le dévoilement du nouveau joueur n'avance pas

@@ -5,8 +5,9 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { BOSS, BOSSTOTEM, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
+import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
 import { difficultyHp, soft, spawnEnemy } from './spawner';
+import { TOTEM_HIDDEN } from './poi';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
 import { startRun } from './step';
@@ -17,9 +18,19 @@ export function stageSeed(start: number, k: number): number {
   return k === 0 ? start : (start + k * STAGE.seedMul) >>> 0;
 }
 
-/** Chrono restant du monde (s, ≥ 0). */
+/** Chrono restant du monde (s, ≥ 0) ; lot L3 : celui du défi du jour (DAILY.duration, sur le temps de partie). */
 export function stageLeft(w: World): number {
-  return Math.max(0, STAGE.dur - w.stageT);
+  return Math.max(0, w.dailyEnd > 0 ? w.dailyEnd - w.t : STAGE.dur - w.stageT);
+}
+
+/**
+ * Relecture du lot L3 : une partie de défi du jour gardée avant la mise à jour (instantané sans `dailyEnd`) devient le
+ * défi court à la reprise : fin à DAILY.duration s de partie, et le totem du passage disparaît s'il n'a pas servi.
+ */
+export function adoptDaily(w: World): void {
+  if (w.dailyEnd > 0) return;
+  w.dailyEnd = DAILY.duration;
+  if (w.totem.state === 0) w.totem.state = TOTEM_HIDDEN;
 }
 
 const poly = (c: readonly number[], m: number): number => 1 + c[0] * m + c[1] * m * m;
@@ -34,7 +45,14 @@ export function tickStage(w: World, dt: number): void {
     w.diffT = w.endlessDiff0 + w.endlessT * ENDLESS.diffRate; // phase 43 : la difficulté avance moins vite qu'en monde
     return;
   }
-  w.diffT = w.stageT + STAGE.offset[w.stage];
+  if (w.dailyEnd > 0) {
+    // sur le temps de partie (égal au temps du monde : le défi reste au monde 1), pour une partie reprise d'avant le lot
+    if (w.t >= w.dailyEnd) {
+      dailyDone(w);
+      return;
+    }
+    w.diffT = w.stageT * DAILY.diffRate; // lot L3 : le défi du jour reste au monde 1 (offset 0)
+  } else w.diffT = w.stageT + STAGE.offset[w.stage];
   const over = w.stageT - STAGE.dur;
   if (over > 0) {
     w.overT = over;
@@ -74,6 +92,17 @@ export function tickStage(w: World, dt: number): void {
     G.charge = inside ? G.charge + dt : 0;
     if (G.charge >= STAGE.portalHold) nextStage(w);
   }
+}
+
+/**
+ * Lot L3 : le chrono du défi du jour est arrivé au bout, le joueur est en vie : « Défi réussi ! ». Comme une victoire,
+ * la partie s'arrête (Mode.Won) avec le bonus d'or de fin (secondes survécues / 10) ; Ev.Victory, v = temps tenu.
+ */
+function dailyDone(w: World): void {
+  w.mode = Mode.Won;
+  w.gold += (w.t - w.goldBonusT) * GOLD.perSecond * w.player.goldMul;
+  w.goldBonusT = w.t;
+  w.emit(Ev.Victory, w.player.x, 1, w.player.z, w.t);
 }
 
 /** Le totem est activé : le boss du monde sort de terre de l'autre côté du totem (le joueur le voit arriver). */

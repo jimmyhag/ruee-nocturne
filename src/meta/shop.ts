@@ -1,10 +1,12 @@
 // Achats permanents à l'or : personnages, tenues, emplacements (phase 17 : plus de boutique par personnage), et
 // traduction de la méta en options de monde pour la sim.
-import { CHARACTERS, MAX_PASSIVES, MAX_WEAPONS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS } from '../sim/balance';
+import { CHARACTERS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS, SLOTS_START } from '../sim/balance';
 import type { CharacterKey } from '../sim/types';
 import type { WorldOptions } from '../sim/types';
+import { DEFAULT_META } from './save';
 import type { Meta } from './save';
 import { bannedItems } from './library';
+import { unlockedWeapons } from './achievements';
 
 /** Prix d'un personnage en or (0 : pas en vente, il se débloque par un succès). */
 export function characterPrice(key: CharacterKey): number {
@@ -84,18 +86,25 @@ export const runRerolls = (m: Meta): number => RUN_REROLL.base + m.slots.rerolls
 
 /**
  * Options de monde issues de la méta (personnage choisi, armes débloquées, emplacements).
- * `daily` : égalité entre joueurs — Éclaireuse, toutes les armes, tous les objets, tous les emplacements (même pool de
- * cartes pour tous).
+ * `daily` (lot L3, décision 1) : le même kit pour tous, celui d'un nouveau joueur — l'Éclaireuse, les emplacements de
+ * départ, les armes et les objets disponibles d'office (rien de la Bibliothèque en plus) —, tout dévoilé, défi court.
  */
 export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily = false): WorldOptions {
+  if (daily)
+    return {
+      character: 'eclaireuse',
+      unlocked: unlockedWeapons(DEFAULT_META),
+      slots: { ...SLOTS_START },
+      rerolls: RUN_REROLL.base,
+      bannedItems: bannedItems(DEFAULT_META),
+      daily: true, // `reveal` absent : tout est dévoilé, pour tous (lot L2)
+    };
   return {
-    character: daily ? 'eclaireuse' : m.character,
-    unlocked: daily ? undefined : unlocked,
-    slots: daily
-      ? { weapons: MAX_WEAPONS, passives: MAX_PASSIVES }
-      : { weapons: m.slots.weapons, passives: m.slots.passives }, // défi du jour : égalité
-    rerolls: daily ? RUN_REROLL.base : runRerolls(m), // phase 31 : relances de cartes
-    bannedItems: daily ? undefined : bannedItems(m), // phase 40 : objets verrouillés ou retirés du tirage
-    reveal: daily ? undefined : m.reveal, // lot L2 : dévoilement progressif ; défi du jour : tout, pour tous
+    character: m.character,
+    unlocked,
+    slots: { weapons: m.slots.weapons, passives: m.slots.passives },
+    rerolls: runRerolls(m), // phase 31 : relances de cartes
+    bannedItems: bannedItems(m), // phase 40 : objets verrouillés ou retirés du tirage
+    reveal: m.reveal, // lot L2 : dévoilement progressif
   };
 }

@@ -1,6 +1,6 @@
 // Méta (phase 4) : migrations, export/import, succès, achats à l'or, défi du jour. Aucun DOM : tout est pur.
 import { describe, expect, it } from 'vitest';
-import { MAX_PASSIVES, MAX_WEAPONS, OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS, UNLOCK } from '../sim/balance';
+import { OUTFIT, REROLL_SHOP, RUN_REROLL, SLOTS, UNLOCK } from '../sim/balance';
 import { buyUnlock, entryState } from './library';
 import {
   ACHIEVEMENTS,
@@ -11,7 +11,7 @@ import {
   unlockedCharacters,
   unlockedWeapons,
 } from './achievements';
-import { dailyBest, dailySeed, dailyTimes, msToNextDaily, recordDaily, todayKey } from './daily';
+import { dailyRuns, dailySeed, msToNextDaily, recordDaily, todayKey } from './daily';
 import { DEFAULT_META, LEGACY_SHOP, exportMeta, importMeta, legacyShopSpent, normalizeMeta } from './save';
 import {
   buyCharacter,
@@ -209,7 +209,8 @@ describe('retrait de la boutique par personnage (phase 17)', () => {
     expect('upgrades' in o).toBe(false);
     const d = worldOptions(m, ['orbe'], true);
     expect(d.character).toBe('eclaireuse');
-    expect(d.unlocked).toBeUndefined(); // toutes les armes : même run pour tous
+    // lot L3 : le kit de départ, pour tous (les armes d'office, rien de la Bibliothèque)
+    expect(d.unlocked).toEqual(unlockedWeapons(fresh()));
   });
 });
 
@@ -221,20 +222,19 @@ describe('défi du jour', () => {
   });
   it('classement local : 10 meilleurs temps, remis à zéro quand la date change', () => {
     const m = fresh();
-    for (let i = 1; i <= 12; i++) recordDaily(m, i * 10, '2026-11-03');
+    for (let i = 1; i <= 12; i++) recordDaily(m, i * 10, i, '2026-11-03');
     expect(m.daily.times.length).toBe(10);
-    expect(dailyBest(m, '2026-11-03')).toBe(120);
-    expect(recordDaily(m, 500, '2026-11-03')).toBe(1);
-    expect(recordDaily(m, 5, '2026-11-04')).toBe(1);
+    expect(dailyRuns(m, '2026-11-03')[0]).toEqual({ t: 120, k: 12 });
+    expect(recordDaily(m, 500, 0, '2026-11-03')).toBe(1);
+    expect(recordDaily(m, 5, 3, '2026-11-04')).toBe(1);
     expect(m.daily.times).toEqual([5]);
     // 1.48.1 : la feuille du défi liste les temps du jour (aucun si le dernier défi date d'un autre jour)
-    expect(dailyTimes(m, '2026-11-04')).toEqual([5]);
-    expect(dailyTimes(m, '2026-11-05')).toEqual([]);
+    expect(dailyRuns(m, '2026-11-04')).toEqual([{ t: 5, k: 3 }]);
+    expect(dailyRuns(m, '2026-11-05')).toEqual([]);
     // … et le délai avant le prochain défi : minuit UTC, là où la date du défi change
     expect(msToNextDaily(new Date('2026-11-11T21:30:00Z'))).toBe(2.5 * 3600e3);
     expect(msToNextDaily(new Date('2026-12-31T23:59:59Z'))).toBe(1000);
     expect(todayKey(new Date(Date.parse('2026-11-11T21:30:00Z') + 2.5 * 3600e3))).toBe('2026-11-12');
-    expect(dailyBest(m, '2026-11-05')).toBe(0);
   });
 });
 
@@ -299,11 +299,11 @@ describe('tenues (phase 7)', () => {
 });
 
 describe('emplacements (phase 10)', () => {
-  it('départ 1 arme / 2 améliorations ; déblocage dans l’ordre, par succès puis or ; défi du jour au maximum', () => {
+  it('départ 1 arme / 2 améliorations ; déblocage dans l’ordre, par succès puis or ; défi du jour au départ (lot L3)', () => {
     const m = fresh();
     expect(m.slots).toEqual({ weapons: 1, passives: 2, rerolls: 0 });
     expect(worldOptions(m, ['orbe']).slots).toEqual({ weapons: 1, passives: 2 });
-    expect(worldOptions(m, ['orbe'], true).slots).toEqual({ weapons: MAX_WEAPONS, passives: MAX_PASSIVES });
+    expect(worldOptions(m, ['orbe'], true).slots).toEqual({ weapons: 1, passives: 2 });
     expect(nextSlot(m)).toBe(0);
     expect(slotState(m, 0)).toBe('locked'); // arme 2 : succès « Première nuit » manquant
     expect(buySlot(m, 0)).toBe(false);

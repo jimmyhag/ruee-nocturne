@@ -24,7 +24,8 @@ const quantile = (values, p) => {
 const pct = (n, d) => (d ? ((100 * n) / d).toFixed(1) : '–');
 
 for (const prefix of prefixes)
-  for (const profile of ['maxed', 'naked']) {
+  // lot L3 : `daily` (fichiers <préfixe>-daily-<graine>.json, `--daily`) ; sa « victoire » est le défi réussi
+  for (const profile of ['maxed', 'naked', 'daily']) {
     const files = readdirSync(dir)
       .filter((f) => f.startsWith(`${prefix}-${profile}-`) && f.endsWith('.json'))
       .sort();
@@ -45,6 +46,21 @@ for (const prefix of prefixes)
     const endless = all.filter((r) => r.endless);
     const held = endless.map((r) => r.endlessT);
     console.log(`== ${prefix} · ${profile} · ${n} parties (${files.length} graines)`);
+    if (profile === 'daily')
+      console.log(
+        `   défi réussi ${pct(
+          count((r) => r.reachedEnd),
+          n,
+        )} % · kills p50 ${quantile(
+          all.map((r) => r.kills),
+          0.5,
+        )} · ratés morts p50 à ${fmt(
+          quantile(
+            all.filter((r) => !r.reachedEnd).map((r) => r.time),
+            0.5,
+          ),
+        )}`,
+      );
     console.log(
       `   monde 2 ${pct(
         count((r) => r.stage >= 2),

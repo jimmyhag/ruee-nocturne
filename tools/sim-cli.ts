@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
   CHARACTERS,
+  DAILY,
   STAGE,
   ENDLESS,
   ENEMIES,
@@ -27,6 +28,7 @@ import { World } from '../src/sim/world';
 import { ACHIEVEMENTS } from '../src/meta/achievements';
 import { runCharStats } from '../src/meta/chars';
 import { DEFAULT_META } from '../src/meta/save';
+import { worldOptions } from '../src/meta/shop';
 import { BOT_TUNE, enforceAllowed, makeBot, pickAllowed } from './bots';
 import { startEndless } from '../src/sim/stages';
 import { ENDLESS_TARGETS, PROFILES, REF_PRICE, checkTargets } from './targets';
@@ -43,19 +45,22 @@ for (let i = 2; i < process.argv.length; i++) {
 const RUNS = +(args.get('runs') ?? 50);
 const BOT = args.get('bot') ?? 'average';
 const SEED = +(args.get('seed') ?? 42);
-const UNTIL = +(args.get('until') ?? 2400); // phase 37 : trois mondes de 10 min, plus la prolongation
+// lot L3 : --daily (ou --profile daily), le défi du jour court tel que le jeu le lance (worldOptions du défi : Éclaireuse,
+// kit de départ, tout dévoilé, monde 1 seul jusqu'à DAILY.duration) ; cibles du profil « daily »
+const DAILY_ON = args.has('daily') || args.get('profile') === 'daily';
+const UNTIL = +(args.get('until') ?? (DAILY_ON ? DAILY.duration + 1 : 2400)); // phase 37 : trois mondes de 10 min, plus la prolongation
 const OUT = args.get('out');
 const ENDLESS_ON = args.has('endless'); // phase 39 : continuer en monde infini après la victoire
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
 // --character eclaireuse|bucheron|sorciere : personnage de départ (défaut : Éclaireuse = référence de l'équilibrage)
-const CHARACTER = (args.get('character') ?? 'eclaireuse') as CharacterKey;
+const CHARACTER = (DAILY_ON ? 'eclaireuse' : (args.get('character') ?? 'eclaireuse')) as CharacterKey;
 const charChal = ACHIEVEMENTS.filter((x) => x.char === CHARACTER); // phase 41
 if (!CHARACTERS.some((c) => c.key === CHARACTER)) {
   console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : ${CHARACTERS.map((c) => c.key).join(', ')}`);
   process.exit(2);
 }
 // --profile naked|maxed : jeu de cibles et emplacements par défaut (phase 17 : la boutique par personnage n'existe plus)
-const PROFILE = (args.get('profile') ?? 'naked') as keyof typeof PROFILES;
+const PROFILE = (DAILY_ON ? 'daily' : (args.get('profile') ?? 'naked')) as keyof typeof PROFILES;
 if (!PROFILES[PROFILE]) {
   console.error(`--profile : « ${PROFILE} » inconnu. Valeurs : ${Object.keys(PROFILES).join(', ')}`);
   process.exit(2);
@@ -215,7 +220,9 @@ interface RunResult {
 }
 
 function runOnce(seed: number): RunResult {
-  const w = new World(seed, { character: CHARACTER, slots: SLOT_OPT, reveal: REVEAL_OPT });
+  const w = DAILY_ON
+    ? new World(seed, worldOptions(DEFAULT_META, undefined, true))
+    : new World(seed, { character: CHARACTER, slots: SLOT_OPT, reveal: REVEAL_OPT });
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   // ablation : un objet exclu n'est jamais tiré (coffres et marchand)
   for (const k of NO_ITEM) w.itemBan[ITEM_KEYS.indexOf(k as never)] = 1;
@@ -729,7 +736,8 @@ const summary = {
       Math.round((100 * v) / Math.max(1, RUNS - results.filter((r) => r.reachedEnd).length)),
     ]),
   ),
-  aliveCurve: Array.from({ length: Math.ceil(UNTIL / 60) }, (_, m) =>
+  // lot L3 : le défi s'arrête à DAILY.duration ; une case au-delà (toujours 0) faussait la plus forte chute
+  aliveCurve: Array.from({ length: Math.ceil((DAILY_ON ? DAILY.duration : UNTIL) / 60) }, (_, m) =>
     Math.round((100 * results.filter((r) => r.time >= (m + 1) * 60).length) / RUNS),
   ),
   runsPerMin: Math.round((RUNS / elapsed) * 60),
@@ -745,6 +753,24 @@ lines.push(
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
 );
+if (DAILY_ON) {
+  // lot L3 : défi du jour court ; réussi = vivant à DAILY.duration (Mode.Won)
+  const ok = results.filter((r) => r.reachedEnd);
+  lines.push(
+    `défi        réussi ${summary.reachedEndPct.toFixed(1)} % (à ${mmss(DAILY.duration)}, diffRate ${DAILY.diffRate}) · kills p50 ${pct(
+      results.map((r) => r.kills),
+      50,
+    )}, ${pct(
+      ok.map((r) => r.kills),
+      50,
+    )} chez les réussis · ratés morts p50 à ${mmss(
+      pct(
+        results.filter((r) => !r.reachedEnd).map((r) => r.time),
+        50,
+      ),
+    )}`,
+  );
+}
 lines.push(
   `mondes      monde 2 atteint ${summary.stage2Pct.toFixed(0)} % · monde 3 ${summary.stage3Pct.toFixed(0)} % · victoire ${summary.reachedEndPct.toFixed(0)} % · totem p50 à ${mmss(summary.totemP50)} · boss tués ${summary.bossWinPct.join('/')} % en p50 ${summary.bossFightP50.toFixed(0)} s (p90 ${summary.bossFightP90.toFixed(0)} s) · morts en prolongation ${summary.overDeathPct.toFixed(0)} % après p50 ${summary.overP50.toFixed(0)} s (p90 ${summary.overP90.toFixed(0)} s)`,
 );

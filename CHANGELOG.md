@@ -2,6 +2,31 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.60.0 — 18 nov. 2026 (décision de Jimmy, lot L3 : défi du jour court, série, missions)
+
+Un rendez-vous de 5 minutes chaque jour, une série à faire grandir et trois missions qui changent tous les jours.
+
+### Ajouté
+
+- **Série de jours** : chaque jour où tu termines le défi du jour (réussi ou raté), ta série grandit et te rapporte de l'or, de 40 à 100 selon sa longueur. Au 7e jour, puis tous les 7 jours, une tenue alternative t'est offerte (d'abord celle du personnage que tu as choisi). La flamme et le nombre de jours sont sur le bouton du défi.
+- **Joker** : un par semaine. Si tu oublies un seul jour, il sauve ta série, et le menu te le dit dès l'ouverture. Deux jours oubliés de suite (même à cheval sur deux semaines), ou un deuxième oubli dans la même semaine, et la série repart à un. Un défi commencé avant minuit et terminé après compte pour son jour.
+- **Missions du jour** : trois objectifs qui changent chaque jour à minuit (heure universelle), sous les boutons du menu : jouer avec un autre personnage, finir une partie avec une arme (dès que tu as un deuxième emplacement d'arme), vaincre des ennemis, des élites, tenir quelques minutes, ouvrir des coffres, monter une arme. Elles comptent dans toutes les parties et paient 60 à 100 or à la fin de la partie qui les remplit. Sur téléphone, le bloc est replié : touche « Missions du jour » pour l'ouvrir.
+
+### Modifié
+
+- **Défi du jour en 5 minutes** : un seul monde, et si tu es encore debout à 5:00, c'est « Défi réussi ! ». Tout le monde joue la même partie avec l'Éclaireuse et le kit de départ (une arme, deux tomes, les objets de base) : tes déblocages ne comptent pas. Tes parties du jour sont classées au temps tenu, puis aux ennemis vaincus. Les parties lancées par « Jouer » ne changent pas : toujours trois mondes.
+- L'aide « Comment jouer » parle du défi, de la série et des missions.
+
+### Technique
+
+- Sim : `DAILY` (`balance.ts` : `duration` 300 s, `diffRate` 1) ; `WorldOptions.daily` fixe `World.dailyEnd` (gardé par l'instantané). Le défi se joue au monde 1 sans le totem du passage (`TOTEM_HIDDEN`, `hideUnrevealed`) ; à `dailyEnd` s de partie, `tickStage` arrête la partie (`Mode.Won`, `Ev.Victory`, bonus d'or de fin) et `step` s'arrête là (rien d'autre ne joue ce pas). `stageLeft` rend le chrono du défi. Un défi gardé avant la mise à jour devient le défi court à la reprise (`adoptDaily`). `worldOptions(…, true)` : Éclaireuse, `SLOTS_START`, armes et objets d'un nouveau joueur, tout dévoilé.
+- Équilibrage (règle 13) : `npm run sim -- --daily` (profil `daily`, cible « défi réussi 35–65 % »), bot moyen, 4 graines × 200 parties regroupées : **49,4 %** de défis réussis (47 / 50 / 51 / 49,5 % par graine) avec `diffRate` 1, sans accélérateur. Deux cibles du profil nu s'ajoutent au profil `daily` et restent hors cible, à dessein (écart rendu visible, réponse proposée à Jimmy) : morts avant 3 min 22,1 % (≤ 20 %), plus forte chute 17 à 24 pts selon la graine (≤ 22). La courbe des vivants du défi s'arrête à 5:00. Détail : `docs/GATES.md`, lot L3. `tools/sim-pool.mjs` lit aussi les fichiers `<préfixe>-daily-<graine>.json`.
+- Méta : `Meta.streak` (`last`, `count`, `best`, `jokerWeek`, `jokerDay` : le jour pardonné, un joker ne se chaîne pas à un autre) et `Meta.missions` (`date`, `list` de `{ k, p, goal, prog, done }`) sont des clés de progression (`PROGRESS_KEYS`, synchronisées), `Meta.daily.kills` s'ajoute aux temps. `src/meta/daily.ts` : `recordDaily` (temps puis vaincus), `settleStreak`, `recordStreak`, `streakNow`, `mergeStreak` ; `src/meta/missions.ts` : tirage par `hash('missions-' + date)` dans un ordre fixe, `missionsAfterRun`, `mergeMissions`. Or et objectifs dans `STREAK` et `MISSIONS` (`balance.ts`). Fusion du nuage : la série la plus récente puis la plus longue ; les missions du même jour gardent la meilleure progression. Le menu ne règle pas la série tant qu'un défi gardé du lendemain du dernier jour compté attend ; une horloge reculée ne refait pas le tirage des missions et ne paie rien. La mission d'arme n'est tirée qu'avec un deuxième emplacement d'arme.
+- `firestore.rules` : `streak` et `missions` facultatives et bornées (clés fermées, types et tailles des valeurs, 3 missions de 5 champs au plus), `daily.kills` facultatif (10 au plus). Sans compte, rien ne part (règle 8).
+- Joueurs existants : série à 0, missions tirées à la première ouverture, vaincus du défi à 0 pour les temps déjà enregistrés ; rien d'autre ne change.
+- Interface : `#dailyStreak` (flamme et nombre) sur le bouton du défi, `#streakNote` (joker), bloc `<details id="missions">` (`src/ui/missions.ts`, replié au départ sur un petit écran), `#oRewards` à l'écran de fin, bannière « Défi réussi ! » ; HUD « Défi du jour » et chrono de 5:00. `debug.warp` s'arrête à la fin du défi.
+- Tests : Vitest `src/meta/daily.test.ts`, `src/meta/missions.test.ts`, `tools/daily.test.ts` (un test par scénario de la spec, en anglais) ; `e2e/daily.spec.ts` (PC et mobile).
+
 ## 1.59.0 — 18 nov. 2026 (décision de Jimmy, lot L5 : paliers visuels d'arme)
 
 Une arme que tu fais grandir change d'allure : chaque cap se voit, et se fête.
