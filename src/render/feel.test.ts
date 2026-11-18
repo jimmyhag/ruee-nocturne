@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEEL, HitStop } from './feel';
+import { FEEL, HitStop, tierCelebration } from './feel';
 
 const FRAME = 1 / 60;
 /** Simule `seconds` secondes réelles à 60 Hz ; `each` est appelé à chaque frame avant d'avancer. */
@@ -73,5 +73,31 @@ describe('hit-stop borné', () => {
     expect(h.active).toBe(false);
     h.request(K.duration, K.scale);
     expect(h.active).toBe(true);
+  });
+});
+
+// Lot L5 : célébration d'un palier visuel d'arme (docs/specs/l5-paliers-arme.md, décision 5)
+describe('palier visuel d’arme : célébration', () => {
+  it('With reduced effects the celebration is sober', () => {
+    const full = { ...tierCelebration(1, false) };
+    expect(full.shake).toBe(FEEL.tier.shake); // tremblement léger (0,3)
+    expect(full.hitStop).toBe(0.08); // hit-stop de rendu 80 ms
+    expect(full.particles).toBe(true);
+    const sober = { ...tierCelebration(1, true) };
+    expect(sober.shake).toBe(0); // sans tremblement…
+    expect(sober.hitStop).toBe(0); // …ni hit-stop…
+    expect(sober.particles).toBe(false); // …ni gerbe : la bannière et le son seulement
+    expect(sober.pitch).toBe(full.pitch); // le son joue, plus aigu qu'une montée de niveau
+    expect(sober.pitch).toBeGreaterThan(1);
+    // et le hit-stop demandé par un palier reste borné par le contrôleur, désactivé en réduction des effets
+    const h = new HitStop();
+    h.enabled = false;
+    h.request(sober.hitStop, FEEL.tier.hitStop.scale, 2);
+    expect(h.active).toBe(false);
+  });
+  it('each tier sounds higher than the previous one', () => {
+    const p = [1, 2, 3].map((t) => tierCelebration(t, false).pitch);
+    expect(p[0]).toBeLessThan(p[1]);
+    expect(p[1]).toBeLessThan(p[2]);
   });
 });

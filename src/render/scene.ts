@@ -39,7 +39,7 @@ import type { BakedEnemy } from './enemyModels';
 import { writeLoopPose, writeOncePose } from './pose';
 import type { NatureKey, NatureSet, PropGeometry, PropKey } from './models';
 import { Mode, ProjKind, Pw, ShotKind, Spell } from '../sim/types';
-import type { CharacterKey, Enemy } from '../sim/types';
+import type { CharacterKey, Enemy, WeaponKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
 import { buildCharacter } from './characters';
@@ -74,10 +74,12 @@ import { FEEL } from './feel';
 import { AimLines, Bolts, DamageNumbers, Particles, PowerMarks } from './fx';
 import { InstanceWriter, makeInstanced } from './instancing';
 import { PAL } from './palette';
+import { TIER_LOOK, TierTint, tierHex, tierScale } from './tiers';
 
 const TAU = Math.PI * 2;
 const WHITE = new THREE.Color(0xffffff);
 const MINE_IDLE = new THREE.Color(0xc4c8d6); // bombe KayKit non armée : texture assombrie
+const AURA_DISC = 0.08; // opacité du disque du Halo (lot L5 : plus lumineux à chaque palier)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lam = (c: number) => toonMaterial({ color: c }); // phase 15 : toon partout (sauf lumineux et sol)
 // 1.42.1 : plus d'additif pur (délavé sur le sol clair), voir softGlow
@@ -207,7 +209,7 @@ export class GameScene {
   private glowW: InstanceWriter;
   /** Phase 30 : arcs de lame (Faux, sillage des Lames) : un appel. */
   private slashW: InstanceWriter;
-  private slashes: { x: number; z: number; r: number; a: number; arc: number; life: number; c: THREE.Color }[] = [];
+  private slashes: { x: number; z: number; r: number; a: number; arc: number; life: number }[] = [];
   private slashN = 0;
   /** Phase 32 : coups des Lames en cours (posés par blade()). */
   private blades: { x: number; z: number; r: number; a: number; life: number }[] = [];
@@ -294,8 +296,9 @@ export class GameScene {
   private propX = 1e9; // position du joueur au dernier tri du décor proche
   private propZ = 1e9;
   private cChest = new THREE.Color(PAL.gold); // couleur d'instance des coffres (blanche une fois le modèle texturé chargé)
-  private cBladeCol = new THREE.Color(PAL.paper);
-  private cBoomCol = new THREE.Color(PAL.boomerang);
+  // lot L5 : chaque couleur d'arme est une TierTint (teinte de son palier, `.c` à dessiner), mise à jour par tintWeapons
+  private tBlade = new TierTint(new THREE.Color(PAL.paper));
+  private tBoom = new TierTint(new THREE.Color(PAL.boomerang));
   private cBeamGold = new THREE.Color(PAL.gold);
   private cBeamGrey = new THREE.Color(0x8a8fa8);
   private cBeamBlue = new THREE.Color(PAL.xp);
@@ -318,38 +321,66 @@ export class GameScene {
   private gemW: InstanceWriter;
   private bladeW: InstanceWriter;
   private metW: InstanceWriter;
-  private cLance = new THREE.Color(0x7fe3ff);
-  private cLanceGhost = [0.55, 0.35, 0.2].map((k) => new THREE.Color(0x7fe3ff).multiplyScalar(k));
+  private tLance = new TierTint(new THREE.Color(0x7fe3ff));
+  private tLanceGhost = [0.55, 0.35, 0.2].map(
+    (k, j) => new TierTint(new THREE.Color(0x7fe3ff).multiplyScalar(k), TIER_LOOK.mix, (j + 1) * TIER_LOOK.prismSpread),
+  );
   // phase 30 : couleurs des lueurs (additives : une couleur sombre = une lueur discrète)
-  private cOrbCore = new THREE.Color(0xfff6d8);
-  private cOrbHalo = new THREE.Color(PAL.proj).multiplyScalar(0.7);
-  private cOrbTrail = PAL.trail.map((c, j) => new THREE.Color(c).multiplyScalar(0.75 - j * 0.15));
+  private tOrbCore = new TierTint(new THREE.Color(0xfff6d8), TIER_LOOK.core);
+  private tOrbHalo = new TierTint(new THREE.Color(PAL.proj).multiplyScalar(0.7));
+  private tOrbTrail = PAL.trail.map(
+    (c, j) =>
+      new TierTint(new THREE.Color(c).multiplyScalar(0.75 - j * 0.15), TIER_LOOK.mix, (j + 1) * TIER_LOOK.prismSpread),
+  );
   private cFireCore = new THREE.Color(0xffe9a8);
   private cFireHalo = new THREE.Color(PAL.fire).multiplyScalar(0.85);
   private cFireTrail = [0.6, 0.4, 0.25].map((k) => new THREE.Color(0xff5a2a).multiplyScalar(k));
-  private cMeteorCore = new THREE.Color(0xfff0c0);
-  private cMeteorHalo = new THREE.Color(0xff9a5a).multiplyScalar(0.8);
-  private cLanceTip = new THREE.Color(0xbff4ff);
-  private cBoomTrail = [0.45, 0.28, 0.15].map((k) => new THREE.Color(PAL.boomerang).multiplyScalar(k));
+  private tMeteorTrail = [0.6, 0.4, 0.25].map(
+    (k, j) => new TierTint(new THREE.Color(0xff5a2a).multiplyScalar(k), TIER_LOOK.mix, (j + 1) * TIER_LOOK.prismSpread),
+  );
+  private tMeteorCore = new TierTint(new THREE.Color(0xfff0c0), TIER_LOOK.core);
+  private tMeteorHalo = new TierTint(new THREE.Color(0xff9a5a).multiplyScalar(0.8));
+  private tLanceTip = new TierTint(new THREE.Color(0xbff4ff), TIER_LOOK.core);
+  private tBoomTrail = [0.45, 0.28, 0.15].map(
+    (k, j) =>
+      new TierTint(new THREE.Color(PAL.boomerang).multiplyScalar(k), TIER_LOOK.mix, (j + 1) * TIER_LOOK.prismSpread),
+  );
   private cMineHalo = new THREE.Color();
-  private cSlashFaux = new THREE.Color(0xa66bff); // 1.42.1 : violet franc (0xc9b3ff se lisait blanc sur l'herbe)
-  private cSlashBlade = new THREE.Color(0x4fc8ff); // 1.42.1 : bleu acier franc
+  private tMineHalo = new TierTint(new THREE.Color(PAL.mine));
+  private tSlashFaux = new TierTint(new THREE.Color(0xa66bff)); // 1.42.1 : violet franc (0xc9b3ff se lisait blanc sur l'herbe)
+  private tSlashBlade = new TierTint(new THREE.Color(0x4fc8ff)); // 1.42.1 : bleu acier franc
   private cSlashTmp = new THREE.Color();
-  private cMeteor = new THREE.Color(PAL.gold);
+  private tMeteor = new TierTint(new THREE.Color(PAL.gold));
   // phase 47 C : flaque de Vitriol, esprits, balises (mêmes écrivains que les météores et les orbes)
-  private cVitriol = new THREE.Color(0x8fe05a);
-  private cVitriolIn = new THREE.Color(0x4f9a38);
-  private cSpiritHalo = new THREE.Color(0x8fdcff).multiplyScalar(0.7);
-  private cSpiritCore = new THREE.Color(0xeafcff);
-  private cBeaconHalo = new THREE.Color(0xffd95a).multiplyScalar(0.75);
-  private cBeaconCore = new THREE.Color(0xfff6c9);
+  private tVitriol = new TierTint(new THREE.Color(0x8fe05a));
+  private tVitriolIn = new TierTint(new THREE.Color(0x4f9a38));
+  private tSpiritHalo = new TierTint(new THREE.Color(0x8fdcff).multiplyScalar(0.7));
+  private tSpiritCore = new TierTint(new THREE.Color(0xeafcff), TIER_LOOK.core);
+  private tBeaconHalo = new TierTint(new THREE.Color(0xffd95a).multiplyScalar(0.75));
+  private tBeaconCore = new TierTint(new THREE.Color(0xfff6c9), TIER_LOOK.core);
+  private cTierTmp = new THREE.Color(); // lot L5 : lueur ajoutée par un palier (teinte atténuée)
   private cEliteRing = new THREE.Color(PAL.gold).multiplyScalar(0.8 / 0.9); // ancien matériau doré à 0,8, ici à 0,9
   private dashGhostW: InstanceWriter;
   private cGem = [new THREE.Color(PAL.gem), new THREE.Color(PAL.gem2), new THREE.Color(PAL.gem3)];
   private cGold = new THREE.Color(PAL.gold);
-  private cMine = new THREE.Color(PAL.mine);
+  private tMine = new TierTint(new THREE.Color(PAL.mine));
   private cFire = new THREE.Color(PAL.accent); // traînée de feu du Feu follet (même mesh que les mines, plus large et plate)
-  private cMineArmed = new THREE.Color(0xffffff);
+  private tMineArmed = new TierTint(new THREE.Color(0xffffff), TIER_LOOK.core);
+  private tAura = new TierTint(new THREE.Color(PAL.xp));
+  /** Lot L5 : les couleurs de chaque arme, teintées à son palier une fois par image (Foudre et Fouet : Bolts). */
+  private tierTints: { k: WeaponKey; tints: TierTint[] }[] = [
+    { k: 'orbe', tints: [this.tOrbCore, this.tOrbHalo, ...this.tOrbTrail] },
+    { k: 'aura', tints: [this.tAura] },
+    { k: 'lames', tints: [this.tBlade, this.tSlashBlade] },
+    { k: 'boomerang', tints: [this.tBoom, ...this.tBoomTrail] },
+    { k: 'mines', tints: [this.tMine, this.tMineArmed, this.tMineHalo] },
+    { k: 'faux', tints: [this.tSlashFaux] },
+    { k: 'lance', tints: [this.tLance, this.tLanceTip, ...this.tLanceGhost] },
+    { k: 'meteores', tints: [this.tMeteor, this.tMeteorHalo, this.tMeteorCore, ...this.tMeteorTrail] },
+    { k: 'vitriol', tints: [this.tVitriol, this.tVitriolIn] },
+    { k: 'esprits', tints: [this.tSpiritHalo, this.tSpiritCore] },
+    { k: 'balise', tints: [this.tBeaconHalo, this.tBeaconCore] },
+  ];
   private cSpit = new THREE.Color(PAL.spit);
   private cBossShot = new THREE.Color(PAL.telegraph).multiplyScalar(1.1);
   private cBossShotCore = new THREE.Color(0xffd2c4);
@@ -565,7 +596,7 @@ export class GameScene {
       softGlow(new THREE.MeshBasicMaterial({ color: PAL.xp, map: runeRingTexture(), opacity: 0.8 }), 0.55, 0.35),
     );
     this.aura.visible = false;
-    this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, 0.08));
+    this.auraDisc = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2), flat(PAL.xp, AURA_DISC));
     this.auraDisc.visible = false;
     this.scene.add(this.aura, this.auraDisc);
     // épées : coups des Lames en cours (phase 32 : FEEL.blade.max) + 64 lances en vol (phase 28 : 54 mesurées au pire,
@@ -600,7 +631,7 @@ export class GameScene {
       makeInstanced(
         new THREE.RingGeometry(0.84, 1, 40).rotateX(-Math.PI / 2),
         additive(0xffffff, 0.9),
-        ELITE_RINGS + 2 * METEOR.max + 2 * VITRIOL.max + BALISE.max, // phase 47 C : flaques et pieds de balise
+        ELITE_RINGS + 2 * METEOR.max + 3 * VITRIOL.max + BALISE.max, // phase 47 C ; lot L5 : 3e anneau des flaques au palier
       ),
     );
     this.scene.add(this.metW.mesh);
@@ -1008,7 +1039,7 @@ export class GameScene {
     );
     // mine : bombe posée au sol ; non armée, teinte sombre ; armée, texture pleine qui pulse
     swap(this.bombW, norm(p.bomb, 0.8, 'y'), mat(p.bomb));
-    this.cMine = MINE_IDLE;
+    this.tMine.base = MINE_IDLE;
     const trees: PropKey[] = ['tree_pine', 'tree_pine_y', 'tree_dead', 'tree_dead_m'];
     // phase 44 : les arbres stylisés (nature.glb) passent devant ; ceux-ci restent le repli s'il ne charge pas
     if (!this.natureReady)
@@ -1048,7 +1079,7 @@ export class GameScene {
     }
     this.stall.add(...stallParts);
     this.cChest = CHEST_ELITE;
-    this.cBladeCol = this.cBoomCol = WHITE;
+    this.tBlade.base = this.tBoom.base = WHITE;
     this.propsReady = true;
     this.syncProc();
     this.propX = this.propZ = 1e9;
@@ -1422,7 +1453,7 @@ export class GameScene {
    */
   scythe(x: number, z: number, r: number, dx: number, dz: number, arcDeg: number): void {
     if (this.slashN >= FEEL.slash.max) return;
-    const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, arc: 0, life: 0, c: this.cSlashFaux };
+    const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, arc: 0, life: 0 };
     this.slashes[this.slashN++] = sl;
     sl.x = x;
     sl.z = z;
@@ -1572,6 +1603,23 @@ export class GameScene {
     this.sun.intensity = lerp(a.sunI, b.sunI, f);
     this.night = Math.min(1, t / 300);
     if (this.haloMat) this.haloMat.opacity = 0.015 + 0.11 * f;
+  }
+
+  /**
+   * Lot L5 : couleur `hex` d'un effet d'arme au palier `tier` (étincelles, gerbe du palier). Passe par la scène : main.ts
+   * n'importe rien qui tire three dans son chunk.
+   */
+  tint(hex: number, tier: number, now: number, phase = 0): number {
+    return tierHex(hex, tier, now, phase);
+  }
+
+  /** Lot L5 : couleurs des armes à la teinte de leur palier (le prisme du palier III tourne : refaites à chaque image). */
+  private tintWeapons(w: World, now: number): void {
+    for (let i = 0; i < this.tierTints.length; i++) {
+      const g = this.tierTints[i],
+        tier = w.wtier[g.k];
+      for (let j = 0; j < g.tints.length; j++) g.tints[j].update(tier, now);
+    }
   }
 
   /** Dessine le monde interpolé entre le step précédent et le courant (alpha ∈ [0,1]). */
@@ -2270,6 +2318,12 @@ export class GameScene {
 
     // projectiles : orbes (+ traînées), boomerangs, mines ; Nova : orbes ×1,6
     const orbeScale = w.player.sizeMul; // tome Projectiles : projectiles plus gros
+    // lot L5 : teintes et tailles des paliers visuels (w.wtier), une fois par image
+    this.tintWeapons(w, now);
+    const T = w.wtier,
+      sO = tierScale(T.orbe),
+      sB = tierScale(T.boomerang),
+      sM = tierScale(T.mines);
     this.boomW.begin();
     this.mineW.begin();
     this.bombW.begin();
@@ -2281,7 +2335,7 @@ export class GameScene {
       const G = FEEL.glow,
         brx = this.particles.billboardRx;
       if (p.kind === ProjKind.Boomerang) {
-        this.boomW.put(x, y, z, p.age * 22, 1, this.cBoomCol);
+        this.boomW.put(x, y, z, p.age * 22, sB, this.tBoom.c);
         for (let j = 1; j <= 3; j++) {
           const back = Math.min(j * 0.035, p.age);
           this.glowW.put(
@@ -2289,8 +2343,8 @@ export class GameScene {
             y,
             z - p.vz * back,
             0,
-            G.boomTrail * (1 - j * 0.2),
-            this.cBoomTrail[j - 1],
+            G.boomTrail * (1 - j * 0.2) * sB,
+            this.tBoomTrail[j - 1].c,
             brx,
             0,
           );
@@ -2299,12 +2353,16 @@ export class GameScene {
       }
       if (p.kind === ProjKind.Mine) {
         const blink = p.age < 0.3 ? 0.5 + p.age : 1 + Math.sin(now * 6 + p.x) * 0.1;
-        this.bombW.put(x, y, z, now * 2, blink * 1.3, p.armed ? this.cMineArmed : this.cMine); // phase 30 : plus grosses
+        this.bombW.put(x, y, z, now * 2, blink * 1.3 * sM, p.armed ? this.tMineArmed.c : this.tMine.c); // phase 30 : plus grosses
         if (p.armed) {
           // armée : un halo rouge qui bat sous la bombe
           const beat = 0.5 + 0.5 * Math.sin(now * 9 + p.x * 3);
-          this.cMineHalo.setHex(PAL.mine).multiplyScalar(0.35 + beat * 0.45);
-          this.glowW.put(x, y + 0.25, z, 0, G.mineHalo * (0.85 + beat * 0.3), this.cMineHalo, brx, 0);
+          this.cMineHalo.copy(this.tMineHalo.c).multiplyScalar(0.35 + beat * 0.45);
+          this.glowW.put(x, y + 0.25, z, 0, G.mineHalo * (0.85 + beat * 0.3) * sM, this.cMineHalo, brx, 0);
+        } else if (T.mines > 0) {
+          // lot L5 : au palier, la bombe désarmée luit aussi, à la teinte du palier
+          this.cMineHalo.copy(this.tMineHalo.c).multiplyScalar(TIER_LOOK.halo);
+          this.glowW.put(x, y + 0.25, z, 0, G.mineHalo * sM, this.cMineHalo, brx, 0);
         }
         continue;
       }
@@ -2319,7 +2377,7 @@ export class GameScene {
       const grow = Math.min(1, p.age / 0.06);
       const sc = (1.7 + Math.sin(now * 40 + p.x) * 0.2) * grow * orbeScale;
       // phase 30 : orbe = traînée dégradée (or → rouge), halo doré, cœur blanc chaud
-      const k = sc / 1.7;
+      const k = (sc / 1.7) * sO;
       for (let j = FEEL.trail.projGhosts; j >= 1; j--) {
         const back = Math.min(j * FEEL.trail.projGhostDt, p.age);
         this.glowW.put(
@@ -2328,13 +2386,13 @@ export class GameScene {
           z - p.vz * back,
           0,
           G.orbTrail * k * (1.1 - j * 0.18),
-          this.cOrbTrail[j - 1],
+          this.tOrbTrail[j - 1].c,
           brx,
           0,
         );
       }
-      this.glowW.put(x, y, z, 0, G.orbHalo * k, this.cOrbHalo, brx, 0);
-      this.glowW.put(x, y, z, 0, G.orbCore * k, this.cOrbCore, brx, 0);
+      this.glowW.put(x, y, z, 0, G.orbHalo * k, this.tOrbHalo.c, brx, 0);
+      this.glowW.put(x, y, z, 0, G.orbCore * k, this.tOrbCore.c, brx, 0);
     }
     this.boomW.end();
     this.mineW.end();
@@ -2355,15 +2413,19 @@ export class GameScene {
       this.auraDisc.scale.setScalar(r);
       const m = this.aura.material as THREE.MeshBasicMaterial;
       m.opacity = 0.55 + pulse * 0.45; // phase 30 : runes bien visibles, éclat à chaque tick
-      m.color.setHex(PAL.xp);
-      (this.auraDisc.material as THREE.MeshBasicMaterial).color.setHex(PAL.xp);
+      m.color.copy(this.tAura.c);
+      // lot L5 : le disque luit davantage à chaque palier (la taille reste celle de la zone de dégâts)
+      const disc = this.auraDisc.material as THREE.MeshBasicMaterial;
+      disc.color.copy(this.tAura.c);
+      disc.opacity = AURA_DISC * (1 + TIER_LOOK.disc * T.aura);
     } else this.aura.visible = this.auraDisc.visible = false;
 
     // phase 32 : coups des Lames (posés par blade()) : l'épée tourne autour de la cible en traçant un croissant de rayon
     // r (la zone de coupe), du côté opposé au héros ; le croissant s'efface derrière elle
     this.bladeW.begin();
     this.slashW.begin();
-    const BL = FEEL.blade;
+    const BL = FEEL.blade,
+      sL = tierScale(T.lames); // l'épée grandit au palier, pas le croissant (la zone de coupe réelle)
     for (let i = this.bladeN - 1; i >= 0; i--) {
       const b = this.blades[i];
       b.life -= dt;
@@ -2383,15 +2445,16 @@ export class GameScene {
         by,
         b.z + Math.cos(ang) * rs,
         ang + Math.PI / 2,
-        b.r * BL.swordScale,
-        this.cBladeCol,
+        b.r * BL.swordScale * sL,
+        this.tBlade.c,
       );
-      this.cSlashTmp.copy(this.cSlashBlade).multiplyScalar(Math.min(1, (1 - f) * BL.fade));
+      this.cSlashTmp.copy(this.tSlashBlade.c).multiplyScalar(Math.min(1, (1 - f) * BL.fade));
       this.slashW.put(b.x, by - 0.05, b.z, ang - Math.PI / 2 - SLASH_ARC, b.r * 1.04, this.cSlashTmp);
     }
     // lances (phase 28) : l'épée part dans le sens du vol, teintée cyan, 3 fantômes en arrière
     if ((w.weapons.lance ?? 0) > 0) {
-      const ls = 1.5 * w.player.sizeMul;
+      const sN = tierScale(T.lance),
+        ls = 1.5 * w.player.sizeMul * sN;
       for (let i = 0; i < w.projCount; i++) {
         const p = w.projs[i];
         if (p.kind !== ProjKind.Lance) continue;
@@ -2399,13 +2462,13 @@ export class GameScene {
           z = lerp(p.pz, p.z, alpha),
           y = p.y + this.gy(x, z);
         const ry = Math.atan2(-p.vz, p.vx);
-        this.bladeW.put(x, y, z, ry, ls, this.cLance);
+        this.bladeW.put(x, y, z, ry, ls, this.tLance.c);
         // phase 30 : pointe lumineuse et traînée en lueurs
         const sp = Math.sqrt(p.vx * p.vx + p.vz * p.vz) || 1,
           tx = (p.vx / sp) * 0.75 * ls,
           tz = (p.vz / sp) * 0.75 * ls,
           brx = this.particles.billboardRx;
-        this.glowW.put(x + tx, y, z + tz, 0, FEEL.glow.lanceTip, this.cLanceTip, brx, 0);
+        this.glowW.put(x + tx, y, z + tz, 0, FEEL.glow.lanceTip * sN, this.tLanceTip.c, brx, 0);
         for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
           const back = Math.min(k * 0.03, p.age);
           this.glowW.put(
@@ -2413,8 +2476,8 @@ export class GameScene {
             y,
             z - p.vz * back,
             0,
-            FEEL.glow.lanceTip * (1 - k * 0.2),
-            this.cLanceGhost[k - 1],
+            FEEL.glow.lanceTip * (1 - k * 0.2) * sN,
+            this.tLanceGhost[k - 1].c,
             brx,
             0,
           );
@@ -2432,7 +2495,7 @@ export class GameScene {
         continue;
       }
       const f = sl.life / FEEL.slash.life; // 1 → 0
-      this.cSlashTmp.copy(sl.c).multiplyScalar(Math.min(1, f * 1.8));
+      this.cSlashTmp.copy(this.tSlashFaux.c).multiplyScalar(Math.min(1, f * 1.8));
       const sweep = (0.5 - f) * FEEL.slash.sweep;
       // un croissant couvre 2·SLASH_ARC ; au-delà (cartes d'arc), plusieurs croissants se répartissent sur l'ouverture
       const span = 2 * SLASH_ARC,
@@ -2459,25 +2522,26 @@ export class GameScene {
         const f = Math.max(0, Math.min(1, ws.metLeft[i] / METEOR.delay));
         const gy = this.gy(mx, mz);
         this.tilt(mx, mz);
-        this.metW.put(mx, gy + 0.14, mz, 0, mr, this.cMeteor, this.tRx, this.tRz);
-        this.metW.put(mx, gy + 0.13, mz, 0, mr * (0.15 + 0.85 * f), this.cMeteor, this.tRx, this.tRz);
+        this.metW.put(mx, gy + 0.14, mz, 0, mr, this.tMeteor.c, this.tRx, this.tRz);
+        this.metW.put(mx, gy + 0.13, mz, 0, mr * (0.15 + 0.85 * f), this.tMeteor.c, this.tRx, this.tRz);
         // phase 30 : le météore tombe du ciel pendant l'annonce (léger biais), avec sa traînée
         const G = FEEL.glow,
           brx = this.particles.billboardRx,
-          h = G.meteorFall * f;
+          h = G.meteorFall * f,
+          sT = tierScale(T.meteores); // le météore grandit au palier, pas son cercle (la zone d'impact)
         for (let k = 3; k >= 1; k--)
           this.glowW.put(
             mx - h * 0.25 - k * 0.5,
             gy + h + k * 1.4,
             mz - k * 0.25,
             0,
-            G.meteorHalo * (0.7 - k * 0.14),
-            this.cFireTrail[k - 1],
+            G.meteorHalo * (0.7 - k * 0.14) * sT,
+            this.tMeteorTrail[k - 1].c,
             brx,
             0,
           );
-        this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorHalo, this.cMeteorHalo, brx, now * 3);
-        this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorCore, this.cMeteorCore, brx, 0);
+        this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorHalo * sT, this.tMeteorHalo.c, brx, now * 3);
+        this.glowW.put(mx - h * 0.25, gy + h + 0.4, mz, 0, G.meteorCore * sT, this.tMeteorCore.c, brx, 0);
       }
     }
     // phase 47 C : flaques de Vitriol (deux anneaux verts, le second respire et s'éteint en fin de vie), esprits et
@@ -2493,27 +2557,46 @@ export class GameScene {
             gy = this.gy(x, z),
             fade = Math.min(1, ws.vitLeft[i]); // la dernière seconde, la flaque se referme
           this.tilt(x, z);
-          this.metW.put(x, gy + 0.12, z, now * 0.4, vr * fade, this.cVitriol, this.tRx, this.tRz);
+          this.metW.put(x, gy + 0.12, z, now * 0.4, vr * fade, this.tVitriol.c, this.tRx, this.tRz);
           this.metW.put(
             x,
             gy + 0.11,
             z,
             -now * 0.7,
             vr * fade * (0.55 + 0.1 * Math.sin(now * 5 + i)),
-            this.cVitriolIn,
+            this.tVitriolIn.c,
             this.tRx,
             this.tRz,
           );
+          // lot L5 : au palier, un anneau intérieur qui bouillonne (lueur au cœur de la flaque, même écrivain)
+          if (T.vitriol > 0)
+            this.metW.put(
+              x,
+              gy + 0.13,
+              z,
+              now * 1.3,
+              vr * fade * TIER_LOOK.innerRing * (1 + 0.15 * Math.sin(now * 7 + i)),
+              this.tVitriol.c,
+              this.tRx,
+              this.tRz,
+            );
         }
       }
-      if ((w.weapons.esprits ?? 0) > 0)
+      if ((w.weapons.esprits ?? 0) > 0) {
+        const sE = tierScale(T.esprits);
+        this.cTierTmp.copy(this.tSpiritHalo.c).multiplyScalar(TIER_LOOK.halo);
         for (let i = 0; i < ws.spN; i++) {
           const x = ws.spX[i],
             z = ws.spZ[i],
             y = this.gy(x, z) + G.spiritLift + Math.sin(now * 6 + i * 2) * 0.12;
-          this.glowW.put(x, y, z, 0, G.spiritHalo, this.cSpiritHalo, brx, now * 3 + i);
-          this.glowW.put(x, y, z, 0, G.spiritCore, this.cSpiritCore, brx, 0);
+          // lot L5 : au palier, un halo extérieur plus large et pâle autour de chaque esprit
+          if (T.esprits > 0)
+            this.glowW.put(x, y, z, 0, G.spiritHalo * TIER_LOOK.outer * sE, this.cTierTmp, brx, -now * 2 - i);
+          this.glowW.put(x, y, z, 0, G.spiritHalo * sE, this.tSpiritHalo.c, brx, now * 3 + i);
+          this.glowW.put(x, y, z, 0, G.spiritCore * sE, this.tSpiritCore.c, brx, 0);
         }
+      }
+      const sBa = tierScale(T.balise);
       for (let i = 0; i < ws.balN; i++) {
         const x = ws.balX[i],
           z = ws.balZ[i],
@@ -2521,9 +2604,9 @@ export class GameScene {
           fade = Math.min(1, ws.balLeft[i]),
           beat = 0.85 + 0.15 * Math.sin(now * 8 + i);
         this.tilt(x, z);
-        this.metW.put(x, gy + 0.1, z, now, G.beaconFoot, this.cBeaconHalo, this.tRx, this.tRz);
-        this.glowW.put(x, gy + G.beaconLift, z, 0, G.beaconHalo * beat * fade, this.cBeaconHalo, brx, now * 2);
-        this.glowW.put(x, gy + G.beaconLift, z, 0, G.beaconCore * fade, this.cBeaconCore, brx, 0);
+        this.metW.put(x, gy + 0.1, z, now, G.beaconFoot, this.tBeaconHalo.c, this.tRx, this.tRz);
+        this.glowW.put(x, gy + G.beaconLift, z, 0, G.beaconHalo * beat * fade * sBa, this.tBeaconHalo.c, brx, now * 2);
+        this.glowW.put(x, gy + G.beaconLift, z, 0, G.beaconCore * fade * sBa, this.tBeaconCore.c, brx, 0);
       }
     }
     this.metW.end();
@@ -2534,7 +2617,7 @@ export class GameScene {
       (this.lakeMeshes[i].material as THREE.MeshBasicMaterial).opacity = 0.25 + Math.sin(now * 1.5 + i) * 0.12;
 
     this.particles.update(dt);
-    this.bolts.update(dt);
+    this.bolts.update(dt, now);
 
     // caméra : suivi amorti, avance, zoom-out progressif (8 % sur 15 min), recul 10 % pendant un boss, shake borné
     const zoomTarget =
@@ -2597,7 +2680,7 @@ export class GameScene {
     this.aims.end();
     this.aura.visible = this.auraDisc.visible = false;
     this.particles.update(dt);
-    this.bolts.update(dt);
+    this.bolts.update(dt, now);
     // large : caméra à 6,5 u, regard décalé vers la gauche de l'écran pour laisser la place au logo ; étroit (portrait) :
     // un peu plus loin et plus haut, le personnage occupe le centre-bas sous le logo
     const wide = this.menuWide;

@@ -2,6 +2,7 @@ import { CHEST, CHOICE, DIFFICULTY, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_POOL, 
 import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
+import { reachTiers } from './tiers';
 import type { StatLine } from './balance';
 import { Ev, Mode } from './types';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from './types';
@@ -186,6 +187,7 @@ export function applyCard(w: World, idx: number): void {
   if (c.kind === 'w') {
     w.weapons[c.key as WeaponKey] = c.lv;
     if (c.lv > w.weaponLvBest) w.weaponLvBest = c.lv;
+    reachTiers(w, c.key as WeaponKey, true); // lot L5 : palier visuel (25, 50, 100), annoncé une fois
   } else if (c.kind === 't') {
     w.tomes[c.key as TomeKey] = c.lv;
   } else {

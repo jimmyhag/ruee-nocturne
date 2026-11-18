@@ -76,6 +76,7 @@
         --skull: #b060ff; /* phase 48 : difficulté (PAL.skull) */
         --bosstotem: #ff8a3d; /* phase 48 : totems de boss (PAL.bossTotem) */
         --gold: #ffd166;
+        --tier1: #9cc2ff; /* lot L5 : palier I d'une arme, argent bleuté (PAL.tier) ; le II est l'or */
         --glass: rgba(20, 28, 51, 0.9);
         --glass-2: rgba(255, 255, 255, 0.06);
         --line: rgba(255, 255, 255, 0.09);
@@ -792,6 +793,44 @@
       .keygrid button.listening {
         border-color: var(--accent);
         color: var(--accent);
+      }
+      /* lot L5 : l'icône d'une arme prend un liseré à la couleur de son palier visuel (I argent bleuté, II or, III prisme
+         qui tourne lentement, comme ses projectiles ; fixe en mouvement réduit) */
+      .gi.gw.tier1 {
+        border: 1.5px solid var(--tier1);
+      }
+      .gi.gw.tier2 {
+        border: 1.5px solid var(--gold);
+        box-shadow: 0 0 6px rgba(255, 209, 102, 0.45);
+      }
+      .gi.gw.tier3 {
+        border: 1.5px solid #e59cff;
+        box-shadow: 0 0 6px rgba(229, 156, 255, 0.45);
+        animation: tierprism 10s linear infinite;
+      }
+      body.fx-reduced .gi.gw.tier3 {
+        animation: none; /* lot L5 : le réglage « Effets réduits » coupe aussi le liseré animé */
+      }
+      @keyframes tierprism {
+        0%,
+        100% {
+          border-color: hsl(0 90% 66%);
+        }
+        17% {
+          border-color: hsl(60 90% 62%);
+        }
+        33% {
+          border-color: hsl(120 80% 60%);
+        }
+        50% {
+          border-color: hsl(180 85% 62%);
+        }
+        67% {
+          border-color: hsl(240 90% 72%);
+        }
+        83% {
+          border-color: hsl(300 90% 70%);
+        }
       }
       /* phase 43 : niveau d'arme ou cumul d'objet au plafond */
       .gi b.max {

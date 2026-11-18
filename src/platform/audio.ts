@@ -459,11 +459,11 @@ export class AudioBus {
     if (this.sample('gem', this.sfx, 0.38, PRIO.pickup, semi, 0, 0)) return; // gamme exacte : pas de hauteur aléatoire
     this.tone(this.sfx, 660 * semi, 0.07, 'triangle', 0.16, 0, PRIO.pickup);
   }
-  /** Niveau : stinger au maillet. */
-  levelUp(): void {
-    if (this.sample('levelUp', this.ui, 1, PRIO.levelUp)) return;
-    this.tone(this.ui, 523, 0.12, 'triangle', 0.3, 0, PRIO.levelUp);
-    this.tone(this.ui, 784, 0.18, 'triangle', 0.3, 0, PRIO.levelUp, 0.09);
+  /** Niveau : stinger au maillet. `rate` : hauteur (lot L5 : plus aigu au palier d'une arme). */
+  levelUp(rate = 1): void {
+    if (this.sample('levelUp', this.ui, 1, PRIO.levelUp, rate)) return;
+    this.tone(this.ui, 523 * rate, 0.12, 'triangle', 0.3, 0, PRIO.levelUp);
+    this.tone(this.ui, 784 * rate, 0.18, 'triangle', 0.3, 0, PRIO.levelUp, 0.09);
   }
   /** « Whoosh » à la reprise après le choix de carte. */
   whoosh(): void {
