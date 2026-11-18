@@ -204,7 +204,7 @@
         --heal: #7ee0a1;
         --muted: var(--moon-70);
         /* lisibilité du HUD sur le décor le plus clair (décision 21) : une ombre portée douce, jamais une boîte */
-        --hud-shadow: 0 1px 2px rgba(6, 9, 24, 0.95), 0 0 6px rgba(6, 9, 24, 0.8), 0 0 14px rgba(6, 9, 24, 0.55);
+        --hud-shadow: 0 1px 2px rgba(6, 9, 24, 0.95), 0 0 6px rgba(6, 9, 24, 0.85);
         color-scheme: dark;
       }
       [hidden] {
@@ -3924,7 +3924,7 @@
   </head>
   <body class="tabs-on">
     <!-- Textes : attribut data-i18n (clé du contenu) et data-i18n-attr (attribut:clé;…) ; le français du HTML sert de secours -->
-    <canvas id="c" aria-label="Zone de jeu" data-i18n-attr="aria-label:a11y.canvas"></canvas>
+    <canvas id="c" aria-label="Zone de jeu" data-i18n-attr="aria-label:a11y.canvas" style="visibility: hidden"></canvas>
     <div id="vignette" hidden></div>
     <div id="flash"></div>
     <!-- phase 37 : fondu au noir pendant le passage d'un monde à l'autre -->

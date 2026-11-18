@@ -1003,5 +1003,6 @@
   "account.why.2.k": "Un pseudo au classement",
   "account.why.2.v": "Tes meilleurs scores y entrent, visibles des seuls joueurs connectés.",
   "account.why.3.k": "Facultatif",
-  "account.why.3.v": "Sans compte, tout reste sur cet appareil. Tes réglages aussi."
+  "account.why.3.v": "Sans compte, tout reste sur cet appareil. Tes réglages aussi.",
+  "menu.profileAria": "Compte : {name}, {record}"
 }

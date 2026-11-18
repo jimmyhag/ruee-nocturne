@@ -101,7 +101,7 @@ import {
   slotName,
 } from './ui/meta-ui';
 import type { AchTab } from './ui/meta-ui';
-import { LOCKED_TABS, renderHome, stepHero, tabsLocked } from './ui/home';
+import { LOCKED_TABS, profileAria, renderHome, stepHero, tabsLocked } from './ui/home';
 import type { CharacterKey, ItemKey } from './sim/types';
 import { installDebugHooks, debugEnabled } from './debug';
 import { Pwa } from './platform/pwa';
@@ -120,6 +120,8 @@ let scene: GameScene | null = null;
 let sceneReady = false; // construite et shaders compilés : on peut rendre
 let scenePromise: Promise<GameScene> | null = null;
 function loadScene(): Promise<GameScene> {
+  // relecture perf : la graisse 300 du chrono n'est pas sur l'accueil ; chargée avec la scène, pas à la première image
+  if (!scenePromise) void document.fonts?.load("300 40px 'Barlow Condensed'").catch(() => undefined);
   return (scenePromise ??= import('./render/scene').then(async ({ GameScene }) => {
     let s: GameScene;
     try {
@@ -135,7 +137,7 @@ function loadScene(): Promise<GameScene> {
     }
     scene = s;
     s.setQuality(qualityLevel()); // phase 9 : niveau de rendu (réglage ou repli automatique de la session)
-    s.setCharacter(meta.character, outfitOf(meta, meta.character)); // aperçu du menu : le personnage choisi tourne derrière le panneau
+    s.setCharacter(meta.character, outfitOf(meta, meta.character)); // héros de la prochaine partie, chargé et compilé d'avance
     sizeW = sizeH = 0;
     resize();
     // le décor ne dépend que de DECOR_SEED : construit ici pour que warmup() compile aussi ses matériaux (lacs, lanternes)
@@ -327,6 +329,8 @@ function showOnly(id: AppMode | null): void {
   // pause ni l'écran de fin : on ne quitte pas une partie par un onglet)
   const tabs = id === 'menu' || (id !== null && MENU_SHEETS.includes(id) && backTo === 'menu');
   $('tabBar').hidden = !tabs;
+  // relecture perf : au menu et dans ses écrans (fond opaque), le canvas n'est plus composité
+  $('c').style.visibility = tabs || id === 'consent' ? 'hidden' : '';
   document.body.classList.toggle('tabs-on', tabs);
   const cur = id ? TAB_OF[id] : undefined;
   for (const b of $('tabBar').querySelectorAll<HTMLElement>('button'))
@@ -377,12 +381,17 @@ function renderHeroCounts(): void {
   $('charsGold').innerHTML = goldHtml(meta.gold);
 }
 /** Carrousel : héros voisin (`dir` ±1) ; un héros débloqué devient le héros choisi, un verrouillé se regarde seulement. */
+/** Pose différée du héros 3D quand le carrousel tourne. */
+let heroModelT = 0;
 function viewHero(k: CharacterKey): void {
   heroView = k;
   if (unlockedCharacters(meta).includes(k) && meta.character !== k) {
     meta.character = k;
     saveMeta(meta);
-    scene?.setCharacter(k, outfitOf(meta, k));
+    // relecture perf : le modèle 3D (chargement, compilation) attend que le carrousel s'arrête 300 ms ; startGame le
+    // pose de toute façon
+    clearTimeout(heroModelT);
+    heroModelT = window.setTimeout(() => scene?.setCharacter(meta.character, outfitOf(meta, meta.character)), 300);
   }
   updateBestLine();
 }
@@ -456,6 +465,12 @@ function openScreen(
   }
   app = id;
   $(id).scrollTop = 0;
+  // focus (contrat de la spec) : si ce qui a ouvert l'écran est maintenant masqué, il passe à la flèche retour
+  queueMicrotask(() => {
+    const a = document.activeElement as HTMLElement | null;
+    if (app === id && (!a || a === document.body || a.closest('[hidden]')))
+      $(id).querySelector<HTMLElement>('.back')?.focus({ preventScroll: true });
+  });
   if (id === 'shop') renderShopScreen();
   else if (id === 'achievements') renderAchScreen();
   else if (id === 'library') renderLibraryScreen();
@@ -1299,7 +1314,7 @@ $('heroNext').onclick = () => viewHero(stepHero(heroView, 1));
 $('goalBtn').onclick = () => openScreen('achievements');
 // clavier : ← → changent de héros à l'accueil (parité avec les flèches au doigt, décision 8)
 addEventListener('keydown', (e) => {
-  if (app !== 'menu' || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return;
+  if (app !== 'menu' || e.repeat || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return;
   const el = e.target as HTMLElement | null;
   if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return;
   e.preventDefault();
@@ -1411,7 +1426,7 @@ $('chars').addEventListener('click', (e) => {
   audio.init();
   audio.select('s');
 });
-// tenues (phase 7) : bascule gratuite si possédée, sinon achat en or ; l'aperçu du menu change aussitôt
+// tenues (phase 7) : bascule gratuite si possédée, sinon achat en or ; le héros de la partie suit
 $('charInfo').addEventListener('click', (e) => {
   // achat d'un personnage en or (phase 6), depuis sa fiche : débité, choisi, accueil et écran rafraîchis
   const buyEl = (e.target as HTMLElement).closest('[data-buy]') as HTMLButtonElement | null;
@@ -1670,7 +1685,7 @@ addEventListener('keydown', (e) => {
 input.onConfirm = () => {
   // phase 49 : au menu, Entrée reprend la partie gardée s'il y en a une (le focus clavier, lui, peut viser un autre bouton)
   // un bouton du menu qui a le focus reçoit déjà Entrée (clic natif) : il décide seul (« Jouer » demande l'abandon)
-  if (app === 'menu' && document.activeElement?.closest?.('#menu button')) return;
+  if (app === 'menu' && document.activeElement?.closest?.('#menu button, #tabBar button')) return; // onglets compris
   if (app === 'menu' && heroLocked && !savedRun) return; // héros verrouillé : « Jouer » est indisponible
   if (app === 'menu') {
     if (savedRun) startGame(undefined, false, savedRun);
@@ -1744,6 +1759,7 @@ let deleteArmed = 0;
 
 function refreshAccount(): void {
   renderAccount(accView, meta.pseudo);
+  profileAria(); // la puce de profil porte le nom du compte
 }
 function accountMessage(msg: string, error = false): void {
   accView.msg = msg;
@@ -1885,7 +1901,7 @@ function applyCloud(uid: string, cloud: CloudDoc): void {
   applyingCloud = false;
   alignWith(uid, cloud.updatedAt);
   applyMeta();
-  scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // l'aperçu du menu n'est pas dans applyMeta
+  scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // héros de la partie : pas dans applyMeta
   if (app === 'shop') renderShopScreen();
   else if (app === 'achievements') renderAchScreen();
   else if (app === 'library') renderLibraryScreen();

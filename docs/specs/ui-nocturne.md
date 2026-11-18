@@ -1,6 +1,6 @@
 # Interface « Nocturne » — toute l'interface du jeu, ajouts des lots compris
 
-**Statut : 🟢 Implémenté**
+**Statut : 🟡 Prêt pour le dev**
 
 Session du 17 novembre 2026, avec Jimmy. Jimmy a envoyé deux maquettes : un « kit UI »
 cartoon (boutons à contour encre, Lilita One), puis la direction **« Nocturne »**
@@ -208,3 +208,7 @@ lues, dans `docs/GATES.md` ; Lighthouse et poids des images et polices ; `perf-r
 | Navigation du menu | Grille de 7 boutons | Barre d'onglets (5) + profil + réglages |
 | Fond du menu | Scène 3D en direct | Fond illustré, portrait, animations CSS |
 | HUD | Boîtes et puces pleines | Chiffres et filets, ombre portée |
+
+## Reste à faire
+
+Décision 17 (écrans des lots L3 à L5 au kit : défi du jour avec série et missions, carte de résultat, onglet « AMIS » du classement, paliers d'arme) : non livrée avec la 1.61.0, à faire à l'intégration, après la fusion de L3. Le reste de la spec est implémenté (commit 6dacd5b et sa suite).

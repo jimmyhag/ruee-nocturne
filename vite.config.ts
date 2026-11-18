@@ -96,7 +96,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,ogg,m4a,json,webmanifest}'], // webp : images de l'interface Nocturne (public/ui)
-        globIgnores: ['screenshots/**'], // fiche d'installation seulement, inutile hors ligne
+        // fiche d'installation seulement, inutile hors ligne ; polices « latin étendu » : le français et l'anglais n'en ont
+        // pas besoin (chargées à la demande si un pseudo ou un texte l'exige), 100 ko de moins à l'installation
+        globIgnores: ['screenshots/**', 'fonts/*-latin-ext.woff2'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/__\//], // URL réservées de Firebase Hosting (/__/auth/handler, /__/firebase/init.json) : jamais index.html à leur place (phase 13)

@@ -52,8 +52,9 @@ Outils de développement : [glTF Transform](https://gltf-transform.dev/) (MIT) e
 | ---------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------- |
 | [Barlow](https://fonts.google.com/specimen/Barlow)                     | Jeremy Tribby (Tribby Type) | [SIL Open Font License 1.1](https://openfontlicense.org/) |
 | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) | Jeremy Tribby (Tribby Type) | [SIL Open Font License 1.1](https://openfontlicense.org/) |
+| [Lilita One](https://fonts.google.com/specimen/Lilita+One)             | Juan Montoreano             | [SIL Open Font License 1.1](https://openfontlicense.org/) |
 
-Depuis la 1.61.0 (interface « Nocturne »), Barlow (400, 500, 600) et Barlow Condensed (300, 500, 600, 700) remplacent Lilita One et Rubik. Les fichiers `public/fonts/*.woff2` sont les sous-ensembles latin et latin étendu distribués par Google Fonts, auto-hébergés et précachés pour que le jeu fonctionne hors ligne et qu'aucune requête ne parte vers un autre site.
+Depuis la 1.61.0 (interface « Nocturne »), Barlow (400, 500, 600) et Barlow Condensed (300, 500, 600, 700) remplacent Lilita One et Rubik dans l'interface. Lilita One reste la lettre « S » de l'icône de l'app et du favicon (`assets/icon.svg`, `public/favicon.svg`), tracée en chemin : aucun fichier de police n'est livré pour elle. Les fichiers `public/fonts/*.woff2` sont les sous-ensembles latin et latin étendu distribués par Google Fonts, auto-hébergés (le latin est précaché pour le hors-ligne, le latin étendu ne se charge que si un texte l'exige) : aucune requête ne part vers un autre site.
 
 ## Interface
 

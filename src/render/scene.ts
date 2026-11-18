@@ -911,7 +911,7 @@ export class GameScene {
     this.tRz = this.terrain.gradX;
   }
 
-  /** Change le personnage affiché (menu : aperçu ; partie : personnage choisi) et sa tenue. Idempotent. */
+  /** Change le personnage de la partie et sa tenue (préparé dès le choix au menu, qui ne le rend pas). Idempotent. */
   setCharacter(key: CharacterKey, skin = 0, force = false): void {
     // même personnage : rien à faire, sauf si le héros glTF n'a encore jamais été demandé (modèle de départ procédural)
     if (!force && key === this.modelKey && skin === this.modelSkin && (this.heroKind === 'gltf' || this.heroPending))
@@ -923,8 +923,22 @@ export class GameScene {
     const req = ++this.heroReq;
     this.heroPending = true;
     buildHero(key, skin).then(
-      (hero) => {
+      async (hero) => {
         if (req !== this.heroReq) return hero.dispose(); // personnage changé entre-temps
+        // interface Nocturne : le menu ne rend plus la scène, donc plus rien ne compilait le héros avant la première
+        // image de partie (saccade). Shaders compilés et textures envoyées ici, avant l'échange, comme pour les ennemis
+        await Promise.race([
+          this.renderer.compileAsync(hero.group, this.camera, this.scene).catch(() => undefined),
+          new Promise<void>((r) => setTimeout(r, 4000)),
+        ]);
+        if (req !== this.heroReq) return hero.dispose();
+        hero.group.traverse((o) => {
+          const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+          for (const m of Array.isArray(mat) ? mat : mat ? [mat] : []) {
+            const map = (m as THREE.MeshBasicMaterial).map;
+            if (map) this.renderer.initTexture(map);
+          }
+        });
         this.heroPending = false;
         this.swapModel(hero, hero.anim, false); // fantôme de dash : silhouette procédurale gardée (≈ 9 k tris de moins)
       },

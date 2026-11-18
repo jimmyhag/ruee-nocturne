@@ -20,6 +20,10 @@ test('The home screen follows the Nocturne mockup', async ({ page }) => {
   await openGame(page); // un joueur qui a déjà joué (tout dévoilé)
   await expect(page.locator('#accountBtn .avatar img')).toBeVisible(); // puce de profil
   await expect(page.locator('#accountLabel')).toHaveText('Invité');
+  await expect(page.locator('#accountBtn')).toHaveAttribute(
+    'aria-label',
+    /^Compte : Invité, (Record \d+:\d\d|Aucun record)$/,
+  );
   await expect(page.locator('#bestLine')).toBeVisible();
   await expect(page.locator('#menuGold')).toHaveAttribute('aria-label', /^Or : \d/);
   await expect(page.locator('#settingsBtn svg')).toBeVisible();
@@ -67,6 +71,17 @@ test('The tab bar leads to the five screens', async ({ page, hasTouch }) => {
     await expect(page.locator('#menu')).toBeVisible();
     expect(await app(page)).toBe('menu');
   }
+  if (!hasTouch) {
+    // parité clavier (règle 4) : un onglet s'ouvre au clavier (focus puis Entrée), Échap ramène à l'accueil
+    await page.locator('#achBtn').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#achievements')).toBeVisible();
+    expect(await app(page)).toBe('achievements'); // Entrée sur un onglet ne lance pas de partie
+    await expect(page.locator('#achBtn')).toHaveAttribute('aria-current', 'page');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#menu')).toBeVisible();
+    await expect(page.locator('#achBtn')).toBeFocused(); // le focus revient sur l'onglet qui a ouvert l'écran
+  }
 });
 
 test('The hero carousel changes hero by touch and keyboard', async ({ page, hasTouch }) => {
@@ -107,6 +122,15 @@ test('First open, three tabs dimmed', async ({ page, hasTouch }) => {
     await expect(page.locator('#tabTip')).toBeVisible();
     await expect(page.locator('#tabTip')).toHaveText('Se débloque après ta première partie');
     expect(await app(page)).toBe('menu'); // inactif : rien ne s'ouvre
+  }
+  if (!hasTouch) {
+    // parité clavier (règle 4) : la bulle s'affiche aussi au clavier, et elle décrit l'onglet fermé
+    await page.evaluate(() => ((document.getElementById('tabTip') as HTMLElement).hidden = true));
+    await page.locator('#libBtn').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#tabTip')).toBeVisible();
+    await expect(page.locator('#libBtn')).toHaveAttribute('aria-describedby', 'tabTip');
+    expect(await app(page)).toBe('menu');
   }
   for (const id of ['charsBtn', 'achBtn'])
     await expect(page.locator('#' + id)).not.toHaveAttribute('aria-disabled', 'true');
@@ -324,6 +348,7 @@ test('The menu no longer renders the 3D scene', async ({ page }) => {
   const f0 = await frames();
   await page.waitForTimeout(800);
   expect(await frames(), 'aucun rendu 3D au menu').toBe(f0);
+  await expect(page.locator('canvas#c')).toBeHidden(); // canvas non composité au menu
   await page.locator('#playBtn').click(); // la partie démarre comme avant
   await page.waitForFunction(() => (window as any).__game.app === 'play');
   await page.waitForFunction((f) => (window as any).__game.renderer.info.render.frame > f + 3, f0, { timeout: 20_000 });

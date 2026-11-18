@@ -400,3 +400,40 @@ test('interface : chaque écran du menu et de la partie', async ({ page }, info)
   await page.waitForTimeout(300);
   await page.screenshot(ui('accord'));
 });
+
+// Interface « Nocturne » : les deux autres états de l'accueil (maquettes Menu-Premiere-ouverture et Menu-Reprendre) et
+// l'aide. Sortie : shots/<projet>-ui-<écran>.png
+test('interface : accueil à la première ouverture, partie à reprendre, aide', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  const ui = (name: string) => shot('ui-' + name, info.project.name);
+  await openGame(page);
+  await page.evaluate(() => {
+    (window as any).__game.setMeta({ version: 5 }); // nouveau joueur
+    (document.getElementById('perf') as HTMLElement).hidden = true;
+  });
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400);
+  await page.screenshot(ui('accueil-premiere'));
+  // une partie interrompue en monde 2 à 7:10, chez un joueur avancé
+  await page.evaluate(() =>
+    (window as any).__game.setMeta({ version: 5, runs: 14, gold: 2360, bestTime: 872, character: 'eclaireuse' }),
+  );
+  await startRun(page, 7);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.debug.nextStage();
+    g.debug.stageTime(430);
+    g.debug.speed(0);
+  });
+  await page.locator('#pauseBtn').click();
+  await page.locator('#quitBtn').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'menu');
+  await page.waitForTimeout(500);
+  await page.screenshot(ui('accueil-reprendre'));
+  await page.locator('#settingsBtn').click();
+  await page.locator('#helpBtn').click();
+  await page.waitForSelector('#help:not([hidden])');
+  await page.waitForTimeout(300);
+  await page.screenshot(ui('aide'));
+});

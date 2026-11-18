@@ -64,6 +64,20 @@ export function renderHome(m: Meta, view: CharacterKey): boolean {
   }
   // onglets atténués et inactifs à la première ouverture ; ouverts dès la première partie finie
   const locked = tabsLocked(m);
-  for (const id of LOCKED_TABS) $(id).setAttribute('aria-disabled', String(locked));
+  for (const id of LOCKED_TABS) {
+    $(id).setAttribute('aria-disabled', String(locked));
+    // la bulle « Se débloque après ta première partie » décrit l'onglet fermé (lecteurs d'écran)
+    if (locked) $(id).setAttribute('aria-describedby', 'tabTip');
+    else $(id).removeAttribute('aria-describedby');
+  }
+  profileAria();
   return !open;
+}
+
+/** Nom accessible de la puce de profil : « Compte : Invité, Record 6:09 » (nom du compte et record). */
+export function profileAria(): void {
+  $('accountBtn').setAttribute(
+    'aria-label',
+    t('menu.profileAria', { name: $('accountLabel').textContent ?? '', record: $('bestLine').textContent ?? '' }),
+  );
 }

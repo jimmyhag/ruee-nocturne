@@ -1003,5 +1003,6 @@
   "account.why.2.k": "A name on the leaderboard",
   "account.why.2.v": "Your best scores go in, visible to signed-in players only.",
   "account.why.3.k": "Optional",
-  "account.why.3.v": "Without an account, everything stays on this device. Your settings too."
+  "account.why.3.v": "Without an account, everything stays on this device. Your settings too.",
+  "menu.profileAria": "Account: {name}, {record}"
 }

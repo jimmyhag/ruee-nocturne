@@ -43,7 +43,7 @@ test('fiche du personnage : 3 défis ; tenue de maître après le défi III', as
   }
   await expect(page.locator('#charInfo [data-outfit="2"]')).toHaveClass(/sel/);
   expect(await page.evaluate(() => (window as any).__game.meta.outfit.bucheron)).toBe(2);
-  await page.waitForTimeout(1200); // atlas teinté de l'aperçu du menu
+  await page.waitForTimeout(1200); // la fiche du héros, tenue de maître choisie
   await page.screenshot({ path: `shots/${info.project.name}-defis-tenue-maitre.png` });
   expect(errors).toEqual([]);
 });

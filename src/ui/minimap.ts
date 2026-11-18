@@ -33,6 +33,8 @@ export class MapView {
   /** Lot L2 : système dévoilé dans cette partie, étiqueté « Nouveau » jusqu'à la première interaction (null : rien). */
   private newKind: NewKind | null = null;
   private newLabel = '';
+  private labelFs = 0;
+  private labelFont = '';
 
   constructor(
     private readonly mini: HTMLCanvasElement,
@@ -418,7 +420,12 @@ export class MapView {
       pad = 2,
       h = fs + pad * 2;
     if (edge > 0 && (px < 0 || pz < 0 || px > edge || pz > edge)) return; // repère hors du cadre de la minicarte
-    ctx.font = `700 ${fs}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; // police du kit Nocturne
+    if (fs !== this.labelFs) {
+      // chaîne refaite seulement quand la taille change (minicarte 4 fois par seconde, grande carte à l'ouverture)
+      this.labelFs = fs;
+      this.labelFont = `700 ${fs}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; // police du kit Nocturne
+    }
+    ctx.font = this.labelFont;
     const tw = ctx.measureText(this.newLabel).width + pad * 4,
       top = pz - r * 2.4 - h;
     let left = px - tw / 2;
