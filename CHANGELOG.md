@@ -2,6 +2,31 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.61.0 — 18 nov. 2026 (décision de Jimmy, lot L3 : défi du jour court, série, missions)
+
+Un rendez-vous de 5 minutes chaque jour, une série à faire grandir et trois missions qui changent tous les jours.
+
+### Ajouté
+
+- **Série de jours** : chaque jour où tu termines le défi du jour (réussi ou raté), ta série grandit et te rapporte de l'or, de 40 à 100 selon sa longueur. Au 7e jour, puis tous les 7 jours, une tenue alternative t'est offerte (d'abord celle du personnage que tu as choisi). La flamme et le nombre de jours sont sur le bouton du défi.
+- **Joker** : un par semaine. Si tu oublies un seul jour, il sauve ta série, et le menu te le dit dès l'ouverture. Deux jours oubliés, ou un deuxième oubli dans la même semaine, et la série repart à un.
+- **Missions du jour** : trois objectifs qui changent chaque jour à minuit (heure universelle), sous les boutons du menu : jouer avec un autre personnage, finir une partie avec une arme, vaincre des ennemis, des élites, tenir quelques minutes, ouvrir des coffres, monter une arme. Elles comptent dans toutes les parties et paient 60 à 100 or à la fin de la partie qui les remplit. Sur téléphone, le bloc est replié : touche « Missions du jour » pour l'ouvrir.
+
+### Modifié
+
+- **Défi du jour en 5 minutes** : un seul monde, et si tu es encore debout à 5:00, c'est « Défi réussi ! ». Tout le monde joue la même partie avec l'Éclaireuse et le kit de départ (une arme, deux tomes, les objets de base) : tes déblocages ne comptent pas. Tes parties du jour sont classées au temps tenu, puis aux ennemis vaincus. Les parties lancées par « Jouer » ne changent pas : toujours trois mondes.
+- L'aide « Comment jouer » parle du défi, de la série et des missions.
+
+### Technique
+
+- Sim : `DAILY` (`balance.ts` : `duration` 300 s, `diffRate` 1) ; `WorldOptions.daily` fixe `World.dailyEnd` (gardé par l'instantané). Le défi se joue au monde 1 sans le totem du passage (`TOTEM_HIDDEN`, `hideUnrevealed`) ; à `dailyEnd`, `tickStage` arrête la partie (`Mode.Won`, `Ev.Victory`, bonus d'or de fin). `stageLeft` rend le chrono du défi. `worldOptions(…, true)` : Éclaireuse, `SLOTS_START`, armes et objets d'un nouveau joueur, tout dévoilé.
+- Équilibrage (règle 13) : `npm run sim -- --daily` (profil `daily`, cible « défi réussi 35–65 % »), bot moyen, 4 graines × 200 parties regroupées : **49,4 %** de défis réussis (47 / 50 / 51 / 49,5 % par graine) avec `diffRate` 1, sans accélérateur. Détail : `docs/GATES.md`, lot L3. `tools/sim-pool.mjs` lit aussi les fichiers `<préfixe>-daily-<graine>.json`.
+- Méta : `Meta.streak` (`last`, `count`, `best`, `jokerWeek`) et `Meta.missions` (`date`, `list` de `{ k, p, goal, prog, done }`) sont des clés de progression (`PROGRESS_KEYS`, synchronisées), `Meta.daily.kills` s'ajoute aux temps. `src/meta/daily.ts` : `recordDaily` (temps puis vaincus), `settleStreak`, `recordStreak`, `streakNow`, `mergeStreak` ; `src/meta/missions.ts` : tirage par `hash('missions-' + date)` dans un ordre fixe, `missionsAfterRun`, `mergeMissions`. Or et objectifs dans `STREAK` et `MISSIONS` (`balance.ts`). Fusion du nuage : la série la plus récente puis la plus longue ; les missions du même jour gardent la meilleure progression.
+- `firestore.rules` : `streak` et `missions` facultatives et bornées (clés fermées, 3 missions au plus), `daily.kills` facultatif (10 au plus). Sans compte, rien ne part (règle 8).
+- Joueurs existants : série à 0, missions tirées à la première ouverture, vaincus du défi à 0 pour les temps déjà enregistrés ; rien d'autre ne change.
+- Interface : `#dailyStreak` (flamme et nombre) sur le bouton du défi, `#streakNote` (joker), bloc `<details id="missions">` (`src/ui/missions.ts`, replié au départ sur un petit écran), `#oRewards` à l'écran de fin, bannière « Défi réussi ! » ; HUD « Défi du jour » et chrono de 5:00. `debug.warp` s'arrête à la fin du défi.
+- Tests : Vitest `src/meta/daily.test.ts`, `src/meta/missions.test.ts`, `tools/daily.test.ts` (un test par scénario de la spec, en anglais) ; `e2e/daily.spec.ts` (PC et mobile).
+
 ## 1.58.0 — 17 nov. 2026 (décision de Jimmy, lot L2 : premières parties)
 
 Un nouveau joueur découvre le jeu pas à pas. Rien ne change pour ceux qui ont déjà joué.

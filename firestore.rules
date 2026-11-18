@@ -21,7 +21,7 @@ service cloud.firestore {
         && p() is map
         && p().keys().hasOnly(['version', 'bestTime', 'bestKills', 'runs', 'totalKills', 'gold', 'goldEarned',
              'shops', 'stats', 'achievements', 'bought', 'character', 'outfits', 'outfit', 'daily', 'slots', 'pseudo',
-             'unlocks', 'itemsOff', 'codex', 'chars', 'reveal'])
+             'unlocks', 'itemsOff', 'codex', 'chars', 'reveal', 'streak', 'missions'])
         && p().achievements is list && p().achievements.size() <= 128
         && p().bought is list && p().bought.size() <= 16
         && p().outfits is list && p().outfits.size() <= 16
@@ -31,6 +31,8 @@ service cloud.firestore {
         && p().outfit is map && p().outfit.size() <= 16
         && p().stats is map && p().stats.size() <= 32
         && p().daily is map && p().daily.times is list && p().daily.times.size() <= 10
+        // lot L3 : kills de chaque partie du jour, facultatifs (un ancien client ne les écrit pas)
+        && (!('kills' in p().daily) || (p().daily.kills is list && p().daily.kills.size() <= 10))
         && p().character is string && p().character.size() <= 32
         && (!('pseudo' in p()) || (p().pseudo is string && p().pseudo.size() <= 16))
         // phase 40 (Bibliothèque) : facultatives, une sauvegarde d'un ancien client ne les a pas
@@ -40,7 +42,12 @@ service cloud.firestore {
         // phase 41 : stats par personnage (défis par personnage), facultatives
         && (!('chars' in p()) || (p().chars is map && p().chars.size() <= 16))
         // lot L2 : étapes dévoilées (0 à 4), facultatives (un ancien client ne les écrit pas)
-        && (!('reveal' in p()) || (p().reveal is int && p().reveal >= 0 && p().reveal <= 4));
+        && (!('reveal' in p()) || (p().reveal is int && p().reveal >= 0 && p().reveal <= 4))
+        // lot L3 : série de jours (last, count, best, jokerWeek) et missions du jour (date, 3 missions au plus),
+        // facultatives (un ancien client ne les écrit pas)
+        && (!('streak' in p()) || (p().streak is map && p().streak.keys().hasOnly(['last', 'count', 'best', 'jokerWeek'])))
+        && (!('missions' in p()) || (p().missions is map && p().missions.keys().hasOnly(['date', 'list'])
+             && p().missions.list is list && p().missions.list.size() <= 3));
     }
     // Classement (phase 38, décision de Jimmy) : un document par joueur, ses meilleurs scores (src/meta/board.ts).
     // Lisible par les seuls joueurs connectés, 100 lignes au plus par requête ; chacun n'écrit que le sien, avec des

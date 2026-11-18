@@ -25,7 +25,7 @@ import { AudioBus } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, itemName, synergyName } from './ui/cards';
+import { achName, achUnlock, characterName, itemName, synergyName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll } from './sim/progression';
@@ -82,7 +82,20 @@ import type { LibKind } from './meta/library';
 import { LIB_TABS, renderLibrary } from './ui/library';
 import { initKeySettings, loadKeyboardLayout, renderKeyHints } from './ui/keys';
 import type { LibTab } from './ui/library';
-import { dailyBest, dailySeed, dailyTimes, msToNextDaily, recordDaily, todayKey } from './meta/daily';
+import {
+  dailyRuns,
+  dailySeed,
+  msToNextDaily,
+  recordDaily,
+  recordStreak,
+  settleStreak,
+  streakNow,
+  todayKey,
+} from './meta/daily';
+import type { StreakGain } from './meta/daily';
+import { ensureMissions, missionGold, missionsAfterRun } from './meta/missions';
+import type { Mission } from './meta/missions';
+import { missionText, renderMissions } from './ui/missions';
 import type { PatchNote } from './meta/patch-notes';
 import { hasUnseenNotes, renderNotes } from './ui/notes';
 import { hashString } from './sim/rng';
@@ -282,6 +295,20 @@ function showOnly(id: AppMode | null): void {
   for (const s of SCREENS) $(s).hidden = s !== id;
   $('vignette').hidden = world === null; // vignette douce sur le jeu (phase 9), pas sur le menu ni ses écrans
 }
+/** Lot L3 : le joker a pardonné un jour manqué à cette ouverture (« Ta série est sauvée par le joker » au menu). */
+let jokerSaved = false;
+/**
+ * Lot L3 : à chaque affichage du menu, le jour UTC courant — missions du jour tirées au premier passage d'un nouveau jour,
+ * série réglée (joker consommé ou série perdue après un oubli). Sauvegarde si quelque chose a changé ; rend le jour.
+ */
+function dailyRefresh(): string {
+  const today = todayKey();
+  const drawn = ensureMissions(meta, today);
+  const settled = settleStreak(meta, today);
+  if (settled === 'joker') jokerSaved = true;
+  if (drawn || settled) saveMeta(meta);
+  return today;
+}
 function updateBestLine(): void {
   $('bestLine').textContent = bestLine(meta);
   $('slotLine').textContent = slotsLine(meta);
@@ -289,10 +316,15 @@ function updateBestLine(): void {
   renderCharacters($('chars'), meta, $('charInfo'));
   const daily = dailyUnlocked(meta);
   $('dailyBtn').hidden = !daily;
-  if (daily) {
-    const best = dailyBest(meta);
-    $('dailyBtn').textContent = best > 0 ? t('menu.dailyBest', { time: fmtTime(best) }) : t('menu.daily');
-  }
+  // lot L3 : la série sur le bouton du défi (flamme + nombre), le joker dit dès l'ouverture, les missions du jour
+  const today = dailyRefresh();
+  const streak = streakNow(meta, today);
+  $('dailyStreak').hidden = streak === 0;
+  $('dailyStreakN').textContent = String(streak);
+  $('dailyStreak').setAttribute('aria-label', t('menu.streak', { n: streak }));
+  $('dailyStreak').title = t('menu.streak', { n: streak });
+  $('streakNote').hidden = !(daily && jokerSaved && meta.streak.last !== today);
+  renderMissions($('missionList'), $('missionsCount'), $('missionsDone'), meta);
   const fresh = hasUnseenNotes(meta.seenNotes, VERSION, meta.runs); // 1.49.0 : une version pas encore lue
   $('notesDot').hidden = !fresh;
   $('notesBtn').classList.toggle('fresh', fresh);
@@ -442,9 +474,13 @@ function answerConsent(yes: boolean): void {
 }
 /** Feuille du défi du jour (1.48.1) : les temps du jour et le délai avant le prochain ; les règles sont statiques. */
 function renderDailyScreen(): void {
-  const times = dailyTimes(meta);
-  $('dailyTimes').textContent = times.length
-    ? t('daily.times', { list: times.map((s, i) => `${ordinal(i + 1)} ${fmtTime(s)}`).join(' · ') })
+  const runs = dailyRuns(meta); // lot L3 : temps tenu, puis vaincus
+  $('dailyTimes').textContent = runs.length
+    ? t('daily.times', {
+        list: runs
+          .map((r, i) => t('daily.run', { rank: ordinal(i + 1), time: fmtTime(r.t), kills: String(r.k) }))
+          .join(' · '),
+      })
     : t('daily.noTime');
   const min = Math.ceil(msToNextDaily() / 60000),
     h = Math.floor(min / 60),
@@ -938,6 +974,9 @@ let lastOver: {
   dailyRank: number;
   miss: ReturnType<typeof missingTime>;
   fresh: Achievement[];
+  dailyOk: boolean; // lot L3 : défi du jour tenu jusqu'au bout
+  streak: StreakGain | null; // lot L3 : jour compté dans la série (défi du jour terminé)
+  missions: Mission[]; // lot L3 : missions remplies par cette partie
 } | null = null;
 function renderOverScreen(): void {
   const o = lastOver;
@@ -974,8 +1013,18 @@ function renderOverScreen(): void {
   $('oDiff').textContent = oDiff.join(' · ');
   $('oBest').textContent = fmtTime(meta.bestTime);
   $('oGold').textContent = String(o.gold);
-  $('oTitle').textContent = t(world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : 'over.dead');
-  $('oTitle').classList.toggle('win', o.won);
+  $('oTitle').textContent = t(
+    world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : o.dailyOk ? 'over.dailyDone' : 'over.dead',
+  );
+  $('oTitle').classList.toggle('win', o.won || o.dailyOk);
+  // lot L3 : série du jour, tenue offerte, missions remplies (et leur or)
+  const rewards: string[] = [];
+  if (o.streak) rewards.push(t('over.streak', { n: o.streak.count, gold: t('gold', { n: o.streak.gold }) }));
+  if (o.streak?.outfit) rewards.push(t('over.outfitGift', { character: characterName(o.streak.outfit) }));
+  for (const ms of o.missions)
+    rewards.push(t('over.mission', { text: missionText(ms), gold: t('gold', { n: missionGold(ms) }) }));
+  $('oRewards').hidden = rewards.length === 0;
+  $('oRewards').innerHTML = rewards.map((r) => `<p>${esc(r)}</p>`).join('');
   // seul HTML autorisé : le <span class="newrec"> écrit ici ; tout texte traduit passe par esc()
   const ns = nextSlot(meta);
   $('oNext').hidden = ns < 0;
@@ -1034,9 +1083,31 @@ function gameOver(won = false): void {
   addCharRun(meta.chars, played, runCharStats(played, world, won)); // phase 41 : défis par personnage
   const fresh = checkAchievements(meta);
   let dailyRank = 0;
-  if (dailyRun) dailyRank = recordDaily(meta, Math.floor(world.t), runDay); // phase 49 : le jour de la partie, même reprise le lendemain
+  let streak: StreakGain | null = null;
+  const dailyOk = dailyRun && world.mode === Mode.Won; // lot L3 : vivant à la fin du chrono du défi
+  if (dailyRun) {
+    // phase 49 : le jour de la partie, même reprise le lendemain ; lot L3 : temps tenu puis vaincus, et la série
+    dailyRank = recordDaily(meta, Math.floor(world.t), world.kills, runDay);
+    streak = recordStreak(meta, runDay);
+  }
+  // lot L3 : missions du jour, dans toutes les parties (or crédité une fois, à la fin de la partie qui les remplit)
+  const weapons: string[] = [];
+  for (const k in world.weapons) if ((world.weapons[k as keyof typeof world.weapons] ?? 0) > 0) weapons.push(k);
+  const missions = missionsAfterRun(
+    meta,
+    {
+      char: played,
+      weapons,
+      kills: world.kills,
+      elites: world.eliteKills,
+      t: world.t,
+      chests: world.mapChestsOpened,
+      weaponLv: world.weaponLvBest,
+    },
+    todayKey(),
+  );
   saveMeta(meta);
-  lastOver = { won, rec, gold, dailyRank, miss: missingTime(meta, world.t), fresh };
+  lastOver = { won, rec, gold, dailyRank, miss: missingTime(meta, world.t), fresh, dailyOk, streak, missions };
   // phase 38 : classement en ligne (joueurs connectés) ; personnage de la partie (défi du jour : l'Éclaireuse)
   queueScore({
     stage: won ? 4 : world.stage + 1,
@@ -1045,10 +1116,14 @@ function gameOver(won = false): void {
     char: runChar,
   });
   renderOverScreen();
-  S.particles.burst(world.player.x, 1, world.player.z, won ? PAL.gold : PAL.accent, 30, 8, 8);
+  S.particles.burst(world.player.x, 1, world.player.z, won || dailyOk ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) S.shake = 0.5;
-  if (won && !world.endless) audio.victory();
+  if ((won && !world.endless) || dailyOk) audio.victory();
   else audio.death();
+  // lot L3 : bannière « Défi réussi ! » (et la tenue offerte au 7e jour de série) avant l'écran de fin
+  const gift = streak?.outfit ? t('over.outfitGift', { character: characterName(streak.outfit) }) : '';
+  if (dailyOk) hud.banner(t('over.dailyDone'), gift);
+  else if (gift) hud.banner(gift);
   setTimeout(() => {
     if (app !== 'over') return;
     showOnly('over');
@@ -1060,6 +1135,10 @@ function gameOver(won = false): void {
 /** Le boss du monde 3 est tombé à temps : « Victoire ! », continuer en monde infini ou terminer (stats comptées à la fin). */
 function openVictory(): void {
   if (!world || app === 'victory' || app === 'over') return;
+  if (world.dailyEnd > 0) {
+    gameOver(); // lot L3 : le défi du jour tenu jusqu'au bout s'arrête là (« Défi réussi ! »), sans monde infini
+    return;
+  }
   app = 'victory';
   $('vTime').textContent = fmtTime(world.t);
   $('vKills').textContent = String(world.kills);
@@ -2764,6 +2843,8 @@ function firstGesture(e: Event): void {
 }
 addEventListener('pointerup', firstGesture, true);
 addEventListener('keydown', firstGesture, true);
+// lot L3 : sur un petit écran (téléphone), les missions du jour commencent repliées : la clairière reste visible
+if (matchMedia('(max-width: 700px), (max-height: 560px)').matches) $<HTMLDetailsElement>('missions').open = false;
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
 retention.open(); // lot L1 : le lancement est une ouverture (rien ne part sans accord)

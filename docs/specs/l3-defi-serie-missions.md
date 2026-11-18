@@ -1,6 +1,6 @@
 # L3 — Défi du jour court, série de jours, missions quotidiennes
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 17 novembre 2026, avec Jimmy. Sparring mené **en délégation** : Jimmy a demandé
 de tout réaliser sans lui redemander de confirmation. Chaque question a été tranchée par

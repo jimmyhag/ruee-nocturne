@@ -1,4 +1,4 @@
-import { BOON_KEYS, CAPS, FIRST_RUNS, REVEAL, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
+import { BOON_KEYS, CAPS, FIRST_RUNS, REVEAL, DAILY, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
@@ -293,6 +293,8 @@ export class World {
   softHp = 1.5; // déclarés en flottants (forme V8 stable, voir plus bas) puis remis à 1 dans le constructeur
   softDmg = 1.5;
   softRate = 1.5;
+  // lot L3 : fin du défi du jour (s du monde ; 0 = partie complète). Fixé à la création, gardé par l'instantané
+  dailyEnd = 0;
 
   constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
@@ -348,6 +350,7 @@ export class World {
     if (opts?.bannedItems) for (const k of opts.bannedItems) this.itemBan[ITEM_KEYS.indexOf(k)] = 1; // phase 40
     if (opts?.rerolls !== undefined) this.rerolls = Math.max(0, opts.rerolls | 0);
     if (opts?.reveal !== undefined) this.reveal = Math.max(0, Math.min(REVEAL.max, opts.reveal | 0));
+    if (opts?.daily) this.dailyEnd = DAILY.duration;
     const soft = this.reveal < FIRST_RUNS.below;
     this.softHp = soft ? FIRST_RUNS.hp : 1;
     this.softDmg = soft ? FIRST_RUNS.dmg : 1;

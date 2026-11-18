@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { BOSS, BOSSTOTEM, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
+import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
 import { difficultyHp, soft, spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
@@ -17,9 +17,9 @@ export function stageSeed(start: number, k: number): number {
   return k === 0 ? start : (start + k * STAGE.seedMul) >>> 0;
 }
 
-/** Chrono restant du monde (s, ≥ 0). */
+/** Chrono restant du monde (s, ≥ 0) ; lot L3 : celui du défi du jour (DAILY.duration). */
 export function stageLeft(w: World): number {
-  return Math.max(0, STAGE.dur - w.stageT);
+  return Math.max(0, (w.dailyEnd > 0 ? w.dailyEnd : STAGE.dur) - w.stageT);
 }
 
 const poly = (c: readonly number[], m: number): number => 1 + c[0] * m + c[1] * m * m;
@@ -34,7 +34,13 @@ export function tickStage(w: World, dt: number): void {
     w.diffT = w.endlessDiff0 + w.endlessT * ENDLESS.diffRate; // phase 43 : la difficulté avance moins vite qu'en monde
     return;
   }
-  w.diffT = w.stageT + STAGE.offset[w.stage];
+  if (w.dailyEnd > 0) {
+    if (w.stageT >= w.dailyEnd) {
+      dailyDone(w);
+      return;
+    }
+    w.diffT = w.stageT * DAILY.diffRate; // lot L3 : le défi du jour reste au monde 1 (offset 0)
+  } else w.diffT = w.stageT + STAGE.offset[w.stage];
   const over = w.stageT - STAGE.dur;
   if (over > 0) {
     w.overT = over;
@@ -74,6 +80,17 @@ export function tickStage(w: World, dt: number): void {
     G.charge = inside ? G.charge + dt : 0;
     if (G.charge >= STAGE.portalHold) nextStage(w);
   }
+}
+
+/**
+ * Lot L3 : le chrono du défi du jour est arrivé au bout, le joueur est en vie : « Défi réussi ! ». Comme une victoire,
+ * la partie s'arrête (Mode.Won) avec le bonus d'or de fin (secondes survécues / 10) ; Ev.Victory, v = temps tenu.
+ */
+function dailyDone(w: World): void {
+  w.mode = Mode.Won;
+  w.gold += (w.t - w.goldBonusT) * GOLD.perSecond * w.player.goldMul;
+  w.goldBonusT = w.t;
+  w.emit(Ev.Victory, w.player.x, 1, w.player.z, w.t);
 }
 
 /** Le totem est activé : le boss du monde sort de terre de l'autre côté du totem (le joueur le voit arriver). */

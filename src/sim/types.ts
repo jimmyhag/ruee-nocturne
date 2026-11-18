@@ -339,6 +339,7 @@ export interface WorldOptions {
   rerolls?: number; // phase 31 : relances de cartes pour la partie ; undefined = RUN_REROLL.base
   bannedItems?: ItemKey[]; // phase 40 : objets jamais proposés (verrouillés ou retirés du tirage) ; undefined = aucun
   reveal?: number; // lot L2 : étapes dévoilées (0 à REVEAL.max) ; undefined = tout (défi du jour, joueur d'avant le lot)
+  daily?: boolean; // lot L3 : défi du jour court (DAILY), monde 1 seul, fin à DAILY.duration s
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey =
