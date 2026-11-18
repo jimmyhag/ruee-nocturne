@@ -22,6 +22,8 @@ import { normalizeStreak } from './daily';
 import type { Streak } from './daily';
 import { normalizeMissions } from './missions';
 import type { Missions } from './missions';
+import { normalizeFriends } from './friends';
+import type { Friend } from './friends';
 import type { CharStats } from './chars';
 import type { CharacterKey, ItemKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -78,6 +80,7 @@ export interface Meta {
   daily: { date: string; times: number[]; kills: number[] }; // défi du jour : date UTC, 10 meilleurs temps et leurs kills (lot L3)
   streak: Streak; // lot L3 : série de jours de défi (src/meta/daily.ts) ; synchronisée (la plus récente, puis la plus longue)
   missions: Missions; // lot L3 : missions du jour (src/meta/missions.ts) ; synchronisées
+  friends: Friend[]; // lot L4 : amis ajoutés par leur lien de défi (src/meta/friends.ts) ; synchronisés, 50 au plus
   slots: { weapons: number; passives: number; rerolls: number }; // phase 31 : `rerolls` = relances achetées (rangées ici : les règles Firestore bornent les clés de progress) ; emplacements débloqués (phase 10), communs à tous les personnages ; `passives` = tomes depuis la phase 12 (nom gardé : sauvegarde)
   unlocks: string[]; // phase 40 : armes et objets achetés dans la Bibliothèque ('w:faux', 'i:phenix')
   itemsOff: ItemKey[]; // phase 40 : objets retirés du tirage par le joueur
@@ -132,6 +135,7 @@ export const DEFAULT_META: Meta = {
   daily: { date: '', times: [], kills: [] },
   streak: { last: '', count: 0, best: 0, jokerWeek: '', jokerDay: '' },
   missions: { date: '', list: [] },
+  friends: [],
   slots: { ...SLOTS_START, rerolls: 0 },
   unlocks: [],
   itemsOff: [],
@@ -289,6 +293,7 @@ export function normalizeMeta(raw: unknown): Meta {
     daily: normalizeDaily(da),
     streak: normalizeStreak(r.streak),
     missions: normalizeMissions(r.missions),
+    friends: normalizeFriends(r.friends), // lot L4 : absent (joueur d'avant le lot) → liste vide
     unlocks: normalizeUnlocks(r, runs, achievements),
     itemsOff: Array.isArray(r.itemsOff)
       ? [

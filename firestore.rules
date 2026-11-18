@@ -43,7 +43,7 @@ service cloud.firestore {
         && p() is map
         && p().keys().hasOnly(['version', 'bestTime', 'bestKills', 'runs', 'totalKills', 'gold', 'goldEarned',
              'shops', 'stats', 'achievements', 'bought', 'character', 'outfits', 'outfit', 'daily', 'slots', 'pseudo',
-             'unlocks', 'itemsOff', 'codex', 'chars', 'reveal', 'streak', 'missions'])
+             'unlocks', 'itemsOff', 'codex', 'chars', 'reveal', 'streak', 'missions', 'friends'])
         && p().achievements is list && p().achievements.size() <= 128
         && p().bought is list && p().bought.size() <= 16
         && p().outfits is list && p().outfits.size() <= 16
@@ -68,7 +68,11 @@ service cloud.firestore {
         // lot L3 : série de jours et missions du jour (date, 3 missions au plus), facultatives (un ancien client ne
         // les écrit pas), bornées en clés et en valeurs
         && (!('streak' in p()) || streakOk(p().streak))
-        && (!('missions' in p()) || missionsOk(p().missions));
+        && (!('missions' in p()) || missionsOk(p().missions))
+        // lot L4 : amis ajoutés par un lien de défi (identifiant et pseudo), 50 au plus, facultatifs (ancien client)
+        // relecture : la forme des éléments aussi (identifiant et pseudo), vérifiée sur le premier comme les missions
+        && (!('friends' in p()) || (p().friends is list && p().friends.size() <= 50
+             && (p().friends.size() == 0 || (p().friends[0] is map && p().friends[0].keys().hasOnly(['uid', 'name'])))));
     }
     // Classement (phase 38, décision de Jimmy) : un document par joueur, ses meilleurs scores (src/meta/board.ts).
     // Lisible par les seuls joueurs connectés, 100 lignes au plus par requête ; chacun n'écrit que le sien, avec des
@@ -98,6 +102,38 @@ service cloud.firestore {
       allow get: if request.auth != null;
       allow list: if request.auth != null && request.query.limit <= 100;
       allow create, update: if week.matches('^[0-9]{4}-W[0-9]{2}$') && scoreOk(uid);
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+    // Défi du jour entre amis (lot L4, décision de Jimmy) : la meilleure partie du jour d'un joueur connecté avec un
+    // pseudo (src/meta/board.ts, DayDoc). Lisible par les seuls joueurs connectés (requête par identifiants, 100 au
+    // plus) ; chacun n'écrit que le sien, clés fermées, valeurs bornées (BOARD.dayTimeMax, BOARD.dayKillsMax) et une
+    // partie qui ne peut que monter : le temps d'abord, les kills à temps égal. Relecture du lot : le jour écrit est
+    // dans une fenêtre de J-2 à J+1 autour de l'heure du serveur (BOARD.dayWindow), et chaque document porte son
+    // expiration `x` = début du jour + 7 jours (BOARD.dayTtlDays) : la règle TTL (docs/DEPLOY.md) l'efface ensuite.
+    match /days/{day}/scores/{uid} {
+      function dayStart() {
+        return timestamp.date(int(day[0:4]), int(day[5:7]), int(day[8:10]));
+      }
+      function dayOk() {
+        let d = request.resource.data;
+        return request.auth != null && request.auth.uid == uid
+          && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && dayStart() > request.time - duration.value(3, 'd')
+          && dayStart() < request.time + duration.value(1, 'd')
+          && d.keys().hasOnly(['name', 'time', 'kills', 'at', 'x'])
+          && d.keys().hasAll(['name', 'time', 'kills', 'at', 'x'])
+          && d.x is timestamp && d.x == dayStart() + duration.value(7, 'd')
+          && d.name is string && d.name.size() >= 2 && d.name.size() <= 16
+          && d.time is int && d.time >= 0 && d.time <= 300
+          && d.kills is int && d.kills >= 0 && d.kills <= 20000
+          && d.at is number
+          && (resource == null
+            || d.time > resource.data.time
+            || (d.time == resource.data.time && d.kills >= resource.data.kills));
+      }
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && request.query.limit <= 100;
+      allow create, update: if dayOk();
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
     // Mesure de fréquentation (lot L1, décision de Jimmy) : un document anonyme par appareil qui l'a acceptée, écrit par

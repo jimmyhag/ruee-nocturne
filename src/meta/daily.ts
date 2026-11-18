@@ -14,6 +14,10 @@ export function todayKey(now = new Date()): string {
 export function dailySeed(date = todayKey()): number {
   return hashString('ruee-' + date) % 1000; // startGame(variant) : décalage du rng, décor identique
 }
+/** Graine de la carte du défi : même carte pour tous ce jour-là (lot L4 : aussi pour un défi d'ami d'un jour passé). */
+export function dailyMapSeed(date: string): number {
+  return (hashString('carte-' + date) % 1_000_000) + 1;
+}
 
 /**
  * Enregistre une partie du jour (temps tenu, ennemis tués) ; remet le classement à zéro si la date a changé. Classement :

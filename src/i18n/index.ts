@@ -44,6 +44,17 @@ const NF: Partial<Record<Lang, Intl.NumberFormat>> = {};
 export function fmtNum(n: number): string {
   return (NF[lang] ??= new Intl.NumberFormat(LOCALE[lang], { maximumFractionDigits: 2 })).format(n);
 }
+const DF: Partial<Record<Lang, Intl.DateTimeFormat>> = {};
+/** Lot L4 : jour AAAA-MM-JJ (UTC, celui du défi) court : « 17 nov. » en français, « Nov 17 » en anglais. */
+export function fmtDay(date: string): string {
+  const d = new Date(date + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime())) return date;
+  return (DF[lang] ??= new Intl.DateTimeFormat(LOCALE[lang], {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  })).format(d);
+}
 /** Durée `m:ss` (identique dans les deux langues). */
 export function fmtTime(s: number): string {
   s = Math.floor(Math.max(0, s));

@@ -1,6 +1,6 @@
 # Interface « Nocturne » — toute l'interface du jeu, ajouts des lots compris
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 17 novembre 2026, avec Jimmy. Jimmy a envoyé deux maquettes : un « kit UI »
 cartoon (boutons à contour encre, Lilita One), puis la direction **« Nocturne »**
@@ -211,4 +211,4 @@ lues, dans `docs/GATES.md` ; Lighthouse et poids des images et polices ; `perf-r
 
 ## Reste à faire
 
-Décision 17 : **L3 et L5 faits ; L4 à sa fusion** (carte de résultat, onglet « AMIS » du classement). L5 : filet de palier au-dessus de l'icône d'arme de la barre d'équipement (fusion de `main`). L3 (fusion de `lot/l3-defi-serie`) : flamme et série sur le rail « Défi du jour · 5 min », note du joker sous l'accroche, missions du jour en lignes à filets (repliées sur téléphone, en colonne à droite sur PC), lignes Série, Joker et Récompense dans la feuille du défi, récompenses de l'écran de fin en lignes lanterne, HUD « Défi du jour ». Le reste de la spec est implémenté (commit 6dacd5b et sa suite).
+Rien. Décision 17 : **L3, L4 et L5 faits**. L4 (fusion de `lot/l4-partage`) : « Partager » en action secondaire lanterne juste sous les chiffres de l'écran de fin (visible sans défiler sur iPhone 13 et en 1280 × 720), « Copié ! » à côté, « Défi battu ! » / « Raté de … » en libellé lanterne ; feuille « Défi de {pseudo} » comme la feuille du défi (portrait, jour en libellé, règles en lignes à filets, bouton plein « Relever le défi ») ; « À battre » sous le chrono en libellé lanterne ; onglet « AMIS » dans les onglets du Classement (titre « Défi du jour · Amis » à la place de la période, lignes et podium de Classement.dc.html, initiale du pseudo dans le rond, « Retirer » en lien de 44 px). L5 : filet de palier au-dessus de l'icône d'arme de la barre d'équipement (fusion de `main`). L3 (fusion de `lot/l3-defi-serie`) : flamme et série sur le rail « Défi du jour · 5 min », note du joker sous l'accroche, missions du jour en lignes à filets (repliées sur téléphone, en colonne à droite sur PC), lignes Série, Joker et Récompense dans la feuille du défi, récompenses de l'écran de fin en lignes lanterne, HUD « Défi du jour ». Le reste de la spec est implémenté (commit 6dacd5b et sa suite).

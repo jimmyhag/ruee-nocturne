@@ -25,7 +25,7 @@ import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
-import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
+import { LANG_SETTINGS, fmtDay, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
 import { achName, achUnlock, characterName, itemName, synergyName, weaponName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { WEAPON_KEYS } from './sim/weapons/defs';
@@ -58,7 +58,11 @@ import {
 import type { CloudDoc, SyncRecord } from './meta/sync';
 import { errorKey, initialAccountView, renderAccount } from './ui/account';
 import { initialBoardState, renderBoard, viewOf } from './ui/board';
-import { BOARD, cleanPseudo, isoWeek, suggestPseudo } from './meta/board';
+import { BOARD, cleanPseudo, friendRows, isoWeek, suggestPseudo } from './meta/board';
+import { cardText, challengeGap, challengeUrl, isChallengeHash, parseChallenge } from './meta/share-card';
+import type { CardRun, Challenge } from './meta/share-card';
+import { addFriend, removeFriend } from './meta/friends';
+import { shareText } from './platform/share';
 import type { RunScore } from './meta/board';
 import type { Account, AccountUser } from './platform/account'; // type seulement : firebase reste dans son chunk
 import {
@@ -85,6 +89,7 @@ import { LIB_TABS, renderLibrary } from './ui/library';
 import { initKeySettings, loadKeyboardLayout, renderKeyHints } from './ui/keys';
 import type { LibTab } from './ui/library';
 import {
+  dailyMapSeed,
   dailyRuns,
   dailySeed,
   msToNextDaily,
@@ -101,7 +106,6 @@ import type { Mission } from './meta/missions';
 import { missionText, renderMissions } from './ui/missions';
 import type { PatchNote } from './meta/patch-notes';
 import { hasUnseenNotes, renderNotes } from './ui/notes';
-import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
 import { revealAfterRun, revealNews } from './meta/reveal';
 import {
@@ -191,6 +195,7 @@ type AppMode =
   | 'characters'
   | 'help'
   | 'daily'
+  | 'challenge'
   | 'notes'
   | 'consent'
   | 'merchant'
@@ -211,6 +216,7 @@ const SCREENS = [
   'characters',
   'help',
   'daily',
+  'challenge',
   'notes',
   'consent',
   'map',
@@ -225,11 +231,16 @@ let savedRun: SavedRun | null = null;
 let runChar = 'eclaireuse';
 let runOutfit = 0;
 let runDay = ''; // défi du jour : le jour de la partie (reprise le lendemain, elle compte pour son jour)
+// lot L4 : le défi d'un ami (lien). D'un jour passé, il se joue avec la graine et les règles de ce jour-là mais ne compte
+// ni pour la série ni pour le classement du jour (`runRanked` faux) ; son score à battre s'affiche sous le chrono.
+let runRanked = true;
+let runBeat: { t: number; k: number } | null = null;
+let linkChallenge: Challenge | null = null; // défi reçu par lien, sur sa feuille au menu
 /** Choix faits dans la partie (cartes, relances, achats) : avec le temps de jeu, dit si l'état a changé depuis l'écriture. */
 let runEdits = 0;
 let runSavedKey = '';
 /** Lancement en attente d'une confirmation d'abandon (« Jouer » ou défi du jour alors qu'une partie attend). */
-let abandonFor: { daily: boolean } | null = null;
+let abandonFor: { daily: boolean; challenge: Challenge | null } | null = null;
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
 const runStats = { dards: 0, elites: 0, bosses: 0, won: false };
 let lastVibe = 0;
@@ -377,7 +388,8 @@ function dailyRefresh(): string {
   const today = todayKey();
   const drawn = ensureMissions(meta, today);
   // relecture du lot L3 : un défi gardé du lendemain du dernier jour compté, repris après minuit, comptera pour son jour
-  const settled = settleStreak(meta, today, savedRun?.daily ? (savedRun.day ?? '') : '');
+  // lot L4 : pas le défi gardé d'un ami d'un jour passé, qui ne compte pas pour la série
+  const settled = settleStreak(meta, today, savedRun?.daily && savedRun.ranked !== false ? (savedRun.day ?? '') : '');
   if (settled === 'joker') jokerSaved = true;
   if (drawn || settled) saveMeta(meta);
   return today;
@@ -676,7 +688,9 @@ function applyLang(): void {
   else if (app === 'achievements') renderAchScreen();
   else if (app === 'library') renderLibraryScreen();
   else if (app === 'daily') renderDailyScreen();
+  else if (app === 'challenge') renderChallenge();
   else if (app === 'notes') renderNotesScreen();
+  if (world) hud.setBeat(beatText()); // lot L4
 }
 /** Après tout remplacement de la méta (import, effacement, IndexedDB, tests) : applique la langue si elle change. */
 function syncLang(): void {
@@ -721,18 +735,29 @@ addEventListener('keydown', (e) => {
 // en jeu normal, la date pour le défi du jour (même carte pour tous), MAP.seed quand un test impose sa variante.
 const DECOR_SEED = MAP.seed;
 let decorSeed = DECOR_SEED; // graine du décor actuellement construit dans la scène
-function mapSeedFor(variant: number | undefined, daily: boolean): number {
-  if (daily) return (hashString('carte-' + todayKey()) % 1_000_000) + 1;
+function mapSeedFor(variant: number | undefined, daily: boolean, day: string): number {
+  if (daily) return dailyMapSeed(day); // lot L4 : le jour du défi (celui d'un ami peut être passé)
   if (variant !== undefined) return debugMapSeed ?? DECOR_SEED;
   return (Date.now() % 1_000_000_007) + 1;
 }
 /** Graine imposée par le débogage (tests e2e) aux parties lancées avec une variante. */
 let debugMapSeed: number | null = null;
 
-let startWanted: { variant?: number; daily: boolean; resume: SavedRun | null } | null = null;
+let startWanted: {
+  variant?: number;
+  daily: boolean;
+  resume: SavedRun | null;
+  challenge: Challenge | null;
+} | null = null;
 /** Attente des modèles des ennemis au premier départ de la session (une seule fois). */
 let modelsWaited = false;
-function startGame(variant?: number, daily = false, resume: SavedRun | null = null): void {
+function startGame(
+  variant?: number,
+  daily = false,
+  resume: SavedRun | null = null,
+  challenge: Challenge | null = null,
+): void {
+  if (challenge) daily = true; // lot L4 : le défi d'un ami se joue avec les règles du défi du jour
   timestopOn = false; // phase 35
   bossTotemNote = -1; // phase 51 : le nombre de totems de boss se réannonce à chaque partie
   document.body.classList.remove('timestop');
@@ -742,7 +767,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   }
   if (!scene || !sceneReady) {
     // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
-    if (!startWanted) startWanted = { variant, daily, resume }; // la première intention (ex. défi du jour) l'emporte
+    if (!startWanted) startWanted = { variant, daily, resume, challenge }; // la première intention (ex. défi du jour) l'emporte
     playLoading = true;
     setPlayState();
     loadScene().then(
@@ -751,7 +776,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
         startWanted = null;
         playLoading = false;
         setPlayState();
-        if (w) startGame(w.variant, w.daily, w.resume);
+        if (w) startGame(w.variant, w.daily, w.resume, w.challenge);
       },
       () => {
         // module introuvable (réseau coupé au tout premier lancement) : on laisse réessayer
@@ -773,7 +798,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
     Promise.race([scene.enemiesReady, new Promise<void>((r) => setTimeout(r, 8000))]).then(() => {
       playLoading = false;
       setPlayState();
-      startGame(variant, daily, resume);
+      startGame(variant, daily, resume, challenge);
     });
     return;
   }
@@ -795,12 +820,16 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
     runChar = resume.character;
     runOutfit = resume.outfit;
     runDay = resume.day ?? todayKey();
+    runRanked = resume.ranked !== false; // sauvegarde d'avant le lot L4 : un défi du jour qui compte
+    runBeat = readBeat(resume.beat);
   } else {
     countAbandon(); // lot L2 : la partie remplacée compte pour le dévoilement après une minute de jeu
     forgetRun(); // une nouvelle partie remplace celle qui attendait (abandon confirmé au menu)
     runChar = daily ? 'eclaireuse' : meta.character;
     runOutfit = daily ? 0 : outfitOf(meta, meta.character);
-    runDay = todayKey();
+    runDay = challenge ? challenge.date : todayKey();
+    runRanked = !challenge || challenge.date === todayKey(); // décision 4 : seul le défi d'aujourd'hui compte
+    runBeat = challenge ? { t: challenge.t, k: challenge.k } : null;
   }
   S.setCharacter(runChar as CharacterKey, runOutfit);
   audio.init();
@@ -815,7 +844,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   if (restored) world = restored;
   else {
     // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
-    world = new World(mapSeedFor(variant, daily), worldOptions(meta, unlockedWeapons(meta), daily));
+    world = new World(mapSeedFor(variant, daily, runDay), worldOptions(meta, unlockedWeapons(meta), daily));
   }
   if (world.seed !== decorSeed) {
     S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
@@ -826,7 +855,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   if (!restored) {
     // on décale le rng selon l'horloge pour que deux runs diffèrent (le décor, lui, utilise seed ^ constante)
     // `variant` (debug/tests) remplace l'horloge ; le défi du jour utilise la seed de la date : même run pour tous
-    const skips = (daily ? dailySeed() : (variant ?? Date.now() % 1000)) | 0;
+    const skips = (daily ? dailySeed(runDay) : (variant ?? Date.now() % 1000)) | 0;
     for (let i = 0; i < skips; i++) world.rng.next();
     startRun(world);
   }
@@ -838,6 +867,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   $('touch').hidden = !input.isTouch;
   hud.reset();
   hud.kit(world);
+  hud.setBeat(beatText()); // lot L4 : score à battre du défi d'un ami
   // lot L2 : une étape dévoilée s'annonce au début de la partie qui l'apporte (pas à la reprise, pas au défi du jour)
   const news = restored ? null : revealNews(meta, daily);
   mapView.setNew(news === null || news === 'slide' ? null : news, t('reveal.tag'));
@@ -898,6 +928,8 @@ function saveRun(): void {
       outfit: runOutfit,
       daily: dailyRun,
       day: runDay,
+      ranked: runRanked,
+      beat: runBeat ?? undefined,
       runStats: { dards: runStats.dards, elites: runStats.elites, bosses: runStats.bosses },
       summary: { stage: w.stage + 1, stageT: w.stageT, t: w.t, endless: w.endless, kills: w.kills },
     };
@@ -950,14 +982,25 @@ function updateResumeBtn(): void {
   $('abandonRow').hidden = abandonFor === null;
 }
 /** « Jouer » ou défi du jour : si une partie attend, on demande d'abord s'il faut l'abandonner. */
-function playNew(daily: boolean): void {
+function playNew(daily: boolean, challenge: Challenge | null = null): void {
   if (savedRun) {
-    abandonFor = { daily };
+    abandonFor = { daily, challenge };
     updateResumeBtn();
     $('abandonNoBtn').focus({ preventScroll: true });
     return;
   }
-  startGame(undefined, daily);
+  startGame(undefined, daily, null, challenge);
+}
+/** Lot L4 : score à battre lu dans une partie gardée (jamais cru tel quel). */
+function readBeat(raw: unknown): { t: number; k: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const ok = (v: unknown, max: number) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= max;
+  return ok(o.t, BOARD.dayTimeMax) && ok(o.k, BOARD.dayKillsMax) ? { t: o.t as number, k: o.k as number } : null;
+}
+/** Lot L4 : « À battre : 5:00 · 412 » sous le chrono ('' hors du défi d'un ami). */
+function beatText(): string {
+  return runBeat ? t('challenge.toBeat', { time: fmtTime(runBeat.t), kills: String(runBeat.k) }) : '';
 }
 /**
  * Phase 37 : arrivée dans un nouveau monde (la sim a déjà construit la carte). Fondu au noir, décor et minicarte
@@ -1165,6 +1208,8 @@ let lastOver: {
   dailyOk: boolean; // lot L3 : défi du jour tenu jusqu'au bout
   streak: StreakGain | null; // lot L3 : jour compté dans la série (défi du jour terminé)
   missions: Mission[]; // lot L3 : missions remplies par cette partie
+  card: CardRun | null; // lot L4 : carte de résultat (défi du jour, aussi celui d'un ami)
+  gap: { t: number; k: number } | null | undefined; // lot L4 : défi d'un ami (null : battu) ; undefined : pas de défi
 } | null = null;
 function renderOverScreen(): void {
   const o = lastOver;
@@ -1213,6 +1258,17 @@ function renderOverScreen(): void {
     rewards.push(t('over.mission', { text: missionText(ms), gold: t('gold', { n: missionGold(ms) }) }));
   $('oRewards').hidden = rewards.length === 0;
   $('oRewards').innerHTML = rewards.map((r) => `<p>${esc(r)}</p>`).join('');
+  // lot L4 : défi d'un ami battu, ou raté de combien (temps, ou kills à temps égal) ; bouton « Partager » du défi
+  $('oBeat').hidden = o.gap === undefined;
+  $('oBeat').textContent =
+    o.gap === undefined
+      ? ''
+      : o.gap === null
+        ? t('challenge.beaten')
+        : t('challenge.missed', {
+            gap: o.gap.t > 0 ? fmtTime(o.gap.t) : t('challenge.gapKills', { n: o.gap.k }),
+          });
+  $('shareBox').hidden = !o.card;
   // seul HTML autorisé : le <span class="newrec"> écrit ici ; tout texte traduit passe par esc()
   const ns = nextSlot(meta);
   $('oNext').hidden = ns < 0;
@@ -1273,8 +1329,9 @@ function gameOver(won = false): void {
   let dailyRank = 0;
   let streak: StreakGain | null = null;
   const dailyOk = dailyRun && world.mode === Mode.Won; // lot L3 : vivant à la fin du chrono du défi
-  if (dailyRun) {
-    // phase 49 : le jour de la partie, même reprise le lendemain ; lot L3 : temps tenu puis vaincus, et la série
+  if (dailyRun && runRanked) {
+    // phase 49 : le jour de la partie, même reprise le lendemain ; lot L3 : temps tenu puis vaincus, et la série ;
+    // lot L4 : pas le défi d'un ami d'un jour passé (il compte pour l'or et les missions, comme une partie)
     dailyRank = recordDaily(meta, Math.floor(world.t), world.kills, runDay);
     streak = recordStreak(meta, runDay);
   }
@@ -1295,13 +1352,40 @@ function gameOver(won = false): void {
     todayKey(),
   );
   saveMeta(meta);
-  lastOver = { won, rec, gold, dailyRank, miss: missingTime(meta, world.t), fresh, dailyOk, streak, missions };
-  // phase 38 : classement en ligne (joueurs connectés) ; personnage de la partie (défi du jour : l'Éclaireuse)
+  const card: CardRun | null = dailyRun
+    ? // la série d'aujourd'hui ne figure pas sur la carte d'un défi d'un jour passé
+      {
+        date: runDay,
+        t: Math.floor(world.t),
+        k: world.kills,
+        ok: dailyOk,
+        streak: runRanked ? streakNow(meta, todayKey()) : 0,
+      }
+    : null;
+  const gap = runBeat ? challengeGap({ t: world.t, k: world.kills }, runBeat) : undefined;
+  lastOver = {
+    won,
+    rec,
+    gold,
+    dailyRank,
+    miss: missingTime(meta, world.t),
+    fresh,
+    dailyOk,
+    streak,
+    missions,
+    card,
+    gap,
+  };
+  $('shareMsg').textContent = '';
+  $('shareText').hidden = true;
+  // phase 38 : classement en ligne (joueurs connectés) ; personnage de la partie (défi du jour : l'Éclaireuse) ;
+  // lot L4 : un défi du jour qui compte est aussi publié pour le classement du jour entre amis
   queueScore({
     stage: won ? 4 : world.stage + 1,
     time: Math.floor(world.t),
     kills: world.kills,
     char: runChar,
+    ...(dailyRun && runRanked ? { day: runDay } : {}),
   });
   renderOverScreen();
   S.particles.burst(world.player.x, 1, world.player.z, won || dailyOk ? PAL.gold : PAL.accent, 30, 8, 8);
@@ -1366,10 +1450,11 @@ $('resumeRunBtn').onclick = () => {
 };
 $('abandonYesBtn').onclick = () => {
   const d = abandonFor?.daily ?? false;
+  const c = abandonFor?.challenge ?? null;
   countAbandon();
   forgetRun();
   updateResumeBtn();
-  startGame(undefined, d);
+  startGame(undefined, d, null, c);
 };
 $('abandonNoBtn').onclick = () => {
   abandonFor = null;
@@ -1383,10 +1468,52 @@ $('dailyPlayBtn').onclick = () => {
   playNew(true);
 };
 addEventListener('keydown', (e) => {
-  if ((app !== 'daily' && app !== 'notes') || e.repeat || e.code !== 'Escape') return;
+  if ((app !== 'daily' && app !== 'notes' && app !== 'challenge') || e.repeat || e.code !== 'Escape') return;
   e.preventDefault();
   closeScreen();
 });
+// ---------- lot L4 : carte de résultat et défi lancé à un ami ----------
+/** « Partager » (écran de fin d'un défi du jour) : partage natif, sinon presse-papiers, sinon texte sélectionné. */
+async function shareResult(): Promise<void> {
+  const card = lastOver?.card;
+  if (!card || app !== 'over') return;
+  // décision 3 : le pseudo si le joueur en a un, son identifiant s'il est connecté avec ce pseudo (ami au retour)
+  const uid = meta.pseudo ? (account?.user?.uid ?? '') : '';
+  const text = cardText(card, challengeUrl(location.origin, card, meta.pseudo, uid));
+  const r = await shareText(text);
+  const ta = $<HTMLTextAreaElement>('shareText');
+  $('shareMsg').textContent = r === 'copied' ? t('share.copied') : r === 'manual' ? t('share.manual') : '';
+  ta.hidden = r !== 'manual';
+  if (r === 'manual') {
+    ta.value = text;
+    ta.focus({ preventScroll: true });
+    ta.select();
+  }
+}
+$('shareBtn').onclick = () => void shareResult();
+/** Feuille « Défi de {pseudo} » : le score à battre et « Relever le défi » (focus), Échap la ferme. */
+function renderChallenge(): void {
+  const c = linkChallenge;
+  if (!c) return;
+  $('challengeTitle').textContent = c.name ? t('challenge.title', { name: c.name }) : t('challenge.titleAnon');
+  $('challengeScore').textContent = t('challenge.score', { time: fmtTime(c.t), kills: String(c.k) });
+  $('challengeDay').textContent = t('share.title', { date: fmtDay(c.date) });
+}
+function openChallenge(c: Challenge): void {
+  linkChallenge = c;
+  backTo = 'menu';
+  app = 'challenge';
+  renderChallenge();
+  showOnly('challenge');
+  $('challengePlayBtn').focus({ preventScroll: true });
+}
+$('challengeBackBtn').onclick = closeScreen;
+$('challengePlayBtn').onclick = () => {
+  const c = linkChallenge;
+  if (app !== 'challenge' || !c) return;
+  closeScreen();
+  playNew(true, c);
+};
 $('consentYesBtn').onclick = () => answerConsent(true);
 $('consentNoBtn').onclick = () => answerConsent(false);
 addEventListener('keydown', (e) => {
@@ -1504,16 +1631,33 @@ $('boardTabs').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-view]') as HTMLElement | null;
   if (!b) return;
   boardState.view = viewOf(b.dataset.view, boardState.view);
+  boardState.friends = false; // lot L4 : quitte l'onglet « Amis »
   void refreshBoard();
 });
 $('boardAll').onclick = () => {
   boardState.week = false;
+  boardState.friends = false;
   void refreshBoard();
 };
 $('boardWeek').onclick = () => {
   boardState.week = true;
+  boardState.friends = false;
   void refreshBoard();
 };
+$('boardFriends').onclick = () => {
+  boardState.friends = true; // lot L4 : défi du jour entre amis
+  void refreshBoard();
+};
+// lot L4 : « Retirer » un ami (onglet du défi du jour) ; la liste est synchronisée avec la progression
+$('boardList').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-remove]') as HTMLElement | null;
+  const uid = b?.dataset.remove;
+  if (!uid || !removeFriend(meta.friends, uid)) return;
+  saveMeta(meta);
+  boardState.friendRows = boardState.friendRows.filter((r) => r.uid !== uid);
+  renderBoard(boardState);
+  if (!input.isTouch) $('boardFriends').focus({ preventScroll: true }); // le bouton touché a disparu
+});
 $('charactersBackBtn').onclick = closeScreen;
 $('helpBtn').onclick = () => openScreen('help');
 $('helpBackBtn').onclick = closeScreen;
@@ -1796,6 +1940,8 @@ input.onConfirm = () => {
   // un bouton du menu qui a le focus reçoit déjà Entrée (clic natif) : il décide seul (« Jouer » demande l'abandon)
   if (app === 'menu' && document.activeElement?.closest?.('#menu button, #tabBar button')) return; // onglets compris
   if (app === 'menu' && heroLocked && !savedRun) return; // héros verrouillé : « Jouer » est indisponible
+  // lot L4 : à l'écran de fin, un bouton qui a le focus (« Partager ») reçoit Entrée seul : pas de nouvelle partie
+  if (app === 'over' && document.activeElement?.closest?.('#over button, #over textarea')) return;
   if (app === 'menu') {
     if (savedRun) startGame(undefined, false, savedRun);
     else startGame();
@@ -1944,6 +2090,7 @@ function onAuthChange(u: AccountUser | null): void {
   }
   refreshAccount();
   fillPseudo(u);
+  if (u && removeFriend(meta.friends, u.uid)) saveMeta(meta); // lot L4 : jamais soi-même parmi ses amis
   if (!u) savePending([]); // déconnexion : les parties en attente ne partiront pas sous un autre compte
   if (!u) syncOk(); // 1.36.1 : plus de réessai sans compte
   if (u) void reconcileAccount();
@@ -2143,10 +2290,26 @@ async function refreshBoard(): Promise<void> {
   const u = account?.user;
   if (!account || !u) boardState.status = accountUnavailable ? 'unavailable' : 'out';
   else if (!meta.pseudo) boardState.status = 'nopseudo';
+  else if (boardState.friends && !navigator.onLine) boardState.status = 'offline';
   else boardState.status = 'loading';
   renderBoard(boardState);
   if (boardState.status !== 'loading' || !account || !u) return;
   const seq = ++boardSeq;
+  if (boardState.friends) {
+    // lot L4 : toi et tes amis, par identifiants (jamais toute la collection du jour)
+    try {
+      const docs = await account.fetchDay(todayKey(), [u.uid, ...meta.friends.map((f) => f.uid)]);
+      if (seq !== boardSeq) return;
+      boardState.uid = u.uid;
+      boardState.friendRows = friendRows({ uid: u.uid, name: meta.pseudo }, meta.friends, docs);
+      boardState.status = 'ready';
+    } catch {
+      if (seq !== boardSeq) return;
+      boardState.status = navigator.onLine ? 'error' : 'offline';
+    }
+    renderBoard(boardState);
+    return;
+  }
   try {
     const r = await account.fetchBoard(u.uid, boardState.view, boardState.week ? isoWeek(Date.now()) : null);
     if (seq !== boardSeq) return;
@@ -3112,7 +3275,7 @@ function firstGesture(e: Event): void {
   audio.init();
   // un geste sur Jouer lance la musique de partie juste après : ne pas télécharger celle du menu pour rien
   const t = e.target as Element | null;
-  if (t?.closest?.('#playBtn, #dailyPlayBtn')) return;
+  if (t?.closest?.('#playBtn, #dailyPlayBtn, #challengePlayBtn')) return;
   audio.setMusic(app === 'play' || app === 'levelup' || app === 'merchant' ? 'game' : 'menu'); // aide, réglages… : le menu
 }
 addEventListener('pointerup', firstGesture, true);
@@ -3122,8 +3285,37 @@ if (matchMedia('(max-width: 700px), (max-height: 560px)').matches) $<HTMLDetails
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
 retention.open(); // lot L1 : le lancement est une ouverture (rien ne part sans accord)
+// lot L4 : un lien de défi (`/#defi=…`, dans le fragment : rien ne part vers l'hébergeur) ouvre sa feuille au menu
+// (l'aide du premier lancement attendra la prochaine ouverture). Le fragment est retiré de l'adresse une fois lu : un
+// rechargement ne rouvre pas la feuille. Paramètres invalides : menu normal.
+/** Lit le fragment de l'adresse : le défi qu'il porte (null s'il est invalide), et le retire de l'adresse. */
+function takeLinked(): Challenge | null {
+  if (!isChallengeHash(location.hash)) return null;
+  const c = parseChallenge(location.hash, todayKey());
+  history.replaceState(history.state, '', location.pathname + location.search);
+  return c;
+}
+let linked = takeLinked();
+/** Lot L4 : le lien d'un joueur connecté avec un pseudo l'ajoute aux amis (une fois, jamais soi-même). */
+function befriendLinked(): void {
+  if (!linked?.uid) return;
+  const self = account?.user?.uid ?? syncRec?.uid ?? '';
+  if (addFriend(meta.friends, { uid: linked.uid, name: linked.name }, self)) saveMeta(meta);
+}
+if (linked) {
+  befriendLinked();
+  openChallenge(linked);
+}
+// un lien ouvert dans l'onglet où le jeu tourne déjà (même document) : la feuille s'ouvre si le joueur est au menu
+addEventListener('hashchange', () => {
+  const c = takeLinked();
+  if (!c || app !== 'menu') return;
+  linked = c;
+  befriendLinked();
+  openChallenge(c);
+});
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
-if (!meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
+if (!linked && !meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   meta.seenHelp = true;
   saveMeta(meta);
   openScreen('help');
@@ -3150,6 +3342,7 @@ loadMeta().then((m) => {
     meta = m;
     applyMeta();
   }
+  befriendLinked(); // lot L4 : la méta durable a pu remplacer celle du repli
   metaLoaded = true;
   // compte connu : charger Firebase après la méta durable (sinon IndexedDB pourrait écraser un pull) et hors du
   // chemin critique ; le menu d'un joueur sans compte ne charge jamais Firebase
@@ -3214,6 +3407,15 @@ const debugRt = installDebugHooks({
       ready: true,
       onChange: null,
       fetchBoard: () => Promise.resolve({ rows, mine: null }),
+      // lot L4 : documents du défi du jour (`opts.day`), filtrés par identifiants comme la vraie requête
+      fetchDay: (_day: string, uids: string[]) =>
+        Promise.resolve(
+          new Map(
+            ((opts?.day ?? []) as { uid: string; name: string; time: number; kills: number }[])
+              .filter((d) => uids.includes(d.uid))
+              .map((d) => [d.uid, { name: d.name, time: d.time, kills: d.kills, at: 0 }]),
+          ),
+        ),
       submitScore: (_uid: string, name: string, run: RunScore) => {
         sent.push({ name, ...run });
         return Promise.resolve();

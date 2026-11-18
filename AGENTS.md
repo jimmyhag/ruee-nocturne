@@ -82,7 +82,7 @@ retention table, read with an administrator token: `docs/DEPLOY.md`).
 
 ## Business invariants (non-negotiable)
 
-### Règles non négociables (reprises de `CLAUDE.md`, mot pour mot, numéros conservés ; règle 8 complétée au lot L1)
+### Règles non négociables (reprises de `CLAUDE.md`, mot pour mot, numéros conservés ; règle 8 complétée aux lots L1 et L4)
 
 1. **Zéro allocation par frame** en régime permanent : pools d'objets, tableaux réutilisés, pas de `filter/map` dans la boucle chaude, pas de closures créées dans `step()`.
 2. **Les budgets perf de PLAN.md §4.3 sont des tests** : `npm run bench` échoue si dépassés.
@@ -91,7 +91,7 @@ retention table, read with an administrator token: `docs/DEPLOY.md`).
 5. **Pas de dépendance ajoutée sans justification** dans la PR (taille gz, alternative native évaluée). Pas de framework UI.
 6. **Three.js épinglé** : vérifier l'API de la version installée dans `node_modules/three/` avant d'utiliser une méthode. Version actuelle : 0.187 (`docs/STACK.md`). On garde le schéma « allouer les couleurs à pleine capacité puis `count = 0` » (`src/render/instancing.ts`) : il est correct sur toutes les versions.
 7. **Ne jamais modifier `prototype/`** : c'est une référence historique, pas du code vivant.
-8. Sans compte, aucune donnée utilisateur ne quitte l'appareil. Avec un compte (décision de Jimmy, phase 13), seule la progression (`PROGRESS_KEYS` de `src/meta/sync.ts`) est écrite dans Firestore `saves/{uid}` : jamais les réglages, jamais d'analytics sans décision explicite de Jimmy. Seul `src/platform/account.ts` importe `firebase`, chargé à la demande ; un joueur sans compte n'émet aucune requête (test e2e). Classement en ligne (décision de Jimmy, phase 38) : un joueur connecté qui a choisi un pseudo publie ses meilleurs scores (`scores/{uid}`, `weeks/{semaine}/scores/{uid}`, forme dans `src/meta/board.ts`), lisibles par les seuls joueurs connectés ; rien d'autre. Mesure de fréquentation (décision de Jimmy, lot L1, 17 nov. 2026) : un joueur, avec ou sans compte, qui l'a **acceptée** écrit un seul document anonyme `retention/{id}` (identifiant aléatoire, jour de l'accord, jours d'ouverture jusqu'à J30, expiration ; forme dans `docs/specs/l1-mesure-retention.md`) par l'API REST de Firestore, sans SDK ; sans accord, aucune requête (test e2e).
+8. Sans compte, aucune donnée utilisateur ne quitte l'appareil. Avec un compte (décision de Jimmy, phase 13), seule la progression (`PROGRESS_KEYS` de `src/meta/sync.ts`) est écrite dans Firestore `saves/{uid}` : jamais les réglages, jamais d'analytics sans décision explicite de Jimmy. Seul `src/platform/account.ts` importe `firebase`, chargé à la demande ; un joueur sans compte n'émet aucune requête (test e2e). Classement en ligne (décision de Jimmy, phase 38) : un joueur connecté qui a choisi un pseudo publie ses meilleurs scores (`scores/{uid}`, `weeks/{semaine}/scores/{uid}`, forme dans `src/meta/board.ts`), lisibles par les seuls joueurs connectés ; rien d'autre. Mesure de fréquentation (décision de Jimmy, lot L1, 17 nov. 2026) : un joueur, avec ou sans compte, qui l'a **acceptée** écrit un seul document anonyme `retention/{id}` (identifiant aléatoire, jour de l'accord, jours d'ouverture jusqu'à J30, expiration ; forme dans `docs/specs/l1-mesure-retention.md`) par l'API REST de Firestore, sans SDK ; sans accord, aucune requête (test e2e). Défi entre amis (décision de Jimmy, lot L4, 17 nov. 2026) : le résultat du défi du jour d'un joueur connecté avec un pseudo est publié comme ses scores de la semaine (`days/{jour}/scores/{uid}`, forme dans `src/meta/board.ts`, expiration `x` à J+7), lisible par les seuls joueurs connectés et montré dans le jeu à lui seul et aux joueurs qui ont ouvert un de ses liens de défi ; un lien de défi, que le joueur partage lui-même (`src/platform/share.ts`), porte ses paramètres dans le fragment (`/#defi=…`, jamais envoyé à l'hébergeur) et ne contient que la date, le temps, les kills, et, si l'expéditeur a un pseudo, ce pseudo, et, s'il est connecté, son identifiant de compte ; ses amis (identifiant et pseudo lus dans ces liens) font partie de sa progression ; ouvrir un lien sans compte n'émet aucune requête (test e2e).
 
 ### Chantier mobile (décisions de Jimmy, 17 nov. 2026)
 
@@ -111,8 +111,8 @@ HUD subscribe to them, never the reverse.
 | sim | `src/sim/` | Pure, deterministic game logic, fixed 60 Hz step; every numeric constant lives in `src/sim/balance.ts` | `src/sim/` only; no `three`, no DOM, no `Math.random` or `Date.now` (randomness through `w.rng`) |
 | render | `src/render/` | Three.js: reads the world, never writes to it; `InstancedMesh` for everything that repeats | `three`, `src/sim/` |
 | ui | `src/ui/` | Native DOM (no UI framework): HUD, sheets, cards | `src/sim/`, `src/render/`, `src/platform/`, `src/meta/`, `src/i18n/` |
-| platform | `src/platform/` | Input, audio, storage, PWA, the account (the only Firebase import), the retention measure (Firestore REST, no SDK) | `src/sim/`, `src/meta/` |
-| meta | `src/meta/` | Saved progression (with the progressive reveal of systems), the daily challenge and its streak, daily missions, achievements, library, sync, leaderboard and retention shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
+| platform | `src/platform/` | Input, audio, storage, PWA, sharing, the account (the only Firebase import), the retention measure (Firestore REST, no SDK) | `src/sim/`, `src/meta/` |
+| meta | `src/meta/` | Saved progression (with the progressive reveal of systems), the daily challenge and its streak, daily missions, the result card and challenge link, friends, achievements, library, sync, leaderboard and retention shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
 | i18n | `src/i18n/` | French and English strings, number formats | `src/sim/`, `src/meta/` |
 | entry | `src/main.ts`, `src/debug.ts` | Composition: the loop, the event handlers, the debug hooks (`?debug=1`) | everything |
 | tools | `tools/` | Node CLIs: simulation and bots, bench, assets, audio, icons, interface images, Lighthouse, retention reading | `src/` |
@@ -138,8 +138,8 @@ the test « frontière sim/render » (`src/sim/sim.test.ts`) checks the sim row 
 src/sim/            simulation (pure, deterministic), its tests next to each module
 src/render/         Three.js scene, instancing, effects, models
 src/ui/             DOM screens and HUD
-src/platform/       input, audio, storage, PWA, account, Firebase configuration, retention measure
-src/meta/           saved progression, progressive reveal, daily challenge and streak, daily missions, achievements, library, sync, leaderboard, retention
+src/platform/       input, audio, storage, PWA, sharing, account, Firebase configuration, retention measure
+src/meta/           saved progression, progressive reveal, daily challenge and streak, daily missions, result card and challenge link, friends, achievements, library, sync, leaderboard, retention
 src/i18n/           fr.json, en.json and the formatting helpers
 tools/              simulation CLI and bots, bench, asset, audio and interface-image pipelines, icons, Lighthouse, retention
 e2e/                Playwright specs (desktop 1280×720 and iPhone 13)

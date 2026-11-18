@@ -859,6 +859,11 @@
         color: var(--moon);
         margin-bottom: 1px;
       }
+      /* lot L4 : score à battre du défi d'un ami, sous le chrono, en libellé lanterne */
+      .time .beat {
+        margin: 3px 0 0;
+        color: var(--lantern);
+      }
       .time.over #time {
         color: var(--swarm);
         font-weight: 500;
@@ -3040,6 +3045,36 @@
       .brow.me .rank {
         color: var(--lantern);
       }
+      /* lot L4 : défi du jour entre amis ; initiale du pseudo dans le rond, « pas encore joué » estompé, « Retirer »
+         en lien souligné de 44 px de haut (cible tactile) */
+      .brow.friend .avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--f-cond);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--moon-70);
+        text-transform: uppercase;
+      }
+      .brow.friend.top .avatar {
+        font-size: 18px;
+      }
+      .brow.idle .val {
+        font-family: var(--f-text);
+        font-size: 12.5px;
+        letter-spacing: 0;
+        color: var(--moon-55);
+      }
+      .brow .fremove {
+        flex: none;
+        min-height: 44px;
+        font-size: 12.5px;
+      }
+      #boardScope {
+        min-height: 44px;
+        align-items: center;
+      }
       #boardMine:not(:empty) {
         margin-top: 8px;
         padding-top: 12px;
@@ -4037,6 +4072,29 @@
         line-height: 19px;
         color: var(--lantern);
       }
+      /* lot L4 : défi d'un ami battu ou raté ; « Partager » en action secondaire sous les chiffres, « Copié ! » à côté */
+      .beatres {
+        margin: 10px 0 0;
+        font-family: var(--f-cond);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--lantern);
+      }
+      .sharerow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--rule);
+      }
+      #over .sharerow .note {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--lantern);
+      }
       #over .note,
       #victory .note {
         margin-top: 8px;
@@ -4240,7 +4298,10 @@
           <div class="powers" id="powers"></div>
         </div>
         <!-- phase 37 : monde en cours et chrono qui descend (dépassement en rouge) -->
-        <div class="time" id="timeBox"><small id="stageLbl">Monde 1</small><span id="time">10:00</span></div>
+        <div class="time" id="timeBox">
+          <small id="stageLbl">Monde 1</small><span id="time">10:00</span
+          ><small class="beat" id="beatLbl" hidden></small>
+        </div>
         <div class="hright">
           <div class="goldc" id="goldBox" aria-label="Or de la partie" data-i18n-attr="aria-label:hud.gold">
             <i class="coin"></i><span id="goldN">0</span>
@@ -4621,6 +4682,47 @@
         <button class="btn-full" id="dailyPlayBtn" data-i18n="daily.play">Lancer le défi</button>
       </div>
     </section>
+
+    <!-- lot L4 : un lien de défi ouvre cette feuille au menu (Échap ou la flèche la ferment) ; au kit comme la feuille
+         du défi du jour : portrait, jour en libellé, règles en lignes à filets, gros bouton. Texte par textContent -->
+    <section
+      id="challenge"
+      class="screen inner"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="challengeTitle"
+    >
+      <div class="panel">
+        <header class="sheet-head">
+          <button class="back" id="challengeBackBtn" aria-label="Retour au menu" data-i18n-attr="aria-label:menu.back">
+            <svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+          </button>
+        </header>
+        <div class="sheet-title"><h2 class="h1" id="challengeTitle">Défi d'un ami</h2></div>
+        <div class="dailyhead">
+          <img src="/ui/portrait-eclaireuse.webp" alt="" loading="lazy" />
+          <div>
+            <span class="lbl" id="challengeDay"></span>
+            <p id="challengeScore"></p>
+          </div>
+        </div>
+        <dl class="rules">
+          <div>
+            <dt class="lbl" data-i18n="daily.same.k">Pour tous</dt>
+            <dd data-i18n="daily.same.v">La carte et le hasard du jour sont les mêmes pour tous les joueurs.</dd>
+          </div>
+          <div>
+            <dt class="lbl" data-i18n="daily.fair.k">À égalité</dt>
+            <dd data-i18n="daily.fair.v">
+              Tu joues l'Éclaireuse, avec toutes les armes, tous les objets et tous les emplacements.
+            </dd>
+          </div>
+        </dl>
+        <button class="btn-full" id="challengePlayBtn" data-i18n="challenge.play">Relever le défi</button>
+      </div>
+    </section>
+
     <section id="notes" class="screen inner" hidden>
       <div class="panel">
         <header class="sheet-head">
@@ -4876,6 +4978,22 @@
           </button>
         </header>
         <div class="sheet-title"><h2 class="h1" data-i18n="board.title">Classement</h2></div>
+        <!-- lot L4 : onglets et période hors de la zone des connectés, pour que l'onglet « Amis » (le défi du jour entre
+             amis) invite à se connecter sans compte (aucune requête) ; en mode amis, la période laisse place à son titre -->
+        <div class="tabs" id="boardTabs" role="group">
+          <button data-view="best" aria-pressed="true" data-i18n="board.tab.best">Meilleure partie</button
+          ><button data-view="time" aria-pressed="false" data-i18n="board.tab.time">Survie</button
+          ><button data-view="kills" aria-pressed="false" data-i18n="board.tab.kills">Kills</button
+          ><button id="boardFriends" aria-pressed="false" data-i18n="board.friendsTab">Amis</button>
+        </div>
+        <div class="boardwhen" id="boardScope">
+          <span class="seg" id="boardPeriod" role="group"
+            ><button id="boardAll" aria-pressed="true"><span data-i18n="board.all">Tous les temps</span></button
+            ><button id="boardWeek" aria-pressed="false">
+              <span data-i18n="board.week">Cette semaine</span>
+            </button></span
+          ><span class="lbl" id="boardFriendsLbl" data-i18n="board.friends" hidden>Défi du jour · Amis</span>
+        </div>
         <div id="boardInvite">
           <p class="note" id="boardInviteText">Connecte-toi pour voir le classement et y figurer.</p>
           <button class="btn-act" id="boardAccountBtn" data-i18n="board.toAccount">Se connecter</button>
@@ -4885,19 +5003,6 @@
           <button class="btn-act" id="boardPseudoBtn" data-i18n="board.toPseudo">Choisir un pseudo</button>
         </div>
         <div id="boardLive" hidden>
-          <div class="tabs" id="boardTabs" role="group">
-            <button data-view="best" aria-pressed="true" data-i18n="board.tab.best">Meilleure partie</button
-            ><button data-view="time" aria-pressed="false" data-i18n="board.tab.time">Survie</button
-            ><button data-view="kills" aria-pressed="false" data-i18n="board.tab.kills">Kills</button>
-          </div>
-          <div class="boardwhen">
-            <span class="seg" role="group"
-              ><button id="boardAll" aria-pressed="true"><span data-i18n="board.all">Tous les temps</span></button
-              ><button id="boardWeek" aria-pressed="false">
-                <span data-i18n="board.week">Cette semaine</span>
-              </button></span
-            >
-          </div>
           <p class="note" id="boardMsg"></p>
           <ol class="board" id="boardList"></ol>
           <p class="note" id="boardMine"></p>
@@ -5126,6 +5231,22 @@
           <div><b id="oKills">0</b><span data-i18n="over.kills">Vaincus</span></div>
           <div><b id="oGold">0</b><span data-i18n="over.gold">Or</span></div>
           <div><b id="oBest">0:00</b><span data-i18n="over.best">Record</span></div>
+        </div>
+        <!-- lot L4 : défi d'un ami, battu ou raté de combien ; puis la carte de résultat d'un défi du jour (partage
+             natif, sinon presse-papiers, sinon texte à copier), juste sous les chiffres : visible sans défiler -->
+        <p class="beatres" id="oBeat" hidden></p>
+        <div class="settings" id="shareBox" hidden>
+          <div class="sharerow">
+            <button class="btn-act" id="shareBtn" data-i18n="share.btn">Partager</button>
+            <p class="note" id="shareMsg" role="status" aria-live="polite"></p>
+          </div>
+          <textarea
+            id="shareText"
+            readonly
+            hidden
+            aria-label="Texte à partager"
+            data-i18n-attr="aria-label:share.textAria"
+          ></textarea>
         </div>
         <div class="gear static" id="oGear" aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
         <p class="note" id="oDiff" hidden></p>

@@ -16,6 +16,8 @@ export interface SavedRun {
   outfit: number;
   daily: boolean;
   day?: string; // défi du jour : jour de la partie (todayKey)
+  ranked?: boolean; // lot L4 : faux pour le défi d'un ami d'un jour passé (ni série, ni classement du jour) ; absent = vrai
+  beat?: { t: number; k: number }; // lot L4 : score à battre du défi d'un ami
   runStats: { dards: number; elites: number; bosses: number };
   summary: { stage: number; stageT: number; t: number; endless: boolean; kills: number };
 }

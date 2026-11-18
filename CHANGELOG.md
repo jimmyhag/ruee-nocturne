@@ -2,6 +2,25 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.62.0 — 18 nov. 2026 (décision de Jimmy, lot L4 : partage, défi à un pote, classement entre amis)
+
+Ton défi du jour se partage, se lance à un ami et se compare entre amis.
+
+### Ajouté
+
+- **Partager ton défi** : à la fin d'un défi du jour, le bouton « Partager » prépare ton résultat, sans rien dévoiler de ta partie : le jour, ton temps (✅ si tu as tenu jusqu'au bout, ❌ sinon), tes ennemis vaincus, ta série et un lien pour te battre. Sur téléphone, la feuille de partage s'ouvre ; ailleurs, le texte est copié (« Copié ! »).
+- **Défi lancé à un pote** : ton ami ouvre le lien et tombe sur « Défi de… : 5:00 · 412 kills — à toi ! ». « Relever le défi » lance exactement la même partie que la tienne. Pendant la partie, le score à battre reste sous le chrono, et à la fin : « Défi battu ! » ou « Raté de … ». Le défi d'aujourd'hui compte pour ta série et tes parties du jour ; celui d'un jour passé se rejoue à l'identique, mais ne compte ni pour la série ni pour le classement du jour (l'or et les missions comptent toujours).
+- **Classement du jour entre amis** : le lien d'un ami connecté avec un pseudo l'ajoute à tes amis ; connecté avec un pseudo, tu les vois dans le nouvel onglet « Défi du jour · Amis » du classement, avec toi, triés par temps puis par ennemis vaincus. Ton résultat du jour n'est montré qu'à toi et aux joueurs qui ont ouvert un de tes liens, et s'efface 7 jours plus tard. Un ami se retire d'un bouton.
+
+### Technique
+
+- Spec : `docs/specs/l4-partage-defi-amis.md`. Carte et lien : `src/meta/share-card.ts` (pur : `cardText`, `challengeUrl`, `parseChallenge` qui valide et borne chaque paramètre, `challengeGap`) ; partage : `src/platform/share.ts` (`navigator.share`, sinon `navigator.clipboard.writeText`, sinon zone de texte sélectionnée ; règle 11). Le lien porte ses paramètres dans le fragment (`/#defi=…&t=…&k=…&n=…&u=…`) : ni pseudo ni identifiant ne partent vers l'hébergeur ; le fragment est lu au démarrage (et à `hashchange` au menu), puis retiré de l'adresse ; aucun paramètre ne passe par `innerHTML`. La carte d'un défi d'un jour passé ne montre pas la série d'aujourd'hui.
+- Défi d'un ami : `startGame(…, challenge)` joue la graine du jour du lien (`dailyMapSeed`, `dailySeed`) avec les règles du défi ; `runRanked` faux pour un jour passé (ni `recordDaily`, ni `recordStreak`, ni publication du jour). Partie gardée : `SavedRun.ranked` et `SavedRun.beat`. HUD : `#beatLbl` écrit au départ, jamais par image.
+- Amis : `Meta.friends` (`src/meta/friends.ts`, identifiant et pseudo, 50 au plus, sans doublon, jamais soi-même) est une clé de progression (`PROGRESS_KEYS`, synchronisée) ; absente chez un joueur d'avant le lot : liste vide.
+- Classement du jour : `days/{AAAA-MM-JJ}/scores/{uid}` (`name`, `time`, `kills`, `at`, et l'expiration `x` = début du jour + 7 jours ; `mergeDay`, `readDay`, `friendRows`, `dayExpiry`, `dayWritable` dans `src/meta/board.ts`), écrit avec les scores de la semaine par `src/platform/account.ts` tant que le jour est dans la fenêtre des règles, lu par identifiants (`documentId() in`, 30 par requête). `firestore.rules` : jour au format AAAA-MM-JJ et dans une fenêtre de J-2 à J+1 autour de l'heure du serveur, `x` exigé et égal au début du jour + 7 jours, lecture des connectés (100 au plus), écriture de son seul document, clés fermées, `time` ≤ 300, `kills` ≤ 20000, meilleure partie qui ne peut que monter (temps, puis kills) ; `friends` bornée à 50, éléments `{ uid, name }`. Suppression du compte : le document du jour en cours est effacé ; ceux des jours passés expirent d'eux-mêmes (règle TTL `days`/`x` à activer, `docs/DEPLOY.md`). Bouton « Retirer » à 44 px de haut.
+- Règle 8 complétée (`AGENTS.md`, `PRIVACY.md`, À propos). Sans compte, ouvrir un lien, jouer et partager n'émettent aucune requête (test e2e).
+- Tests : Vitest `src/meta/share-card.test.ts` ; e2e `e2e/defi-amis.spec.ts` (PC et iPhone 13), un test par scénario de la spec.
+
 ## 1.61.0 — 18 nov. 2026 (décision de Jimmy : interface « Nocturne »)
 
 Nouvelle interface : tout le jeu passe à la nuit, plus épuré, du menu jusqu'au dernier chiffre en partie.
@@ -30,6 +49,7 @@ Nouvelle interface : tout le jeu passe à la nuit, plus épuré, du menu jusqu'a
 - Écrans refaits : `src/ui/meta-ui.ts` (héros, emplacements par section, succès avec onglets, défis), `src/ui/library.ts` (fiche + grille), `src/ui/board.ts` (avatars, podium), `src/ui/account.ts` (« Invité » ou pseudo sur la puce de profil). Échap ferme tout écran intérieur, le focus revient sur ce qui l'a ouvert.
 - HUD : même DOM, mêmes caches, aucune écriture de plus par image (règle 1) ; seul le CSS change. `hud.banner(texte, ton, sous-titre, durée)` : ton `reward`, `danger` ou `info`. Rareté des cartes : `.rar` (commune, rare `#7FB4FF`, épique lanterne).
 - Lot L5 au kit : le palier visuel d'une arme est un filet de 2 px au-dessus de son icône dans la barre d'équipement (I argent bleuté, II lanterne, III prisme animé, coupé par « Effets réduits » et `prefers-reduced-motion`), comme la rareté d'un objet, au lieu d'un cadre.
+- Lot L4 au kit (à la fusion des deux branches) : « Partager » en action secondaire sous les chiffres de l'écran de fin, feuille « Défi de {pseudo} » comme celle du défi du jour, « À battre » sous le chrono en libellé lanterne, onglet « Amis » du Classement (lignes et podium de la maquette, « Retirer » en lien de 44 px).
 - Lot L3 au kit : flamme et série sur le rail « Défi du jour · 5 min » (le temps du jour s'efface quand une série est en cours), note du joker en lanterne sous l'accroche, missions du jour en lignes à filets comme le prochain objectif (`src/ui/missions.ts` ; repliées en surimpression sur téléphone, colonne à droite sur PC), feuille du défi avec lignes Série, Joker et Récompense (`streakPreview`, `src/meta/daily.ts`) et parties du jour en colonnes (temps, vaincus), récompenses de fin en lignes lanterne, bannière « Défi réussi ! » au ton `reward`.
 - Tests : `e2e/nocturne.spec.ts` (un test par scénario de la spec, PC et mobile), `src/ui/home.test.ts` ; specs e2e mises à jour pour les `id` et textes changés (réglages en interrupteurs et choix, avatars `.char`, achat d'un héros depuis sa fiche, fiche de la Bibliothèque). Captures avant / après : `docs/captures/nocturne/`.
 
