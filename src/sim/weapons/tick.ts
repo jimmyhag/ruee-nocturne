@@ -196,7 +196,7 @@ export function tickWeapons(w: World, dt: number): void {
           seen[seenN++] = cur;
           const e = w.enemies[cur];
           const cy = e.y;
-          w.emit(Ev.Bolt, px, py, pz, 0, e.x, cy, e.z);
+          w.emit(Ev.Bolt, px, py, pz, 1 + HitSrc.Foudre, e.x, cy, e.z); // v : 1 + index de l'arme (HitSrc = WEAPON_KEYS ; palier du rendu)
           hitEnemy(w, cur, s.dmg, 2, e.x + 0.01, e.z, HitSrc.Foudre);
           px = e.x;
           py = cy;
@@ -574,7 +574,7 @@ export function tickWeapons(w: World, dt: number): void {
           if (bi < 0) break;
           lastD = bd;
           const e = w.enemies[bi];
-          w.emit(Ev.Bolt, x, BALISE.h, z, 0, e.x, e.y + BALISE.aim, e.z);
+          w.emit(Ev.Bolt, x, BALISE.h, z, 1 + HitSrc.Balise, e.x, e.y + BALISE.aim, e.z);
           hitEnemy(w, bi, s.dmg, BALISE.kb, x, z, HitSrc.Balise);
           shot++;
         }

@@ -9,6 +9,7 @@ import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
 import { refreshStats } from './sim/weapons/defs';
 import { step } from './sim/step';
+import { syncTiers } from './sim/tiers';
 import { Ev, Mode } from './sim/types';
 import type { Pw } from './sim/types';
 import type { Input, ItemKey, PowerKey, WeaponKey } from './sim/types';
@@ -96,6 +97,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       const world = w();
       if (!world) return;
       world.weapons[weapon] = lv;
+      syncTiers(world); // lot L5 : palier visuel du niveau donné, sans célébration (hors d'un pas de jeu)
       host.afterSimJump();
     },
     spawn(type: number, n = 1, dist = 8): void {
@@ -132,6 +134,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
         i++;
       }
       refreshStats(world);
+      syncTiers(world);
       host.afterSimJump();
     },
     /** Téléporte le joueur (captures : lac, bois). */

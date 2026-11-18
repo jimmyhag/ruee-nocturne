@@ -514,6 +514,7 @@
   "power.gel": "Temps figé",
   "power.rage": "Rage",
   "banner.synergy": "Synergie : {name} !",
+  "banner.tier": "Palier {n} — {name}",
   "banner.merchant": "Le marchand est arrivé",
   "banner.explored": "Carte explorée à 100 % : +{n} or",
   "reveal.new": "Nouveau !",

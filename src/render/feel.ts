@@ -128,6 +128,10 @@ export const FEEL = {
     sparks: 5,
     sparkColor: 0xbfe8ff,
   },
+  // lot L5 (spec, décision 5) : palier visuel d'arme. Bannière 1,8 s (hud.banner), gerbe à la couleur du palier autour du
+  // héros, son de niveau plus aigu (hauteur × pitch, palier I à III : tierce mineure, quarte, quinte), tremblement léger,
+  // hit-stop de rendu de 80 ms
+  tier: { shake: 0.3, hitStop: { duration: 0.08, scale: 0.2 }, ring: 36, burst: 24, pitch: [1.19, 1.33, 1.5] },
   damageNumbers: {
     rise: 1.8, // u/s
     life: 0.6,
@@ -137,6 +141,28 @@ export const FEEL = {
     mergeRadius: 1.5, // coups d'une même frame à < 1,5 u : un seul chiffre (somme)
   },
 } as const;
+
+/** Ce que l'écran joue au franchissement d'un palier (objet réutilisé, lu tout de suite). */
+interface TierFeel {
+  shake: number; // tremblement (0 : aucun)
+  hitStop: number; // durée du hit-stop de rendu (s ; 0 : aucun)
+  particles: boolean; // gerbe et anneau autour du héros
+  pitch: number; // hauteur du son de niveau
+}
+const tierFeel: TierFeel = { shake: 0, hitStop: 0, particles: false, pitch: 1 };
+
+/**
+ * Lot L5 : célébration du palier `tier` (1 à 3). La bannière joue toujours ; en « réduction des effets », elle et le son
+ * seulement (spec, décision 5) : ni tremblement, ni hit-stop, ni gerbe.
+ */
+export function tierCelebration(tier: number, reduced: boolean): Readonly<TierFeel> {
+  const T = FEEL.tier;
+  tierFeel.pitch = T.pitch[Math.min(T.pitch.length, Math.max(1, tier)) - 1];
+  tierFeel.shake = reduced ? 0 : T.shake;
+  tierFeel.hitStop = reduced ? 0 : T.hitStop.duration;
+  tierFeel.particles = !reduced;
+  return tierFeel;
+}
 
 /**
  * Hit-stop borné. La sim garde son pas fixe : seul le temps réel injecté dans l'accumulateur est ralenti,
