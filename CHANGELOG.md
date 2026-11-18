@@ -2,6 +2,25 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.62.0 — 18 nov. 2026 (décision de Jimmy, lot L4 : partage, défi à un pote, classement entre amis)
+
+Ton défi du jour se partage, se lance à un ami et se compare entre amis.
+
+### Ajouté
+
+- **Partager ton défi** : à la fin d'un défi du jour, le bouton « Partager » prépare ton résultat, sans rien dévoiler de ta partie : le jour, ton temps (✅ si tu as tenu jusqu'au bout, ❌ sinon), tes ennemis vaincus, ta série et un lien pour te battre. Sur téléphone, la feuille de partage s'ouvre ; ailleurs, le texte est copié (« Copié ! »).
+- **Défi lancé à un pote** : ton ami ouvre le lien et tombe sur « Défi de… : 5:00 · 412 kills — à toi ! ». « Relever le défi » lance exactement la même partie que la tienne. Pendant la partie, le score à battre reste sous le chrono, et à la fin : « Défi battu ! » ou « Raté de … ». Le défi d'aujourd'hui compte pour ta série et tes parties du jour ; celui d'un jour passé se rejoue à l'identique, mais ne compte ni pour la série ni pour le classement du jour (l'or et les missions comptent toujours).
+- **Classement du jour entre amis** : si tu es connecté avec un pseudo, ouvrir le lien d'un ami l'ajoute à tes amis. Le nouvel onglet « Défi du jour · Amis » du classement vous montre, toi et tes amis, triés par temps puis par ennemis vaincus. Un ami se retire d'un bouton.
+
+### Technique
+
+- Spec : `docs/specs/l4-partage-defi-amis.md`. Carte et lien : `src/meta/share-card.ts` (pur : `cardText`, `challengeUrl`, `parseChallenge` qui valide et borne chaque paramètre, `challengeGap`) ; partage : `src/platform/share.ts` (`navigator.share`, sinon `navigator.clipboard.writeText`, sinon zone de texte sélectionnée ; règle 11). Les paramètres du lien sont retirés de l'adresse après lecture ; aucun ne passe par `innerHTML`.
+- Défi d'un ami : `startGame(…, challenge)` joue la graine du jour du lien (`dailyMapSeed`, `dailySeed`) avec les règles du défi ; `runRanked` faux pour un jour passé (ni `recordDaily`, ni `recordStreak`, ni publication du jour). Partie gardée : `SavedRun.ranked` et `SavedRun.beat`. HUD : `#beatLbl` écrit au départ, jamais par image.
+- Amis : `Meta.friends` (`src/meta/friends.ts`, identifiant et pseudo, 50 au plus, sans doublon, jamais soi-même) est une clé de progression (`PROGRESS_KEYS`, synchronisée) ; absente chez un joueur d'avant le lot : liste vide.
+- Classement du jour : `days/{AAAA-MM-JJ}/scores/{uid}` (`name`, `time`, `kills`, `at` ; `mergeDay`, `readDay`, `friendRows` dans `src/meta/board.ts`), écrit avec les scores de la semaine par `src/platform/account.ts`, lu par identifiants (`documentId() in`, 30 par requête). `firestore.rules` : jour au format AAAA-MM-JJ, lecture des connectés (100 au plus), écriture de son seul document, clés fermées, `time` ≤ 300, `kills` ≤ 20000, meilleure partie qui ne peut que monter (temps, puis kills) ; `friends` bornée à 50. Suppression du compte : le document du jour part avec les autres.
+- Règle 8 complétée (`AGENTS.md`, `PRIVACY.md`, À propos). Sans compte, ouvrir un lien, jouer et partager n'émettent aucune requête (test e2e).
+- Tests : Vitest `src/meta/share-card.test.ts` ; e2e `e2e/defi-amis.spec.ts` (PC et iPhone 13), un test par scénario de la spec.
+
 ## 1.60.0 — 18 nov. 2026 (décision de Jimmy, lot L3 : défi du jour court, série, missions)
 
 Un rendez-vous de 5 minutes chaque jour, une série à faire grandir et trois missions qui changent tous les jours.

@@ -1362,9 +1362,36 @@
         font-variant-numeric: tabular-nums;
       }
       #boardTabs .ghost,
+      #boardScope .ghost,
       #boardLive .btnrow .ghost {
         padding: 8px 12px;
         min-height: 40px;
+      }
+      /* lot L4 : défi du jour entre amis ; « Retirer » au bout de la ligne d'un ami, pas encore joué en gris */
+      .brow.friend {
+        grid-template-columns: 34px 1fr auto auto;
+      }
+      .brow.idle .val {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .brow .fremove {
+        padding: 4px 10px;
+        min-height: 32px;
+        font-size: 12px;
+      }
+      /* lot L4 : rappel du score à battre sous le chrono du défi d'un ami */
+      .time .beat {
+        margin-top: 2px;
+        font-family: var(--f-body);
+        font-weight: 800;
+        font-size: 11px;
+        color: var(--gold);
+        text-shadow: 0 1px 0 var(--ink);
+      }
+      #shareText {
+        width: 100%;
+        min-height: 96px;
       }
       #accPseudo {
         flex: 1 1 160px;
@@ -2756,7 +2783,10 @@
           <div class="powers" id="powers"></div>
         </div>
         <!-- phase 37 : monde en cours et chrono qui descend (dépassement en rouge) -->
-        <div class="time" id="timeBox"><small id="stageLbl">Monde 1</small><span id="time">10:00</span></div>
+        <div class="time" id="timeBox">
+          <small id="stageLbl">Monde 1</small><span id="time">10:00</span
+          ><small class="beat" id="beatLbl" hidden></small>
+        </div>
         <div class="hright">
           <div class="goldc" id="goldBox" aria-label="Or de la partie" data-i18n-attr="aria-label:hud.gold">
             <i class="coin"></i><span id="goldN">0</span>
@@ -3102,6 +3132,28 @@
       </div>
     </section>
 
+    <!-- lot L4 : un lien de défi ouvre cette feuille au menu (Échap la ferme) ; tout son texte passe par textContent -->
+    <section id="challenge" class="screen" hidden role="dialog" aria-modal="true" aria-labelledby="challengeTitle">
+      <div class="panel">
+        <header class="sheet-head">
+          <h2 class="h2" id="challengeTitle">Défi d'un ami</h2>
+          <button
+            class="btn-icon close"
+            id="challengeBackBtn"
+            aria-label="Fermer"
+            data-i18n-attr="aria-label:menu.close"
+          >
+            ×
+          </button>
+        </header>
+        <p class="tag" id="challengeScore"></p>
+        <p class="note" id="challengeDay"></p>
+        <div class="btnrow">
+          <button class="big" id="challengePlayBtn" data-i18n="challenge.play">Relever le défi</button>
+        </div>
+      </div>
+    </section>
+
     <section id="notes" class="screen" hidden>
       <div class="panel">
         <header class="sheet-head">
@@ -3238,8 +3290,24 @@
         <div class="gear static" id="oGear" aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
         <p class="note" id="oDiff" hidden></p>
         <p class="note" id="oMsg"></p>
+        <!-- lot L4 : défi d'un ami, battu ou raté de combien -->
+        <p class="note" id="oBeat" hidden></p>
         <!-- lot L3 : série du jour, tenue offerte et missions remplies par cette partie, avec leur or -->
         <div class="rewards" id="oRewards" hidden></div>
+        <!-- lot L4 : carte de résultat d'un défi du jour (partage natif, sinon presse-papiers, sinon texte à copier) -->
+        <div class="settings" id="shareBox" hidden>
+          <div class="btnrow">
+            <button class="ghost" id="shareBtn" data-i18n="share.btn">Partager</button>
+          </div>
+          <p class="note" id="shareMsg" role="status" aria-live="polite"></p>
+          <textarea
+            id="shareText"
+            readonly
+            hidden
+            aria-label="Texte à partager"
+            data-i18n-attr="aria-label:share.textAria"
+          ></textarea>
+        </div>
         <p class="note slotline" id="oNext" hidden></p>
         <p class="unlocked" id="oUnlocked" hidden></p>
         <div class="achs" id="oProgress"></div>
@@ -3379,6 +3447,12 @@
           </button>
         </header>
         <div class="settings">
+          <!-- lot L4 : la période, ou le défi du jour entre amis (visible sans compte : il invite à se connecter) -->
+          <div class="btnrow" id="boardScope" role="group">
+            <button class="ghost" id="boardAll" data-i18n="board.all">Tous les temps</button
+            ><button class="ghost" id="boardWeek" data-i18n="board.week">Cette semaine</button
+            ><button class="ghost" id="boardFriends" data-i18n="board.friends">Défi du jour · Amis</button>
+          </div>
           <div class="settings" id="boardInvite">
             <p class="note" id="boardInviteText">Connecte-toi pour voir le classement et y figurer.</p>
             <div class="btnrow">
@@ -3398,10 +3472,6 @@
               <button class="ghost" data-view="best" data-i18n="board.tab.best">Meilleure partie</button
               ><button class="ghost" data-view="time" data-i18n="board.tab.time">Plus longue survie</button
               ><button class="ghost" data-view="kills" data-i18n="board.tab.kills">Plus de kills</button>
-            </div>
-            <div class="btnrow" role="group">
-              <button class="ghost" id="boardAll" data-i18n="board.all">Tous les temps</button
-              ><button class="ghost" id="boardWeek" data-i18n="board.week">Cette semaine</button>
             </div>
             <p class="note" id="boardMsg"></p>
             <ol class="board" id="boardList"></ol>

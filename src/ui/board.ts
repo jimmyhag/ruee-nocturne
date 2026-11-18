@@ -1,24 +1,31 @@
 // Écran Classement (phase 38) : rendu DOM natif à partir d'un état. Ne connaît ni Firebase ni la sauvegarde : main.ts
 // charge les lignes (src/platform/account.ts, joueurs connectés seulement), tient l'état et appelle renderBoard.
+// Lot L4 : onglet « Défi du jour · Amis » (toi et tes amis, src/meta/friends.ts), visible même sans compte (il invite
+// alors à se connecter, sans aucune requête).
 import { BOARD_VIEWS, stageOfBest, timeOfBest } from '../meta/board';
-import type { BoardRow, BoardView, ScoreDoc } from '../meta/board';
+import type { BoardRow, BoardView, FriendRow, ScoreDoc } from '../meta/board';
 import { fmtNum, fmtTime, t } from '../i18n';
 import { CHARACTERS } from '../sim/balance';
 import type { CharacterKey } from '../sim/types';
 import { characterName } from './cards';
 
-/** out : pas connecté (aucun chargement de Firebase) ; nopseudo : connecté sans pseudo ; unavailable : comptes absents. */
-export type BoardStatus = 'out' | 'nopseudo' | 'loading' | 'ready' | 'error' | 'unavailable';
+/**
+ * out : pas connecté (aucun chargement de Firebase) ; nopseudo : connecté sans pseudo ; unavailable : comptes absents ;
+ * offline : hors ligne (lot L4, onglet amis).
+ */
+export type BoardStatus = 'out' | 'nopseudo' | 'loading' | 'ready' | 'error' | 'unavailable' | 'offline';
 export interface BoardState {
   status: BoardStatus;
   view: BoardView;
   week: boolean; // « cette semaine » au lieu de « tous les temps »
+  friends: boolean; // lot L4 : onglet « Défi du jour · Amis »
   uid: string;
   rows: BoardRow[];
   mine: ScoreDoc | null;
+  friendRows: FriendRow[]; // lot L4 : toi et tes amis (src/meta/board.ts, friendRows)
 }
 export function initialBoardState(): BoardState {
-  return { status: 'out', view: 'best', week: false, uid: '', rows: [], mine: null };
+  return { status: 'out', view: 'best', week: false, friends: false, uid: '', rows: [], mine: null, friendRows: [] };
 }
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -35,35 +42,47 @@ export function boardValue(view: BoardView, v: number): string {
 }
 
 export function renderBoard(s: BoardState): void {
-  const live = s.status === 'ready' || s.status === 'loading' || s.status === 'error';
+  const live = s.status === 'ready' || s.status === 'loading' || s.status === 'error' || s.status === 'offline';
   $('boardInvite').hidden = s.status !== 'out' && s.status !== 'unavailable';
-  $('boardInviteText').textContent = t(s.status === 'unavailable' ? 'board.unavailable' : 'board.signIn');
+  $('boardInviteText').textContent = t(
+    s.status === 'unavailable' ? 'board.unavailable' : s.friends ? 'board.friends.signIn' : 'board.signIn',
+  );
   $('boardAccountBtn').hidden = s.status === 'unavailable';
   $('boardPseudo').hidden = s.status !== 'nopseudo';
   $('boardLive').hidden = !live;
+  $('boardScope').hidden = s.status === 'unavailable';
+  $('boardTabs').hidden = s.friends; // le défi du jour n'a qu'une vue : le temps, puis les kills
+  $('boardFriends').classList.toggle('selected', s.friends);
+  $('boardFriends').setAttribute('aria-pressed', String(s.friends));
   for (const b of $('boardTabs').querySelectorAll<HTMLButtonElement>('[data-view]')) {
     const on = b.dataset.view === s.view;
     b.classList.toggle('selected', on);
     b.setAttribute('aria-pressed', String(on));
   }
-  $('boardAll').classList.toggle('selected', !s.week);
-  $('boardWeek').classList.toggle('selected', s.week);
-  $('boardAll').setAttribute('aria-pressed', String(!s.week));
-  $('boardWeek').setAttribute('aria-pressed', String(s.week));
+  $('boardAll').classList.toggle('selected', !s.friends && !s.week);
+  $('boardWeek').classList.toggle('selected', !s.friends && s.week);
+  $('boardAll').setAttribute('aria-pressed', String(!s.friends && !s.week));
+  $('boardWeek').setAttribute('aria-pressed', String(!s.friends && s.week));
   const msg = $('boardMsg');
   msg.textContent =
     s.status === 'loading'
       ? t('board.loading')
       : s.status === 'error'
         ? t('board.error')
-        : s.status === 'ready' && s.rows.length === 0
-          ? t(s.week ? 'board.emptyWeek' : 'board.empty')
-          : '';
-  msg.classList.toggle('error', s.status === 'error');
+        : s.status === 'offline'
+          ? t('board.offline')
+          : s.status === 'ready' && !s.friends && s.rows.length === 0
+            ? t(s.week ? 'board.emptyWeek' : 'board.empty')
+            : '';
+  msg.classList.toggle('error', s.status === 'error' || s.status === 'offline');
   const list = $('boardList');
   if (s.status !== 'ready') {
     list.innerHTML = '';
     $('boardMine').textContent = '';
+    return;
+  }
+  if (s.friends) {
+    renderFriends(s.friendRows);
     return;
   }
   let mineShown = false;
@@ -83,6 +102,32 @@ export function renderBoard(s: BoardState): void {
   const mine = s.mine;
   $('boardMine').textContent =
     !mineShown && mine ? t('board.mine', { value: boardValue(s.view, mine[s.view]) }) : !mine ? t('board.none') : '';
+}
+
+/**
+ * Lot L4 : toi et tes amis au défi du jour (temps · kills), ceux qui n'ont pas encore joué à la fin ; chaque ami a son
+ * bouton « Retirer » (`data-remove` : identifiant). Pseudos échappés : ils viennent du nuage ou d'un lien.
+ */
+function renderFriends(rows: readonly FriendRow[]): void {
+  let rank = 0;
+  $('boardList').innerHTML = rows
+    .map((r) => {
+      const val = r.played ? `${fmtTime(r.time)} · ${fmtNum(r.kills)}` : t('board.friends.notYet');
+      const remove = r.me
+        ? ''
+        : `<button class="ghost fremove" data-remove="${esc(r.uid)}" aria-label="${esc(
+            t('board.friends.removeAria', { name: r.name }),
+          )}">${esc(t('board.friends.remove'))}</button>`;
+      return (
+        `<li class="brow friend${r.me ? ' me' : ''}${r.played ? '' : ' idle'}">` +
+        `<b class="rank">${r.played ? ++rank : '–'}</b>` +
+        `<span class="who"><span class="name">${esc(r.name)}</span></span>` +
+        `<span class="val">${esc(val)}</span>${remove}</li>`
+      );
+    })
+    .join('');
+  // aucun ami : l'invitation à partager son défi
+  $('boardMine').textContent = rows.some((r) => !r.me) ? '' : t('board.friends.invite');
 }
 
 /** Vue suivante d'un clic sur un onglet (clé `data-view`), ou celle d'avant si la clé est inconnue. */

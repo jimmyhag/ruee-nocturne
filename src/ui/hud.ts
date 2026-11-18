@@ -81,6 +81,7 @@ export class Hud {
     gear: $('gear'),
     timeBox: $('timeBox'),
     stageLbl: $('stageLbl'),
+    beatLbl: $('beatLbl'), // lot L4 : « À battre : 5:00 · 412 » sous le chrono du défi d'un ami
     goalChip: $('goalChip'),
     goalArrow: $('goalArrow'),
     goalText: $('goalText'),
@@ -160,6 +161,14 @@ export class Hud {
       this.pwW[k] = -1;
     }
     this.els.goldBox.classList.remove('pop');
+  }
+  /**
+   * Lot L4 : rappel discret du score à battre sous le chrono ('' : aucun). Écrit au départ de la partie (et au changement
+   * de langue), jamais par image.
+   */
+  setBeat(text: string): void {
+    this.els.beatLbl.hidden = text === '';
+    this.els.beatLbl.textContent = text;
   }
   private text(k: keyof typeof this.els, v: string): void {
     if (this.cache[k] !== v) {

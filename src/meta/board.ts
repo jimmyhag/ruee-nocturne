@@ -2,6 +2,10 @@
 // que calcule ce module dans Firestore `scores/{uid}` (tous les temps) et `weeks/{semaine}/scores/{uid}` (semaine ISO),
 // lisibles par les seuls joueurs connectés (firestore.rules). Un document par joueur : ses meilleurs scores, chacun
 // indépendant (la meilleure partie, la plus longue survie, le plus de kills ne viennent pas forcément du même run).
+// Lot L4 : le défi du jour entre amis, `days/{AAAA-MM-JJ}/scores/{uid}` (meilleure partie du jour d'un joueur connecté
+// avec un pseudo), lu par identifiants (soi et ses amis, src/meta/friends.ts).
+import { DAILY } from '../sim/balance';
+import type { Friend } from './friends';
 
 /** Bornes communes au client et aux règles Firestore (un test vérifie qu'elles y figurent). */
 export const BOARD = {
@@ -14,6 +18,10 @@ export const BOARD = {
   top: 50, // lignes affichées
   pendingKey: 'ruee-score', // scores en attente d'envoi (hors ligne, sans pseudo), liés au compte qui a joué
   pendingMax: 5,
+  // lot L4 : classement du jour entre amis
+  dayTimeMax: DAILY.duration, // s : le défi s'arrête là
+  dayKillsMax: 20000,
+  dayQuery: 30, // identifiants par requête (limite de l'opérateur `in` de Firestore)
 };
 
 export type BoardView = 'best' | 'time' | 'kills';
@@ -34,6 +42,7 @@ export interface RunScore {
   time: number;
   kills: number;
   char: string;
+  day?: string; // lot L4 : défi du jour qui compte (AAAA-MM-JJ) : publié aussi dans `days/{day}/scores/{uid}`
 }
 /** Une ligne du classement telle que l'affiche l'écran. */
 export interface BoardRow {
@@ -121,4 +130,77 @@ export function isoWeek(ms: number): string {
   // le jeudi de la semaine 1 tombe entre le 1er et le 7 janvier
   const week = 1 + Math.floor((thursday - Date.UTC(year, 0, 1)) / 604800000);
   return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+// ---------- lot L4 : classement du défi du jour entre amis ----------
+/** Document `days/{jour}/scores/{uid}` : la meilleure partie du jour (temps tenu, puis kills), qui ne peut que monter. */
+export interface DayDoc {
+  name: string;
+  time: number;
+  kills: number;
+  at: number; // ms, dernière mise à jour
+}
+/** Une ligne de l'onglet « Défi du jour · Amis » ; `played` faux : pas encore de partie du jour (temps et kills à 0). */
+export interface FriendRow {
+  uid: string;
+  name: string;
+  time: number;
+  kills: number;
+  played: boolean;
+  me: boolean;
+}
+
+/**
+ * Fusionne une partie du défi avec le document du jour : la meilleure des deux, le temps d'abord puis les kills (les
+ * règles Firestore refusent un document moins bon). Le pseudo est toujours le courant. Null si rien ne change.
+ */
+export function mergeDay(prev: DayDoc | null, time: number, kills: number, name: string, now: number): DayDoc | null {
+  const t = clampInt(time, BOARD.dayTimeMax),
+    k = clampInt(kills, BOARD.dayKillsMax);
+  if (!prev) return { name, time: t, kills: k, at: now };
+  const better = t > prev.time || (t === prev.time && k > prev.kills);
+  if (!better && name === prev.name) return null;
+  return better ? { name, time: t, kills: k, at: now } : { ...prev, name, at: now };
+}
+
+/** Lit un document du jour reçu du nuage (jamais cru tel quel) ; null s'il n'a pas la bonne forme. */
+export function readDay(raw: unknown): DayDoc | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const name = cleanPseudo(r.name);
+  if (!name) return null;
+  const n = (v: unknown, max: number) => (typeof v === 'number' ? clampInt(v, max) : 0);
+  return {
+    name,
+    time: n(r.time, BOARD.dayTimeMax),
+    kills: n(r.kills, BOARD.dayKillsMax),
+    at: typeof r.at === 'number' ? r.at : 0,
+  };
+}
+
+/**
+ * Lignes de l'onglet amis : toi et tes amis. Ceux qui ont joué le défi du jour d'abord, triés par temps puis par kills ;
+ * les autres ensuite (dans l'ordre de la liste), pour qu'on puisse les retirer. Le pseudo affiché est celui du document
+ * du jour s'il existe (renommage), sinon celui du lien.
+ */
+export function friendRows(
+  me: { uid: string; name: string },
+  friends: readonly Friend[],
+  docs: ReadonlyMap<string, DayDoc>,
+): FriendRow[] {
+  const rows: FriendRow[] = [];
+  for (const p of [{ uid: me.uid, name: me.name }, ...friends]) {
+    if (rows.some((r) => r.uid === p.uid)) continue;
+    const d = docs.get(p.uid);
+    rows.push({
+      uid: p.uid,
+      name: d?.name ?? p.name,
+      time: d?.time ?? 0,
+      kills: d?.kills ?? 0,
+      played: !!d,
+      me: p.uid === me.uid,
+    });
+  }
+  const played = rows.filter((r) => r.played).sort((a, b) => b.time - a.time || b.kills - a.kills);
+  return [...played, ...rows.filter((r) => !r.played)];
 }

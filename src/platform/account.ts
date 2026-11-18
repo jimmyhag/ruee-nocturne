@@ -27,6 +27,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
   getDocs,
   getFirestore,
@@ -34,12 +35,14 @@ import {
   orderBy,
   query,
   setDoc,
+  where,
 } from 'firebase/firestore/lite';
 import type { Firestore } from 'firebase/firestore/lite';
 import { SYNC, fromCloudDoc } from '../meta/sync';
 import type { CloudDoc } from '../meta/sync';
-import { BOARD, isoWeek, mergeScore, readScore } from '../meta/board';
-import type { BoardRow, BoardView, RunScore, ScoreDoc } from '../meta/board';
+import { BOARD, isoWeek, mergeDay, mergeScore, readDay, readScore } from '../meta/board';
+import type { BoardRow, BoardView, DayDoc, RunScore, ScoreDoc } from '../meta/board';
+import { todayKey } from '../meta/daily';
 import type { FirebaseConfig } from './firebase-config';
 
 export type Provider = 'google' | 'password' | 'other';
@@ -164,6 +167,36 @@ export class Account {
       const next = mergeScore(snap.exists() ? readScore(snap.data()) : null, run, name, Date.now());
       if (next) await setDoc(ref, next);
     }
+    // lot L4 : un défi du jour qui compte publie aussi la meilleure partie du jour (classement entre amis)
+    if (run.day) {
+      const ref = this.dayRef(uid, run.day);
+      const snap = await getDoc(ref);
+      const next = mergeDay(snap.exists() ? readDay(snap.data()) : null, run.time, run.kills, name, Date.now());
+      if (next) await setDoc(ref, next);
+    }
+  }
+  // ---- lot L4 : défi du jour entre amis, `days/{jour}/scores/{uid}` ----
+  private dayRef(uid: string, day: string) {
+    return doc(this.db, 'days', day, 'scores', uid);
+  }
+  /**
+   * Documents du jour `day` des joueurs `uids` (soi et ses amis), lus par identifiants : BOARD.dayQuery par requête
+   * (limite de l'opérateur `in`), jamais toute la collection.
+   */
+  async fetchDay(day: string, uids: readonly string[]): Promise<Map<string, DayDoc>> {
+    const col = collection(this.db, 'days', day, 'scores');
+    const chunks: string[][] = [];
+    for (let i = 0; i < uids.length; i += BOARD.dayQuery) chunks.push(uids.slice(i, i + BOARD.dayQuery));
+    const snaps = await Promise.all(
+      chunks.map((ids) => getDocs(query(col, where(documentId(), 'in', ids), limit(BOARD.dayQuery)))),
+    );
+    const out = new Map<string, DayDoc>();
+    for (const snap of snaps)
+      for (const d of snap.docs) {
+        const r = readDay(d.data());
+        if (r) out.set(d.id, r);
+      }
+    return out;
   }
   /** Top BOARD.top d'une vue (tous les temps, ou la semaine `week`), et le document du joueur. */
   async fetchBoard(
@@ -191,9 +224,17 @@ export class Account {
       const prev = snap.exists() ? readScore(snap.data()) : null;
       if (prev && prev.name !== name) await setDoc(ref, { ...prev, name, at: Date.now() });
     }
+    const ref = this.dayRef(uid, todayKey()); // lot L4 : le défi du jour aussi
+    const snap = await getDoc(ref);
+    const prev = snap.exists() ? readDay(snap.data()) : null;
+    if (prev && prev.name !== name) await setDoc(ref, { ...prev, name, at: Date.now() });
   }
-  /** Retire le joueur du classement (tous les temps et semaine en cours) : suppression du compte. */
+  /** Retire le joueur du classement (tous les temps, semaine en cours, défi du jour) : suppression du compte. */
   async deleteScores(uid: string): Promise<void> {
-    await Promise.all([deleteDoc(this.scoreRef(uid, null)), deleteDoc(this.scoreRef(uid, isoWeek(Date.now())))]);
+    await Promise.all([
+      deleteDoc(this.scoreRef(uid, null)),
+      deleteDoc(this.scoreRef(uid, isoWeek(Date.now()))),
+      deleteDoc(this.dayRef(uid, todayKey())),
+    ]);
   }
 }
