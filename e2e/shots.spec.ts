@@ -196,6 +196,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
   await page.evaluate(() =>
     (window as any).__game.setMeta({
       version: 3,
+      runs: 12, // un joueur qui a tout débloqué a joué : sans parties, les onglets attendent la première (Nocturne)
       gold: 5000,
       achievements: ['survie3', 'survie10', 'kills500', 'boss1', 'win', 'intouchable'],
       bought: ['veilleuse', 'braconnier', 'colporteur'],

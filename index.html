@@ -2059,6 +2059,9 @@
         padding-left: 0.46em;
         text-transform: uppercase;
         color: var(--moon-70);
+        text-shadow:
+          0 0 6px rgba(6, 9, 24, 0.95),
+          0 1px 10px rgba(6, 9, 24, 0.85); /* lisible quand la lune passe derrière (écrans bas) */
       }
       .tagline::before,
       .tagline::after {
@@ -2076,6 +2079,16 @@
       .homelinks .note {
         align-self: center;
         text-align: center;
+      }
+      /* aide d'installation sur iPhone : sa propre place sous l'accroche, sur un voile de nuit pour rester lisible sur
+         la lune */
+      #iosHint {
+        margin-top: 12px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: rgba(8, 12, 30, 0.72);
+        color: var(--moon);
+        text-shadow: 0 1px 6px rgba(6, 9, 24, 0.9);
       }
       /* scène du héros : le portrait au centre, défi du jour et nouveautés en rails verticaux sur les bords */
       .stage {
@@ -3210,7 +3223,7 @@
         bottom: 100%;
         z-index: 2;
         padding: 6px 24px 4px;
-        background: rgba(8, 12, 30, 0.98);
+        background: rgb(8, 12, 30); /* opaque : rien de la scène dessous ne se lit à travers */
         border-top: 1px solid var(--rule);
       }
       .missions summary {
