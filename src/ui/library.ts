@@ -164,7 +164,9 @@ export function renderLibrary(
       st === 'owned'
         ? e.name
         : `${e.name}, ${st === 'off' ? t('lib.off') : t(`lib.state.${st === 'poor' ? 'buyable' : st}`)}`;
-    html += `<button class="lib ${st}${e.key === cur.key ? ' cur' : ''}" data-pick="${e.key}" aria-label="${esc(label)}" aria-pressed="${e.key === cur.key}">${e.ico}<span>${esc(e.name)}</span>${mark}</button>`;
+    // rareté d'un objet (rare, épique) : son nom en prend la couleur
+    const rar = e.rar > 0 ? ` r${e.rar}` : '';
+    html += `<button class="lib ${st}${rar}${e.key === cur.key ? ' cur' : ''}" data-pick="${e.key}" aria-label="${esc(label)}" aria-pressed="${e.key === cur.key}">${e.ico}<span>${esc(e.name)}</span>${mark}</button>`;
   }
   list.innerHTML = html + '</div>';
   return cur.key;

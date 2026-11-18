@@ -65,6 +65,7 @@ au milieu de 400 ennemis, au soleil sur un téléphone), et la progression des j
 | 12 | HUD | Mêmes informations et même emplacement qu'aujourd'hui (rien ne disparaît, rien ne bouge de côté), dessinés avec le kit : chiffres en Barlow Condensed 300 / 600, libellés espacés, barres de vie et d'XP en filets épais (vie : lune, perte en nuée ; XP : lanterne), aucune boîte pleine derrière les compteurs, une ombre portée douce pour la lisibilité sur le décor. Mises à jour du texte inchangées dans leur principe (caches, zéro allocation par image) | « Dans le jeu entièrement », sans perdre la lecture rapide ni la perf |
 | 13 | Commandes tactiles | Joystick et boutons SAUT / GLISSE / SORT en anneaux au trait lune (1,7 à 2 px), remplissage léger quand appuyés, recharge du sort en anneau lanterne. Tailles et positions inchangées (réglage Gaucher et taille du HUD gardés) | Le kit (anneaux, trait) ; la prise en main ne change pas |
 | 14 | Cartes de niveau, coffre, marchand | Plus de cartes à contour : une liste de choix séparés par des filets, nom en capitales, lignes « actuel → nouveau », rareté marquée par une pastille et un libellé (commune : lune 70 %, rare : bleu `#7FB4FF`, épique : lanterne), synergie en lanterne. Le choix au clavier (1–4, flèches) et au doigt reste le même | Le kit : « aucune carte, aucun contour » |
+| 14 bis | Rareté bien visible (demande de Jimmy, 18 nov. 2026 : « Remets les couleurs pour les raretés de tome etc. pour que ce soit bien bien clair ») | La pastille de la décision 14 ne suffisait pas. Chaque choix (niveau, coffre, marchand, sanctuaire) porte la **couleur de sa rareté**, celles d'avant l'interface Nocturne : commune lune, rare bleu `#7FB4FF`, épique lanterne. Une barre de 4 px à gauche, un fond teinté qui s'éteint vers la droite, le filet du bas et le nom à la couleur, et l'étiquette de rareté **pleine** (texte nuit sur la couleur). Cela reste une liste : ni contour ni angle arrondi (la teinte est une image de fond). Bibliothèque : même étiquette pleine dans la fiche, et le nom d'un objet possédé rare ou épique à la couleur de sa rareté | La rareté doit se lire avant le texte ; la décision 14 gardait la forme, pas la lisibilité |
 | 15 | Pause, victoire, fin de partie | Grand titre en capitales, chiffres en Condensed 300, un bouton plein (Reprendre / Continuer / Rejouer), le reste en actions secondaires et liens ; la fiche de stats en lignes à filets (groupes en libellés espacés) | Le kit |
 | 16 | Bannières | Texte en capitales espacées, filets fins de part et d'autre, sans fond ; couleur selon le sens (lanterne : récompense, nuée : danger, lune : information) | Le kit ; la bannière « Nouveau ! » du lot L2 suit cette règle |
 | 17 | Ajouts des lots | **L1** : demande d'accord en écran du kit (titre, trois lignes numérotées comme l'écran Compte, bouton plein « Oui, j'aide », lien « Non merci ») ; l'interrupteur de la mesure dans Réglages, groupe « VIE PRIVÉE ». **L2** : décision 10 et bannière « Nouveau ! ». **L3, L4, L5** : leurs écrans utilisent ce kit (défi du jour avec série et missions, carte de résultat, onglet « AMIS » du classement, paliers d'arme) | « Adapte aussi pour les ajouts que tu as faits » |
@@ -153,6 +154,13 @@ Fonctionnalité: Interface Nocturne
   Scénario: Aucune police chargée depuis un autre site
     Soit le jeu ouvert sans compte
     Alors les polices Barlow viennent du site du jeu et aucune requête ne part vers un autre domaine
+
+  Scénario: La rareté se lit à sa couleur
+    Soit une partie en cours
+    Quand une montée de niveau propose des choix communs, rares et épiques
+    Alors chaque choix porte la couleur de sa rareté : barre à gauche, fond teinté, filet du bas et étiquette pleine, lune pour commune, bleu pour rare, or pour épique
+    Et les choix restent une liste sans contour ni angle arrondi
+    Et dans la Bibliothèque le nom d'un objet rare possédé est bleu et l'étiquette de sa fiche est pleine, à la taille de son texte
 
 ## UI & Layout Contract
 
