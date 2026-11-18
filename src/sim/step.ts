@@ -385,7 +385,14 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       }
       // réception glissée : après un envol, l'élan continue au sol, droit dans le sens du vol ; après un saut glissé, on
       // se réceptionne debout (1.24.1 : le saut annule la glissade)
-      if (!P.sliding && P.airMom && !P.slideJump && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
+      // lot L2 : pas de glissade à la réception tant que la glisse n'est pas dévoilée (refusée par la sim, pas cachée)
+      if (
+        w.reveal >= REVEAL.slide &&
+        !P.sliding &&
+        P.airMom &&
+        !P.slideJump &&
+        P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2
+      ) {
         const m = Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz);
         P.dirX = P.mvx / m;
         P.dirZ = P.mvz / m;

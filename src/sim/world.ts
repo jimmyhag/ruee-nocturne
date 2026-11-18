@@ -290,9 +290,9 @@ export class World {
   // lot L2 : étapes dévoilées (REVEAL) et adoucissement des deux premières parties (FIRST_RUNS, 1 sinon) ; fixés à la
   // création, gardés par l'instantané (une partie reprise est identique)
   reveal: number = REVEAL.max;
-  softHp = 1;
-  softDmg = 1;
-  softRate = 1;
+  softHp = 1.5; // déclarés en flottants (forme V8 stable, voir plus bas) puis remis à 1 dans le constructeur
+  softDmg = 1.5;
+  softRate = 1.5;
 
   constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
@@ -348,11 +348,10 @@ export class World {
     if (opts?.bannedItems) for (const k of opts.bannedItems) this.itemBan[ITEM_KEYS.indexOf(k)] = 1; // phase 40
     if (opts?.rerolls !== undefined) this.rerolls = Math.max(0, opts.rerolls | 0);
     if (opts?.reveal !== undefined) this.reveal = Math.max(0, Math.min(REVEAL.max, opts.reveal | 0));
-    if (this.reveal < FIRST_RUNS.below) {
-      this.softHp = FIRST_RUNS.hp;
-      this.softDmg = FIRST_RUNS.dmg;
-      this.softRate = FIRST_RUNS.rate;
-    }
+    const soft = this.reveal < FIRST_RUNS.below;
+    this.softHp = soft ? FIRST_RUNS.hp : 1;
+    this.softDmg = soft ? FIRST_RUNS.dmg : 1;
+    this.softRate = soft ? FIRST_RUNS.rate : 1;
     if (opts?.slots) {
       this.maxWeapons = Math.max(
         Math.max(1, Math.min(MAX_WEAPONS, opts.slots.weapons | 0)),

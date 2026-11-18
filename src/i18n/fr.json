@@ -880,6 +880,7 @@
   "map.legend.skull": "Crâne",
   "stats.difficulty": "Difficulté",
   "over.difficulty": "Difficulté atteinte : {n} % · crânes activés : {skulls}",
+  "over.difficultyOnly": "Difficulté atteinte : {n} %",
   "menu.ctrl.skull": "Crânes violets sur la carte : rester dedans monte la difficulté de la partie. Plus de monstres, plus solides, donc plus d'XP, d'or et de vaincus.",
   "bosstotem.chip": "Totem de boss · un boss de plus à chaque vague",
   "hud.bossExtra": "Boss +{n}",

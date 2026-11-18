@@ -1,6 +1,7 @@
 // Synchronisation (phase 13) : frontière progression / appareil, décision à trois versions, documents du nuage. Aucun DOM.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { REVEAL } from '../sim/balance';
 import { DEFAULT_META, normalizeMeta } from './save';
 import type { Meta } from './save';
 import {
@@ -166,6 +167,11 @@ describe('firestore.rules', () => {
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
     for (const k of PROGRESS_KEYS) expect(rules, k).toContain(`'${k}'`);
     for (const k of DEVICE_KEYS) expect(rules, k).not.toContain(`'${k}'`);
+  });
+  it('borne `reveal` comme la méta (lot L2 : 0..REVEAL.max, facultatif pour les anciens clients)', () => {
+    const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+    expect(rules).toContain(`p().reveal <= ${REVEAL.max}`);
+    expect(rules).toContain(`!('reveal' in p())`);
   });
   it('n’exige aucune clé absente de la progression (une règle `p().x is …` sur un champ absent refuse tout)', () => {
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
