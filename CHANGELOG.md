@@ -2,6 +2,19 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.63.2 — 18 nov. 2026 (retour de Jimmy : les couleurs de rareté)
+
+Commune, rare, épique : la rareté se voit de nouveau à sa couleur.
+
+### Modifié
+
+- **Cartes de niveau, coffres, marchand, sanctuaires** : chaque choix porte la couleur de sa rareté, gris clair pour commune, bleu pour rare, or pour épique, avec une barre à gauche, un fond teinté, le nom à la couleur et une étiquette pleine. Fini la petite pastille qu'il fallait chercher.
+- **Bibliothèque** : l'étiquette de rareté de la fiche est pleine elle aussi, et le nom d'un objet rare ou épique que tu possèdes est à sa couleur dans la grille.
+
+### Technique
+
+- Spec : `docs/specs/ui-nocturne.md`, décision 14 bis et scénario « La rareté se lit à sa couleur » (`e2e/nocturne.spec.ts`). CSS (`.card`, `.rar`, `.lib.r1` / `.r2`) et une classe de rareté sur les tuiles de la Bibliothèque (`src/ui/library.ts`). Les choix restent une liste : la teinte est une image de fond, la barre une ombre intérieure, le test « Level-up cards are a ruled list » est inchangé.
+
 ## 1.63.1 — 18 nov. 2026 (retour de Jimmy : l'accueil à la verticale sur tous les écrans)
 
 Ton héros reprend sa place à l'accueil, quel que soit l'écran tenu à la verticale.

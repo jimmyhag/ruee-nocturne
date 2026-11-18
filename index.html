@@ -3021,20 +3021,21 @@
         font-weight: 600;
         letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: var(--moon-70);
-      }
-      .rar::before {
-        content: '';
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: currentColor;
+        color: var(--moon);
+        /* étiquette pleine (décision 14 bis) : la rareté se lit à sa couleur avant son libellé */
+        padding: 2px 8px 2px calc(8px + 0.16em);
+        border-radius: 999px;
+        background: rgba(243, 236, 221, 0.16);
+        align-self: flex-start; /* à la taille de son texte, même dans une colonne (fiche de la Bibliothèque) */
+        width: fit-content;
       }
       .rar.rare {
-        color: var(--rare);
+        background: var(--rare);
+        color: var(--night);
       }
       .rar.epic {
-        color: var(--lantern);
+        background: var(--lantern);
+        color: var(--night);
       }
       .libgrid {
         display: grid;
@@ -3062,6 +3063,13 @@
         line-height: 13px;
         font-weight: 600;
         text-align: center;
+      }
+      /* décision 14 bis : rare en bleu, épique en or (les états grisés, plus bas, gardent leur gris) */
+      .lib.r1 > span {
+        color: #b9d6ff;
+      }
+      .lib.r2 > span {
+        color: #ffd98a;
       }
       .lib > i {
         width: 14px;
@@ -3877,7 +3885,11 @@
       .overhead .note {
         text-align: right;
       }
-      /* choix (décision 14) : une liste séparée par des filets, sans carte ni contour */
+      /* choix (décision 14) : une liste séparée par des filets, sans carte ni contour.
+         Rareté (décision 14 bis, demande de Jimmy du 18 nov. 2026 : « remets les couleurs, que ce soit bien clair ») :
+         chaque choix porte la couleur de sa rareté, comme avant l'interface Nocturne (rare bleu, épique or) : une
+         barre à gauche, un fond teinté qui s'éteint vers la droite, le filet du bas et l'étiquette pleine. Toujours une
+         liste : ni contour ni angle arrondi, la teinte est une image de fond (la couleur de fond reste transparente) */
       .cards {
         display: flex;
         flex-direction: column;
@@ -3890,10 +3902,31 @@
         gap: 4px 14px;
         align-items: start;
         width: 100%;
-        padding: 14px 4px 14px 0;
+        --rar: rgba(243, 236, 221, 0.4); /* commune (et soin) : lune */
+        --rar-tint: rgba(243, 236, 221, 0.06);
+        padding: 14px 8px 14px 14px;
         border-bottom: 1px solid var(--rule);
+        background-image: linear-gradient(90deg, var(--rar-tint), transparent 72%);
+        box-shadow: inset 4px 0 0 var(--rar);
         text-align: left;
         animation: cardin 0.32s ease-out backwards;
+      }
+      .card.rare {
+        --rar: var(--rare);
+        --rar-tint: rgba(127, 180, 255, 0.22);
+        border-bottom-color: rgba(127, 180, 255, 0.5);
+      }
+      .card.epic {
+        --rar: var(--lantern);
+        --rar-tint: rgba(245, 185, 74, 0.26);
+        border-bottom-color: rgba(245, 185, 74, 0.55);
+      }
+      /* le nom prend la couleur de la rareté (éclaircie pour rester lisible sur la nuit) */
+      .card.rare h3 {
+        color: #b9d6ff;
+      }
+      .card.epic h3 {
+        color: #ffd98a;
       }
       .card:nth-child(2) {
         animation-delay: 0.06s;
@@ -3912,7 +3945,9 @@
       }
       @media (hover: hover) {
         .card:hover:not(.off) {
-          background: linear-gradient(90deg, rgba(243, 236, 221, 0.06), transparent 80%);
+          background-image:
+            linear-gradient(90deg, rgba(243, 236, 221, 0.07), transparent 80%),
+            linear-gradient(90deg, var(--rar-tint), transparent 72%);
         }
       }
       .card.picked {

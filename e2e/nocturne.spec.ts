@@ -286,6 +286,90 @@ test('Level-up cards are a ruled list', async ({ page, hasTouch }) => {
   }
 });
 
+test('Rarity reads by its colour', async ({ page, hasTouch }) => {
+  test.setTimeout(120_000);
+  const RARE = 'rgb(127, 180, 255)';
+  const COMMON_PILL = 'rgba(243, 236, 221, 0.16)';
+  // la couleur d'une rareté, sans son opacité : « 127, 180, 255 »
+  const hue = (rgb: string) => rgb.slice(4, -1);
+  await openGame(page);
+  await startRun(page, 2);
+  await page.evaluate(() => (window as any).__game.debug.god());
+  // la chance décale le tirage (RARITY, src/sim/balance.ts) : −13 ne donne que des communes, 30 des rares et des
+  // épiques, 100 que des épiques
+  const seen = { common: 0, rare: 0, epic: 0 };
+  for (const luck of [-13, 30, 30, 100]) {
+    await page.evaluate((l) => {
+      const g = (window as any).__game;
+      g.world.player.luck = l;
+      g.debug.levelUp();
+    }, luck);
+    await expect(page.locator('#levelup')).toBeVisible();
+    const cards = page.locator('#cards .card');
+    await expect(cards.first()).toBeVisible();
+    await page.waitForTimeout(450); // fin de l'entrée en cascade
+    const n = await cards.count();
+    for (let i = 0; i < n; i++) {
+      const c = cards.nth(i);
+      const cls = (await c.getAttribute('class')) ?? '';
+      const pill = c.locator('.rar');
+      if (!(await pill.count())) continue; // carte de soin : pas de rareté
+      const kind = /\bepic\b/.test(cls) ? 'epic' : /\brare\b/.test(cls) ? 'rare' : 'common';
+      seen[kind]++;
+      const tint = await css(c, 'background-image');
+      const bar = await css(c, 'box-shadow');
+      if (kind === 'common') {
+        await expect(pill).toHaveText('Commune');
+        expect(await css(pill, 'background-color')).toBe(COMMON_PILL);
+        expect(bar).toContain('243, 236, 221'); // barre lune
+        expect(tint).not.toContain(hue(RARE));
+        expect(tint).not.toContain(hue(LANTERN));
+      } else {
+        const col = kind === 'rare' ? RARE : LANTERN;
+        await expect(pill).toHaveText(kind === 'rare' ? 'Rare' : 'Épique');
+        expect(await css(pill, 'background-color')).toBe(col); // étiquette pleine
+        expect(bar).toContain(col); // barre de 4 px à gauche
+        expect(bar).toContain('inset');
+        expect(tint).toContain('linear-gradient');
+        expect(tint).toContain(hue(col)); // fond teinté
+        expect(await css(c, 'border-bottom-color')).toContain(hue(col)); // filet du bas
+        expect(await css(c.locator('h3'), 'color')).not.toBe(MOON); // nom à la couleur de la rareté
+      }
+      // toujours une liste : ni contour ni angle arrondi, pas de couleur de fond pleine
+      for (const side of ['top', 'left', 'right']) expect(await css(c, `border-${side}-width`)).toBe('0px');
+      expect(await css(c, 'border-radius')).toBe('0px');
+      expect(await css(c, 'background-color')).toBe('rgba(0, 0, 0, 0)');
+    }
+    await press(cards.first(), hasTouch);
+    await page.waitForFunction(() => (window as any).__game.app === 'play');
+  }
+  expect(seen.common, 'cartes communes vues').toBeGreaterThan(0);
+  expect(seen.rare, 'cartes rares vues').toBeGreaterThan(0);
+  expect(seen.epic, 'cartes épiques vues').toBeGreaterThan(0);
+  // Bibliothèque : l'étiquette de la fiche est pleine et à la taille de son texte ; le nom d'un objet rare est bleu
+  await page.goto('/?debug=1');
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4 });
+  });
+  await press(page.locator('#libBtn'), hasTouch);
+  await press(page.locator('#libTabs [data-tab="i"]'), hasTouch);
+  const rareTile = page.locator('.lib.owned.r1').first();
+  await expect(rareTile).toBeVisible();
+  expect(await css(rareTile.locator('span'), 'color')).toBe('rgb(185, 214, 255)');
+  expect(await css(page.locator('.lib.owned:not(.r1):not(.r2) > span').first(), 'color')).toBe(MOON);
+  await press(rareTile, hasTouch);
+  const tag = page.locator('.libdetail .rar');
+  await expect(tag).toHaveText('Rare');
+  expect(await css(tag, 'background-color')).toBe(RARE);
+  const [tagW, colW] = await Promise.all([
+    tag.evaluate((el) => el.getBoundingClientRect().width),
+    page.locator('.libdetail .bd').evaluate((el) => el.getBoundingClientRect().width),
+  ]);
+  expect(tagW, "l'étiquette ne s'étire pas sur la fiche").toBeLessThan(colW / 2);
+});
+
 test('The end screens follow the kit', async ({ page }) => {
   await openGame(page);
   await startRun(page, 4);
