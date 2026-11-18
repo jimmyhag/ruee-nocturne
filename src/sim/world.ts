@@ -306,9 +306,14 @@ export class World {
   dailyBossId = -1;
   dailyBossWarned = false;
   medal = 0;
-  /** Règle du jour en cours (NO_RULE hors défi) : lue à l'apparition d'un monstre ou au coup, sans allocation. */
+  /**
+   * Règle du jour en cours (NO_RULE hors défi) : lue à l'apparition d'un monstre ou au coup, sans allocation. Un index
+   * hors de la liste (sauvegarde abîmée, ou écrite par une version plus récente puis relue après un retour en arrière)
+   * vaut « aucune règle » plutôt que de casser la partie (relecture perf du défi v2).
+   */
   rule(): DailyRule {
-    return this.dailyRule >= 0 ? DAILY_RULES[DAILY_RULE_KEYS[this.dailyRule]] : NO_RULE;
+    const key = this.dailyRule >= 0 ? DAILY_RULE_KEYS[this.dailyRule] : undefined;
+    return key ? DAILY_RULES[key] : NO_RULE;
   }
 
   constructor(seed: number, opts?: WorldOptions) {

@@ -426,5 +426,14 @@ describe('défi v2 : score, partage, défi d’un ami, reprise', () => {
     playTo(late, DAILY.duration + 1);
     expect(late.medal).toBe(1);
     expect(finalBoss(late)).toBe(-1);
+    // relecture perf : une règle inconnue (sauvegarde abîmée, ou écrite par une version plus récente) vaut « aucune
+    // règle » ; la partie reprend sans planter
+    const snap = snapshotWorld(w);
+    snap.fields.dailyRule = 99;
+    const odd = quiet(restoreWorld(JSON.parse(JSON.stringify(snap)) as RunSnap));
+    adoptDaily(odd);
+    const R = odd.rule();
+    expect([R.spd, R.rate, R.hp, R.heroHp, R.heroDmg]).toEqual([1, 1, 1, 1, 1]);
+    expect(() => playTo(odd, odd.t + 2)).not.toThrow();
   });
 });
