@@ -42,6 +42,21 @@ six tailles (390 × 844, 540 × 720, 717 × 880, 820 × 1180, 1180 × 820, 844 �
    du navigateur est coupée ; onglets, flèches, lignes et liens ne montrent rien tant que
    l'écran n'a pas changé.
 
+8. **Retour de Jimmy après la 1.63.0** (18 nov. 2026) : « tu as pas géré l'interface
+   verticale du Duo ou même d'autres formats ». Mesuré sur la 1.63.0, accueil en une
+   colonne : tout ce qui entoure le héros a une hauteur fixe (≈ 500 px, multipliée par
+   l'agrandissement du gabarit), il ne lui reste que le reliquat. Sur un téléphone haut
+   (390 × 844) c'est 40 % de l'écran ; ailleurs le héros devient une figurine : 25 % à
+   375 × 667 et 390 × 664 (iPhone dans Safari), 30 % à 540 × 720 (deux écrans accolés),
+   28 % à 717 × 880 (pliable ouvert), 26 % à 768 × 1024 (tablette), 17 % à 320 × 568. Sur
+   ces écrans plus larges que l'illustration, la lune remonte derrière le logo. À 320 px de
+   large : l'accroche passe sur deux lignes, « Jouer » passe sous la barre d'onglets, le
+   titre « Bibliothèque » et le nom du héros de la fiche sont coupés, les libellés des
+   onglets se touchent. Sur un iPhone dans Safari, la ligne d'aide d'installation (« Sur
+   iPhone : Partager… ») prend encore 36 px au héros : 19 % à 390 × 664, et à 375 × 548
+   (petit iPhone, barres de Safari comprises) « Jouer » passe sous les onglets. Les écrans
+   intérieurs et la partie tiennent bien à ces formats.
+
 ## Décisions
 
 | # | Question | Décision | Pourquoi |
@@ -63,6 +78,10 @@ six tailles (390 × 844, 540 × 720, 717 × 880, 820 × 1180, 1180 × 820, 844 �
 | 15 | Performance et poids | Aucune image, aucune police, aucune dépendance ajoutée. Lighthouse reste au-dessus du seuil (la marge est mince depuis la 1.61.0 : mesurer avant et après) | Règles 2 et 5 |
 | 16 | Un appui doit se voir | **Tout élément qu'on peut toucher a un état pressé** visible dès que le doigt se pose (fond lune à 10 %, ou léger enfoncement) : onglets, boutons Défi du jour et Nouveautés, flèches, puce de profil, or, réglages, ligne des missions, objectif, lignes de liste, liens, flèche retour, cartes de niveau, offres du marchand. Coupé nulle part : c'est un retour d'état, pas une animation | Constat 7 |
 | 17 | Rien de lourd pendant un appui | La scène 3D ne se prépare **plus dans le premier geste**. Elle se prépare quand le joueur ne touche à rien (après son premier geste, écran au repos depuis un instant ; chaque nouvel appui repousse le départ), par étapes qui rendent la main entre elles autant que le code le permet. Si le joueur touche « Jouer » avant qu'elle soit prête : préparation immédiate, le bouton montre l'état « chargement » déjà existant, la partie démarre dès que c'est prêt. Le son suit la même règle : son initialisation ne bloque pas l'appui qui la déclenche. Le score Lighthouse ne baisse pas (rien ne part avant le premier geste) | Constat 7 ; un menu doit répondre dans l'instant |
+| 18 | Le héros d'abord, en une colonne | Quand la hauteur manque (tout sauf un téléphone haut), les marges se resserrent autour du héros ; plus court encore (moins de 740 px de haut sur téléphone, seuils équivalents une fois l'agrandissement du gabarit compté), l'**accroche** « Survis à la nuée » s'efface ; sous 600 px de haut (petit iPhone dans Safari), le **prochain objectif** s'efface aussi (il se lit dans Succès) : restent le héros, les missions du jour et « Jouer ». L'aide d'installation sur iPhone reste (c'est là qu'elle sert) et ne prend que sa ligne. Le héros ne recouvre rien et rien ne le recouvre. Cible, aide d'installation montrée : le portrait prend au moins 26 % de la hauteur d'un téléphone court (20 % sous 600 px) et 34 % ailleurs | Constat 8 ; le héros est le sujet de l'accueil |
+| 19 | Objectif et missions sur une rangée | En une colonne d'au moins 520 px de large (deux écrans accolés, pliable ouvert, tablette en portrait), le prochain objectif et la ligne des missions sont **côte à côte** ; la hauteur gagnée va au héros. Dépliées, les missions s'ouvrent au-dessus de la rangée, sur toute sa largeur. Sur téléphone : inchangé, l'un sous l'autre | Constat 8 ; la largeur est là, pas la hauteur |
+| 20 | La lune derrière le héros | En portrait plus large que l'illustration, le fond n'est plus centré : on ne rogne que 10 % de l'excédent en haut. La lune se tient sous le logo et au-dessus du nom du héros, derrière lui ; le logo est sur le ciel | Constat 8 ; décision 10 (logo lisible) tenue sans épaissir le voile |
+| 21 | Écran étroit (320 à 359 px) | Rien ne passe à la ligne ni ne sort de l'écran : accroche sur une ligne, titres des écrans à 34 px (la valeur de droite passe dessous si elle ne tient pas), nom du héros de la fiche à 27 px, onglets à la largeur de leur libellé (44 px au moins) | Constat 8 ; petit iPhone, pliable fermé |
 
 ## Scénarios
 
@@ -119,6 +138,25 @@ les rectangles englobants.
 - **Rien ne déborde aux tailles courantes** — à 360 × 640, 390 × 844, 540 × 720, 717 × 880,
   820 × 1180, 1180 × 820, 844 × 390 et 1280 × 720 : pas de défilement horizontal, « Jouer »
   et les cinq onglets dans l'écran, aucune cible tactile de l'accueil sous 44 px.
+- **Le héros garde sa place en vertical** — à 320 × 568, 375 × 548, 375 × 667, 390 × 664,
+  390 × 844, 540 × 720, 717 × 880, 768 × 1024 et 820 × 1180, aide d'installation de l'iPhone
+  montrée ou non : le portrait du héros prend au moins 20 % de la hauteur de l'écran sous
+  600 px de haut, 26 % sur les téléphones courts, 34 % et plus ailleurs ; il ne recouvre ni
+  les deux boutons, ni son nom, ni la ligne des missions, ni « Jouer », et tout reste dans
+  l'écran ; le prochain objectif n'est effacé que sous 600 px de haut.
+- **La lune se tient derrière le héros, pas derrière le logo** — à 375 × 667, 540 × 720,
+  717 × 880, 768 × 1024 et 820 × 1180 : le haut de la lune est sous le logo et au-dessus du
+  nom du héros ; l'illustration couvre toujours tout l'écran.
+- **L'objectif et les missions partagent une rangée sur un écran large en vertical** — à
+  540 × 720, 717 × 880 et 820 × 1180 : le prochain objectif et la ligne des missions sont
+  sur la même rangée, sans se recouvrir, la ligne des missions garde 44 px de haut ;
+  dépliées, les missions s'ouvrent au-dessus de la rangée sur toute sa largeur, dans
+  l'écran ; à 390 × 844 ils restent l'un sous l'autre.
+- **Rien ne casse sur un écran étroit** — à 320 × 568 et 344 × 882 : pas de défilement
+  horizontal, « Jouer » entier au-dessus de la barre d'onglets, l'accroche sur une ligne,
+  les libellés des cinq onglets ne se touchent pas (44 px par onglet au moins), les titres
+  des écrans Héros, Emplacements, Bibliothèque et Classement tiennent sur une ligne, le nom
+  du héros de la fiche reste dans l'écran.
 
 ## UI & Layout Contract
 
@@ -147,6 +185,10 @@ Lighthouse avant et après), `CHANGELOG.md` écrit pour les joueurs, captures av
 l'accueil, d'un écran intérieur et du HUD aux six tailles dans
 `docs/captures/ergonomie/`, toutes relues. `perf-reviewer` (le HUD et la boucle sont
 touchés par le CSS) et inspecteur avant la pull request.
+
+Correctif des formats verticaux (constat 8, décisions 18 à 21) : branche `fix/ui-formats`,
+version **1.63.1**, CSS et une enveloppe HTML seulement, captures avant / après dans
+`docs/captures/ergonomie/vertical/`.
 
 ## Hors périmètre
 
