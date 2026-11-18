@@ -132,8 +132,9 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const VERSION = __APP_VERSION__;
 
 // ---------- rendu (module chargé à part : three + src/render ≈ 150 ko gzip) ----------
-// Le menu s'affiche et répond sans WebGL. Le module de rendu est téléchargé tout de suite (modulepreload injecté
-// par vite.config.ts) mais évalué et construit après le premier affichage, quand le navigateur est libre, ou dès
+// Le menu s'affiche et répond sans WebGL. Le module de rendu n'est pas préchargé avec la page (interface « Nocturne » :
+// le menu n'a plus de 3D, le premier affichage garde la bande passante ; Lighthouse LCP) : le service worker le met en
+// cache après la première visite, sinon il part au premier geste du joueur ; il est évalué et construit après le premier affichage, quand le navigateur est libre, ou dès
 // « Jouer » si le joueur est plus rapide. Les shaders sont compilés en parallèle (compileAsync) : pas de tâche
 // longue sur le fil principal pendant le chargement (Lighthouse TBT), et le premier run démarre sans à-coup.
 let scene: GameScene | null = null;
@@ -3441,7 +3442,7 @@ const debugRt = installDebugHooks({
   },
 });
 
-// Module de rendu : déjà téléchargé (modulepreload), il n'est évalué et la scène construite qu'à la première
+// Module de rendu : en cache (service worker) ou téléchargé au premier geste, il n'est évalué et la scène construite qu'à la première
 // interaction du joueur (geste, touche, survol de « Jouer ») : le menu reste léger tant qu'on ne joue pas, et
 // aucune tâche longue ne précède l'interactivité (Lighthouse). En debug/tests (`?debug=1`), tout de suite :
 // les specs attendent `__game.ready` sans interagir.
