@@ -47,6 +47,9 @@ export const PAL = {
   // violet (0xc08cff) au rose vif : sur la minicarte il se confondait avec les crânes de difficulté (PAL.skull)
   power: [0xff6ad5, 0xffcc4d, 0x7ee0a1, 0x9fe8ff, 0xff5a3c],
   freeze: 0xd6f4ff,
+  // lot L5 : teintes des paliers visuels d'arme I (argent bleuté) et II (or) ; le III est un prisme (src/render/tiers.ts).
+  // Mêmes valeurs dans index.html (--tier1, --gold)
+  tier: [0x9cc2ff, 0xffd166],
   // cycle de lumière : crépuscule (0:00) → nuit (8:00) → aube (20:00)
   light: {
     dusk: { fog: 0x182341, sky: 0xffcfa6, ground: 0x24305a, hemi: 1.0, sun: 0xffd6a8, sunI: 0.95 },

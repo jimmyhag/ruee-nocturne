@@ -94,6 +94,13 @@ test('The first run has only the essentials', async ({ page, hasTouch }, info) =
     await page.keyboard.up('KeyC');
     await page.keyboard.up('KeyD');
   }
+  // relecture du lot L2 : pas d'annonce « 0 totem de boss » une fois l'arrivée passée (aucun totem dans ce monde)
+  await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    w.stageT = Math.max(w.stageT, 3); // passé le moment de l'annonce (2,5 s), sans attendre sous SwiftShader
+  });
+  await page.waitForTimeout(400);
+  await expect(page.locator('#banner')).not.toHaveClass(/on/);
   expect(errors).toEqual([]);
 });
 

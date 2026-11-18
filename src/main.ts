@@ -6,6 +6,7 @@ import {
   MAP,
   POWER_KEYS,
   REAPER_TYPE,
+  REVEAL,
   SLIDE,
   STAGE,
   STEP,
@@ -19,14 +20,15 @@ import { restoreWorld, snapshotWorld } from './sim/snapshot';
 import { clearRun, peekRun, readRun, writeRun, type RunRead, type SavedRun } from './meta/run-save';
 import type { GameScene } from './render/scene';
 import { PAL } from './render/palette';
-import { FEEL, HitStop } from './render/feel';
+import { FEEL, HitStop, tierCelebration } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, itemName, synergyName } from './ui/cards';
+import { achName, achUnlock, itemName, synergyName, weaponName } from './ui/cards';
 import { canGainItem } from './sim/items';
+import { WEAPON_KEYS } from './sim/weapons/defs';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll } from './sim/progression';
 import { startEndless } from './sim/stages';
@@ -234,6 +236,7 @@ function applyFx(): void {
   hitStop.enabled = !r;
   hud.flashMul = r ? 0.4 : 1;
   document.body.classList.toggle('calm', r); // interface Nocturne : les animations du menu s'arrêtent (décision 19)
+  document.body.classList.toggle('fx-reduced', r); // lot L5 : coupe le liseré animé du palier III
   $('fxBtn').textContent = t(
     r ? (meta.fxChosen ? 'settings.fx.reduced' : 'settings.fx.reducedSystem') : 'settings.fx.full',
   );
@@ -1126,7 +1129,12 @@ function renderOverScreen(): void {
   // … et totems de boss activés (livraison 2)
   const oDiff: string[] = [];
   if (world.player.difficulty > 0)
-    oDiff.push(t('over.difficulty', { n: Math.round(world.player.difficulty * 100), skulls: world.skullsOn }));
+    // lot L2 : avant le dévoilement des crânes, « crânes activés : 0 » parlerait d'un système encore caché
+    oDiff.push(
+      world.reveal >= REVEAL.totem
+        ? t('over.difficulty', { n: Math.round(world.player.difficulty * 100), skulls: world.skullsOn })
+        : t('over.difficultyOnly', { n: Math.round(world.player.difficulty * 100) }),
+    );
   if (world.bossTotemsOn > 0) oDiff.push(t('over.bossTotems', { n: world.bossTotemsOn }));
   $('oDiff').hidden = oDiff.length === 0;
   $('oDiff').textContent = oDiff.join(' · ');
@@ -2341,8 +2349,17 @@ const HIT_COLORS = [
   0xff6a2a, // phase 47 B : brûlure de la Dent de dragon
   0x7ddc4a, // phase 50 : Toxine
 ];
+/** Lot L5 : chiffres romains des paliers visuels d'arme (bannière « Palier II — Orbe »). */
+const TIER_NUM = ['I', 'II', 'III'];
+/** Lot L5 : couleur des étincelles de coup de chaque arme à la teinte de son palier (tableau réutilisé). */
+const hitTint: number[] = HIT_COLORS.slice(0, WEAPON_KEYS.length);
+/** Couleur des étincelles d'un coup de source `src` (HitSrc) : arme à la teinte de son palier (lot L5), sinon la sienne. */
+function hitColor(src: number): number {
+  return src < hitTint.length ? hitTint[src] : HIT_COLORS[src];
+}
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
+  for (let k = 0; k < WEAPON_KEYS.length; k++) hitTint[k] = S.tint(HIT_COLORS[k], w.wtier[WEAPON_KEYS[k]], now);
   const reduced = reducedFx();
   const fx = reduced ? 0.5 : 1; // particules ÷2 en mode réduit
   const PT = FEEL.particles;
@@ -2360,7 +2377,7 @@ function handleEvents(w: World, now: number): void {
           e.x,
           e.y,
           e.z,
-          HIT_COLORS[(e.x2 | 0) & (HIT_CRIT - 1)],
+          hitColor((e.x2 | 0) & (HIT_CRIT - 1)),
           (PT.hit.n * fx) | 0,
           PT.hit.speed,
           PT.hit.up,
@@ -2481,8 +2498,8 @@ function handleEvents(w: World, now: number): void {
         // phase 47 C : la lanière claque en ligne droite (trait de l'éclair, orangé et tendu), étincelles au bout
         const tx = e.x + e.x2 * e.v,
           tz = e.z + e.z2 * e.v;
-        S.bolts.add(e.x, e.y, e.z, tx, e.y - 0.4, tz, true); // à la hauteur du héros : la claque suit un saut
-        S.particles.burst(tx, e.y - 0.4, tz, HIT_COLORS[HitSrc.Fouet], (5 * fx) | 0, 4, 3, false, e.x2, e.z2, 1);
+        S.bolts.add(e.x, e.y, e.z, tx, e.y - 0.4, tz, true, w.wtier.fouet); // à la hauteur du héros : la claque suit un saut
+        S.particles.burst(tx, e.y - 0.4, tz, hitColor(HitSrc.Fouet), (5 * fx) | 0, 4, 3, false, e.x2, e.z2, 1);
         if (!bladeSnd) {
           audio.blade(); // un seul son par image, même à quatre directions
           bladeSnd = true;
@@ -2564,6 +2581,23 @@ function handleEvents(w: World, now: number): void {
       case Ev.LevelUp:
         S.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
         break;
+      case Ev.WeaponTier: {
+        // lot L5 : une arme arrive à un palier visuel (25, 50, 100) ; en réduction des effets, bannière et son seulement
+        const c = tierCelebration(e.v, reduced),
+          TF = FEEL.tier;
+        hud.banner(t('banner.tier', { n: TIER_NUM[(e.v | 0) - 1], name: weaponName(WEAPON_KEYS[e.x2 | 0]) }));
+        audio.levelUp(c.pitch);
+        if (c.particles)
+          for (let j = 0; j < 3; j++) {
+            // trois tiers de la gerbe, décalés sur la roue du prisme au palier III (une seule teinte aux paliers I et II)
+            const hex = S.tint(PAL.cream, e.v, now, j / 3);
+            S.particles.ring(e.x, 0.3, e.z, hex, (TF.ring / 3) | 0, 5, 6);
+            S.particles.burst(e.x, e.y, e.z, hex, (TF.burst / 3) | 0, 6, 7);
+          }
+        if (c.shake > 0) S.shake = Math.max(S.shake, c.shake);
+        if (c.hitStop > 0) hitStop.request(c.hitStop, TF.hitStop.scale, 2);
+        break;
+      }
       case Ev.ChestDrop:
         // phase 51 : le coffre qui tombe s'annonce (gerbe dorée, son à lui) ; il passait inaperçu dans la mêlée
         S.particles.burst(e.x, 0.8, e.z, PAL.gold, ((e.v ? 30 : 16) * fx) | 0, 5, 7);
@@ -2757,11 +2791,15 @@ function handleEvents(w: World, now: number): void {
       case Ev.Dive:
         audio.dive();
         break;
-      case Ev.Bolt:
-        S.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2);
-        S.particles.burst(e.x2, e.y2, e.z2, PAL.bolt, (4 * fx) | 0, 4, 3);
+      case Ev.Bolt: {
+        // lot L5 : v = 1 + index de l'arme qui le lance (0 : objet ou sort), pour la teinte de son palier
+        const src = (e.v | 0) - 1,
+          tier = src >= 0 && src < WEAPON_KEYS.length ? w.wtier[WEAPON_KEYS[src]] : 0;
+        S.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2, false, tier);
+        S.particles.burst(e.x2, e.y2, e.z2, S.tint(PAL.bolt, tier, now), (4 * fx) | 0, 4, 3);
         if (i % 3 === 0) audio.bolt();
         break;
+      }
       case Ev.Telegraph:
       case Ev.AuraPulse:
       case Ev.Victory:
@@ -2793,6 +2831,11 @@ let fps = 0;
 // ratio temps de jeu / temps réel sur la même fenêtre : vérifie que le hit-stop reste borné (≈ 0,9–1 attendu en jeu)
 let simT0 = 0;
 let simRatio = 1;
+// 17 nov. 2026 : la part du temps réel que le hit-stop laisse passer, sur la même fenêtre. Contrairement à `simRatio`,
+// elle ne dépend pas de la vitesse de rendu (rattrapage borné à 4 pas) : c'est elle que l'e2e de stress vérifie
+let stopReal = 0;
+let stopFed = 0;
+let stopRatio = 1;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
@@ -2830,7 +2873,10 @@ function frame(nowMs: number): void {
       dtIn *= R.from + (1 - R.from) * (1 - resumeEase / R.ease);
       resumeEase = Math.max(0, resumeEase - realDt);
     }
-    acc += hitStop.advance(dtIn);
+    const fed = hitStop.advance(dtIn);
+    acc += fed;
+    stopReal += dtIn;
+    stopFed += fed;
     let n = 0;
     while (acc >= STEP && n < 4) {
       input.poll(inp);
@@ -2869,7 +2915,9 @@ function frame(nowMs: number): void {
     // qu'aucune autre bannière ne soit affichée (elle écrasait celle d'un bonus ramassé tôt) et se tait passé
     // BOSS_TOTEM_NOTE_LATE s : une partie reprise plus loin dans le monde ne la répète pas
     if (bossTotemNote !== world.stage && world.stageT > BOSS_TOTEM_NOTE_AT) {
-      if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless) bossTotemNote = world.stage;
+      // lot L2 : avant le dévoilement du totem, le monde n'a aucun totem de boss ; rien à annoncer (« 0 totem » sinon)
+      if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless || world.bossTotems.length === 0)
+        bossTotemNote = world.stage;
       else if (world.mode === Mode.Play && !hud.bannerOn) {
         hud.banner(t('banner.bossTotems', { n: world.bossTotems.length }), 'danger');
         bossTotemNote = world.stage;
@@ -2913,12 +2961,15 @@ function frame(nowMs: number): void {
       fpsT0 = nowMs;
       fpsFrames = 0;
       simT0 = world ? world.t : 0;
+      stopReal = stopFed = 0;
     } else if (nowMs - fpsT0 >= 2000) {
       fps = (fpsFrames * 1000) / (nowMs - fpsT0);
       if (world && app === 'play') simRatio = ((world.t - simT0) * 1000) / (nowMs - fpsT0);
+      if (world && app === 'play' && stopReal > 0) stopRatio = stopFed / stopReal;
       fpsT0 = nowMs;
       fpsFrames = 0;
       simT0 = world ? world.t : 0;
+      stopReal = stopFed = 0;
     }
     if (frameIdx % 10 === 0) {
       frameSorted.set(frameTimes);
@@ -2928,7 +2979,7 @@ function frame(nowMs: number): void {
       const info = scene.info();
       hud.perf(
         `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
-          `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'}\n` +
+          `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'} ×${stopRatio.toFixed(2)}\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world
             ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}  part. ${scene.particles.alive}\n`

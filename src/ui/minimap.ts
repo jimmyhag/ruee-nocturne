@@ -33,8 +33,11 @@ export class MapView {
   /** Lot L2 : système dévoilé dans cette partie, étiqueté « Nouveau » jusqu'à la première interaction (null : rien). */
   private newKind: NewKind | null = null;
   private newLabel = '';
-  private labelFs = 0;
-  private labelFont = '';
+  // police et largeur de l'étiquette « Nouveau » par taille de police (minicarte, grande carte) : aucune chaîne ni
+  // TextMetrics recréés à chaque tracé
+  private newFs = [0, 0];
+  private newFont = ['', ''];
+  private newW = [0, 0];
 
   constructor(
     private readonly mini: HTMLCanvasElement,
@@ -374,6 +377,7 @@ export class MapView {
   setNew(kind: NewKind | null, label: string): void {
     this.newKind = kind;
     this.newLabel = label.toLocaleUpperCase(); // libellé espacé en capitales (kit Nocturne)
+    this.newFs[0] = this.newFs[1] = 0; // largeurs à remesurer pour le nouveau texte
   }
   private newTag(ctx: CanvasRenderingContext2D, w: World, r: number, edge: number): void {
     const kind = this.newKind;
@@ -420,13 +424,15 @@ export class MapView {
       pad = 2,
       h = fs + pad * 2;
     if (edge > 0 && (px < 0 || pz < 0 || px > edge || pz > edge)) return; // repère hors du cadre de la minicarte
-    if (fs !== this.labelFs) {
-      // chaîne refaite seulement quand la taille change (minicarte 4 fois par seconde, grande carte à l'ouverture)
-      this.labelFs = fs;
-      this.labelFont = `700 ${fs}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; // police du kit Nocturne
+    const slot = edge > 0 ? 0 : 1;
+    if (this.newFs[slot] !== fs) {
+      this.newFs[slot] = fs;
+      this.newFont[slot] = `700 ${fs}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; // police du kit Nocturne
+      ctx.font = this.newFont[slot];
+      this.newW[slot] = ctx.measureText(this.newLabel).width;
     }
-    ctx.font = this.labelFont;
-    const tw = ctx.measureText(this.newLabel).width + pad * 4,
+    ctx.font = this.newFont[slot];
+    const tw = this.newW[slot] + pad * 4,
       top = pz - r * 2.4 - h;
     let left = px - tw / 2;
     if (edge > 0) left = Math.max(0, Math.min(edge - tw, left));

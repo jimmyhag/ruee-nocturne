@@ -7,6 +7,7 @@
 //
 // Après une mise à jour du jeu, la restauration tolère les écarts : un champ absent de la sauvegarde garde sa valeur
 // neuve, un champ inconnu est ignoré. SNAP_FORMAT ne monte que si un changement rend les anciennes sauvegardes fausses.
+import { syncTiers } from './tiers';
 import { refreshStats } from './weapons/defs';
 import { World } from './world';
 
@@ -222,6 +223,7 @@ export function restoreWorld(s: RunSnap): World {
   w.flow.load(s.flow);
   w.eventCount = 0;
   refreshStats(w);
+  syncTiers(w); // lot L5 : partie gardée avant les paliers, paliers retrouvés sans célébration
   return w;
 }
 

@@ -195,6 +195,7 @@
         --moon-55: rgba(243, 236, 221, 0.55);
         --rule: rgba(243, 236, 221, 0.16);
         --rare: #7fb4ff; /* rareté rare (décision 14) */
+        --tier1: #9cc2ff; /* lot L5 : palier I d'une arme, argent bleuté (PAL.tier) ; le II est la lanterne */
         --veil: rgba(6, 9, 24, 0.85);
         --f-cond: 'Barlow Condensed', 'Arial Narrow', sans-serif;
         --f-text: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -1399,6 +1400,54 @@
         color: var(--moon);
         text-shadow: var(--hud-shadow);
         font-variant-numeric: tabular-nums;
+      }
+      /* lot L5, au kit Nocturne : le palier visuel d'une arme est un filet de 2 px sous son icône (I argent bleuté,
+         II lanterne, III prisme qui tourne lentement, comme ses projectiles ; fixe en mouvement réduit et en effets
+         réduits), comme la rareté sous un objet : pas de cadre */
+      .gi.gw.tier1::after,
+      .gi.gw.tier2::after,
+      .gi.gw.tier3::after {
+        content: '';
+        position: absolute;
+        left: 3px;
+        right: 3px;
+        bottom: -1px;
+        height: 2px;
+        border-radius: 1px;
+        background: var(--tier1);
+      }
+      .gi.gw.tier2::after {
+        background: var(--lantern);
+        box-shadow: 0 0 5px rgba(245, 185, 74, 0.6);
+      }
+      .gi.gw.tier3::after {
+        background: #e59cff;
+        box-shadow: 0 0 5px rgba(229, 156, 255, 0.6);
+        animation: tierprism 10s linear infinite;
+      }
+      body.fx-reduced .gi.gw.tier3::after {
+        animation: none; /* lot L5 : le réglage « Effets réduits » coupe aussi le filet animé */
+      }
+      @keyframes tierprism {
+        0%,
+        100% {
+          background-color: hsl(0 90% 66%);
+        }
+        17% {
+          background-color: hsl(60 90% 62%);
+        }
+        33% {
+          background-color: hsl(120 80% 60%);
+        }
+        50% {
+          background-color: hsl(180 85% 62%);
+        }
+        67% {
+          background-color: hsl(240 90% 72%);
+        }
+        83% {
+          background-color: hsl(300 90% 70%);
+        }
       }
       /* phase 43 : niveau d'arme ou cumul d'objet au plafond */
       .gi b.max {
