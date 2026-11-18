@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <meta name="theme-color" content="#0f1628" />
+    <meta name="theme-color" content="#0a0f24" />
     <title>À propos · Swarmageddon</title>
     <meta
       name="description"
@@ -11,30 +11,38 @@
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/lilita-one-latin.woff2" />
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/rubik-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/barlow-500-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/barlow-condensed-700-latin.woff2" />
     <style>
+      /* interface « Nocturne » : Barlow et Barlow Condensed (SIL OFL), auto-hébergées comme pour le jeu */
       @font-face {
-        font-family: 'Lilita One';
-        font-weight: 400;
+        font-family: 'Barlow';
+        font-weight: 500;
         font-display: swap;
-        src: url(/fonts/lilita-one-latin.woff2) format('woff2');
+        src: url(/fonts/barlow-500-latin.woff2) format('woff2');
       }
       @font-face {
-        font-family: 'Rubik';
-        font-weight: 300 900;
+        font-family: 'Barlow';
+        font-weight: 600;
         font-display: swap;
-        src: url(/fonts/rubik-latin.woff2) format('woff2');
+        src: url(/fonts/barlow-600-latin.woff2) format('woff2');
+      }
+      @font-face {
+        font-family: 'Barlow Condensed';
+        font-weight: 700;
+        font-display: swap;
+        src: url(/fonts/barlow-condensed-700-latin.woff2) format('woff2');
       }
       :root {
-        --ink: #0f1628;
-        --ink-2: #141c33;
-        --ink-3: #2a3657;
-        --paper: #f3ecdc;
-        --muted: #9aa4c2;
-        --accent: #ffb347;
-        --gold: #ffd166;
-        --xp: #5fd3ff;
+        /* jetons du kit « Nocturne » (index.html) */
+        --ink: #0a0f24;
+        --ink-2: rgba(243, 236, 221, 0.06);
+        --ink-3: rgba(243, 236, 221, 0.16);
+        --paper: #f3ecdd;
+        --muted: rgba(243, 236, 221, 0.7);
+        --accent: #f5b94a;
+        --gold: #f5b94a;
+        --xp: #7fb4ff;
         color-scheme: dark;
       }
       * {
@@ -48,7 +56,7 @@
         background: var(--ink);
         color: var(--paper);
         font-family:
-          'Rubik',
+          'Barlow',
           system-ui,
           -apple-system,
           'Segoe UI',
@@ -66,18 +74,16 @@
       }
       h1,
       h2 {
-        font-family: 'Lilita One', 'Arial Black', Impact, sans-serif;
-        font-weight: 400;
-        letter-spacing: 0.01em;
+        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
         margin: 0;
       }
       h1 {
         font-size: clamp(40px, 10vw, 64px);
         line-height: 0.95;
         color: var(--paper);
-        text-shadow:
-          3px 3px 0 var(--accent),
-          6px 6px 0 #2a3657;
       }
       h2 {
         font-size: 26px;
@@ -117,22 +123,24 @@
         font-size: 19px;
         color: var(--muted);
       }
+      /* bouton plein du kit : lune sur nuit, rayon 28 px, halo lanterne */
       .cta {
         display: inline-block;
-        font-family: 'Lilita One', 'Arial Black', Impact, sans-serif;
-        font-size: 24px;
+        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
         color: var(--ink);
-        background: var(--gold);
-        border: 3px solid var(--ink);
-        border-radius: 14px;
-        padding: 12px 28px;
+        background: var(--paper);
+        border-radius: 28px;
+        padding: 14px 32px;
         text-decoration: none;
-        box-shadow: 0 6px 0 var(--accent);
+        box-shadow: 0 0 36px rgba(245, 185, 74, 0.22);
         justify-self: start;
       }
       .cta:active {
-        transform: translateY(4px);
-        box-shadow: 0 2px 0 var(--accent);
+        transform: translateY(1px);
       }
       .shots {
         display: grid;
@@ -271,7 +279,7 @@
           <h2>Crédits</h2>
           <p>
             Un jeu de Jimmy Haggege, écrit avec Claude Code. Rendu Three.js (MIT), sauvegarde idb-keyval (Apache-2.0),
-            polices Lilita One et Rubik (SIL Open Font License). Personnages et ennemis : modèles
+            polices Barlow et Barlow Condensed (SIL Open Font License). Personnages et ennemis : modèles
             <a href="https://quaternius.com">Quaternius</a> (CC0) ; armes et décor : modèles
             <a href="https://kaylousberg.com">KayKit</a> de Kay Lousberg (CC0). Bruitages : Kenney (CC0) et « Oculus
             Audio Pack 01 » d'Oculus VR, LLC, sous licence
@@ -357,7 +365,7 @@
           <h2>Credits</h2>
           <p>
             A game by Jimmy Haggege, written with Claude Code. Three.js rendering (MIT), idb-keyval storage
-            (Apache-2.0), Lilita One and Rubik fonts (SIL Open Font License). Characters and enemies:
+            (Apache-2.0), Barlow and Barlow Condensed fonts (SIL Open Font License). Characters and enemies:
             <a href="https://quaternius.com">Quaternius</a> models (CC0); weapons and scenery:
             <a href="https://kaylousberg.com">KayKit</a> models by Kay Lousberg (CC0). Sound effects: Kenney (CC0) and
             "Oculus Audio Pack 01" by Oculus VR, LLC, licensed under

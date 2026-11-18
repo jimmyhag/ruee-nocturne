@@ -30,7 +30,7 @@ test('net par défaut : résolution interne à l’échelle de l’écran ; pixe
   expect(s.pixel).toBe(true);
   expect(Math.min(s.w, s.h / 1.2)).toBeLessThanOrEqual(400); // ≈ 380 px sur le petit côté (paysage : hauteur)
   expect(s.w * s.h).toBeLessThan(netArea * 0.45);
-  await expect(page.locator('#setQualityBtn')).toHaveText('Rendu : pixel');
+  await expect(page.locator('#setQuality [data-quality="pixel"]')).toHaveAttribute('aria-pressed', 'true');
   await setQuality(page, 'net');
   s = await state(page);
   expect(s.level).toBe(2);

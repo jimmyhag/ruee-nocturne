@@ -49,7 +49,7 @@
 
 - `src/i18n/` : `fr.json` / `en.json` à clés plates, `t()` (pluriel `_one`/`_other`, `{x}`, nombres par `Intl`), réglage `settings.lang`. La sim ne porte aucun texte ; `src/ui/cards.ts` fait le pont (clés → libellés).
 - Rendu en chunk séparé (`import('./render/scene')`, `modulepreload` injecté par `vite.config.ts`), évalué à la première interaction ; `GameScene.warmup()` = `compileAsync`. `__game.scene` peut être `null` avant.
-- Polices auto-hébergées (`public/fonts/`), plus aucune origine externe. `a-propos/index.html` : seconde entrée Vite, page statique bilingue.
+- Polices auto-hébergées (`public/fonts/`, Barlow et Barlow Condensed depuis la 1.61.0), plus aucune origine externe. Images de l'interface « Nocturne » en WebP (`public/ui/`, produites par `npm run ui-images` depuis `assets/ui/`), précachées. `a-propos/index.html` : seconde entrée Vite, page statique bilingue.
 - Mesure Lighthouse : `npm run lh` (`tools/lighthouse.mjs` + `tools/lh-median.mjs`), bloquante en CI. Playwright : `PW_CHROMIUM=<binaire>` pour un Chromium déjà installé (ici `/opt/pw-browsers/chromium`), `PW_PORT` pour le port.
 
 ## Phase 20 (5 nov. 2026)

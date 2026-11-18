@@ -47,7 +47,9 @@ test('rafraîchir garde la partie : Reprendre la rouvre en pause, à l’identiq
   await ready(page);
   await expect(page.locator('#resumeRunBtn')).toBeVisible();
   await expect(page.locator('#resumeRunInfo')).toHaveText(/Monde 1 · 3:2\d/);
-  await expect(page.locator('#playBtn')).toHaveClass(/ghost/);
+  // interface Nocturne : « Reprendre » est le bouton plein, « Nouvelle partie » un lien, sur le fond du crépuscule
+  await expect(page.locator('#menu')).toHaveClass(/resume/);
+  await expect(page.locator('#playBtn')).toHaveText('Nouvelle partie');
   await page.screenshot({ path: `shots/${p}-reprendre.png` });
 
   await page.locator('#resumeRunBtn').click();
@@ -95,7 +97,8 @@ test('Menu dans la pause garde la partie ; Jouer demande avant de l’abandonner
   await page.reload();
   await ready(page);
   await expect(page.locator('#resumeRunBtn')).toBeHidden();
-  await expect(page.locator('#playBtn')).toHaveClass(/big/);
+  await expect(page.locator('#menu')).not.toHaveClass(/resume/);
+  await expect(page.locator('#playBtn')).toHaveText('Jouer');
   expect(errors).toEqual([]);
 });
 

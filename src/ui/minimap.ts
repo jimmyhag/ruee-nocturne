@@ -371,7 +371,7 @@ export class MapView {
    */
   setNew(kind: NewKind | null, label: string): void {
     this.newKind = kind;
-    this.newLabel = label;
+    this.newLabel = label.toLocaleUpperCase(); // libellé espacé en capitales (kit Nocturne)
   }
   private newTag(ctx: CanvasRenderingContext2D, w: World, r: number, edge: number): void {
     const kind = this.newKind;
@@ -418,17 +418,17 @@ export class MapView {
       pad = 2,
       h = fs + pad * 2;
     if (edge > 0 && (px < 0 || pz < 0 || px > edge || pz > edge)) return; // repère hors du cadre de la minicarte
-    ctx.font = `700 ${fs}px Rubik, system-ui, sans-serif`;
+    ctx.font = `700 ${fs}px 'Barlow Condensed', 'Arial Narrow', sans-serif`; // police du kit Nocturne
     const tw = ctx.measureText(this.newLabel).width + pad * 4,
       top = pz - r * 2.4 - h;
     let left = px - tw / 2;
     if (edge > 0) left = Math.max(0, Math.min(edge - tw, left));
-    ctx.fillStyle = '#ffd45a';
-    ctx.strokeStyle = '#0c0f1a';
+    ctx.fillStyle = '#f5b94a'; // lanterne du kit : du nouveau
+    ctx.strokeStyle = '#0a0f24';
     ctx.lineWidth = 1;
     ctx.fillRect(left, top, tw, h);
     ctx.strokeRect(left, top, tw, h);
-    ctx.fillStyle = '#0c0f1a';
+    ctx.fillStyle = '#0a0f24';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.newLabel, left + tw / 2, top + h / 2 + 0.5);
@@ -453,7 +453,7 @@ export class MapView {
       k = W / VIEW;
     const ox = w.player.x - VIEW / 2,
       oz = w.player.z - VIEW / 2;
-    ctx.fillStyle = '#0a0e1a';
+    ctx.fillStyle = '#0a0f24'; // nuit du kit
     ctx.fillRect(0, 0, W, W);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.base, ox + WORLD_HALF, oz + WORLD_HALF, VIEW, VIEW, 0, 0, W, W);

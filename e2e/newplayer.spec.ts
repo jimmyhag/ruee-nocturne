@@ -11,8 +11,8 @@ test('nouveau joueur : premier déblocage (défi du jour) dès le premier run', 
   await openGame(page);
   await freshProfile(page);
   await expect(page.locator('#dailyBtn')).toBeHidden();
-  await expect(page.locator('#chars .card.char')).toHaveCount(9);
-  await expect(page.locator('#chars .card.char.locked')).toHaveCount(8);
+  await expect(page.locator('#chars .char')).toHaveCount(9);
+  await expect(page.locator('#chars .char.locked')).toHaveCount(8);
 
   // run 1 : 3 minutes et quelques, puis la mort
   await startRun(page, 5);
@@ -30,10 +30,10 @@ test('nouveau joueur : premier déblocage (défi du jour) dès le premier run', 
   expect(meta.achievements).toContain('survie3');
   expect(meta.gold).toBeGreaterThan(0);
 
-  // retour au menu : le défi du jour est disponible, l'or s'affiche sur le bouton Emplacements
+  // retour au menu : le défi du jour est disponible, l'or gagné s'affiche en haut de l'accueil (interface Nocturne)
   await page.locator('#menuBtn').click();
   await expect(page.locator('#dailyBtn')).toBeVisible();
-  await expect(page.locator('#shopBtn')).toContainText('or');
+  await expect(page.locator('#menuGold')).toHaveAttribute('aria-label', /^Or : [1-9]/);
 });
 
 test('réglages : export puis import restaurent record, or et succès ; le JSON étranger est refusé', async ({
@@ -76,10 +76,10 @@ test('réglages : export puis import restaurent record, or et succès ; le JSON 
 test('personnage : le Bûcheron débloqué devient sélectionnable et démarre avec les Lames', async ({ page }) => {
   await openGame(page);
   await page.evaluate(() => (window as any).__game.setMeta({ version: 3, achievements: ['survie3', 'survie10'] }));
-  await expect(page.locator('#chars .card.char.locked')).toHaveCount(7); // 9 personnages, 2 débloqués
+  await expect(page.locator('#chars .char.locked')).toHaveCount(7); // 9 personnages, 2 débloqués
   await openCharacters(page);
-  await page.locator('#chars .card.char[data-char="bucheron"]').click();
-  await expect(page.locator('#chars .card.char[data-char="bucheron"]')).toHaveClass(/selected/);
+  await page.locator('#chars .char[data-char="bucheron"]').click();
+  await expect(page.locator('#chars .char[data-char="bucheron"]')).toHaveClass(/selected/);
   await startRun(page, 4);
   const w = await page.evaluate(() => {
     const g = (window as any).__game;
@@ -92,9 +92,15 @@ test('personnage : le Bûcheron débloqué devient sélectionnable et démarre a
 // Porte de phase 6 : un nouveau personnage en moins de 5 runs (achat en or), et l'achat lui-même.
 test('personnage acheté en or : la Veilleuse se débloque en moins de 5 runs d’un nouveau joueur', async ({ page }) => {
   await openGame(page);
-  const veilleuse = page.locator('#chars .card.char[data-char="veilleuse"]');
+  const veilleuse = page.locator('#chars .char[data-char="veilleuse"]');
+  // interface Nocturne : l'avatar verrouillé ouvre sa fiche, qui porte l'achat en or
+  const buy = page.locator('#charInfo .buychar[data-buy="veilleuse"]');
   await expect(veilleuse).toHaveClass(/locked/);
-  await expect(veilleuse.locator('.buychar')).toHaveClass(/poor/);
+  await openCharacters(page);
+  await veilleuse.click();
+  await expect(buy).toHaveClass(/poor/);
+  await expect(buy).toBeDisabled();
+  await page.locator('#charactersBackBtn').click();
   let runs = 0;
   for (; runs < 4; runs++) {
     await startRun(page, 10 + runs);
@@ -113,9 +119,10 @@ test('personnage acheté en or : la Veilleuse se débloque en moins de 5 runs d�
     if (gold >= 800) break;
   }
   expect(runs + 1, 'runs nécessaires').toBeLessThan(5);
-  await expect(veilleuse.locator('.buychar')).not.toHaveClass(/poor/);
   await openCharacters(page);
-  await veilleuse.locator('.buychar').click();
+  await veilleuse.click();
+  await expect(buy).not.toHaveClass(/poor/);
+  await buy.click();
   await expect(veilleuse).not.toHaveClass(/locked/);
   await expect(veilleuse).toHaveClass(/selected/);
   await expect(page.locator('#charInfo')).toContainText('Braise');
@@ -129,7 +136,10 @@ test('progression lente (phase 10) : une arme au départ, emplacement acheté ap
 }) => {
   await openGame(page);
   await freshProfile(page);
-  await expect(page.locator('#slotLine')).toContainText('1 arme');
+  // interface Nocturne : à la première ouverture, l'onglet Emplacements est fermé (bulle « Se débloque après… »)
+  await page.locator('#shopBtn').click({ force: true }); // aria-disabled : Playwright attendrait sinon qu'il s'active
+  await expect(page.locator('#tabTip')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__game.app)).toBe('menu');
   await startRun(page, 3);
   let slots = await page.evaluate(() => {
     const w = (window as any).__game.world;
@@ -151,18 +161,23 @@ test('progression lente (phase 10) : une arme au départ, emplacement acheté ap
   // succès + or : l'arme n°2 s'achète dans la feuille Emplacements
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, achievements: ['survie3'], gold: 300 });
+    g.setMeta({ ...g.meta, achievements: ['survie3'], gold: 300, reveal: 1 }); // « Première nuit » : une partie finie
   });
   await page.locator('#shopBtn').click();
+  await expect(page.locator('#slotsWeapons')).toHaveText('1 / 4');
   const first = page.locator('#slotList .slotrow').first();
   await expect(first).toContainText('Arme n°2');
   await expect(first.locator('.buy')).toBeEnabled();
-  await expect(page.locator('#slotList .slotrow').nth(1).locator('.buy')).toBeDisabled(); // succès manquant
+  // le tome n°3 attend son succès : cadenas et progression, pas de bouton d'achat
+  const tome = page.locator('#slotList .slotrow').nth(1);
+  await expect(tome).toContainText('Tome n°3');
+  await expect(tome).toHaveClass(/locked/);
+  await expect(tome.locator('.buy')).toHaveCount(0);
   await first.locator('.buy').click();
   await expect(page.locator('#shopGold')).toHaveText('0 or');
-  await expect(first).toContainText('Débloqué');
+  await expect(page.locator('#slotsWeapons')).toHaveText('2 / 4');
+  await expect(first).toContainText('Arme n°3'); // la suivante attend son succès
   await page.locator('#shopBackBtn').click();
-  await expect(page.locator('#slotLine')).toContainText('2 armes');
   await startRun(page, 3);
   slots = await page.evaluate(() => {
     const w = (window as any).__game.world;

@@ -42,7 +42,15 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
   await expect(page.locator('#libTabs [data-tab="i"]')).toHaveClass(/selected/);
   await expect(page.locator('#libList .lib')).toHaveCount(49); // phase 47 B : seize objets de plus ; phase 50 : la Toxine
   await expect(page.locator('#libList .lib.locked')).toHaveCount(21); // 22 verrouillés, le Phénix est à acheter
-  await expect(page.locator('#libList .note')).toContainText('27 objets');
+  await expect(page.locator('#libList .note.pool')).toContainText('27 objets');
+  // interface Nocturne : l'icône ouvre la fiche, qui porte l'achat ou le retrait du tirage
+  const pick = async (key: string) => {
+    const icon = page.locator(`#libList [data-pick="${key}"]`);
+    if (hasTouch) await icon.tap();
+    else await icon.click();
+    await expect(page.locator(`#libList [data-pick="${key}"]`)).toHaveAttribute('aria-pressed', 'true');
+  };
+  await pick('phenix');
   const buy = page.locator('#libList [data-unlock="i:phenix"]');
   await expect(buy).toBeEnabled();
   await page.screenshot({ path: `shots/${info.project.name}-bibliotheque-objets.png` });
@@ -56,7 +64,9 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
   await expect(page.locator('#libGold')).toHaveText(/1\D?000 or/);
   await expect(page.locator('#libList [data-toggle="phenix"]')).toBeVisible();
   // un commun reste toujours dans le tirage ; retirer la Cape (rare)
+  await pick('lanterne');
   await expect(page.locator('#libList [data-toggle="lanterne"]')).toHaveCount(0);
+  await pick('cape');
   const tog = page.locator('#libList [data-toggle="cape"]');
   if (hasTouch) await tog.tap();
   else {
@@ -64,7 +74,7 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
     await page.keyboard.press('Enter');
   }
   await expect(page.locator('#libList [data-toggle="cape"]')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#libList .note')).toContainText('27 objets'); // +Phénix −Cape
+  await expect(page.locator('#libList .note.pool')).toContainText('27 objets'); // +Phénix −Cape
   const meta = await page.evaluate(() => (window as any).__game.meta);
   expect(meta.unlocks).toContain('i:phenix');
   expect(meta.itemsOff).toEqual(['cape']);

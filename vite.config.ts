@@ -95,7 +95,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ogg,m4a,json,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,ogg,m4a,json,webmanifest}'], // webp : images de l'interface Nocturne (public/ui)
         globIgnores: ['screenshots/**'], // fiche d'installation seulement, inutile hors ligne
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',

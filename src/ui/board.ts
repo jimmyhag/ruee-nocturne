@@ -72,9 +72,13 @@ export function renderBoard(s: BoardState): void {
       const me = r.uid === s.uid;
       if (me) mineShown = true;
       const who = isChar(r.char) ? characterName(r.char) : '';
+      // interface Nocturne : avatar du héros joué ; le podium en grands chiffres
+      const av = isChar(r.char)
+        ? `<span class="avatar"><img src="/ui/avatar-${r.char}.webp" alt="" /></span>`
+        : '<span class="avatar"></span>';
       return (
-        `<li class="brow${me ? ' me' : ''}"><b class="rank">${i + 1}</b>` +
-        `<span class="who"><span class="name">${esc(r.name)}</span><small>${esc(who)}</small></span>` +
+        `<li class="brow${i < 3 ? ' top' : ''}${me ? ' me' : ''}"><b class="rank">${i + 1}</b>` +
+        `<span class="who">${av}<span class="name">${esc(r.name)}</span><small>${esc(who)}</small></span>` +
         `<span class="val">${esc(boardValue(s.view, r.value))}</span></li>`
       );
     })

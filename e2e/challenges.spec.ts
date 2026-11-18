@@ -16,8 +16,8 @@ test('fiche du personnage : 3 défis ; tenue de maître après le défi III', as
     }),
   );
   await openCharacters(page);
-  await expect(page.locator('#charInfo .chal .ach')).toHaveCount(3);
-  await expect(page.locator('#charInfo .chal')).toContainText('Bûcheron I');
+  await expect(page.locator('#charInfo .chal .goalrow')).toHaveCount(3);
+  await expect(page.locator('#charInfo .chal .goalrow').first()).toHaveAttribute('aria-label', 'Bûcheron I');
   await expect(page.locator('#charInfo .chal')).toContainText('420 / 800');
   const master = page.locator('#charInfo [data-outfit="2"]');
   await expect(master).toHaveClass(/locked/);

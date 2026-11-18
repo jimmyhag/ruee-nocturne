@@ -203,7 +203,7 @@ test('personnages : grille complète et traînée du Feu follet', async ({ page 
     }),
   );
   await page.evaluate(() => document.fonts.ready);
-  await expect(page.locator('#chars .card.char.locked')).toHaveCount(0);
+  await expect(page.locator('#chars .char.locked')).toHaveCount(0);
   await openCharacters(page); // phase 14 : feuille « Personnage »
   await page.waitForTimeout(300);
   await page.screenshot(shot('personnages', p));
@@ -285,4 +285,118 @@ test('phase 17 : coffre d’objets, échoppe du marchand, HUD avec objets et syn
   await page.evaluate(() => (window as any).__game.debug.speed(1));
   await expect(page.locator('#gear .git')).toHaveCount(4);
   await expect(page.locator('#kit .syn')).toHaveCount(1);
+});
+
+// Interface « Nocturne » (docs/specs/ui-nocturne.md) : chaque écran, pour comparer à la maquette (docs/design/menus/)
+// et garder l'avant / après dans docs/captures/nocturne/. Sortie : shots/<projet>-ui-<écran>.png
+test('interface : chaque écran du menu et de la partie', async ({ page }, info) => {
+  test.setTimeout(420_000); // une trentaine d'écrans sous SwiftShader
+  const p = info.project.name;
+  const ui = (name: string) => shot('ui-' + name, p);
+  await page.goto('/?debug=1&consent=1');
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({
+      ...g.meta,
+      reveal: 4,
+      seenReveal: 4,
+      gold: 2360,
+      runs: 12,
+      bestTime: 872,
+      bestKills: 1830,
+      achievements: ['survie3', 'survie10', 'kills500'],
+      character: 'sorciere',
+    });
+    (document.getElementById('perf') as HTMLElement).hidden = true;
+  });
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400);
+  await page.screenshot(ui('menu'));
+  // bouton du menu, écran, bouton retour
+  const sheets: [string, string, string][] = [
+    ['charsBtn', 'heros', 'charactersBackBtn'],
+    ['shopBtn', 'emplacements', 'shopBackBtn'],
+    ['achBtn', 'succes', 'achBackBtn'],
+    ['libBtn', 'bibliotheque', 'libBackBtn'],
+    ['boardBtn', 'classement', 'boardBackBtn'],
+    ['dailyBtn', 'defi', 'dailyBackBtn'],
+    ['notesBtn', 'nouveautes', 'notesBackBtn'],
+    ['accountBtn', 'compte', 'accountBackBtn'],
+    ['settingsBtn', 'reglages', 'settingsBackBtn'],
+  ];
+  for (const [btn, name, back] of sheets) {
+    await page.locator('#' + btn).click();
+    await page.waitForTimeout(500);
+    await page.screenshot(ui(name));
+    await page.locator('#' + back).click();
+    await page.waitForFunction(() => (window as any).__game.app === 'menu');
+  }
+  await startRun(page, 42);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.debug.warp(150);
+    g.world.player.need = 1e9;
+    g.world.gold = 420;
+  });
+  await pickUntilPlay(page);
+  await page.waitForTimeout(600);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.speed(0); // partie figée : des PV de joueur ordinaires sur la capture, puis l'invincibilité de nouveau
+    g.world.player.maxHp = 130;
+    g.world.player.hp = 104;
+  });
+  await page.waitForTimeout(150);
+  await page.screenshot(ui('hud'));
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.debug.speed(1);
+  });
+  await page.evaluate(() => (window as any).__game.debug.levelUp());
+  await page.waitForSelector('#levelup:not([hidden])');
+  await page.waitForTimeout(500);
+  await page.screenshot(ui('niveau'));
+  await pickUntilPlay(page);
+  await page.evaluate(() => (window as any).__game.debug.chest(true));
+  await page.waitForSelector('#levelup:not([hidden])');
+  await page.waitForTimeout(500);
+  await page.screenshot(ui('coffre'));
+  await pickUntilPlay(page);
+  await page.evaluate(() => (window as any).__game.debug.merchant(4));
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.teleport(g.world.merchant.x, g.world.merchant.z + 1);
+  });
+  await page.waitForSelector('#merchant:not([hidden])');
+  await page.waitForTimeout(500);
+  await page.screenshot(ui('marchand'));
+  await page.locator('#mLeave').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await page.locator('#pauseBtn').click();
+  await page.waitForSelector('#pause:not([hidden])');
+  await page.waitForTimeout(300);
+  await page.screenshot(ui('pause'));
+  await page.locator('#pauseMapBtn').click();
+  await page.waitForSelector('#map:not([hidden])');
+  await page.waitForTimeout(300);
+  await page.screenshot(ui('carte'));
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#pause:not([hidden])');
+  await page.locator('#resumeBtn').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await page.evaluate(() => (window as any).__game.debug.win());
+  await page.waitForSelector('#victory:not([hidden])');
+  await page.waitForTimeout(400);
+  await page.screenshot(ui('victoire'));
+  await page.locator('#vEnd').click();
+  await page.waitForSelector('#over:not([hidden])');
+  await page.waitForTimeout(400);
+  await page.screenshot(ui('fin'));
+  await page.locator('#menuBtn').click();
+  await page.waitForSelector('#consent:not([hidden])');
+  await page.waitForTimeout(300);
+  await page.screenshot(ui('accord'));
 });

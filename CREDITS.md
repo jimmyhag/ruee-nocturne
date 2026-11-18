@@ -48,12 +48,16 @@ Outils de développement : [glTF Transform](https://gltf-transform.dev/) (MIT) e
 
 ## Polices
 
-| Police                                                     | Auteur                               | Licence                                                   |
-| ---------------------------------------------------------- | ------------------------------------ | --------------------------------------------------------- |
-| [Lilita One](https://fonts.google.com/specimen/Lilita+One) | Juan Montoreano                      | [SIL Open Font License 1.1](https://openfontlicense.org/) |
-| [Rubik](https://fonts.google.com/specimen/Rubik)           | Hubert & Fischer, Meir Sadan, Cyreal | [SIL Open Font License 1.1](https://openfontlicense.org/) |
+| Police                                                                 | Auteur                      | Licence                                                   |
+| ---------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------- |
+| [Barlow](https://fonts.google.com/specimen/Barlow)                     | Jeremy Tribby (Tribby Type) | [SIL Open Font License 1.1](https://openfontlicense.org/) |
+| [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) | Jeremy Tribby (Tribby Type) | [SIL Open Font License 1.1](https://openfontlicense.org/) |
 
-Les fichiers `public/fonts/*.woff2` sont les sous-ensembles latins distribués par Google Fonts, auto-hébergés pour que le jeu fonctionne hors ligne.
+Depuis la 1.61.0 (interface « Nocturne »), Barlow (400, 500, 600) et Barlow Condensed (300, 500, 600, 700) remplacent Lilita One et Rubik. Les fichiers `public/fonts/*.woff2` sont les sous-ensembles latin et latin étendu distribués par Google Fonts, auto-hébergés et précachés pour que le jeu fonctionne hors ligne et qu'aucune requête ne parte vers un autre site.
+
+## Interface
+
+Les illustrations de l'interface « Nocturne » (fonds de nuit et de crépuscule, portraits et avatars des neuf héros, logo) viennent de la maquette fournie par Jimmy Haggege (`docs/design/menus/`, sources dans `assets/ui/`) ; `npm run ui-images` (`tools/ui-images.ts`, sharp) en tire les WebP de `public/ui/`.
 
 ## Références de ton
 

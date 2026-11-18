@@ -1,6 +1,6 @@
 # Interface « Nocturne » — toute l'interface du jeu, ajouts des lots compris
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 17 novembre 2026, avec Jimmy. Jimmy a envoyé deux maquettes : un « kit UI »
 cartoon (boutons à contour encre, Lilita One), puis la direction **« Nocturne »**

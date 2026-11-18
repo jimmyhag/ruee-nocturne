@@ -1,4 +1,15 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STAGE, STEP } from './sim/balance';
+import {
+  CHARACTERS,
+  ELITE_TYPE,
+  ENEMIES,
+  ITEM_KEYS,
+  MAP,
+  POWER_KEYS,
+  REAPER_TYPE,
+  SLIDE,
+  STAGE,
+  STEP,
+} from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell, HIT_CRIT, HitSrc } from './sim/types';
 import { POWER_ICON } from './ui/icons';
@@ -78,8 +89,9 @@ import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
 import { revealAfterRun, revealNews } from './meta/reveal';
 import {
-  bestLine,
+  ACH_TABS,
   esc,
+  goldHtml,
   renderAchievements,
   renderCharacters,
   renderProgress,
@@ -87,8 +99,9 @@ import {
   renderSlots,
   slotCondition,
   slotName,
-  slotsLine,
 } from './ui/meta-ui';
+import type { AchTab } from './ui/meta-ui';
+import { LOCKED_TABS, renderHome, stepHero, tabsLocked } from './ui/home';
 import type { CharacterKey, ItemKey } from './sim/types';
 import { installDebugHooks, debugEnabled } from './debug';
 import { Pwa } from './platform/pwa';
@@ -218,9 +231,16 @@ function applyFx(): void {
   const r = reducedFx();
   hitStop.enabled = !r;
   hud.flashMul = r ? 0.4 : 1;
-  $('fxBtn').textContent = $('setFxBtn').textContent = t(
+  document.body.classList.toggle('calm', r); // interface Nocturne : les animations du menu s'arrêtent (décision 19)
+  $('fxBtn').textContent = t(
     r ? (meta.fxChosen ? 'settings.fx.reduced' : 'settings.fx.reducedSystem') : 'settings.fx.full',
   );
+  pressed($('setFx'), 'fx', r ? 'reduced' : 'full');
+}
+/** Choix soulignés (réglages) : le bouton dont `data-<attr>` vaut `v` est enfoncé. */
+function pressed(group: HTMLElement, attr: string, v: string): void {
+  for (const b of group.querySelectorAll<HTMLElement>(`[data-${attr}]`))
+    b.setAttribute('aria-pressed', String(b.dataset[attr] === v));
 }
 // rendu (phase 9) : réglage auto|net|pixel ; en auto, le niveau de session descend quand les frames dépassent le budget
 let autoLevel = 2;
@@ -231,7 +251,8 @@ function qualityLevel(): number {
 }
 function applyQuality(): void {
   scene?.setQuality(qualityLevel());
-  $('qualityBtn').textContent = $('setQualityBtn').textContent = t('settings.quality.' + meta.settings.quality);
+  $('qualityBtn').textContent = t('settings.quality.' + meta.settings.quality);
+  pressed($('setQuality'), 'quality', meta.settings.quality);
 }
 let perfOn = location.search.includes('debug');
 const inp: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
@@ -251,7 +272,6 @@ function resize(): void {
   sizeH = h;
   sizeDpr = dpr;
   scene?.resize(w, h);
-  if (scene) scene.menuWide = w > 900 && w > h; // cadrage de l'accueil (phase 14)
   refitGear();
 }
 /** Phase 38 : la barre d'équipement se remet en rangées après un changement de taille ou de mode d'entrée (regroupé). */
@@ -267,38 +287,116 @@ addEventListener('orientationchange', resize);
 visualViewport?.addEventListener('resize', resize);
 resize();
 
+/** La partie est à l'écran (en jeu ou sous un écran de partie) : la scène 3D se rend ; au menu, plus rien (décision 6). */
+function gameShown(): boolean {
+  return (
+    app === 'play' ||
+    app === 'pause' ||
+    app === 'levelup' ||
+    app === 'merchant' ||
+    app === 'map' ||
+    app === 'victory' ||
+    app === 'over'
+  ); // les écrans intérieurs (réglages ou emplacements ouverts depuis la pause ou la fin) ont leur propre fond opaque
+}
+/** Écrans intérieurs de l'accueil : la barre d'onglets les accompagne quand ils sont ouverts depuis l'accueil. */
+const MENU_SHEETS: readonly AppMode[] = [
+  'characters',
+  'shop',
+  'achievements',
+  'library',
+  'board',
+  'daily',
+  'notes',
+  'account',
+  'settings',
+  'help',
+];
+/** Onglet de la barre du bas de chaque écran (l'onglet courant passe en lanterne). */
+const TAB_OF: Partial<Record<AppMode, string>> = {
+  characters: 'charsBtn',
+  shop: 'shopBtn',
+  achievements: 'achBtn',
+  library: 'libBtn',
+  board: 'boardBtn',
+};
 function showOnly(id: AppMode | null): void {
   for (const s of SCREENS) $(s).hidden = s !== id;
   $('vignette').hidden = world === null; // vignette douce sur le jeu (phase 9), pas sur le menu ni ses écrans
+  // interface Nocturne (décision 5) : barre d'onglets sur l'accueil et les écrans ouverts depuis lui (pas depuis la
+  // pause ni l'écran de fin : on ne quitte pas une partie par un onglet)
+  const tabs = id === 'menu' || (id !== null && MENU_SHEETS.includes(id) && backTo === 'menu');
+  $('tabBar').hidden = !tabs;
+  document.body.classList.toggle('tabs-on', tabs);
+  const cur = id ? TAB_OF[id] : undefined;
+  for (const b of $('tabBar').querySelectorAll<HTMLElement>('button'))
+    if (b.id === cur) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  if (id !== 'menu') $('tabTip').hidden = true;
 }
+/** Héros regardé : carrousel de l'accueil et fiche de l'écran Héros (un héros verrouillé se regarde sans se choisir). */
+let heroView: CharacterKey = metaAtStart.character;
+/** Le héros regardé est verrouillé : « Jouer » est indisponible. */
+let heroLocked = false;
+/** « 14 h 22 » avant le prochain défi du jour. */
+function dailyLeft(): string {
+  const min = Math.ceil(msToNextDaily() / 60000),
+    h = Math.floor(min / 60),
+    m = min % 60;
+  return h > 0 ? t('daily.hm', { h, m: String(m).padStart(2, '0') }) : t('daily.m', { m });
+}
+/** Accueil (profil, or, carrousel, objectif, rails du défi du jour et des nouveautés) et écran Héros. */
 function updateBestLine(): void {
-  $('bestLine').textContent = bestLine(meta);
-  $('slotLine').textContent = slotsLine(meta);
   $('resetNote').hidden = meta.seenReset;
-  renderCharacters($('chars'), meta, $('charInfo'));
+  heroLocked = renderHome(meta, heroView);
+  renderCharacters($('chars'), meta, $('charInfo'), heroView);
+  renderHeroCounts();
   const daily = dailyUnlocked(meta);
   $('dailyBtn').hidden = !daily;
   if (daily) {
     const best = dailyBest(meta);
-    $('dailyBtn').textContent = best > 0 ? t('menu.dailyBest', { time: fmtTime(best) }) : t('menu.daily');
+    const left = dailyLeft();
+    $('dailyRail').textContent = best > 0 ? t('menu.dailyBest', { time: fmtTime(best) }) : left;
+    $('dailyBtn').setAttribute(
+      'aria-label',
+      best > 0 ? t('menu.dailyAriaBest', { time: fmtTime(best) }) : t('menu.dailyAria', { time: left }),
+    );
   }
   const fresh = hasUnseenNotes(meta.seenNotes, VERSION, meta.runs); // 1.49.0 : une version pas encore lue
   $('notesDot').hidden = !fresh;
-  $('notesBtn').classList.toggle('fresh', fresh);
-  $('shopLabel').textContent = t('menu.shopGold', { gold: t('gold', { n: Math.round(meta.gold) }) }); // le bouton garde son icône
+  $('notesBtn').hidden = meta.reveal === 0 && !fresh; // première ouverture : rien à raconter (maquette)
+  $('notesBtn').setAttribute('aria-label', t(fresh ? 'menu.notesAriaNew' : 'menu.notesAria', { v: VERSION }));
   updateResumeBtn();
+}
+/** Écran Héros : or à droite, « 01 / 09 » (place du héros regardé), « Les 9 héros », débloqués. */
+function renderHeroCounts(): void {
+  const i = CHARACTERS.findIndex((c) => c.key === heroView);
+  $('charsCount').textContent = `${String(i + 1).padStart(2, '0')} / ${String(CHARACTERS.length).padStart(2, '0')}`;
+  $('charsAll').textContent = t('chars.all', { n: CHARACTERS.length });
+  $('charsOpen').textContent = t('chars.open', { n: unlockedCharacters(meta).length });
+  $('charsGold').innerHTML = goldHtml(meta.gold);
+}
+/** Carrousel : héros voisin (`dir` ±1) ; un héros débloqué devient le héros choisi, un verrouillé se regarde seulement. */
+function viewHero(k: CharacterKey): void {
+  heroView = k;
+  if (unlockedCharacters(meta).includes(k) && meta.character !== k) {
+    meta.character = k;
+    saveMeta(meta);
+    scene?.setCharacter(k, outfitOf(meta, k));
+  }
+  updateBestLine();
 }
 /** Applique les réglages (HUD, gaucher, vibrations, son, langue) au DOM et aux libellés. */
 function applySettings(): void {
   document.documentElement.style.setProperty('--hud-scale', String(meta.settings.hudScale));
   document.body.classList.toggle('lefty', meta.settings.lefty);
-  $('setSoundBtn').textContent = $('soundBtn').textContent = t(meta.muted ? 'settings.sound.off' : 'settings.sound.on');
-  $('setVibrateBtn').textContent = t(meta.settings.vibrate ? 'settings.vibrate.on' : 'settings.vibrate.off');
-  $('setLeftyBtn').textContent = t(meta.settings.lefty ? 'settings.lefty.yes' : 'settings.lefty.no');
-  $('setRetentionBtn').textContent = t(
-    retention.consent === 'yes' ? 'settings.retention.on' : 'settings.retention.off',
-  );
-  $('setLangBtn').textContent = t('settings.lang.' + meta.settings.lang);
+  $('soundBtn').textContent = t(meta.muted ? 'settings.sound.off' : 'settings.sound.on');
+  // interface Nocturne : interrupteurs (aria-pressed) et choix soulignés
+  $('setSoundBtn').setAttribute('aria-pressed', String(!meta.muted));
+  $('setVibrateBtn').setAttribute('aria-pressed', String(meta.settings.vibrate));
+  $('setLeftyBtn').setAttribute('aria-pressed', String(meta.settings.lefty));
+  $('setRetentionBtn').setAttribute('aria-pressed', String(retention.consent === 'yes'));
+  pressed($('setLang'), 'lang', meta.settings.lang);
   ($('sfxVol') as HTMLInputElement).value = String(Math.round(meta.settings.sfxVol * 100));
   ($('musicVol') as HTMLInputElement).value = String(Math.round(meta.settings.musicVol * 100));
   audio.setVolumes(meta.settings.sfxVol, meta.settings.musicVol);
@@ -308,7 +406,7 @@ function applySettings(): void {
     ['hudNormalBtn', 1],
     ['hudLargeBtn', 1.2],
   ] as const)
-    $(id).classList.toggle('selected', meta.settings.hudScale === v);
+    $(id).setAttribute('aria-pressed', String(meta.settings.hudScale === v));
 }
 // 1.40.0 (demande de Jimmy) : touches du clavier configurables. Les réglages restent sur l'appareil (jamais synchronisés).
 let keysApplied = '';
@@ -351,11 +449,15 @@ function openScreen(
   id:
     'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help' | 'daily' | 'notes',
 ): void {
-  if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings')
+  if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings') {
     backTo = app === 'settings' ? 'menu' : app;
+    // focus : en fermant l'écran, il revient sur l'élément qui l'a ouvert (contrat de la spec Nocturne)
+    if (app !== 'settings') opener = document.activeElement as HTMLElement | null;
+  }
   app = id;
+  $(id).scrollTop = 0;
   if (id === 'shop') renderShopScreen();
-  else if (id === 'achievements') renderAchievements($('achList'), meta);
+  else if (id === 'achievements') renderAchScreen();
   else if (id === 'library') renderLibraryScreen();
   else if (id === 'account') openAccount();
   else if (id === 'board') {
@@ -363,9 +465,8 @@ function openScreen(
     void openBoard();
     return;
   } else if (id === 'characters') {
-    showOnly(id); // la feuille doit être visible avant le rendu : la rangée se recentre sur la carte choisie (téléphone)
-    renderCharacters($('chars'), meta, $('charInfo'));
-    return;
+    renderCharacters($('chars'), meta, $('charInfo'), heroView);
+    renderHeroCounts();
   } else if (id === 'help') {
     showRevealed($('help'), meta.reveal); // lot L2 : l'aide ne montre que les systèmes dévoilés
   } else if (id === 'notes') {
@@ -431,26 +532,44 @@ function answerConsent(yes: boolean): void {
 }
 /** Feuille du défi du jour (1.48.1) : les temps du jour et le délai avant le prochain ; les règles sont statiques. */
 function renderDailyScreen(): void {
-  const times = dailyTimes(meta);
-  $('dailyTimes').textContent = times.length
-    ? t('daily.times', { list: times.map((s, i) => `${ordinal(i + 1)} ${fmtTime(s)}`).join(' · ') })
-    : t('daily.noTime');
-  const min = Math.ceil(msToNextDaily() / 60000),
-    h = Math.floor(min / 60),
-    m = min % 60;
-  $('dailyNext').textContent = t('daily.next', {
-    time: h > 0 ? t('daily.hm', { h, m: String(m).padStart(2, '0') }) : t('daily.m', { m }),
+  // interface Nocturne : la date du jour en libellé, le délai en grands chiffres, les trois meilleurs temps du jour
+  $('dailyDate').textContent = new Date().toLocaleDateString(getLang(), {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
   });
+  const times = dailyTimes(meta);
+  const el = $('dailyTimes');
+  el.classList.toggle('none', times.length === 0);
+  el.setAttribute(
+    'aria-label',
+    times.length
+      ? t('daily.times', { list: times.map((s, i) => `${ordinal(i + 1)} ${fmtTime(s)}`).join(' · ') })
+      : t('daily.noTime'),
+  );
+  el.innerHTML = times.length
+    ? times
+        .slice(0, 3)
+        .map((s, i) => (i === 0 ? `<b>${fmtTime(s)}</b>` : `<span>${fmtTime(s)}</span>`))
+        .join('')
+    : esc(t('daily.noTime'));
+  $('dailyNext').textContent = dailyLeft();
 }
-// phase 40 : Bibliothèque (onglet gardé d'une ouverture à l'autre)
+// phase 40 : Bibliothèque (onglet et entrée choisie gardés d'une ouverture à l'autre)
 let libTab: LibTab = 'w';
+let libSel = '';
 function renderLibraryScreen(): void {
-  $('libGold').textContent = t('gold', { n: Math.round(meta.gold) });
-  renderLibrary($('libTabs'), $('libList'), meta, libTab);
+  $('libGold').innerHTML = goldHtml(meta.gold);
+  libSel = renderLibrary($('libTabs'), $('libList'), $('libCount'), meta, libTab, libSel);
+}
+// Succès : onglet gardé d'une ouverture à l'autre
+let achTab: AchTab = 'all';
+function renderAchScreen(): void {
+  renderAchievements($('achTabs'), $('achList'), $('achCount'), meta, achTab);
 }
 function renderShopScreen(): void {
   // phase 17 : plus de boutique par personnage ; la feuille ne garde que les emplacements (communs à tous)
-  $('shopGold').textContent = t('gold', { n: Math.round(meta.gold) });
+  $('shopGold').innerHTML = goldHtml(meta.gold);
   renderSlots($('slotList'), meta);
   renderRerolls($('rerollList'), $('rerollNote'), meta); // phase 31
 }
@@ -479,7 +598,7 @@ function applyLang(): void {
   if (app === 'over') renderOverScreen();
   else if (app === 'levelup') openLevelUp();
   else if (app === 'shop') renderShopScreen();
-  else if (app === 'achievements') renderAchievements($('achList'), meta);
+  else if (app === 'achievements') renderAchScreen();
   else if (app === 'library') renderLibraryScreen();
   else if (app === 'daily') renderDailyScreen();
   else if (app === 'notes') renderNotesScreen();
@@ -493,11 +612,34 @@ function syncLang(): void {
     refreshAccount();
   }
 }
+/** Élément qui a ouvert l'écran intérieur courant : le focus y revient à la fermeture. */
+let opener: HTMLElement | null = null;
 function closeScreen(): void {
   app = backTo;
   showOnly(backTo);
   if (backTo === 'menu') updateBestLine();
+  if (opener?.isConnected && !opener.closest('[hidden]')) opener.focus({ preventScroll: true });
+  opener = null;
 }
+// Échap ferme tout écran intérieur (interface Nocturne) ; le défi du jour, les nouveautés, la bibliothèque et la
+// demande d'accord ont déjà leur propre gestion
+addEventListener('keydown', (e) => {
+  if (e.code !== 'Escape' || e.repeat) return;
+  if (
+    app === 'characters' ||
+    app === 'shop' ||
+    app === 'achievements' ||
+    app === 'board' ||
+    app === 'account' ||
+    app === 'settings' ||
+    app === 'help'
+  ) {
+    const el = e.target as HTMLElement | null;
+    if (el && el.closest('#keygrid')) return; // une touche en cours de choix : Échap annule le choix (keys.ts)
+    e.preventDefault();
+    closeScreen();
+  }
+});
 
 // ---------- carte : phase 27, une nouvelle carte à chaque partie ----------
 // Le menu montre la carte MAP.seed (décor construit au chargement). Chaque partie tire sa graine de carte : l'horloge
@@ -526,22 +668,23 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   if (!scene || !sceneReady) {
     // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
     if (!startWanted) startWanted = { variant, daily, resume }; // la première intention (ex. défi du jour) l'emporte
-    $<HTMLButtonElement>('playBtn').disabled = true;
-    $('playBtn').textContent = t('menu.loading');
+    playLoading = true;
+    setPlayState();
     loadScene().then(
       () => {
         const w = startWanted;
         startWanted = null;
-        $<HTMLButtonElement>('playBtn').disabled = false;
-        $('playBtn').textContent = t('menu.play');
+        playLoading = false;
+        setPlayState();
         if (w) startGame(w.variant, w.daily, w.resume);
       },
       () => {
         // module introuvable (réseau coupé au tout premier lancement) : on laisse réessayer
         scenePromise = null;
         startWanted = null;
-        $<HTMLButtonElement>('playBtn').disabled = false;
-        $('playBtn').textContent = t('menu.retry');
+        playLoading = false;
+        setPlayState();
+        $('playLbl').textContent = t('menu.retry');
       },
     );
     return;
@@ -550,12 +693,11 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
     // modèles 3D des ennemis encore en route (premier lancement, ou après une mise à jour) : on les attend un peu
     // plutôt que de lancer la partie avec les silhouettes de repli (8 s au plus, puis on joue quand même)
     modelsWaited = true;
-    const btn = $<HTMLButtonElement>('playBtn');
-    btn.disabled = true;
-    btn.textContent = t('menu.loading');
+    playLoading = true;
+    setPlayState();
     Promise.race([scene.enemiesReady, new Promise<void>((r) => setTimeout(r, 8000))]).then(() => {
-      btn.disabled = false;
-      btn.textContent = t('menu.play');
+      playLoading = false;
+      setPlayState();
       startGame(variant, daily, resume);
     });
     return;
@@ -625,7 +767,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   mapView.setNew(news === null || news === 'slide' ? null : news, t('reveal.tag'));
   if (news) {
     saveMeta(meta);
-    hud.banner(t('reveal.new'), t(`reveal.${news}`), REVEAL_BANNER_MS);
+    hud.banner(t('reveal.new'), 'reward', t(`reveal.${news}`), REVEAL_BANNER_MS);
     audio.levelUp();
   }
   S.dmg.clear();
@@ -700,17 +842,34 @@ function forgetRun(): void {
   abandonFor = null;
   clearRun(); // localStorage et IndexedDB : une sauvegarde trop grosse pour le premier vit dans le second
 }
-/** Bouton « Reprendre » du menu et confirmation d'abandon. */
+/** Libellé du bouton de partie : « Jouer », ou « Nouvelle partie » quand une partie attend (maquette Menu-Reprendre). */
+function playLabel(): string {
+  return t(savedRun ? 'menu.newRun' : 'menu.play');
+}
+/** Le module de rendu ou les modèles se chargent après un « Jouer » : le bouton attend. */
+let playLoading = false;
+/** « Jouer » : indisponible pendant un chargement et sur un héros verrouillé (décision 8). */
+function setPlayState(): void {
+  const b = $<HTMLButtonElement>('playBtn');
+  b.disabled = heroLocked || playLoading;
+  b.setAttribute('aria-disabled', String(b.disabled));
+  $('playLbl').textContent = playLoading ? t('menu.loading') : playLabel();
+}
+/** Bouton « Reprendre » du menu (fond crépuscule, bouton plein) et confirmation d'abandon. */
 function updateResumeBtn(): void {
   const r = savedRun;
   $('resumeRunBtn').hidden = !r;
-  $('playBtn').classList.toggle('big', !r);
-  $('playBtn').classList.toggle('ghost', !!r);
+  $('menu').classList.toggle('resume', !!r);
+  // un seul bouton plein par écran (kit) : « Reprendre » l'est, « Nouvelle partie » devient un lien filet
+  $('playBtn').classList.toggle('btn-full', !r);
+  $('playBtn').classList.toggle('btn-link', !!r);
+  setPlayState();
   if (r) {
     const time = fmtTime(r.summary.endless ? r.summary.t : r.summary.stageT);
     $('resumeRunInfo').textContent = r.summary.endless
       ? t('menu.resumeInfoEndless', { time })
       : t('menu.resumeInfo', { stage: r.summary.stage, time });
+    $('resumeRunBtn').setAttribute('aria-label', t('menu.resumeAria', { info: $('resumeRunInfo').textContent ?? '' }));
   }
   $('abandonRow').hidden = abandonFor === null;
 }
@@ -745,7 +904,7 @@ function onStageStart(n: number): void {
   S.snapCamera(world);
   fade.style.transition = 'opacity 0.8s ease-out';
   fade.style.opacity = '0';
-  hud.banner(t('banner.stage', { n, name: t('stage.name.' + n) }));
+  hud.banner(t('banner.stage', { n, name: t('stage.name.' + n) }), 'info');
   audio.whoosh();
   audio.levelUp();
 }
@@ -1117,23 +1276,65 @@ $('notesMore').onclick = () => {
   notesAll = true;
   renderNotesScreen();
 };
-$('shopBtn').onclick = () => openScreen('shop');
 $('overShopBtn').onclick = () => openScreen('shop');
-$('achBtn').onclick = () => openScreen('achievements');
-$('libBtn').onclick = () => openScreen('library');
+// ---------- interface Nocturne : barre d'onglets, carrousel de héros, prochain objectif ----------
+let tipT = 0;
+/** Bulle d'un onglet verrouillé à la première ouverture (décision 10). */
+function showTabTip(): void {
+  const tip = $('tabTip');
+  tip.hidden = false;
+  clearTimeout(tipT);
+  tipT = window.setTimeout(() => (tip.hidden = true), 2600);
+}
+for (const b of $('tabBar').querySelectorAll<HTMLElement>('button[data-screen]'))
+  b.onclick = () => {
+    const screen = b.dataset.screen as 'characters' | 'shop' | 'achievements' | 'library' | 'board';
+    if ((LOCKED_TABS as readonly string[]).includes(b.id) && tabsLocked(meta)) return showTabTip();
+    if (app === screen) return;
+    audio.init();
+    openScreen(screen);
+  };
+$('heroPrev').onclick = () => viewHero(stepHero(heroView, -1));
+$('heroNext').onclick = () => viewHero(stepHero(heroView, 1));
+$('goalBtn').onclick = () => openScreen('achievements');
+// clavier : ← → changent de héros à l'accueil (parité avec les flèches au doigt, décision 8)
+addEventListener('keydown', (e) => {
+  if (app !== 'menu' || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return;
+  const el = e.target as HTMLElement | null;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return;
+  e.preventDefault();
+  viewHero(stepHero(heroView, e.code === 'ArrowLeft' ? -1 : 1));
+});
 $('libBackBtn').onclick = closeScreen;
 $('libTabs').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-tab]') as HTMLElement | null;
   if (!b) return;
   libTab = b.dataset.tab as LibTab;
+  libSel = '';
   renderLibraryScreen();
+});
+// succès : onglets (tous, généraux, défis des héros)
+$('achTabs').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-ach]') as HTMLElement | null;
+  if (!b) return;
+  achTab = ACH_TABS.includes(b.dataset.ach as AchTab) ? (b.dataset.ach as AchTab) : 'all';
+  renderAchScreen();
 });
 // phase 40 : achat d'une arme ou d'un objet débloqué, retrait d'un objet du tirage
 $('libList').addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
   const buy = target.closest('[data-unlock]') as HTMLButtonElement | null;
   const tog = target.closest('[data-toggle]') as HTMLButtonElement | null;
+  const pick = target.closest('[data-pick]') as HTMLElement | null;
   audio.init();
+  if (pick) {
+    // interface Nocturne : une icône de la grille ouvre sa fiche au-dessus
+    libSel = pick.dataset.pick!;
+    renderLibraryScreen();
+    audio.select('s');
+    if (!input.isTouch) ($('libList').querySelector(`[data-pick="${libSel}"]`) as HTMLElement | null)?.focus();
+    return;
+  }
   if (buy && !buy.disabled) {
     const [kind, key] = buy.dataset.unlock!.split(':') as [LibKind, string];
     if (!buyUnlock(meta, kind, key)) return;
@@ -1162,6 +1363,7 @@ addEventListener('keydown', (e) => {
   const n = e.code.startsWith('Digit') ? +e.code.slice(5) : e.code.startsWith('Numpad') ? +e.code.slice(6) : 0;
   if (n >= 1 && n <= LIB_TABS.length) {
     libTab = LIB_TABS[n - 1];
+    libSel = '';
     renderLibraryScreen();
   } else if (e.code === 'Escape') {
     e.preventDefault();
@@ -1171,7 +1373,6 @@ addEventListener('keydown', (e) => {
 $('settingsBtn').onclick = () => openScreen('settings');
 $('accountBtn').onclick = () => openScreen('account');
 $('accountBackBtn').onclick = closeScreen;
-$('boardBtn').onclick = () => openScreen('board');
 $('boardBackBtn').onclick = closeScreen;
 $('boardAccountBtn').onclick = () => openScreen('account');
 $('boardPseudoBtn').onclick = () => openScreen('account');
@@ -1189,7 +1390,6 @@ $('boardWeek').onclick = () => {
   boardState.week = true;
   void refreshBoard();
 };
-$('charsBtn').onclick = () => openScreen('characters');
 $('charactersBackBtn').onclick = closeScreen;
 $('helpBtn').onclick = () => openScreen('help');
 $('helpBackBtn').onclick = closeScreen;
@@ -1203,32 +1403,31 @@ $('achBackBtn').onclick = closeScreen;
 $('settingsBackBtn').onclick = closeScreen;
 $('chars').addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
-  // achat d'un personnage en or (phase 6) : débité, choisi, grille et or du menu rafraîchis
-  const buyEl = target.closest('[data-buy]') as HTMLElement | null;
-  if (buyEl) {
-    const key = buyEl.dataset.buy as CharacterKey;
-    if (buyCharacter(meta, key)) {
-      meta.character = key;
-      saveMeta(meta);
-      audio.init();
-      audio.chest();
-      updateBestLine();
-    }
-    return;
-  }
-  const b = target.closest('.card.char') as HTMLElement | null;
+  const b = target.closest('.char') as HTMLElement | null;
   if (!b) return;
-  const key = b.dataset.char as CharacterKey;
-  if (!unlockedCharacters(meta).includes(key)) return;
-  meta.character = key;
-  saveMeta(meta);
-  renderCharacters($('chars'), meta, $('charInfo'));
-  scene?.setCharacter(key, outfitOf(meta, key));
+  // interface Nocturne : un héros débloqué est choisi, un verrouillé s'affiche dans la fiche (condition ou achat)
+  viewHero(b.dataset.char as CharacterKey);
+  renderHeroCounts();
   audio.init();
   audio.select('s');
 });
 // tenues (phase 7) : bascule gratuite si possédée, sinon achat en or ; l'aperçu du menu change aussitôt
 $('charInfo').addEventListener('click', (e) => {
+  // achat d'un personnage en or (phase 6), depuis sa fiche : débité, choisi, accueil et écran rafraîchis
+  const buyEl = (e.target as HTMLElement).closest('[data-buy]') as HTMLButtonElement | null;
+  if (buyEl) {
+    const key = buyEl.dataset.buy as CharacterKey;
+    if (buyCharacter(meta, key)) {
+      meta.character = key;
+      heroView = key;
+      saveMeta(meta);
+      audio.init();
+      audio.chest();
+      scene?.setCharacter(key, outfitOf(meta, key));
+      updateBestLine();
+    }
+    return;
+  }
   const btn = (e.target as HTMLElement).closest('[data-outfit]') as HTMLElement | null;
   if (!btn) return;
   const i = +btn.dataset.outfit!;
@@ -1244,7 +1443,7 @@ $('charInfo').addEventListener('click', (e) => {
     audio.select('s');
   }
   saveMeta(meta);
-  renderCharacters($('chars'), meta, $('charInfo'));
+  renderCharacters($('chars'), meta, $('charInfo'), heroView);
   scene?.setCharacter(key, outfitOf(meta, key));
 });
 // emplacements (phase 10) : achat quand le succès est obtenu et l'or suffisant
@@ -1291,24 +1490,38 @@ $('setSoundBtn').onclick = () => {
   saveMeta(meta);
   applySettings();
 };
-$('setLangBtn').onclick = () => {
-  const i = LANG_SETTINGS.indexOf(meta.settings.lang);
-  meta.settings.lang = LANG_SETTINGS[(i + 1) % LANG_SETTINGS.length];
+// interface Nocturne : la langue se choisit parmi auto, français, anglais (choix soulignés)
+$('setLang').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-lang]') as HTMLElement | null;
+  const v = b?.dataset.lang as (typeof LANG_SETTINGS)[number] | undefined;
+  if (!v || !LANG_SETTINGS.includes(v) || v === meta.settings.lang) return;
+  meta.settings.lang = v;
   saveMeta(meta);
   setLang(resolveLang(meta.settings.lang, navigator.language));
   applyLang();
-  refreshAccount(); // applyLang remet « Compte » sur le bouton, renderAccount le rend à nouveau
-};
+  refreshAccount(); // applyLang remet « Invité » sur la puce de profil, renderAccount le rend à nouveau
+});
 $('setVibrateBtn').onclick = () => {
   meta.settings.vibrate = !meta.settings.vibrate;
   saveMeta(meta);
   applySettings();
   if (meta.settings.vibrate) vibrate(40);
 };
-$('setFxBtn').onclick = () => $('fxBtn').click();
+$('setFx').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-fx]') as HTMLElement | null;
+  if (b && (b.dataset.fx === 'reduced') !== reducedFx()) $('fxBtn').click();
+});
 $('qualityBtn').onclick = () => {
   const i = QUALITY_SETTINGS.indexOf(meta.settings.quality);
-  meta.settings.quality = QUALITY_SETTINGS[(i + 1) % QUALITY_SETTINGS.length];
+  setQuality(QUALITY_SETTINGS[(i + 1) % QUALITY_SETTINGS.length]);
+};
+$('setQuality').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-quality]') as HTMLElement | null;
+  const v = b?.dataset.quality as (typeof QUALITY_SETTINGS)[number] | undefined;
+  if (v && QUALITY_SETTINGS.includes(v) && v !== meta.settings.quality) setQuality(v);
+});
+function setQuality(q: (typeof QUALITY_SETTINGS)[number]): void {
+  meta.settings.quality = q;
   if (meta.settings.quality === 'auto') {
     autoLevel = 2; // geste explicite du joueur : on repart du net (la remontée automatique, elle, n'existe pas)
     slowWindows = 0;
@@ -1317,8 +1530,7 @@ $('qualityBtn').onclick = () => {
   applyQuality();
   audio.init();
   audio.select('s');
-};
-$('setQualityBtn').onclick = () => $('qualityBtn').click();
+}
 $('setLeftyBtn').onclick = () => {
   meta.settings.lefty = !meta.settings.lefty;
   saveMeta(meta);
@@ -1459,6 +1671,7 @@ input.onConfirm = () => {
   // phase 49 : au menu, Entrée reprend la partie gardée s'il y en a une (le focus clavier, lui, peut viser un autre bouton)
   // un bouton du menu qui a le focus reçoit déjà Entrée (clic natif) : il décide seul (« Jouer » demande l'abandon)
   if (app === 'menu' && document.activeElement?.closest?.('#menu button')) return;
+  if (app === 'menu' && heroLocked && !savedRun) return; // héros verrouillé : « Jouer » est indisponible
   if (app === 'menu') {
     if (savedRun) startGame(undefined, false, savedRun);
     else startGame();
@@ -1497,7 +1710,7 @@ document.addEventListener('visibilitychange', () => {
 // phase 49 : rafraîchir ou fermer l'onglet ; localStorage est écrit de façon synchrone, avant que la page parte
 addEventListener('pagehide', saveRun);
 $('version').textContent = `v${VERSION}`;
-$('notesVer').textContent = `v${VERSION}`;
+$('notesVer').textContent = VERSION;
 
 // PWA : mise à jour proposée uniquement au menu ou à l'écran de mort (skill pwa-release §2)
 const pwa = new Pwa();
@@ -1530,7 +1743,7 @@ let reconciling = false; // relecture du nuage en cours : aucun envoi ne doit s'
 let deleteArmed = 0;
 
 function refreshAccount(): void {
-  renderAccount(accView);
+  renderAccount(accView, meta.pseudo);
 }
 function accountMessage(msg: string, error = false): void {
   accView.msg = msg;
@@ -1674,7 +1887,7 @@ function applyCloud(uid: string, cloud: CloudDoc): void {
   applyMeta();
   scene?.setCharacter(meta.character, outfitOf(meta, meta.character)); // l'aperçu du menu n'est pas dans applyMeta
   if (app === 'shop') renderShopScreen();
-  else if (app === 'achievements') renderAchievements($('achList'), meta);
+  else if (app === 'achievements') renderAchScreen();
   else if (app === 'library') renderLibraryScreen();
   else if (app === 'daily') renderDailyScreen();
   else if (app === 'notes') renderNotesScreen();
@@ -2307,7 +2520,7 @@ function handleEvents(w: World, now: number): void {
         S.particles.ring(e.x, 0.6, e.z, 0x7fd8ff, (10 * fx) | 0, 1.5, 1);
         break;
       case Ev.RaceStart:
-        hud.banner(t('banner.raceStart'));
+        hud.banner(t('banner.raceStart'), 'info');
         audio.levelUp();
         break;
       case Ev.RaceWin:
@@ -2316,7 +2529,7 @@ function handleEvents(w: World, now: number): void {
         audio.chest();
         break;
       case Ev.RaceFail:
-        hud.banner(t('banner.raceFail'));
+        hud.banner(t('banner.raceFail'), 'danger');
         audio.trickFail();
         break;
       case Ev.Trick:
@@ -2356,7 +2569,7 @@ function handleEvents(w: World, now: number): void {
         audio.levelUp();
         break;
       case Ev.MerchantArrive:
-        hud.banner(t('banner.merchant'));
+        hud.banner(t('banner.merchant'), 'info');
         audio.chest();
         break;
       case Ev.Explored:
@@ -2387,7 +2600,7 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, 1.6, e.z, PAL.skull, (24 * fx) | 0, 4, 10, false);
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
         audio.roar();
-        hud.banner(t('banner.skull', { n: Math.round(e.v * 100) }));
+        hud.banner(t('banner.skull', { n: Math.round(e.v * 100) }), 'danger');
         hud.flash('skull');
         break;
       case Ev.BossTotemOn:
@@ -2396,18 +2609,18 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, 1.6, e.z, PAL.bossTotem, (24 * fx) | 0, 4, 10, false);
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         audio.roar();
-        hud.banner(t('banner.bossTotem', { n: e.v }));
+        hud.banner(t('banner.bossTotem', { n: e.v }), 'danger');
         break;
       case Ev.SurvivalWarn:
         // phase 42 : un boss de survie arrive dans quelques secondes
-        hud.banner(t('banner.survivalSoon'));
+        hud.banner(t('banner.survivalSoon'), 'danger');
         audio.roar();
         vibrate(40);
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite * 0.6);
         break;
       case Ev.BossWarn:
         // phase 37 : plus qu'une minute pour activer le totem
-        hud.banner(t('banner.bossWarn'));
+        hud.banner(t('banner.bossWarn'), 'danger');
         audio.bossWarn();
         break;
       case Ev.TotemOn:
@@ -2420,7 +2633,7 @@ function handleEvents(w: World, now: number): void {
       case Ev.PortalOpen:
         S.particles.ring(e.x, 0.3, e.z, PAL.xp, (50 * fx) | 0, 6, 9);
         S.particles.burst(e.x, 1.2, e.z, PAL.xp, (30 * fx) | 0, 4, 9, false);
-        hud.banner(t('banner.portal', { n: e.v }));
+        hud.banner(t('banner.portal', { n: e.v }), 'info');
         hud.flash('gold');
         audio.evolve();
         vibrate(60);
@@ -2429,16 +2642,16 @@ function handleEvents(w: World, now: number): void {
         onStageStart(e.v);
         break;
       case Ev.EndlessStart:
-        hud.banner(t('banner.endless'));
+        hud.banner(t('banner.endless'), 'info');
         hud.flash('gold');
         break;
       case Ev.EndlessWave:
-        hud.banner(t('banner.endlessWave', { n: e.v, count: e.x2 }));
+        hud.banner(t('banner.endlessWave', { n: e.v, count: e.x2 }), 'danger');
         audio.bossWarn();
         vibrate(80);
         break;
       case Ev.TimeUp:
-        hud.banner(t(e.x2 === 1 ? 'banner.timeUpOpen' : e.x2 === 2 ? 'banner.timeUpFight' : 'banner.timeUp'));
+        hud.banner(t(e.x2 === 1 ? 'banner.timeUpOpen' : e.x2 === 2 ? 'banner.timeUpFight' : 'banner.timeUp'), 'danger');
         hud.flash('hurt');
         audio.bossWarn();
         vibrate(120);
@@ -2459,7 +2672,7 @@ function handleEvents(w: World, now: number): void {
         hitStop.request(FEEL.hitStop.hurt.duration, FEEL.hitStop.hurt.scale, 1);
         break;
       case Ev.Wave:
-        hud.banner(t('banner.wave'));
+        hud.banner(t('banner.wave'), 'danger');
         break;
       case Ev.Revive:
         hud.banner(t(e.v > 0 ? 'banner.revive2' : 'banner.revive1'));
@@ -2476,7 +2689,7 @@ function handleEvents(w: World, now: number): void {
           const k = 'banner.boss.' + ENEMIES[e.x2 | 0].key; // événement rare : la concaténation est acceptable
           const name = t(has(k) ? k : 'banner.boss.default');
           // phase 42 : boss de survie ; phase 48 : un boss en plus (y2 = 2) n'écrase pas la bannière du boss du totem
-          if (e.y2 !== 2) hud.banner(e.y2 === 1 ? t('banner.survival', { name }) : name);
+          if (e.y2 !== 2) hud.banner(e.y2 === 1 ? t('banner.survival', { name }) : name, 'danger');
         }
         audio.boss();
         if (!reduced) S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
@@ -2487,7 +2700,7 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.BossEnrage:
         // phase 43 : rage du boss (en vie depuis BOSS.enrage.after s) : bannière, rugissement, anneau rouge, secousse
-        hud.banner(t('banner.enrage'));
+        hud.banner(t('banner.enrage'), 'danger');
         audio.roar();
         vibrate(120);
         S.particles.ring(e.x, 0.4, e.z, PAL.telegraph, (36 * fx) | 0, 8, 2);
@@ -2584,7 +2797,7 @@ function frame(nowMs: number): void {
         autoLevel--;
         slowWindows = 0;
         applyQuality();
-        hud.banner(t('banner.quality'));
+        hud.banner(t('banner.quality'), 'info');
       }
     } else slowWindows = 0;
   }
@@ -2642,7 +2855,7 @@ function frame(nowMs: number): void {
     if (bossTotemNote !== world.stage && world.stageT > BOSS_TOTEM_NOTE_AT) {
       if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless) bossTotemNote = world.stage;
       else if (world.mode === Mode.Play && !hud.bannerOn) {
-        hud.banner(t('banner.bossTotems', { n: world.bossTotems.length }));
+        hud.banner(t('banner.bossTotems', { n: world.bossTotems.length }), 'danger');
         bossTotemNote = world.stage;
       }
     }
@@ -2668,13 +2881,13 @@ function frame(nowMs: number): void {
     duckOn = duckNow;
     audio.duck(duckNow);
   }
-  if (world && app !== 'menu' && scene) {
+  // interface Nocturne (décision 6) : le menu et ses écrans ont un fond illustré, opaque ; la scène 3D ne rend que
+  // la partie (en jeu, et derrière les écrans de partie : pause, cartes, marchand, carte, victoire, fin)
+  if (world && scene && gameShown()) {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
     scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
     scene.marks.update(world.powers, world.powerCount, now, scene.camera, innerWidth, innerHeight); // phase 35
-  } else if (scene && sceneReady) {
-    scene.renderIdle(now, realDt);
   }
 
   if (perfOn && scene) {
@@ -2714,6 +2927,7 @@ function frame(nowMs: number): void {
 
 // ---------- démarrage ----------
 function applyMeta(): void {
+  heroView = meta.character; // le carrousel repart du héros choisi de la sauvegarde
   audio.setMuted(meta.muted);
   applyFx();
   applyQuality();

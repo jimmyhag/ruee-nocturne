@@ -2565,52 +2565,6 @@ export class GameScene {
     this.keepFrustum();
   }
 
-  /** Écran large (PC paysage) : le personnage se place dans le tiers droit, le logo et les boutons à gauche (phase 14). */
-  menuWide = false;
-
-  /** Caméra d'attente (menu, phase 14) : plan rapproché, le personnage fait face à la caméra qui oscille lentement. */
-  renderIdle(now: number, dt: number): void {
-    this.totem.mesh.visible = false; // menu : pas de totem d'une partie précédente
-    this.lightCycle(0);
-    this.fireflies.update(0, 0, now, 0.6);
-    if ((this.propsReady || this.natureReady) && this.propX * this.propX + this.propZ * this.propZ > 16)
-      this.sortNearDecor(0, 0); // menu : clairière
-    this.player.visible = true;
-    this.player.position.set(0, 0, 0);
-    this.player.scale.set(1, 1, 1);
-    const a = Math.sin(now * 0.18) * 0.45; // ±26° autour de la face
-    this.player.rotation.set(0, a, 0); // le modèle regarde vers +z : face à la caméra (phase 29 : ni tangage ni roulis)
-    this.model.torso.position.y =
-      (this.model.float ? 0.18 + Math.sin(now * 3.2) * 0.08 : 0) + (this.heroAnim ? 0 : Math.sin(now * 2.2) * 0.015);
-    this.heroAnim?.update(dt, HeroAnim.Idle, 1);
-    if (this.model.glowDisc) {
-      this.model.glowDisc.position.set(0, 0.07, 0);
-      this.model.glowDisc.rotation.set(0, 0, 0);
-    }
-    this.blob.position.set(0, 0.03, 0); // menu : clairière de départ, plate
-    this.blob.rotation.set(0, 0, 0);
-    for (let i = 0; i < this.writers.length; i++) {
-      this.writers[i].begin();
-      this.writers[i].end();
-    }
-    this.aims.begin();
-    this.aims.end();
-    this.aura.visible = this.auraDisc.visible = false;
-    this.particles.update(dt);
-    this.bolts.update(dt);
-    // large : caméra à 6,5 u, regard décalé vers la gauche de l'écran pour laisser la place au logo ; étroit (portrait) :
-    // un peu plus loin et plus haut, le personnage occupe le centre-bas sous le logo
-    const wide = this.menuWide;
-    const r = wide ? 6.2 : 11;
-    const off = wide ? 1.7 : 0;
-    this.camPos.set(Math.sin(a) * r - Math.cos(a) * off, wide ? 2.4 : 3.2, Math.cos(a) * r + Math.sin(a) * off);
-    this.camLook.set(-Math.cos(a) * off, wide ? 1.0 : 0.5, Math.sin(a) * off); // portrait : regard bas, le personnage monte entre le logo et Jouer
-    this.camera.position.copy(this.camPos);
-    this.camera.lookAt(this.camLook);
-    this.renderer.render(this.scene, this.camera);
-    this.keepFrustum();
-  }
-
   snapCamera(w: World): void {
     this.zoom = 1;
     this.stallVisit = -1; // nouveau run : l'échoppe se tourne de nouveau vers le joueur à sa première visite

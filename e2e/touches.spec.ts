@@ -111,7 +111,7 @@ test('téléphone : pas de réglage des touches (aucun clavier), le reste des r�
   test.skip(!hasTouch, 'projet mobile');
   await openGame(page);
   await page.locator('#settingsBtn').tap();
-  await expect(page.locator('#setLangBtn')).toBeVisible();
+  await expect(page.locator('#setLang')).toBeVisible(); // les réglages sont ouverts (choix de la langue)
   await expect(page.locator('#keybinds')).toBeHidden();
 });
 

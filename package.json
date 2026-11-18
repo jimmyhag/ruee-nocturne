@@ -1,7 +1,7 @@
 {
   "name": "ruee-nocturne",
   "private": true,
-  "version": "1.58.0",
+  "version": "1.61.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -24,7 +24,8 @@
     "bench": "node --expose-gc --import tsx tools/bench.ts",
     "prepare": "simple-git-hooks",
     "assets": "tsx tools/assets/build.ts",
-    "audio": "tsx tools/audio/build.ts"
+    "audio": "tsx tools/audio/build.ts",
+    "ui-images": "tsx tools/ui-images.ts"
   },
   "dependencies": {
     "firebase": "^13.2.0",

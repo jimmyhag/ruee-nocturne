@@ -88,7 +88,8 @@ test('migration : une sauvegarde avec des paliers de boutique récupère son or,
   await openGame(page);
   // 1 palier de Vitalité chez l'Éclaireuse (200) et 2 de Dégâts chez le Bûcheron (200 + 260)
   await page.evaluate(() =>
-    (window as any).__game.setMeta({ version: 3, gold: 40, shops: { eclaireuse: [1], bucheron: [0, 2] } }),
+    // runs : un joueur qui a acheté en boutique a joué (sinon l'onglet Emplacements est fermé, interface Nocturne)
+    (window as any).__game.setMeta({ version: 3, runs: 3, gold: 40, shops: { eclaireuse: [1], bucheron: [0, 2] } }),
   );
   let meta = await page.evaluate(() => (window as any).__game.meta);
   expect(meta.version).toBe(5); // phase 40 : Bibliothèque

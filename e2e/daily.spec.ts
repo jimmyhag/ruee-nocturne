@@ -30,8 +30,10 @@ test('défi du jour : la feuille explique, liste les temps du jour et lance la p
   await expect(sheet).toBeVisible();
   await expect(sheet.locator('dd')).toHaveCount(4);
   await expect(sheet).toContainText('Éclaireuse');
-  await expect(page.locator('#dailyTimes')).toHaveText('Tes temps du jour : 1er 7:11 · 2e 1:35');
-  await expect(page.locator('#dailyNext')).toHaveText(/^Nouveau défi dans (\d+ h \d\d|\d+ min)$/);
+  // interface Nocturne : les temps en grands chiffres (le meilleur en premier), la phrase complète pour les lecteurs d'écran
+  await expect(page.locator('#dailyTimes')).toHaveAttribute('aria-label', 'Tes temps du jour : 1er 7:11 · 2e 1:35');
+  await expect(page.locator('#dailyTimes > *')).toHaveText(['7:11', '1:35']);
+  await expect(page.locator('#daily .countdown')).toHaveText(/^Nouveau défi dans\s*(\d+ h \d\d|\d+ min)$/);
   // la feuille tient dans l'écran, bouton compris
   const vp = page.viewportSize()!;
   const btn = (await page.locator('#dailyPlayBtn').boundingBox())!;
