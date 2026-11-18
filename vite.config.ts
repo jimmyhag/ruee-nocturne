@@ -11,11 +11,6 @@ import pkg from './package.json' with { type: 'json' };
 // Sinon : build classique multi-fichiers + manifest + service worker (déploiement).
 const SINGLE = !!process.env.SINGLE;
 
-/**
- * Le module de rendu (three + src/render) est importé dynamiquement par main.ts pour que le menu soit interactif
- * sans l'évaluer (Lighthouse TBT). Vite ne précharge pas les imports dynamiques depuis le HTML : on injecte
- * nous-mêmes le <link rel="modulepreload"> du chunk pour que le téléchargement parte avec la page.
- */
 /** Remplace %APP_VERSION% dans les pages HTML (la page « À propos » n'a pas de module JS pour lire `define`). */
 function htmlVersion(): Plugin {
   return { name: 'ruee:html-version', transformIndexHtml: (html) => html.replace(/%APP_VERSION%/g, pkg.version) };
@@ -41,31 +36,11 @@ function patchNotes(): Plugin {
   };
 }
 
-function preloadRenderChunk(): Plugin {
-  return {
-    name: 'ruee:preload-render-chunk',
-    apply: 'build',
-    enforce: 'post', // après vite:build-html : index.html est dans le bundle
-    generateBundle(_opts, bundle) {
-      let file = '';
-      for (const [name, out] of Object.entries(bundle))
-        if (out.type === 'chunk' && out.facadeModuleId?.replace(/\\/g, '/').endsWith('/src/render/scene.ts'))
-          file = name;
-      const html = bundle['index.html'];
-      if (!file || !html || html.type !== 'asset' || typeof html.source !== 'string') return;
-      html.source = html.source.replace(
-        '</head>',
-        `    <link rel="modulepreload" crossorigin href="/${file}" />\n  </head>`,
-      );
-    },
-  };
-}
-
 export default defineConfig({
   plugins: [
     htmlVersion(),
     patchNotes(),
-    ...(SINGLE ? [viteSingleFile()] : [preloadRenderChunk()]),
+    ...(SINGLE ? [viteSingleFile()] : []),
     VitePWA({
       disable: SINGLE,
       registerType: 'prompt', // on ne force jamais une mise à jour en pleine partie (skill pwa-release §2)
