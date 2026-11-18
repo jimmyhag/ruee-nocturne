@@ -4,6 +4,8 @@
 import { DEFAULT_META, normalizeMeta } from './save';
 import type { Meta } from './save';
 import { SLOTS_START } from '../sim/balance';
+import { mergeStreak } from './daily';
+import { mergeMissions } from './missions';
 
 /** Clés de Meta qui ne quittent jamais l'appareil. */
 export const DEVICE_KEYS = [
@@ -78,6 +80,10 @@ export function withProgress(local: Meta, raw: unknown): Meta {
   const theirs = m.reveal;
   m.reveal = Math.max(local.reveal, theirs);
   m.seenReveal = theirs > local.reveal ? Math.max(local.seenReveal, theirs) : local.seenReveal;
+  // lot L3 : changer d'appareil ne casse pas la série (la plus récente, puis la plus longue) ; les missions du jour
+  // gardent la meilleure progression des deux (un ancien client sans ces champs : valeurs par défaut, la nôtre gagne)
+  m.streak = mergeStreak(local.streak, m.streak);
+  m.missions = mergeMissions(local.missions, m.missions);
   return m;
 }
 

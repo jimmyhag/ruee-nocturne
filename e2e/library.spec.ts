@@ -94,7 +94,9 @@ test('Bibliothèque : onglets, achat du Phénix, retrait du tirage, effet sur la
   expect(errors).toEqual([]);
 });
 
-test('défi du jour : aucun objet hors tirage', async ({ page }) => {
+test('défi du jour : les objets d’un nouveau joueur, quels que soient les choix du joueur (lot L3)', async ({
+  page,
+}) => {
   const errors = collectConsoleErrors(page);
   await openGame(page);
   await page.evaluate(() =>
@@ -109,7 +111,10 @@ test('défi du jour : aucun objet hors tirage', async ({ page }) => {
   await page.locator('#dailyBtn').click();
   await page.locator('#dailyPlayBtn').click(); // 1.48.1 : le bouton ouvre la feuille du défi, qui lance la partie
   await page.waitForFunction(() => (window as any).__game.app === 'play');
+  // lot L3 : le kit de départ pour tous. L'objet retiré par le joueur reste au tirage ; ceux que la Bibliothèque
+  // verrouille pour un nouveau joueur n'y sont pas (22 objets, src/meta/library.test.ts)
   const banned = await page.evaluate(() => Array.from((window as any).__game.world.itemBan as Uint8Array));
-  expect(banned.every((b) => b === 0)).toBe(true);
+  expect(banned.filter((b) => b === 1)).toHaveLength(22);
+  expect(banned[1]).toBe(0); // ITEM_KEYS[1] = 'cape', retirée par le joueur : au tirage du défi
   expect(errors).toEqual([]);
 });

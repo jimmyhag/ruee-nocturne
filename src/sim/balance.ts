@@ -207,6 +207,13 @@ export const FIRST_RUNS = {
   dmg: 0.9, // leurs dégâts (contact, tirs) : 19,1 % de morts avant 3 min, médiane 4:51
   rate: 1, // cadence d'apparition dans la fenêtre (flux continu et vagues) : pas utilisée, le levier n'a pas été mesuré
 };
+// lot L3 (docs/specs/l3-defi-serie-missions.md, décisions 1 et 3) : le défi du jour tient en `duration` s, au monde 1
+// seul (le totem, qui mène au monde suivant, n'y est pas). Vivant à la fin du chrono : « Défi réussi ! ». Réglé par
+// `npm run sim -- --daily` (règle 13) : l'Éclaireuse au kit de départ, bot moyen, doit réussir 35 à 65 % des défis.
+export const DAILY = {
+  duration: 300, // s : une session mobile (règle 12)
+  diffRate: 1, // vitesse du temps de difficulté (diffT) pendant le défi ; 1 = celle d'une partie complète
+};
 // phase 48 (demande de Jimmy) : la difficulté de la partie. `P.difficulty` vaut 0 au départ (affiché « 100 % ») et monte
 // par les crânes de la carte (`skullStep` chacun, pour toute la partie) et par le tome de difficulté. Elle multiplie les
 // apparitions par (1 + d) et la vie des monstres par (1 + hpShare · d) : les deux effets se multiplient, donc la vie monte
@@ -1158,6 +1165,31 @@ type CharacterKeyDef =
   | 'colporteur';
 // tenue alternative d'un personnage (phase 7) : prix en or, cosmétique uniquement
 export const OUTFIT = { price: 400 };
+// lot L3 (décisions 5 à 7) : série de jours. Chaque jour compté (défi du jour terminé, réussi ou raté) paie
+// gold + perDay × min(série, cap) : 40 à 100 or. Tous les `outfitEvery` jours, la tenue alternative d'un personnage
+// qui ne l'a pas (OUTFIT.price en or si toutes sont à lui). Un joker par semaine ISO pardonne un jour manqué.
+export const STREAK = { gold: 30, perDay: 10, cap: 7, outfitEvery: 7 };
+// lot L3 (décisions 8 et 9) : missions du jour. `count` par jour, objectifs en une partie, tirés par la date ; l'or
+// suit la difficulté de l'objectif (60, 80 ou 100). Personnage et arme : remplir = jouer avec, sans seuil.
+export const MISSIONS = {
+  count: 3,
+  goals: {
+    kills: [300, 500, 800], // ennemis tués en une partie (kit de départ : ≈ 600 à 5:00, `npm run sim -- --daily`)
+    elites: [3, 5, 8], // élites abattues en une partie
+    survive: [4, 6, 8], // minutes tenues en une partie
+    chests: [2, 4], // coffres de carte ouverts en une partie
+    level: [10, 15, 20], // meilleur niveau d'une arme (améliorations) en une partie
+  },
+  gold: {
+    char: [60],
+    weapon: [80],
+    kills: [60, 80, 100],
+    elites: [60, 80, 100],
+    survive: [60, 80, 100],
+    chests: [80, 100],
+    level: [60, 80, 100],
+  },
+};
 // phase 41 : défis par personnage. Or versé une fois au défi I et au défi II ; le défi III donne la tenue de maître.
 export const CHAR_CHALLENGE = { gold: [500, 1500] };
 // phase 40 : Bibliothèque. Une arme ou un objet verrouillé se débloque par un succès, puis s'achète (prix par rareté

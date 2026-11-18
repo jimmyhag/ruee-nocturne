@@ -211,4 +211,4 @@ lues, dans `docs/GATES.md` ; Lighthouse et poids des images et polices ; `perf-r
 
 ## Reste à faire
 
-Décision 17 (écrans des lots L3 et L4 au kit : défi du jour avec série et missions, carte de résultat, onglet « AMIS » du classement) : non livrée avec la 1.61.0, à faire à l'intégration, après la fusion de L3. Les paliers d'arme du lot L5 sont passés au kit à la fusion de `main` (filet de palier au-dessus de l'icône d'arme de la barre d'équipement). Le reste de la spec est implémenté (commit 6dacd5b et sa suite).
+Décision 17 : **L3 et L5 faits ; L4 à sa fusion** (carte de résultat, onglet « AMIS » du classement). L5 : filet de palier au-dessus de l'icône d'arme de la barre d'équipement (fusion de `main`). L3 (fusion de `lot/l3-defi-serie`) : flamme et série sur le rail « Défi du jour · 5 min », note du joker sous l'accroche, missions du jour en lignes à filets (repliées sur téléphone, en colonne à droite sur PC), lignes Série, Joker et Récompense dans la feuille du défi, récompenses de l'écran de fin en lignes lanterne, HUD « Défi du jour ». Le reste de la spec est implémenté (commit 6dacd5b et sa suite).

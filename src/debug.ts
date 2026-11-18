@@ -84,7 +84,8 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       const maxHp = world.player.maxHp;
       world.player.maxHp = world.player.hp = 1e9; // la régén. clampe sur maxHp : il faut lever les deux
       const target = world.t + seconds;
-      while (world.t < target && world.mode !== Mode.Dead) step(world, still, STEP);
+      // lot L3 : le défi du jour s'arrête à sa fin (Mode.Won) : la sim n'avance plus, on sort
+      while (world.t < target && world.mode !== Mode.Dead && world.mode !== Mode.Won) step(world, still, STEP);
       world.player.maxHp = maxHp;
       world.player.hp = maxHp;
       host.afterSimJump();

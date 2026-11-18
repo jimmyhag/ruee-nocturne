@@ -104,7 +104,17 @@ export const MAXED: Target[] = [
     fmt: (v) => '×' + v.toFixed(1),
   },
 ];
-export const PROFILES = { naked: NAKED, maxed: MAXED };
+// lot L3 (décision 3) : défi du jour court (`--daily`), l'Éclaireuse au kit de départ. Réussi (vivante à DAILY.duration)
+// une fois sur deux environ : un défi qu'on réussit à chaque fois ne donne pas envie de revenir, un défi qu'on rate
+// toujours non plus
+// Relecture d'équilibrage : les cibles du profil nu sur les morts précoces et la difficulté lisse valent aussi pour le
+// défi (≈ 21 % et 18–24 pts mesurés au lot L3 : écart laissé visible, la réponse est une proposition à Jimmy)
+const DAILY_TARGETS: Target[] = [
+  { name: 'défi réussi 35–65 %', min: 35, max: 65, get: (s) => s.reachedEndPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' },
+];
+export const PROFILES = { naked: NAKED, maxed: MAXED, daily: DAILY_TARGETS };
 const mmss = (v: number) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
 // phase 43 (grand rééquilibrage, demande de Jimmy) : monde infini, mesuré sur les parties gagnées qui continuent
 // (--endless). Avant : tenu p50 7:39, p90 17:51, 24 % des parties passaient 6 vagues ; un joueur va environ deux fois plus

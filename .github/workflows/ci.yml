@@ -137,3 +137,35 @@ jobs:
             const fs = require('fs');
             const body = '### Équilibrage (bot average, 200 runs, seed 42, profils nu et maxé)\n```\n' + fs.readFileSync('sim/ci.txt', 'utf8').slice(-6000) + '\n```';
             await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+
+  # Chantier mobile (18 nov. 2026) : ce que les profils nu et maxé ne mesurent pas. Le défi du jour de 5 minutes (lot L3,
+  # cible 35–65 % de réussite) et les premières parties adoucies d'un nouveau joueur (lot L2, dévoilement 0 : ≤ 20 % de
+  # morts avant 3 min). Tâche à part, en parallèle de la précédente : aucune minute ajoutée à la CI.
+  balance-mobile:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write # commentaire d'équilibrage sur la PR
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Simulation du défi du jour et des premières parties
+        run: |
+          mkdir -p sim
+          npm run sim -- --daily --runs 200 --bot average --seed 42 --out sim/ci-daily.json | tee sim/ci-mobile.txt || true
+          echo >> sim/ci-mobile.txt
+          npm run sim -- --runs 200 --bot average --seed 42 --profile naked --reveal 0 --out sim/ci-reveal0.json | tee -a sim/ci-mobile.txt || true
+      - name: Commentaire sur la PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = '### Équilibrage du chantier mobile (bot average, 200 runs, seed 42 : défi du jour, puis 1re partie au dévoilement 0)\n```\n' + fs.readFileSync('sim/ci-mobile.txt', 'utf8').slice(-6000) + '\n```';
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });

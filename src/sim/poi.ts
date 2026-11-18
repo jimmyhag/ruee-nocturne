@@ -154,6 +154,9 @@ export function hideUnrevealed(w: World): void {
     w.bossTotems.length = 0;
     w.totem.state = TOTEM_HIDDEN;
   }
+  // lot L3 : le défi du jour se joue au monde 1 seul ; le totem, qui mène au suivant, n'y est pas (crânes et totems de
+  // boss restent : tout est dévoilé)
+  if (w.dailyEnd > 0) w.totem.state = TOTEM_HIDDEN;
 }
 
 /** Phase 48 : les totems de boss, tirés tout à la fin (après les crânes), loin les uns des autres et des autres lieux. */

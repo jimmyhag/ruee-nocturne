@@ -469,3 +469,67 @@ test('interface : HUD avec des armes aux paliers I, II et III', async ({ page },
     clip: { x: Math.max(0, box.x - 12), y: Math.max(0, box.y - 12), width: box.width + 24, height: box.height + 24 },
   });
 });
+
+// Interface « Nocturne », décision 17 pour le lot L3 : rail du défi avec la série, missions du jour, feuille du défi,
+// HUD du défi (chrono de 5:00) et écran « Défi réussi ! ». Sortie : shots/<projet>-ui-l3-<écran>.png
+test('interface : écrans du lot L3 (série, missions, défi du jour, défi réussi)', async ({ page, hasTouch }, info) => {
+  test.setTimeout(180_000);
+  const ui = (name: string) => ({ path: `shots/${info.project.name}-ui-${name}.png`, animations: 'disabled' as const });
+  const day = (n = 0) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+  await openGame(page);
+  await page.evaluate(
+    ([yesterday, date]) => {
+      (window as any).__game.setMeta({
+        version: 5,
+        runs: 6,
+        gold: 1240,
+        bestTime: 412,
+        character: 'eclaireuse',
+        achievements: ['survie3'],
+        streak: { last: yesterday, count: 6, best: 6, jokerWeek: '' },
+        missions: {
+          date,
+          list: [
+            { k: 'survive', p: '', goal: 4, prog: 0, done: false },
+            { k: 'kills', p: '', goal: 500, prog: 320, done: false },
+            { k: 'char', p: 'eclaireuse', goal: 1, prog: 1, done: true },
+          ],
+        },
+        reveal: 4,
+        seenReveal: 4,
+      });
+      (document.getElementById('perf') as HTMLElement).hidden = true;
+    },
+    [day(-1), day()],
+  );
+  await page.evaluate(() => document.fonts.ready);
+  const missions = page.locator('#missions');
+  if (!(await missions.evaluate((d: HTMLDetailsElement) => d.open)))
+    await (hasTouch ? page.locator('#missions summary').tap() : page.locator('#missions summary').click());
+  await page.waitForTimeout(400);
+  await page.screenshot(ui('l3-accueil'));
+  await page.locator('#dailyBtn').click();
+  await page.waitForTimeout(400);
+  await page.screenshot(ui('l3-defi'));
+  await page.locator('#dailyPlayBtn').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await page.evaluate(() => (window as any).__game.debug.god());
+  await page.waitForFunction(() => (window as any).__game.world.t > 3, null, { timeout: 30_000 });
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.speed(0);
+    g.world.player.maxHp = 100;
+    g.world.player.hp = 86;
+  });
+  await page.waitForTimeout(200);
+  await page.screenshot(ui('l3-hud'));
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.speed(1);
+    g.debug.god();
+    g.world.t = g.world.stageT = 299.5; // vivant à 5:00 : le défi est réussi
+  });
+  await expect(page.locator('#over')).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(1200); // fin du fondu de l'écran de fin
+  await page.screenshot(ui('l3-fin'));
+});

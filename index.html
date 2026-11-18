@@ -1734,6 +1734,8 @@
       /* la barre d'onglets est fixée en bas : la liste s'arrête au-dessus */
       body.tabs-on .screen.inner {
         padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+        /* un bouton qui prend le focus défile au-dessus de la barre */
+        scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
       }
       .sheet-head {
         display: flex;
@@ -2122,7 +2124,7 @@
         font-family: var(--f-cond);
         font-size: 12.5px;
         font-weight: 600;
-        letter-spacing: 0.24em;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
         white-space: nowrap;
         text-shadow: 0 1px 12px rgba(6, 9, 24, 0.85);
@@ -3114,7 +3116,22 @@
         font-weight: 500;
         color: var(--moon-70);
       }
+      /* lot L3 : chaque partie du jour, son temps puis ses vaincus ; la meilleure en grand */
+      #dailyTimes > span {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+      }
       #dailyTimes b {
+        font-weight: 500;
+      }
+      #dailyTimes small {
+        font-family: var(--f-text);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--moon-55);
+      }
+      #dailyTimes > span:first-child b {
         font-size: 34px;
         font-weight: 600;
         line-height: 34px;
@@ -3126,6 +3143,200 @@
       }
       #dailyPlayBtn {
         margin-top: 22px;
+      }
+      /* lot L3 : série, joker et récompense du jour, en lignes à filets (flamme lanterne) */
+      .streakrows {
+        border-top: 1px solid var(--rule);
+        margin-bottom: 14px;
+      }
+      .streakrows .row {
+        border-bottom: 1px solid var(--rule);
+      }
+      .streakrows .row:last-child {
+        border-bottom: 0;
+      }
+      .streakrows .sv {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: right;
+      }
+      svg.flame,
+      .rail .streak svg {
+        width: 14px;
+        height: 14px;
+        flex: none;
+        fill: var(--lantern);
+        stroke: none;
+      }
+
+      /* ---------- lot L3 au kit : rail du défi (flamme et série), note du joker, missions du jour, récompenses ---------- */
+      .rail .streak {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--lantern);
+      }
+      .rail .streak b {
+        font-weight: 700;
+      }
+      .rail.left .streak svg {
+        transform: rotate(90deg); /* le rail est retourné : la flamme reste debout */
+      }
+      .note.streaknote {
+        margin-top: 8px;
+        font-family: var(--f-cond);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--lantern);
+        text-align: center;
+        text-shadow: 0 1px 8px rgba(6, 9, 24, 0.85);
+      }
+      .missions {
+        position: relative;
+        margin-top: 10px;
+        flex: none;
+      }
+      /* téléphone : ouvertes, les missions se posent par-dessus la scène du héros (au-dessus de la ligne repliée), sans
+         pousser « Jouer » hors de l'écran */
+      .missions .mpanel {
+        position: absolute;
+        left: -24px;
+        right: -24px;
+        bottom: 100%;
+        z-index: 2;
+        padding: 6px 24px 4px;
+        background: rgba(8, 12, 30, 0.98);
+        border-top: 1px solid var(--rule);
+      }
+      .missions summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 32px;
+        cursor: pointer;
+        list-style: none;
+      }
+      .missions summary::-webkit-details-marker {
+        display: none;
+      }
+      .missions summary::after {
+        content: '';
+        width: 12px;
+        height: 12px;
+        margin-left: auto;
+        background: var(--moon-70);
+        -webkit-mask: var(--arrow) center / contain no-repeat;
+        mask: var(--arrow) center / contain no-repeat;
+        transform: rotate(-90deg); /* téléphone : la liste s'ouvre vers le haut */
+        transition: transform 0.15s;
+      }
+      .missions[open] summary::after {
+        transform: rotate(90deg);
+      }
+      .missions summary .cnt {
+        font-family: var(--f-cond);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--lantern);
+      }
+      .mission {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 8px 0;
+        border-top: 1px solid var(--rule);
+      }
+      .mission .gt {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .mission .gt > :first-child {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .mission .gt > :last-child {
+        font-family: var(--f-cond);
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--lantern);
+        white-space: nowrap;
+      }
+      .mission.done .gt > :first-child {
+        color: var(--moon-70);
+      }
+      .mission .rw {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        color: var(--moon-70);
+      }
+      .mission .rw .coin {
+        width: 8px;
+        height: 8px;
+        border-width: 1.3px;
+        border-color: currentColor;
+        background: radial-gradient(circle, currentColor 0 1px, transparent 1.3px);
+      }
+      #missionsDone {
+        padding-top: 6px;
+        border-top: 1px solid var(--rule);
+      }
+      /* PC (paysage) : les missions dans une colonne à droite de la colonne du menu, ouvertes, pour laisser le héros */
+      @media (min-width: 1000px) and (min-aspect-ratio: 1/1) {
+        .missions {
+          position: fixed;
+          top: 50%;
+          right: max(40px, calc(50vw - 230px - 360px));
+          transform: translateY(-50%);
+          width: 300px;
+          margin: 0;
+          text-shadow: 0 1px 8px rgba(6, 9, 24, 0.9);
+        }
+        .missions summary::after {
+          transform: rotate(90deg);
+        }
+        .missions[open] summary::after {
+          transform: rotate(-90deg);
+        }
+        .missions .mpanel {
+          position: static;
+          padding: 0;
+          background: none;
+          border: 0;
+        }
+      }
+      /* écran de fin : la série du jour, la tenue offerte et les missions remplies, chacune avec son or */
+      .rewards {
+        margin-top: 10px;
+      }
+      .rewards p {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        min-height: 32px;
+        border-bottom: 1px solid var(--rule);
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--lantern);
+      }
+      .rewards p::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--lantern);
+        flex: none;
       }
 
       /* ---------- Nouveautés : une version par ligne, la plus récente ouverte ---------- */
@@ -3951,6 +4162,12 @@
         #dailyPlayBtn {
           margin-top: 14px;
         }
+        .streakrows {
+          margin-bottom: 6px;
+        }
+        .streakrows .row {
+          min-height: 34px;
+        }
       }
       @media (max-height: 640px) {
         .home .logo {
@@ -4121,6 +4338,10 @@
         <p class="tagline" data-i18n="menu.tagline">Survis à la nuée</p>
         <div class="homelinks">
           <button class="btn-link" id="installBtn" hidden data-i18n="menu.install">Installer l'app</button>
+          <!-- lot L3 : un jour manqué, pardonné par le joker de la semaine (dit dès l'ouverture) -->
+          <p class="note streaknote" id="streakNote" hidden data-i18n="menu.jokerSaved">
+            Ta série est sauvée par le joker
+          </p>
           <p class="note" id="iosHint" hidden data-i18n="menu.iosHint">
             Sur iPhone : Partager, puis « Sur l'écran d'accueil »
           </p>
@@ -4129,8 +4350,12 @@
           <!-- défi du jour et nouveautés : rails verticaux sur les bords, comme la maquette -->
           <button class="rail left" id="dailyBtn" hidden>
             <span
-              ><span data-i18n="menu.daily">Défi du jour</span><i class="sep" aria-hidden="true"></i
-              ><span class="lan" id="dailyRail"></span
+              ><span data-i18n="menu.daily">Défi du jour · 5 min</span><i class="sep" aria-hidden="true"></i
+              ><span class="streak" id="dailyStreak" hidden
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-6 1 2 2 3 3 3 0-3-1-5 0-8z" /></svg
+                ><b id="dailyStreakN">0</b></span
+              ><i class="sep" id="dailyStreakSep" aria-hidden="true" hidden></i><span class="lan" id="dailyRail"></span
             ></span>
           </button>
           <button class="rail right" id="notesBtn">
@@ -4169,6 +4394,19 @@
             ><span id="goalRew"></span
           ></span>
         </button>
+        <!-- lot L3 : missions du jour, au style du prochain objectif (repliées au départ sur téléphone ; à droite sur PC) -->
+        <details class="missions" id="missions" open>
+          <summary>
+            <span class="lbl" data-i18n="missions.title">Missions du jour</span
+            ><span class="cnt" id="missionsCount">0/3</span>
+          </summary>
+          <div class="mpanel">
+            <div id="missionList"></div>
+            <p class="note" id="missionsDone" hidden data-i18n="missions.allDone">
+              Missions du jour terminées — reviens demain
+            </p>
+          </div>
+        </details>
         <div class="playrow">
           <!-- phase 49 : une partie attend ; la reprendre est le bouton plein, en commencer une autre l'abandonne -->
           <button class="btn-full" id="resumeRunBtn" hidden>
@@ -4289,6 +4527,18 @@
               monde suivant. Chrono écoulé, la horde ne fait que grossir.
             </dd>
           </div>
+          <div>
+            <dt><span class="cap">5:00</span></dt>
+            <dd data-i18n="menu.ctrl.daily">
+              Défi du jour : 5 minutes, la même partie pour tous. Le terminer chaque jour fait grandir ta série.
+            </dd>
+          </div>
+          <div>
+            <dt><span class="cap">✓</span></dt>
+            <dd data-i18n="menu.ctrl.missions">
+              Missions du jour : trois objectifs qui changent chaque jour, à remplir dans n'importe quelle partie.
+            </dd>
+          </div>
         </dl>
         <button class="btn-full" id="helpPlayBtn" style="margin-top: 22px" data-i18n="menu.play">Jouer</button>
       </div>
@@ -4311,6 +4561,23 @@
               ><span class="lbl" data-i18n="daily.nextLbl">Nouveau défi dans</span
               ><span class="bignum" id="dailyNext"></span
             ></span>
+          </div>
+        </div>
+        <!-- lot L3 : la série du joueur, le joker de la semaine et ce que le défi d'aujourd'hui rapporte -->
+        <div class="streakrows">
+          <div class="row">
+            <span class="lbl" data-i18n="daily.streak.k">Série</span
+            ><span class="sv"
+              ><svg viewBox="0 0 24 24" aria-hidden="true" class="flame">
+                <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-6 1 2 2 3 3 3 0-3-1-5 0-8z" /></svg
+              ><span id="dailySeries"></span
+            ></span>
+          </div>
+          <div class="row">
+            <span class="lbl" data-i18n="daily.joker.k">Joker</span><span class="sv" id="dailyJoker"></span>
+          </div>
+          <div class="row">
+            <span class="lbl" data-i18n="daily.reward.k">Récompense</span><span class="sv" id="dailyReward"></span>
           </div>
         </div>
         <dl class="rules">
@@ -4850,6 +5117,8 @@
         <div class="gear static" id="oGear" aria-label="Équipement" data-i18n-attr="aria-label:hud.gear"></div>
         <p class="note" id="oDiff" hidden></p>
         <p class="note" id="oMsg"></p>
+        <!-- lot L3 : série du jour, tenue offerte et missions remplies par cette partie, avec leur or -->
+        <div class="rewards" id="oRewards" hidden></div>
         <p class="note" id="oNext" hidden></p>
         <p class="unlocked" id="oUnlocked" hidden></p>
         <div class="achs" id="oProgress"></div>

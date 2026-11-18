@@ -49,6 +49,9 @@ export function step(w: World, input: Input, dt: number): void {
   w.t += dt;
   stepPlayer(w, input, dt);
   tickStage(w, dt); // phase 37 : chrono du monde, prolongation, totem, portail (peut changer de carte)
+  // lot L3 : fin du défi du jour (seul cas où tickStage finit la partie) : rien d'autre ne joue ce pas (ni marchand
+  // qui remplacerait Mode.Won, ni second Ev.Victory)
+  if ((w.mode as Mode) === Mode.Won) return;
   // phase 35 : Temps figé, plus d'apparitions, de tirs ennemis ni de dangers (les ennemis restent touchables)
   const frozen = w.powerT[Pw.Gel] > 0;
   if (!frozen) tickSpawner(w, dt);
