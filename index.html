@@ -4832,7 +4832,9 @@
       }
       /* prefers-reduced-motion : aucune animation ni transition (décision 19) */
       @media (prefers-reduced-motion: reduce) {
-        * {
+        *,
+        *::before,
+        *::after {
           transition: none !important;
           animation: none !important;
         }

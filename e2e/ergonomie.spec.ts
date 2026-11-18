@@ -651,12 +651,26 @@ test('A press shows at once', async ({ page, hasTouch }) => {
   // la puce de profil, l'or, les réglages, le prochain objectif et la ligne des missions réagissent aussi
   for (const [sel, back] of [
     ['#accountBtn', '#accountBackBtn'],
+    ['#menuGold', '#shopBackBtn'],
     ['#settingsBtn', '#settingsBackBtn'],
     ['#goalBtn', '#achBackBtn'],
   ] as const) {
     await hold(sel);
     await press(page.locator(back), hasTouch);
     await expect(page.locator('#menu')).toBeVisible();
+  }
+  // la ligne des missions : pressée sous le pointeur ; relâchée, elle ouvre le panneau (Échap le referme)
+  {
+    const line = '#missions summary';
+    const idle = await shown(line);
+    const b = await box(page, line);
+    await page.mouse.move(Math.round(b.left + b.width / 2), Math.round(b.top + b.height / 2));
+    await page.mouse.down();
+    await expect.poll(() => shown(line), { message: `${line} : état pressé`, timeout: 3000 }).not.toBe(idle);
+    await page.mouse.up();
+    await expect(page.locator('#missionList .mission').first()).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#missionList .mission').first()).toBeHidden();
   }
   // un onglet : l'écran s'ouvre au relâchement, l'onglet n'est plus pressé
   await hold('#shopBtn');
