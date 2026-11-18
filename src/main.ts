@@ -230,6 +230,7 @@ function applyFx(): void {
   const r = reducedFx();
   hitStop.enabled = !r;
   hud.flashMul = r ? 0.4 : 1;
+  document.body.classList.toggle('fx-reduced', r); // lot L5 : coupe le liseré animé du palier III
   $('fxBtn').textContent = $('setFxBtn').textContent = t(
     r ? (meta.fxChosen ? 'settings.fx.reduced' : 'settings.fx.reducedSystem') : 'settings.fx.full',
   );

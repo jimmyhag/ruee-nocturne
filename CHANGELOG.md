@@ -8,7 +8,7 @@ Une arme que tu fais grandir change d'allure : chaque cap se voit, et se fête.
 
 ### Ajouté
 
-- **Paliers d'arme** : aux niveaux 25, 50 et 100, une arme passe un palier. Palier I : ses tirs et ses effets prennent une teinte argent bleuté ; palier II : l'or ; palier III : un prisme dont les couleurs tournent lentement. À chaque palier ses projectiles grossissent un peu, et les armes qui n'avaient pas de lueur en gagnent une (bombes, flaques de Vitriol, Esprits, disque du Halo). Rien ne change aux dégâts, à la portée ni à la cadence : c'est pour les yeux.
+- **Paliers d'arme** : aux niveaux 25, 50 et 100, une arme passe un palier. Palier I : ses tirs et ses effets prennent une teinte argent bleuté ; palier II : l'or ; palier III : un prisme dont les couleurs tournent lentement. À chaque palier ses projectiles grossissent un peu, les bombes et les flaques de Vitriol gagnent une lueur, les Esprits un halo plus large et le disque du Halo luit davantage. Rien ne change aux dégâts, à la portée ni à la cadence : c'est pour les yeux.
 - **Le palier se fête** : bannière « Palier II — Orbe filante », gerbe de lumière à la couleur du palier autour de toi, son de niveau plus aigu, petite secousse. Avec « Réduction des effets », la bannière et le son seulement. Chaque palier n'est fêté qu'une fois par partie, et une partie reprise garde les siens.
 - **Barre d'équipement** : l'icône d'une arme garde un liseré à la couleur de son palier.
 

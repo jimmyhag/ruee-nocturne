@@ -631,7 +631,7 @@ export class GameScene {
       makeInstanced(
         new THREE.RingGeometry(0.84, 1, 40).rotateX(-Math.PI / 2),
         additive(0xffffff, 0.9),
-        ELITE_RINGS + 2 * METEOR.max + 2 * VITRIOL.max + BALISE.max, // phase 47 C : flaques et pieds de balise
+        ELITE_RINGS + 2 * METEOR.max + 3 * VITRIOL.max + BALISE.max, // phase 47 C ; lot L5 : 3e anneau des flaques au palier
       ),
     );
     this.scene.add(this.metW.mesh);
@@ -2617,7 +2617,7 @@ export class GameScene {
       (this.lakeMeshes[i].material as THREE.MeshBasicMaterial).opacity = 0.25 + Math.sin(now * 1.5 + i) * 0.12;
 
     this.particles.update(dt);
-    this.bolts.update(dt);
+    this.bolts.update(dt, now);
 
     // caméra : suivi amorti, avance, zoom-out progressif (8 % sur 15 min), recul 10 % pendant un boss, shake borné
     const zoomTarget =
@@ -2680,7 +2680,7 @@ export class GameScene {
     this.aims.end();
     this.aura.visible = this.auraDisc.visible = false;
     this.particles.update(dt);
-    this.bolts.update(dt);
+    this.bolts.update(dt, now);
     // large : caméra à 6,5 u, regard décalé vers la gauche de l'écran pour laisser la place au logo ; étroit (portrait) :
     // un peu plus loin et plus haut, le personnage occupe le centre-bas sous le logo
     const wide = this.menuWide;

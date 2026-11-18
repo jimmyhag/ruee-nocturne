@@ -202,12 +202,13 @@ export class Bolts {
     }
     b.life = FEEL.bolt.life;
   }
-  update(dt: number): void {
+  /** `now` : l'horloge du rendu, la même que celle des étincelles (lot L5 : même teinte de prisme pour les deux). */
+  update(dt: number, now: number): void {
     const w = this.w,
       rx = this.billboardRx,
       cr = Math.cos(rx),
       sr = Math.sin(rx);
-    this.t += dt;
+    this.t = now;
     w.begin();
     for (let i = this.count - 1; i >= 0; i--) {
       const b = this.items[i];

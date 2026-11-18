@@ -808,6 +808,9 @@
         box-shadow: 0 0 6px rgba(229, 156, 255, 0.45);
         animation: tierprism 10s linear infinite;
       }
+      body.fx-reduced .gi.gw.tier3 {
+        animation: none; /* lot L5 : le réglage « Effets réduits » coupe aussi le liseré animé */
+      }
       @keyframes tierprism {
         0%,
         100% {
