@@ -2,6 +2,36 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.63.0 — 18 nov. 2026 (retour de Jimmy : passe d'ergonomie de l'interface)
+
+L'interface s'adapte à ton écran : tablette, téléphone déplié ou tenu à l'horizontale, et chaque appui répond tout de suite.
+
+### Ajouté
+
+- **Tablette et téléphone déplié** : tout grandit avec l'écran (textes, icônes, boutons, héros) au lieu de rester une colonne de téléphone au milieu. Les écrans intérieurs prennent la largeur, la partie aussi : chrono, minicarte et boutons de saut, de sort et de glisse plus grands.
+- **Écran large** (tablette à l'horizontale, PC) : l'accueil passe en deux zones, ton héros en grand à gauche, et à droite le défi du jour, les nouveautés, ton prochain objectif, les missions du jour et « Jouer ». La Bibliothèque montre sa grille et la fiche côte à côte, les Héros leur fiche et leurs défis, les Succès et les Emplacements tiennent sur deux colonnes.
+- **Téléphone à l'horizontale** : l'accueil tient enfin dans l'écran, « Jouer » et les onglets compris.
+- **Défi du jour et Nouveautés** : deux vrais boutons sous le titre, avec leur icône. Le défi du jour dit s'il est « à jouer » (contour doré) ou « fait », et montre ta série ; une nouvelle version s'annonce par une pastille « Nouveau ».
+- **Un appui se voit** : tout ce qui se touche s'éclaire dès que le doigt se pose.
+
+### Modifié
+
+- **Les appuis répondent tout de suite** : le jeu ne se prépare plus pendant ton premier appui (l'écran pouvait rester figé plusieurs secondes), mais quand tu ne touches à rien. Si tu touches « Jouer » avant, il se prépare aussitôt et la partie démarre dès que c'est prêt.
+- **Missions du jour** : une seule ligne sur téléphone et tablette, qui s'ouvre par-dessus l'accueil d'un toucher et se referme en touchant ailleurs ; elles ne cachent plus ton héros. Sur écran large, elles restent dépliées.
+- **Onglets plus lisibles** : icônes plus grandes au trait plus épais, libellés plus clairs, l'onglet ouvert souligné d'un trait doré ; la barre a son propre fond.
+- **Haut de l'écran** : ton profil, ton or et les réglages sont des boutons sur fond sombre, lisibles même devant la lune. Toucher ton or ouvre les Emplacements.
+
+### Corrigé
+
+- L'écran « Défi du jour » s'ouvrait parfois déjà défilé, le titre et la flèche de retour hors de vue : chaque écran s'ouvre maintenant en haut, et « Lancer le défi » reste toujours visible.
+
+### Technique
+
+- Spec : `docs/specs/ui-ergonomie.md` (17 décisions). Gabarits compact, moyen, large et bas en requêtes média dans `index.html` (largeur, hauteur, orientation, rapport), jamais en JavaScript ; échelle par `zoom` (`--k` pour les menus, `--hk` pour le HUD, qui multiplie la taille du HUD des réglages) : DOM, caches et écritures du HUD inchangés. Aucune image, police ni dépendance ajoutée.
+- `src/main.ts` : la scène 3D se prépare après le premier geste, écran au repos (`atRest`, 1,2 s sans appui, chaque appui repoussant l'étape suivante), par étapes (module, construction, héros, décor, shaders) ; « Jouer » la rend urgente (`loadScene(true)`). En `?debug=1`, préparation immédiate comme avant. Le modèle d'un autre héros au carrousel attend lui aussi le repos.
+- Missions : la liste est hors du `<details>` (`#missionsPanel`), montrée par la mise en page sur écran large ; Échap et un appui ailleurs la referment. Or du menu : un bouton (`#menuGold`). Textes : `menu.dailyName`, `menu.dailyMin`, `menu.dailyTodo`, `menu.dailyDone`, `menu.new`, `menu.streakAria`, `menu.dailyAriaLeft` (FR et EN).
+- Tests : `e2e/ergonomie.spec.ts`, un test par scénario (16), PC et iPhone 13, tailles posées par `setViewportSize`. Mesures et captures : `docs/GATES.md`, `docs/captures/ergonomie/`.
+
 ## 1.62.0 — 18 nov. 2026 (décision de Jimmy, lot L4 : partage, défi à un pote, classement entre amis)
 
 Ton défi du jour se partage, se lance à un ami et se compare entre amis.

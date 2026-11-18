@@ -1,6 +1,6 @@
 # Interface « Nocturne », passe d'ergonomie — tablettes, écrans pliables, icônes et nouveautés lisibles
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 18 novembre 2026, avec Jimmy, après la mise en ligne de la 1.62.0. Jimmy, sur son
 téléphone ouvert « en mode tablette » : « ça rend pas ouf, c'est pas très bien fait. […] On

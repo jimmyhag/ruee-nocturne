@@ -134,16 +134,75 @@ const VERSION = __APP_VERSION__;
 // ---------- rendu (module chargé à part : three + src/render ≈ 150 ko gzip) ----------
 // Le menu s'affiche et répond sans WebGL. Le module de rendu n'est pas préchargé avec la page (interface « Nocturne » :
 // le menu n'a plus de 3D, le premier affichage garde la bande passante ; Lighthouse LCP) : le service worker le met en
-// cache après la première visite, sinon il part au premier geste du joueur ; il est évalué et construit après le premier affichage, quand le navigateur est libre, ou dès
-// « Jouer » si le joueur est plus rapide. Les shaders sont compilés en parallèle (compileAsync) : pas de tâche
-// longue sur le fil principal pendant le chargement (Lighthouse TBT), et le premier run démarre sans à-coup.
+// cache après la première visite, sinon il part après le premier geste du joueur ; il est évalué et la scène construite
+// quand l'écran est au repos, ou dès « Jouer » si le joueur est plus rapide. Les shaders sont compilés en parallèle
+// (compileAsync) : pas de tâche longue sur le fil principal pendant le chargement (Lighthouse TBT), et le premier run
+// démarre sans à-coup.
 let scene: GameScene | null = null;
 let sceneReady = false; // construite et shaders compilés : on peut rendre
 let scenePromise: Promise<GameScene> | null = null;
-function loadScene(): Promise<GameScene> {
-  // relecture perf : la graisse 300 du chrono n'est pas sur l'accueil ; chargée avec la scène, pas à la première image
-  if (!scenePromise) void document.fonts?.load("300 40px 'Barlow Condensed'").catch(() => undefined);
-  return (scenePromise ??= import('./render/scene').then(async ({ GameScene }) => {
+// Passe d'ergonomie (docs/specs/ui-ergonomie.md, décision 17) : rien de lourd pendant un appui. La scène ne se prépare
+// plus dans le premier geste du joueur (une tâche de 8,6 s gelait l'écran juste après, processeur ralenti 4 fois) :
+// elle se prépare quand l'écran est au repos (aucun appui depuis `REST_MS`, chaque appui repoussant la suite), par
+// étapes qui rendent la main entre elles (module, construction, décor, shaders). « Jouer » avant la fin : `urgent`,
+// les étapes s'enchaînent dès la prochaine image (le bouton a le temps de montrer « Chargement… »).
+const REST_MS = 1200;
+let lastPress = 0; // dernier appui ou défilement (doigt, souris, touche, molette), en ms de performance.now()
+let pressing = false; // un doigt ou un bouton de souris est posé
+let sceneUrgent = false;
+let restWake: (() => void) | null = null;
+function notePress(e: Event): void {
+  lastPress = performance.now();
+  const ty = e.type;
+  if (ty === 'pointerdown' || ty === 'touchstart') pressing = true;
+  else if (ty === 'pointerup' || ty === 'touchend' || ty === 'touchcancel') pressing = false;
+}
+// à la capture et passifs : deux affectations par événement, rien d'alloué (le défilement d'une liste compte aussi)
+for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'touchcancel', 'keydown', 'wheel', 'scroll'])
+  addEventListener(ev, notePress, { capture: true, passive: true });
+/** Délai (ms) avant que l'écran soit au repos ; ≤ 0 : il l'est. Un appui « posé » depuis plus de 10 s ne compte plus. */
+function restDelay(): number {
+  const now = performance.now();
+  if (pressing && now - lastPress < 10_000) return REST_MS;
+  return lastPress + REST_MS - now;
+}
+/**
+ * Rend la main, puis attend le bon moment pour une étape lourde de la scène : l'écran au repos, ou tout de suite après
+ * la prochaine image si la scène est attendue (`sceneUrgent`).
+ */
+function atRest(): Promise<void> {
+  return new Promise((resolve) => {
+    let timer = 0;
+    let done = false;
+    const check = (): void => {
+      if (done) return;
+      clearTimeout(timer);
+      const wait = sceneUrgent ? 0 : restDelay();
+      if (wait > 0) {
+        timer = window.setTimeout(check, wait);
+        return;
+      }
+      done = true;
+      if (restWake === check) restWake = null;
+      resolve();
+    };
+    restWake = check;
+    // toujours une image d'abord (le navigateur peint, traite les appuis) ; minuterie de secours : page en arrière-plan
+    requestAnimationFrame(() => setTimeout(check, 0));
+    timer = window.setTimeout(check, 250);
+  });
+}
+function loadScene(urgent = false): Promise<GameScene> {
+  if (urgent && !sceneUrgent && !sceneReady) {
+    sceneUrgent = true;
+    restWake?.(); // une étape attendait le repos : elle part
+  }
+  scenePromise ??= (async () => {
+    await atRest();
+    // relecture perf : la graisse 300 du chrono n'est pas sur l'accueil ; chargée avec la scène, pas à la première image
+    void document.fonts?.load("300 40px 'Barlow Condensed'").catch(() => undefined);
+    const { GameScene } = await import('./render/scene');
+    await atRest();
     let s: GameScene;
     try {
       s = new GameScene(
@@ -158,15 +217,20 @@ function loadScene(): Promise<GameScene> {
     }
     scene = s;
     s.setQuality(qualityLevel()); // phase 9 : niveau de rendu (réglage ou repli automatique de la session)
+    await atRest();
     s.setCharacter(meta.character, outfitOf(meta, meta.character)); // héros de la prochaine partie, chargé et compilé d'avance
     sizeW = sizeH = 0;
     resize();
+    await atRest();
     // le décor ne dépend que de DECOR_SEED : construit ici pour que warmup() compile aussi ses matériaux (lacs, lanternes)
     s.buildDecor(new World(DECOR_SEED));
+    await atRest();
     await s.warmup();
     sceneReady = true;
+    sceneUrgent = false; // ce qui suit (modèle d'un autre héros au carrousel) attend de nouveau le repos
     return s;
-  }));
+  })();
+  return scenePromise;
 }
 // ---------- langue ----------
 // Lue avant tout rendu (le HUD précalcule les noms de boss) : réglage du joueur, sinon langue du navigateur.
@@ -394,7 +458,7 @@ function dailyRefresh(): string {
   if (drawn || settled) saveMeta(meta);
   return today;
 }
-/** Accueil (profil, or, carrousel, objectif, missions, rails du défi du jour et des nouveautés) et écran Héros. */
+/** Accueil (profil, or, carrousel, objectif, missions, boutons du défi du jour et des nouveautés) et écran Héros. */
 function updateBestLine(): void {
   $('resetNote').hidden = meta.seenReset;
   heroLocked = renderHome(meta, heroView);
@@ -402,19 +466,24 @@ function updateBestLine(): void {
   renderHeroCounts();
   const daily = dailyUnlocked(meta);
   $('dailyBtn').hidden = !daily;
-  // lot L3 : la série sur le rail du défi (flamme + nombre), le joker dit dès l'ouverture, les missions du jour
+  // lot L3 : la série sur le bouton du défi (flamme + nombre), le joker dit dès l'ouverture, les missions du jour
   const today = dailyRefresh();
   const streak = streakNow(meta, today);
   if (daily) {
+    // passe d'ergonomie (décision 8) : « à jouer » tant qu'aucune partie du défi n'est enregistrée aujourd'hui (flamme
+    // et contour lanterne), « fait » ensuite (coche) ; le nom accessible dit tout : durée, série, état, temps ou délai
     const best = dailyRuns(meta)[0]?.t ?? 0; // meilleure partie du jour (temps tenu)
-    const left = dailyLeft();
-    $('dailyRail').textContent = best > 0 ? t('menu.dailyBest', { time: fmtTime(best) }) : left;
-    const aria = best > 0 ? t('menu.dailyAriaBest', { time: fmtTime(best) }) : t('menu.dailyAria', { time: left });
-    $('dailyBtn').setAttribute('aria-label', streak > 0 ? `${aria}. ${t('menu.streak', { n: streak })}` : aria);
+    const state = t(best > 0 ? 'menu.dailyDone' : 'menu.dailyTodo');
+    $('dailyBtn').dataset.state = best > 0 ? 'done' : 'todo';
+    $('dailyRail').textContent = state;
+    const parts = [t('menu.dailyAria')];
+    if (streak > 0) parts.push(t('menu.streakAria', { n: streak }));
+    parts.push(state);
+    parts.push(
+      best > 0 ? t('menu.dailyAriaBest', { time: fmtTime(best) }) : t('menu.dailyAriaLeft', { time: dailyLeft() }),
+    );
+    $('dailyBtn').setAttribute('aria-label', parts.join(', '));
   }
-  // le rail tient en ≈ 250 px : la flamme et la série quand il y en a une, sinon le délai (ou le temps du jour)
-  $('dailyStreakSep').hidden = true;
-  $('dailyRail').hidden = streak > 0;
   $('dailyStreak').hidden = streak === 0;
   $('dailyStreakN').textContent = String(streak);
   $('dailyStreak').setAttribute('aria-label', t('menu.streak', { n: streak }));
@@ -443,10 +512,15 @@ function viewHero(k: CharacterKey): void {
   if (unlockedCharacters(meta).includes(k) && meta.character !== k) {
     meta.character = k;
     saveMeta(meta);
-    // relecture perf : le modèle 3D (chargement, compilation) attend que le carrousel s'arrête 300 ms ; startGame le
-    // pose de toute façon
+    // relecture perf : le modèle 3D (chargement, compilation) attend que le carrousel s'arrête ; passe d'ergonomie
+    // (décision 17) : et que l'écran soit au repos, comme la préparation de la scène. startGame le pose de toute façon
     clearTimeout(heroModelT);
-    heroModelT = window.setTimeout(() => scene?.setCharacter(meta.character, outfitOf(meta, meta.character)), 300);
+    const pose = (): void => {
+      const wait = restDelay();
+      if (wait > 0) heroModelT = window.setTimeout(pose, wait);
+      else scene?.setCharacter(meta.character, outfitOf(meta, meta.character));
+    };
+    heroModelT = window.setTimeout(pose, 300);
   }
   updateBestLine();
 }
@@ -519,7 +593,6 @@ function openScreen(
     if (app !== 'settings') opener = document.activeElement as HTMLElement | null;
   }
   app = id;
-  $(id).scrollTop = 0;
   // focus (contrat de la spec) : si ce qui a ouvert l'écran est maintenant masqué, il passe à la flèche retour
   queueMicrotask(() => {
     const a = document.activeElement as HTMLElement | null;
@@ -531,7 +604,7 @@ function openScreen(
   else if (id === 'library') renderLibraryScreen();
   else if (id === 'account') openAccount();
   else if (id === 'board') {
-    showOnly(id);
+    showTop(id);
     void openBoard();
     return;
   } else if (id === 'characters') {
@@ -540,19 +613,25 @@ function openScreen(
   } else if (id === 'help') {
     showRevealed($('help'), meta.reveal); // lot L2 : l'aide ne montre que les systèmes dévoilés
   } else if (id === 'notes') {
-    showOnly(id);
+    showTop(id);
     void openNotes();
     return;
   } else if (id === 'daily') {
     renderDailyScreen();
-    showOnly(id);
-    $('dailyPlayBtn').focus(); // au clavier : Entrée lance le défi, Échap ferme
+    showTop(id);
+    // au clavier : Entrée lance le défi, Échap ferme ; sans défilement : le titre et la flèche retour restent en vue
+    $('dailyPlayBtn').focus({ preventScroll: true });
     return;
   } else {
     applySettings();
     $('settingsMsg').textContent = '';
   }
+  showTop(id);
+}
+/** Passe d'ergonomie (décision 12) : un écran ouvert commence toujours en haut (titre et flèche retour visibles). */
+function showTop(id: AppMode): void {
   showOnly(id);
+  $(id).scrollTop = 0; // après l'affichage : un écran masqué ne défile pas
 }
 // ---------- Nouveautés (1.49.0) : le journal des versions, chargé à la première ouverture ----------
 let notesData: PatchNote[] | null = null;
@@ -770,7 +849,7 @@ function startGame(
     if (!startWanted) startWanted = { variant, daily, resume, challenge }; // la première intention (ex. défi du jour) l'emporte
     playLoading = true;
     setPlayState();
-    loadScene().then(
+    loadScene(true).then(
       () => {
         const w = startWanted;
         startWanted = null;
@@ -1622,6 +1701,9 @@ addEventListener('keydown', (e) => {
   }
 });
 $('settingsBtn').onclick = () => openScreen('settings');
+// passe d'ergonomie (décision 10) : l'or du haut de l'accueil est un bouton ; il mène là où l'or se dépense (comme
+// l'onglet Emplacements, bulle comprise tant que l'onglet est fermé)
+$('menuGold').onclick = () => $('shopBtn').click();
 $('accountBtn').onclick = () => openScreen('account');
 $('accountBackBtn').onclick = closeScreen;
 $('boardBackBtn').onclick = closeScreen;
@@ -3280,8 +3362,25 @@ function firstGesture(e: Event): void {
 }
 addEventListener('pointerup', firstGesture, true);
 addEventListener('keydown', firstGesture, true);
-// lot L3 : sur un petit écran (téléphone), les missions du jour commencent repliées : la clairière reste visible
-if (matchMedia('(max-width: 700px), (max-height: 560px)').matches) $<HTMLDetailsElement>('missions').open = false;
+// Passe d'ergonomie (décision 9) : les missions du jour commencent repliées ; dépliées, elles se posent par-dessus
+// l'accueil et se referment à Échap ou d'un toucher hors du panneau (le focus revient sur leur ligne). Sur un écran
+// large la liste est toujours montrée par la mise en page (CSS) : l'état replié n'y change rien.
+{
+  const box = $<HTMLDetailsElement>('missions');
+  addEventListener(
+    'pointerdown',
+    (e) => {
+      if (box.open && !(e.target as Element | null)?.closest?.('.missions')) box.open = false;
+    },
+    true,
+  );
+  addEventListener('keydown', (e) => {
+    if (app !== 'menu' || e.code !== 'Escape' || !box.open) return;
+    e.preventDefault();
+    box.open = false;
+    box.querySelector('summary')?.focus({ preventScroll: true });
+  });
+}
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
 retention.open(); // lot L1 : le lancement est une ouverture (rien ne part sans accord)
@@ -3442,13 +3541,17 @@ const debugRt = installDebugHooks({
   },
 });
 
-// Module de rendu : en cache (service worker) ou téléchargé au premier geste, il n'est évalué et la scène construite qu'à la première
-// interaction du joueur (geste, touche, survol de « Jouer ») : le menu reste léger tant qu'on ne joue pas, et
-// aucune tâche longue ne précède l'interactivité (Lighthouse). En debug/tests (`?debug=1`), tout de suite :
-// les specs attendent `__game.ready` sans interagir.
+// Module de rendu : rien ne part avant la première interaction du joueur (geste, touche, survol de « Jouer ») : le
+// menu reste léger tant qu'on ne joue pas, et aucune tâche longue ne précède l'interactivité (Lighthouse). Après ce
+// premier geste, la scène se prépare quand l'écran est au repos, jamais dans l'appui lui-même (passe d'ergonomie,
+// décision 17 : `loadScene`). En debug/tests (`?debug=1`), tout de suite : les specs attendent `__game.ready` sans
+// interagir.
 {
-  const warm = () => void loadScene().catch(() => {});
-  if (debugRt) requestAnimationFrame(warm);
+  const warm = (): void => {
+    if (!lastPress) lastPress = performance.now(); // un survol n'est pas un appui : le repos se compte de maintenant
+    void loadScene().catch(() => {});
+  };
+  if (debugRt) requestAnimationFrame(() => void loadScene(true).catch(() => {}));
   else {
     for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const)
       addEventListener(ev, warm, { once: true, passive: true });

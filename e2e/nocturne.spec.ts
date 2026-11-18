@@ -264,8 +264,15 @@ test('Level-up cards are a ruled list', async ({ page, hasTouch }) => {
     const n = await cards.count();
     for (let i = 0; i < n; i++) {
       const c = cards.nth(i);
-      // une ligne : filet de 1 px dessous, ni carte (fond) ni contour (bords)
-      expect(await css(c, 'border-bottom-width')).toBe('1px');
+      // une ligne : filet de 1 px dessous, ni carte (fond) ni contour (bords). Passe d'ergonomie : sur un écran large
+      // la feuille est agrandie (`zoom`), le filet reste d'un pixel d'écran et sa largeur calculée est divisée par ce
+      // facteur : on la ramène à l'écran (sur téléphone, facteur 1 : exactement « 1px »)
+      const scale = await c.evaluate((el) => {
+        let z = 1;
+        for (let e: Element | null = el; e; e = e.parentElement) z *= parseFloat(getComputedStyle(e).zoom) || 1;
+        return z;
+      });
+      expect(parseFloat(await css(c, 'border-bottom-width')) * scale).toBeCloseTo(1, 3);
       for (const side of ['top', 'left', 'right']) expect(await css(c, `border-${side}-width`)).toBe('0px');
       expect(await css(c, 'border-radius')).toBe('0px');
       await page.waitForTimeout(400); // fin de l'entrée en cascade
