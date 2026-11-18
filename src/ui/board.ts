@@ -51,16 +51,19 @@ export function renderBoard(s: BoardState): void {
   $('boardPseudo').hidden = s.status !== 'nopseudo';
   $('boardLive').hidden = !live;
   $('boardScope').hidden = s.status === 'unavailable';
-  $('boardTabs').hidden = s.friends; // le défi du jour n'a qu'une vue : le temps, puis les kills
-  $('boardFriends').classList.toggle('selected', s.friends);
+  $('boardTabs').hidden = s.status === 'unavailable';
+  // onglet « Amis » : le défi du jour n'a qu'une période (aujourd'hui) ; son titre remplace le choix de période
+  $('boardPeriod').hidden = s.friends;
+  $('boardFriendsLbl').hidden = !s.friends;
   $('boardFriends').setAttribute('aria-pressed', String(s.friends));
   for (const b of $('boardTabs').querySelectorAll<HTMLButtonElement>('[data-view]')) {
-    const on = b.dataset.view === s.view;
+    const on = !s.friends && b.dataset.view === s.view;
     b.classList.toggle('selected', on);
     b.setAttribute('aria-pressed', String(on));
   }
   $('boardAll').classList.toggle('selected', !s.friends && !s.week);
   $('boardWeek').classList.toggle('selected', !s.friends && s.week);
+  $('boardFriends').classList.toggle('selected', s.friends);
   $('boardAll').setAttribute('aria-pressed', String(!s.friends && !s.week));
   $('boardWeek').setAttribute('aria-pressed', String(!s.friends && s.week));
   const msg = $('boardMsg');
@@ -91,9 +94,13 @@ export function renderBoard(s: BoardState): void {
       const me = r.uid === s.uid;
       if (me) mineShown = true;
       const who = isChar(r.char) ? characterName(r.char) : '';
+      // interface Nocturne : avatar du héros joué ; le podium en grands chiffres
+      const av = isChar(r.char)
+        ? `<span class="avatar"><img src="/ui/avatar-${r.char}.webp" alt="" /></span>`
+        : '<span class="avatar"></span>';
       return (
-        `<li class="brow${me ? ' me' : ''}"><b class="rank">${i + 1}</b>` +
-        `<span class="who"><span class="name">${esc(r.name)}</span><small>${esc(who)}</small></span>` +
+        `<li class="brow${i < 3 ? ' top' : ''}${me ? ' me' : ''}"><b class="rank">${i + 1}</b>` +
+        `<span class="who">${av}<span class="name">${esc(r.name)}</span><small>${esc(who)}</small></span>` +
         `<span class="val">${esc(boardValue(s.view, r.value))}</span></li>`
       );
     })
@@ -106,7 +113,8 @@ export function renderBoard(s: BoardState): void {
 
 /**
  * Lot L4 : toi et tes amis au défi du jour (temps · kills), ceux qui n'ont pas encore joué à la fin ; chaque ami a son
- * bouton « Retirer » (`data-remove` : identifiant). Pseudos échappés : ils viennent du nuage ou d'un lien.
+ * lien « Retirer » (`data-remove` : identifiant, cible de 44 px). Pseudos échappés : ils viennent du nuage ou d'un lien.
+ * Au kit Nocturne : les lignes de Classement.dc.html, le podium (3 premiers qui ont joué) en grands chiffres.
  */
 function renderFriends(rows: readonly FriendRow[]): void {
   let rank = 0;
@@ -115,13 +123,15 @@ function renderFriends(rows: readonly FriendRow[]): void {
       const val = r.played ? `${fmtTime(r.time)} · ${fmtNum(r.kills)}` : t('board.friends.notYet');
       const remove = r.me
         ? ''
-        : `<button class="ghost fremove" data-remove="${esc(r.uid)}" aria-label="${esc(
+        : `<button class="btn-link fremove" data-remove="${esc(r.uid)}" aria-label="${esc(
             t('board.friends.removeAria', { name: r.name }),
           )}">${esc(t('board.friends.remove'))}</button>`;
+      const n = r.played ? ++rank : 0;
       return (
-        `<li class="brow friend${r.me ? ' me' : ''}${r.played ? '' : ' idle'}">` +
-        `<b class="rank">${r.played ? ++rank : '–'}</b>` +
-        `<span class="who"><span class="name">${esc(r.name)}</span></span>` +
+        `<li class="brow friend${n > 0 && n <= 3 ? ' top' : ''}${r.me ? ' me' : ''}${r.played ? '' : ' idle'}">` +
+        `<b class="rank">${n > 0 ? n : '–'}</b>` +
+        `<span class="who"><span class="avatar" aria-hidden="true">${esc(Array.from(r.name)[0] ?? '')}</span>` +
+        `<span class="name">${esc(r.name)}</span></span>` +
         `<span class="val">${esc(val)}</span>${remove}</li>`
       );
     })

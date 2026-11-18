@@ -48,6 +48,7 @@ import {
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export type FlashKind = 'hurt' | 'gold' | 'skull'; // phase 48 : crâne de difficulté activé
+export type BannerTone = 'reward' | 'danger' | 'info';
 
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
 /** Phase 37 : textes de la puce d'objectif, par sorte (1 totem, 2 boss, 3 portail, 4 fermé). */
@@ -583,9 +584,14 @@ export class Hud {
   get bannerOn(): boolean {
     return this.els.banner.classList.contains('on');
   }
-  /** Bannière ; `sub` : seconde ligne plus petite sous le titre (lot L2 : « Nouveau ! » puis le système et quoi faire). */
-  banner(txt: string, sub = '', ms = 1800): void {
+  /**
+   * Bannière ; `tone` : sa couleur dit le sens (interface Nocturne, décision 16 : lanterne récompense, nuée danger, lune
+   * information) ; `sub` : seconde ligne plus petite sous le titre (lot L2 : « Nouveau ! » puis le système et quoi faire).
+   */
+  banner(txt: string, tone: BannerTone = 'reward', sub = '', ms = 1800): void {
     const b = this.els.banner;
+    b.classList.toggle('danger', tone === 'danger');
+    b.classList.toggle('info', tone === 'info');
     if (sub) {
       const kick = document.createElement('span');
       kick.className = 'kick';
@@ -736,9 +742,10 @@ export function renderCards(
             ? `<span class="badge new">${t('card.newTome')}</span>`
             : `<span class="badge">${t('card.level', { n: c.lv })}</span>`;
       }
-      // rareté = nombre de lignes : 2 → rare (cadre bleu), 3 → épique (cadre or) ; le badge de rareté suit
-      const rarity = c.kind === 'heal' ? '' : c.n >= 3 ? ' epic' : c.n === 2 ? ' rare' : '';
-      const rb = rarity ? `<span class="badge${rarity}">${rarityName(c.n)}</span>` : '';
+      // rareté = nombre de lignes (objet : sa rareté) ; interface Nocturne : pastille et libellé (commune, rare, épique)
+      const tier = c.kind === 'heal' ? 0 : c.kind === 'i' ? c.lv + 1 : Math.min(3, c.n);
+      const rarity = tier >= 3 ? ' epic' : tier === 2 ? ' rare' : '';
+      const rb = tier > 0 ? `<span class="rar${rarity}">${rarityName(tier)}</span>` : '';
       const lines = cardLines(c);
       const intro =
         c.lv === 1 && c.kind !== 'i' && c.kind !== 'b'
@@ -752,7 +759,7 @@ export function renderCards(
           : `${intro}<ul class="lines">${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`;
       // phase 17 : la carte qui complète une synergie dit ce qu'elle débloque
       const synLine = syn >= 0 ? `<p class="synline">✦ ${synergyText(syn)}</p>` : '';
-      return `<button class="card${rarity}${off ? ' off' : ''}" data-i="${i}" ${off ? 'aria-disabled="true"' : ''}><div class="top"><span class="glyph" style="background:${color}" aria-label="${glyph}">${icon || glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}${synBadge}${price}</div>${body}${synLine}</button>`;
+      return `<button class="card${rarity}${off ? ' off' : ''}" data-i="${i}" ${off ? 'aria-disabled="true"' : ''}><div class="top"><span class="glyph" style="color:${color}" aria-label="${glyph}">${icon || glyph}</span><h3>${cardTitle(c)}</h3><kbd>${i + 1}</kbd></div><div class="badges">${badge}${rb}${synBadge}${price}</div>${body}${synLine}</button>`;
     })
     .join('');
 }

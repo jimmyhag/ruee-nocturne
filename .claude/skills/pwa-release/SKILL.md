@@ -14,7 +14,7 @@ description: Livraison du jeu en PWA installable (Android, iOS, desktop) — man
 ## 2. Service worker (Workbox via le plugin)
 - Stratégie `generateSW`, `registerType: 'prompt'` : on **ne force pas** la mise à jour en pleine partie.
 - Précache : app shell, JS, CSS, polices, icônes, sons essentiels. `globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,ogg,m4a,json}']`, `maximumFileSizeToCacheInBytes: 4 Mo`.
-- Runtime : rien n’est externe. Les polices (Lilita One, Rubik ; SIL OFL) sont auto-hébergées dans `public/fonts/` et précachées : pas de CSS bloquante venant d’une autre origine (phase 5, Lighthouse).
+- Runtime : rien n’est externe. Les polices (Barlow et Barlow Condensed, sous-ensemble latin ; SIL OFL ; interface « Nocturne », 1.61.0) sont auto-hébergées dans `public/fonts/` et précachées, le latin étendu exclu du précache : pas de CSS bloquante venant d’une autre origine (phase 5, Lighthouse).
 - UI de mise à jour : bannière « Nouvelle version disponible — Recharger », affichée **uniquement** au menu ou à l'écran de mort, jamais en jeu. `updateSW(true)` au clic.
 - `navigateFallback: '/index.html'`, `navigateFallbackDenylist: [/^\/__\//]` (URL réservées de Firebase Hosting : `/__/auth/handler`, `/__/firebase/init.json`), `cleanupOutdatedCaches: true`.
 - Firebase (phase 13) : aucun `runtimeCaching` pour `*.googleapis.com` ; le chunk `account-*.js` est précaché comme le reste (un joueur connecté hors ligne voit « Connecté · hors ligne »), mais il n'est chargé par la page qu'à la demande.

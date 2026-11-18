@@ -1,4 +1,4 @@
-// Lot L3 : bloc « Missions du jour » du menu (trois lignes avec barre de progression, coche quand c'est fait) et texte
+// Lot L3 : bloc « Missions du jour » du menu (trois lignes avec filet de progression, « Fait » quand c'est rempli) et texte
 // d'une mission, repris par l'écran de fin. DOM natif, sans interaction (sauf le repli natif de <details>).
 import { t } from '../i18n';
 import { missionGold } from '../meta/missions';
@@ -15,7 +15,10 @@ export function missionText(ms: Mission): string {
   return t(`mission.${ms.k}`, { n: ms.goal });
 }
 
-/** Missions du jour : une ligne par mission (texte, progression, or), et la note « terminées » quand tout est fait. */
+/**
+ * Missions du jour : une ligne par mission au style du prochain objectif de l'accueil (interface Nocturne) : texte et
+ * avancement en lanterne, filet de 2 px, or de la mission ; « Fait » quand c'est rempli. Note « terminées » à la fin.
+ */
 export function renderMissions(list: HTMLElement, count: HTMLElement, done: HTMLElement, m: Meta): void {
   const ms = m.missions.list;
   const n = ms.filter((x) => x.done).length;
@@ -24,8 +27,8 @@ export function renderMissions(list: HTMLElement, count: HTMLElement, done: HTML
   list.innerHTML = ms
     .map((x) => {
       const p = Math.min(1, x.prog / x.goal);
-      const state = x.done ? `✓ ${esc(t('mission.done'))}` : `${x.prog}/${x.goal}`;
-      return `<div class="ach mission${x.done ? ' done' : ''}" data-k="${x.k}"><div class="achtop"><b>${esc(missionText(x))}</b><span>${state} · ${esc(t('gold', { n: missionGold(x) }))}</span></div><div class="bar"><i style="width:${(p * 100).toFixed(0)}%"></i></div></div>`;
+      const state = x.done ? esc(t('mission.done')) : `${x.prog}/${x.goal}`;
+      return `<div class="mission${x.done ? ' done' : ''}" data-k="${x.k}"><div class="gt"><span>${esc(missionText(x))}</span><span>${state}</span></div><span class="prog"><i style="width:${(p * 100).toFixed(0)}%"></i></span><div class="rw"><i class="coin" aria-hidden="true"></i>+${esc(t('gold', { n: missionGold(x) }))}</div></div>`;
     })
     .join('');
 }

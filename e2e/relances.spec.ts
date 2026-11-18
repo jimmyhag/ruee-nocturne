@@ -61,7 +61,8 @@ test('coffre : pas de bouton de relance', async ({ page }) => {
 
 test('boutique : acheter des relances, elles s’ajoutent à la partie suivante', async ({ page, hasTouch }, info) => {
   await openGame(page);
-  await page.evaluate(() => (window as any).__game.setMeta({ version: 4, gold: 2500 }));
+  // une partie déjà jouée : l'onglet Emplacements est ouvert (interface Nocturne, première ouverture)
+  await page.evaluate(() => (window as any).__game.setMeta({ version: 4, runs: 1, gold: 2500 }));
   await page.locator('#shopBtn').click();
   await expect(page.locator('#shop')).toBeVisible();
   await expect(page.locator('#rerollNote')).toContainText('1 par partie');

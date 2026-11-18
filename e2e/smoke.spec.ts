@@ -5,7 +5,9 @@ test('la page charge, une partie démarre, le rendu tient le budget', async ({ p
   const errors = collectConsoleErrors(page);
   await openGame(page);
 
-  await expect(page.locator('canvas#c')).toBeVisible();
+  // interface Nocturne : au menu le canvas existe mais n'est pas composité (fond illustré opaque), visible en partie
+  await expect(page.locator('canvas#c')).toBeAttached();
+  await expect(page.locator('canvas#c')).toBeHidden();
   await expect(page.locator('#playBtn')).toBeVisible();
 
   // rendu « pixel » : la boucle est testée à résolution réduite (SwiftShader à la résolution native tourne à 8 fps)
@@ -15,6 +17,7 @@ test('la page charge, une partie démarre, le rendu tient le budget', async ({ p
   });
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await expect(page.locator('canvas#c')).toBeVisible();
   // la boucle avance : 3 s de temps de jeu, quel que soit le rythme de la machine (runner de CI à 2 cœurs, SwiftShader)
   await page.waitForFunction(() => (window as any).__game.world.t > 3, null, { timeout: 30_000 });
   await page.waitForTimeout(500); // une fenêtre de mesure du rendu

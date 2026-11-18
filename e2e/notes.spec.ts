@@ -15,7 +15,7 @@ test('Nouveautés : bouton au menu, pastille, versions repliables, anciennes ver
   const btn = page.locator('#notesBtn');
   await expect(btn).toBeVisible();
   await expect(btn).toContainText('Nouveautés');
-  await expect(btn).toContainText(`v${version}`);
+  await expect(btn).toContainText(version); // rail vertical de l’accueil : « NOUVEAUTÉS | version »
   await expect(page.locator('#notesDot')).toBeHidden(); // nouveau joueur : rien à signaler
 
   // un joueur d'avant la feuille : la pastille s'allume

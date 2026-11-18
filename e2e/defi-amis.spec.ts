@@ -259,6 +259,12 @@ test('Opening a link without an account sends no request', async ({ page }) => {
   // sans pseudo ni compte : le lien ne porte ni nom ni identifiant
   expect(await page.evaluate(() => (window as any).__shared[0])).not.toMatch(/[?&][nu]=/);
   await page.locator('#menuBtn').click();
+  // l'onglet Classement attend le premier dévoilement (lot L2, interface Nocturne), que le défi ne fait pas avancer :
+  // on le dévoile ici, sans compte ni accord, pour vérifier l'onglet « Amis »
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4 });
+  });
   await page.locator('#boardBtn').click();
   await page.locator('#boardFriends').click();
   await expect(page.locator('#boardInviteText')).toHaveText('Connecte-toi pour voir tes amis');
@@ -327,7 +333,9 @@ test('The daily board shows you and your friends', async ({ page, hasTouch }, in
   await expect(rows.locator('.name')).toHaveText(['Jimmy', 'Moi', 'Zoé']);
   await expect(rows.locator('.val')).toHaveText(['5:00 · 412', '5:00 · 380', '3:41 · 900']);
   await expect(page.locator('#boardList .brow.me .name')).toHaveText('Moi');
-  await expect(page.locator('#boardTabs')).toBeHidden();
+  // onglet « Amis » au kit : la période laisse place au titre « Défi du jour · Amis »
+  await expect(page.locator('#boardPeriod')).toBeHidden();
+  await expect(page.locator('#boardFriendsLbl')).toHaveText('Défi du jour · Amis');
   await page.screenshot({ path: `shots/${info.project.name}-l4-classement-amis.png` });
   // retirer un ami depuis le classement : au doigt, ou Entrée sur le bouton au clavier
   const remove = page.locator(`#boardList [data-remove="${UID_B}"]`);

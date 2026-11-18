@@ -77,7 +77,7 @@ of truth for the game's content; `docs/GATES.md` records what each phase deliver
 
 Other npm scripts: `npm run preview` (serves `dist/`: test the service worker there, never
 in dev), `npm run shot` (Playwright screenshots in `shots/`), `npm run store`,
-`npm run icons`, `npm run assets`, `npm run audio`, `npm run lh` (Lighthouse), `npm run retention` (the
+`npm run icons`, `npm run assets`, `npm run audio`, `npm run ui-images` (the interface's WebP images), `npm run lh` (Lighthouse), `npm run retention` (the
 retention table, read with an administrator token: `docs/DEPLOY.md`).
 
 ## Business invariants (non-negotiable)
@@ -115,7 +115,7 @@ HUD subscribe to them, never the reverse.
 | meta | `src/meta/` | Saved progression (with the progressive reveal of systems), the daily challenge and its streak, daily missions, the result card and challenge link, friends, achievements, library, sync, leaderboard and retention shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
 | i18n | `src/i18n/` | French and English strings, number formats | `src/sim/`, `src/meta/` |
 | entry | `src/main.ts`, `src/debug.ts` | Composition: the loop, the event handlers, the debug hooks (`?debug=1`) | everything |
-| tools | `tools/` | Node CLIs: simulation and bots, bench, assets, audio, icons, Lighthouse, retention reading | `src/` |
+| tools | `tools/` | Node CLIs: simulation and bots, bench, assets, audio, icons, interface images, Lighthouse, retention reading | `src/` |
 
 The lint enforces the `sim` and `render` rows and the Firebase rule (`eslint.config.js`);
 the test « frontière sim/render » (`src/sim/sim.test.ts`) checks the sim row again.
@@ -141,11 +141,11 @@ src/ui/             DOM screens and HUD
 src/platform/       input, audio, storage, PWA, sharing, account, Firebase configuration, retention measure
 src/meta/           saved progression, progressive reveal, daily challenge and streak, daily missions, result card and challenge link, friends, achievements, library, sync, leaderboard, retention
 src/i18n/           fr.json, en.json and the formatting helpers
-tools/              simulation CLI and bots, bench, asset and audio pipelines, icons, Lighthouse, retention
+tools/              simulation CLI and bots, bench, asset, audio and interface-image pipelines, icons, Lighthouse, retention
 e2e/                Playwright specs (desktop 1280×720 and iPhone 13)
-public/             static files: icons, models, sounds, fonts
-assets/             sources of generated files (icon.svg)
-docs/               DEPLOY, DEVICES, GATES, STACK, store screenshots, captures
+public/             static files: icons, models, sounds, fonts, interface images (ui/)
+assets/             sources of generated files (icon.svg, interface images in ui/)
+docs/               DEPLOY, DEVICES, GATES, STACK, store screenshots, captures, design mockups (design/)
 prototype/          historical reference, never modified
 .claude/            the game's skills and review agents, plus links to the harness roles
 .agents/            the roles AI assistants play and the skills they load (README.md)

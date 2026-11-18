@@ -24,7 +24,8 @@
     "bench": "node --expose-gc --import tsx tools/bench.ts",
     "prepare": "simple-git-hooks",
     "assets": "tsx tools/assets/build.ts",
-    "audio": "tsx tools/audio/build.ts"
+    "audio": "tsx tools/audio/build.ts",
+    "ui-images": "tsx tools/ui-images.ts"
   },
   "dependencies": {
     "firebase": "^13.2.0",

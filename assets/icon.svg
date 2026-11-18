@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <!-- Icône de Swarmageddon (1.56.1, choisie par Jimmy) : le « S » du titre, cerné par la nuée aux yeux rouges.
-       La lettre est le contour du glyphe de Lilita One (SIL OFL, public/fonts/), tracé en chemin : aucune police à charger.
+       La lettre est le contour du glyphe de Lilita One (SIL OFL, CREDITS.md ; la police n'est plus livrée depuis la 1.61.0), tracé en chemin : aucune police à charger.
        Tout ce qui compte tient dans le cercle central de 80 % (icône maskable) ; les monstres du bord peuvent être rognés. -->
   <defs>
     <!-- dégradé vertical (chaque ligne d'une seule couleur) : les PNG pèsent cinq fois moins qu'avec un dégradé radial -->

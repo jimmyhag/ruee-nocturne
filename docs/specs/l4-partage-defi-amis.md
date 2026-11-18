@@ -98,7 +98,7 @@ Fonctionnalité: Carte de résultat, défi lancé à un pote, classement entre a
 ## UI & Layout Contract
 
 - **Kit** : écrans et composants suivent le kit « Nocturne » (`docs/specs/ui-nocturne.md`, maquette `docs/design/menus/`) : couleurs, polices Barlow, un seul bouton plein, filets sans carte, barre d'onglets.
-  Le lot est développé en parallèle de l'interface Nocturne : il s'écrit avec les composants existants, et passe au kit au moment de sa fusion après Nocturne (le texte et la structure des écrans ne changent pas).
+  Le lot est développé en parallèle de l'interface Nocturne : il s'écrit avec les composants existants, et passe au kit au moment de sa fusion après Nocturne (le texte et la structure des écrans ne changent pas). Fait à la fusion (décision 17 de `docs/specs/ui-nocturne.md`) : l'onglet s'appelle « Amis » dans la rangée d'onglets du Classement, et « Défi du jour · Amis » devient le titre qui remplace le choix de période.
 
 - **Référence visuelle** : aucune ; boutons et feuilles existants.
 - **Arbre de composants** :

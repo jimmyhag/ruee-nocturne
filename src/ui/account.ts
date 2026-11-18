@@ -41,14 +41,16 @@ const $ = (id: string) => document.getElementById(id)!;
 const summaryText = (key: string, s: SaveSummary) =>
   t(key, { time: fmtTime(s.time), gold: t('gold', { n: s.gold }), runs: t('runs', { n: s.runs }) });
 
-/** Libellé du bouton du menu : « Compte » ou « Connecté · e-mail ». */
-export function accountLabel(v: AccountView): string {
+/** Nom de la puce de profil de l'accueil : le pseudo (ou l'e-mail) d'un joueur connecté, « Invité » sinon. */
+export function accountLabel(v: AccountView, pseudo = ''): string {
+  if (v.status !== 'in') return t('menu.guest');
+  const name = pseudo || v.email || t('menu.account');
   // 1.36.1 : hors ligne (ou envoi raté), le menu dit que la progression attend le réseau
-  if (v.status === 'in' && (v.sync === 'offline' || v.sync === 'error')) return t('menu.accountPending');
-  return v.status === 'in' && v.email ? t('menu.accountIn', { email: v.email }) : t('menu.account');
+  if (v.sync === 'offline' || v.sync === 'error') return t('menu.accountPending', { name });
+  return name;
 }
 
-export function renderAccount(v: AccountView): void {
+export function renderAccount(v: AccountView, pseudo = ''): void {
   const status =
     v.status === 'loading'
       ? t('account.status.loading')
@@ -58,6 +60,8 @@ export function renderAccount(v: AccountView): void {
           ? t('account.status.in', { email: v.email ?? '' })
           : t('account.status.out');
   $('accStatus').textContent = status;
+  $('accStatus').hidden = v.status === 'out'; // « Pas connecté » : déjà dit à droite du titre
+  $('accShort').textContent = t(`account.short.${v.status}`);
   const choosing = v.choice !== null;
   $('accSignedOut').hidden = v.status !== 'out' || choosing;
   $('accSignedIn').hidden = v.status !== 'in' || choosing;
@@ -75,7 +79,7 @@ export function renderAccount(v: AccountView): void {
   msg.textContent = v.msg;
   msg.classList.toggle('error', v.error && v.msg !== '');
   for (const b of $('account').querySelectorAll<HTMLButtonElement>('button:not(#accountBackBtn)')) b.disabled = v.busy;
-  $('accountLabel').textContent = accountLabel(v); // le bouton garde son icône SVG
+  $('accountLabel').textContent = accountLabel(v, pseudo); // puce de profil de l'accueil
 }
 
 /** Code d'erreur Firebase (`auth/xxx`, `permission-denied`…) → clé i18n `account.err.*`, repli générique. */

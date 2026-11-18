@@ -32,7 +32,7 @@ Décision 10 de `docs/specs/swarmageddon-mobile.md` : le jeu a été testé sur 
 
 Sur l'URL de preview de la PR, puis sur le live après merge. Cocher, noter la durée ou le chiffre quand il y en a un.
 
-1. **Chargement** : le menu s'affiche en moins de 3 s sur réseau mobile ; les polices (titre arrondi, texte Rubik) sont bien celles du jeu, pas une police système.
+1. **Chargement** : le menu s'affiche en moins de 3 s sur réseau mobile ; les polices (Barlow Condensed des titres, Barlow du texte) sont bien celles du jeu, pas une police système.
 2. **Langue** : l'interface suit la langue du système ; Réglages → Langue bascule français / anglais à chaud, y compris en pleine partie (pause → réglages) et à l'écran de mort.
 3. **Installation** : Android et desktop : bouton « Installer l'app » au menu, icône sur l'écran d'accueil ; iPhone : Partager → « Sur l'écran d'accueil ». Lancée depuis l'icône : plein écran, pas de barre d'URL, safe areas respectées (encoche, barre du bas).
 4. **Hors ligne au 2e lancement** : mode avion, relancer l'app depuis l'icône : le menu et une partie complète fonctionnent.

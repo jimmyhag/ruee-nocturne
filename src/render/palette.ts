@@ -1,4 +1,5 @@
-// Palette partagée rendu ↔ UI. Les mêmes valeurs sont dans index.html (:root).
+// Palette du rendu 3D. L'interface a ses jetons « Nocturne » dans index.html (:root) ; ses couleurs de sens (difficulté,
+// totems de boss) reprennent celles d'ici.
 /** Phase 44 : décor stylisé d'un monde : modèle et teinte des quatre familles d'arbres, de l'herbe, du buisson. */
 interface StageDecor {
   trees: [string, number][];

@@ -141,7 +141,7 @@ export const ITEM_GLYPH: Record<ItemKey, string> = {
   grimoire: '✪',
   toxine: '☣',
 };
-export const RARITY_COLOR = ['#9aa4c2', '#5fd3ff', '#ffd166'];
+export const RARITY_COLOR = ['rgba(243, 236, 221, 0.7)', '#7fb4ff', '#f5b94a']; // kit Nocturne : commune, rare, épique
 export const synergyName = (i: number): string => t(`syn.${SYNERGIES[i].key}.name`);
 export const synergyText = (i: number): string => t(`syn.${SYNERGIES[i].key}.text`);
 const TIER = ['I', 'II', 'III'];

@@ -130,6 +130,24 @@ function giftOutfit(m: Meta): CharacterKey | null {
   return key;
 }
 
+/**
+ * Interface Nocturne (feuille du défi du jour) : ce que le défi d'aujourd'hui rapporterait, sans rien écrire. `count` :
+ * série atteinte s'il est fini aujourd'hui (celle du jour si déjà compté) ; `gold` : or de ce jour (0 si déjà compté) ;
+ * `outfitIn` : jours avant la prochaine tenue offerte ; `joker` : joker de la semaine ISO encore disponible.
+ */
+export function streakPreview(
+  m: Meta,
+  today: string,
+): { count: number; done: boolean; gold: number; outfitIn: number; joker: boolean } {
+  const s = m.streak;
+  const done = s.last === today && s.count > 0;
+  const live = streakNow(m, today);
+  const count = done ? s.count : live > 0 && daysBetween(s.last, today) === 1 ? live + 1 : 1;
+  const gold = done ? 0 : STREAK.gold + STREAK.perDay * Math.min(count, STREAK.cap);
+  const outfitIn = (STREAK.outfitEvery - (count % STREAK.outfitEvery)) % STREAK.outfitEvery;
+  return { count, done, gold, outfitIn, joker: s.jokerWeek !== isoWeek(dayMs(today)) };
+}
+
 /** Série affichée au menu : celle d'aujourd'hui ou d'hier (encore vivante), 0 si elle est perdue. */
 export function streakNow(m: Meta, today: string): number {
   const s = m.streak;
