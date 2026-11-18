@@ -23,7 +23,9 @@ test('défi du jour : la feuille explique, liste les parties du jour et lance la
       }),
     today,
   );
-  await expect(page.locator('#dailyBtn')).toContainText('Défi du jour · 5 min'); // lot L3 : la durée sur le bouton
+  // lot L3 : la durée sur le bouton ; passe d'ergonomie : un bouton horizontal, « Défi du jour » puis « 5 min · fait »
+  await expect(page.locator('#dailyBtn .q-t')).toHaveText('Défi du jour');
+  await expect(page.locator('#dailyBtn .q-s')).toHaveText('5 min·fait'); // deux parties jouées aujourd'hui
   await page.locator('#dailyBtn').click();
   expect(await appMode(page)).toBe('daily'); // plus de lancement direct
   const sheet = page.locator('#daily');
@@ -179,7 +181,8 @@ test('menu : la série sur le bouton du défi, le joker dit dès l’ouverture, 
     const m = g.meta;
     g.setMeta({ ...m, settings: { ...m.settings, lang: 'en' } });
   });
-  await expect(page.locator('#dailyBtn')).toContainText('Daily challenge · 5 min');
+  await expect(page.locator('#dailyBtn .q-t')).toHaveText('Daily challenge');
+  await expect(page.locator('#dailyBtn .q-s')).toHaveText('5 min·to play');
   await expect(page.locator('#missions summary')).toContainText('Daily missions');
   await expect(page.locator('#dailyStreak')).toHaveAttribute('aria-label', 'Streak: 4 days');
   expect(errors).toEqual([]);

@@ -197,6 +197,13 @@
         --rare: #7fb4ff; /* rareté rare (décision 14) */
         --tier1: #9cc2ff; /* lot L5 : palier I d'une arme, argent bleuté (PAL.tier) ; le II est la lanterne */
         --veil: rgba(6, 9, 24, 0.85);
+        /* passe d'ergonomie (docs/specs/ui-ergonomie.md) : fond nuit translucide des boutons posés sur l'illustration
+           (lune comprise : texte lune ≥ 9:1, lanterne ≥ 6:1), voile d'un élément pressé, facteurs d'échelle des menus
+           (--k) et du HUD (--hk) posés par les gabarits en fin de feuille */
+        --chip: rgba(8, 12, 30, 0.78);
+        --press: rgba(243, 236, 221, 0.1);
+        --k: 1;
+        --hk: 1;
         --f-cond: 'Barlow Condensed', 'Arial Narrow', sans-serif;
         --f-text: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
         /* couleurs de sens du jeu (src/render/palette.ts) : difficulté, totems de boss, soin */
@@ -251,6 +258,14 @@
       :focus-visible {
         outline: 2px solid var(--lantern);
         outline-offset: 2px;
+      }
+      /* un appui se voit (décision 16) : tout ce qui se touche prend un voile lune à 10 % dès que le doigt se pose.
+         Un retour d'état, pas une animation : ni transition, ni coupure par « Effets réduits ». Le voile est une image
+         de fond : il se pose par-dessus la couleur de fond de l'élément (puces du haut, boutons de l'accueil) */
+      button:active:not(:disabled),
+      summary:active,
+      a:active {
+        background-image: linear-gradient(var(--press), var(--press));
       }
       /* icônes au trait de 1,7 px, sans fond (kit) */
       svg.ln {
@@ -336,6 +351,7 @@
       }
       .btn-full:active {
         transform: translateY(1px);
+        filter: brightness(0.9); /* lune sur lune : le voile ne se verrait pas, le bouton s'assombrit en s'enfonçant */
       }
       .btn-full:disabled,
       .btn-full[aria-disabled='true'] {
@@ -1615,7 +1631,7 @@
       .keys,
       .gear,
       .tbtns {
-        zoom: var(--hud-scale, 1);
+        zoom: calc(var(--hud-scale, 1) * var(--hk, 1));
       }
       body.lefty .tbtns {
         right: auto;
@@ -1738,9 +1754,9 @@
       }
       /* la barre d'onglets est fixée en bas : la liste s'arrête au-dessus */
       body.tabs-on .screen.inner {
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px * var(--k));
         /* un bouton qui prend le focus défile au-dessus de la barre */
-        scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+        scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px * var(--k));
       }
       .sheet-head {
         display: flex;
@@ -1758,13 +1774,15 @@
         flex: none;
         color: var(--moon);
       }
-      .back svg {
+      .back,
+      .iconbtn {
+        border-radius: 50%;
+      }
+      .back svg,
+      .iconbtn svg {
         width: 24px;
         height: 24px;
-      }
-      .iconbtn svg {
-        width: 22px;
-        height: 22px;
+        stroke-width: 2; /* décision 11 : les icônes d'action au trait de 2 px */
       }
       .sheet-title {
         display: flex;
@@ -1803,56 +1821,48 @@
         clip-path: inset(50%);
         white-space: nowrap;
       }
-      /* barre d'onglets du bas (décision 5) : accueil et écrans intérieurs ouverts depuis l'accueil */
+      /* barre d'onglets du bas (décision 5) : accueil et écrans intérieurs ouverts depuis l'accueil. Passe d'ergonomie
+         (décision 11) : elle prend la largeur de l'écran (contenu centré), fond nuit opaque et filet en haut ; icônes de
+         26 px au trait de 2 px, libellés de 11 px, onglet inactif en lune à 80 %, onglet courant en lanterne avec un
+         filet lanterne au-dessus de l'icône */
       .tabbar {
+        --tabs-w: 460px;
         position: fixed;
-        left: 50%;
-        transform: translateX(-50%);
+        left: 0;
+        right: 0;
         bottom: 0;
         z-index: 3;
-        width: min(460px, 100%);
         box-sizing: border-box;
-        padding: 0 8px calc(env(safe-area-inset-bottom, 0px) + 6px);
+        padding: 0 max(8px, calc((100% - var(--tabs-w)) / 2)) calc(env(safe-area-inset-bottom, 0px) + 6px);
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
         align-items: center;
-        background: rgba(8, 12, 30, 0.96);
-      }
-      .tabbar::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 100%;
-        height: 62px;
-        background: linear-gradient(180deg, rgba(8, 12, 30, 0), rgba(8, 12, 30, 0.96));
-        pointer-events: none;
-      }
-      body:has(#menu:not([hidden])) .tabbar,
-      body:has(#menu:not([hidden])) .tabbar::before {
-        background: none;
+        background: rgb(8, 12, 30);
+        border-top: 1px solid var(--rule);
       }
       .tabbar button {
+        position: relative;
         min-height: 52px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        color: var(--moon);
+        gap: 3px;
+        color: rgba(243, 236, 221, 0.8);
       }
       .tabbar button > span:first-child {
         position: relative;
         display: block;
       }
       .tabbar svg {
-        width: 22px;
-        height: 22px;
+        width: 26px;
+        height: 26px;
+        stroke-width: 2;
       }
       .tabbar button > span:last-child {
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 500;
-        color: var(--moon-70);
+        line-height: 13px;
         white-space: nowrap;
       }
       .tabbar button[aria-current='page'] {
@@ -1860,7 +1870,18 @@
       }
       .tabbar button[aria-current='page'] > span:last-child {
         font-weight: 600;
-        color: var(--lantern);
+      }
+      /* la marque de l'onglet courant : un filet lanterne posé sur le filet de la barre */
+      .tabbar button[aria-current='page']::before {
+        content: '';
+        position: absolute;
+        top: -1px;
+        left: 50%;
+        width: 28px;
+        height: 2px;
+        margin-left: -14px;
+        border-radius: 1px;
+        background: var(--lantern);
       }
       .tabbar button[aria-disabled='true'] {
         opacity: 0.38;
@@ -1877,7 +1898,7 @@
         transform: translateX(-50%);
         bottom: calc(env(safe-area-inset-bottom, 0px) + 66px);
         z-index: 4;
-        max-width: calc(100vw - 48px);
+        max-width: calc(100% - 48px);
         padding: 9px 14px;
         border-radius: 10px;
         background: var(--moon);
@@ -1957,10 +1978,12 @@
         right: 0;
         pointer-events: none;
       }
+      /* voile de nuit du haut (décision 10) : opaque à 70 % en haut, transparent en bas ; la barre du haut et le logo
+         restent lisibles quand le fond recadré amène la lune derrière eux */
       #menu::before {
         top: 0;
-        height: min(220px, 26vh);
-        background: linear-gradient(180deg, rgba(6, 9, 24, 0.72) 0%, rgba(6, 9, 24, 0.3) 60%, rgba(6, 9, 24, 0) 100%);
+        height: min(280px, 34vh);
+        background: linear-gradient(180deg, rgba(6, 9, 24, 0.78) 0%, rgba(6, 9, 24, 0.56) 55%, rgba(6, 9, 24, 0) 100%);
       }
       #menu::after {
         bottom: 0;
@@ -1982,9 +2005,16 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 8px;
         height: 44px;
-        margin: 0 -10px 0 -4px;
+        margin: 0 -8px;
         flex: none;
+      }
+      /* décision 10 : la puce de profil, l'or et les réglages sont des boutons à fond nuit translucide de 44 px */
+      .profile,
+      #menuGold,
+      #settingsBtn {
+        background-color: var(--chip);
       }
       .profile {
         display: flex;
@@ -1992,7 +2022,15 @@
         gap: 10px;
         min-height: 44px;
         min-width: 0;
+        padding: 0 16px 0 6px;
+        border-radius: 22px;
         text-align: left;
+      }
+      #menuGold {
+        min-width: 44px;
+        height: 44px;
+        justify-content: center;
+        border-radius: 22px;
       }
       .avatar {
         width: 32px;
@@ -2041,7 +2079,7 @@
         flex: none;
       }
       .top-right .gold {
-        padding: 0 6px;
+        padding: 0 14px;
       }
       .logo {
         display: block;
@@ -2049,9 +2087,10 @@
         height: auto;
         margin: 10px auto 0;
         flex: none;
+        filter: drop-shadow(0 1px 8px rgba(6, 9, 24, 0.9)); /* lisible sur la lune (décision 10) */
       }
       .tagline {
-        margin: 11px 0 0;
+        margin: 4px auto 0;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2061,12 +2100,20 @@
         font-size: 11.5px;
         font-weight: 500;
         letter-spacing: 0.46em;
-        padding-left: 0.46em;
+        padding: 7px 22px 7px calc(22px + 0.46em);
+        /* un halo de nuit sous l'accroche, fondu sur ses bords : invisible sur le ciel, il éteint la lune derrière elle */
+        background: radial-gradient(
+          ellipse closest-side,
+          rgba(6, 9, 24, 0.86) 0%,
+          rgba(6, 9, 24, 0.7) 60%,
+          rgba(6, 9, 24, 0) 100%
+        );
         text-transform: uppercase;
-        color: var(--moon-70);
+        color: rgba(243, 236, 221, 0.88);
         text-shadow:
-          0 0 6px rgba(6, 9, 24, 0.95),
-          0 1px 10px rgba(6, 9, 24, 0.85); /* lisible quand la lune passe derrière (écrans bas) */
+          0 0 4px rgba(6, 9, 24, 1),
+          0 0 8px rgba(6, 9, 24, 0.95),
+          0 1px 14px rgba(6, 9, 24, 0.9); /* lisible quand la lune passe derrière (tablette, écrans bas) */
       }
       .tagline::before,
       .tagline::after {
@@ -2095,11 +2142,142 @@
         color: var(--moon);
         text-shadow: 0 1px 6px rgba(6, 9, 24, 0.9);
       }
-      /* scène du héros : le portrait au centre, défi du jour et nouveautés en rails verticaux sur les bords */
+      /* défi du jour et nouveautés (décisions 6 à 8) : deux boutons horizontaux côte à côte, icône, libellé en
+         capitales et ligne de détail ; fond nuit translucide, 48 px de haut, textes de 12 px au moins */
+      .quickrow {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 8px;
+        flex: none;
+      }
+      .quickrow:not(:has(> .quick:not([hidden]))) {
+        display: none; /* première ouverture : ni défi ni nouveautés, la rangée ne prend pas de place */
+      }
+      .quick {
+        position: relative;
+        flex: 0 1 auto;
+        min-width: 132px;
+        min-height: 48px;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 12px 4px 10px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        background-color: var(--chip);
+        text-align: left;
+      }
+      .q-ico {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        flex: none;
+        color: var(--lantern);
+      }
+      .quick .q-ico svg {
+        width: 22px;
+        height: 22px;
+      }
+      .quick .q-ico svg.ln {
+        stroke-width: 2;
+      }
+      .q-txt {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+      .q-t {
+        font-family: var(--f-cond);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        line-height: 16px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .q-s {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 15px;
+        color: var(--moon-70);
+        white-space: nowrap;
+      }
+      .q-s i.mid {
+        font-style: normal;
+        color: var(--moon-55);
+      }
+      /* défi pas encore joué aujourd'hui : flamme et contour lanterne ; joué : coche, sans contour (décision 8) */
+      #dailyBtn[data-state='todo'] {
+        border-color: var(--lantern);
+      }
+      #dailyBtn[data-state='todo'] #dailyRail {
+        color: var(--lantern);
+        font-weight: 600;
+      }
+      #dailyBtn[data-state='todo'] .q-ico .check,
+      #dailyBtn[data-state='done'] .q-ico .flame {
+        display: none;
+      }
+      .quick .streak {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-left: 2px;
+        font-family: var(--f-cond);
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--lantern);
+      }
+      .quick .streak svg {
+        width: 13px;
+        height: 13px;
+      }
+      /* une version pas encore lue (décision 7) : pastille « Nouveau » sur fond lanterne et contour lanterne */
+      #notesBtn:has(.pill:not([hidden])) {
+        border-color: var(--lantern);
+      }
+      .pill {
+        position: absolute;
+        top: -13px; /* à cheval sur le contour, au-dessus du libellé : elle ne le recouvre pas */
+        right: 8px;
+        padding: 2px 7px;
+        border-radius: 9px;
+        background: var(--lantern);
+        color: var(--night);
+        font-family: var(--f-cond);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        line-height: 14px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      /* la pastille pulse doucement (halo) ; coupé par « Effets réduits » et par le mouvement réduit */
+      .pill::after {
+        content: '';
+        position: absolute;
+        inset: -3px;
+        border-radius: 12px;
+        border: 1.5px solid var(--lantern);
+        animation: soft 2.2s ease-in-out infinite;
+      }
+      body.calm .pill::after {
+        animation: none;
+        opacity: 0.5;
+      }
+      /* scène du héros : le portrait au centre */
       .stage {
         position: relative;
         flex: 1 1 0;
-        min-height: 120px;
+        min-height: 96px;
         margin: 10px -24px 0;
         display: flex;
         justify-content: center;
@@ -2116,51 +2294,6 @@
       .portrait.locked {
         filter: brightness(0);
         opacity: 0.82;
-      }
-      .rail {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 44px;
-        height: min(250px, 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1;
-      }
-      .rail.left {
-        left: 0;
-      }
-      .rail.right {
-        right: 0;
-      }
-      .rail > span {
-        writing-mode: vertical-rl;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-family: var(--f-cond);
-        font-size: 12.5px;
-        font-weight: 600;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        white-space: nowrap;
-        text-shadow: 0 1px 12px rgba(6, 9, 24, 0.85);
-      }
-      .rail.left > span {
-        transform: rotate(180deg);
-      }
-      .rail i.sep {
-        width: 1px;
-        height: 20px;
-        background: var(--moon-55);
-        flex: none;
-      }
-      .rail .lan {
-        color: var(--lantern);
-      }
-      .rail .soft70 {
-        color: var(--moon-70);
       }
       /* carrousel : flèches au trait, nom en capitales, « arme · sort » ou la condition, points de pagination */
       .carousel {
@@ -3192,6 +3325,36 @@
       #dailyPlayBtn {
         margin-top: 22px;
       }
+      /* passe d'ergonomie : « Lancer le défi » reste visible au-dessus de la barre d'onglets quand la feuille agrandie
+         dépasse l'écran ; le texte défile dessous, derrière un voile de nuit */
+      #dailyPlayBtn,
+      #challengePlayBtn {
+        position: sticky;
+        bottom: 4px;
+        z-index: 1;
+      }
+      /* le voile de nuit sous le bouton, puis son fond lune repeint par-dessus (deux calques derrière le texte) */
+      #dailyPlayBtn::before,
+      #challengePlayBtn::before {
+        content: '';
+        position: absolute;
+        inset: -18px -24px -40px;
+        z-index: -1;
+        background: linear-gradient(180deg, rgba(9, 13, 32, 0) 0, rgb(9, 13, 32) 18px);
+        /* fondu sur les côtés : le voile n'a pas de bord visible sur le fond de l'écran */
+        -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+        mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+        pointer-events: none;
+      }
+      #dailyPlayBtn::after,
+      #challengePlayBtn::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        background: inherit;
+      }
       /* lot L3 : série, joker et récompense du jour, en lignes à filets (flamme lanterne) */
       .streakrows {
         border-top: 1px solid var(--rule);
@@ -3211,8 +3374,7 @@
         font-weight: 600;
         text-align: right;
       }
-      svg.flame,
-      .rail .streak svg {
+      svg.flame {
         width: 14px;
         height: 14px;
         flex: none;
@@ -3220,19 +3382,7 @@
         stroke: none;
       }
 
-      /* ---------- lot L3 au kit : rail du défi (flamme et série), note du joker, missions du jour, récompenses ---------- */
-      .rail .streak {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: var(--lantern);
-      }
-      .rail .streak b {
-        font-weight: 700;
-      }
-      .rail.left .streak svg {
-        transform: rotate(90deg); /* le rail est retourné : la flamme reste debout */
-      }
+      /* ---------- lot L3 au kit : note du joker, missions du jour, récompenses ---------- */
       .note.streaknote {
         margin-top: 8px;
         font-family: var(--f-cond);
@@ -3244,13 +3394,14 @@
         text-align: center;
         text-shadow: 0 1px 8px rgba(6, 9, 24, 0.85);
       }
+      /* passe d'ergonomie (décision 9) : une ligne repliée par défaut ; dépliées, les missions se posent par-dessus
+         l'accueil (au-dessus de la ligne, fond opaque) sans rien déplacer ; sur un écran large la liste est toujours
+         montrée dans le panneau de droite (gabarits en fin de feuille) */
       .missions {
         position: relative;
-        margin-top: 10px;
+        margin-top: 6px;
         flex: none;
       }
-      /* téléphone : ouvertes, les missions se posent par-dessus la scène du héros (au-dessus de la ligne repliée), sans
-         pousser « Jouer » hors de l'écran */
       .missions .mpanel {
         position: absolute;
         left: -24px;
@@ -3260,12 +3411,16 @@
         padding: 6px 24px 4px;
         background: rgb(8, 12, 30); /* opaque : rien de la scène dessous ne se lit à travers */
         border-top: 1px solid var(--rule);
+        box-shadow: 0 -12px 24px rgba(6, 9, 24, 0.5);
+      }
+      #missions:not([open]) + .mpanel {
+        display: none;
       }
       .missions summary {
         display: flex;
         align-items: center;
         gap: 10px;
-        min-height: 32px;
+        min-height: 44px;
         cursor: pointer;
         list-style: none;
       }
@@ -3274,16 +3429,16 @@
       }
       .missions summary::after {
         content: '';
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         margin-left: auto;
         background: var(--moon-70);
         -webkit-mask: var(--arrow) center / contain no-repeat;
         mask: var(--arrow) center / contain no-repeat;
-        transform: rotate(-90deg); /* téléphone : la liste s'ouvre vers le haut */
+        transform: rotate(-90deg); /* la liste s'ouvre vers le haut */
         transition: transform 0.15s;
       }
-      .missions[open] summary::after {
+      #missions[open] summary::after {
         transform: rotate(90deg);
       }
       .missions summary .cnt {
@@ -3338,30 +3493,6 @@
       #missionsDone {
         padding-top: 6px;
         border-top: 1px solid var(--rule);
-      }
-      /* PC (paysage) : les missions dans une colonne à droite de la colonne du menu, ouvertes, pour laisser le héros */
-      @media (min-width: 1000px) and (min-aspect-ratio: 1/1) {
-        .missions {
-          position: fixed;
-          top: 50%;
-          right: max(40px, calc(50vw - 230px - 360px));
-          transform: translateY(-50%);
-          width: 300px;
-          margin: 0;
-          text-shadow: 0 1px 8px rgba(6, 9, 24, 0.9);
-        }
-        .missions summary::after {
-          transform: rotate(90deg);
-        }
-        .missions[open] summary::after {
-          transform: rotate(-90deg);
-        }
-        .missions .mpanel {
-          position: static;
-          padding: 0;
-          background: none;
-          border: 0;
-        }
       }
       /* écran de fin : la série du jour, la tenue offerte et les missions remplies, chacune avec son or */
       .rewards {
@@ -4110,7 +4241,7 @@
       }
       /* grande carte */
       #bigmap {
-        width: min(100%, 68vh, 600px);
+        width: min(100%, calc(68vh / var(--k)), calc(600px / var(--k)));
         aspect-ratio: 1;
         height: auto;
         margin: 10px auto 0;
@@ -4192,7 +4323,7 @@
         line-height: 22px;
       }
 
-      /* ---------- grand écran : la colonne reste à 460 px au plus, le fond couvre l'écran (décision 18) ---------- */
+      /* ---------- le fond couvre l'écran ; écrans courts ---------- */
       /* paysage : l'illustration (portrait) est très agrandie ; on descend vers la colline sombre pour que le logo ne
          passe pas sur la lune */
       @media (min-aspect-ratio: 1/1) {
@@ -4245,7 +4376,9 @@
           margin-top: 4px;
         }
         .tagline {
-          margin-top: 6px;
+          margin-top: 0;
+          padding-top: 5px;
+          padding-bottom: 5px;
         }
         .nextgoal {
           margin-top: 8px;
@@ -4254,9 +4387,454 @@
           margin-top: 10px;
         }
       }
+      /* ---------- gabarits (docs/specs/ui-ergonomie.md, décision 2) ----------
+         Quatre mises en page choisies par la taille de la fenêtre, en requêtes média seulement (jamais par l'appareil
+         ni par JavaScript ; tourner l'appareil ou déplier l'écran change de gabarit sans recharger) :
+           compact  largeur < 600 px, plus haut que large : le téléphone en portrait, tout ce qui précède ;
+           moyen    largeur ≥ 600 px et hauteur ≥ 600 px : tablette en portrait, pliable ouvert ; la même structure,
+                    agrandie ;
+           large    hauteur ≥ 600 px et largeur ≥ 10/9 de la hauteur : tablette en paysage, PC ; deux zones ;
+           bas      plus large que haut et hauteur < 600 px : téléphone à l'horizontale ; deux zones serrées.
+         Le « large » se pose par-dessus le « moyen » (mêmes agrandissements, autre mise en page).
+         Échelle : `zoom` (--k pour les menus, --hk pour le HUD), comme la taille du HUD des réglages depuis la
+         phase 5 : Chrome et Safari depuis toujours, Firefox 126 (mai 2024) ; sans lui, tout reste à la taille du
+         téléphone dans des colonnes plus larges. Le canvas du jeu, le joystick flottant et les chiffres de dégâts,
+         placés en coordonnées d'écran, ne sont dans aucun élément agrandi. Dans un élément agrandi, pas de longueur en
+         vw ou vh (les moteurs ne s'accordent pas sur leur agrandissement) : des px, que le zoom agrandit, des %, qu'il
+         laisse à leur conteneur, et `calc(N px / var(--k))` pour une largeur en vrais pixels.
+         Facteur des menus selon la place : 1,12 dès 700 px de haut, 1,25 dès 800, 1,5 sur une grande tablette ;
+         sous 700 px de haut, la taille du téléphone (il n'y a pas la hauteur). HUD : 1,25, puis 1,4. */
+      @media (min-width: 600px) and (min-height: 600px) {
+        :root {
+          --hk: 1.25;
+        }
+      }
+      @media (min-width: 600px) and (min-height: 700px) {
+        :root {
+          --k: 1.12;
+        }
+      }
+      @media (min-width: 600px) and (min-height: 800px) {
+        :root {
+          --k: 1.25;
+        }
+      }
+      @media (min-width: 760px) and (min-height: 1000px) {
+        :root {
+          --k: 1.5;
+          --hk: 1.4;
+        }
+      }
+      /* ----- moyen (et base du large) ----- */
+      @media (min-width: 600px) and (min-height: 600px) {
+        /* décision 3 : colonne de contenu de min(88 vw, 760 px), tout agrandi du même facteur */
+        .home {
+          zoom: var(--k);
+          width: min(88%, calc(760px / var(--k)));
+        }
+        .tabbar {
+          zoom: var(--k);
+          --tabs-w: min(88%, calc(760px / var(--k)));
+        }
+        .tabtip {
+          zoom: var(--k);
+        }
+        /* décisions 12 et 14 : écrans intérieurs et feuilles de partie, colonne de min(92 vw, 760 px) */
+        .screen.inner > .panel,
+        .screen.overlay > .panel {
+          zoom: var(--k);
+          width: min(92%, calc(760px / var(--k)));
+        }
+        /* le bouton plein fait au moins 64 px de haut (décision 3) */
+        .btn-full {
+          height: max(52px, calc(64px / var(--k)));
+        }
+        .libgrid {
+          grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+        }
+        /* HUD (décision 13) : tout grandit de --hk ; la minicarte fait 140 px au moins (112 px × 1,25) ; la barre
+           d'équipement se mesure à son conteneur, pas à la fenêtre, et passe au-dessus des rappels de touches tant
+           que la largeur agrandie ne laisse pas les deux côte à côte */
+        #minimap {
+          width: 112px;
+          height: 112px;
+        }
+        #bossbar {
+          width: min(420px, 88%);
+        }
+        .gear {
+          max-width: max(220px, calc(100% - 880px));
+        }
+      }
+      @media (min-width: 600px) and (min-height: 600px) and (max-width: 1540px) {
+        .gear {
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 52px);
+          max-width: calc(100% - 32px);
+        }
+      }
+      /* tablette en portrait, pliable ouvert : le HUD agrandi n'a plus la largeur d'un écran large ; comme sur
+         téléphone, les PV en chiffres passent sous le filet de vie (à droite, ils mordaient sur le chrono) et le mot
+         « vaincus » laisse sa place. Les PV passent aussi sous le filet entre 481 et 599 px de large (deux écrans
+         accolés, 540 px) : ils y mordaient déjà sur le chrono */
+      @media (min-width: 600px) and (min-height: 600px) and (max-width: 859.98px),
+        (min-width: 480.02px) and (max-width: 599.98px) {
+        .hpbar {
+          width: 120px;
+          margin: 0 0 15px;
+        }
+        .hpbar span {
+          left: 0;
+          top: calc(100% + 4px);
+          transform: none;
+          font-size: 13px;
+        }
+      }
+      @media (min-width: 600px) and (min-height: 600px) and (max-width: 859.98px) {
+        .kills small {
+          display: none;
+        }
+      }
+      /* ----- large : deux zones (décision 4) ----- */
+      @media (min-height: 600px) and (min-aspect-ratio: 10/9) {
+        /* à gauche le héros en grand (portrait, nom, armes, carrousel) ; à droite le panneau : logo, défi du jour et
+           nouveautés, prochain objectif, missions du jour dépliées, « Jouer ». 88 % de la largeur de l'écran */
+        .home {
+          width: 88%;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, min(46%, 480px));
+          grid-template-rows: auto auto auto auto auto auto auto auto minmax(0, 1fr) auto auto;
+          grid-template-areas:
+            'top top'
+            'stage logo'
+            'stage tag'
+            'stage links'
+            'stage quick'
+            'stage n1'
+            'stage n2'
+            'stage goal'
+            'stage miss'
+            'car play'
+            'car aband';
+          column-gap: 56px;
+          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+        }
+        .home-top {
+          grid-area: top;
+        }
+        .home .logo {
+          grid-area: logo;
+          margin-top: 18px;
+        }
+        .tagline {
+          grid-area: tag;
+        }
+        .homelinks {
+          grid-area: links;
+        }
+        .quickrow {
+          grid-area: quick;
+          margin-top: 18px;
+        }
+        .quick {
+          flex: 1 1 0;
+        }
+        #resetNote {
+          grid-area: n1;
+        }
+        #runLostNote {
+          grid-area: n2;
+        }
+        .nextgoal {
+          grid-area: goal;
+          margin-top: 16px;
+        }
+        .playrow {
+          grid-area: play;
+        }
+        .abandonrow {
+          grid-area: aband;
+        }
+        .stage {
+          grid-area: stage;
+          min-height: 0;
+          margin: 12px 0 0;
+        }
+        .portrait {
+          max-height: none;
+        }
+        .carousel {
+          grid-area: car;
+          align-self: end;
+          margin: 6px 0 0;
+        }
+        /* missions du jour : toujours dépliées dans le panneau (décision 9). Leur titre n'est plus un bouton : masqué
+           (ni focus ni appui), ses textes restent visibles ; la liste défile si elle dépasse la place */
+        .missions {
+          grid-area: miss;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          margin-top: 10px;
+        }
+        .missions summary {
+          min-height: 36px;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        .missions summary > * {
+          visibility: visible;
+        }
+        .missions summary::after {
+          display: none;
+        }
+        .missions .mpanel,
+        #missions:not([open]) + .mpanel {
+          display: block;
+          position: static;
+          min-height: 0;
+          overflow-y: auto;
+          padding: 0;
+          background: none;
+          border: 0;
+          box-shadow: none;
+        }
+        /* le panneau de droite se lit sur l'illustration : un voile de nuit derrière lui, sans contour */
+        .home::before {
+          content: '';
+          grid-column: 2;
+          grid-row: 2 / -1;
+          z-index: -1;
+          margin: 0 -28px -14px;
+          border-radius: 28px;
+          background: rgba(8, 12, 30, 0.66);
+        }
+        /* la barre d'onglets prend la largeur de l'écran, contenu centré de 960 px au plus */
+        .tabbar {
+          --tabs-w: calc(960px / var(--k));
+        }
+        /* écrans intérieurs (décision 12) : jusqu'à 1040 px pour Héros, Emplacements, Succès et Bibliothèque ; les
+           écrans à lire (Nouveautés, Défi du jour, Compte, Réglages, Aide, Classement) gardent 760 px */
+        #characters > .panel,
+        #shop > .panel,
+        #achievements > .panel,
+        #library > .panel {
+          width: min(92%, calc(1040px / var(--k)));
+        }
+        /* Bibliothèque : la grille (six colonnes) et la fiche de l'élément à côté, qui suit le défilement */
+        #libList {
+          display: grid;
+          grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+          column-gap: 40px;
+          align-items: start;
+        }
+        #libList .libdetail {
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          position: sticky;
+          top: 8px;
+          flex-direction: column;
+          align-items: flex-start;
+          border-bottom: 0;
+        }
+        #libList .libdetail .big svg.ico {
+          width: 96px;
+          height: 96px;
+        }
+        #libList .libdetail .bd {
+          flex: none;
+          width: 100%;
+        }
+        #libList .note.pool,
+        #libList .libgrid {
+          grid-column: 2;
+        }
+        #libList .libgrid {
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          margin-top: 16px;
+        }
+        /* Héros : la fiche (portrait, atout, arme, sort, avatars, tenue) à gauche, les défis à droite */
+        #characters > .panel {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-rows: auto auto auto auto auto auto 1fr;
+          column-gap: 48px;
+          align-content: start;
+        }
+        #characters .sheet-head,
+        #characters .sheet-title {
+          grid-column: 1 / -1;
+        }
+        #characters .herohead {
+          grid-column: 1;
+          grid-row: 3;
+        }
+        #characters .listhead {
+          grid-column: 1;
+          grid-row: 4;
+        }
+        #characters #chars {
+          grid-column: 1;
+          grid-row: 5;
+        }
+        #characters .outfitrow {
+          grid-column: 1;
+          grid-row: 6;
+        }
+        #characters .chalwrap {
+          grid-column: 2;
+          grid-row: 3 / 8;
+          margin-top: 0;
+        }
+        /* Succès et Emplacements : deux colonnes */
+        #achList,
+        #slotList {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          column-gap: 48px;
+        }
+        #rerollSec {
+          width: calc(50% - 24px);
+        }
+      }
+      /* ----- bas : téléphone à l'horizontale, deux zones serrées (décision 5) ----- */
+      @media (orientation: landscape) and (max-height: 599.98px) {
+        /* le héros (réduit) et son nom à gauche ; défi du jour, nouveautés, objectif, missions repliées et « Jouer » à
+           droite ; le logo dans la barre du haut, sans l'accroche ; zones sûres respectées */
+        .home {
+          width: 100%;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          grid-template-rows: auto auto auto auto auto auto auto minmax(0, 1fr) auto auto;
+          grid-template-areas:
+            'top top'
+            'stage links'
+            'stage quick'
+            'stage n1'
+            'stage n2'
+            'stage goal'
+            'stage miss'
+            'stage .'
+            'car play'
+            'car aband';
+          column-gap: 28px;
+          padding: calc(env(safe-area-inset-top, 0px) + 4px) max(24px, env(safe-area-inset-right, 0px))
+            calc(env(safe-area-inset-bottom, 0px) + 53px) max(24px, env(safe-area-inset-left, 0px));
+        }
+        .home-top {
+          grid-area: top;
+          margin: 0;
+        }
+        .home .logo {
+          grid-area: top;
+          justify-self: center;
+          align-self: center;
+          width: min(230px, 30%);
+          margin: 0;
+        }
+        .tagline {
+          display: none;
+        }
+        .homelinks {
+          grid-area: links;
+        }
+        .quickrow {
+          grid-area: quick;
+          margin-top: 14px; /* la pastille « Nouveau » dépasse du bouton : elle reste sous la barre du haut */
+        }
+        .quick {
+          flex: 1 1 0;
+        }
+        #resetNote {
+          grid-area: n1;
+        }
+        #runLostNote {
+          grid-area: n2;
+        }
+        .nextgoal {
+          grid-area: goal;
+          margin-top: 4px;
+        }
+        .missions {
+          grid-area: miss;
+          margin-top: 0;
+        }
+        /* dépliées, les missions se posent sur la zone du héros : objectif et « Jouer » restent visibles */
+        .missions .mpanel {
+          position: fixed;
+          left: max(24px, env(safe-area-inset-left, 0px));
+          right: calc(50% + 14px);
+          top: calc(env(safe-area-inset-top, 0px) + 54px);
+          bottom: auto;
+          max-height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 116px);
+          overflow-y: auto;
+          padding: 4px 16px;
+          border: 1px solid var(--rule);
+          border-radius: 12px;
+        }
+        .playrow {
+          grid-area: play;
+          margin-top: 6px;
+        }
+        /* le même voile de nuit qu'en large derrière la zone de droite : elle se lit sur l'illustration */
+        .home::before {
+          content: '';
+          grid-column: 2;
+          grid-row: 2 / -1;
+          z-index: -1;
+          margin: 0 -14px -6px;
+          border-radius: 18px;
+          background: rgba(8, 12, 30, 0.6);
+        }
+        .btn-full {
+          height: 48px;
+        }
+        .abandonrow {
+          grid-area: aband;
+        }
+        .stage {
+          grid-area: stage;
+          min-height: 0;
+          margin: 4px 0 0;
+        }
+        .carousel {
+          grid-area: car;
+          align-self: end;
+          margin: 0;
+        }
+        .heroname {
+          font-size: 26px;
+          line-height: 28px;
+        }
+        .dots {
+          margin-top: 4px;
+        }
+        /* barre d'onglets fine : icône et libellé côte à côte, 48 px de haut */
+        .tabbar {
+          --tabs-w: 760px;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .tabbar button {
+          min-height: 48px;
+          flex-direction: row;
+          gap: 7px;
+        }
+        .tabbar svg {
+          width: 22px;
+          height: 22px;
+        }
+        body.tabs-on .screen.inner {
+          padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+          scroll-padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+        }
+        .tabtip {
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 56px);
+        }
+      }
       /* prefers-reduced-motion : aucune animation ni transition (décision 19) */
       @media (prefers-reduced-motion: reduce) {
-        * {
+        *,
+        *::before,
+        *::after {
           transition: none !important;
           animation: none !important;
         }
@@ -4398,7 +4976,8 @@
             >
           </button>
           <div class="top-right">
-            <span class="gold" id="menuGold" role="img" aria-label="Or : 0"><i class="coin"></i><span>0</span></span>
+            <!-- passe d'ergonomie (décision 10) : l'or est un bouton, il mène à Emplacements, où il se dépense -->
+            <button class="gold" id="menuGold" aria-label="Or : 0"><i class="coin"></i><span>0</span></button>
             <button class="iconbtn" id="settingsBtn" aria-label="Réglages" data-i18n-attr="aria-label:menu.settings">
               <svg class="ln" viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -4420,24 +4999,36 @@
             Sur iPhone : Partager, puis « Sur l'écran d'accueil »
           </p>
         </div>
+        <!-- passe d'ergonomie (décisions 6 à 8) : défi du jour et nouveautés, deux boutons horizontaux avec icône sous
+             l'accroche et la note du joker (en tête du panneau de droite sur un écran large) -->
+        <div class="quickrow">
+          <button class="quick" id="dailyBtn" data-state="todo" hidden>
+            <span class="q-ico" aria-hidden="true"
+              ><svg class="flame" viewBox="0 0 24 24">
+                <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-6 1 2 2 3 3 3 0-3-1-5 0-8z" /></svg
+              ><svg class="ln check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" /></svg></span
+            ><span class="q-txt"
+              ><span class="q-t" data-i18n="menu.dailyName">Défi du jour</span
+              ><span class="q-s"
+                ><span data-i18n="menu.dailyMin">5 min</span><i class="mid" aria-hidden="true">·</i
+                ><span id="dailyRail" data-i18n="menu.dailyTodo">à jouer</span></span
+              ></span
+            ><span class="streak" id="dailyStreak" hidden
+              ><svg class="flame" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-6 1 2 2 3 3 3 0-3-1-5 0-8z" /></svg
+              ><b id="dailyStreakN">0</b></span
+            >
+          </button>
+          <button class="quick" id="notesBtn">
+            <span class="q-ico" aria-hidden="true"
+              ><svg class="ln" viewBox="0 0 24 24">
+                <path d="M10 5c1 4 3 6 7 7c-4 1-6 3-7 7c-1-4-3-6-7-7c4-1 6-3 7-7z M19 3v4 M17 5h4" /></svg></span
+            ><span class="q-txt"
+              ><span class="q-t" data-i18n="menu.notes">Nouveautés</span><span class="q-s" id="notesVer"></span></span
+            ><span class="pill" id="notesDot" hidden data-i18n="menu.new">Nouveau</span>
+          </button>
+        </div>
         <div class="stage">
-          <!-- défi du jour et nouveautés : rails verticaux sur les bords, comme la maquette -->
-          <button class="rail left" id="dailyBtn" hidden>
-            <span
-              ><span data-i18n="menu.daily">Défi du jour · 5 min</span><i class="sep" aria-hidden="true"></i
-              ><span class="streak" id="dailyStreak" hidden
-                ><svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-3 2-4 2-6 1 2 2 3 3 3 0-3-1-5 0-8z" /></svg
-                ><b id="dailyStreakN">0</b></span
-              ><i class="sep" id="dailyStreakSep" aria-hidden="true" hidden></i><span class="lan" id="dailyRail"></span
-            ></span>
-          </button>
-          <button class="rail right" id="notesBtn">
-            <span
-              ><span data-i18n="menu.notes">Nouveautés</span><i class="sep" aria-hidden="true"></i
-              ><span class="soft70" id="notesVer"></span><i class="dot" id="notesDot" hidden></i
-            ></span>
-          </button>
           <img class="portrait breathe" id="heroPortrait" src="/ui/portrait-eclaireuse.webp" alt="Éclaireuse" />
         </div>
         <div class="carousel">
@@ -4468,19 +5059,23 @@
             ><span id="goalRew"></span
           ></span>
         </button>
-        <!-- lot L3 : missions du jour, au style du prochain objectif (repliées au départ sur téléphone ; à droite sur PC) -->
-        <details class="missions" id="missions" open>
-          <summary>
-            <span class="lbl" data-i18n="missions.title">Missions du jour</span
-            ><span class="cnt" id="missionsCount">0/3</span>
-          </summary>
-          <div class="mpanel">
+        <!-- lot L3 : missions du jour, au style du prochain objectif. Passe d'ergonomie (décision 9) : une ligne repliée
+             par défaut ; dépliées, elles s'ouvrent par-dessus l'accueil (Échap ou un toucher ailleurs les referme). La
+             liste est hors du <details> : sur un écran large la mise en page (CSS seule) la montre toujours -->
+        <div class="missions">
+          <details id="missions">
+            <summary aria-controls="missionsPanel">
+              <span class="lbl" data-i18n="missions.title">Missions du jour</span
+              ><span class="cnt" id="missionsCount">0/3</span>
+            </summary>
+          </details>
+          <div class="mpanel" id="missionsPanel">
             <div id="missionList"></div>
             <p class="note" id="missionsDone" hidden data-i18n="missions.allDone">
               Missions du jour terminées — reviens demain
             </p>
           </div>
-        </details>
+        </div>
         <div class="playrow">
           <!-- phase 49 : une partie attend ; la reprendre est le bouton plein, en commencer une autre l'abandonne -->
           <button class="btn-full" id="resumeRunBtn" hidden>

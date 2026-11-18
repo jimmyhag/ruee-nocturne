@@ -471,7 +471,7 @@ test('interface : HUD avec des armes aux paliers I, II et III', async ({ page },
   });
 });
 
-// Interface « Nocturne », décision 17 pour le lot L3 : rail du défi avec la série, missions du jour, feuille du défi,
+// Interface « Nocturne », décision 17 pour le lot L3 : bouton du défi avec la série, missions du jour, feuille du défi,
 // HUD du défi (chrono de 5:00) et écran « Défi réussi ! ». Sortie : shots/<projet>-ui-l3-<écran>.png
 test('interface : écrans du lot L3 (série, missions, défi du jour, défi réussi)', async ({ page, hasTouch }, info) => {
   test.setTimeout(180_000);
@@ -504,9 +504,10 @@ test('interface : écrans du lot L3 (série, missions, défi du jour, défi réu
     [day(-1), day()],
   );
   await page.evaluate(() => document.fonts.ready);
-  const missions = page.locator('#missions');
-  if (!(await missions.evaluate((d: HTMLDetailsElement) => d.open)))
+  // passe d'ergonomie : les missions sont repliées sur téléphone (un appui les ouvre), toujours dépliées sur écran large
+  if (await page.locator('#missionList .mission').first().isHidden())
     await (hasTouch ? page.locator('#missions summary').tap() : page.locator('#missions summary').click());
+  await expect(page.locator('#missionList .mission').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot(ui('l3-accueil'));
   await page.locator('#dailyBtn').click();
