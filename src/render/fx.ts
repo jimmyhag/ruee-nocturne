@@ -5,6 +5,7 @@ import { FEEL } from './feel';
 import { InstanceWriter, makeInstanced } from './instancing';
 import { beamTexture, hardDiscTexture, softGlow } from './textures';
 import { PAL } from './palette';
+import { TIER_LOOK, tierColor, tierScale } from './tiers';
 import { POWER } from '../sim/balance';
 import type { Power } from '../sim/types';
 
@@ -155,8 +156,9 @@ export class Bolts {
   /** Inclinaison qui fait face à la caméra (comme les particules), posée par la scène à chaque frame. */
   billboardRx = -0.87;
   private w: InstanceWriter;
-  private items: { pts: Float32Array; life: number; warm: boolean }[] = [];
+  private items: { pts: Float32Array; life: number; warm: boolean; tier: number }[] = [];
   private count = 0;
+  private t = 0; // horloge du prisme des paliers III (s)
   private cGlow = new THREE.Color();
   private cCore = new THREE.Color();
   private glowHex = new THREE.Color(PAL.boltGlow);
@@ -182,11 +184,13 @@ export class Bolts {
     scene.add(mesh);
     this.w = new InstanceWriter(mesh);
     for (let i = 0; i < BOLT_MAX; i++)
-      this.items.push({ pts: new Float32Array((BOLT_SEG + 1) * 3), life: 0, warm: false });
+      this.items.push({ pts: new Float32Array((BOLT_SEG + 1) * 3), life: 0, warm: false, tier: 0 });
   }
-  add(ax: number, ay: number, az: number, bx: number, by: number, bz: number, warm = false): void {
+  /** `tier` : palier visuel de l'arme qui le lance (lot L5 : teinte du palier, trait plus large). */
+  add(ax: number, ay: number, az: number, bx: number, by: number, bz: number, warm = false, tier = 0): void {
     const b = this.items[this.count < BOLT_MAX ? this.count++ : 0];
     b.warm = warm;
+    b.tier = tier;
     ay += this.ground(ax, az);
     by += this.ground(bx, bz);
     for (let i = 0; i <= BOLT_SEG; i++) {
@@ -203,6 +207,7 @@ export class Bolts {
       rx = this.billboardRx,
       cr = Math.cos(rx),
       sr = Math.sin(rx);
+    this.t += dt;
     w.begin();
     for (let i = this.count - 1; i >= 0; i--) {
       const b = this.items[i];
@@ -215,8 +220,11 @@ export class Bolts {
         continue;
       }
       const f = b.life / FEEL.bolt.life; // 1 → 0 : l'éclair s'éteint en s'amincissant
-      this.cGlow.copy(b.warm ? this.warmGlow : this.glowHex).multiplyScalar(f);
-      this.cCore.copy(b.warm ? this.warmCore : this.coreHex).multiplyScalar(Math.min(1, f * 1.6));
+      tierColor(this.cGlow, b.warm ? this.warmGlow : this.glowHex, b.tier, this.t).multiplyScalar(f);
+      tierColor(this.cCore, b.warm ? this.warmCore : this.coreHex, b.tier, this.t, TIER_LOOK.core).multiplyScalar(
+        Math.min(1, f * 1.6),
+      );
+      const gw = FEEL.bolt.glowW * (0.6 + 0.4 * f) * tierScale(b.tier);
       const P = b.pts;
       for (let k = 0; k < BOLT_SEG; k++) {
         const o = k * 3;
@@ -231,7 +239,7 @@ export class Bolts {
         const mx = P[o] + dx * 0.5,
           my = P[o + 1] + dy * 0.5,
           mz = P[o + 2] + dz * 0.5;
-        w.put(mx, my, mz, 0, len, this.cGlow, rx, rz, FEEL.bolt.glowW * (0.6 + 0.4 * f), 1);
+        w.put(mx, my, mz, 0, len, this.cGlow, rx, rz, gw, 1);
         w.put(mx, my, mz, 0, len, this.cCore, rx, rz, FEEL.bolt.coreW, 1);
       }
     }

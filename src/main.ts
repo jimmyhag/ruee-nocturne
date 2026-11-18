@@ -8,14 +8,15 @@ import { restoreWorld, snapshotWorld } from './sim/snapshot';
 import { clearRun, peekRun, readRun, writeRun, type RunRead, type SavedRun } from './meta/run-save';
 import type { GameScene } from './render/scene';
 import { PAL } from './render/palette';
-import { FEEL, HitStop } from './render/feel';
+import { FEEL, HitStop, tierCelebration } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, itemName, synergyName } from './ui/cards';
+import { achName, achUnlock, itemName, synergyName, weaponName } from './ui/cards';
 import { canGainItem } from './sim/items';
+import { WEAPON_KEYS } from './sim/weapons/defs';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll } from './sim/progression';
 import { startEndless } from './sim/stages';
@@ -2091,8 +2092,17 @@ const HIT_COLORS = [
   0xff6a2a, // phase 47 B : brûlure de la Dent de dragon
   0x7ddc4a, // phase 50 : Toxine
 ];
+/** Lot L5 : chiffres romains des paliers visuels d'arme (bannière « Palier II — Orbe »). */
+const TIER_NUM = ['I', 'II', 'III'];
+/** Lot L5 : couleur des étincelles de coup de chaque arme à la teinte de son palier (tableau réutilisé). */
+const hitTint: number[] = HIT_COLORS.slice(0, WEAPON_KEYS.length);
+/** Couleur des étincelles d'un coup de source `src` (HitSrc) : arme à la teinte de son palier (lot L5), sinon la sienne. */
+function hitColor(src: number): number {
+  return src < hitTint.length ? hitTint[src] : HIT_COLORS[src];
+}
 function handleEvents(w: World, now: number): void {
   const S = scene as GameScene; // une partie ne tourne jamais sans scène (startGame)
+  for (let k = 0; k < WEAPON_KEYS.length; k++) hitTint[k] = S.tint(HIT_COLORS[k], w.wtier[WEAPON_KEYS[k]], now);
   const reduced = reducedFx();
   const fx = reduced ? 0.5 : 1; // particules ÷2 en mode réduit
   const PT = FEEL.particles;
@@ -2110,7 +2120,7 @@ function handleEvents(w: World, now: number): void {
           e.x,
           e.y,
           e.z,
-          HIT_COLORS[(e.x2 | 0) & (HIT_CRIT - 1)],
+          hitColor((e.x2 | 0) & (HIT_CRIT - 1)),
           (PT.hit.n * fx) | 0,
           PT.hit.speed,
           PT.hit.up,
@@ -2231,8 +2241,8 @@ function handleEvents(w: World, now: number): void {
         // phase 47 C : la lanière claque en ligne droite (trait de l'éclair, orangé et tendu), étincelles au bout
         const tx = e.x + e.x2 * e.v,
           tz = e.z + e.z2 * e.v;
-        S.bolts.add(e.x, e.y, e.z, tx, e.y - 0.4, tz, true); // à la hauteur du héros : la claque suit un saut
-        S.particles.burst(tx, e.y - 0.4, tz, HIT_COLORS[HitSrc.Fouet], (5 * fx) | 0, 4, 3, false, e.x2, e.z2, 1);
+        S.bolts.add(e.x, e.y, e.z, tx, e.y - 0.4, tz, true, w.wtier.fouet); // à la hauteur du héros : la claque suit un saut
+        S.particles.burst(tx, e.y - 0.4, tz, hitColor(HitSrc.Fouet), (5 * fx) | 0, 4, 3, false, e.x2, e.z2, 1);
         if (!bladeSnd) {
           audio.blade(); // un seul son par image, même à quatre directions
           bladeSnd = true;
@@ -2314,6 +2324,23 @@ function handleEvents(w: World, now: number): void {
       case Ev.LevelUp:
         S.particles.ring(e.x, 0.3, e.z, PAL.xp, (PT.levelUp.n * fx) | 0, PT.levelUp.speed, PT.levelUp.up);
         break;
+      case Ev.WeaponTier: {
+        // lot L5 : une arme arrive à un palier visuel (25, 50, 100) ; en réduction des effets, bannière et son seulement
+        const c = tierCelebration(e.v, reduced),
+          TF = FEEL.tier;
+        hud.banner(t('banner.tier', { n: TIER_NUM[(e.v | 0) - 1], name: weaponName(WEAPON_KEYS[e.x2 | 0]) }));
+        audio.levelUp(c.pitch);
+        if (c.particles)
+          for (let j = 0; j < 3; j++) {
+            // trois tiers de la gerbe, décalés sur la roue du prisme au palier III (une seule teinte aux paliers I et II)
+            const hex = S.tint(PAL.cream, e.v, now, j / 3);
+            S.particles.ring(e.x, 0.3, e.z, hex, (TF.ring / 3) | 0, 5, 6);
+            S.particles.burst(e.x, e.y, e.z, hex, (TF.burst / 3) | 0, 6, 7);
+          }
+        if (c.shake > 0) S.shake = Math.max(S.shake, c.shake);
+        if (c.hitStop > 0) hitStop.request(c.hitStop, TF.hitStop.scale, 2);
+        break;
+      }
       case Ev.ChestDrop:
         // phase 51 : le coffre qui tombe s'annonce (gerbe dorée, son à lui) ; il passait inaperçu dans la mêlée
         S.particles.burst(e.x, 0.8, e.z, PAL.gold, ((e.v ? 30 : 16) * fx) | 0, 5, 7);
@@ -2507,11 +2534,15 @@ function handleEvents(w: World, now: number): void {
       case Ev.Dive:
         audio.dive();
         break;
-      case Ev.Bolt:
-        S.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2);
-        S.particles.burst(e.x2, e.y2, e.z2, PAL.bolt, (4 * fx) | 0, 4, 3);
+      case Ev.Bolt: {
+        // lot L5 : v = 1 + index de l'arme qui le lance (0 : objet ou sort), pour la teinte de son palier
+        const src = (e.v | 0) - 1,
+          tier = src >= 0 && src < WEAPON_KEYS.length ? w.wtier[WEAPON_KEYS[src]] : 0;
+        S.bolts.add(e.x, e.y, e.z, e.x2, e.y2, e.z2, false, tier);
+        S.particles.burst(e.x2, e.y2, e.z2, S.tint(PAL.bolt, tier, now), (4 * fx) | 0, 4, 3);
         if (i % 3 === 0) audio.bolt();
         break;
+      }
       case Ev.Telegraph:
       case Ev.AuraPulse:
       case Ev.Victory:

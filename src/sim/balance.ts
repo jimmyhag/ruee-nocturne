@@ -1415,6 +1415,9 @@ export const REVIVE = {
 // arme seule arrive vers le niveau 42 à la victoire, 49 à sa mort en monde infini) et la montée du monde infini
 // (ENDLESS.ramp), plus le plafond. Mesures dans PLAN.md, phase 50
 export const LEVEL_MAX = { weapon: 100, tome: 100 };
+// lot L5 (décision 12 de la spec mobile) : paliers visuels d'arme I, II et III. Un palier ne change aucune statistique :
+// la sim émet Ev.WeaponTier une fois par palier et par partie, le rendu change l'apparence de l'arme, l'écran le célèbre
+export const WEAPON_TIERS = [25, 50, 100];
 export const MAX_WEAPONS = 4;
 export const MAX_PASSIVES = 4; // tomes (le nom « passives » reste dans la méta et les emplacements sauvegardés)
 

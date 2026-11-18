@@ -138,6 +138,8 @@ export class World {
   wstats: Record<WeaponKey, Record<string, number>>; // stats courantes (refreshStats), lues par la sim et le rendu
   triples = 0; // cartes à 3 lignes prises (succès « Triple ligne »)
   weaponLvBest = 1; // meilleur niveau d'arme du run (succès « Érudit »)
+  /** Lot L5 : palier visuel atteint par chaque arme dans la partie (0 à 3, WEAPON_TIERS) ; lu par le rendu et le HUD. */
+  readonly wtier = {} as Record<WeaponKey, number>;
   unlocked: Set<WeaponKey> | null = null; // null = toutes les armes proposables
   // emplacements (phase 10) : plafond d'armes et de tomes piochables ; le kit de départ du personnage ne compte pas
   maxWeapons = MAX_WEAPONS;
@@ -302,6 +304,7 @@ export class World {
         st[stat] = WEAPONS[k].base[stat];
       }
       this.wstats[k] = st;
+      this.wtier[k] = 0;
     }
     for (const k of TOME_KEYS) this.tmods[k] = new Int16Array(8); // préalloués : aucune allocation ni changement de forme en run
     this.weapons = { [ch.weapon]: 1 };
