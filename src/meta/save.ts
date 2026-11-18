@@ -130,7 +130,7 @@ export const DEFAULT_META: Meta = {
   outfits: [],
   outfit: {},
   daily: { date: '', times: [], kills: [] },
-  streak: { last: '', count: 0, best: 0, jokerWeek: '' },
+  streak: { last: '', count: 0, best: 0, jokerWeek: '', jokerDay: '' },
   missions: { date: '', list: [] },
   slots: { ...SLOTS_START, rerolls: 0 },
   unlocks: [],

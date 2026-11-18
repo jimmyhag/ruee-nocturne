@@ -30,7 +30,7 @@ import { canGainItem } from './sim/items';
 import { WEAPON_KEYS } from './sim/weapons/defs';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll } from './sim/progression';
-import { startEndless } from './sim/stages';
+import { adoptDaily, startEndless } from './sim/stages';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -306,7 +306,8 @@ let jokerSaved = false;
 function dailyRefresh(): string {
   const today = todayKey();
   const drawn = ensureMissions(meta, today);
-  const settled = settleStreak(meta, today);
+  // relecture du lot L3 : un défi gardé du lendemain du dernier jour compté, repris après minuit, comptera pour son jour
+  const settled = settleStreak(meta, today, savedRun?.daily ? (savedRun.day ?? '') : '');
   if (settled === 'joker') jokerSaved = true;
   if (drawn || settled) saveMeta(meta);
   return today;
@@ -623,6 +624,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
       return;
     }
     daily = resume.daily;
+    if (daily) adoptDaily(restored); // relecture du lot L3 : un défi gardé avant la mise à jour devient le défi court
     runChar = resume.character;
     runOutfit = resume.outfit;
     runDay = resume.day ?? todayKey();

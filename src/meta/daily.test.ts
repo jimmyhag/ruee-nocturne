@@ -2,10 +2,11 @@
 // (titre en anglais) pour le défi et la série, plus la fusion du nuage et les règles Firestore.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, DAILY, OUTFIT, REVEAL, SLOTS_START, STAGE, STEP, STREAK } from '../sim/balance';
+import { CHARACTERS, DAILY, MISSIONS, OUTFIT, REVEAL, SLOTS_START, STAGE, STEP, STREAK } from '../sim/balance';
 import { TOTEM_HIDDEN } from '../sim/poi';
 import { snapshotWorld } from '../sim/snapshot';
-import { stageLeft } from '../sim/stages';
+import { adoptDaily, stageLeft } from '../sim/stages';
+import { restoreWorld } from '../sim/snapshot';
 import { startRun, step } from '../sim/step';
 import { Ev, Mode } from '../sim/types';
 import type { Input } from '../sim/types';
@@ -22,6 +23,7 @@ import {
   streakNow,
 } from './daily';
 import { bannedItems } from './library';
+import { drawMissions } from './missions';
 import { DEFAULT_META, normalizeMeta } from './save';
 import type { Meta } from './save';
 import { worldOptions } from './shop';
@@ -44,9 +46,9 @@ function veteran(): Meta {
   });
 }
 /** Méta avec une série déjà comptée. */
-function withStreak(last: string, count: number, jokerWeek = ''): Meta {
+function withStreak(last: string, count: number, jokerWeek = '', jokerDay = ''): Meta {
   const m = fresh();
-  m.streak = { last, count, best: count, jokerWeek };
+  m.streak = { last, count, best: count, jokerWeek, jokerDay };
   return m;
 }
 
@@ -84,6 +86,8 @@ describe('défi du jour court (lot L3)', () => {
     }
     expect(w.mode).toBe(Mode.Won);
     expect(victory).toBe(1);
+    // relecture du lot L3 : le pas de la fin ne joue rien d'autre (ni armes, ni monstres, ni marchand)
+    expect(w.eventCount).toBe(1);
     expect(w.stage).toBe(0);
     expect(w.stageT).toBeGreaterThanOrEqual(DAILY.duration);
     expect(w.stageT).toBeLessThan(DAILY.duration + 2 * STEP);
@@ -99,6 +103,33 @@ describe('défi du jour court (lot L3)', () => {
     d.player.revives = 0;
     step(d, still, STEP);
     expect(d.mode).toBe(Mode.Dead);
+  });
+
+  it('a challenge saved before the update resumes as the 5-minute challenge', () => {
+    // partie de défi gardée par la 1.58.0 : mêmes options, sans `daily` (l'instantané n'a pas de dailyEnd)
+    const { daily: _, ...old } = worldOptions(fresh(), ['orbe'], true);
+    const before = new World(777_002, old);
+    startRun(before);
+    before.t = before.stageT = 120;
+    const w = restoreWorld(snapshotWorld(before));
+    expect(w.dailyEnd).toBe(0);
+    expect(w.totem.state).toBe(0);
+    adoptDaily(w);
+    expect(w.dailyEnd).toBe(DAILY.duration);
+    expect(w.totem.state).toBe(TOTEM_HIDDEN);
+    expect(stageLeft(w)).toBe(DAILY.duration - 120);
+    adoptDaily(w); // sans effet sur un défi déjà court
+    expect(w.dailyEnd).toBe(DAILY.duration);
+    w.player.maxHp = w.player.hp = 1e9;
+    w.t = w.stageT = DAILY.duration - 0.5;
+    for (let f = 0; f < 1 / STEP && w.mode !== Mode.Won; f++) step(w, still, STEP);
+    expect(w.mode).toBe(Mode.Won);
+    // un totem déjà activé (boss appelé) reste : la partie finit quand même à 5:00 de partie
+    const fight = new World(777_003, old);
+    fight.totem.state = 1;
+    adoptDaily(fight);
+    expect(fight.totem.state).toBe(1);
+    expect(fight.dailyEnd).toBe(DAILY.duration);
   });
 
   it('Full runs do not change', () => {
@@ -166,6 +197,7 @@ describe('série de jours (lot L3)', () => {
     expect(settleStreak(m, '2026-11-18')).toBe('joker');
     expect(m.streak.count).toBe(4);
     expect(m.streak.jokerWeek).toBe('2026-W47');
+    expect(m.streak.jokerDay).toBe('2026-11-17');
     expect(streakNow(m, '2026-11-18')).toBe(4); // le menu montre la série sauvée
     expect(settleStreak(m, '2026-11-18')).toBeNull(); // une seule fois
     expect(recordStreak(m, '2026-11-18')?.count).toBe(5);
@@ -182,6 +214,23 @@ describe('série de jours (lot L3)', () => {
     expect(m.streak.jokerWeek).toBe(''); // le joker n'a pas servi
     expect(recordStreak(m, '2026-11-18')?.count).toBe(1);
     expect(m.streak.best).toBe(4);
+    // le menu ouvert entre les deux jours manqués : le joker sert pour le premier, pas pour le second
+    const n = withStreak('2026-11-16', 4);
+    expect(settleStreak(n, '2026-11-18')).toBe('joker'); // mardi 17 pardonné
+    expect(settleStreak(n, '2026-11-19')).toBe('lost'); // mercredi 18 manqué aussi
+    expect(recordStreak(n, '2026-11-19')?.count).toBe(1);
+  });
+
+  it('a challenge held over midnight counts for its day', () => {
+    // série comptée le mardi 17 ; défi du mercredi 18 gardé, repris le jeudi 19 après minuit
+    const m = withStreak('2026-11-17', 3);
+    expect(settleStreak(m, '2026-11-19', '2026-11-18')).toBeNull(); // le menu du jeudi ne règle rien
+    expect(m.streak).toMatchObject({ last: '2026-11-17', count: 3, jokerWeek: '' });
+    expect(recordStreak(m, '2026-11-18')?.count).toBe(4); // la partie compte pour le mercredi
+    expect(streakNow(m, '2026-11-19')).toBe(4);
+    // un défi gardé plus ancien ne protège rien
+    const n = withStreak('2026-11-15', 3);
+    expect(settleStreak(n, '2026-11-19', '2026-11-15')).toBe('lost');
   });
 
   it('Only one joker per week', () => {
@@ -196,6 +245,13 @@ describe('série de jours (lot L3)', () => {
     const o = withStreak('2026-11-22', 3, '2026-W47');
     expect(settleStreak(o, '2026-11-24')).toBe('joker');
     expect(o.streak.jokerWeek).toBe('2026-W48');
+    // relecture du lot L3 : deux jokers ne se chaînent pas d'une semaine à l'autre. Dernier jour le samedi 21 (W47),
+    // rien le dimanche 22 ni le lundi 23 (W48) ; menu ouvert le lundi (joker pour le dimanche), puis le mardi
+    const p = withStreak('2026-11-21', 5);
+    expect(settleStreak(p, '2026-11-23')).toBe('joker');
+    expect(p.streak).toMatchObject({ last: '2026-11-22', jokerWeek: '2026-W47', jokerDay: '2026-11-22' });
+    expect(settleStreak(p, '2026-11-24')).toBe('lost');
+    expect(recordStreak(p, '2026-11-24')?.count).toBe(1);
   });
 
   it('The seventh day gives an outfit', () => {
@@ -245,7 +301,7 @@ describe('série de jours (lot L3)', () => {
     expect(m.outfits).toEqual(['eclaireuse']);
     expect(m.outfit).toEqual({ eclaireuse: 1 });
     expect(m.daily).toEqual({ date: '2026-11-17', times: [301.2, 188.7], kills: [0, 0] });
-    expect(m.streak).toEqual({ last: '', count: 0, best: 0, jokerWeek: '' });
+    expect(m.streak).toEqual({ last: '', count: 0, best: 0, jokerWeek: '', jokerDay: '' });
     expect(m.missions).toEqual({ date: '', list: [] }); // tirées à la première ouverture
     expect(streakNow(m, '2026-11-18')).toBe(0);
     expect(settleStreak(m, '2026-11-18')).toBeNull();
@@ -258,8 +314,14 @@ describe('série de jours (lot L3)', () => {
 
   it('the cloud merge keeps the most recent streak, then the longest', () => {
     const a = normalizeStreak({ last: '2026-11-18', count: 2, best: 9, jokerWeek: '' });
-    const b = normalizeStreak({ last: '2026-11-17', count: 5, best: 5, jokerWeek: '2026-W47' });
-    expect(mergeStreak(a, b)).toEqual({ last: '2026-11-18', count: 2, best: 9, jokerWeek: '2026-W47' });
+    const b = normalizeStreak({ last: '2026-11-17', count: 5, best: 5, jokerWeek: '2026-W47', jokerDay: '2026-11-17' });
+    expect(mergeStreak(a, b)).toEqual({
+      last: '2026-11-18',
+      count: 2,
+      best: 9,
+      jokerWeek: '2026-W47',
+      jokerDay: '2026-11-17',
+    });
     const c = normalizeStreak({ last: '2026-11-18', count: 4, best: 4, jokerWeek: '' });
     expect(mergeStreak(a, c).count).toBe(4);
     // par le nuage : l'autre appareil a joué aujourd'hui, celui-ci hier
@@ -268,11 +330,12 @@ describe('série de jours (lot L3)', () => {
     expect(withProgress(here, progressOf(there)).streak.count).toBe(7);
     expect(withProgress(there, progressOf(here)).streak.count).toBe(7);
     // champs hostiles bornés
-    expect(normalizeStreak({ last: 'demain', count: 5, best: -2, jokerWeek: 3 })).toEqual({
+    expect(normalizeStreak({ last: 'demain', count: 5, best: -2, jokerWeek: 3, jokerDay: 'hier' })).toEqual({
       last: '',
       count: 0,
       best: 0,
       jokerWeek: '',
+      jokerDay: '',
     });
   });
 
@@ -280,7 +343,17 @@ describe('série de jours (lot L3)', () => {
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
     expect(rules).toContain(`!('streak' in p())`);
     expect(rules).toContain(`!('missions' in p())`);
-    expect(rules).toContain(`p().missions.list.size() <= 3`);
+    expect(rules).toContain(`ms.list.size() <= ${MISSIONS.count}`);
     expect(rules).toContain(`!('kills' in p().daily)`);
+    // non-dérive (relecture du lot L3) : les clés de la série dans les règles sont celles de la méta, chacune bornée
+    const keys = Object.keys(DEFAULT_META.streak);
+    const list = keys.map((k) => `'${k}'`).join(', ');
+    expect(rules).toContain(`s.keys().hasOnly([${list}])`);
+    expect(rules).toContain(`s.keys().hasAll([${list}])`);
+    for (const k of keys) expect(rules, k).toMatch(new RegExp(`s\\.${k} is (string|int)`));
+    // une mission a au plus autant de champs que la règle en accepte, et une liste n'a pas plus d'index vérifiés
+    const one = drawMissions(fresh(), '2026-11-18')[0];
+    expect(rules).toContain(`l[i].size() <= ${Object.keys(one).length}`);
+    for (let i = 0; i < MISSIONS.count; i++) expect(rules).toContain(`missionOk(ms.list, ${i})`);
   });
 });

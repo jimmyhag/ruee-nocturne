@@ -66,7 +66,8 @@ export function drawMissions(m: Meta, date: string): Mission[] {
   const chars = unlockedCharacters(m).filter((k) => k !== m.character);
   if (chars.length > 0) list.push(make('char', chars[Math.floor(charRoll * chars.length)], 1));
   const kit = CHARACTERS.find((c) => c.key === m.character);
-  const weapons = unlockedWeapons(m).filter((k) => k !== kit?.weapon && k !== kit?.weapon2);
+  // relecture du lot L3 : avec un seul emplacement d'arme, aucune nouvelle arme n'est proposée en partie
+  const weapons = m.slots.weapons > 1 ? unlockedWeapons(m).filter((k) => k !== kit?.weapon && k !== kit?.weapon2) : [];
   if (weapons.length > 0) list.push(make('weapon', weapons[Math.floor(weaponRoll * weapons.length)], 1));
   for (let i = 0; i < order.length && list.length < MISSIONS.count; i++) {
     const goals = MISSIONS.goals[order[i]];
@@ -78,9 +79,12 @@ function make(k: MissionKind, p: string, goal: number): Mission {
   return { k, p, goal, prog: 0, done: false };
 }
 
-/** Missions du jour : tirées à la première ouverture d'un nouveau jour UTC, inchangées ensuite. True si nouvelles. */
+/**
+ * Missions du jour : tirées à la première ouverture d'un nouveau jour UTC, inchangées ensuite. True si nouvelles. Une
+ * horloge qui recule (date antérieure au tirage) ne refait pas le tirage.
+ */
 export function ensureMissions(m: Meta, date: string): boolean {
-  if (m.missions.date === date) return false;
+  if (date <= m.missions.date) return false;
   m.missions = { date, list: drawMissions(m, date) };
   return true;
 }
@@ -112,6 +116,7 @@ function value(ms: Mission, run: RunFacts): number {
 export function missionsAfterRun(m: Meta, run: RunFacts, date: string): Mission[] {
   ensureMissions(m, date);
   const done: Mission[] = [];
+  if (date !== m.missions.date) return done; // horloge reculée : la partie ne compte pas pour le tirage d'un autre jour
   for (const ms of m.missions.list) {
     if (ms.done) continue;
     ms.prog = Math.min(ms.goal, Math.max(ms.prog, value(ms, run)));
