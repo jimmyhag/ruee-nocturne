@@ -437,3 +437,35 @@ test('interface : accueil à la première ouverture, partie à reprendre, aide',
   await page.waitForTimeout(300);
   await page.screenshot(ui('aide'));
 });
+
+// Interface « Nocturne » et lot L5 : le palier d'une arme au kit (filet au-dessus de son icône dans la barre d'équipement).
+test('interface : HUD avec des armes aux paliers I, II et III', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const ui = (name: string) => shot('ui-' + name, info.project.name);
+  await openGame(page);
+  await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true));
+  await startRun(page, 3);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.god();
+    g.world.player.need = 1e9;
+    g.debug.give('orbe', 25); // palier I
+    g.debug.give('aura', 50); // palier II
+    g.debug.give('lames', 100); // palier III
+  });
+  await page.waitForTimeout(800);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.speed(0);
+    g.world.player.maxHp = 130;
+    g.world.player.hp = 118;
+  });
+  await page.waitForTimeout(150);
+  await expect(page.locator('#gear .gw.tier3')).toHaveCount(1);
+  await page.screenshot(ui('hud-paliers'));
+  const box = (await page.locator('#gear').boundingBox())!;
+  await page.screenshot({
+    ...ui('hud-paliers-zoom'),
+    clip: { x: Math.max(0, box.x - 12), y: Math.max(0, box.y - 12), width: box.width + 24, height: box.height + 24 },
+  });
+});

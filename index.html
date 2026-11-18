@@ -1401,9 +1401,9 @@
         text-shadow: var(--hud-shadow);
         font-variant-numeric: tabular-nums;
       }
-      /* lot L5, au kit Nocturne : le palier visuel d'une arme est un filet de 2 px sous son icône (I argent bleuté,
+      /* lot L5, au kit Nocturne : le palier visuel d'une arme est un filet de 2 px au-dessus de son icône (I argent bleuté,
          II lanterne, III prisme qui tourne lentement, comme ses projectiles ; fixe en mouvement réduit et en effets
-         réduits), comme la rareté sous un objet : pas de cadre */
+         réduits), comme la rareté d'un objet : pas de cadre */
       .gi.gw.tier1::after,
       .gi.gw.tier2::after,
       .gi.gw.tier3::after {
@@ -1411,7 +1411,7 @@
         position: absolute;
         left: 3px;
         right: 3px;
-        bottom: -1px;
+        top: -3px; /* au-dessus de l'icône : le niveau de l'arme reste lisible en bas à droite */
         height: 2px;
         border-radius: 1px;
         background: var(--tier1);
@@ -1667,11 +1667,15 @@
         .kills small {
           display: none;
         }
+        /* téléphone : les PV en chiffres sous le filet de vie (à droite, ils mordaient sur le monde et le chrono) */
         .hpbar {
-          width: 84px;
-          margin-right: 62px;
+          width: 96px;
+          margin: 0 0 15px;
         }
         .hpbar span {
+          left: 0;
+          top: calc(100% + 4px);
+          transform: none;
           font-size: 13px;
         }
         .hrow {

@@ -211,4 +211,4 @@ lues, dans `docs/GATES.md` ; Lighthouse et poids des images et polices ; `perf-r
 
 ## Reste à faire
 
-Décision 17 (écrans des lots L3 et L4 au kit : défi du jour avec série et missions, carte de résultat, onglet « AMIS » du classement) : non livrée avec la 1.61.0, à faire à l'intégration, après la fusion de L3. Les paliers d'arme du lot L5 sont passés au kit à la fusion de `main` (filet de palier sous l'icône d'arme de la barre d'équipement). Le reste de la spec est implémenté (commit 6dacd5b et sa suite).
+Décision 17 (écrans des lots L3 et L4 au kit : défi du jour avec série et missions, carte de résultat, onglet « AMIS » du classement) : non livrée avec la 1.61.0, à faire à l'intégration, après la fusion de L3. Les paliers d'arme du lot L5 sont passés au kit à la fusion de `main` (filet de palier au-dessus de l'icône d'arme de la barre d'équipement). Le reste de la spec est implémenté (commit 6dacd5b et sa suite).
