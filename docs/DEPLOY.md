@@ -77,6 +77,22 @@ VITE_FIREBASE_CONFIG='{"apiKey":"…","authDomain":"…","projectId":"ruee-noctu
 
 Sans configuration, le panneau Compte affiche « Comptes indisponibles dans cette version » et le jeu reste jouable sans compte. Les previews de PR parlent au même Auth et à la même base que le live ; Google y échoue (`auth/unauthorized-domain`, domaine non autorisé), l'e-mail fonctionne.
 
+## Mesure de fréquentation (lot L1)
+
+Les joueurs qui l'acceptent écrivent un document anonyme `retention/{id}` (forme : `docs/specs/l1-mesure-retention.md`) par l'API REST de Firestore, avec la clé d'API web de `/__/firebase/init.json` et sans SDK. Les règles (`firestore.rules`, déployées par le job `rules`) n'en permettent aucune lecture depuis le jeu. Les previews de PR écrivent dans la même base que le live : un test d'accord sur une preview ajoute un document au tableau (le retrait dans les Réglages le supprime).
+
+**Règle TTL, à activer une fois** (gratuite) : chaque document porte sa date d'expiration `x` (cohorte + 90 jours) ; Firestore l'efface ensuite tout seul (en général dans les 24 h qui suivent). Console Firebase → Firestore → **Durée de vie (TTL)** → Créer une règle : groupe de collections `retention`, champ d'horodatage `x`. Ou avec `gcloud` connecté sur le compte propriétaire :
+
+```bash
+gcloud firestore fields ttls update x --collection-group=retention --enable-ttl --project=ruee-nocturne
+```
+
+**Lecture** : avec `gcloud` connecté sur le compte propriétaire (ou tout compte qui a `roles/datastore.viewer`), `npm run retention` lit toute la collection avec le jeton passé par la variable `RETENTION_TOKEN` et imprime par semaine de cohorte le nombre d'appareils, D1, D7 et D30, pour les nouveaux joueurs (au plus une partie finie à l'accord) et pour tous. Dn ne compte que les joueurs d'au moins n jours ; « — » : cohorte trop jeune. Les documents expirés sont ignorés, même si la règle TTL ne les a pas encore effacés. Le script n'imprime aucun identifiant.
+
+```bash
+RETENTION_TOKEN=$(gcloud auth print-access-token) npm run retention
+```
+
 ## Vérifier un déploiement
 
 - Onglet **Actions** du dépôt : job « Déploiement Firebase Hosting » vert, URL dans le résumé (et en commentaire sur la PR).

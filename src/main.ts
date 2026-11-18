@@ -91,6 +91,8 @@ import {
 import type { CharacterKey, ItemKey } from './sim/types';
 import { installDebugHooks, debugEnabled } from './debug';
 import { Pwa } from './platform/pwa';
+import { loadConfig } from './platform/firebase-config';
+import { Retention } from './platform/retention';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const VERSION = __APP_VERSION__;
@@ -157,6 +159,7 @@ type AppMode =
   | 'help'
   | 'daily'
   | 'notes'
+  | 'consent'
   | 'merchant'
   | 'map';
 const SCREENS = [
@@ -176,9 +179,12 @@ const SCREENS = [
   'help',
   'daily',
   'notes',
+  'consent',
   'map',
 ] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
+// lot L1 : mesure anonyme de fréquentation, seulement sur accord (src/platform/retention.ts, sans SDK Firebase)
+const retention = new Retention(loadConfig);
 let dailyRun = false; // partie en cours = défi du jour
 // phase 49 : partie gardée sur l'appareil (menu « Reprendre »), personnage et tenue de la partie en cours (le joueur peut
 // changer de personnage au menu pendant qu'elle attend)
@@ -288,6 +294,9 @@ function applySettings(): void {
   $('setSoundBtn').textContent = $('soundBtn').textContent = t(meta.muted ? 'settings.sound.off' : 'settings.sound.on');
   $('setVibrateBtn').textContent = t(meta.settings.vibrate ? 'settings.vibrate.on' : 'settings.vibrate.off');
   $('setLeftyBtn').textContent = t(meta.settings.lefty ? 'settings.lefty.yes' : 'settings.lefty.no');
+  $('setRetentionBtn').textContent = t(
+    retention.consent === 'yes' ? 'settings.retention.on' : 'settings.retention.off',
+  );
   $('setLangBtn').textContent = t('settings.lang.' + meta.settings.lang);
   ($('sfxVol') as HTMLInputElement).value = String(Math.round(meta.settings.sfxVol * 100));
   ($('musicVol') as HTMLInputElement).value = String(Math.round(meta.settings.musicVol * 100));
@@ -398,6 +407,26 @@ async function openNotes(): Promise<void> {
     }
   }
   if (app === 'notes') renderNotesScreen();
+}
+// ---------- lot L1 : demande d'accord pour la mesure anonyme de fréquentation ----------
+// Une seule fois, au retour au menu après la première partie terminée (ou au prochain retour au menu d'un joueur qui a
+// déjà joué), jamais redemandée après une réponse ; ensuite, l'interrupteur des Réglages. Pas dans les tests sauf
+// demande (?consent=1), comme l'aide du premier lancement.
+function askConsent(): void {
+  if (retention.consent !== null || meta.runs < 1 || app !== 'menu') return;
+  if (debugEnabled() && !location.search.includes('consent=1')) return;
+  app = 'consent';
+  showOnly('consent');
+  $('consentYesBtn').focus({ preventScroll: true });
+}
+function answerConsent(yes: boolean): void {
+  if (app !== 'consent') return;
+  if (yes) retention.accept(meta.runs);
+  else retention.refuse();
+  app = 'menu';
+  showOnly('menu');
+  showUpdateBanner();
+  $('playBtn').focus({ preventScroll: true });
 }
 /** Feuille du défi du jour (1.48.1) : les temps du jour et le délai avant le prochain ; les règles sont statiques. */
 function renderDailyScreen(): void {
@@ -716,6 +745,7 @@ function toMenu(): void {
   $('keys').hidden = true;
   $('touch').hidden = true;
   updateBestLine();
+  askConsent();
   showUpdateBanner();
 }
 function pauseGame(): void {
@@ -1055,6 +1085,13 @@ addEventListener('keydown', (e) => {
   e.preventDefault();
   closeScreen();
 });
+$('consentYesBtn').onclick = () => answerConsent(true);
+$('consentNoBtn').onclick = () => answerConsent(false);
+addEventListener('keydown', (e) => {
+  if (app !== 'consent' || e.repeat || e.code !== 'Escape') return; // Échap vaut « Non merci »
+  e.preventDefault();
+  answerConsent(false);
+});
 $('notesBtn').onclick = () => openScreen('notes');
 $('notesBackBtn').onclick = closeScreen;
 $('notesMore').onclick = () => {
@@ -1268,6 +1305,12 @@ $('setLeftyBtn').onclick = () => {
   saveMeta(meta);
   applySettings();
 };
+// lot L1 : mesure anonyme de fréquentation, à tout moment ; le retrait supprime le document et oublie l'identifiant
+$('setRetentionBtn').onclick = () => {
+  if (retention.consent === 'yes') retention.refuse();
+  else retention.accept(meta.runs);
+  applySettings();
+};
 for (const [id, v] of [
   ['hudSmallBtn', 0.85],
   ['hudNormalBtn', 1],
@@ -1428,6 +1471,7 @@ document.addEventListener('visibilitychange', () => {
     saveRun(); // phase 49 : changer d'app ou fermer passe ici (sur téléphone, souvent sans pagehide ensuite)
   }
   audio.background(document.hidden); // phase 36 : pas de musique quand l'appli passe en arrière-plan
+  if (!document.hidden) retention.open(); // lot L1 : le retour au premier plan est une ouverture
 });
 // phase 49 : rafraîchir ou fermer l'onglet ; localStorage est écrit de façon synchrone, avant que la page parte
 addEventListener('pagehide', saveRun);
@@ -1487,7 +1531,7 @@ function loadAccount(): Promise<Account | null> {
   accountLoad = (async () => {
     try {
       const mod = await import('./platform/account');
-      const cfg = await mod.loadConfig();
+      const cfg = await loadConfig();
       if (!cfg) {
         accountUnavailable = true;
         accView.status = 'unavailable';
@@ -2683,6 +2727,7 @@ addEventListener('pointerup', firstGesture, true);
 addEventListener('keydown', firstGesture, true);
 applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
+retention.open(); // lot L1 : le lancement est une ouverture (rien ne part sans accord)
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
 if (!meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   meta.seenHelp = true;
