@@ -1435,11 +1435,15 @@ function gameOver(won = false): void {
   const S = scene;
   app = 'over';
   forgetRun(); // phase 49 : une partie finie n'est plus à reprendre
-  const rec = world.t > meta.bestTime;
+  // défi v2 (décision 10, récompenses inchangées) : la suite d'un défi du jour en monde infini ne compte pas pour le
+  // record de survie ni pour les succès de survie (survie10 débloque le Bûcheron, survie15 et survie20 des objets) ;
+  // elle se joue sur une difficulté propre au défi. Le défi garde ses 5 minutes, comme avant la suite
+  const heldT = dailyRun ? Math.min(world.t, DAILY.duration) : world.t;
+  const rec = heldT > meta.bestTime;
   meta.runs++;
   revealAfterRun(meta, { daily: dailyRun, t: world.t, abandoned: false }); // lot L2 : une étape de plus (pas au défi du jour)
   meta.totalKills += world.kills;
-  if (rec) meta.bestTime = world.t;
+  if (rec) meta.bestTime = heldT;
   if (world.kills > meta.bestKills) meta.bestKills = world.kills;
   // or, compteurs cumulés, succès, défi du jour
   const gold = Math.round(world.gold);
@@ -1452,7 +1456,7 @@ function gameOver(won = false): void {
   st.bosses += runStats.bosses;
   st.triples += world.triples;
   st.wins += won ? 1 : 0;
-  st.bestTime = Math.max(st.bestTime, world.t);
+  st.bestTime = Math.max(st.bestTime, heldT);
   st.runs++;
   // défis (phase 6) : meilleurs scores en un run
   st.noHitBest = Math.max(st.noHitBest, world.noHitBest);
@@ -1516,7 +1520,7 @@ function gameOver(won = false): void {
     rec,
     gold,
     dailyRank,
-    miss: missingTime(meta, world.t),
+    miss: missingTime(meta, heldT),
     fresh,
     dailyOk,
     medal,

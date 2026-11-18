@@ -4,8 +4,9 @@
 // monde que `worldOptions(…, true)`, réussite = vivant à DAILY.duration), parties de la graine 42 rejouées à l'identique.
 // Défi v2 (docs/specs/defi-v2.md, décision 9) : médailles par règle du jour ; la mesure (4 graines × 200 défis par règle,
 // ≈ 1 h 40 de calcul) est dans docs/GATES.md, ses chiffres sont recopiés ci-dessous et jugés par les cibles du jeu.
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { DAILY, DAILY_RULE_KEYS, DAILY_RULES, NO_RULE, STEP } from '../src/sim/balance';
+import { DAILY, DAILY_ARMORY, DAILY_RULE_KEYS, DAILY_RULES, NO_RULE, STEP } from '../src/sim/balance';
 import type { DailyRuleKey } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { Mode } from '../src/sim/types';
@@ -83,6 +84,12 @@ const REPLAY = { kills: 29 };
  * Défi v2 : mesure regroupée par règle, `npm run sim -- --daily --rule <clé> --runs 200 --seed 42…45 --out …` puis
  * `node tools/sim-pool.mjs` (docs/GATES.md, défi v2) : bronze, argent, or en %.
  */
+/**
+ * Empreinte des réglages mesurés (DAILY, DAILY_RULES, DAILY_ARMORY) : changer un réglage du défi sans refaire la mesure
+ * fait échouer le test (relecture de l'inspecteur : les chiffres recopiés ne suivaient pas les réglages). Après une
+ * nouvelle mesure, recopier les chiffres ci-dessous et la nouvelle empreinte.
+ */
+const MEASURED_FOR = '0f8cdc531fb8a4b3';
 const MEASURED: Record<DailyRuleKey, [number, number, number]> = {
   swift: [40.8, 19.9, 2.9],
   elites: [39.6, 29.0, 5.5],
@@ -94,6 +101,14 @@ const MEASURED: Record<DailyRuleKey, [number, number, number]> = {
 
 describe('défi v2 : un défi juste quelle que soit la règle (décision 9)', () => {
   it('The challenge stays fair whatever the rule', () => {
+    // la mesure recopiée est celle des réglages actuels
+    const tuning = createHash('sha256')
+      .update(JSON.stringify({ DAILY, DAILY_RULES, DAILY_ARMORY }))
+      .digest('hex')
+      .slice(0, 16);
+    expect(tuning, 'réglages du défi changés : refaire la mesure (docs/GATES.md) et recopier MEASURED').toBe(
+      MEASURED_FOR,
+    );
     // chacune des six règles a sa mesure, et chacune est dans les cibles de médailles
     expect(Object.keys(MEASURED).sort()).toEqual([...DAILY_RULE_KEYS].sort());
     const medals = PROFILES.daily.slice(0, 3);

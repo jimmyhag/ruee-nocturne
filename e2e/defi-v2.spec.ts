@@ -171,6 +171,10 @@ test('Continuing extends the challenge in the endless world', async ({ page, has
   const errors = collectConsoleErrors(page);
   await openGame(page);
   await dailyPlayer(page);
+  const before = await page.evaluate(() => {
+    const m = (window as any).__game.meta;
+    return Math.max(m.bestTime, m.stats.bestTime);
+  });
   await launchDaily(page, hasTouch);
   const rule = await page.evaluate(() => (window as any).__game.world.dailyRule as number);
   await toFiveMinutes(page);
@@ -213,6 +217,10 @@ test('Continuing extends the challenge in the endless world', async ({ page, has
   await expect(page.locator('#oTime')).toHaveText('7:12');
   const m = await page.evaluate(() => (window as any).__game.meta);
   expect([m.daily.times[0], m.daily.medals[0]]).toEqual([432, 2]);
+  // décision 10 (récompenses inchangées) : la suite ne compte pas pour le record ni les succès de survie, le défi y
+  // compte pour ses 5 minutes
+  expect(m.bestTime).toBeLessThanOrEqual(Math.max(before, 300));
+  expect(m.stats.bestTime).toBeLessThanOrEqual(Math.max(before, 300));
   expect(errors).toEqual([]);
 });
 
