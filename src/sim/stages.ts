@@ -6,7 +6,7 @@
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
 import { BOSS, BOSSTOTEM, CAPS, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
-import { difficultyHp, spawnEnemy } from './spawner';
+import { difficultyHp, soft, spawnEnemy } from './spawner';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
 import { startRun } from './step';
@@ -154,7 +154,8 @@ export function summonSurvivalBoss(w: World, k: number): void {
     w.overHp *
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
     STAGE.survival.hp[k] *
-    difficultyHp(w); // phase 48
+    difficultyHp(w) * // phase 48
+    soft(w, w.softHp); // lot L2 : premières parties adoucies (avant FIRST_RUNS.until seulement)
   w.survivalAlive++;
   if (w.bossIndex < 0) w.bossIndex = i; // la barre suit le boss du totem s'il est déjà là
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type, 1); // y2 = 1 : boss de survie

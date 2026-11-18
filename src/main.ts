@@ -1,4 +1,15 @@
-import { ELITE_TYPE, ENEMIES, ITEM_KEYS, MAP, POWER_KEYS, REAPER_TYPE, SLIDE, STAGE, STEP } from './sim/balance';
+import {
+  ELITE_TYPE,
+  ENEMIES,
+  ITEM_KEYS,
+  MAP,
+  POWER_KEYS,
+  REAPER_TYPE,
+  REVEAL,
+  SLIDE,
+  STAGE,
+  STEP,
+} from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell, HIT_CRIT, HitSrc } from './sim/types';
 import { POWER_ICON } from './ui/icons';
@@ -11,7 +22,7 @@ import { PAL } from './render/palette';
 import { FEEL, HitStop, tierCelebration } from './render/feel';
 import { InputManager } from './platform/input';
 import { AudioBus } from './platform/audio';
-import { Hud, flashCard, gearHtml, renderCards } from './ui/hud';
+import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
 import { achName, achUnlock, itemName, synergyName, weaponName } from './ui/cards';
@@ -77,6 +88,7 @@ import type { PatchNote } from './meta/patch-notes';
 import { hasUnseenNotes, renderNotes } from './ui/notes';
 import { hashString } from './sim/rng';
 import { MapView } from './ui/minimap';
+import { revealAfterRun, revealNews } from './meta/reveal';
 import {
   bestLine,
   esc,
@@ -367,7 +379,7 @@ function openScreen(
     renderCharacters($('chars'), meta, $('charInfo'));
     return;
   } else if (id === 'help') {
-    /* statique */
+    showRevealed($('help'), meta.reveal); // lot L2 : l'aide ne montre que les systèmes dévoilés
   } else if (id === 'notes') {
     showOnly(id);
     void openNotes();
@@ -578,6 +590,7 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
     runOutfit = resume.outfit;
     runDay = resume.day ?? todayKey();
   } else {
+    countAbandon(); // lot L2 : la partie remplacée compte pour le dévoilement après une minute de jeu
     forgetRun(); // une nouvelle partie remplace celle qui attendait (abandon confirmé au menu)
     runChar = daily ? 'eclaireuse' : meta.character;
     runOutfit = daily ? 0 : outfitOf(meta, meta.character);
@@ -619,6 +632,14 @@ function startGame(variant?: number, daily = false, resume: SavedRun | null = nu
   $('touch').hidden = !input.isTouch;
   hud.reset();
   hud.kit(world);
+  // lot L2 : une étape dévoilée s'annonce au début de la partie qui l'apporte (pas à la reprise, pas au défi du jour)
+  const news = restored ? null : revealNews(meta, daily);
+  mapView.setNew(news === null || news === 'slide' ? null : news, t('reveal.tag'));
+  if (news) {
+    saveMeta(meta);
+    hud.banner(t('reveal.new'), t(`reveal.${news}`), REVEAL_BANNER_MS);
+    audio.levelUp();
+  }
   S.dmg.clear();
   S.snapCamera(world);
   S.resetHero();
@@ -678,6 +699,13 @@ function saveRun(): void {
   } catch {
     /* jamais bloquant : la partie continue, au pire sans sauvegarde */
   }
+}
+/** Lot L2 : la partie gardée, abandonnée pour une nouvelle, compte comme finie après REVEAL.abandonAfter s de jeu. */
+function countAbandon(): void {
+  if (!savedRun) return;
+  const before = meta.reveal;
+  revealAfterRun(meta, { daily: savedRun.daily, t: savedRun.summary.t, abandoned: true });
+  if (meta.reveal !== before) saveMeta(meta);
 }
 function forgetRun(): void {
   savedRun = null;
@@ -936,7 +964,12 @@ function renderOverScreen(): void {
   // … et totems de boss activés (livraison 2)
   const oDiff: string[] = [];
   if (world.player.difficulty > 0)
-    oDiff.push(t('over.difficulty', { n: Math.round(world.player.difficulty * 100), skulls: world.skullsOn }));
+    // lot L2 : avant le dévoilement des crânes, « crânes activés : 0 » parlerait d'un système encore caché
+    oDiff.push(
+      world.reveal >= REVEAL.totem
+        ? t('over.difficulty', { n: Math.round(world.player.difficulty * 100), skulls: world.skullsOn })
+        : t('over.difficultyOnly', { n: Math.round(world.player.difficulty * 100) }),
+    );
   if (world.bossTotemsOn > 0) oDiff.push(t('over.bossTotems', { n: world.bossTotemsOn }));
   $('oDiff').hidden = oDiff.length === 0;
   $('oDiff').textContent = oDiff.join(' · ');
@@ -971,6 +1004,7 @@ function gameOver(won = false): void {
   forgetRun(); // phase 49 : une partie finie n'est plus à reprendre
   const rec = world.t > meta.bestTime;
   meta.runs++;
+  revealAfterRun(meta, { daily: dailyRun, t: world.t, abandoned: false }); // lot L2 : une étape de plus (pas au défi du jour)
   meta.totalKills += world.kills;
   if (rec) meta.bestTime = world.t;
   if (world.kills > meta.bestKills) meta.bestKills = world.kills;
@@ -1066,6 +1100,7 @@ $('resumeRunBtn').onclick = () => {
 };
 $('abandonYesBtn').onclick = () => {
   const d = abandonFor?.daily ?? false;
+  countAbandon();
   forgetRun();
   updateResumeBtn();
   startGame(undefined, d);
@@ -1403,6 +1438,7 @@ input.onPause = () => {
 const mapView = new MapView($('minimap') as HTMLCanvasElement, $('bigmap') as HTMLCanvasElement);
 let mapFrom: 'play' | 'pause' = 'play';
 let bossTotemNote = -1; // phase 51 : monde dont le nombre de totems de boss a été annoncé
+const REVEAL_BANNER_MS = 4000; // lot L2 : la bannière « Nouveau ! » reste 4 s (le temps de lire la phrase)
 const BOSS_TOTEM_NOTE_AT = 2.5; // s du monde
 const BOSS_TOTEM_NOTE_LATE = 12; // s du monde : au-delà, on ne l'annonce plus
 let slideBtnOn = false; // bouton GLISSE allumé pendant la glissade
@@ -1414,6 +1450,7 @@ function openMap(): void {
   const f = mapView.drawBig(world);
   $('mapExplored').textContent = t('map.explored', { pct: Math.round(f * 100) });
   $('lgBossTotem').textContent = t('map.legend.bosstotems', { n: world.bossTotems.length }); // phase 51 : leur nombre varie (1 à 3)
+  showRevealed($('map'), world.reveal); // lot L2 : la légende ne nomme que ce qui existe dans la partie
 }
 function closeMap(): void {
   if (app !== 'map') return;
@@ -2574,6 +2611,11 @@ let fps = 0;
 // ratio temps de jeu / temps réel sur la même fenêtre : vérifie que le hit-stop reste borné (≈ 0,9–1 attendu en jeu)
 let simT0 = 0;
 let simRatio = 1;
+// 17 nov. 2026 : la part du temps réel que le hit-stop laisse passer, sur la même fenêtre. Contrairement à `simRatio`,
+// elle ne dépend pas de la vitesse de rendu (rattrapage borné à 4 pas) : c'est elle que l'e2e de stress vérifie
+let stopReal = 0;
+let stopFed = 0;
+let stopRatio = 1;
 
 function frame(nowMs: number): void {
   requestAnimationFrame(frame);
@@ -2611,7 +2653,10 @@ function frame(nowMs: number): void {
       dtIn *= R.from + (1 - R.from) * (1 - resumeEase / R.ease);
       resumeEase = Math.max(0, resumeEase - realDt);
     }
-    acc += hitStop.advance(dtIn);
+    const fed = hitStop.advance(dtIn);
+    acc += fed;
+    stopReal += dtIn;
+    stopFed += fed;
     let n = 0;
     while (acc >= STEP && n < 4) {
       input.poll(inp);
@@ -2650,7 +2695,9 @@ function frame(nowMs: number): void {
     // qu'aucune autre bannière ne soit affichée (elle écrasait celle d'un bonus ramassé tôt) et se tait passé
     // BOSS_TOTEM_NOTE_LATE s : une partie reprise plus loin dans le monde ne la répète pas
     if (bossTotemNote !== world.stage && world.stageT > BOSS_TOTEM_NOTE_AT) {
-      if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless) bossTotemNote = world.stage;
+      // lot L2 : avant le dévoilement du totem, le monde n'a aucun totem de boss ; rien à annoncer (« 0 totem » sinon)
+      if (world.stageT > BOSS_TOTEM_NOTE_LATE || world.endless || world.bossTotems.length === 0)
+        bossTotemNote = world.stage;
       else if (world.mode === Mode.Play && !hud.bannerOn) {
         hud.banner(t('banner.bossTotems', { n: world.bossTotems.length }));
         bossTotemNote = world.stage;
@@ -2694,12 +2741,15 @@ function frame(nowMs: number): void {
       fpsT0 = nowMs;
       fpsFrames = 0;
       simT0 = world ? world.t : 0;
+      stopReal = stopFed = 0;
     } else if (nowMs - fpsT0 >= 2000) {
       fps = (fpsFrames * 1000) / (nowMs - fpsT0);
       if (world && app === 'play') simRatio = ((world.t - simT0) * 1000) / (nowMs - fpsT0);
+      if (world && app === 'play' && stopReal > 0) stopRatio = stopFed / stopReal;
       fpsT0 = nowMs;
       fpsFrames = 0;
       simT0 = world ? world.t : 0;
+      stopReal = stopFed = 0;
     }
     if (frameIdx % 10 === 0) {
       frameSorted.set(frameTimes);
@@ -2709,7 +2759,7 @@ function frame(nowMs: number): void {
       const info = scene.info();
       hud.perf(
         `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
-          `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'}\n` +
+          `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'} ×${stopRatio.toFixed(2)}\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world
             ? `ennemis ${world.enemyCount}  proj ${world.projCount}  gemmes ${world.gemCount}  part. ${scene.particles.alive}\n`

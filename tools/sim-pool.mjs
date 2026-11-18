@@ -58,7 +58,12 @@ for (const prefix of prefixes)
       )} % · morts < 3 min ${pct(
         count((r) => r.time < 180),
         n,
-      )} %`,
+      )} % · survie p50 ${fmt(
+        quantile(
+          all.map((r) => r.time),
+          0.5,
+        ),
+      )}`, // lot L2 : la médiane regroupée (cible du profil nu : 4–6 min)
     );
     console.log(
       `   coffres de carte ${mean('mapChests')} · objets ${mean('itemN')} (dont achetés ${mean('bought')}) · sanctuaires ${mean('shrines')} · or gardé p50 ${Math.round(

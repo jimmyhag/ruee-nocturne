@@ -9,6 +9,7 @@ import { collectConsoleErrors } from './helpers';
  * carte aléatoire sur trois passait à 41–45 avec 4 armes au niveau 8. Le budget mobile reste tenu (≤ 39 mesurés).
  */
 const callBudget = (project: string): number => (project === 'mobile' ? 40 : 80);
+// lot L2 : mesures faites avec tout dévoilé (`reveal: 4` : totem, sanctuaires, crânes), la scène la plus chargée
 
 test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisible', async ({ page }, info) => {
   const errors = collectConsoleErrors(page);
@@ -19,7 +20,7 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   // en résolution native (phase 9) tourne trop lentement sur le runner de CI pour que le ratio temps de jeu tienne
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'pixel' } });
   });
 
   await page.locator('#playBtn').click();
@@ -67,10 +68,14 @@ test('400 ennemis : budget de draw calls et de triangles tenu, onglet perf lisib
   expect(state.perfHidden).toBe(false);
   expect(state.perf).toMatch(/fps \d+/);
   expect(state.perf).toMatch(/ennemis (3[89]\d|4\d\d|5\d\d)/);
-  // phase 2 : le hit-stop est borné, le temps de jeu suit le temps réel même avec des kills à chaque frame
-  // (SwiftShader rend trop lentement pour un seuil strict : on vérifie la mesure et qu'elle n'est pas figée)
+  // phase 2 : le hit-stop est borné, le temps de jeu suit le temps réel même avec des kills à chaque frame.
+  // 17 nov. 2026 : on vérifie la part du temps réel que le hit-stop laisse passer (« hit-stop on ×0,9 »), qui ne dépend
+  // pas de la vitesse de rendu ; « temps × » la mesurait aussi (rattrapage borné à 4 pas par frame) et tombait sous
+  // 0,3 sur un runner lent, sur main comme sur les branches (0,19 et 0,28 en CI, 0 à 0,28 en local chargé).
+  const stop = +(state.perf.match(/hit-stop on ×([\d.]+)/)?.[1] ?? '0');
+  expect(stop, 'temps injecté / temps réel (hit-stop)').toBeGreaterThan(0.5);
   const ratio = +(state.perf.match(/temps ×([\d.]+)/)?.[1] ?? '0');
-  expect(ratio, 'temps de jeu / temps réel').toBeGreaterThan(0.3);
+  expect(ratio, 'temps de jeu / temps réel : pas figé').toBeGreaterThan(0);
   await page.screenshot({ path: `shots/${info.project.name}-stress.png`, animations: 'disabled' });
   console.log(`[${info.project.name}] ${state.perf.replace(/\n/g, ' | ')}`);
   expect(errors).toEqual([]);
@@ -83,7 +88,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'pixel' } });
   });
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
@@ -146,7 +151,7 @@ test('400 ennemis au point le plus dense du décor, pendant un sort : budget ten
   // phase 21 : en rendu net, squelettes détaillés (≈ 330 triangles) ; budget mobile relevé à 250 k (décision de Jimmy)
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'net' } });
   });
   await page.waitForTimeout(800);
   const net = { calls: 0, triangles: 0 };
@@ -190,7 +195,7 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
   const measure = async (quality: 'pixel' | 'net') => {
     await page.evaluate((q) => {
       const g = (window as any).__game;
-      g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: q } });
+      g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: q } });
     }, quality);
     const worst = { calls: 0, triangles: 0 };
     for (const [x, z] of [
@@ -250,7 +255,7 @@ async function weaponsBudget(page: Page, info: TestInfo, kit: [string, number][]
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'pixel' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'pixel' } });
   });
   await page.locator('#playBtn').click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
@@ -291,7 +296,7 @@ async function weaponsBudget(page: Page, info: TestInfo, kit: [string, number][]
   const px = await measure();
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, settings: { ...g.meta.settings, quality: 'net' } });
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'net' } });
   });
   await page.waitForTimeout(800);
   const net = await measure();

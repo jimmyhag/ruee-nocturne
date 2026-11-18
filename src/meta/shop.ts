@@ -96,5 +96,6 @@ export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily 
       : { weapons: m.slots.weapons, passives: m.slots.passives }, // défi du jour : égalité
     rerolls: daily ? RUN_REROLL.base : runRerolls(m), // phase 31 : relances de cartes
     bannedItems: daily ? undefined : bannedItems(m), // phase 40 : objets verrouillés ou retirés du tirage
+    reveal: daily ? undefined : m.reveal, // lot L2 : dévoilement progressif ; défi du jour : tout, pour tous
   };
 }

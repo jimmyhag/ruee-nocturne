@@ -651,6 +651,19 @@
         opacity: 1;
         transform: none;
       }
+      /* lot L2 : « Nouveau ! » au-dessus du système dévoilé et de ce qu'il faut en faire */
+      #banner.two .kick,
+      #banner.two small {
+        display: block;
+      }
+      #banner.two small {
+        margin-top: 6px;
+        font-family: var(--f-body);
+        font-size: clamp(15px, 3.4vw, 22px);
+        line-height: 1.3;
+        color: var(--text);
+        text-shadow: 0 2px 0 var(--ink);
+      }
       .keys {
         position: fixed;
         left: max(16px, env(safe-area-inset-left, 0px));
@@ -2721,7 +2734,7 @@
     <div id="perf" hidden></div>
     <div class="keys" id="keys" hidden>
       <span><b data-key="jump">Espace</b><span data-i18n="keys.jump">Saut</span></span
-      ><span><b data-key="slide">C</b><span data-i18n="keys.slide">Glisse</span></span
+      ><span id="slideKey"><b data-key="slide">C</b><span data-i18n="keys.slide">Glisse</span></span
       ><span
         ><b data-key="spell">Maj</b><span id="spellKey" data-i18n="keys.spell">Sort</span><em id="spellSec"></em
         ><i id="spellbar"></i></span
@@ -2945,18 +2958,18 @@
           <dd data-i18n="menu.ctrl.spell">Sort de ta classe (chaque personnage a le sien)</dd>
           <dt><span class="cap">1 2 3</span></dt>
           <dd data-i18n="menu.ctrl.pick">Choisir une amélioration à chaque niveau</dd>
-          <dt><span class="cap">☠</span></dt>
-          <dd data-i18n="menu.ctrl.skull">
+          <dt data-reveal="4"><span class="cap">☠</span></dt>
+          <dd data-reveal="4" data-i18n="menu.ctrl.skull">
             Crânes violets sur la carte : rester dedans monte la difficulté de la partie. Plus de monstres, plus
             solides, donc plus d'XP, d'or et de vaincus.
           </dd>
-          <dt><span class="cap">◆</span></dt>
-          <dd data-i18n="menu.ctrl.bosstotem">
+          <dt data-reveal="4"><span class="cap">◆</span></dt>
+          <dd data-reveal="4" data-i18n="menu.ctrl.bosstotem">
             Totems de boss (orange) : chacun ajoute un boss à toutes les vagues de boss du monde. Le portail attend
             qu'ils soient tous vaincus.
           </dd>
-          <dt><span class="cap">10:00</span></dt>
-          <dd data-i18n="menu.ctrl.worlds">
+          <dt data-reveal="4"><span class="cap">10:00</span></dt>
+          <dd data-reveal="4" data-i18n="menu.ctrl.worlds">
             Avant la fin du chrono, active le totem (losange rouge sur la carte) et tue son boss : le portail mène au
             monde suivant. Chrono écoulé, la horde ne fait que grossir.
           </dd>
@@ -3089,14 +3102,14 @@
         <p class="maplegend">
           <span><i class="lg you"></i><span data-i18n="map.legend.you">Toi</span></span
           ><span><i class="lg chest"></i><span data-i18n="map.legend.chest">Coffre</span></span
-          ><span><i class="lg shrine"></i><span data-i18n="map.legend.shrine">Sanctuaire</span></span
-          ><span><i class="lg skull"></i><span data-i18n="map.legend.skull">Crâne</span></span
-          ><span
+          ><span data-reveal="2"><i class="lg shrine"></i><span data-i18n="map.legend.shrine">Sanctuaire</span></span
+          ><span data-reveal="4"><i class="lg skull"></i><span data-i18n="map.legend.skull">Crâne</span></span
+          ><span data-reveal="4"
             ><i class="lg bosstotem"></i
             ><span id="lgBossTotem" data-i18n="map.legend.bosstotem">Totem de boss</span></span
           ><span><i class="lg drop"></i><span data-i18n="map.legend.drop">Coffre lâché</span></span
           ><span><i class="lg power"></i><span data-i18n="map.legend.power">Bonus au sol</span></span
-          ><span><i class="lg merchant"></i><span data-i18n="map.legend.merchant">Marchand</span></span
+          ><span data-reveal="3"><i class="lg merchant"></i><span data-i18n="map.legend.merchant">Marchand</span></span
           ><span><i class="lg boss"></i><span data-i18n="map.legend.boss">Boss</span></span>
         </p>
         <p class="mapexplored" id="mapExplored"></p>

@@ -25,8 +25,9 @@ of truth for the game's content; `docs/GATES.md` records what each phase deliver
 
 ## Contributing workflow
 
-- Never push to `main`. Work on a branch and open a pull request: CI runs `just ci` (the gates of `just check`
-  with the whole Playwright suite), Lighthouse and the balance simulation (commented on the PR).
+- Never push to `main`. Work on a branch and open a pull request: CI runs the gates of `just ci` (those of
+  `just check` with the whole Playwright suite) as parallel jobs (checks, the Playwright suite in five shards,
+  Lighthouse), joined in the `verify` check, plus the balance simulation (commented on the PR).
 - Merge only when CI is green, and only on Jimmy's explicit order. Merging deploys:
   every push to `main` publishes the live site (`.github/workflows/deploy.yml`); each pull
   request gets its own preview channel, whose URL the deploy job comments.
@@ -70,7 +71,7 @@ of truth for the game's content; `docs/GATES.md` records what each phase deliver
 | `just preflight` | typecheck + lint + test + deadcode: the edit-loop gate (about 1 min)                      |
 | `just check`     | preflight + build + bench + smoke simulation + smoke e2e: the commit gate (about 4 min)   |
 | `just e2e`       | The whole Playwright suite, desktop and mobile (long; CI runs it on every pull request)   |
-| `just ci`        | What CI runs: check with the whole Playwright suite instead of the smoke                  |
+| `just ci`        | What CI runs, in parallel jobs: check with the whole Playwright suite                     |
 | `just sim`       | Balance simulation with targets: `just sim --runs 200 --bot average --seed 42 --profile maxed` |
 | `just bench`     | 600 simulation steps at 400 enemies; fails over the budgets of PLAN.md §4.3               |
 
@@ -111,7 +112,7 @@ HUD subscribe to them, never the reverse.
 | render | `src/render/` | Three.js: reads the world, never writes to it; `InstancedMesh` for everything that repeats | `three`, `src/sim/` |
 | ui | `src/ui/` | Native DOM (no UI framework): HUD, sheets, cards | `src/sim/`, `src/render/`, `src/platform/`, `src/meta/`, `src/i18n/` |
 | platform | `src/platform/` | Input, audio, storage, PWA, the account (the only Firebase import), the retention measure (Firestore REST, no SDK) | `src/sim/`, `src/meta/` |
-| meta | `src/meta/` | Saved progression, achievements, library, sync, leaderboard and retention shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
+| meta | `src/meta/` | Saved progression (with the progressive reveal of systems), achievements, library, sync, leaderboard and retention shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
 | i18n | `src/i18n/` | French and English strings, number formats | `src/sim/`, `src/meta/` |
 | entry | `src/main.ts`, `src/debug.ts` | Composition: the loop, the event handlers, the debug hooks (`?debug=1`) | everything |
 | tools | `tools/` | Node CLIs: simulation and bots, bench, assets, audio, icons, Lighthouse, retention reading | `src/` |
@@ -138,7 +139,7 @@ src/sim/            simulation (pure, deterministic), its tests next to each mod
 src/render/         Three.js scene, instancing, effects, models
 src/ui/             DOM screens and HUD
 src/platform/       input, audio, storage, PWA, account, Firebase configuration, retention measure
-src/meta/           saved progression, achievements, library, sync, leaderboard, retention
+src/meta/           saved progression, progressive reveal, achievements, library, sync, leaderboard, retention
 src/i18n/           fr.json, en.json and the formatting helpers
 tools/              simulation CLI and bots, bench, asset and audio pipelines, icons, Lighthouse, retention
 e2e/                Playwright specs (desktop 1280×720 and iPhone 13)

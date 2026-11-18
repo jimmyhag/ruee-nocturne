@@ -30,7 +30,7 @@ import {
   DIFFICULTY,
   BOSSTOTEM,
 } from '../sim/balance';
-import { canOpenMapChest } from '../sim/poi';
+import { TOTEM_HIDDEN, canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { loadGroundTexture, loadNature, loadProps, tintedNature } from './models';
@@ -1509,6 +1509,7 @@ export class GameScene {
   private drawTotem(w: World, px: number, pz: number, now: number): void {
     this.totem.mesh.visible = false;
     const T = w.totem;
+    if (T.state === TOTEM_HIDDEN) return; // lot L2 : pas encore dévoilé
     const g = this.gy(T.x, T.z);
     const d2 = (T.x - px) ** 2 + (T.z - pz) ** 2;
     // 1.53.1 : anneaux et stèle seulement dans le champ de la caméra (≈ 5,4 u de haut)

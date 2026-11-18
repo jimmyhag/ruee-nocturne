@@ -94,7 +94,7 @@ Fonctionnalité: Paliers visuels d'arme
 
 ## Livraison
 
-Version **1.62.0** ; `CHANGELOG.md` pour les joueurs ; `docs/GATES.md` (Lot L5, appels de
+Version **1.59.0** (sortie avant l'interface Nocturne, prête la première) ; `CHANGELOG.md` pour les joueurs ; `docs/GATES.md` (Lot L5, appels de
 dessin avant/après, captures lues) ; relecture `perf-reviewer`.
 
 ## Hors périmètre

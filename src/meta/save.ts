@@ -11,11 +11,13 @@ import {
   MAX_PASSIVES,
   MAX_WEAPONS,
   REROLL_SHOP,
+  REVEAL,
   SLOTS_START,
   UNLOCK,
 } from '../sim/balance';
 import { ACHIEVEMENTS, ACHIEVEMENT_IDS, UNLOCKABLE } from './achievements';
 import { normalizeChars } from './chars';
+import { readReveal } from './reveal';
 import type { CharStats } from './chars';
 import type { CharacterKey, ItemKey } from '../sim/types';
 import { LANG_SETTINGS } from '../i18n';
@@ -76,6 +78,8 @@ export interface Meta {
   chars: Partial<Record<CharacterKey, CharStats>>; // phase 41 : stats par personnage (défis par personnage)
   codex: Record<string, number>; // phase 40 : parties jouées avec chaque entrée ('w:orbe', 'i:croc', 't:degats', 's:orage')
   pseudo: string; // phase 38 : nom affiché dans le classement en ligne ('' = aucun, rien n'est publié) ; synchronisé
+  reveal: number; // lot L2 : étapes dévoilées (0 à REVEAL.max, src/meta/reveal.ts) ; synchronisé (le plus grand gagne)
+  seenReveal: number; // lot L2 : dernière étape annoncée par « Nouveau ! » (propre à l'appareil)
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   seenHelp: boolean; // aide « Comment jouer » déjà vue au premier lancement (phase 14 ; propre à l'appareil)
   seenNotes: string; // dernière version dont les Nouveautés ont été ouvertes (1.49.0 ; propre à l'appareil), '' = jamais
@@ -126,6 +130,8 @@ export const DEFAULT_META: Meta = {
   codex: {},
   chars: {},
   pseudo: '',
+  reveal: 0,
+  seenReveal: 0,
   seenReset: true,
   seenHelp: false,
   seenNotes: '',
@@ -165,6 +171,9 @@ export function resetProgress(m: Meta): Meta {
     settings: m.settings,
     seenHelp: m.seenHelp,
     seenNotes: m.seenNotes,
+    // lot L2 : repartir de zéro ne retire aucun système déjà découvert (ni ne le réannonce)
+    reveal: m.reveal,
+    seenReveal: m.seenReveal,
   });
 }
 
@@ -205,6 +214,9 @@ export function normalizeMeta(raw: unknown): Meta {
           seenReset: !(num(r0.runs) > 0 || num(r0.gold) > 0),
           seenHelp: r0.seenHelp,
           seenNotes: r0.seenNotes,
+          // lot L2 : la progression repart de zéro, mais un joueur qui avait joué ne perd aucun système
+          reveal: num(r0.runs) > 0 ? REVEAL.max : 0,
+          seenReveal: num(r0.runs) > 0 ? REVEAL.max : 0,
         }
       : r0;
   const st = (r.stats && typeof r.stats === 'object' ? r.stats : {}) as Record<string, unknown>;
@@ -226,6 +238,8 @@ export function normalizeMeta(raw: unknown): Meta {
   const totalKills = Math.max(0, num(r.totalKills));
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
+  // lot L2 : une sauvegarde sans dévoilement (d'avant le lot) qui a fini au moins une partie reçoit tout
+  const reveal = readReveal(r.reveal, runs > 0 || num(st.runs) > 0);
   const achievements = Array.isArray(r.achievements)
     ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
     : [];
@@ -286,6 +300,9 @@ export function normalizeMeta(raw: unknown): Meta {
     codex: normalizeCodex(r.codex),
     chars: normalizeChars(r.chars),
     pseudo: cleanPseudo(r.pseudo),
+    reveal,
+    // sans champ (sauvegarde d'avant le lot) : les étapes déjà là ne s'annoncent pas
+    seenReveal: typeof r.seenReveal === 'number' ? readReveal(r.seenReveal, false) : reveal,
     settings: normalizeSettings(se),
     slots: {
       weapons: Math.max(SLOTS_START.weapons, Math.min(MAX_WEAPONS, num(sl.weapons, SLOTS_START.weapons) | 0)),

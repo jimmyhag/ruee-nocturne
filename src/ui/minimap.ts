@@ -3,10 +3,14 @@
 // n'est pas encore découvert (w.seen, tenu par la sim). Lecture seule du monde. Hors de la boucle de rendu 3D.
 import { DISCOVER, ENEMIES, It, PLAY_LIMIT, WORLD_HALF } from '../sim/balance';
 import { SEEN_N } from '../sim/world';
+import { TOTEM_HIDDEN } from '../sim/poi';
 import type { World } from '../sim/world';
 import { PAL } from '../render/palette';
 
 const POWER_CSS = PAL.power.map((c) => '#' + c.toString(16).padStart(6, '0')); // phase 35
+
+/** Lot L2 : systèmes qui ont un repère sur la carte (la glisse n'en a pas). */
+type NewKind = 'shrines' | 'merchant' | 'totem';
 
 const SIZE = 2 * WORLD_HALF; // u, un pixel du fond par unité
 const VIEW = 110; // u de côté visibles dans la minicarte
@@ -26,6 +30,14 @@ export class MapView {
   private fogCount = -1;
   private seed = NaN;
   private t = 0;
+  /** Lot L2 : système dévoilé dans cette partie, étiqueté « Nouveau » jusqu'à la première interaction (null : rien). */
+  private newKind: NewKind | null = null;
+  private newLabel = '';
+  // police et largeur de l'étiquette « Nouveau » par taille de police (minicarte, grande carte) : aucune chaîne ni
+  // TextMetrics recréés à chaque tracé
+  private newFs = [0, 0];
+  private newFont = ['', ''];
+  private newW = [0, 0];
 
   constructor(
     private readonly mini: HTMLCanvasElement,
@@ -315,7 +327,8 @@ export class MapView {
     }
     // phase 37 : totem du monde (losange rouge, toujours visible : c'est l'objectif), portail ouvert en cyan
     const T = w.totem;
-    {
+    if (T.state !== TOTEM_HIDDEN) {
+      // lot L2 : pas de losange tant que le totem n'est pas dévoilé
       const x = this.X(T.x),
         z = this.Z(T.z),
         a = r * 2.2;
@@ -339,6 +352,7 @@ export class MapView {
       ctx.arc(this.X(e.x), this.Z(e.z), r * 1.6, 0, Math.PI * 2);
       ctx.fill();
     }
+    this.newTag(ctx, w, r, edge);
     // joueur : flèche dans le sens de la marche
     const P = w.player,
       px = this.X(P.x),
@@ -354,6 +368,83 @@ export class MapView {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  }
+
+  /**
+   * Lot L2 : au début de la partie qui dévoile un système, son premier repère (sanctuaire le plus proche déjà vu,
+   * marchand arrivé, totem) porte une étiquette « Nouveau » (`label`, traduit) jusqu'à la première interaction.
+   */
+  setNew(kind: NewKind | null, label: string): void {
+    this.newKind = kind;
+    this.newLabel = label;
+    this.newFs[0] = this.newFs[1] = 0; // largeurs à remesurer pour le nouveau texte
+  }
+  private newTag(ctx: CanvasRenderingContext2D, w: World, r: number, edge: number): void {
+    const kind = this.newKind;
+    if (kind === null) return;
+    let x = NaN,
+      z = NaN;
+    if (kind === 'shrines') {
+      let best = Infinity;
+      for (const s of w.shrines) {
+        if (s.used || s.charge > 0) {
+          this.newKind = null; // premier sanctuaire touché
+          return;
+        }
+        const d = (s.x - w.player.x) ** 2 + (s.z - w.player.z) ** 2;
+        if (d < best && (w.items[It.Boussole] > 0 || this.seenAt(w, s.x, s.z))) {
+          best = d;
+          x = s.x;
+          z = s.z;
+        }
+      }
+    } else if (kind === 'merchant') {
+      const M = w.merchant;
+      if (M.inside || M.rolled) {
+        this.newKind = null; // échoppe ouverte
+        return;
+      }
+      if (M.active) {
+        x = M.x;
+        z = M.z;
+      }
+    } else {
+      const T = w.totem;
+      if (T.charge > 0 || T.state !== 0) {
+        this.newKind = null; // totem en charge
+        return;
+      }
+      x = T.x;
+      z = T.z;
+    }
+    if (Number.isNaN(x)) return;
+    const px = this.X(x),
+      pz = this.Z(z),
+      fs = Math.max(9, Math.round(r * 3)),
+      pad = 2,
+      h = fs + pad * 2;
+    if (edge > 0 && (px < 0 || pz < 0 || px > edge || pz > edge)) return; // repère hors du cadre de la minicarte
+    const slot = edge > 0 ? 0 : 1;
+    if (this.newFs[slot] !== fs) {
+      this.newFs[slot] = fs;
+      this.newFont[slot] = `700 ${fs}px Rubik, system-ui, sans-serif`;
+      ctx.font = this.newFont[slot];
+      this.newW[slot] = ctx.measureText(this.newLabel).width;
+    }
+    ctx.font = this.newFont[slot];
+    const tw = this.newW[slot] + pad * 4,
+      top = pz - r * 2.4 - h;
+    let left = px - tw / 2;
+    if (edge > 0) left = Math.max(0, Math.min(edge - tw, left));
+    ctx.fillStyle = '#ffd45a';
+    ctx.strokeStyle = '#0c0f1a';
+    ctx.lineWidth = 1;
+    ctx.fillRect(left, top, tw, h);
+    ctx.strokeRect(left, top, tw, h);
+    ctx.fillStyle = '#0c0f1a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.newLabel, left + tw / 2, top + h / 2 + 0.5);
   }
 
   /** Fond de la nouvelle carte, à préparer hors d'une image de jeu (lancement de la partie). */
