@@ -30,6 +30,17 @@ six tailles (390 × 844, 540 × 720, 717 × 880, 820 × 1180, 1180 × 820, 844 �
    pâles ; la barre garde 460 px sur un écran de 1180 px.
 6. **Téléphone à l'horizontale** (844 × 390) : la barre d'onglets recouvre l'objectif,
    « Jouer » sort de l'écran, le héros est minuscule.
+7. **Les appuis « passent mal »** (Jimmy, même session : « quand je clique sur des trucs,
+   ça clique pas bien »). Mesuré sur le build de la 1.62.0, téléphone simulé, processeur
+   ralenti 4 fois : le **premier appui** de la session lance le téléchargement, l'évaluation
+   et la construction de toute la scène 3D dans la foulée (`warm` dans `src/main.ts`) : une
+   tâche de **8,6 s** bloque l'écran juste après l'appui (9,2 s entre l'appui sur un onglet
+   et l'écran affiché ; 0,15 s pour l'appui suivant). Le rendu logiciel de la machine de
+   test grossit le chiffre, pas le mécanisme : le travail le plus lourd du jeu est placé sur
+   le premier geste du joueur. Et **aucun élément ne réagit à l'appui** : seuls le bouton
+   plein et les boutons tactiles de partie ont un état pressé (`:active`), la surbrillance
+   du navigateur est coupée ; onglets, flèches, lignes et liens ne montrent rien tant que
+   l'écran n'a pas changé.
 
 ## Décisions
 
@@ -50,6 +61,8 @@ six tailles (390 × 844, 540 × 720, 717 × 880, 820 × 1180, 1180 × 820, 844 �
 | 13 | HUD de partie | En moyen et en large, le HUD grandit : textes, barres et chrono × 1,25 au moins, minicarte de 130 px au moins, boutons tactiles (saut, sort, glisse) × 1,25 au moins. En compact et en bas : inchangé. **Uniquement en CSS** : le DOM, les caches et les écritures du HUD ne changent pas (règle 1) | Constat 1 ; un bouton de saut de 80 px est petit sous un pouce de tablette |
 | 14 | Feuilles en partie | Cartes de niveau, coffre, marchand, pause, fin de partie : même agrandissement que le reste en moyen et en large, colonne de 760 px au plus | Cohérence |
 | 15 | Performance et poids | Aucune image, aucune police, aucune dépendance ajoutée. Lighthouse reste au-dessus du seuil (la marge est mince depuis la 1.61.0 : mesurer avant et après) | Règles 2 et 5 |
+| 16 | Un appui doit se voir | **Tout élément qu'on peut toucher a un état pressé** visible dès que le doigt se pose (fond lune à 10 %, ou léger enfoncement) : onglets, boutons Défi du jour et Nouveautés, flèches, puce de profil, or, réglages, ligne des missions, objectif, lignes de liste, liens, flèche retour, cartes de niveau, offres du marchand. Coupé nulle part : c'est un retour d'état, pas une animation | Constat 7 |
+| 17 | Rien de lourd pendant un appui | La scène 3D ne se prépare **plus dans le premier geste**. Elle se prépare quand le joueur ne touche à rien (après son premier geste, écran au repos depuis un instant ; chaque nouvel appui repousse le départ), par étapes qui rendent la main entre elles autant que le code le permet. Si le joueur touche « Jouer » avant qu'elle soit prête : préparation immédiate, le bouton montre l'état « chargement » déjà existant, la partie démarre dès que c'est prêt. Le son suit la même règle : son initialisation ne bloque pas l'appui qui la déclenche. Le score Lighthouse ne baisse pas (rien ne part avant le premier geste) | Constat 7 ; un menu doit répondre dans l'instant |
 
 ## Scénarios
 
@@ -93,6 +106,16 @@ les rectangles englobants.
 - **Le HUD grandit sur tablette** — à 820 × 1180 en partie : le chrono, le bouton de saut et
   la minicarte sont au moins 1,25 fois plus grands qu'à 390 × 844 ; à 390 × 844 : tailles
   de la 1.62.0.
+- **Un appui se voit tout de suite** — doigt posé (sans relâcher) sur un onglet, sur le
+  bouton Nouveautés, sur une flèche du carrousel et sur une ligne de liste : le style de
+  l'élément change (état pressé) ; relâché : il revient.
+- **Le premier appui répond sans attendre** — page chargée sans le mode debug, processeur
+  ralenti 4 fois (Chromium) : le tout premier appui, sur un onglet, affiche l'écran en moins
+  de 400 ms, et aucune tâche de plus de 200 ms ne démarre dans la seconde qui suit un appui
+  au menu ; la scène se prépare ensuite, écran au repos.
+- **Jouer en premier geste lance quand même la partie** — premier appui de la session sur
+  « Jouer » : le bouton passe à l'état « chargement » en moins de 300 ms, puis la partie
+  démarre.
 - **Rien ne déborde aux tailles courantes** — à 360 × 640, 390 × 844, 540 × 720, 717 × 880,
   820 × 1180, 1180 × 820, 844 × 390 et 1280 × 720 : pas de défilement horizontal, « Jouer »
   et les cinq onglets dans l'écran, aucune cible tactile de l'accueil sous 44 px.
