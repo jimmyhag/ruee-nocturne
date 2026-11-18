@@ -736,7 +736,8 @@ const summary = {
       Math.round((100 * v) / Math.max(1, RUNS - results.filter((r) => r.reachedEnd).length)),
     ]),
   ),
-  aliveCurve: Array.from({ length: Math.ceil(UNTIL / 60) }, (_, m) =>
+  // lot L3 : le défi s'arrête à DAILY.duration ; une case au-delà (toujours 0) faussait la plus forte chute
+  aliveCurve: Array.from({ length: Math.ceil((DAILY_ON ? DAILY.duration : UNTIL) / 60) }, (_, m) =>
     Math.round((100 * results.filter((r) => r.time >= (m + 1) * 60).length) / RUNS),
   ),
   runsPerMin: Math.round((RUNS / elapsed) * 60),

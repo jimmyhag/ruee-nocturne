@@ -44,12 +44,16 @@ export function msToNextDaily(now = new Date()): number {
 }
 
 // ---------- série de jours (lot L3, décisions 5 à 7) ----------
-/** `last` : dernier jour compté (AAAA-MM-JJ, UTC) ; `jokerWeek` : semaine ISO du dernier jour pardonné par le joker. */
+/**
+ * `last` : dernier jour compté (AAAA-MM-JJ, UTC) ; `jokerWeek` : semaine ISO du dernier jour pardonné par le joker ;
+ * `jokerDay` : ce jour pardonné (un joker ne se chaîne pas à un autre, même d'une semaine à la suivante).
+ */
 export interface Streak {
   last: string;
   count: number;
   best: number;
   jokerWeek: string;
+  jokerDay: string;
 }
 const DAY_MS = 86400000;
 const dayMs = (date: string): number => Date.parse(date + 'T00:00:00Z');
@@ -59,18 +63,23 @@ const daysBetween = (a: string, b: string): number => Math.round((dayMs(b) - day
 /**
  * À l'ouverture (et avant de compter un jour) : si exactement un jour manque depuis le dernier compté et que le joker de
  * la semaine ISO de ce jour n'a pas servi, il est consommé et la série continue (le jour manqué compte comme joué, sans
- * or) ; s'il manque plus d'un jour, ou si le joker a déjà servi cette semaine-là, la série retombe à 0.
+ * or) ; s'il manque plus d'un jour, si le joker a déjà servi cette semaine-là, ou si le dernier jour « compté » est
+ * lui-même un jour pardonné (deux jours manqués de suite), la série retombe à 0.
+ * `held` : jour d'un défi gardé sur l'appareil, pas encore fini ; s'il suit le dernier jour compté, rien n'est réglé
+ * (la partie, reprise après minuit, comptera pour son jour).
  */
-export function settleStreak(m: Meta, today: string): 'joker' | 'lost' | null {
+export function settleStreak(m: Meta, today: string, held = ''): 'joker' | 'lost' | null {
   const s = m.streak;
   if (!s.last || s.count <= 0) return null;
+  if (held && daysBetween(s.last, held) === 1) return null;
   const gap = daysBetween(s.last, today);
   if (gap <= 1) return null; // compté aujourd'hui ou hier (ou horloge en arrière : rien ne bouge)
-  if (gap === 2) {
+  if (gap === 2 && s.last !== s.jokerDay) {
     const missed = new Date(dayMs(s.last) + DAY_MS).toISOString().slice(0, 10);
     const week = isoWeek(dayMs(missed));
     if (s.jokerWeek !== week) {
       s.jokerWeek = week;
+      s.jokerDay = missed;
       s.last = missed;
       return 'joker';
     }
@@ -140,6 +149,7 @@ export function normalizeStreak(raw: unknown): Streak {
     count,
     best: Math.max(count, Math.min(1e5, int(o.best))),
     jokerWeek: typeof o.jokerWeek === 'string' && WEEK.test(o.jokerWeek) ? o.jokerWeek : '',
+    jokerDay: typeof o.jokerDay === 'string' && DATE.test(o.jokerDay) ? o.jokerDay : '',
   };
 }
 /** Fusion (décision 11) : la série la plus récente (`last`), puis la plus longue ; le meilleur record des deux. */
@@ -149,5 +159,6 @@ export function mergeStreak(a: Streak, b: Streak): Streak {
     ...win,
     best: Math.max(a.best, b.best),
     jokerWeek: a.jokerWeek > b.jokerWeek ? a.jokerWeek : b.jokerWeek,
+    jokerDay: a.jokerDay > b.jokerDay ? a.jokerDay : b.jokerDay,
   };
 }

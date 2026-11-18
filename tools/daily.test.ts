@@ -44,18 +44,19 @@ describe('défi du jour court : réglage par la simulation (lot L3)', () => {
   it('The challenge is won about one time in two', () => {
     // la cible de la spec : 35 à 65 % des défis de l'Éclaireuse au kit de départ atteignent 5:00 (bot moyen)
     const daily = PROFILES.daily;
-    expect(daily.map((x) => [x.name, x.min, x.max])).toEqual([['défi réussi 35–65 %', 35, 65]]);
-    expect(checkTargets({ reachedEndPct: 49.4 }, daily)[0].ok).toBe(true); // mesuré : 800 défis, graines 42 à 45
-    expect(checkTargets({ reachedEndPct: 34 }, daily)[0].ok).toBe(false);
-    expect(checkTargets({ reachedEndPct: 66 }, daily)[0].ok).toBe(false);
-    // la CLI joue le défi du jeu : une partie réussie s'arrête à 5:00 au monde 1, une ratée meurt avant
-    const won = dailyRun(42000); // graine 42, partie 0 : réussie (578 vaincus)
-    expect(won.mode).toBe(Mode.Won);
-    expect(won.stage).toBe(0);
-    expect(won.t).toBeGreaterThanOrEqual(DAILY.duration);
-    expect(won.t).toBeLessThan(DAILY.duration + 1);
-    expect(won.kills).toBe(578);
-    const lost = dailyRun(42019); // graine 42, partie 19 : morte à 0:46
+    expect(daily.map((x) => [x.name, x.min, x.max])).toEqual([
+      ['défi réussi 35–65 %', 35, 65],
+      ['morts <3 min ≤ 20 %', 0, 20], // relecture d'équilibrage : écart visible (≈ 21 %), pas encore réglé
+      ['chute max ≤ 22 pts/min', 0, 22],
+    ]);
+    const at = (pct: number) => checkTargets({ reachedEndPct: pct, deadBefore3minPct: 0, maxDrop: 0 }, daily)[0].ok;
+    expect(at(49.4)).toBe(true); // mesuré : 800 défis, graines 42 à 45
+    expect(at(34)).toBe(false);
+    expect(at(66)).toBe(false);
+    // la CLI joue le défi du jeu : la partie 19 de la graine 42 meurt à 0:46 avec 29 vaincus, comme dans la mesure
+    // (une partie réussie dure 18 000 pas, trop pour ce test sous couverture ; l'arrêt à 5:00 est testé par
+    // « The daily challenge lasts 5 minutes », src/meta/daily.test.ts)
+    const lost = dailyRun(42019);
     expect(lost.mode).toBe(Mode.Dead);
     expect(lost.t).toBeLessThan(DAILY.duration);
     expect(lost.kills).toBe(29);

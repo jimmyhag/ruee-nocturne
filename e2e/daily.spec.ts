@@ -136,6 +136,7 @@ test('menu : la série sur le bouton du défi, le joker dit dès l’ouverture, 
         character: 'bucheron',
         achievements: ['survie3', 'survie10'],
         unlocks: ['w:boomerang'],
+        slots: { weapons: 2, passives: 2, rerolls: 0 }, // une mission d'arme demande un 2e emplacement
         streak: { last, count: 4, best: 4, jokerWeek: '' },
         reveal: 4,
         seenReveal: 4,

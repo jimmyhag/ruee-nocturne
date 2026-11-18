@@ -99,7 +99,7 @@ test('The result card reveals nothing about the run', async ({ page }, info) => 
   // série de 3 jusqu'à hier : le défi d'aujourd'hui la porte à 4
   await page.evaluate((last) => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, streak: { last, count: 3, best: 3, jokerWeek: '' } });
+    g.setMeta({ ...g.meta, streak: { last, count: 3, best: 3, jokerWeek: '', jokerDay: '' } });
   }, yesterday());
   await dailyOver(page);
   await expect(page.locator('#shareBtn')).toBeVisible();
@@ -191,7 +191,7 @@ test('A challenge sent to a friend opens the same run', async ({ page, hasTouch 
 test('A past day’s challenge does not count for the streak', async ({ page }) => {
   const errors = collectConsoleErrors(page);
   await openGame(page);
-  const before = { last: yesterday(), count: 3, best: 3, jokerWeek: '' };
+  const before = { last: yesterday(), count: 3, best: 3, jokerWeek: '', jokerDay: '' };
   const daily = { date: today(), times: [100], kills: [10] };
   await page.evaluate(
     ([streak, d]) => (window as any).__game.setMeta({ ...(window as any).__game.meta, streak, daily: d }),
