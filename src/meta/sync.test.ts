@@ -1,6 +1,7 @@
 // Synchronisation (phase 13) : frontière progression / appareil, décision à trois versions, documents du nuage. Aucun DOM.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { REVEAL } from '../sim/balance';
 import { DEFAULT_META, normalizeMeta } from './save';
 import type { Meta } from './save';
 import {
@@ -37,7 +38,18 @@ describe('frontière progression / appareil', () => {
     const all = Object.keys(DEFAULT_META).sort();
     expect([...PROGRESS_KEYS, ...DEVICE_KEYS].sort()).toEqual(all);
     // 1.49.0 : seenNotes (dernière version dont les Nouveautés ont été lues) reste sur l'appareil, comme l'aide vue
-    expect(DEVICE_KEYS).toEqual(['muted', 'reducedFx', 'fxChosen', 'settings', 'seenReset', 'seenHelp', 'seenNotes']);
+    // lot L2 : seenReveal (dernière étape annoncée par « Nouveau ! ») aussi ; `reveal` lui est une progression
+    expect(DEVICE_KEYS).toEqual([
+      'muted',
+      'reducedFx',
+      'fxChosen',
+      'settings',
+      'seenReset',
+      'seenHelp',
+      'seenNotes',
+      'seenReveal',
+    ]);
+    expect(PROGRESS_KEYS).toContain('reveal');
   });
   it('progressOf ne transporte ni réglages, ni son, ni effets, ni aide vue', () => {
     const p = progressOf(played()) as unknown as Record<string, unknown>;
@@ -155,6 +167,11 @@ describe('firestore.rules', () => {
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
     for (const k of PROGRESS_KEYS) expect(rules, k).toContain(`'${k}'`);
     for (const k of DEVICE_KEYS) expect(rules, k).not.toContain(`'${k}'`);
+  });
+  it('borne `reveal` comme la méta (lot L2 : 0..REVEAL.max, facultatif pour les anciens clients)', () => {
+    const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+    expect(rules).toContain(`p().reveal <= ${REVEAL.max}`);
+    expect(rules).toContain(`!('reveal' in p())`);
   });
   it('n’exige aucune clé absente de la progression (une règle `p().x is …` sur un champ absent refuse tout)', () => {
     const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');

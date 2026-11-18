@@ -8,6 +8,7 @@ import {
   MAPCHEST,
   POWER,
   POWER_KEYS,
+  REVEAL,
   SHRINE,
   SPELL_KEYS,
   STAGE,
@@ -96,6 +97,8 @@ export class Hud {
     spellGlyph: $('spellGlyph'),
     spellName: $('spellName'),
     btnSpell: $('btnSpell'),
+    btnSlide: $('btnSlide'),
+    slideKey: $('slideKey'),
     flash: $('flash'),
     banner: $('banner'),
     perf: $('perf'),
@@ -546,6 +549,10 @@ export class Hud {
     this.els.spellName.textContent = spellName(sk).toUpperCase();
     this.els.spellKey.textContent = spellName(sk);
     this.els.btnSpell.setAttribute('aria-label', spellName(sk));
+    // lot L2 : bouton GLISSE et sa touche masqués tant que la glisse n'est pas dévoilée (la sim la refuse)
+    const slide = w.reveal >= REVEAL.slide;
+    this.els.btnSlide.hidden = !slide;
+    this.els.slideKey.hidden = !slide;
     const parts: string[] = [];
     // phase 38 : armes et objets dans la barre d'équipement en bas de l'écran ; en haut, les tomes et les synergies
     fitGear(this.els.gear, w);
@@ -562,12 +569,21 @@ export class Hud {
   get bannerOn(): boolean {
     return this.els.banner.classList.contains('on');
   }
-  banner(txt: string): void {
+  /** Bannière ; `sub` : seconde ligne plus petite sous le titre (lot L2 : « Nouveau ! » puis le système et quoi faire). */
+  banner(txt: string, sub = '', ms = 1800): void {
     const b = this.els.banner;
-    b.textContent = txt;
+    if (sub) {
+      const kick = document.createElement('span');
+      kick.className = 'kick';
+      kick.textContent = txt;
+      const line = document.createElement('small');
+      line.textContent = sub;
+      b.replaceChildren(kick, line);
+    } else b.textContent = txt;
+    b.classList.toggle('two', sub !== '');
     b.classList.add('on');
     clearTimeout(this.bannerT);
-    this.bannerT = window.setTimeout(() => b.classList.remove('on'), 1800);
+    this.bannerT = window.setTimeout(() => b.classList.remove('on'), ms);
   }
 
   perf(lines: string): void {
@@ -576,6 +592,14 @@ export class Hud {
   showPerf(on: boolean): void {
     this.els.perf.hidden = !on;
   }
+}
+
+/**
+ * Lot L2 : dans `root`, masque ce qui porte `data-reveal="n"` tant que moins de n étapes sont dévoilées (aide, légende
+ * de la carte) : ne pas montrer ce qui n'existe pas encore.
+ */
+export function showRevealed(root: HTMLElement, reveal: number): void {
+  for (const el of root.querySelectorAll<HTMLElement>('[data-reveal]')) el.hidden = reveal < Number(el.dataset.reveal);
 }
 
 /**

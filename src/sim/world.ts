@@ -1,10 +1,10 @@
-import { BOON_KEYS, CAPS, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
+import { BOON_KEYS, CAPS, FIRST_RUNS, REVEAL, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
 import type { Kicker, Piste, Plateau, Ramp } from './terrain';
 import type { Race } from './poi';
-import { buildPOI } from './poi';
+import { buildPOI, hideUnrevealed } from './poi';
 import type { BossTotem, MapChest, Shrine, Skull } from './poi';
 import { makeMerchant } from './merchant';
 import type { MerchantState } from './merchant';
@@ -92,7 +92,10 @@ export class World {
   diffT = 0;
   overT = 0;
   startSeed = 0; // graine de carte du premier monde (celle des suivants en dérive)
-  /** Totem du monde : 0 prêt, 1 boss appelé, 2 boss vaincu (portail ouvert). Plus d'état « fermé » depuis la 1.45.2. */
+  /**
+   * Totem du monde : 0 prêt, 1 boss appelé, 2 boss vaincu (portail ouvert), 3 absent (TOTEM_HIDDEN, lot L2 : pas encore
+   * dévoilé). Plus d'état « fermé » depuis la 1.45.2.
+   */
   totem = { x: 0, z: 0, charge: 0, state: 0 };
   portal = { open: false, charge: 0 };
   // phase 39 : monde infini (après la victoire, au choix du joueur)
@@ -284,6 +287,12 @@ export class World {
   airKills = 0; // ennemis tués pendant que le joueur est en l'air
   eliteKills = 0;
   bossKills = 0;
+  // lot L2 : étapes dévoilées (REVEAL) et adoucissement des deux premières parties (FIRST_RUNS, 1 sinon) ; fixés à la
+  // création, gardés par l'instantané (une partie reprise est identique)
+  reveal: number = REVEAL.max;
+  softHp = 1.5; // déclarés en flottants (forme V8 stable, voir plus bas) puis remis à 1 dans le constructeur
+  softDmg = 1.5;
+  softRate = 1.5;
 
   constructor(seed: number, opts?: WorldOptions) {
     this.seed = seed;
@@ -338,6 +347,11 @@ export class World {
     if (opts?.unlocked) this.unlocked = new Set(opts.unlocked);
     if (opts?.bannedItems) for (const k of opts.bannedItems) this.itemBan[ITEM_KEYS.indexOf(k)] = 1; // phase 40
     if (opts?.rerolls !== undefined) this.rerolls = Math.max(0, opts.rerolls | 0);
+    if (opts?.reveal !== undefined) this.reveal = Math.max(0, Math.min(REVEAL.max, opts.reveal | 0));
+    const soft = this.reveal < FIRST_RUNS.below;
+    this.softHp = soft ? FIRST_RUNS.hp : 1;
+    this.softDmg = soft ? FIRST_RUNS.dmg : 1;
+    this.softRate = soft ? FIRST_RUNS.rate : 1;
     if (opts?.slots) {
       this.maxWeapons = Math.max(
         Math.max(1, Math.min(MAX_WEAPONS, opts.slots.weapons | 0)),
@@ -401,6 +415,7 @@ export class World {
     buildMap(this, r); // …puis les lieux construits, seulement sur le plat
     settlePlaces(this); // posés exactement à plat
     buildPOI(this, r); // coffres et sanctuaires (sommets, pieds de rampes, combes), le totem du monde, puis les crânes
+    hideUnrevealed(this); // lot L2 : après tous les tirages, la carte d'une graine reste la même
   }
 
   // ---------- événements ----------

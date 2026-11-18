@@ -1,7 +1,7 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BASTION, BLOOD, BOON, BOON_KEYS, BOON_MAX, BOON_STAT, BOON_WEIGHT, BOON_WEIGHT_DEFAULT, BOSSTOTEM, CRIT, DIFFICULTY, ITEM, It, MAPCHEST, RACE, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BASTION, BLOOD, BOON, BOON_KEYS, BOON_MAX, BOON_STAT, BOON_WEIGHT, BOON_WEIGHT_DEFAULT, BOSSTOTEM, CRIT, DIFFICULTY, ITEM, It, MAPCHEST, RACE, REVEAL, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
 import { bellRing, bourseDiscount, canGainItem } from './items';
 import { Ev, Spell, Trait } from './types';
 import type { BoonKey, Card, Player } from './types';
@@ -138,6 +138,22 @@ export function buildPOI(w: World, r: Rng): void {
   placeTotem(w, r, all);
   placeSkulls(w, r, all);
   placeBossTotems(w, r, all);
+}
+
+/** Lot L2 : état du totem du monde tant qu'il n'est pas dévoilé (ni dessiné, ni chargeable, ni objectif). */
+export const TOTEM_HIDDEN = 3;
+
+/**
+ * Lot L2 : retire de la carte ce que le joueur n'a pas encore découvert (REVEAL), après tous les tirages : la carte
+ * d'une graine (coffres, bonus, lieux) et le générateur restent ceux d'une partie où tout est dévoilé.
+ */
+export function hideUnrevealed(w: World): void {
+  if (w.reveal < REVEAL.shrines) w.shrines.length = 0;
+  if (w.reveal < REVEAL.totem) {
+    w.skulls.length = 0;
+    w.bossTotems.length = 0;
+    w.totem.state = TOTEM_HIDDEN;
+  }
 }
 
 /** Phase 48 : les totems de boss, tirés tout à la fin (après les crânes), loin les uns des autres et des autres lieux. */

@@ -1,4 +1,4 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
+import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, REVEAL, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
 import { isCharger, tickCharger, tickEruptions } from './hazards';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { burnEnemy, compactEnemies } from './combat';
@@ -193,7 +193,7 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   }
   // phase 27 : glisse à l'appui (front montant : la tenir ne compte qu'une fois) ; au sol, un appui lance la glissade
   // ou relève le joueur ; 1.30.1 : en l'air, il prépare la réception (glisse parfaite si le sol arrive à temps)
-  const slideIn = input.slide === true;
+  const slideIn = input.slide === true && w.reveal >= REVEAL.slide; // lot L2 : refusée tant qu'elle n'est pas dévoilée
   let slidePress = slideIn && !P.slideHeld;
   P.slideHeld = slideIn;
   if (P.elanT > 0) P.elanT -= dt;
@@ -385,7 +385,14 @@ function stepPlayer(w: World, input: Input, dt: number): void {
       }
       // réception glissée : après un envol, l'élan continue au sol, droit dans le sens du vol ; après un saut glissé, on
       // se réceptionne debout (1.24.1 : le saut annule la glissade)
-      if (!P.sliding && P.airMom && !P.slideJump && P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2) {
+      // lot L2 : pas de glissade à la réception tant que la glisse n'est pas dévoilée (refusée par la sim, pas cachée)
+      if (
+        w.reveal >= REVEAL.slide &&
+        !P.sliding &&
+        P.airMom &&
+        !P.slideJump &&
+        P.mvx * P.mvx + P.mvz * P.mvz > (walk * SLIDE.endMul) ** 2
+      ) {
         const m = Math.sqrt(P.mvx * P.mvx + P.mvz * P.mvz);
         P.dirX = P.mvx / m;
         P.dirZ = P.mvz / m;
