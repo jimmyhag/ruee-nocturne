@@ -155,10 +155,20 @@ function notePress(e: Event): void {
   lastPress = performance.now();
   const ty = e.type;
   if (ty === 'pointerdown' || ty === 'touchstart') pressing = true;
-  else if (ty === 'pointerup' || ty === 'touchend' || ty === 'touchcancel') pressing = false;
+  else if (ty === 'pointerup' || ty === 'pointercancel' || ty === 'touchend' || ty === 'touchcancel') pressing = false;
 }
 // à la capture et passifs : deux affectations par événement, rien d'alloué (le défilement d'une liste compte aussi)
-for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'touchcancel', 'keydown', 'wheel', 'scroll'])
+for (const ev of [
+  'pointerdown',
+  'pointerup',
+  'pointercancel',
+  'touchstart',
+  'touchend',
+  'touchcancel',
+  'keydown',
+  'wheel',
+  'scroll',
+])
   addEventListener(ev, notePress, { capture: true, passive: true });
 /** Délai (ms) avant que l'écran soit au repos ; ≤ 0 : il l'est. Un appui « posé » depuis plus de 10 s ne compte plus. */
 function restDelay(): number {
@@ -195,7 +205,10 @@ function atRest(): Promise<void> {
 function loadScene(urgent = false): Promise<GameScene> {
   if (urgent && !sceneUrgent && !sceneReady) {
     sceneUrgent = true;
-    restWake?.(); // une étape attendait le repos : elle part
+    // une étape attendait le repos : elle part, mais après la prochaine image (« Chargement… » a le temps de se
+    // peindre, l'étape ne s'exécute pas dans l'appui) ; la minuterie de l'attente sert de secours en arrière-plan
+    const wake = restWake;
+    if (wake) requestAnimationFrame(() => setTimeout(wake, 0));
   }
   scenePromise ??= (async () => {
     await atRest();
@@ -910,6 +923,7 @@ function startGame(
     runRanked = !challenge || challenge.date === todayKey(); // décision 4 : seul le défi d'aujourd'hui compte
     runBeat = challenge ? { t: challenge.t, k: challenge.k } : null;
   }
+  clearTimeout(heroModelT); // relecture perf : une pose différée du carrousel ne doit pas changer le héros en pleine partie
   S.setCharacter(runChar as CharacterKey, runOutfit);
   audio.init();
   audio.setMusic('game'); // phase 36 : musique de partie et ambiance de nuit
