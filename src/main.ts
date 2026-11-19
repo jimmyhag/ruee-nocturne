@@ -28,12 +28,12 @@ import { AudioBus } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtDay, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, characterName, itemName, synergyName, weaponName } from './ui/cards';
+import { achName, achUnlock, cardTitle, characterName, itemName, synergyName, weaponName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { WEAPON_KEYS } from './sim/weapons/defs';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
-import { LEVEL_REROLL, canReroll } from './sim/progression';
-import { adoptDaily, startEndless } from './sim/stages';
+import { LEVEL_REROLL, canReroll, tutorialLock } from './sim/progression';
+import { adoptDaily, startEndless, totemLocked } from './sim/stages';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -85,7 +85,7 @@ import {
   tutorialOptions,
   worldOptions,
 } from './meta/shop';
-import { Step, guideCardsDone, guideForced, guideJump, newGuide, readGuide } from './meta/guide';
+import { Step, guideCardsDone, guideJump, newGuide, readGuide } from './meta/guide';
 import type { GuideState, Hint } from './meta/guide';
 import { softAfterRun, tutorialDue, tutorialEnd, tutorialSkip } from './meta/tutorial';
 import { TUTO_FEEL, TutorialView } from './ui/tutorial';
@@ -1266,7 +1266,16 @@ function openLevelUp(): void {
     : shrine
       ? t('shrine.title')
       : t('levelup.title', { n: world.player.level - world.pending + 1 });
-  $('luHint').textContent = chest ? t('chest.hint') : shrine ? t('shrine.hint') : t('levelup.hint');
+  // partie guidée (décision 13) : un tome imposé, seule carte qu'on peut prendre ; les autres restent visibles, éteintes
+  const lock = tutorialLock(world);
+  $('luHint').textContent = chest
+    ? t('chest.hint')
+    : shrine
+      ? t('shrine.hint')
+      : lock >= 0
+        ? t('tuto.cards.take', { name: cardTitle(world.cards[lock]) }) // le nom affiché sur la carte
+        : t('levelup.hint');
+  $('luHint').classList.toggle('imposed', lock >= 0);
   $('luSlots').hidden = chest || shrine; // les emplacements d'armes et de tomes ne disent rien d'un objet ni d'un bonus
   $('luSlots').textContent = t('levelup.slots', {
     w: Object.keys(world.weapons).length,
@@ -1275,6 +1284,16 @@ function openLevelUp(): void {
     pMax: world.maxTomes,
   });
   renderCards($('cards'), world.cards, world);
+  if (lock >= 0)
+    for (let i = 0; i < world.cards.length; i++) {
+      const el = $('cards').children[i] as HTMLElement;
+      el.classList.toggle('imposed', i === lock);
+      el.classList.toggle('off', i !== lock);
+      if (i !== lock) {
+        el.setAttribute('aria-disabled', 'true');
+        el.setAttribute('aria-describedby', 'luHint'); // un lecteur d'écran dit pourquoi elle est éteinte
+      }
+    }
   // partie guidée (décision 4) : la première feuille de niveau, en pause, explique armes, tomes et raretés
   $('luTuto').hidden = !(guide?.tutorial && !guide.cards && !chest && !shrine);
   // phase 31 : relance des cartes (pas pour un coffre ni un sanctuaire)
@@ -1286,7 +1305,8 @@ function openLevelUp(): void {
   showOnly('levelup');
   audio.levelUp();
   hud.xpSweep();
-  if (!input.isTouch) ($('cards').firstElementChild as HTMLElement | null)?.focus({ preventScroll: true });
+  if (!input.isTouch)
+    ($('cards').children[Math.max(0, lock)] as HTMLElement | undefined)?.focus({ preventScroll: true });
 }
 // ---------- marchand (phase 17) : échoppe en pause, achats avec l'or de la partie ----------
 function openMerchant(): void {
@@ -1363,6 +1383,8 @@ addEventListener('keydown', (e) => {
 let choosing = false;
 function choose(i: number): void {
   if (!world || app !== 'levelup' || choosing || i < 0 || i >= world.cards.length) return;
+  const lock = tutorialLock(world);
+  if (lock >= 0 && i !== lock) return; // partie guidée : rien ne se passe, la simulation refuserait aussi (décision 13)
   runEdits++;
   // flash de la carte + son selon le type, puis fermeture (160 ms, ou tout de suite en mode réduit)
   const c = world.cards[i];
@@ -1621,7 +1643,7 @@ function gameOver(won = false): void {
 
 // ---------- partie guidée (docs/specs/tutoriel.md) : fin, « À toi de jouer », la passer ----------
 /** Ce que la feuille « À toi de jouer » affiche (re-rendue au changement de langue). */
-let tutoOver = { gold: 0, bonus: 0, boss: true };
+let tutoOver = { gold: 0, bonus: 0, end: 'boss' as 'boss' | 'horde' | 'win' };
 /** Ralenti de la mort voulue (décision 7) avant la feuille : le rendu continue à 0,2× derrière (frame). */
 const TUTO_END_MS = 1600;
 /**
@@ -1633,7 +1655,10 @@ function tutorialOver(): void {
   app = 'tutoEnd';
   forgetRun();
   const gold = Math.round(world.gold);
-  tutoOver = { gold, bonus: tutorialEnd(meta, gold), boss: world.totem.state === 1 && world.stage === 0 };
+  // révision 1.66.0 (décision 16) : le boss du totem abattu (portail ouvert, ou déjà au monde suivant), c'est une victoire
+  const won = world.stage > 0 || world.endless || world.portal.open;
+  const end = won ? 'win' : world.totem.state === 1 ? 'boss' : 'horde';
+  tutoOver = { gold, bonus: tutorialEnd(meta, gold), end };
   meta.seenHelp = true; // l'aide du premier lancement n'a plus rien à apprendre
   saveMeta(meta);
   renderTutoEnd();
@@ -1650,7 +1675,7 @@ function tutorialOver(): void {
   );
 }
 function renderTutoEnd(): void {
-  $('teText').textContent = t(tutoOver.boss ? 'tuto.end.boss' : 'tuto.end.horde');
+  $('teText').textContent = t('tuto.end.' + tutoOver.end);
   $('teGold').textContent = String(tutoOver.gold);
   $('teBonus').textContent = '+' + tutoOver.bonus;
 }
@@ -3247,7 +3272,8 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, 1.6, e.z, PAL.skull, (24 * fx) | 0, 4, 10, false);
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.hurt);
         audio.roar();
-        hud.banner(t('banner.skull', { n: Math.round(e.v * 100) }), 'danger');
+        // partie guidée (décision 14) : la bannière redit l'effet
+        hud.banner(t('banner.skull', { n: Math.round(e.v * 100) }), 'danger', tutorialRun ? t('tuto.on.skull') : '');
         hud.flash('skull');
         break;
       case Ev.BossTotemOn:
@@ -3256,7 +3282,7 @@ function handleEvents(w: World, now: number): void {
         S.particles.burst(e.x, 1.6, e.z, PAL.bossTotem, (24 * fx) | 0, 4, 10, false);
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         audio.roar();
-        hud.banner(t('banner.bossTotem', { n: e.v }), 'danger');
+        hud.banner(t('banner.bossTotem', { n: e.v }), 'danger', tutorialRun ? t('tuto.on.bossTotem') : '');
         break;
       case Ev.SurvivalWarn:
         // phase 42 : un boss de survie arrive dans quelques secondes ; défi v2 : x2 = 1, le boss final
@@ -3308,7 +3334,13 @@ function handleEvents(w: World, now: number): void {
         vibrate(80);
         break;
       case Ev.TimeUp:
-        hud.banner(t(e.x2 === 1 ? 'banner.timeUpOpen' : e.x2 === 2 ? 'banner.timeUpFight' : 'banner.timeUp'), 'danger');
+        // 1.66.0 (décision 18) : x2 = 1, le boss du totem vient de tomber et le chrono tombe à 0 ; la ligne du portail
+        // reste sous la bannière (celle de PortalOpen, au pas précédent, serait aussitôt remplacée)
+        hud.banner(
+          t(e.x2 === 1 ? 'banner.timeUpOpen' : e.x2 === 2 ? 'banner.timeUpFight' : 'banner.timeUp'),
+          'danger',
+          e.x2 === 1 ? t('banner.portal', { n: e.v + 1 }) : '',
+        );
         hud.flash('hurt');
         audio.bossWarn();
         vibrate(120);
@@ -3329,7 +3361,8 @@ function handleEvents(w: World, now: number): void {
         hitStop.request(FEEL.hitStop.hurt.duration, FEEL.hitStop.hurt.scale, 1);
         break;
       case Ev.Wave:
-        hud.banner(t('banner.wave'), 'danger');
+        // décision 18 : la vague qui suit la chute du chrono ne cache pas la bannière « Le chrono tombe à 0 »
+        if (!(w.portal.open && w.overT < FEEL.clockDropBanner)) hud.banner(t('banner.wave'), 'danger');
         break;
       case Ev.Revive:
         hud.banner(t(e.v > 0 ? 'banner.revive2' : 'banner.revive1'));
@@ -3511,7 +3544,7 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
     // partie guidée : la puce « Active le totem » attend que le guide montre le totem (ou le rende obligatoire)
-    hud.goalHold = guide !== null && guide.tutorial && guide.step < Step.Totem && !guideForced(guide, world);
+    hud.goalHold = guide !== null && guide.tutorial && totemLocked(world);
     hud.update(world, hurtT, now, realDt);
     // phase 37 : le noir monte pendant la seconde passée dans le portail ; quand la carte se reconstruit (StageStart),
     // l'écran est déjà noir et le gel de la reconstruction ne se voit pas

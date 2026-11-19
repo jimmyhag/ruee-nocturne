@@ -17,7 +17,7 @@ import { PAL } from '../render/palette';
 import { canGainItem, maxCopies } from '../sim/items';
 import { mapChestPrice } from '../sim/poi';
 import { enemyIntensity, type Intensity } from '../sim/spawner';
-import { stageLeft } from '../sim/stages';
+import { stageLeft, totemLocked } from '../sim/stages';
 import { spellCooldown } from '../sim/spells';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
@@ -92,6 +92,7 @@ export class Hud {
     merchantDist: $('merchantDist'),
     poiChip: $('poiChip'),
     poiText: $('poiText'),
+    poiNote: $('poiNote'),
     poiFill: $('poiFill'),
     spellbar: $('spellbar'),
     spellSec: $('spellSec'),
@@ -291,7 +292,8 @@ export class Hud {
     }
     // 1.45.2 : totem du boss pas encore activé, tout proche : jauge d'activation, comme un sanctuaire
     const T = w.totem;
-    if (!w.endless && T.state === 0) {
+    // partie guidée (décision 15) : verrouillé avant son tour, pas de jauge (elle contredirait « Pas encore »)
+    if (!w.endless && T.state === 0 && !totemLocked(w)) {
       const d2 = (T.x - P.x) ** 2 + (T.z - P.z) ** 2;
       if (d2 < (STAGE.totemR + 2) ** 2 && (kind === 0 || d2 < best)) {
         kind = 4;
@@ -339,6 +341,7 @@ export class Hud {
       this.els.poiChip.classList.toggle('totem', kind === 4);
       this.els.poiChip.classList.toggle('skull', kind === 5);
       this.els.poiChip.classList.toggle('bosstotem', kind === 6);
+      this.els.poiNote.hidden = kind !== 4; // 1.66.0 (décision 18) : la règle du totem, sur sa propre ligne
       if (kind !== 1) this.els.poiChip.classList.remove('poor'); // « pas assez d'or » ne vaut que pour un coffre
     }
     if (kind === 3) {
@@ -367,6 +370,7 @@ export class Hud {
     } else if ((kind === 2 || kind === 4) && this.cache.poiOn !== kind) {
       this.cache.poiKey = -1;
       this.els.poiText.textContent = t(kind === 2 ? 'shrine.title' : 'totem.title');
+      if (kind === 4) this.els.poiNote.textContent = t('totem.note');
       this.els.poiChip.classList.remove('poor');
     }
     // difficulté de la partie (phase 48) : sous la barre de PV, dès qu'elle dépasse 100 %

@@ -7,7 +7,20 @@ import { collectConsoleErrors, openGame } from './helpers';
 
 /** Avec `tuto=1`, « Jouer » lance la partie guidée d'un nouveau joueur même sous ?debug (comme help=1 pour l'aide). */
 const TUTO_URL = '/?debug=1&tuto=1&help=1';
-const S = { move: 0, fire: 1, cards: 3, jump: 4, slide: 5, slideJump: 6, spell: 7, chest: 8, shrine: 9 } as const;
+const S = {
+  move: 0,
+  fire: 1,
+  cards: 3,
+  jump: 4,
+  slide: 5,
+  slideJump: 6,
+  spell: 7,
+  chest: 8,
+  shrine: 9,
+  skull: 11,
+  bossTotem: 12,
+  totem: 13,
+} as const;
 const PLACES = ['chest', 'shrine', 'race', 'skull', 'bossTotem', 'totem'] as const;
 
 const g = (page: Page) => page.evaluate(() => (window as any).__game.guide?.step as number | undefined);
@@ -35,9 +48,33 @@ async function guided(page: Page, hasTouch: boolean): Promise<void> {
   // invulnérable (pas de PV géants à l'écran : les captures montrent le HUD d'une vraie partie)
   await page.evaluate(() => ((window as any).__game.world.player.invul = 1e9));
 }
+/** Horde retirée et plus de montée de niveau : les lieux se testent sans feuille qui mette la partie en pause. */
+async function calm(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    w.player.need = 1e9;
+    w.powerNext = w.nextWave = w.nextElite = w.nextEruption = 1e9;
+    w.merchant.next = 99;
+    w.enemyCount = 0;
+    (window as any).__game.guide.elite = w.nextElite; // pas de fausse consigne « élite » (le guide suit nextElite)
+  });
+}
 async function jumpTo(page: Page, step: number): Promise<void> {
   await page.evaluate((n) => (window as any).__game.guideStep(n), step);
   await page.waitForFunction((n) => (window as any).__game.guide.step === n, step);
+}
+/** La feuille de niveau ouverte : prend la première carte (la seule permise si un tome est imposé), au doigt ou au clavier. */
+async function takeFirst(page: Page, hasTouch: boolean): Promise<void> {
+  if (hasTouch) await page.locator('#cards .card').first().tap();
+  else await page.keyboard.press('Digit1');
+}
+/** Joue jusqu'à `done`, en prenant la première carte des feuilles qui s'ouvrent en route (coffre du boss, niveaux). */
+async function playUntil(page: Page, hasTouch: boolean, done: () => Promise<boolean>): Promise<void> {
+  for (let i = 0; i < 120 && !(await done()); i++) {
+    if ((await app(page)) === 'levelup') await takeFirst(page, hasTouch);
+    await page.waitForTimeout(250);
+  }
+  expect(await done()).toBe(true);
 }
 async function shot(page: Page, name: string, hasTouch: boolean): Promise<void> {
   if (process.env.CAPTURES !== '1' || !hasTouch) return;
@@ -200,6 +237,7 @@ test('The prompts follow the device', async ({ page, hasTouch }) => {
   await expect(page.locator('#tutoCmd')).toBeEmpty();
   await expect(page.locator('#tutoText')).toContainText('tire tout seul');
   // captures de chaque étape du guide (téléphone, CAPTURES=1) ; la feuille de niveau a la sienne
+  if (process.env.CAPTURES === '1' && hasTouch) await calm(page); // aucune feuille de niveau dans les captures d'étapes
   if (process.env.CAPTURES === '1' && hasTouch)
     for (let n = 0; n <= 13; n++) {
       if (n === S.cards) continue;
@@ -238,6 +276,7 @@ test('The first level-up card explains the rarities', async ({ page, hasTouch })
   await expect(page.locator('#luTuto')).toContainText('Tome');
   await expect(page.locator('#luTuto .rar')).toHaveText(['Commune', 'Rare', 'Épique']);
   expect(await page.locator('#cards .card.rare, #cards .card.epic').count()).toBeGreaterThan(0);
+  await page.waitForTimeout(600); // fin de l'entrée en cascade des cartes
   await shot(page, 'feuille-cartes', hasTouch);
   // le joueur choisit lui-même
   if (hasTouch) await page.locator('#cards .card').first().tap();
@@ -248,6 +287,56 @@ test('The first level-up card explains the rarities', async ({ page, hasTouch })
   await page.evaluate(() => (window as any).__game.debug.levelUp());
   await page.waitForFunction(() => (window as any).__game.app === 'levelup');
   await expect(page.locator('#luTuto')).toBeHidden();
+});
+
+test('The first two tomes are imposed', async ({ page, hasTouch }) => {
+  await guided(page, hasTouch);
+  const tomes = () => page.evaluate(() => Object.keys((window as any).__game.world.tomes).sort() as string[]);
+  for (const [key, name] of [
+    ['degats', 'Prends le Tome des dégâts'],
+    ['projectiles', 'Prends le Tome des projectiles'],
+  ] as const) {
+    await page.evaluate(() => (window as any).__game.debug.levelUp());
+    await page.waitForFunction(() => (window as any).__game.app === 'levelup');
+    // le tome imposé sur la première carte, mis en avant ; les autres visibles, éteintes, avec la consigne
+    const first = await page.evaluate(() => (window as any).__game.world.cards[0]);
+    expect([first.kind, first.key]).toEqual(['t', key]);
+    await expect(page.locator('#luHint')).toHaveText(name);
+    await expect(page.locator('#cards .card').first()).toHaveClass(/imposed/);
+    const n = await page.locator('#cards .card').count();
+    expect(n).toBeGreaterThan(1);
+    await expect(page.locator('#cards .card.off')).toHaveCount(n - 1);
+    // un lecteur d'écran dit pourquoi elles sont éteintes : la consigne
+    await expect(page.locator('#cards .card.off').first()).toHaveAttribute('aria-describedby', 'luHint');
+    await expect(page.locator('#luReroll')).toBeDisabled();
+    if (key === 'degats') {
+      await page.waitForTimeout(600); // fin de l'entrée en cascade des cartes
+      await shot(page, 'feuille-tome-impose', hasTouch);
+    }
+    // une autre carte, au doigt ou au clavier : rien ne se passe
+    const before = await tomes();
+    if (hasTouch)
+      await page.locator('#cards .card').nth(1).tap({ force: true }); // éteinte (aria-disabled), touchée quand même
+    else await page.keyboard.press('Digit2');
+    await page.waitForTimeout(400);
+    expect(await app(page)).toBe('levelup');
+    expect(await tomes()).toEqual(before);
+    // le tome imposé : pris
+    await takeFirst(page, hasTouch);
+    await page.waitForFunction(() => (window as any).__game.app === 'play');
+    expect(await tomes()).toContain(key);
+  }
+  // ensuite le choix est libre, sans autre tome
+  await page.evaluate(() => (window as any).__game.debug.levelUp());
+  await page.waitForFunction(() => (window as any).__game.app === 'levelup');
+  await expect(page.locator('#cards .card.off')).toHaveCount(0);
+  await expect(page.locator('#luHint')).toHaveText('Choisis une carte');
+  const kinds = await page.evaluate(() =>
+    ((window as any).__game.world.cards as { kind: string; key: string }[])
+      .filter((c) => c.kind === 't')
+      .map((c) => c.key),
+  );
+  for (const k of kinds) expect(['degats', 'projectiles']).toContain(k);
 });
 
 test('The map places are shown one by one', async ({ page, hasTouch }) => {
@@ -271,11 +360,77 @@ test('The map places are shown one by one', async ({ page, hasTouch }) => {
   }
 });
 
+test('The skull and the boss totem must be activated', async ({ page, hasTouch }) => {
+  test.setTimeout(120_000); // deux jauges à remplir en temps de jeu sous SwiftShader
+  await guided(page, hasTouch);
+  await calm(page);
+  const place = (kind: 'skulls' | 'bossTotems') =>
+    page.evaluate((k) => {
+      const G = (window as any).__game;
+      const p = G.world[k][G.guide.target];
+      return { x: p.x as number, z: p.z as number };
+    }, kind);
+  // le crâne : la consigne dit ce que c'est, puis ce que ça fait ; elle reste tant qu'il n'est pas activé
+  await jumpTo(page, S.skull);
+  await expect(page.locator('#tutoText')).toHaveText(
+    "Reste dans le crâne pour l'activer : la difficulté monte, et les récompenses aussi",
+  );
+  await expect(page.locator('#tutoArrow')).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(await g(page)).toBe(S.skull);
+  // activé : une bannière redit son effet, puis l'étape du totem de boss, qui attend aussi
+  const sk = await place('skulls');
+  await page.evaluate((p) => (window as any).__game.debug.teleport(p.x, p.z), sk);
+  await expect(page.locator('#banner')).toContainText('plus de monstres, plus de récompenses', { timeout: 40_000 });
+  await page.waitForFunction((n) => (window as any).__game.guide.step === n, S.bossTotem);
+  await shot(page, 'crane-active', hasTouch);
+  await expect(page.locator('#tutoText')).toContainText('Active le totem de boss');
+  await page.waitForTimeout(1500);
+  expect(await g(page)).toBe(S.bossTotem);
+  const bt = await place('bossTotems');
+  await page.evaluate((p) => (window as any).__game.debug.teleport(p.x, p.z), bt);
+  await expect(page.locator('#banner')).toContainText('Un boss de plus à chaque vague de boss de ce monde', {
+    timeout: 40_000,
+  });
+  await page.waitForFunction((n) => (window as any).__game.guide.step === n, S.totem);
+  expect(await page.evaluate(() => (window as any).__game.world.bossTotemsOn)).toBe(1);
+});
+
+test('The world totem does not activate before its turn', async ({ page, hasTouch }) => {
+  test.setTimeout(120_000); // la jauge du totem en temps de jeu sous SwiftShader
+  await guided(page, hasTouch);
+  await calm(page);
+  await jumpTo(page, S.totem);
+  await expect(page.locator('#tutoText')).toHaveText(
+    "Le totem du monde : tu l'activeras à la fin, pour affronter le boss du monde",
+  );
+  // le joueur reste dessus avant 8:00 : rien ne s'active, une ligne dit « Pas encore »
+  await page.evaluate(() => {
+    const G = (window as any).__game;
+    G.debug.teleport(G.world.totem.x, G.world.totem.z);
+  });
+  await expect(page.locator('#tutoText')).toHaveText('Pas encore : ce sera le dernier défi de la partie');
+  await expect(page.locator('#poiChip')).toBeHidden(); // pas de jauge : elle contredirait « Pas encore »
+  await shot(page, 'totem-pas-encore', hasTouch);
+  // plus que la jauge d'activation, en temps de jeu
+  await page.waitForFunction(
+    (t0) => (window as any).__game.world.t > t0 + 4,
+    await page.evaluate(() => (window as any).__game.world.t as number),
+    { timeout: 40_000 },
+  );
+  expect(await page.evaluate(() => (window as any).__game.world.totem.state)).toBe(0);
+  expect(await page.evaluate(() => (window as any).__game.world.totem.charge)).toBe(0);
+  // 8:00 : il s'active normalement (le joueur est resté dessus)
+  await page.evaluate(() => (window as any).__game.debug.stageTime(481));
+  await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, undefined, { timeout: 40_000 });
+});
+
 test('Two minutes before the end the totem is mandatory', async ({ page, hasTouch }) => {
   await guided(page, hasTouch);
+  await calm(page); // ni marchand ni vague : leur bannière remplacerait celle du totem
   await page.evaluate(() => (window as any).__game.debug.stageTime(481));
-  await expect(page.locator('#banner')).toContainText('Va activer le totem rouge');
-  await expect(page.locator('#tutoText')).toHaveText("Va activer le totem rouge : le boss du monde t'attend");
+  await expect(page.locator('#banner')).toContainText('Va activer la statue rouge');
+  await expect(page.locator('#tutoText')).toHaveText("Va activer la statue rouge : le boss du monde t'attend");
   await expect(page.locator('#tutoArrow')).toBeVisible();
   await shot(page, 'totem-obligatoire', hasTouch);
   // le chrono s'arrête à 0:30 tant que le totem n'est pas activé
@@ -285,9 +440,10 @@ test('Two minutes before the end the totem is mandatory', async ({ page, hasTouc
   await expect(page.locator('#time')).toHaveText('0:30');
 });
 
-test('The guided run boss is too strong', async ({ page, hasTouch }) => {
+test('The guided run boss is a real boss', async ({ page, hasTouch }) => {
   await guided(page, hasTouch);
-  // le totem activé (le joueur y va et y reste), le boss vient ; il tue le joueur
+  // le totem activé à 8:00 (le joueur y va et y reste), le boss vient : un boss normal (PV et dégâts vérifiés au
+  // chiffre près par Vitest) ; il tue le joueur
   await page.evaluate(() => {
     const G = (window as any).__game;
     G.debug.stageTime(481);
@@ -322,6 +478,49 @@ test('The guided run boss is too strong', async ({ page, hasTouch }) => {
   expect(w.tutorial).toBe(false);
   expect(w.softHp).toBeLessThan(1);
   await expect(page.locator('#banner')).not.toContainText('Nouveau');
+});
+
+test('Beating the guided run boss shows the portal', async ({ page, hasTouch }) => {
+  test.setTimeout(120_000); // le portail et l'arrivée au monde 2 sous SwiftShader
+  await guided(page, hasTouch);
+  await calm(page); // ni marchand ni vague : leurs bannières cacheraient celle du chrono à 0
+  await page.evaluate(() => {
+    const G = (window as any).__game;
+    G.debug.stageTime(481);
+    const T = G.world.totem;
+    G.debug.teleport(T.x, T.z);
+    T.charge = 2.9;
+  });
+  await page.waitForFunction(() => (window as any).__game.world.totem.state === 1);
+  // le boss tombe : ralenti, consigne et flèche vers le portail
+  await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    const b = w.enemies[w.bossIndex];
+    b.hp = 1;
+    b.x = b.px = w.player.x + 3;
+    b.z = b.pz = w.player.z;
+  });
+  await expect(page.locator('#tutoText')).toHaveText('Un portail est apparu : entre dedans pour découvrir la suite');
+  await page.waitForFunction(() => (window as any).__game.tutoScale < 1); // ralenti
+  await expect(page.locator('#tutoArrow')).toBeVisible();
+  await shot(page, 'portail-guidee', hasTouch);
+  // il entre dans le portail : la consigne du nouveau monde, la partie continue
+  await page.evaluate(() => {
+    const G = (window as any).__game;
+    G.debug.teleport(G.world.totem.x, G.world.totem.z);
+  });
+  await playUntil(page, hasTouch, () => page.evaluate(() => (window as any).__game.world.stage === 1));
+  await expect(page.locator('#tutoText')).toHaveText('Monde 2 : nouvelle carte, ta build te suit');
+  expect(await page.evaluate(() => (window as any).__game.world.tutorial)).toBe(true);
+  // sa fin ouvre la feuille de fin de guide, avec le texte de victoire
+  await page.evaluate(() => (window as any).__game.debug.kill());
+  await expect(page.locator('#tutoEnd')).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('#teText')).toContainText('Tu as battu le Gardien');
+  await expect(page.locator('#teBonus')).toHaveText('+150');
+  await shot(page, 'victoire-guidee', hasTouch);
+  const hints = await page.evaluate(() => (window as any).__game.meta.hints as number);
+  expect(hints & (1 << 4)).toBeTruthy(); // le portail…
+  expect(hints & (1 << 5)).toBeTruthy(); // …et le nouveau monde ne reviennent plus
 });
 
 test('The portal is explained the first time', async ({ page, hasTouch }) => {

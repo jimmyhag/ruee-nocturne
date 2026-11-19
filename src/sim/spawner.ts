@@ -19,6 +19,12 @@ export const soft = (w: World, k: number): number => (w.t < FIRST_RUNS.until ? k
 const tutorialHp = (w: World): number => (w.tutorial && w.stage === 0 ? TUTORIAL.hp : 1);
 const tutorialDmg = (w: World): number => (w.tutorial && w.stage === 0 ? TUTORIAL.dmg : 1);
 /**
+ * Dégâts d'un monstre qui apparaît maintenant (difficulté du monde, prolongation, premières parties adoucies, partie
+ * guidée). `boss` : le boss du totem et ses doubles, qui restent des boss normaux dans la partie guidée (décision 16).
+ */
+export const dmgMulNow = (w: World, boss = false): number =>
+  SPAWN.dmgScale(w.diffT) * w.overDmg * soft(w, w.softDmg) * (boss ? 1 : tutorialDmg(w));
+/**
  * Partie guidée (docs/specs/tutoriel.md, décisions 3 et 6) : apparitions × TUTORIAL.spawn pendant les cinq minutes des
  * gestes et des lieux, × TUTORIAL.wait quand le guide mène au totem du monde et jusqu'à son activation ; 1 sinon.
  */
@@ -77,7 +83,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.lastPatins = -9;
   e.face = 0;
   e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.diffT) * w.overSpd * R.spd;
-  e.dmgMul = SPAWN.dmgScale(w.diffT) * w.overDmg * soft(w, w.softDmg) * tutorialDmg(w); // partie guidée : monde 1 plus doux
+  e.dmgMul = dmgMulNow(w); // partie guidée : monde 1 plus doux
   e.bob = w.rng.range(0, TAU);
   e.state = 0;
   // plongées et premiers tirs désynchronisés (phase 16 : un tireur qui arrive ne tire pas tout de suite)
