@@ -3359,7 +3359,7 @@ function handleEvents(w: World, now: number): void {
         break;
       case Ev.Wave:
         // décision 18 : la vague qui suit la chute du chrono ne cache pas la bannière « Le chrono tombe à 0 »
-        if (!(w.portal.open && w.overT < 2)) hud.banner(t('banner.wave'), 'danger');
+        if (!(w.portal.open && w.overT < FEEL.clockDropBanner)) hud.banner(t('banner.wave'), 'danger');
         break;
       case Ev.Revive:
         hud.banner(t(e.v > 0 ? 'banner.revive2' : 'banner.revive1'));

@@ -26,6 +26,9 @@ export const FEEL = {
   // 1.37.1 : reprise après une pause (menu, niveau, coffre, marchand) : le temps repart à 35 % et revient à 100 % en
   // 0,5 s (temps réel injecté, le pas de sim reste fixe), le temps de reprendre ses repères
   resume: { ease: 0.5, from: 0.35 },
+  // 1.66.0 (décision 18) : la vague qui part quand le chrono tombe à 0 ne cache pas la bannière du chrono pendant ces
+  // premières secondes de prolongation (s de jeu)
+  clockDropBanner: 2,
   camera: {
     zoomOutAt15min: 0.08, // zoom-out progressif de 8 % de 0 à 15 min (le pouvoir se voit)
     bossPullback: 0.1, // recul de 10 % pendant un boss
