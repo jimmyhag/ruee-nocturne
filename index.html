@@ -666,6 +666,10 @@
       .soft {
         animation: soft 2.2s ease-in-out infinite;
       }
+      /* partie guidée (1.65.1) : l'aide du premier lancement ne se quitte que par « Jouer » (pas d'onglet) */
+      body.help-first #tabBar {
+        display: none;
+      }
       body.calm .breathe,
       body.calm .blink,
       body.calm .fly,

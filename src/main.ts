@@ -834,6 +834,17 @@ function syncLang(): void {
 }
 /** Élément qui a ouvert l'écran intérieur courant : le focus y revient à la fermeture. */
 let opener: HTMLElement | null = null;
+/**
+ * Partie guidée (1.65.1) : l'aide du tout premier lancement est obligatoire. Ni flèche retour, ni Échap, ni « Rejouer la
+ * partie guidée » : « Jouer » est la seule sortie, et il lance la partie guidée.
+ */
+let helpFirst = false;
+function setHelpFirst(on: boolean): void {
+  helpFirst = on;
+  $('helpBackBtn').hidden = on;
+  $('helpTutoBtn').hidden = on;
+  document.body.classList.toggle('help-first', on); // la barre d'onglets du bas est masquée (index.html)
+}
 function closeScreen(): void {
   app = backTo;
   showOnly(backTo);
@@ -852,7 +863,7 @@ addEventListener('keydown', (e) => {
     app === 'board' ||
     app === 'account' ||
     app === 'settings' ||
-    app === 'help'
+    (app === 'help' && !helpFirst) // l'aide du premier lancement ne se ferme que par « Jouer »
   ) {
     const el = e.target as HTMLElement | null;
     if (el && el.closest('#keygrid')) return; // une touche en cours de choix : Échap annule le choix (keys.ts)
@@ -1978,6 +1989,11 @@ $('charactersBackBtn').onclick = closeScreen;
 $('helpBtn').onclick = () => openScreen('help');
 $('helpBackBtn').onclick = closeScreen;
 $('helpPlayBtn').onclick = () => {
+  if (helpFirst) {
+    setHelpFirst(false);
+    meta.seenHelp = true; // le prochain lancement va droit au menu (« Jouer » y lance toujours la partie guidée)
+    saveMeta(meta);
+  }
   closeScreen();
   playNew(false);
 };
@@ -3679,11 +3695,18 @@ addEventListener('hashchange', () => {
   openChallenge(c);
 });
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
-// partie guidée (décision 1) : un nouveau joueur commence par elle, pas par l'aide
-if (!linked && !meta.seenHelp && !tutorialDue(meta) && (!debugEnabled() || location.search.includes('help=1'))) {
-  meta.seenHelp = true;
-  saveMeta(meta);
-  openScreen('help');
+// partie guidée (1.65.1, retour de Jimmy) : un nouveau joueur voit d'abord les touches, sans retour possible ;
+// seul « Jouer » ferme l'aide, et lance la partie guidée
+if (!linked && !meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
+  if (tutorialDue(meta)) {
+    setHelpFirst(true);
+    openScreen('help');
+    if (!input.isTouch) queueMicrotask(() => $('helpPlayBtn').focus({ preventScroll: true }));
+  } else {
+    meta.seenHelp = true;
+    saveMeta(meta);
+    openScreen('help');
+  }
 }
 // phase 49 : une partie gardée sur l'appareil ? Lecture synchrone d'abord (menu juste dès l'affichage), IndexedDB ensuite
 function takeRun(r: RunRead): void {

@@ -34,7 +34,7 @@ simulation (le guide ne touche jamais `w.rng` ni l'ordre des pas).
 
 | # | Question | Décision | Pourquoi |
 |---|---|---|---|
-| 1 | Qui la joue | Un **nouveau joueur** (aucune partie jouée, `runs = 0`, ni progression reçue du nuage) : « Jouer » lance la partie guidée, l'Éclaireuse au kit de départ. Elle remplace l'écran « Comment jouer » de la première ouverture et le dévoilement progressif. Les joueurs existants ne la voient jamais ; tout le monde peut la rejouer depuis l'Aide (« Rejouer la partie guidée ») | Jimmy : l'obligation de lancer une partie, et tout montrer dès le début |
+| 1 | Qui la joue | Un **nouveau joueur** (aucune partie jouée, `runs = 0`, ni progression reçue du nuage) : « Jouer » lance la partie guidée, l'Éclaireuse au kit de départ. Elle remplace le dévoilement progressif. À la toute première ouverture, l'écran « Comment jouer » montre les touches, sans retour possible : son « Jouer » est la seule sortie et lance la partie guidée (1.65.1, retour de Jimmy : « il me faut le menu qui me montre les touches et le bouton Jouer obligatoire »). Les joueurs existants ne la voient jamais ; tout le monde peut la rejouer depuis l'Aide (« Rejouer la partie guidée ») | Jimmy : l'obligation de lancer une partie, et tout montrer dès le début |
 | 2 | Forme | Une partie **normale du monde 1** (carte, horde, cartes de niveau, chrono de 10 min), avec un **guide** par-dessus : une consigne à la fois, une ligne de texte au plus, la commande dessinée selon l'appareil (bouton au doigt, touche au clavier), une flèche vers la cible quand il y en a une. Une étape se termine quand le joueur **a fait le geste** (surveillance de l'entrée ou de l'événement de la simulation), jamais sur un simple délai, sauf les étapes « à voir » (décision 5). **Ralenti** (×0,3) pour montrer un danger ou un geste précis ; **pause** seulement sur la feuille de niveau (décision 4) | Apprendre en faisant ; une consigne qu'on lit en deux secondes |
 | 3 | Les cinq premières minutes : le geste | Dans l'ordre, chacune attendant le geste : **se déplacer** ; **le tir automatique** (quelques monstres viennent, « ton héros tire tout seul sur le plus proche », 5 vaincus) ; **ramasser les cristaux** (jusqu'au niveau 2) ; **la carte de niveau** (décision 4) ; **sauter** (une onde au sol à franchir, au ralenti) ; **glisser** ; **le saut glissé** (sur une pente : glisse puis saute en pleine glisse, « tu gardes ta vitesse ») ; **le sort** de l'Éclaireuse. Pendant ces étapes la horde reste légère (`TUTORIAL.spawn`) | Les gestes d'abord : ils servent toute la partie |
 | 4 | Cartes et raretés | À la première montée de niveau, la feuille s'ouvre en pause avec trois lignes posées dessus : ce qu'est une **arme** et un **tome**, et ce que disent les **couleurs** (commune, rare bleue, épique or) ; la première feuille propose au moins une carte rare (tirage du guide, sans toucher `w.rng`). Le joueur choisit lui-même | Les raretés colorées (1.63.2) se lisent dès la première carte |
@@ -53,15 +53,21 @@ simulation (le guide ne touche jamais `w.rng` ni l'ordre des pas).
 Fonctionnalité: Première partie guidée
 
   Scénario: Un nouveau joueur commence par la partie guidée
-    Soit un joueur qui n'a jamais joué
-    Quand il touche « Jouer »
+    Soit un joueur qui ouvre le jeu pour la première fois
+    Alors l'écran « Comment jouer » montre les touches, sans flèche retour ni Échap
+    Quand il touche « Jouer » sur cet écran
     Alors la partie guidée commence au monde 1 avec l'Éclaireuse
-    Et l'écran « Comment jouer » ne s'ouvre pas
+    Et au lancement suivant, l'écran « Comment jouer » ne s'ouvre plus
 
   Scénario: Un nouveau joueur la lance aussi avec Entrée
     Soit un joueur qui n'a jamais joué, au clavier
-    Quand il presse Entrée au menu
+    Quand il presse Entrée sur l'écran « Comment jouer » du premier lancement
     Alors la partie guidée commence, comme avec « Jouer »
+
+  Scénario: Un nouveau joueur qui a vu les touches la lance avec Entrée au menu
+    Soit un joueur qui a vu les touches mais n'a pas fini la partie guidée, au clavier
+    Quand il presse Entrée au menu
+    Alors la partie guidée commence
 
   Scénario: Un joueur existant ne la voit jamais
     Soit un joueur qui a déjà joué (une partie finie, ou abandonnée après une minute de jeu)
