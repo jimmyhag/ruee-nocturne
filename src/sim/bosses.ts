@@ -443,7 +443,7 @@ export function tickArcher(w: World, e: Enemy, dt: number, dx: number, dz: numbe
         s.vx = vx * speed;
         s.vz = vz * speed;
         s.life = volley ? A.shotLife / CORRUPT.volley.speed : A.shotLife; // même portée
-        s.dmg = A.shotDmg * e.dmgMul;
+        s.dmg = A.shotDmg * e.dmgMul * (volley ? CORRUPT.volley.dmg : 1);
         s.hit = false;
       }
       if (volley) w.emit(Ev.Corrupt, e.x, e.y, e.z, e.type, 1, Skill.Volley);
@@ -507,7 +507,7 @@ function fireballAt(w: World, e: Enemy, x: number, z: number, skill: Skill): Sho
   s.ox = e.x;
   s.oz = e.z;
   s.life = s.t0 = S.cast;
-  s.dmg = S.dmg * e.dmgMul;
+  s.dmg = S.dmg * e.dmgMul * (skill === Skill.Rain ? CORRUPT.rain.dmg : 1);
   s.hit = false;
   w.emit(Ev.Telegraph, s.x, 0, s.z, S.r, S.cast);
   return s;

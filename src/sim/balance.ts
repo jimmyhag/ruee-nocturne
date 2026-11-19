@@ -847,18 +847,21 @@ export const CORRUPT = {
   rush: { first: 1.5, range: 9, telegraph: 0.6, dist: 7, speed: 15, recover: 0.6, period: 4, dmg: 10, invul: 0.5 },
   // Brute, Traînée ardente : une flaque de feu toutes les `every` s derrière elle (à moins de `near` u du joueur :
   // celles qu'on ne voit pas ne servent à rien), inerte `arm` s (le disque se remplit ; 0,6 s vues, plus le pas de la pose) puis brûle `dur` s ; `dps` × les
-  // dégâts du monstre ; `max` flaques au plus (le pool de tirs reste aux crachats, flèches et éruptions)
-  trail: { every: 0.8, arm: 0.65, dur: 3, r: 1.1, dps: 14, near: 22, max: 24 },
+  // dégâts du monstre ; `max` flaques au plus (le pool de tirs reste aux crachats, flèches et éruptions). Mesuré (bot qui
+  // reste, maxé, graine 42) : à 14 PV/s toutes les 0,8 s, la Traînée faisait 14 % des morts en prolongation ; 6 / 1 s
+  trail: { every: 1, arm: 0.65, dur: 3, r: 1.1, dps: 6, near: 22, max: 24 },
   // Volant, Bombardier : au lieu de plonger, il lâche une bombe sous le joueur (cercle rouge 1 s, la zone du Colosse)
   bomb: { period: 2.8, range: 10, r: 1.7, telegraph: 1, dmg: 12 },
   // Cracheur, Éventail : trois crachats en éventail (rad entre deux) après la même visée de 0,6 s
   fan: { n: 3, spread: 0.32 },
   // Archer, Volée perçante : la volée de l'élite (ARCHER.volley), flèches `speed` fois plus rapides (même portée) ; visée
-  // allongée à 0,6 s (0,5 s pour un Archer ordinaire) : une volée rapide s'annonce plus tôt
-  volley: { aim: 0.6, speed: 1.35 },
+  // allongée à 0,6 s (0,5 s pour un Archer ordinaire) : une volée rapide s'annonce plus tôt ; `dmg` × celle d'une flèche
+  // (trois flèches pleines à ×1,35 : 7 % des morts en prolongation à elles seules)
+  volley: { aim: 0.6, speed: 1.25, dmg: 0.6 },
   // Sorcier, Pluie de feu : trois boules de feu en triangle autour du joueur, à `dist` u de lui (son centre reste à
-  // l'abri : on lit les trois cercles avant de bouger)
-  rain: { n: 3, dist: 2.4 },
+  // l'abri : on lit les trois cercles avant de bouger) ; `dmg` × celle d'une boule de feu (pleines : 10 % des morts en
+  // prolongation, la première cause corrompue)
+  rain: { n: 3, dist: 2.4, dmg: 0.45 },
 };
 
 export const BOSS = {

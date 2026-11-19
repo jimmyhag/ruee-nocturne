@@ -269,7 +269,7 @@ describe('monstres corrompus : compétences (décision 4)', () => {
     {
       const w = quiet();
       const e = corrupted(w, ELITE_TYPE, 12);
-      for (let k = 0; k < 120; k++) step(w, still, STEP);
+      for (let k = 0; k < 60 * (2 * CORRUPT.trail.every + 0.5); k++) step(w, still, STEP);
       expect(shots(w, ShotKind.Flame).length).toBeGreaterThanOrEqual(2);
       expect(w.flames).toBe(shots(w, ShotKind.Flame).length);
       expect(e.corrupt).toBe(Corrupt.On);
