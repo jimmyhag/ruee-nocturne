@@ -21,10 +21,11 @@ async function newPlayer(page: Page): Promise<void> {
   await page.reload();
   await page.waitForFunction(() => (window as any).__game?.ready === true);
 }
-/** « Jouer », au doigt ou à la souris. */
+/** « Jouer », au doigt ou à la souris : celui de l'aide du premier lancement (1.65.1) s'il est ouvert, sinon du menu. */
 async function play(page: Page, hasTouch: boolean): Promise<void> {
-  if (hasTouch) await page.locator('#playBtn').tap();
-  else await page.locator('#playBtn').click();
+  const btn = (await page.locator('#help').isVisible()) ? '#helpPlayBtn' : '#playBtn';
+  if (hasTouch) await page.locator(btn).tap();
+  else await page.locator(btn).click();
   await page.waitForFunction(() => (window as any).__game.app === 'play');
 }
 /** La partie guidée en cours, héros increvable (les gestes se testent sans mourir sous SwiftShader). */
@@ -61,9 +62,16 @@ async function stick(page: Page, held: () => Promise<unknown>): Promise<void> {
 test('A new player starts with the guided run', async ({ page, hasTouch }) => {
   const errors = collectConsoleErrors(page);
   await newPlayer(page);
-  // l'écran « Comment jouer » ne s'ouvre plus au premier lancement d'un nouveau joueur
-  await expect(page.locator('#menu')).toBeVisible();
-  await expect(page.locator('#help')).toBeHidden();
+  // 1.65.1 (retour de Jimmy) : au premier lancement, l'aide montre les touches ; « Jouer » est la seule sortie
+  await expect(page.locator('#help')).toBeVisible();
+  await expect(page.locator('#helpPlayBtn')).toBeVisible();
+  await expect(page.locator('#helpBackBtn')).toBeHidden();
+  await expect(page.locator('#helpTutoBtn')).toBeHidden();
+  await expect(page.locator('#tabBar')).toBeHidden(); // pas d'onglet pour en sortir
+  if (!hasTouch) {
+    await page.keyboard.press('Escape'); // Échap ne la ferme pas
+    await expect(page.locator('#help')).toBeVisible();
+  }
   await play(page, hasTouch);
   const w = await page.evaluate(() => {
     const x = (window as any).__game.world;
@@ -75,13 +83,36 @@ test('A new player starts with the guided run', async ({ page, hasTouch }) => {
   await expect(page.locator('#tutoText')).toHaveText('Déplace-toi');
   await expect(page.locator('#tuto')).toHaveAttribute('role', 'status'); // lue par les lecteurs d'écran
   await expect(page.locator('#help')).toBeHidden();
+  // relancé en pleine partie guidée : l'aide obligatoire ne revient pas (la partie gardée attend au menu)
+  await page.reload();
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#help')).toBeHidden();
   expect(errors).toEqual([]);
 });
 
 test('A new player starts the guided run with Enter too', async ({ page, hasTouch }) => {
   test.skip(hasTouch, 'clavier'); // règle 4 : le doigt passe par « Jouer » (test précédent)
   await newPlayer(page);
+  // l'aide du premier lancement : « Jouer » a le focus, Entrée le presse
+  await expect(page.locator('#helpPlayBtn')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  expect(await page.evaluate(() => (window as any).__game.world.tutorial)).toBe(true);
+});
+
+test('A new player who has seen the controls starts the guided run with Enter at the menu', async ({
+  page,
+  hasTouch,
+}) => {
+  test.skip(hasTouch, 'clavier'); // règle 4 : le doigt passe par « Jouer » du menu (« An existing player… » et suivants)
+  await page.goto(TUTO_URL);
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await page.evaluate(() => (window as any).__game.setMeta({ version: 5, seenHelp: true }));
+  await page.reload();
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
   await expect(page.locator('#menu')).toBeVisible();
+  await expect(page.locator('#help')).toBeHidden();
   await page.locator('body').focus(); // aucun bouton du menu n'a le focus, comme au chargement
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => (window as any).__game.app === 'play');

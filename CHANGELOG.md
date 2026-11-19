@@ -2,6 +2,16 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.65.1 — 19 nov. 2026
+
+### Modifié
+
+- **Première ouverture du jeu** : l'écran « Comment jouer » montre d'abord les touches. On en sort seulement par « Jouer », qui lance la partie guidée.
+
+### Technique
+
+- Aide du premier lancement obligatoire pour un nouveau joueur (`tutorialDue`) : flèche retour, Échap et « Rejouer la partie guidée » masqués, focus clavier sur « Jouer » ; `seenHelp` passe à vrai quand on le presse. Spec `docs/specs/tutoriel.md` : décision 1 et scénarios mis à jour, un scénario ajouté (Entrée au menu après l'aide) ; e2e `tutoriel.spec.ts`, `touch.spec.ts`.
+
 ## 1.65.0 — 19 nov. 2026 (partie guidée)
 
 Ta toute première partie te guide pas à pas dans le monde 1 : tout le jeu s'apprend en jouant, jusqu'au boss du monde.
