@@ -1,7 +1,7 @@
 // Points d'intérêt (phase 18, PLAN §3.6) : coffres de carte (payés avec l'or de la partie, prix croissant) et sanctuaires
 // (rester dedans SHRINE.charge s pour choisir un bonus permanent). Placés avec la carte (graine de la carte), sur les
 // hauteurs et dans les lieux construits ; lus par le rendu (colonnes de lumière, prix) et par les bots.
-import { BASTION, BLOOD, BOON, BOON_KEYS, BOON_MAX, BOON_STAT, BOON_WEIGHT, BOON_WEIGHT_DEFAULT, BOSSTOTEM, CRIT, DIFFICULTY, ITEM, It, MAPCHEST, RACE, REVEAL, SHRINE, STAGE, TERRAIN, TOME_CAPS, WORLD_HALF } from './balance';
+import { BASTION, BLOOD, BOON, BOON_KEYS, BOON_MAX, BOON_STAT, BOON_WEIGHT, BOON_WEIGHT_DEFAULT, BOSSTOTEM, CRIT, DIFFICULTY, ITEM, It, MAPCHEST, RACE, REVEAL, SHRINE, STAGE, TERRAIN, TOME_CAPS, TUTORIAL, WORLD_HALF } from './balance';
 import { bellRing, bourseDiscount, canGainItem } from './items';
 import { Ev, Spell, Trait } from './types';
 import type { BoonKey, Card, Player } from './types';
@@ -227,6 +227,7 @@ function placeTotem(w: World, r: Rng, all: { x: number; z: number }[]): void {
 
 /** Prix du prochain coffre de carte : +MAPCHEST.growth par coffre acheté (la Bourse du colporteur le baisse aussi). */
 export function mapChestPrice(w: World): number {
+  if (w.tutorial && w.mapChestsOpened < TUTORIAL.freeChests) return 0; // partie guidée : l'or du premier est offert
   // 1.33.1 (demande de Jimmy) : le prix ne monte qu'à chaque coffre acheté, ni avec le temps ni avec les objets portés
   const base = MAPCHEST.price * Math.pow(1 + MAPCHEST.growth, w.mapChestsOpened);
   // phase 47 B : Clé rouillée

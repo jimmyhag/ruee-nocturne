@@ -48,6 +48,10 @@ describe('frontière progression / appareil', () => {
       'seenHelp',
       'seenNotes',
       'seenReveal',
+      // partie guidée : jouée sur cet appareil, parties adoucies qui la suivent, consignes de première apparition vues
+      'tutorial',
+      'softLeft',
+      'hints',
     ]);
     expect(PROGRESS_KEYS).toContain('reveal');
   });

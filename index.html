@@ -1032,6 +1032,117 @@
       #poiChip[hidden] {
         display: none;
       }
+      /* partie guidée (docs/specs/tutoriel.md) : bulle de consigne sous le chrono et la puce d'objectif, flèche */
+      #tuto {
+        position: fixed;
+        left: 50%;
+        top: calc(env(safe-area-inset-top, 0px) + 136px);
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: max-content;
+        max-width: min(92vw, 600px);
+        padding: 8px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--lantern);
+        background: rgba(10, 15, 36, 0.86);
+        box-shadow: 0 6px 18px rgba(6, 9, 24, 0.55);
+        font-family: var(--f-cond);
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        line-height: 1.25;
+        color: var(--moon);
+        pointer-events: none;
+      }
+      #tuto[hidden],
+      #tutoArrow[hidden] {
+        display: none;
+      }
+      #tutoCmd {
+        flex: none;
+        padding: 2px 9px;
+        border-radius: 6px;
+        background: var(--lantern);
+        color: var(--night);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      #tutoCmd:empty {
+        display: none;
+      }
+      #hud:has(#bossbar:not([hidden])) ~ #tuto {
+        top: calc(env(safe-area-inset-top, 0px) + 150px);
+      }
+      @media (max-width: 480px) {
+        #tuto {
+          top: calc(env(safe-area-inset-top, 0px) + 170px); /* sous la minicarte, qui occupe le haut à droite */
+          font-size: 14.5px;
+        }
+      }
+      #tutoArrow {
+        position: fixed;
+        left: -16px;
+        top: -16px;
+        width: 32px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        font-size: 30px;
+        color: var(--lantern);
+        text-shadow:
+          0 0 8px rgba(245, 185, 74, 0.8),
+          0 2px 4px rgba(6, 9, 24, 0.9);
+        pointer-events: none;
+      }
+      .tuto-hl {
+        box-shadow:
+          0 0 0 3px var(--lantern),
+          0 0 18px rgba(245, 185, 74, 0.8) !important;
+        animation: tutoPulse 1s ease-in-out infinite alternate;
+      }
+      @keyframes tutoPulse {
+        to {
+          box-shadow:
+            0 0 0 5px var(--lantern),
+            0 0 26px rgba(245, 185, 74, 0.9);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .tuto-hl {
+          animation: none;
+        }
+      }
+      .lututo {
+        margin: 4px 0 12px;
+        padding: 10px 14px 10px 30px;
+        border-radius: 12px;
+        border: 1px solid var(--lantern);
+        background: rgba(10, 15, 36, 0.7);
+        font-size: 14.5px;
+        line-height: 1.45;
+        color: var(--moon);
+      }
+      .lututo[hidden] {
+        display: none;
+      }
+      .lututo .rar {
+        display: inline-block;
+        margin-inline-start: 4px;
+      }
+      .skiptuto {
+        margin-top: 10px;
+        text-align: center;
+      }
+      .skiptuto[hidden] {
+        display: none;
+      }
+      #teTitle {
+        text-transform: uppercase;
+      }
       #poiChip.poor {
         color: var(--moon-70);
       }
@@ -5215,6 +5326,11 @@
     </div>
     <div id="dmg" aria-hidden="true"></div>
     <div id="banner"></div>
+    <!-- partie guidée (docs/specs/tutoriel.md) : la consigne (une ligne, la commande selon l'appareil), lue par les
+         lecteurs d'écran, et la flèche vers le lieu montré ; créées ici une fois, src/ui/tutorial.ts n'écrit que leurs
+         textes et la position de la flèche -->
+    <div id="tuto" role="status" aria-live="polite" hidden><b id="tutoCmd"></b><span id="tutoText"></span></div>
+    <div id="tutoArrow" aria-hidden="true" hidden>▲</div>
     <div id="update" hidden>
       <span data-i18n="update.new">Nouvelle version disponible</span
       ><button id="updateBtn" data-i18n="update.reload">Recharger</button>
@@ -5502,6 +5618,9 @@
           </div>
         </dl>
         <button class="btn-full" id="helpPlayBtn" style="margin-top: 22px" data-i18n="menu.play">Jouer</button>
+        <button class="btn-link" id="helpTutoBtn" style="margin-top: 14px" data-i18n="tuto.replay">
+          Rejouer la partie guidée
+        </button>
       </div>
     </section>
     <!-- 1.48.1 (retour de Jimmy : « le défi du jour, je ne sais pas ce que c'est ») : le bouton ouvre cette feuille -->
@@ -6045,6 +6164,17 @@
           <span class="lbl" id="luSlots"></span>
         </div>
         <p class="note" id="luHint" data-i18n="levelup.hint">Choisis une amélioration</p>
+        <!-- partie guidée (décision 4) : la première feuille explique armes, tomes et couleurs de rareté -->
+        <ul class="lututo" id="luTuto" hidden>
+          <li data-i18n="tuto.cards.weapon">Arme : elle attaque toute seule, sur les monstres proches.</li>
+          <li data-i18n="tuto.cards.tome">Tome : il renforce tout ton héros (dégâts, vitesse, vie…).</li>
+          <li>
+            <span data-i18n="tuto.cards.colors">La couleur dit la rareté, donc le nombre d'effets :</span>
+            <span class="rar" data-i18n="card.rarity.1">Commune</span>
+            <span class="rar rare" data-i18n="card.rarity.2">Rare</span>
+            <span class="rar epic" data-i18n="card.rarity.3">Épique</span>
+          </li>
+        </ul>
         <div class="cards" id="cards"></div>
         <!-- phase 31 : relance des cartes (R), une par partie au départ, plus celles de la boutique -->
         <div class="mrow"><button class="btn-act" id="luReroll">Relancer (1)</button></div>
@@ -6084,6 +6214,10 @@
           ><button class="btn-link" id="perfBtn">Perf : masquée</button
           ><button class="btn-link" id="pauseSettingsBtn" data-i18n="pause.settings">Réglages</button>
         </div>
+        <!-- partie guidée (décision 10) : la passer, en lien discret sous les boutons -->
+        <p class="skiptuto" id="skipTuto" hidden>
+          <button class="btn-link" id="skipTutoBtn" data-i18n="tuto.skip">Passer la partie guidée</button>
+        </p>
         <!-- phase 47 : fiche de stats du héros (les sanctuaires montent chacune d'elles) -->
         <div class="lbl group" data-i18n="stats.title">Stats</div>
         <div id="pauseStats" class="sheet"></div>
@@ -6171,6 +6305,18 @@
           <button class="btn-act" id="overShopBtn" data-i18n="over.shop">Emplacements</button
           ><button class="btn-link" id="menuBtn" data-i18n="over.menu">Menu</button>
         </div>
+      </div>
+    </section>
+    <!-- partie guidée (décision 7) : après la mort voulue contre le boss du totem, « À toi de jouer » (kit de #over) -->
+    <section id="tutoEnd" class="screen overlay" hidden>
+      <div class="panel">
+        <h2 class="h1 win" id="teTitle" data-i18n="tuto.end.title">À toi de jouer !</h2>
+        <p class="note" id="teText"></p>
+        <div class="stats two">
+          <div><b id="teGold">0</b><span data-i18n="tuto.end.gold">Or gagné</span></div>
+          <div><b id="teBonus">+0</b><span data-i18n="tuto.end.bonus">Prime de fin de guide</span></div>
+        </div>
+        <button class="btn-full" id="tePlayBtn" data-i18n="menu.play">Jouer</button>
       </div>
     </section>
     <div id="nogl" class="screen inner" hidden>

@@ -1,6 +1,6 @@
 # Première partie guidée — tout le jeu appris en jouant, au monde 1
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 19 novembre 2026, avec Jimmy, après la 1.64.0. Jimmy : « Pour le start du jeu,
 quand on est nouveau joueur, il faut qu'on fasse quelque chose de beaucoup plus assisté. […]

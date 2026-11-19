@@ -20,6 +20,7 @@ export interface SavedRun {
   beat?: { t: number; k: number }; // lot L4 : score à battre du défi d'un ami
   runStats: { dards: number; elites: number; bosses: number };
   summary: { stage: number; stageT: number; t: number; endless: boolean; kills: number };
+  guide?: unknown; // partie guidée : état du guide (src/meta/guide.ts, relu par readGuide) ; absent avant elle
 }
 /** Lecture : une partie à reprendre, une partie d'un format périmé (mise à jour du jeu), ou rien. */
 export type RunRead = { run: SavedRun } | { stale: true } | null;

@@ -32,6 +32,14 @@ export interface DebugHost {
   afterSimJump(): void;
   /** Phase 37 : un monde a été changé hors d'un pas de jeu (décor, ambiance, bannière). */
   afterStage(): void;
+  /** Partie guidée : le guide de la partie en cours (null hors partie). */
+  readonly guide: unknown;
+  /** Lance la partie guidée (comme « Jouer » pour un nouveau joueur). */
+  startTutorial(): void;
+  /** Saute à l'étape `n` du guide (index de STEPS, src/meta/guide.ts). */
+  guideStep(n: number): void;
+  /** Ralenti du guide en cours (1 : aucun). */
+  tutoScale(): number;
   audioVoices(): number;
   /** Phase 36 : état du son (planche décodée, musique en cours, gains des bus). */
   audioState(): { samples: boolean; music: string; sfx: number; musicGain: number; drops: number };
@@ -323,6 +331,15 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       return host.scene;
     },
     start: (variant?: number) => host.start(variant),
+    // partie guidée (docs/specs/tutoriel.md) : la lancer, lire son guide, sauter d'étape en étape
+    startTutorial: () => host.startTutorial(),
+    get guide() {
+      return host.guide;
+    },
+    guideStep: (n: number) => host.guideStep(n),
+    get tutoScale() {
+      return host.tutoScale();
+    },
     get mapSeed() {
       return host.mapSeed;
     },

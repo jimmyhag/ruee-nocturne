@@ -20,7 +20,7 @@ export function collectConsoleErrors(page: Page): string[] {
 /**
  * Ouvre le jeu (debug). Lot L2 : le profil est celui d'un joueur qui a déjà tout découvert (glisse, sanctuaires,
  * marchand, totem et crânes, sans bannière « Nouveau ! ») : les specs d'avant le lot supposent le jeu complet dès la
- * première partie. Un spec qui teste un nouveau joueur remplace la méta ensuite (`setMeta({ version: 5 })`,
+ * première partie (partie guidée : finie, consignes vues). Un spec qui teste un nouveau joueur remplace la méta ensuite (`setMeta({ version: 5 })`,
  * e2e/reveal.spec.ts, e2e/newplayer.spec.ts).
  */
 export async function openGame(page: Page): Promise<void> {
@@ -28,7 +28,8 @@ export async function openGame(page: Page): Promise<void> {
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await page.evaluate(() => {
     const g = (window as any).__game;
-    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4 });
+    // partie guidée : ce joueur l'a finie, et ses consignes de première apparition sont vues (63 : tous les bits)
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, tutorial: 1, hints: 63 });
   });
 }
 

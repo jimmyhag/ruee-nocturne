@@ -11,6 +11,7 @@ import {
   SLIDE,
   STAGE,
   STEP,
+  TUTORIAL,
 } from './sim/balance';
 import { startRun, step } from './sim/step';
 import { Ev, Mode, Pw, Spell, HIT_CRIT, HitSrc } from './sim/types';
@@ -81,8 +82,13 @@ import {
   masterOutfit,
   nextSlot,
   outfitOf,
+  tutorialOptions,
   worldOptions,
 } from './meta/shop';
+import { Step, guideCardsDone, guideForced, guideJump, newGuide, readGuide } from './meta/guide';
+import type { GuideState, Hint } from './meta/guide';
+import { softAfterRun, tutorialDue, tutorialEnd, tutorialSkip } from './meta/tutorial';
+import { TUTO_FEEL, TutorialView } from './ui/tutorial';
 import { buyUnlock, recordCodex, toggleItem } from './meta/library';
 import { addCharRun, runCharStats } from './meta/chars';
 import type { LibKind } from './meta/library';
@@ -280,7 +286,8 @@ type AppMode =
   | 'notes'
   | 'consent'
   | 'merchant'
-  | 'map';
+  | 'map'
+  | 'tutoEnd';
 const SCREENS = [
   'menu',
   'levelup',
@@ -301,11 +308,16 @@ const SCREENS = [
   'notes',
   'consent',
   'map',
+  'tutoEnd', // partie guidée : « À toi de jouer »
 ] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 // lot L1 : mesure anonyme de fréquentation, seulement sur accord (src/platform/retention.ts, sans SDK Firebase)
 const retention = new Retention(loadConfig);
 let dailyRun = false; // partie en cours = défi du jour
+// partie guidée (docs/specs/tutoriel.md) : partie en cours = la partie guidée ; guide de la partie (aussi pour les consignes
+// de première apparition des autres parties, décision 8), gardé avec elle (décision 10)
+let tutorialRun = false;
+let guide: GuideState | null = null;
 // phase 49 : partie gardée sur l'appareil (menu « Reprendre »), personnage et tenue de la partie en cours (le joueur peut
 // changer de personnage au menu pendant qu'elle attend)
 let savedRun: SavedRun | null = null;
@@ -321,7 +333,7 @@ let linkChallenge: Challenge | null = null; // défi reçu par lien, sur sa feui
 let runEdits = 0;
 let runSavedKey = '';
 /** Lancement en attente d'une confirmation d'abandon (« Jouer » ou défi du jour alors qu'une partie attend). */
-let abandonFor: { daily: boolean; challenge: Challenge | null } | null = null;
+let abandonFor: { daily: boolean; challenge: Challenge | null; tutorial: boolean } | null = null;
 // compteurs du run en cours (succès) ; remis à zéro à chaque startGame
 const runStats = { dards: 0, elites: 0, bosses: 0, won: false };
 let lastVibe = 0;
@@ -408,7 +420,8 @@ function gameShown(): boolean {
     app === 'merchant' ||
     app === 'map' ||
     app === 'victory' ||
-    app === 'over'
+    app === 'over' ||
+    app === 'tutoEnd'
   ); // les écrans intérieurs (réglages ou emplacements ouverts depuis la pause ou la fin) ont leur propre fond opaque
 }
 /** Écrans intérieurs de l'accueil : la barre d'onglets les accompagne quand ils sont ouverts depuis l'accueil. */
@@ -806,6 +819,8 @@ function applyLang(): void {
     renderVictory(); // défi v2
   else if (app === 'pause') renderPauseRule();
   else if (app === 'notes') renderNotesScreen();
+  else if (app === 'tutoEnd') renderTutoEnd();
+  tuto.refresh(); // partie guidée : la consigne dans la nouvelle langue
   if (world) hud.setBeat(beatText()); // lot L4
 }
 /** Après tout remplacement de la méta (import, effacement, IndexedDB, tests) : applique la langue si elle change. */
@@ -864,6 +879,7 @@ let startWanted: {
   daily: boolean;
   resume: SavedRun | null;
   challenge: Challenge | null;
+  tutorial: boolean;
 } | null = null;
 /** Attente des modèles des ennemis au premier départ de la session (une seule fois). */
 let modelsWaited = false;
@@ -872,8 +888,10 @@ function startGame(
   daily = false,
   resume: SavedRun | null = null,
   challenge: Challenge | null = null,
+  tutorial = false,
 ): void {
   if (challenge) daily = true; // lot L4 : le défi d'un ami se joue avec les règles du défi du jour
+  if (daily) tutorial = false;
   timestopOn = false; // phase 35
   bossTotemNote = -1; // phase 51 : le nombre de totems de boss se réannonce à chaque partie
   document.body.classList.remove('timestop');
@@ -883,7 +901,7 @@ function startGame(
   }
   if (!scene || !sceneReady) {
     // le joueur a été plus rapide que le module de rendu : on démarre dès qu'il est prêt
-    if (!startWanted) startWanted = { variant, daily, resume, challenge }; // la première intention (ex. défi du jour) l'emporte
+    if (!startWanted) startWanted = { variant, daily, resume, challenge, tutorial }; // la première intention (ex. défi du jour) l'emporte
     playLoading = true;
     setPlayState();
     loadScene(true).then(
@@ -892,7 +910,7 @@ function startGame(
         startWanted = null;
         playLoading = false;
         setPlayState();
-        if (w) startGame(w.variant, w.daily, w.resume, w.challenge);
+        if (w) startGame(w.variant, w.daily, w.resume, w.challenge, w.tutorial);
       },
       () => {
         // module introuvable (réseau coupé au tout premier lancement) : on laisse réessayer
@@ -914,7 +932,7 @@ function startGame(
     Promise.race([scene.enemiesReady, new Promise<void>((r) => setTimeout(r, 8000))]).then(() => {
       playLoading = false;
       setPlayState();
-      startGame(variant, daily, resume, challenge);
+      startGame(variant, daily, resume, challenge, tutorial);
     });
     return;
   }
@@ -938,11 +956,12 @@ function startGame(
     runDay = resume.day ?? todayKey();
     runRanked = resume.ranked !== false; // sauvegarde d'avant le lot L4 : un défi du jour qui compte
     runBeat = readBeat(resume.beat);
+    tutorial = restored.tutorial;
   } else {
     countAbandon(); // lot L2 : la partie remplacée compte pour le dévoilement après une minute de jeu
     forgetRun(); // une nouvelle partie remplace celle qui attendait (abandon confirmé au menu)
-    runChar = daily ? 'eclaireuse' : meta.character;
-    runOutfit = daily ? 0 : outfitOf(meta, meta.character);
+    runChar = daily || tutorial ? 'eclaireuse' : meta.character; // partie guidée : l'Éclaireuse (décision 1)
+    runOutfit = daily || tutorial ? 0 : outfitOf(meta, meta.character);
     runDay = challenge ? challenge.date : todayKey();
     runRanked = !challenge || challenge.date === todayKey(); // décision 4 : seul le défi d'aujourd'hui compte
     runBeat = challenge ? { t: challenge.t, k: challenge.k } : null;
@@ -952,6 +971,7 @@ function startGame(
   audio.init();
   audio.setMusic('game'); // phase 36 : musique de partie et ambiance de nuit
   dailyRun = daily;
+  tutorialRun = tutorial;
   runStats.dards = resume?.runStats.dards ?? 0;
   runStats.elites = resume?.runStats.elites ?? 0;
   runStats.bosses = resume?.runStats.bosses ?? 0;
@@ -962,10 +982,13 @@ function startGame(
   else {
     // la méta entre dans la sim par des options (personnage, boutique, armes débloquées) ; défi du jour : égalité
     // défi v2 : la règle du jour de la partie (un défi d'ami joue celle de son jour)
-    world = new World(
-      mapSeedFor(variant, daily, runDay),
-      worldOptions(meta, unlockedWeapons(meta), daily, daily ? runDay : ''),
-    );
+    // partie guidée : sa carte (TUTORIAL.map, choisie pour que chaque lieu montré soit près du départ)
+    world = tutorial
+      ? new World(TUTORIAL.map, tutorialOptions())
+      : new World(
+          mapSeedFor(variant, daily, runDay),
+          worldOptions(meta, unlockedWeapons(meta), daily, daily ? runDay : ''),
+        );
   }
   if (world.seed !== decorSeed) {
     S.buildDecor(world); // phase 27 : nouvelle carte, nouveau décor (relief, lieux, coffres)
@@ -989,8 +1012,12 @@ function startGame(
   hud.reset();
   hud.kit(world);
   hud.setBeat(beatText()); // lot L4 : score à battre du défi d'un ami
+  // partie guidée : le guide de la partie (repris avec elle), sinon les seules consignes de première apparition
+  guide = (resume ? readGuide(resume.guide) : null) ?? newGuide(world, tutorial, meta.hints);
+  tuto.start(guide, world);
+  $('skipTuto').hidden = !tutorial;
   // lot L2 : une étape dévoilée s'annonce au début de la partie qui l'apporte (pas à la reprise, pas au défi du jour)
-  const news = restored ? null : revealNews(meta, daily);
+  const news = restored || tutorial ? null : revealNews(meta, daily);
   mapView.setNew(news === null || news === 'slide' ? null : news, t('reveal.tag'));
   if (news) {
     saveMeta(meta);
@@ -1060,6 +1087,7 @@ function saveRun(): void {
       beat: runBeat ?? undefined,
       runStats: { dards: runStats.dards, elites: runStats.elites, bosses: runStats.bosses },
       summary: { stage: w.stage + 1, stageT: w.stageT, t: w.t, endless: w.endless, kills: w.kills },
+      guide: guide ?? undefined, // partie guidée : l'étape du guide reprend avec la partie (décision 10)
     };
     writeRun(savedRun);
   } catch {
@@ -1069,9 +1097,13 @@ function saveRun(): void {
 /** Lot L2 : la partie gardée, abandonnée pour une nouvelle, compte comme finie après REVEAL.abandonAfter s de jeu. */
 function countAbandon(): void {
   if (!savedRun) return;
-  const before = meta.reveal;
-  revealAfterRun(meta, { daily: savedRun.daily, t: savedRun.summary.t, abandoned: true });
-  if (meta.reveal !== before) saveMeta(meta);
+  const before = meta.reveal,
+    softBefore = meta.softLeft;
+  const run = { daily: savedRun.daily, t: savedRun.summary.t, abandoned: true };
+  if (savedRun.snap.fields.tutorial === true) return; // la partie guidée abandonnée ne compte pas
+  revealAfterRun(meta, run);
+  softAfterRun(meta, run); // partie guidée : une des parties adoucies qui la suivent
+  if (meta.reveal !== before || meta.softLeft !== softBefore) saveMeta(meta);
 }
 function forgetRun(): void {
   savedRun = null;
@@ -1110,14 +1142,22 @@ function updateResumeBtn(): void {
   $('abandonRow').hidden = abandonFor === null;
 }
 /** « Jouer » ou défi du jour : si une partie attend, on demande d'abord s'il faut l'abandonner. */
-function playNew(daily: boolean, challenge: Challenge | null = null): void {
+function playNew(daily: boolean, challenge: Challenge | null = null, tutorial = wantsTutorial(daily, challenge)): void {
   if (savedRun) {
-    abandonFor = { daily, challenge };
+    abandonFor = { daily, challenge, tutorial };
     updateResumeBtn();
     $('abandonNoBtn').focus({ preventScroll: true });
     return;
   }
-  startGame(undefined, daily, null, challenge);
+  startGame(undefined, daily, null, challenge, tutorial);
+}
+/**
+ * Partie guidée (décision 1) : « Jouer » la lance pour un nouveau joueur. Pas dans les tests sauf demande (`?tuto=1`),
+ * comme l'aide du premier lancement : les specs lancent leurs parties sur un profil vierge.
+ */
+function wantsTutorial(daily: boolean, challenge: Challenge | null): boolean {
+  if (daily || challenge || !tutorialDue(meta)) return false;
+  return !debugEnabled() || location.search.includes('tuto=1');
 }
 /** Lot L4 : score à battre lu dans une partie gardée (jamais cru tel quel). */
 function readBeat(raw: unknown): { t: number; k: number } | null {
@@ -1158,6 +1198,8 @@ function onStageStart(n: number): void {
 function toMenu(): void {
   app = 'menu';
   world = null;
+  guide = null;
+  tuto.stop();
   scene?.marks.clear(); // phase 35 : les icônes des bonus ne restent pas sur le menu
   showOnly('menu');
   audio.setMusic('menu'); // phase 36
@@ -1176,6 +1218,7 @@ function pauseGame(): void {
   app = 'pause';
   if (world) $('pauseStats').innerHTML = statsHTML(world); // phase 47 : fiche de stats, à jour à chaque pause
   renderPauseRule();
+  $('skipTuto').hidden = !tutorialRun;
   showOnly('pause');
   saveRun(); // phase 49
 }
@@ -1221,6 +1264,8 @@ function openLevelUp(): void {
     pMax: world.maxTomes,
   });
   renderCards($('cards'), world.cards, world);
+  // partie guidée (décision 4) : la première feuille de niveau, en pause, explique armes, tomes et raretés
+  $('luTuto').hidden = !(guide?.tutorial && !guide.cards && !chest && !shrine);
   // phase 31 : relance des cartes (pas pour un coffre ni un sanctuaire)
   const rr = $('luReroll') as HTMLButtonElement;
   rr.hidden = chest || shrine;
@@ -1319,10 +1364,12 @@ function choose(i: number): void {
   const apply = () => {
     choosing = false;
     if (!world || app !== 'levelup') return;
+    if (guide && !$('luTuto').hidden) guideCardsDone(guide); // la feuille expliquée a été choisie
     inp.pick = i;
     step(world, inp, STEP); // applique la carte ; peut re-rouler si plusieurs niveaux en attente
     inp.pick = -1;
     handleEvents(world, performance.now() / 1000); // objet de coffre, synergie : bannière, son, particules
+    tuto.step(world, 0);
     hud.kit(world);
     if (world.mode === Mode.LevelUp) openLevelUp();
     else {
@@ -1432,6 +1479,10 @@ function gameOver(won = false): void {
   timestopOn = false; // phase 35
   document.body.classList.remove('timestop');
   if (!world || !scene) return;
+  if (tutorialRun) {
+    tutorialOver();
+    return;
+  }
   const S = scene;
   app = 'over';
   forgetRun(); // phase 49 : une partie finie n'est plus à reprendre
@@ -1442,6 +1493,7 @@ function gameOver(won = false): void {
   const rec = heldT > meta.bestTime;
   meta.runs++;
   revealAfterRun(meta, { daily: dailyRun, t: world.t, abandoned: false }); // lot L2 : une étape de plus (pas au défi du jour)
+  softAfterRun(meta, { daily: dailyRun, t: world.t, abandoned: false }); // partie guidée : parties adoucies qui la suivent
   meta.totalKills += world.kills;
   if (rec) meta.bestTime = heldT;
   if (world.kills > meta.bestKills) meta.bestKills = world.kills;
@@ -1556,6 +1608,88 @@ function gameOver(won = false): void {
   }, 700);
 }
 
+// ---------- partie guidée (docs/specs/tutoriel.md) : fin, « À toi de jouer », la passer ----------
+/** Ce que la feuille « À toi de jouer » affiche (re-rendue au changement de langue). */
+let tutoOver = { gold: 0, bonus: 0, boss: true };
+/** Ralenti de la mort voulue (décision 7) avant la feuille : le rendu continue à 0,2× derrière (frame). */
+const TUTO_END_MS = 1600;
+/**
+ * Décision 7 : la mort de la partie guidée (contre le boss du totem, ou avant lui) ouvre sa feuille, pas l'écran de fin.
+ * L'or de la partie est gardé, avec la prime de fin de guide ; ni série, ni record, ni succès, ni classement.
+ */
+function tutorialOver(): void {
+  if (!world || !scene) return;
+  app = 'tutoEnd';
+  forgetRun();
+  const gold = Math.round(world.gold);
+  tutoOver = { gold, bonus: tutorialEnd(meta, gold), boss: world.totem.state === 1 && world.stage === 0 };
+  meta.seenHelp = true; // l'aide du premier lancement n'a plus rien à apprendre
+  saveMeta(meta);
+  renderTutoEnd();
+  scene.particles.burst(world.player.x, 1, world.player.z, PAL.accent, 30, 8, 8);
+  if (!reducedFx()) scene.shake = 0.5;
+  audio.death();
+  setTimeout(
+    () => {
+      if (app !== 'tutoEnd') return;
+      showOnly('tutoEnd');
+      if (!input.isTouch) $('tePlayBtn').focus({ preventScroll: true });
+    },
+    reducedFx() ? 700 : TUTO_END_MS,
+  );
+}
+function renderTutoEnd(): void {
+  $('teText').textContent = t(tutoOver.boss ? 'tuto.end.boss' : 'tuto.end.horde');
+  $('teGold').textContent = String(tutoOver.gold);
+  $('teBonus').textContent = '+' + tutoOver.bonus;
+}
+$('tePlayBtn').onclick = () => {
+  if (app !== 'tutoEnd') return;
+  startGame();
+};
+/** Décision 10 : « Passer la partie guidée » (pause) : la partie s'arrête sans compter, tout est dévoilé, retour au menu. */
+function skipTutorial(): void {
+  if (!tutorialRun || app !== 'pause') return;
+  tutorialSkip(meta);
+  meta.seenHelp = true;
+  saveMeta(meta);
+  forgetRun();
+  toMenu();
+}
+$('skipTutoBtn').onclick = skipTutorial;
+/** Aide : « Rejouer la partie guidée » (décision 1), pour tout le monde. */
+$('helpTutoBtn').onclick = () => {
+  closeScreen();
+  playNew(false, null, true);
+};
+/** Une consigne de première apparition a été montrée : une fois par joueur (décision 8). */
+function hintShown(h: Hint): void {
+  const bit = 1 << h;
+  if (meta.hints & bit) return;
+  meta.hints |= bit;
+  saveMeta(meta);
+}
+const tuto = new TutorialView({
+  isTouch: () => input.isTouch,
+  binds: () => meta.settings.keys,
+  project(x, y, z, out) {
+    if (!scene) return false;
+    scene.project(x, y, z, out);
+    return true;
+  },
+  hintShown,
+  forced() {
+    hud.banner(t('tuto.force'), 'danger', '', TUTO_FEEL.forceMs);
+    audio.bossWarn();
+  },
+  wave(w) {
+    // étape du saut : une onde au sol qui vient vers le joueur, comme celle du Gardien (rendu seulement)
+    if (!scene) return;
+    const P = w.player;
+    scene.particles.ring(P.x + P.dirX * 5, 0.25, P.z + P.dirZ * 5, PAL.telegraph, 26, 5.5, 0.6);
+  },
+});
+
 // ---------- phase 39 : victoire, puis monde infini au choix ----------
 /** Le boss du monde 3 est tombé à temps : « Victoire ! », continuer en monde infini ou terminer (stats comptées à la fin). */
 function openVictory(): void {
@@ -1626,10 +1760,11 @@ $('resumeRunBtn').onclick = () => {
 $('abandonYesBtn').onclick = () => {
   const d = abandonFor?.daily ?? false;
   const c = abandonFor?.challenge ?? null;
+  const tu = abandonFor?.tutorial ?? false;
   countAbandon();
   forgetRun();
   updateResumeBtn();
-  startGame(undefined, d, null, c);
+  startGame(undefined, d, null, c, tu);
 };
 $('abandonNoBtn').onclick = () => {
   abandonFor = null;
@@ -2049,7 +2184,7 @@ $('resetBtn').onclick = () => {
   $('settingsMsg').textContent = t('settings.resetDone');
 };
 $('againBtn').onclick = () => startGame();
-$('restartBtn').onclick = () => startGame();
+$('restartBtn').onclick = () => startGame(undefined, false, null, null, tutorialRun); // la partie guidée recommence guidée
 $('menuBtn').onclick = toMenu; // écran de fin : la partie est terminée
 $('quitBtn').onclick = () => {
   saveRun(); // phase 49 : « Menu » de la pause garde la partie (« Reprendre »)
@@ -3334,6 +3469,7 @@ function frame(nowMs: number): void {
       dtIn *= R.from + (1 - R.from) * (1 - resumeEase / R.ease);
       resumeEase = Math.max(0, resumeEase - realDt);
     }
+    dtIn *= tuto.timeScale(reducedFx()); // partie guidée : ralenti (le pas fixe ne change pas)
     const fed = hitStop.advance(dtIn);
     acc += fed;
     stopReal += dtIn;
@@ -3341,8 +3477,10 @@ function frame(nowMs: number): void {
     let n = 0;
     while (acc >= STEP && n < 4) {
       input.poll(inp);
+      const t0 = world.t;
       step(world, inp, STEP);
       handleEvents(world, now);
+      tuto.step(world, world.t - t0); // partie guidée : étape franchie, consigne de première apparition
       acc -= STEP;
       n++;
       if (world.mode !== Mode.Play) break;
@@ -3356,6 +3494,8 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.LevelUp) openLevelUp();
     else if (world.mode === Mode.Merchant) openMerchant();
     hurtT -= realDt;
+    // partie guidée : la puce « Active le totem » attend que le guide montre le totem (ou le rende obligatoire)
+    hud.goalHold = guide !== null && guide.tutorial && guide.step < Step.Totem && !guideForced(guide, world);
     hud.update(world, hurtT, now, realDt);
     // phase 37 : le noir monte pendant la seconde passée dans le portail ; quand la carte se reconstruit (StageStart),
     // l'écran est déjà noir et le gel de la reconstruction ne se voit pas
@@ -3373,6 +3513,7 @@ function frame(nowMs: number): void {
       document.body.classList.toggle('timestop', frozenNow);
     }
     mapView.update(world, realDt); // phase 27 : minicarte (4 fois par seconde)
+    tuto.frame(world, realDt, true, innerWidth, innerHeight);
     // phase 51 : le nombre de totems de boss du monde s'annonce une fois, après la bannière d'arrivée. L'annonce attend
     // qu'aucune autre bannière ne soit affichée (elle écrasait celle d'un bonus ramassé tôt) et se tait passé
     // BOSS_TOTEM_NOTE_LATE s : une partie reprise plus loin dans le monde ne la répète pas
@@ -3390,7 +3531,8 @@ function frame(nowMs: number): void {
       slideBtnOn = slideOn;
       $('btnSlide').classList.toggle('on', slideOn);
     }
-  } else if (app === 'levelup') {
+  } else if (world && tuto.g) tuto.frame(world, realDt, false, innerWidth, innerHeight); // bulle masquée hors du jeu
+  if (app === 'levelup') {
     // clavier / manette : touches 1-3 (parité avec le tap sur la carte)
     const pick = input.takePick();
     if (pick >= 0) choose(pick);
@@ -3402,7 +3544,13 @@ function frame(nowMs: number): void {
   // phase 36 : musique plus basse et étouffée hors du jeu actif (écrite au changement)
   // pause, choix de carte, marchand, carte, fin : pas les écrans du menu (on y règle le curseur Musique à vrai niveau)
   const duckNow =
-    app === 'pause' || app === 'levelup' || app === 'merchant' || app === 'map' || app === 'over' || app === 'victory';
+    app === 'pause' ||
+    app === 'levelup' ||
+    app === 'merchant' ||
+    app === 'map' ||
+    app === 'over' ||
+    app === 'victory' ||
+    app === 'tutoEnd';
   if (duckNow !== duckOn) {
     duckOn = duckNow;
     audio.duck(duckNow);
@@ -3530,7 +3678,8 @@ addEventListener('hashchange', () => {
   openChallenge(c);
 });
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
-if (!linked && !meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
+// partie guidée (décision 1) : un nouveau joueur commence par elle, pas par l'aide
+if (!linked && !meta.seenHelp && !tutorialDue(meta) && (!debugEnabled() || location.search.includes('help=1'))) {
   meta.seenHelp = true;
   saveMeta(meta);
   openScreen('help');
@@ -3603,6 +3752,18 @@ const debugRt = installDebugHooks({
     hud.kit(world);
     if (world.mode === Mode.LevelUp) openLevelUp();
   },
+  get guide() {
+    return guide;
+  },
+  startTutorial() {
+    startGame(undefined, false, null, null, true);
+  },
+  guideStep(n) {
+    if (!world || !guide) return;
+    guideJump(guide, world, n as Step);
+    tuto.refresh();
+  },
+  tutoScale: () => tuto.timeScale(reducedFx()),
   audioVoices: () => audio.voiceCount,
   audioState: () => audio.state,
   getMeta: () => meta,

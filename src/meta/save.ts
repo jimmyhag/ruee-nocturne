@@ -6,6 +6,7 @@ import type { KeyBinds } from '../platform/keymap';
 import { get, set } from 'idb-keyval';
 import {
   CHARACTERS,
+  FIRST_RUNS,
   ITEM_KEYS,
   ITEM_RARITY,
   MAX_PASSIVES,
@@ -18,6 +19,7 @@ import {
 import { ACHIEVEMENTS, ACHIEVEMENT_IDS, UNLOCKABLE } from './achievements';
 import { normalizeChars } from './chars';
 import { readReveal } from './reveal';
+import { ALL_HINTS } from './guide';
 import { normalizeStreak } from './daily';
 import type { Streak } from './daily';
 import { normalizeMissions } from './missions';
@@ -91,6 +93,12 @@ export interface Meta {
   pseudo: string; // phase 38 : nom affiché dans le classement en ligne ('' = aucun, rien n'est publié) ; synchronisé
   reveal: number; // lot L2 : étapes dévoilées (0 à REVEAL.max, src/meta/reveal.ts) ; synchronisé (le plus grand gagne)
   seenReveal: number; // lot L2 : dernière étape annoncée par « Nouveau ! » (propre à l'appareil)
+  // partie guidée (docs/specs/tutoriel.md), propres à l'appareil : 0 à jouer (nouveau joueur), 1 finie, 2 passée ;
+  // parties adoucies qui restent après elle (FIRST_RUNS.afterTutorial) ; consignes de première apparition déjà montrées
+  // (bits de HINTS, src/meta/guide.ts)
+  tutorial: number;
+  softLeft: number;
+  hints: number;
   seenReset: boolean; // bannière « nouvelle progression » déjà vue (false seulement après migration d'une sauvegarde < 3)
   seenHelp: boolean; // aide « Comment jouer » déjà vue au premier lancement (phase 14 ; propre à l'appareil)
   seenNotes: string; // dernière version dont les Nouveautés ont été ouvertes (1.49.0 ; propre à l'appareil), '' = jamais
@@ -146,6 +154,9 @@ export const DEFAULT_META: Meta = {
   pseudo: '',
   reveal: 0,
   seenReveal: 0,
+  tutorial: 0,
+  softLeft: 0,
+  hints: 0,
   seenReset: true,
   seenHelp: false,
   seenNotes: '',
@@ -188,6 +199,10 @@ export function resetProgress(m: Meta): Meta {
     // lot L2 : repartir de zéro ne retire aucun système déjà découvert (ni ne le réannonce)
     reveal: m.reveal,
     seenReveal: m.seenReveal,
+    // partie guidée : repartir de zéro ne la refait pas jouer, ni ne réaffiche les consignes
+    tutorial: m.tutorial,
+    softLeft: m.softLeft,
+    hints: m.hints,
   });
 }
 
@@ -231,6 +246,8 @@ export function normalizeMeta(raw: unknown): Meta {
           // lot L2 : la progression repart de zéro, mais un joueur qui avait joué ne perd aucun système
           reveal: num(r0.runs) > 0 ? REVEAL.max : 0,
           seenReveal: num(r0.runs) > 0 ? REVEAL.max : 0,
+          tutorial: r0.tutorial,
+          hints: r0.hints,
         }
       : r0;
   const st = (r.stats && typeof r.stats === 'object' ? r.stats : {}) as Record<string, unknown>;
@@ -253,7 +270,8 @@ export function normalizeMeta(raw: unknown): Meta {
   const bestTime = Math.max(0, num(r.bestTime));
   const runs = Math.max(0, num(r.runs));
   // lot L2 : une sauvegarde sans dévoilement (d'avant le lot) qui a fini au moins une partie reçoit tout
-  const reveal = readReveal(r.reveal, runs > 0 || num(st.runs) > 0);
+  const played = runs > 0 || num(st.runs) > 0;
+  const reveal = readReveal(r.reveal, played);
   const achievements = Array.isArray(r.achievements)
     ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
     : [];
@@ -312,6 +330,10 @@ export function normalizeMeta(raw: unknown): Meta {
     reveal,
     // sans champ (sauvegarde d'avant le lot) : les étapes déjà là ne s'annoncent pas
     seenReveal: typeof r.seenReveal === 'number' ? readReveal(r.seenReveal, false) : reveal,
+    // partie guidée : une sauvegarde d'avant (sans le champ) qui a déjà joué ne la voit jamais, ni ses consignes
+    tutorial: typeof r.tutorial === 'number' ? Math.max(0, Math.min(2, Math.floor(r.tutorial) || 0)) : played ? 1 : 0,
+    softLeft: Math.max(0, Math.min(FIRST_RUNS.afterTutorial, Math.floor(num(r.softLeft)))),
+    hints: typeof r.hints === 'number' && Number.isFinite(r.hints) ? r.hints & ALL_HINTS : played ? ALL_HINTS : 0,
     settings: normalizeSettings(se),
     slots: {
       weapons: Math.max(SLOTS_START.weapons, Math.min(MAX_WEAPONS, num(sl.weapons, SLOTS_START.weapons) | 0)),

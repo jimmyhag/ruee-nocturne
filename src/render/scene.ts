@@ -2675,6 +2675,18 @@ export class GameScene {
     this.frustumReady = false; // la caméra saute : le champ de la frame précédente ne vaut plus rien
   }
 
+  private readonly scr = new THREE.Vector3();
+  /**
+   * Partie guidée (src/ui/tutorial.ts) : un point du monde projeté par la caméra de la dernière image, en coordonnées
+   * normalisées dans `out` (x, y ∈ [-1, 1] à l'écran ; z > 1 derrière la caméra). Sans allocation.
+   */
+  project(x: number, y: number, z: number, out: { x: number; y: number; z: number }): void {
+    this.scr.set(x, y, z).project(this.camera);
+    out.x = this.scr.x;
+    out.y = this.scr.y;
+    out.z = this.scr.z;
+  }
+
   info(): { calls: number; triangles: number; width: number; height: number; level: number } {
     const c = this.renderer.domElement;
     return {

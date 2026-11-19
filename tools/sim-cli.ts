@@ -1,5 +1,5 @@
 // CLI d'équilibrage : fait jouer un bot N fois, imprime des percentiles, compare aux cibles.
-//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--reveal 0..4] [--no-targets]
+//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--reveal 0..4] [--tutorial] [--no-targets]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -22,6 +22,7 @@ import {
   SYNERGIES,
   TOME_HELD,
   TOME_POOL,
+  TUTORIAL,
 } from '../src/sim/balance';
 import { startRun, step } from '../src/sim/step';
 import { HurtSrc, Ev, Mode } from '../src/sim/types';
@@ -31,7 +32,9 @@ import { World } from '../src/sim/world';
 import { ACHIEVEMENTS } from '../src/meta/achievements';
 import { runCharStats } from '../src/meta/chars';
 import { DEFAULT_META } from '../src/meta/save';
-import { worldOptions } from '../src/meta/shop';
+import { tutorialOptions, worldOptions } from '../src/meta/shop';
+import { Step, guideCardsDone, guideForced, guideTarget, newGuide, updateGuide } from '../src/meta/guide';
+import type { GuideState } from '../src/meta/guide';
 import { BOT_TUNE, enforceAllowed, makeBot, pickAllowed } from './bots';
 import { startEndless } from '../src/sim/stages';
 import { ENDLESS_TARGETS, PROFILES, REF_PRICE, checkTargets } from './targets';
@@ -51,9 +54,19 @@ const SEED = +(args.get('seed') ?? 42);
 // lot L3 : --daily (ou --profile daily), le défi du jour court tel que le jeu le lance (worldOptions du défi : Éclaireuse,
 // kit de départ, tout dévoilé, monde 1 seul jusqu'à DAILY.duration) ; cibles du profil « daily »
 const DAILY_ON = args.has('daily') || args.get('profile') === 'daily';
+// partie guidée (docs/specs/tutoriel.md, décision 11) : --tutorial (ou --profile tutorial), la partie guidée telle que le
+// jeu la lance (carte TUTORIAL.map, Éclaireuse au kit de départ, réglages TUTORIAL) ; le bot fait les gestes et va aux
+// lieux que le guide demande (src/meta/guide.ts), puis au totem du monde à TUTORIAL.forceAt
+const TUTO_ON = args.has('tutorial') || args.get('profile') === 'tutorial';
+if (TUTO_ON && DAILY_ON) {
+  console.error('--tutorial et --daily ne vont pas ensemble');
+  process.exit(2);
+}
+if (TUTO_ON) BOT_TUNE.totemAt = TUTORIAL.forceAt;
 // défi v2 : le bot continue toujours en monde infini après 5:00 ; la partie s'arrête quand la médaille est jouée (mort,
 // ou DAILY.goldAt passé sans boss final en vie), au plus à --until
-const UNTIL = +(args.get('until') ?? 2400); // phase 37 : trois mondes de 10 min, plus la prolongation
+// partie guidée : 15 min au plus (le chrono s'arrête à 0:30 tant que le totem attend ; au-delà, le bot n'y est pas arrivé)
+const UNTIL = +(args.get('until') ?? (TUTO_ON ? 900 : 2400)); // phase 37 : trois mondes de 10 min, plus la prolongation
 // défi v2 : --rule swift|elites|swarm|glass|giants|armory impose la règle du jour ; sans elle, les six à tour de rôle
 const RULE_ARG = args.get('rule');
 const RULE = RULE_ARG === undefined ? -1 : (DAILY_RULE_KEYS as readonly string[]).indexOf(RULE_ARG);
@@ -67,14 +80,14 @@ const OUT = args.get('out');
 const ENDLESS_ON = args.has('endless'); // phase 39 : continuer en monde infini après la victoire
 // --weapons orbe,foudre : arme de départ = la première, le bot ne prend jamais une arme hors liste
 // --character eclaireuse|bucheron|sorciere : personnage de départ (défaut : Éclaireuse = référence de l'équilibrage)
-const CHARACTER = (DAILY_ON ? 'eclaireuse' : (args.get('character') ?? 'eclaireuse')) as CharacterKey;
+const CHARACTER = (DAILY_ON || TUTO_ON ? 'eclaireuse' : (args.get('character') ?? 'eclaireuse')) as CharacterKey;
 const charChal = ACHIEVEMENTS.filter((x) => x.char === CHARACTER); // phase 41
 if (!CHARACTERS.some((c) => c.key === CHARACTER)) {
   console.error(`--character : « ${CHARACTER} » inconnu. Valeurs : ${CHARACTERS.map((c) => c.key).join(', ')}`);
   process.exit(2);
 }
 // --profile naked|maxed : jeu de cibles et emplacements par défaut (phase 17 : la boutique par personnage n'existe plus)
-const PROFILE = (DAILY_ON ? 'daily' : (args.get('profile') ?? 'naked')) as keyof typeof PROFILES;
+const PROFILE = (DAILY_ON ? 'daily' : TUTO_ON ? 'tutorial' : (args.get('profile') ?? 'naked')) as keyof typeof PROFILES;
 if (!PROFILES[PROFILE]) {
   console.error(`--profile : « ${PROFILE} » inconnu. Valeurs : ${Object.keys(PROFILES).join(', ')}`);
   process.exit(2);
@@ -235,6 +248,12 @@ interface RunResult {
   noHit: number; // plus longue période sans dégât (s)
   distance: number; // u parcourus
   aliveAtMinute: number[];
+  // partie guidée (--tutorial)
+  tutoBoss: boolean; // le totem du monde a été activé (le boss est venu)
+  tutoBossDeath: boolean; // mort pendant le combat du boss du totem
+  tutoBossTime: number; // s entre l'activation et la mort (-1 : pas mort contre lui)
+  tutoStepAt5: number; // étape du guide à 5:00 (Step ; -1 : mort avant)
+  tutoGuideEnd: number; // s de partie où le guide arrive à l'étape « seul » (-1 : jamais)
 }
 
 function runOnce(seed: number, run: number): RunResult {
@@ -248,7 +267,16 @@ function runOnce(seed: number, run: number): RunResult {
   }
   const w = DAILY_ON
     ? new World(seed, dopts)
-    : new World(seed, { character: CHARACTER, slots: SLOT_OPT, reveal: REVEAL_OPT });
+    : TUTO_ON
+      ? new World(TUTORIAL.map, tutorialOptions())
+      : new World(seed, { character: CHARACTER, slots: SLOT_OPT, reveal: REVEAL_OPT });
+  // partie guidée : une seule carte ; comme dans le jeu, le générateur est décalé avant le départ (main.ts : l'horloge)
+  if (TUTO_ON) for (let k = (seed * 2654435761) % 1000; k > 0; k--) w.rng.next();
+  const guide: GuideState | null = TUTO_ON ? newGuide(w, true, 0) : null;
+  let tutoBoss = false,
+    tutoBossAt = -1,
+    tutoStepAt5 = -1,
+    tutoGuideEnd = -1;
   const startWeapon = Object.keys(w.weapons)[0];
   let finalBossAt = -1;
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
@@ -295,6 +323,8 @@ function runOnce(seed: number, run: number): RunResult {
       inp.pick = pickAllowed(bot, w, w.cards, ALLOWED);
       inp.mx = inp.mz = 0;
       inp.jump = inp.spell = false;
+      // partie guidée : la première feuille de niveau (cartes d'arme ou de tome) est celle que le guide explique
+      if (guide && !guide.cards && (w.cards[0]?.kind === 'w' || w.cards[0]?.kind === 't')) guideCardsDone(guide);
     } else if (w.mode === Mode.Merchant) {
       inp.pick = bot.shop(w);
       inp.mx = inp.mz = 0;
@@ -302,6 +332,7 @@ function runOnce(seed: number, run: number): RunResult {
     } else {
       inp.pick = -1;
       bot.decide(w, frame, inp);
+      if (guide) driveGuide(guide, w, inp, frame);
       frame++;
     }
     if (w.mode === Mode.Merchant) {
@@ -313,8 +344,19 @@ function runOnce(seed: number, run: number): RunResult {
       cardsTaken++;
       linesTaken += w.cards[inp.pick].n;
     }
+    const tBefore = w.t;
     step(w, inp, STEP);
     if (inp.pick >= 0) enforceAllowed(w, ALLOWED);
+    if (guide) {
+      updateGuide(guide, w, w.t - tBefore);
+      if (guide.step === Step.Free && tutoGuideEnd < 0) tutoGuideEnd = w.t;
+      if (tutoStepAt5 < 0 && w.t >= 300) tutoStepAt5 = guide.step;
+      for (let i = 0; i < w.eventCount; i++)
+        if (w.events[i].type === Ev.TotemOn && w.stage === 0) {
+          tutoBoss = true;
+          tutoBossAt = w.t;
+        }
+    }
     for (let i = 0; i < w.eventCount; i++) {
       const e = w.events[i];
       if (e.type === Ev.TotemOn) {
@@ -407,6 +449,7 @@ function runOnce(seed: number, run: number): RunResult {
       startEndless(w);
     }
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
+    if (TUTO_ON && w.portal.open) break; // partie guidée : le boss est tombé, la suite n'est plus la partie guidée
     // défi v2 : passé l'heure de l'or, la médaille est jouée si le boss final n'est plus en vie
     if (DAILY_ON && w.t > DAILY.goldAt && w.dailyBoss !== 1) break;
   }
@@ -464,7 +507,58 @@ function runOnce(seed: number, run: number): RunResult {
     noHit: w.noHitBest,
     distance: w.distance,
     aliveAtMinute: alive,
+    tutoBoss,
+    tutoBossDeath: tutoBoss && w.mode === Mode.Dead && w.totem.state === 1 && w.stage === 0,
+    tutoBossTime: tutoBoss && w.mode === Mode.Dead && w.totem.state === 1 ? w.t - tutoBossAt : -1,
+    tutoStepAt5,
+    tutoGuideEnd,
   };
+}
+
+/**
+ * Partie guidée : le bot fait ce que demande le guide (src/meta/guide.ts), par-dessus sa conduite de bot moyen. Les
+ * gestes sont faits dès que l'étape les demande ; les lieux, il y va (et reste dans le coffre ou le sanctuaire, regarde
+ * le crâne et les totems sans entrer dans leur cercle).
+ */
+const guideAt = { x: 0, z: 0 };
+function driveGuide(g: GuideState, w: World, inp: Input, frame: number): void {
+  const P = w.player;
+  switch (g.step) {
+    case Step.Jump:
+      inp.jump = P.onGround;
+      break;
+    case Step.Slide:
+    case Step.SlideJump:
+      if (Math.hypot(inp.mx, inp.mz) < 0.5) {
+        inp.mx = P.dirX;
+        inp.mz = P.dirZ;
+      }
+      if (g.step === Step.SlideJump && P.sliding) inp.jump = true;
+      else inp.slide = frame % 2 === 0;
+      break;
+    case Step.Spell:
+      inp.spell = P.spellCd <= 0;
+      break;
+  }
+  if (g.step === Step.Slide || g.step === Step.SlideJump) return; // la glisse se fait où il est
+  if (guideForced(g, w) || !guideTarget(g, w, guideAt)) return; // à 8:00, le bot va au totem de lui-même (BOT_TUNE)
+  const dx = guideAt.x - P.x,
+    dz = guideAt.z - P.z,
+    d = Math.hypot(dx, dz) || 1;
+  // lieux « à voir » : on s'approche sans entrer dans le cercle ; coffre et sanctuaire : on reste dedans
+  const look = g.step === Step.Skull || g.step === Step.BossTotem || g.step === Step.Totem;
+  if (look && d < 8) return;
+  if (!look && d < (g.step === Step.Chest ? 0.5 : 1.2)) {
+    inp.mx = inp.mz = 0;
+    return;
+  }
+  inp.mx += (dx / d) * 2;
+  inp.mz += (dz / d) * 2;
+  const l = Math.hypot(inp.mx, inp.mz);
+  if (l > 1) {
+    inp.mx /= l;
+    inp.mz /= l;
+  }
 }
 
 const pct = (arr: number[], p: number) => {
@@ -629,6 +723,27 @@ const summary = {
     ),
   ),
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
+  // partie guidée (décision 11) : arriver au boss, mourir contre lui (part de ceux qui y arrivent), en combien de temps,
+  // et personne ne meurt pendant les cinq minutes des gestes et des lieux
+  tuto: (() => {
+    const reached = results.filter((r) => r.tutoBoss);
+    const fights = results.filter((r) => r.tutoBossTime >= 0).map((r) => r.tutoBossTime);
+    const ended = results.filter((r) => r.tutoGuideEnd >= 0).map((r) => r.tutoGuideEnd);
+    return {
+      reachPct: (100 * reached.length) / RUNS,
+      bossDeathPct: (100 * reached.filter((r) => r.tutoBossDeath).length) / Math.max(1, reached.length),
+      bossTimeP10: pct(fights, 10),
+      bossTimeP50: pct(fights, 50),
+      bossTimeP90: pct(fights, 90),
+      deadBefore5Pct: (100 * results.filter((r) => r.time < 300 && !r.tutoBoss).length) / RUNS,
+      guideEndPct: (100 * ended.length) / RUNS,
+      guideEndP50: pct(ended, 50),
+      stepAt5P50: pct(
+        results.filter((r) => r.tutoStepAt5 >= 0).map((r) => r.tutoStepAt5),
+        50,
+      ),
+    };
+  })(),
   // économie : or gardé médian par run (après les achats), or dépensé en partie (marchand et coffres de carte)
   goldP50: pct(
     results.map((r) => r.gold),
@@ -787,7 +902,7 @@ for (let m = 1; m < summary.aliveCurve.length; m++)
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${TUTO_ON ? ` · carte ${TUTORIAL.map}` : ''}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
@@ -830,6 +945,12 @@ if (DAILY_ON) {
         50,
       ),
     )}`,
+  );
+}
+if (TUTO_ON) {
+  const T = summary.tuto;
+  lines.push(
+    `guidée      boss atteint ${T.reachPct.toFixed(1)} % · mort contre lui ${T.bossDeathPct.toFixed(1)} % de ceux-là, en p10 ${T.bossTimeP10.toFixed(0)} s p50 ${T.bossTimeP50.toFixed(0)} s p90 ${T.bossTimeP90.toFixed(0)} s · morts avant 5:00 ${T.deadBefore5Pct.toFixed(1)} % · guide fini dans ${T.guideEndPct.toFixed(0)} % (p50 ${mmss(T.guideEndP50)}) · étape p50 à 5:00 : ${T.stepAt5P50}`,
   );
 }
 lines.push(
