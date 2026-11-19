@@ -119,5 +119,31 @@ for (const prefix of prefixes)
     console.log(
       `   monde infini ${held.length} parties · tenu p10 ${fmt(quantile(held, 0.1))} p50 ${fmt(quantile(held, 0.5))} p90 ${fmt(quantile(held, 0.9))} · ≥ 6 vagues ${pct(endless.filter((r) => r.endlessWave >= 6).length, held.length)} %`,
     );
+    // corrompus (docs/specs/corrompus.md, décision 9) : morts en prolongation, s tenues avant (p50), part des compétences
+    // corrompues parmi leurs causes ; avec BOT_FARM=1, toute partie qui bat le boss du totem y finit
+    const over = all.filter((r) => !r.reachedEnd && r.overT > 0);
+    const skills = over.filter((r) => String(r.deathBy).startsWith('corrompu:'));
+    const bySkill = {};
+    for (const r of skills) bySkill[r.deathBy.slice(9)] = (bySkill[r.deathBy.slice(9)] ?? 0) + 1;
+    console.log(
+      `   prolongation ${over.length} morts (${pct(over.length, n)} %) · tenue p50 ${fmt(
+        quantile(
+          over.map((r) => r.overT),
+          0.5,
+        ),
+      )} p90 ${fmt(
+        quantile(
+          over.map((r) => r.overT),
+          0.9,
+        ),
+      )} · compétences corrompues ${pct(skills.length, over.length)} % de ces morts${
+        skills.length
+          ? ` (${Object.entries(bySkill)
+              .sort((a, b) => b[1] - a[1])
+              .map(([k, v]) => `${k} ${pct(v, over.length)} %`)
+              .join(' · ')})`
+          : ''
+      } · corrompus ${(all.reduce((a, r) => a + (r.corrupted ?? 0), 0) / n).toFixed(1)} par partie`,
+    );
     console.log(`   par graine (monde 2 / monde 3 / victoire) ${perSeed.join(' · ')}`);
   }

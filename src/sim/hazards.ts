@@ -1,7 +1,7 @@
 // Dangers à esquiver par le mouvement (phase 11) : éruptions sous les pieds et charge des Brutes élites.
 // L'anneau de choc du Gardien est émis dans bosses.ts ; les trois sont résolus dans step.ts (tickShots, stepEnemies).
-import { ELITE_TYPE, ENEMIES, HAZARDS, SPAWN } from './balance';
-import { Ev, ShotKind } from './types';
+import { CORRUPT, DARD_TYPE, ELITE_TYPE, ENEMIES, HAZARDS, SPAWN } from './balance';
+import { Corrupt, Ev, ShotKind, Skill } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
 
@@ -48,14 +48,22 @@ export function emitRing(w: World, e: Enemy): void {
   w.emit(Ev.Ring, e.x, 0, e.z, R.maxR);
 }
 
-/** Vrai pour une Brute élite : elle charge en ligne droite après un télégraphe (états 0 poursuite, 1 armé, 2 charge, 3 récupération). */
+/**
+ * Vrai pour une Brute élite, ou un Dard corrompu (Ruée, docs/specs/corrompus.md) : il charge en ligne droite après un
+ * télégraphe (états 0 poursuite, 1 armé, 2 charge, 3 récupération).
+ */
 export function isCharger(e: Enemy): boolean {
-  return e.elite && e.type === ELITE_TYPE;
+  return (e.elite && e.type === ELITE_TYPE) || (e.corrupt === Corrupt.On && e.type === DARD_TYPE);
 }
 
-/** Déplacement voulu (u/s) d'une Brute élite, écrit dans mv[0], mv[1]. dx/dz/d : vecteur vers le joueur. */
+/** Réglages de la charge de `e` : celle des Brutes élites, ou la Ruée d'un Dard corrompu (mêmes champs). */
+export function chargeOf(e: Enemy): typeof HAZARDS.charge {
+  return e.elite ? HAZARDS.charge : CORRUPT.rush;
+}
+
+/** Déplacement voulu (u/s) d'un chargeur (isCharger), écrit dans mv[0], mv[1]. dx/dz/d : vecteur vers le joueur. */
 export function tickCharger(w: World, e: Enemy, dt: number, dx: number, dz: number, d: number, mv: Float64Array): void {
-  const C = HAZARDS.charge;
+  const C = chargeOf(e);
   e.timer -= dt;
   if (e.state === 0) {
     const sp = ENEMIES[e.type].speed * e.spd;
@@ -66,7 +74,8 @@ export function tickCharger(w: World, e: Enemy, dt: number, dx: number, dz: numb
       e.timer = C.telegraph;
       e.tx = dx / d;
       e.tz = dz / d;
-      w.emit(Ev.Charge, e.x, 0, e.z, C.telegraph, e.x + e.tx * C.dist, 0, e.z + e.tz * C.dist);
+      if (e.elite) w.emit(Ev.Charge, e.x, 0, e.z, C.telegraph, e.x + e.tx * C.dist, 0, e.z + e.tz * C.dist);
+      else w.emit(Ev.Corrupt, e.x, e.y, e.z, e.type, 1, Skill.Rush); // Ruée : son et gerbe de la compétence
     }
   } else if (e.state === 1) {
     mv[0] = mv[1] = 0; // campe sur ses appuis : la ligne au sol est lisible

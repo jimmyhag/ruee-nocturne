@@ -1,5 +1,6 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, REVEAL, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
-import { isCharger, tickCharger, tickEruptions } from './hazards';
+import { ARCHER_TYPE, CRACHEUR_TYPE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, REVEAL, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
+import { chargeOf, isCharger, tickCharger, tickEruptions } from './hazards';
+import { flameLit, tickTrail } from './corrupt';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { burnEnemy, compactEnemies } from './combat';
 import { LEVEL_REROLL, applyCard, nextChoice, rerollLevel, tickChests, tickGems } from './progression';
@@ -11,7 +12,7 @@ import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
 import { tickStage, retargetBoss } from './stages';
-import { Ev, HitSrc, HurtSrc, Mode, Pw, ShotKind, Spell, Trait } from './types';
+import { Corrupt, Ev, HitSrc, HurtSrc, Mode, Pw, ShotKind, Skill, Spell, Trait } from './types';
 import { tickPowers } from './powers';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
@@ -503,6 +504,10 @@ function stepEnemies(w: World, dt: number): void {
     } else if (e.stun > 0) {
       e.stun -= dt;
       mv[0] = mv[1] = 0;
+    } else if (e.corrupt === Corrupt.Shard && e.timer > 0) {
+      // corrompus, Scission : l'éclat reste figé le temps qu'on le voie (télégraphe), puis il fonce
+      e.timer -= dt;
+      mv[0] = mv[1] = 0;
     } else if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
     else if (isCharger(e)) tickCharger(w, e, dt, dx, dz, d, mv);
     else if (e.type === VOLANT_TYPE) tickFlyer(w, e, dt, dx, dz, d, mv);
@@ -580,30 +585,38 @@ function stepEnemies(w: World, dt: number): void {
       e.x = out2[0];
       e.z = out2[1];
     }
+    // corrompus, Traînée ardente : la Brute laisse des flaques de feu derrière elle
+    if (e.corrupt === Corrupt.On && e.type === ELITE_TYPE && !frozen && e.stun <= 0) tickTrail(w, e, dt, d);
     if (!frozen) e.face = Math.atan2(dx, dz); // phase 35 : un ennemi figé ne suit plus le héros des yeux
     if (e.flash > 0) e.flash -= dt;
     // contact : jamais sur un joueur en l'air ; le Volant ne blesse qu'en plongée (state 2)
     // phase 19 : un ennemi étourdi (Éclat, Collet) ne blesse pas : une Brute figée en pleine charge ne la porte pas
-    const canHurt = e.stun > 0 || frozen ? false : e.type === VOLANT_TYPE ? e.state === 2 : true;
+    // corrompus : un éclat de la Scission ne blesse qu'une fois réveillé
+    const canHurt =
+      e.stun > 0 || frozen || (e.corrupt === Corrupt.Shard && e.timer > 0) ? false : e.type === VOLANT_TYPE ? e.state === 2 : true;
     // phase 34 : Revenante, frisson du tombeau — les ennemis proches d'elle sont ralentis
     if (w.trait === Trait.DejaMorte && d < TRAIT.dejamorte.chillR && !airborne) e.slowT = Math.max(e.slowT, TRAIT.dejamorte.chill);
     if (canHurt && d < e.r + PLAYER.radius && !airborne && P.invul <= 0) {
       if (e.state === 2 && isCharger(e)) {
         // charge encaissée : un coup sec, puis la Brute s'essouffle ; brève invulnérabilité (pas de double peine)
-        const dmg = HAZARDS.charge.dmg * e.dmgMul * P.taken * (1 - P.guard); // phase 47 : garde du tome Bastion
+        // corrompus : la Ruée d'un Dard, mêmes règles avec ses réglages (chargeOf)
+        const C = chargeOf(e);
+        const dmg = C.dmg * e.dmgMul * P.taken * (1 - P.guard); // phase 47 : garde du tome Bastion
         P.hp -= dmg;
         hurt += dmg;
-        P.invul = Math.max(P.invul, HAZARDS.charge.invul);
+        P.invul = Math.max(P.invul, C.invul);
         e.state = 3;
-        e.timer = HAZARDS.charge.recover;
-        w.lastHurt = HurtSrc.Charge;
+        e.timer = C.recover;
+        if (e.elite) w.lastHurt = HurtSrc.Charge;
+        else hurtBy(w, Skill.Rush);
       } else {
         // phase 17 : Rempart (Vitalité + Halo), le contact d'un ennemi dans le Halo est réduit
         const inHalo = w.syn[Syn.Rempart] && d < w.wstats.aura.r;
         const dmg = def.dmg * e.dmgMul * dt * P.taken * (1 - P.guard) * (inHalo ? SYN.rempart.dmgTaken : 1);
         P.hp -= dmg;
         hurt += dmg;
-        w.lastHurt = HurtSrc.Contact;
+        if (e.corrupt === Corrupt.Shard) hurtBy(w, Skill.Split); // corrompus : un éclat de la Scission
+        else w.lastHurt = HurtSrc.Contact;
         // phase 17 : Épines, le contact est renvoyé (par paquets, toutes les ITEM.epines.period s)
         if (thorns) hitEnemy(w, i, def.dmg * e.dmgMul * ITEM.epines.period * thornMul, 0, P.x, P.z, HitSrc.Thorns);
       }
@@ -621,7 +634,8 @@ function stepEnemies(w: World, dt: number): void {
 function tickShots(w: World, dt: number): void {
   const P = w.player;
   const airborne = P.y >= PLAYER.airborneSafeY;
-  let hurt = 0;
+  let hurt = 0,
+    flames = 0; // corrompus : flaques de feu au sol (plafond de la Traînée ardente)
   for (let i = w.shotCount - 1; i >= 0; i--) {
     const s = w.shots[i];
     s.px = s.x;
@@ -639,7 +653,8 @@ function tickShots(w: World, dt: number): void {
       if (inside && (arrow || !airborne) && P.invul <= 0) {
         P.hp -= s.dmg * P.taken;
         hurt += s.dmg * P.taken;
-        w.lastHurt = arrow ? HurtSrc.Arrow : HurtSrc.Spit;
+        if (s.skill !== Skill.None) hurtBy(w, s.skill); // corrompus : Éventail, Volée
+        else w.lastHurt = arrow ? HurtSrc.Arrow : HurtSrc.Spit;
         w.freeShot(i);
         continue;
       }
@@ -660,6 +675,18 @@ function tickShots(w: World, dt: number): void {
         w.lastHurt = HurtSrc.Ring;
       }
       if (s.life <= 0) w.freeShot(i);
+    } else if (s.kind === ShotKind.Flame) {
+      // corrompus, Traînée ardente : inerte le temps du télégraphe, puis brûle tant que le joueur y reste (au sol)
+      if (s.life <= 0) {
+        w.freeShot(i);
+        continue;
+      }
+      flames++;
+      if (inside && !airborne && P.invul <= 0 && flameLit(s.life, s.t0)) {
+        P.hp -= s.dmg * dt * P.taken;
+        hurt += s.dmg * dt * P.taken;
+        hurtBy(w, Skill.Trail);
+      }
     } else if (s.kind === ShotKind.Eruption) {
       // 1.25.1 : le cercle reste où il est apparu (sous le joueur) ; on en sort, on le saute ou on le dashe
       if (s.life <= 0) {
@@ -681,14 +708,22 @@ function tickShots(w: World, dt: number): void {
       if (s.dmg > 0 && inside && !airborne && P.invul <= 0) {
         P.hp -= s.dmg * P.taken;
         hurt += s.dmg * P.taken;
-        w.lastHurt = s.kind === ShotKind.Fireball ? HurtSrc.Fire : HurtSrc.Zone;
+        if (s.skill !== Skill.None) hurtBy(w, s.skill); // corrompus : Bombardier, Pluie de feu
+        else w.lastHurt = s.kind === ShotKind.Fireball ? HurtSrc.Fire : HurtSrc.Zone;
       }
       w.freeShot(i);
     }
   }
+  w.flames = flames;
   if (hurt > 0 && !shieldAbsorb(w, hurt)) {
     w.lastAction = w.t;
     w.hurtAt = w.t;
     w.emit(Ev.PlayerHurt, P.x, P.y + 1, P.z, hurt);
   }
+}
+
+/** Corrompus : le dernier coup reçu vient d'une compétence corrompue (cause de mort de la CLI). */
+function hurtBy(w: World, k: Skill): void {
+  w.lastHurt = HurtSrc.Corrupt;
+  w.hurtSkill = k;
 }

@@ -50,6 +50,28 @@ export interface Enemy {
   tox: number; // phase 50 : doses de toxine (boss)
   toxT: number; // s restantes de toxine
   toxAcc: number; // s écoulées depuis le dernier coup de toxine
+  corrupt: Corrupt; // monstre corrompu (docs/specs/corrompus.md) : 0 normal, 1 corrompu, 2 petit spectre de la Scission
+}
+
+/**
+ * Monstres corrompus (docs/specs/corrompus.md) : en prolongation, un monstre tiré normalement peut devenir corrompu
+ * (une compétence par type, CORRUPT dans balance.ts). La Scission d'un Spectre corrompu laisse deux éclats, sans butin.
+ */
+export const enum Corrupt {
+  None = 0,
+  On,
+  Shard,
+}
+/** Compétence corrompue (une par type, dans l'ordre de CORRUPT_SKILLS) ; 0 : aucune. Cause de mort de la CLI. */
+export const enum Skill {
+  None = 0,
+  Split, // Spectre : Scission
+  Rush, // Dard : Ruée
+  Trail, // Brute : Traînée ardente
+  Bomb, // Volant : Bombardier
+  Fan, // Cracheur : Éventail
+  Volley, // Archer : Volée perçante
+  Rain, // Sorcier : Pluie de feu
 }
 
 export const enum ProjKind {
@@ -90,6 +112,7 @@ export const enum ShotKind {
   Ring, // phase 11 : anneau de choc du Gardien, rayon qui grandit (`r`), blesse une fois au passage — se saute
   Arrow, // phase 16 : flèche de l'Archer, rapide, en ligne droite, arrêtée par les obstacles ; touche aussi en l'air
   Fireball, // phase 16 : boule de feu du Sorcier, en cloche de (ox, oz) vers (x, z) ; explose à la fin de `life` comme une zone
+  Flame, // corrompus : flaque de feu de la Brute, inerte CORRUPT.trail.arm s (télégraphe) puis brûle tant qu'on y reste
 }
 
 /** Dernière source de dégâts subie par le joueur (statistiques de causes de mort, CLI). */
@@ -102,6 +125,7 @@ export const enum HurtSrc {
   Charge,
   Arrow, // phase 16
   Fire, // phase 16 : boule de feu du Sorcier
+  Corrupt, // corrompus : une compétence corrompue (laquelle : w.hurtSkill)
 }
 
 /** Projectile ennemi : ne touche jamais un joueur en l'air (airborneSafeY). */
@@ -122,6 +146,7 @@ export interface Shot {
   oz: number;
   t0: number; // boule de feu : durée totale du vol
   boss: boolean; // phase 45 : projectile d'un boss (Éclats du Gardien, Salve de l'Essaim-mère) : rendu propre
+  skill: Skill; // corrompus : compétence qui l'a lancé (cause de mort, rendu) ; Skill.None pour un tir ordinaire
 }
 
 export interface Gem {
@@ -249,7 +274,8 @@ export const enum Ev {
   ChestDrop, // phase 51 : coffre lâché au sol en (x,z), v = 1 pour un coffre de boss
   Explored, // phase 53 : carte du monde explorée à 100 %, v = or gagné
   WeaponTier, // lot L5 : arme arrivée à un palier visuel en (x,y,z) = héros, v = palier (1..3), x2 = index dans WEAPON_KEYS
-  Medal, // défi v2 : médaille gagnée en (x,y,z) = héros, v = médaille (1 bronze, 2 argent, 3 or) ; dernière valeur
+  Medal, // défi v2 : médaille gagnée en (x,y,z) = héros, v = médaille (1 bronze, 2 argent, 3 or)
+  Corrupt, // corrompus : en (x,y,z), v = type du monstre, x2 = 0 apparition d'un corrompu, 1 compétence lancée (Skill en y2) ; dernière valeur
 }
 
 export interface GameEvent {
@@ -346,6 +372,7 @@ export interface WorldOptions {
   weapon?: WeaponKey; // défi v2 : arme de départ imposée (règle « Arme imposée ») ; undefined = celle du personnage
   soft?: boolean; // partie guidée (décision 9) : partie adoucie (FIRST_RUNS) ; undefined = la règle du dévoilement (lot L2)
   tutorial?: boolean; // partie guidée (docs/specs/tutoriel.md) : réglages TUTORIAL ; undefined = partie normale
+  noCorrupt?: boolean; // CLI d'équilibrage (`--no-corrupt`) : pas de monstres corrompus ; undefined = le jeu
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey =

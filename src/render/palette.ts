@@ -38,6 +38,9 @@ export const PAL = {
   arrow: 0xf3ecdc, // phase 16 : flèche de l'Archer, claire sur la nuit bleue
   fire: 0xff8a3d, // phase 16 : boule de feu du Sorcier
   telegraph: 0xff3b5c,
+  corrupt: 0x9a3cff, // corrompus (docs/specs/corrompus.md) : violet maladif, teinte d'instance des monstres corrompus…
+  corruptEye: 0xc98cff, // …leurs yeux qui luisent et leur traînée
+  flame: 0xff6a2a, // corrompus : flaque de feu de la Brute (Traînée ardente), une fois allumée
   dust: 0x9aa4c2,
   cream: 0xf3ecdc,
   gem: 0x59d8ff,

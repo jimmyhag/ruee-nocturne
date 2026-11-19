@@ -3324,6 +3324,15 @@ function handleEvents(w: World, now: number): void {
         audio.evolve();
         vibrate(80);
         break;
+      case Ev.Corrupt:
+        // corrompus (docs/specs/corrompus.md, décisions 3 et 10) : apparition (x2 = 0), ou compétence lancée (y2 = Skill) :
+        // gerbe violette et son de la compétence
+        if (e.x2 === 0) audio.corrupt(0);
+        else {
+          S.particles.burst(e.x, e.y + 0.4, e.z, PAL.corruptEye, (6 * fx) | 0, 3, 3, false);
+          audio.corrupt(e.y2 | 0);
+        }
+        break;
       case Ev.EndlessStart:
         hud.banner(t('banner.endless'), 'info');
         hud.flash('gold');

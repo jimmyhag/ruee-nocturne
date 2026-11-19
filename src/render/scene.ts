@@ -3,7 +3,6 @@ import {
   BOSS,
   CAPS,
   DECOR,
-  ELITE_TYPE,
   ENEMIES,
   ARCHER,
   ARCHER_TYPE,
@@ -29,7 +28,10 @@ import {
   BALISE,
   DIFFICULTY,
   BOSSTOTEM,
+  CORRUPT,
 } from '../sim/balance';
+import { chargeOf, isCharger } from '../sim/hazards';
+import { flameLit } from '../sim/corrupt';
 import { TOTEM_HIDDEN, canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -38,7 +40,7 @@ import { ENEMY_LOOKS, enemyOutlineMaterial, loadEnemyModels } from './enemyModel
 import type { BakedEnemy } from './enemyModels';
 import { writeLoopPose, writeOncePose } from './pose';
 import type { NatureKey, NatureSet, PropGeometry, PropKey } from './models';
-import { Mode, ProjKind, Pw, ShotKind, Spell } from '../sim/types';
+import { Corrupt, Mode, ProjKind, Pw, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey, Enemy, WeaponKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
@@ -201,6 +203,18 @@ export class GameScene {
   private eliteBuf = new Float32Array(ELITE_MARKS * 5);
   private eliteN = 0;
   private cEliteNow = new THREE.Color();
+  // corrompus (docs/specs/corrompus.md, décision 3) : teinte violette par type, yeux relevés dans la boucle des ennemis
+  // (x, y des yeux, z) et dessinés avec les lueurs ; traînée de particules au compte-gouttes
+  private corruptColor: THREE.Color[] = [];
+  private corruptBuf = new Float32Array(FEEL.corrupt.marks * 6);
+  /** Corrompus dont les yeux luisent à cette image (lu par les tests e2e). */
+  corruptN = 0;
+  private cCorrupt = new THREE.Color(PAL.corrupt);
+  private cCorruptNow = new THREE.Color();
+  private cCorruptEye = new THREE.Color(PAL.corruptEye).multiplyScalar(1.2);
+  private cCorruptAura = new THREE.Color(PAL.corrupt).multiplyScalar(FEEL.corrupt.auraA);
+  private cFlame = new THREE.Color(PAL.flame);
+  private cFlameNow = new THREE.Color();
   private cEliteAura = new THREE.Color(PAL.gold).multiplyScalar(FEEL.elite.auraA);
   private cCrown = new THREE.Color(0xffb020).multiplyScalar(1.3); // or soutenu : se détache du corps, jaune clair
   private cChestHalo = new THREE.Color(PAL.gold).multiplyScalar(FEEL.chestDrop.haloA);
@@ -500,6 +514,9 @@ export class GameScene {
       this.enemyW.push(new InstanceWriter(m));
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
       this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.75).multiplyScalar(FEEL.elite.bright));
+      this.corruptColor.push(
+        new THREE.Color(PAL.enemy[t]).lerp(this.cCorrupt, FEEL.corrupt.tint).multiplyScalar(FEEL.corrupt.bright),
+      );
     }
     // phase 21 : modèles des ennemis dès qu'enemies.glb est là ; nouvel essai
     // après un échec (réseau mobile), état lisible dans l'onglet perf
@@ -1275,11 +1292,37 @@ export class GameScene {
       this.enemyColor[t].set(PAL.enemy[t]).lerp(WHITE, ENEMY_TINT_KEEP);
       // phase 51 : or franc et surexposé (la couleur d'instance multiplie une texture déjà colorée : à 1, il se lisait mal)
       this.eliteColor[t].set(PAL.enemy[t]).lerp(this.cGold, 0.85).multiplyScalar(FEEL.elite.bright);
+      // corrompus : violet franc et surexposé, comme l'or des élites (la texture porte déjà la couleur du type)
+      this.corruptColor[t]
+        .set(PAL.enemy[t])
+        .lerp(this.cCorrupt, 0.9)
+        .multiplyScalar(FEEL.corrupt.bright * 1.1);
     }
     this.cFlash = ENEMY_FLASH;
     this.enemyHop = 0.25;
     this.enemyRoll = 0.25;
     this.enemyKind = 'gltf';
+  }
+  /**
+   * Couloir rouge au sol d'un chargeur qui arme sa charge (Brute élite, Ruée d'un Dard corrompu), jusqu'au point
+   * d'arrivée ; il s'élargit pendant le télégraphe (0 → largeur réelle).
+   */
+  private chargeLane(e: Enemy, ex: number, ez: number, eg: number): void {
+    const C = chargeOf(e);
+    const f = 1 - e.timer / C.telegraph;
+    const half = C.dist * 0.5 + e.r;
+    this.zoneFillW.put(
+      ex + e.tx * half,
+      eg + 0.08,
+      ez + e.tz * half,
+      Math.atan2(-e.tz, e.tx),
+      half,
+      this.cTele,
+      0,
+      0,
+      1,
+      0.25 + f * e.r * 0.9,
+    );
   }
   /** Poses de l'ennemi qui vient d'être écrit (dernière instance de son type) : marche en boucle, ou geste. */
   private poseEnemy(t: number, e: Enemy, now: number): void {
@@ -1816,6 +1859,9 @@ export class GameScene {
     this.shadowW.begin();
     this.metW.begin(); // anneaux des élites (ici) puis cercles des météores (plus bas)
     this.eliteN = 0;
+    this.corruptN = 0;
+    let trail = FEEL.corrupt.trailMax; // particules de traînée encore permises à cette image
+    const trailP = dt / FEEL.corrupt.trailEvery; // chance par corrompu et par image
     this.aims.begin();
     this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
     const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé, ennemis givrés et sans sautillement
@@ -1852,10 +1898,13 @@ export class GameScene {
                     ? this.cTox // phase 50 : boss empoisonné (Toxine), vert
                     : e.burnT > 0
                       ? this.cBurn // phase 47 B : en feu (Dent de dragon), orangé
-                      : e.elite
-                        ? this.eliteColor[e.type]
-                        : this.enemyColor[e.type];
+                      : e.corrupt !== Corrupt.None
+                        ? this.corruptColor[e.type] // corrompus : violet maladif (décision 3)
+                        : e.elite
+                          ? this.eliteColor[e.type]
+                          : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? FEEL.elite.scale : 1);
+      if (e.corrupt === Corrupt.Shard) s *= CORRUPT.split.r; // éclat de la Scission : un petit spectre
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
       let marked = false;
@@ -1872,6 +1921,28 @@ export class GameScene {
           this.eliteBuf[o + 2] = ez;
           this.eliteBuf[o + 3] = e.r;
           this.eliteBuf[o + 4] = e.bob;
+        }
+      }
+      if (e.corrupt !== Corrupt.None) {
+        // le violet bat (sauf pendant un flash, un gel, une brûlure) ; yeux qui luisent ; fine traînée
+        if (col === this.corruptColor[e.type])
+          col = this.cCorruptNow.copy(col).multiplyScalar(1 + FEEL.corrupt.pulse * Math.sin(now * 6 + e.bob));
+        // yeux : à hauteur de tête, un peu devant le visage (le Volant, centré sur sa hauteur de vol : à son centre)
+        const look = this.enemyMorph[e.type] ? ENEMY_LOOKS[e.type] : null,
+          tall = look ? look.height * s : e.r * FEEL.elite.top,
+          head = e.type === VOLANT_TYPE ? ey + 0.15 : ey + tall * FEEL.corrupt.eyeAt;
+        if (this.corruptN < FEEL.corrupt.marks) {
+          const o = this.corruptN++ * 6;
+          this.corruptBuf[o] = ex + Math.sin(e.face) * e.r * 0.5;
+          this.corruptBuf[o + 1] = head;
+          this.corruptBuf[o + 2] = ez + Math.cos(e.face) * e.r * 0.5;
+          this.corruptBuf[o + 3] = e.type === VOLANT_TYPE ? ey : ey + tall * 0.45; // centre du corps (aura)
+          this.corruptBuf[o + 4] = e.r * s;
+          this.corruptBuf[o + 5] = e.bob;
+        }
+        if (trail > 0 && Math.random() < trailP) {
+          trail--;
+          this.particles.burst(ex, ey - eg + e.r * 0.6, ez, PAL.corruptEye, 1, 0.4, 0.8, false);
         }
       }
       if (e.type === VOLANT_TYPE) {
@@ -1907,6 +1978,7 @@ export class GameScene {
       } else if (e.type === 1) {
         this.enemyW[1].put(ex, ey, ez, e.face, s, col, 0, 0, s, s * S.enemyStretch);
         this.poseEnemy(1, e, now);
+        if (e.state === 1 && isCharger(e)) this.chargeLane(e, ex, ez, eg); // corrompus : Ruée du Dard
       } else {
         const roll = Math.sin(now * 5 + e.bob) * 0.2 * this.enemyRoll;
         this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, roll, 0, s, s * S.enemyStretch);
@@ -1915,24 +1987,7 @@ export class GameScene {
         // phase 16 : ligne de visée de l'Archer, figée dans la direction du tir (16 u : la portée de la flèche)
         if (e.type === ARCHER_TYPE && e.state === 1)
           this.aims.add(ex, 1.0, ez, ex + e.tx * ARCHER_RANGE, 1.0, ez + e.tz * ARCHER_RANGE, e.aim);
-        if (e.elite && e.type === ELITE_TYPE && e.state === 1) {
-          // Brute élite qui arme sa charge : couloir rouge au sol jusqu'au point d'arrivée, qui s'élargit (0 → largeur réelle)
-          const C = HAZARDS.charge;
-          const f = 1 - e.timer / C.telegraph;
-          const half = C.dist * 0.5 + e.r;
-          this.zoneFillW.put(
-            ex + e.tx * half,
-            eg + 0.08,
-            ez + e.tz * half,
-            Math.atan2(-e.tz, e.tx),
-            half,
-            this.cTele,
-            0,
-            0,
-            1,
-            0.25 + f * e.r * 0.9,
-          );
-        }
+        if (e.state === 1 && isCharger(e)) this.chargeLane(e, ex, ez, eg); // Brute élite qui arme sa charge
       }
       if (e.type !== VOLANT_TYPE || e.elite) this.tilt(ex, ez);
       if (e.type !== VOLANT_TYPE)
@@ -2010,6 +2065,34 @@ export class GameScene {
         this.tilt(sh.x, sh.z);
         this.zoneW.put(sh.x, g1 + 0.1, sh.z, 0, sh.r, this.cTele, this.tRx, this.tRz);
         this.zoneFillW.put(sh.x, g1 + 0.09, sh.z, 0, sh.r * f, this.cTele, this.tRx, this.tRz);
+      } else if (sh.kind === ShotKind.Flame) {
+        // corrompus, Traînée ardente : disque rouge qui se remplit (télégraphe), puis flaque de feu qui vacille et
+        // s'éteint en rétrécissant ses 0,4 dernières secondes
+        const T = CORRUPT.trail,
+          gy = this.gy(sh.x, sh.z);
+        this.tilt(sh.x, sh.z);
+        if (!flameLit(sh.life, sh.t0)) {
+          const f = Math.min(1, (sh.t0 - sh.life) / T.arm);
+          this.zoneW.put(sh.x, gy + 0.1, sh.z, 0, sh.r, this.cTele, this.tRx, this.tRz);
+          this.zoneFillW.put(sh.x, gy + 0.09, sh.z, 0, sh.r * f, this.cTele, this.tRx, this.tRz);
+        } else {
+          const end = Math.min(1, sh.life / 0.4),
+            fl = 1 + Math.sin(now * 17 + i * 1.7) * 0.07;
+          this.cFlameNow.copy(this.cFlame).multiplyScalar(0.9 + 0.25 * Math.sin(now * 11 + i));
+          this.zoneW.put(sh.x, gy + 0.1, sh.z, now * 0.7, sh.r * end, this.cFlame, this.tRx, this.tRz);
+          this.zoneFillW.put(sh.x, gy + 0.09, sh.z, 0, sh.r * end * fl, this.cFlameNow, this.tRx, this.tRz);
+          // le feu qui danse : une lueur de boule de feu posée sur la flaque (écrivain des lueurs, déjà actif)
+          this.glowW.put(
+            sh.x,
+            gy + 0.5,
+            sh.z,
+            0,
+            FEEL.glow.fireHalo * sh.r * end * (0.8 + 0.2 * Math.sin(now * 13 + i * 2.3)),
+            this.cFireHalo,
+            this.particles.billboardRx,
+            now * 2 + i,
+          );
+        }
       } else if (sh.kind === ShotKind.Ring) {
         // onde de choc du Gardien : anneau qui grandit, posé au sol (le joueur la saute)
         const r = sh.r + HAZARDS.ring.speed * alpha * STEP;
@@ -2312,6 +2395,32 @@ export class GameScene {
         this.cEliteAura,
         brx,
         now * 0.7 + ph,
+      );
+    }
+    // corrompus (décision 3) : les yeux luisent, une lueur violette à hauteur des yeux (écrivain des lueurs, déjà actif)
+    // et une aura violette autour du corps (une forme en plus : une teinte seule se lit mal sur un modèle texturé)
+    for (let i = 0; i < this.corruptN; i++) {
+      const o = i * 6,
+        ph = this.corruptBuf[o + 5];
+      this.glowW.put(
+        this.corruptBuf[o],
+        this.corruptBuf[o + 3],
+        this.corruptBuf[o + 2],
+        0,
+        this.corruptBuf[o + 4] * FEEL.corrupt.aura * (0.9 + 0.1 * Math.sin(now * 5 + ph)),
+        this.cCorruptAura,
+        brx,
+        now * 0.6 + ph,
+      );
+      this.glowW.put(
+        this.corruptBuf[o],
+        this.corruptBuf[o + 1],
+        this.corruptBuf[o + 2],
+        0,
+        FEEL.corrupt.eye * (0.85 + 0.15 * Math.sin(now * 9 + ph)),
+        this.cCorruptEye,
+        brx,
+        now + ph,
       );
     }
     this.gemW.end();

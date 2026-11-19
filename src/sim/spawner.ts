@@ -1,5 +1,6 @@
 import { ARCHER, ARCHER_TYPE, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, DIFFICULTY, ELITE, FIRST_RUNS, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, TUTORIAL, VOLANT, VOLANT_TYPE } from './balance';
-import { Ev } from './types';
+import { Corrupt, Ev } from './types';
+import { maybeCorrupt } from './corrupt';
 import type { World } from './world';
 
 const TAU = Math.PI * 2;
@@ -105,6 +106,7 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.slowT = 0;
   e.burn = e.burnT = e.burnAcc = 0;
   e.tox = e.toxT = e.toxAcc = 0; // phase 50
+  e.corrupt = Corrupt.None; // corrompus : maybeCorrupt (tickSpawner) ou splitCorrupt le décident après coup
   return w.enemyCount - 1;
 }
 
@@ -145,7 +147,8 @@ export function tickSpawner(w: World, dt: number): void {
       // phase 16 : plafond de tireurs à l'écran (lisibilité) ; au-delà, un Spectre
       if ((type === ARCHER_TYPE || type === CRACHEUR_TYPE || type === SORCIER_TYPE) && w.shooters >= SPAWN.maxShooters) type = 0;
       else if (type === ARCHER_TYPE || type === CRACHEUR_TYPE || type === SORCIER_TYPE) w.shooters++;
-      spawnEnemy(w, type, w.rng.range(0, TAU), w.rng.range(SPAWN.ringMin, SPAWN.ringMax));
+      // corrompus (docs/specs/corrompus.md) : en prolongation, un monstre tiré normalement peut devenir corrompu
+      maybeCorrupt(w, spawnEnemy(w, type, w.rng.range(0, TAU), w.rng.range(SPAWN.ringMin, SPAWN.ringMax)));
     }
   }
   // élite : variante dorée d'un type de masse, lâche un coffre
@@ -158,7 +161,8 @@ export function tickSpawner(w: World, dt: number): void {
   if (st >= w.nextWave) {
     w.nextWave += SPAWN.wavePeriod;
     const n = Math.round(SPAWN.waveCount(t) * Math.min(STAGE.overWaveCap, w.overRate) * more * soft(w, w.softRate));
-    for (let i = 0; i < n && w.enemyCount < CAPS.enemies; i++) spawnEnemy(w, t > SPAWN.waveDardAfter ? 1 : 0, (i / n) * TAU, SPAWN.waveDist);
+    for (let i = 0; i < n && w.enemyCount < CAPS.enemies; i++)
+      maybeCorrupt(w, spawnEnemy(w, t > SPAWN.waveDardAfter ? 1 : 0, (i / n) * TAU, SPAWN.waveDist)); // vague : aussi
     w.emit(Ev.Wave, w.player.x, 0, w.player.z, n);
   }
 }

@@ -16,7 +16,6 @@ import { Rng } from '../../src/sim/rng';
 import {
   BOSSTOTEM,
   DIFFICULTY,
-  ELITE_TYPE,
   ENEMIES,
   HAZARDS,
   MAPCHEST,
@@ -29,6 +28,7 @@ import {
   WEAPON_LINES,
 } from '../../src/sim/balance';
 import { canGainItem, stackEff } from '../../src/sim/items';
+import { chargeOf, isCharger } from '../../src/sim/hazards';
 import { MERCHANT_LEAVE, canAffordAny } from '../../src/sim/merchant';
 import { cardSynergy } from '../../src/sim/synergies';
 
@@ -452,7 +452,8 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           n++;
           continue;
         }
-        if (s.kind !== ShotKind.Zone && s.kind !== ShotKind.Fireball) continue; // boule de feu (phase 16) : cercle à fuir
+        // boule de feu (phase 16) : cercle à fuir ; corrompus : flaque de feu de la Traînée ardente aussi (décision 8)
+        if (s.kind !== ShotKind.Zone && s.kind !== ShotKind.Fireball && s.kind !== ShotKind.Flame) continue;
         if (d2 < (s.r + 1.5) ** 2) {
           // phase 43 : encore dans un cercle du Colosse au dernier moment (la croix se referme autour du centre) → saut,
           // comme pour une éruption ; pas la boule de feu du Sorcier (inchangé : elle reste une cause de mort mesurée)
@@ -464,16 +465,17 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         }
       }
       if (volley >= 2) hazard = true;
-      // Brute élite qui charge dans notre direction : on la traverse en dash (invulnérable) si elle est proche
+      // Brute élite qui charge dans notre direction : on la traverse en dash (invulnérable) si elle est proche ; corrompus :
+      // la Ruée d'un Dard, même couloir, même esquive (décision 8)
       let charged = false;
       for (let i = 0; i < w.enemyCount; i++) {
         const e = w.enemies[i];
-        if (!(e.elite && e.type === ELITE_TYPE) || e.state !== 1 || e.timer > 0.25) continue;
+        if (!isCharger(e) || e.state !== 1 || e.timer > 0.25) continue;
         const dx = P.x - e.x,
           dz = P.z - e.z;
         const along = dx * e.tx + dz * e.tz; // projection sur la ligne de charge
         const side = Math.abs(dx * e.tz - dz * e.tx);
-        if (along > 0 && along < HAZARDS.charge.dist + 1 && side < e.r + 1) charged = true;
+        if (along > 0 && along < chargeOf(e).dist + 1 && side < e.r + 1) charged = true;
       }
       if (n > 0) {
         const l = Math.sqrt(cx * cx + cz * cz) || 1;

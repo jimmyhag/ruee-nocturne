@@ -2,6 +2,19 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.67.0 — 19 nov. 2026 (monstres corrompus)
+
+Après la fin du chrono, chaque monde devient une autre partie : l'infini réveille des monstres corrompus.
+
+### Ajouté
+
+- **Monstres corrompus** : en prolongation, dans les trois mondes, des monstres teints de violet, aux yeux qui luisent, apparaissent parmi la horde : un sur dix au début, jusqu'à quatre sur dix au bout de 3 minutes. Chacun a sa compétence, toujours annoncée avant de toucher : le Spectre se scinde en deux petits spectres à sa mort, le Dard charge après un couloir rouge, la Brute laisse des flaques de feu derrière elle, le Volant lâche une bombe sous toi, le Cracheur crache en éventail, l'Archer tire une volée de trois flèches rapides et le Sorcier fait tomber trois boules de feu autour de toi. Plus dangereux, ils rapportent plus d'or et d'XP (les petits spectres, rien).
+- **Une consigne** les présente la première fois que tu en croises un, et « Comment jouer » les décrit.
+
+### Technique
+
+- Spec : `docs/specs/corrompus.md` (scénarios : `src/sim/corrupt.test.ts`, `src/meta/corrupt-hint.test.ts`, `e2e/corrompus.spec.ts`, `tools/corrupt.test.ts`). Réglages `CORRUPT` (`balance.ts`), module `src/sim/corrupt.ts` ; tirage par `w.rng` seulement en prolongation (`corruptOn` : ni défi du jour, ni monde infini) ; Ruée par la charge des Brutes élites (`chargeOf`), flaques `ShotKind.Flame`, tirs marqués de leur compétence (`Shot.skill`), cause de mort `HurtSrc.Corrupt` + `w.hurtSkill`, événement `Ev.Corrupt`. Rendu : couleur d'instance, aura et yeux dans l'écrivain des lueurs, traînée dans le pool de particules : aucun appel de dessin de plus. Consigne `Hint.Corrupt` (bit 6). CLI : `--no-corrupt`, ligne « corrompus » (causes de mort en prolongation par compétence) ; `tools/sim-pool.mjs` les regroupe ; le bot esquive la Ruée et les flaques.
+
 ## 1.66.0 — 19 nov. 2026 (partie guidée v2, chrono du totem)
 
 La partie guidée te fait vraiment tout essayer, et son boss devient un vrai combat : si tu le bats, la suite t'attend.

@@ -28,8 +28,9 @@ export async function openGame(page: Page): Promise<void> {
   await page.waitForFunction(() => (window as any).__game?.ready === true);
   await page.evaluate(() => {
     const g = (window as any).__game;
-    // partie guidée : ce joueur l'a finie, et ses consignes de première apparition sont vues (63 : tous les bits)
-    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, tutorial: 1, hints: 63 });
+    // partie guidée : ce joueur l'a finie, et ses consignes de première apparition sont vues (127 : tous les bits, celle
+    // des monstres corrompus comprise)
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, tutorial: 1, hints: 127 });
   });
 }
 

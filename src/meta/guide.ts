@@ -51,7 +51,9 @@ export const GESTURE_STEPS: readonly Step[] = [Step.Move, Step.Jump, Step.Slide,
  * Consignes de première apparition (décisions 5 et 8), une fois par joueur (bits de `Meta.hints`) : clés des textes
  * `tuto.hint.<clé>`, dans l'ordre des bits, du moins au plus important (deux au même moment : la plus importante).
  */
-export const HINTS = ['power', 'elite', 'survival', 'merchant', 'portal', 'world'] as const;
+// corrompus (docs/specs/corrompus.md, décision 7) : le premier monstre corrompu, en prolongation (bit ajouté en dernier :
+// les bits sont gardés dans la sauvegarde)
+export const HINTS = ['power', 'elite', 'survival', 'merchant', 'portal', 'world', 'corrupt'] as const;
 export const enum Hint {
   Power = 0,
   Elite,
@@ -59,6 +61,7 @@ export const enum Hint {
   Merchant,
   Portal,
   World,
+  Corrupt,
 }
 /** Tous les bits de consignes : un joueur d'avant la partie guidée les a toutes « vues ». */
 export const ALL_HINTS = (1 << HINTS.length) - 1;
@@ -251,6 +254,8 @@ export function updateGuide(g: GuideState, w: World, dt: number): boolean {
     if (e.type === Ev.PowerDrop) fire(g, Hint.Power);
     else if (e.type === Ev.SurvivalWarn && e.x2 !== 1) fire(g, Hint.Survival);
     else if (e.type === Ev.MerchantArrive) fire(g, Hint.Merchant);
+    else if (e.type === Ev.Corrupt && e.x2 === 0)
+      fire(g, Hint.Corrupt); // un corrompu apparaît
     else if (e.type === Ev.PortalOpen) {
       g.elite = w.nextElite; // décision 18 : la chute du chrono décale l'élite suivante, ce n'est pas une élite apparue
       if (!(g.hints & (1 << Hint.Portal))) {

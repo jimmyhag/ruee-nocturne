@@ -1,7 +1,8 @@
-import { BASTION, BLOOD, CHEST, CRIT, ELITE, ENDLESS, ENEMIES, FROST, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
+import { BASTION, BLOOD, CHEST, CORRUPT, CRIT, ELITE, ENDLESS, ENEMIES, FROST, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
 import { stageBossDown } from './stages';
 import { WEAPON_KEYS } from './weapons/defs';
-import { Ev, HIT_CRIT, HitSrc, Mode, Pw, Trait } from './types';
+import { Corrupt, Ev, HIT_CRIT, HitSrc, Mode, Pw, Trait } from './types';
+import { splitCorrupt } from './corrupt';
 import { powerOnKill } from './powers';
 import type { World } from './world';
 import { itemHeal, lifesteal, talismanKill } from './items';
@@ -110,14 +111,21 @@ export function killEnemy(w: World, i: number): void {
     if (!def.boss) P.spellRefund -= give;
     P.spellCd = Math.max(0, P.spellCd - give);
   }
-  const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
-  w.gold +=
-    (GOLD.perKill * goldMul * (e.elite ? w.player.eliteLoot : 1) + (e.elite ? w.player.eliteGold : 0)) *
-    w.player.goldMul *
-    (w.powerT[Pw.Or] > 0 ? POWER.goldMul : 1); // phase 35 : Pluie d'or
-  // Revenante : les ennemis tués pendant un saut valent ×2 XP
-  const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
-  dropGem(w, e.x, e.z, def.xp * (e.elite ? ELITE.xpMul * w.player.eliteLoot : 1) * air); // phase 47 : tome Défi
+  // corrompus (docs/specs/corrompus.md) : un corrompu rapporte plus (CORRUPT.gold, CORRUPT.xp) ; un éclat de la Scission,
+  // rien (ni or, ni XP, ni bonus au sol)
+  const shard = e.corrupt === Corrupt.Shard;
+  if (!shard) {
+    const goldMul = def.boss ? GOLD.bossMul : e.elite ? GOLD.eliteMul : 1;
+    w.gold +=
+      (GOLD.perKill * goldMul * (e.elite ? w.player.eliteLoot : 1) + (e.elite ? w.player.eliteGold : 0)) *
+      w.player.goldMul *
+      (w.powerT[Pw.Or] > 0 ? POWER.goldMul : 1) * // phase 35 : Pluie d'or
+      (e.corrupt === Corrupt.On ? CORRUPT.gold : 1);
+    // Revenante : les ennemis tués pendant un saut valent ×2 XP
+    const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
+    const xp = def.xp * (e.elite ? ELITE.xpMul * w.player.eliteLoot : 1) * air; // phase 47 : tome Défi
+    dropGem(w, e.x, e.z, e.corrupt === Corrupt.On ? xp * CORRUPT.xp : xp);
+  }
   if (def.boss) {
     // phase 42 : un boss de survie ne soigne pas et ne laisse qu'un coffre d'élite (mesuré : avec la récompense d'un
     // vrai boss, il rendait la partie plus facile, profil maxé 41 → 53 % de victoires)
@@ -153,8 +161,9 @@ export function killEnemy(w: World, i: number): void {
   } else {
     if (e.elite) dropChest(w, e.x, e.z, false);
     w.emit(Ev.Kill, e.x, e.y, e.z, e.type, e.elite ? 1 : 0);
+    if (e.corrupt === Corrupt.On && e.type === 0) splitCorrupt(w, e); // corrompus : Scission du Spectre
   }
-  if (w.mode === Mode.Play) powerOnKill(w, e.x, e.z, e.elite, def.boss); // phase 35 : bonus au sol
+  if (w.mode === Mode.Play && !shard) powerOnKill(w, e.x, e.z, e.elite, def.boss); // phase 35 : bonus au sol
   // marque mort ; le retrait du pool se fait en fin de step (indices stables pendant le step)
   e.alive = false;
   talismanKill(w); // phase 17 : Talisman orageux
