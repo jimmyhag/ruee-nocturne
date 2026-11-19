@@ -18,6 +18,7 @@ export const TUTO_FEEL = {
   forceMs: 4000, // ms : bannière « Va activer le totem rouge » au moment où elle commence
   edge: 44, // px : marge de la flèche au bord de l'écran
   above: 56, // px : la flèche se pose au-dessus du lieu quand il est à l'écran
+  wave: 1.2, // s réelles entre deux ondes au sol de l'étape du saut
 };
 
 /** Ce dont la vue a besoin du jeu (main.ts), sans le connaître. */
@@ -60,6 +61,8 @@ export class TutorialView {
   private ax = -1e9;
   private ay = -1e9;
   private aa = -1e9;
+  private onTarget = false;
+  private shownNow = false;
   private stage = 0;
   private vis = true;
   private shownStep = -1;
@@ -77,6 +80,7 @@ export class TutorialView {
   }
   stop(): void {
     this.g = null;
+    this.shownNow = false;
     this.box.hidden = true;
     this.arrow.hidden = true;
     this.highlight(null);
@@ -113,8 +117,8 @@ export class TutorialView {
     }
   }
 
-  /** À chaque image : minuteries, textes (au changement seulement), flèche. `shown` : la partie est à l'écran, en jeu. */
-  frame(w: World, realDt: number, shown: boolean, width: number, height: number): void {
+  /** À chaque image : minuteries, textes (au changement seulement) ; la flèche suit après le rendu (`arrowFrame`). `shown` : la partie est à l'écran, en jeu. */
+  frame(w: World, realDt: number, shown: boolean): void {
     const g = this.g;
     if (!g) return;
     if (g.step !== this.shownStep) {
@@ -141,7 +145,7 @@ export class TutorialView {
     if (g.step === Step.Jump && shown) {
       this.waveT -= realDt;
       if (this.waveT <= 0) {
-        this.waveT = 1.2;
+        this.waveT = TUTO_FEEL.wave;
         this.host.wave(w);
       }
     }
@@ -151,7 +155,7 @@ export class TutorialView {
       this.vis = shown;
       this.box.style.visibility = shown ? '' : 'hidden';
     }
-    this.placeArrow(g, w, shown, width, height);
+    this.shownNow = shown;
     if (!on && this.hl) this.highlight(null);
   }
 
@@ -205,11 +209,16 @@ export class TutorialView {
     this.hl = el;
   }
 
-  /** Flèche : au-dessus du lieu quand il est à l'écran, sinon au bord, tournée vers lui. Écrite seulement si elle bouge. */
-  private placeArrow(g: GuideState, w: World, shown: boolean, width: number, height: number): void {
+  /**
+   * Flèche : au-dessus du lieu quand il est à l'écran, sinon au bord, tournée vers lui. Écrite seulement si elle bouge.
+   * Appelée après le rendu de la scène, avec la caméra de l'image (comme les chiffres de dégâts).
+   */
+  arrowFrame(w: World, width: number, height: number): void {
+    const g = this.g;
+    if (!g) return;
     const A = this.arrow;
     if (
-      !shown ||
+      !this.shownNow ||
       !guideTarget(g, w, this.at) ||
       !this.host.project(this.at.x, w.heightAt(this.at.x, this.at.z) + 1, this.at.z, this.scr)
     ) {
@@ -249,6 +258,9 @@ export class TutorialView {
     this.ay = py;
     this.aa = ang;
     A.style.transform = `translate(${px}px,${py}px) rotate(${ang}deg)`;
-    A.classList.toggle('on-target', inside);
+    if (inside !== this.onTarget) {
+      this.onTarget = inside;
+      A.classList.toggle('on-target', inside);
+    }
   }
 }

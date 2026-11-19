@@ -3513,7 +3513,7 @@ function frame(nowMs: number): void {
       document.body.classList.toggle('timestop', frozenNow);
     }
     mapView.update(world, realDt); // phase 27 : minicarte (4 fois par seconde)
-    tuto.frame(world, realDt, true, innerWidth, innerHeight);
+    tuto.frame(world, realDt, true);
     // phase 51 : le nombre de totems de boss du monde s'annonce une fois, après la bannière d'arrivée. L'annonce attend
     // qu'aucune autre bannière ne soit affichée (elle écrasait celle d'un bonus ramassé tôt) et se tait passé
     // BOSS_TOTEM_NOTE_LATE s : une partie reprise plus loin dans le monde ne la répète pas
@@ -3531,7 +3531,7 @@ function frame(nowMs: number): void {
       slideBtnOn = slideOn;
       $('btnSlide').classList.toggle('on', slideOn);
     }
-  } else if (world && tuto.g) tuto.frame(world, realDt, false, innerWidth, innerHeight); // bulle masquée hors du jeu
+  } else if (world && tuto.g) tuto.frame(world, realDt, false); // bulle masquée hors du jeu
   if (app === 'levelup') {
     // clavier / manette : touches 1-3 (parité avec le tap sur la carte)
     const pick = input.takePick();
@@ -3563,6 +3563,7 @@ function frame(nowMs: number): void {
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
     scene.marks.update(world.powers, world.powerCount, now, scene.camera, innerWidth, innerHeight); // phase 35
   }
+  if (world) tuto.arrowFrame(world, innerWidth, innerHeight); // après le rendu : la caméra de cette image
 
   if (perfOn && scene) {
     frameTimes[frameIdx++ % PERF_WINDOW] = performance.now() - t0;
