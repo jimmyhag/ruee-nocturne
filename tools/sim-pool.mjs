@@ -24,8 +24,9 @@ const quantile = (values, p) => {
 const pct = (n, d) => (d ? ((100 * n) / d).toFixed(1) : '–');
 
 for (const prefix of prefixes)
-  // lot L3 : `daily` (fichiers <préfixe>-daily-<graine>.json, `--daily`) ; sa « victoire » est le défi réussi
-  for (const profile of ['maxed', 'naked', 'daily']) {
+  // lot L3 : `daily` (fichiers <préfixe>-daily-<graine>.json, `--daily`) ; sa « victoire » est le défi réussi ;
+  // 1.66.0 : `tutorial` (`--tutorial`), la partie guidée et ses cibles (décision 17 de docs/specs/tutoriel.md)
+  for (const profile of ['maxed', 'naked', 'daily', 'tutorial']) {
     const files = readdirSync(dir)
       .filter((f) => f.startsWith(`${prefix}-${profile}-`) && f.endsWith('.json'))
       .sort();
@@ -54,6 +55,23 @@ for (const prefix of prefixes)
       console.log(
         `   par graine (bronze / argent / or) ${byFile.map((rs, i) => `${files[i].slice(prefix.length + profile.length + 2, -5)} : ${medal(rs, 1)} / ${medal(rs, 2)} / ${medal(rs, 3)}`).join(' · ')}`,
       );
+    }
+    if (profile === 'tutorial') {
+      const guided = (rs) => {
+        const reached = rs.filter((r) => r.tutoBoss);
+        return `boss atteint ${pct(reached.length, rs.length)} % · abattu ${pct(
+          reached.filter((r) => r.tutoBossKill).length,
+          reached.length,
+        )} % de ceux-là · portail ${pct(
+          rs.filter((r) => r.tutoPortal).length,
+          rs.length,
+        )} % · morts avant 5:00 ${pct(rs.filter((r) => r.time < 300 && !r.tutoBoss).length, rs.length)} %`;
+      };
+      console.log(`   ${guided(all)}`);
+      const byFile = files.map((f) => JSON.parse(readFileSync(`${dir}/${f}`, 'utf8')).results);
+      for (let i = 0; i < files.length; i++)
+        console.log(`   graine ${files[i].slice(prefix.length + profile.length + 2, -5)} : ${guided(byFile[i])}`);
+      continue;
     }
     if (profile === 'daily')
       console.log(

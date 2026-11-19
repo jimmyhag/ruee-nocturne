@@ -1,7 +1,8 @@
-// Partie guidée (docs/specs/tutoriel.md, décision 11) : la partie guidée se règle par la simulation (règle 13). La mesure
-// elle-même (800 parties guidées, 4 graines × 200, ≈ 10 min de calcul sur quatre cœurs) est dans docs/GATES.md : elle ne
-// tient pas dans les tests unitaires. Ici : les cibles sont celles de la spec, les chiffres recopiés sont ceux des
-// réglages actuels (empreinte), et la CLI joue bien la partie guidée du jeu (même monde que main.ts, même guide).
+// Partie guidée (docs/specs/tutoriel.md, décision 17 de la révision 1.66.0) : la partie guidée se règle par la simulation
+// (règle 13). La mesure elle-même (800 parties guidées, 4 graines × 200, ≈ 10 min de calcul sur quatre cœurs) est dans
+// docs/GATES.md : elle ne tient pas dans les tests unitaires. Ici : les cibles sont celles de la spec, les chiffres
+// recopiés sont ceux des réglages actuels (empreinte), et la CLI joue bien la partie guidée du jeu (même monde que
+// main.ts, même guide).
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { TUTORIAL } from '../src/sim/balance';
@@ -11,15 +12,15 @@ import { World } from '../src/sim/world';
 import { PROFILES, checkTargets } from './targets';
 
 /**
- * Mesure regroupée, `npm run sim -- --tutorial --runs 200 --seed 42…45 --out …` (bot moyen) : boss atteint (%), mort
- * contre lui (% de ceux qui l'atteignent), temps du boss pour tuer (médiane, s), morts avant 5:00 (%). Changer un réglage
- * de TUTORIAL ou du guide sans refaire la mesure fait échouer le test ; après une nouvelle mesure, recopier les chiffres
- * et la nouvelle empreinte.
+ * Mesure regroupée, `npm run sim -- --tutorial --runs 200 --seed 42…45 --out sim/<préfixe>-tutorial-<graine>.json`
+ * (bot moyen), puis `node tools/sim-pool.mjs sim <préfixe>` : boss du monde atteint (%), morts avant 5:00 (%), boss
+ * abattu (% de ceux qui l'atteignent), parties entrées dans le portail (%). Changer un réglage de TUTORIAL ou du guide
+ * sans refaire la mesure fait échouer le test ; après une nouvelle mesure, recopier les chiffres et la nouvelle empreinte.
  */
-const MEASURED_FOR = '24e50eb01bd04594';
-const MEASURED = { reachPct: 96.4, bossDeathPct: 98.7, bossTimeP50: 39, deadBefore5Pct: 1.6 };
+const MEASURED_FOR = '8a49ba54bd839a6c';
+const MEASURED = { reachPct: 97.1, deadBefore5Pct: 1.0, killPct: 73.0, portalPct: 70.9 };
 
-describe('partie guidée : réglage par la simulation (décision 11)', () => {
+describe('partie guidée : réglage par la simulation (décision 17)', () => {
   it('Nobody loses the guided run before the boss', () => {
     const tuning = createHash('sha256').update(JSON.stringify({ TUTORIAL, GUIDE })).digest('hex').slice(0, 16);
     expect(
@@ -30,19 +31,19 @@ describe('partie guidée : réglage par la simulation (décision 11)', () => {
     const targets = PROFILES.tutorial;
     expect(targets.map((x) => [x.name, x.min, x.max])).toEqual([
       ['boss atteint ≥ 90 %', 90, 100],
-      ['mort contre le boss ≥ 95 %', 95, 100],
-      ['boss tue en 20–60 s', 20, 60],
       ['morts avant 5:00 ≤ 3 %', 0, 3],
+      ['boss abattu 25–75 %', 25, 75],
     ]);
     const tuto = (o: Partial<typeof MEASURED>) => ({ tuto: { ...MEASURED, ...o } });
     // la mesure recopiée est dans les cibles…
     expect(checkTargets(tuto({}), targets).filter((c) => !c.ok)).toEqual([]);
     // …et les cibles jugent bien ce qu'elles disent
     expect(checkTargets(tuto({ reachPct: 89 }), targets)[0].ok).toBe(false);
-    expect(checkTargets(tuto({ bossDeathPct: 94 }), targets)[1].ok).toBe(false);
-    expect(checkTargets(tuto({ bossTimeP50: 61 }), targets)[2].ok).toBe(false);
-    expect(checkTargets(tuto({ bossTimeP50: 19 }), targets)[2].ok).toBe(false);
-    expect(checkTargets(tuto({ deadBefore5Pct: 3.1 }), targets)[3].ok).toBe(false);
+    expect(checkTargets(tuto({ deadBefore5Pct: 3.1 }), targets)[1].ok).toBe(false);
+    expect(checkTargets(tuto({ killPct: 24 }), targets)[2].ok).toBe(false);
+    expect(checkTargets(tuto({ killPct: 76 }), targets)[2].ok).toBe(false);
+    // le boss abattu ouvre le portail : on n'y entre pas plus souvent qu'on ne l'abat
+    expect(MEASURED.portalPct).toBeLessThanOrEqual((MEASURED.killPct * MEASURED.reachPct) / 100 + 0.1); // chiffres arrondis
     // la CLI (`--tutorial`) joue la partie du jeu : carte TUTORIAL.map, options de main.ts
     const w = new World(TUTORIAL.map, tutorialOptions());
     expect(w.tutorial).toBe(true);

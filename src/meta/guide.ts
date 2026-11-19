@@ -1,9 +1,11 @@
 // Partie guidée (docs/specs/tutoriel.md) : l'automate du guide, pur (ni DOM ni stockage), partagé par l'interface
 // (src/ui/tutorial.ts, qui l'affiche) et par la CLI d'équilibrage (le bot y fait les gestes demandés). Il lit le monde et
 // ses événements, n'écrit jamais dedans et ne tire aucun nombre de `w.rng` : la simulation reste celle d'une partie
-// sans guide. Une étape « geste » ne passe que sur l'événement de la sim que le geste produit (décision 2) ; seules les
-// étapes « à voir » passent sur un délai. Aucune allocation par pas : l'état est un objet de nombres, écrit en place.
-import { TUTORIAL } from '../sim/balance';
+// sans guide. Une étape « geste » ne passe que sur l'événement de la sim que le geste produit (décision 2), le crâne et
+// le totem de boss sur leur activation (décision 14) ; seules les étapes « à voir » (la course, le totem du monde)
+// passent sur un délai. Aucune allocation par pas : l'état est un objet de nombres, écrit en place.
+import { STAGE, TUTORIAL } from '../sim/balance';
+import { totemLocked } from '../sim/stages';
 import { Ev, Mode } from '../sim/types';
 import type { World } from '../sim/world';
 
@@ -20,9 +22,9 @@ export const STEPS = [
   'chest', // un coffre de carte, l'or offert
   'shrine',
   'race', // passer la première arche, ou la regarder GUIDE.race s
-  'skull', // à voir, jamais imposé
-  'bossTotem', // à voir
-  'totem', // à voir
+  'skull', // l'activer (décision 14)
+  'bossTotem', // l'activer (décision 14)
+  'totem', // à voir : il ne s'active qu'à TUTORIAL.forceAt (décision 15)
   'free', // seul, avec les consignes de première apparition
 ] as const;
 export const enum Step {
@@ -64,7 +66,7 @@ export const ALL_HINTS = (1 << HINTS.length) - 1;
 export const GUIDE = {
   move: 4, // u parcourus pour l'étape du déplacement
   kills: 5, // monstres vaincus pour l'étape du tir automatique
-  see: 10, // s : une étape « à voir » (crâne, totem de boss, totem du monde)
+  see: 10, // s : l'étape « à voir » du totem du monde
   race: 20, // s : la course passe aussi à la regarder
 };
 
@@ -123,6 +125,15 @@ export function readGuide(raw: unknown): GuideState | null {
 /** Le totem du monde attend le joueur : à 2 minutes de la fin de la partie guidée (décision 6). */
 export function guideForced(g: GuideState, w: World): boolean {
   return g.tutorial && w.stage === 0 && w.totem.state === 0 && !w.endless && w.stageT >= TUTORIAL.forceAt;
+}
+
+/**
+ * Décision 15 : le joueur est dans le cercle du totem du monde avant son tour ; l'interface dit « Pas encore : ce sera
+ * le dernier défi de la partie ».
+ */
+export function guideTotemWait(g: GuideState, w: World): boolean {
+  if (!g.tutorial || !totemLocked(w) || w.totem.state !== 0) return false;
+  return (w.totem.x - w.player.x) ** 2 + (w.totem.z - w.player.z) ** 2 < STAGE.totemR * STAGE.totemR;
 }
 
 /** Index du lieu le plus proche du joueur dans une liste (filtré par `ok`), -1 s'il n'y en a pas. */
@@ -185,8 +196,9 @@ function enter(g: GuideState, w: World, s: Step): void {
   else if (s === Step.Shrine) g.target = nearest(w, w.shrines, freeShrine);
   else if (s === Step.Race) g.target = nearestRace(w);
   else if (s === Step.SlideJump) g.target = nearestRamp(w);
-  else if (s === Step.Skull) g.target = nearest(w, w.skulls, offSkull);
-  else if (s === Step.BossTotem) g.target = nearest(w, w.bossTotems, offSkull);
+  // crâne, totem de boss : déjà activé avant l'étape, la leçon est apprise (comme le coffre)
+  else if (s === Step.Skull) g.target = w.skullsOn > 0 ? -1 : nearest(w, w.skulls, offSkull);
+  else if (s === Step.BossTotem) g.target = w.bossTotemsOn > 0 ? -1 : nearest(w, w.bossTotems, offSkull);
 }
 const PLACE_STEPS: readonly Step[] = [Step.Chest, Step.Shrine, Step.Race, Step.Skull, Step.BossTotem];
 
@@ -239,9 +251,12 @@ export function updateGuide(g: GuideState, w: World, dt: number): boolean {
     if (e.type === Ev.PowerDrop) fire(g, Hint.Power);
     else if (e.type === Ev.SurvivalWarn && e.x2 !== 1) fire(g, Hint.Survival);
     else if (e.type === Ev.MerchantArrive) fire(g, Hint.Merchant);
-    else if (e.type === Ev.PortalOpen && !(g.hints & (1 << Hint.Portal))) {
-      fire(g, Hint.Portal);
-      g.portal = true;
+    else if (e.type === Ev.PortalOpen) {
+      g.elite = w.nextElite; // décision 18 : la chute du chrono décale l'élite suivante, ce n'est pas une élite apparue
+      if (!(g.hints & (1 << Hint.Portal))) {
+        fire(g, Hint.Portal);
+        g.portal = true;
+      }
     } else if (e.type === Ev.StageStart) {
       g.portal = false;
       fire(g, Hint.World);
@@ -276,10 +291,8 @@ export function updateGuide(g: GuideState, w: World, dt: number): boolean {
     case Step.Race:
       if (g.t >= GUIDE.race) enter(g, w, Step.Skull);
       break;
-    case Step.Skull:
-    case Step.BossTotem:
     case Step.Totem:
-      if (g.t >= GUIDE.see) enter(g, w, (g.step + 1) as Step);
+      if (g.t >= GUIDE.see) enter(g, w, Step.Free);
       break;
   }
   // une étape de lieu sans lieu (tout ouvert, carte sans crâne…) ne bloque pas le guide

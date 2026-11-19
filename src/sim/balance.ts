@@ -210,26 +210,28 @@ export const FIRST_RUNS = {
   // deux parties suivantes sont adoucies (`WorldOptions.soft`), au lieu des deux premières du dévoilement
   afterTutorial: 2,
 };
-// Partie guidée (docs/specs/tutoriel.md, décisions 2 à 11) : la toute première partie d'un nouveau joueur, au monde 1,
+// Partie guidée (docs/specs/tutoriel.md, décisions 2 à 17) : la toute première partie d'un nouveau joueur, au monde 1,
 // avec un guide par-dessus (src/meta/guide.ts, src/ui/tutorial.ts). La sim n'en reçoit que `WorldOptions.tutorial` et ces
-// réglages ; le guide ne touche jamais `w.rng`. Réglé par `npm run sim -- --tutorial` (règle 13) : arriver au boss
-// ≥ 90 %, mourir contre lui ≥ 95 % de ceux qui y arrivent, en 20 à 60 s (médiane), morts avant 5:00 ≤ 3 % (bot moyen,
-// 4 graines × 200 parties regroupées, docs/GATES.md).
+// réglages ; le guide ne touche jamais `w.rng`. Réglé par `npm run sim -- --tutorial` (règle 13, révision 1.66.0) : boss
+// du monde atteint ≥ 90 %, abattu par 25 à 75 % de ceux qui l'atteignent, morts avant 5:00 ≤ 3 % (bot moyen, 4 graines
+// × 200 parties regroupées, docs/GATES.md). Le boss du totem est un boss normal (décision 16) : les leviers sont la
+// horde et les monstres du monde 1, jamais les boss.
 export const TUTORIAL = {
   // graine de la carte de la partie guidée : une carte du monde 1 choisie pour que chaque lieu montré (coffre,
   // sanctuaire, course, crâne, totem de boss, totem du monde) soit près du départ (test « lieux près du joueur »)
   map: 1825,
   learnUntil: 300, // s de partie : les cinq premières minutes, celles des gestes et des lieux
   spawn: 0.6, // apparitions × pendant ces minutes (flux continu et vagues) : la horde reste légère
-  forceAt: 480, // s du monde : à 2 minutes de la fin, le guide mène au totem du monde (flèche et bannière)
+  // s du monde : à 2 minutes de la fin, le guide mène au totem du monde ; avant, il ne s'active pas (décision 15)
+  forceAt: 480,
   wait: 0.5, // apparitions × de forceAt jusqu'à l'activation du totem : la horde s'éclaircit
   hold: 30, // s : le chrono du monde s'arrête à 0:30 tant que le totem n'est pas activé ; pas de prolongation
-  hp: 0.45, // PV des monstres du monde 1 × (boss de survie compris ; le boss du totem a les siens)
-  dmg: 0.35, // dégâts des monstres du monde 1 × (boss du totem compris, avant bossDmg)
-  survivalHp: 1, // PV des boss de survie (3:00, 7:00) ×, en plus de `hp`
-  bossHp: 20, // PV du boss du totem × : le joueur ne doit pas le battre
-  bossDmg: 7.5, // ses dégâts × : il tue le joueur en 20 à 60 s
-  bossCadence: 1, // rythme de ses attaques (comme BOSSTOTEM.extraCadence)
+  hp: 0.45, // PV des monstres du monde 1 × (pas des boss : leurs PV sont calculés à part)
+  dmg: 0.35, // dégâts des monstres du monde 1 × (boss de survie compris ; pas le boss du totem ni ses doubles)
+  survivalHp: 1, // PV des boss de survie (3:00, 7:00) ×
+  // tomes imposés (décision 13) : le premier à la première montée de niveau, le second à la deuxième ; aucun autre
+  // tome n'est tiré de toute la partie guidée (ses deux emplacements de tome sont pris)
+  tomes: ['degats', 'projectiles'] as readonly TomeKey[],
   freeChests: 1, // coffres de carte offerts (l'or pour ouvrir le premier, décision 5)
   gold: 150, // or : prime de fin de guide, gardée avec l'or de la partie (décision 7)
 };

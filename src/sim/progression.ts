@@ -1,4 +1,4 @@
-import { CHEST, CHOICE, DIFFICULTY, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_POOL, LEVEL_MAX, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
+import { CHEST, CHOICE, DIFFICULTY, GOLD, ITEM, LUCK, RARITY, TOMES, TOME_POOL, LEVEL_MAX, TUTORIAL, WEAPON_LINES, XP, It, RUN_REROLL } from './balance';
 import { applyBoon, rollBoonChoices } from './poi';
 import { canGainItem, chestOffers, gainItem, itemIndex, rollItemChoices } from './items';
 import { updateSynergies } from './synergies';
@@ -98,6 +98,8 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
     // coûtait 8 points de « monde 2 atteint » à qui ne le prenait jamais (un tome de plus pour quatre emplacements).
     // Dernier du pool et écarté avant tout tirage : une partie sans crâne garde exactement ses cartes d'avant
     if (k === 'defi' && lv === 0 && w.skullsOn < DIFFICULTY.tomeAfterSkulls) continue;
+    // partie guidée (décision 13) : seuls les deux tomes imposés, écartés avant tout tirage comme le tome de difficulté
+    if (w.tutorial && lv === 0 && !TUTORIAL.tomes.includes(k)) continue;
     const c = pool[n];
     c.kind = 't';
     c.key = k;
@@ -154,6 +156,54 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
     const p = pool[i];
     w.cards.push({ kind: p.kind, key: p.key, lv: p.lv, n: p.n, s0: p.s0, s1: p.s1, s2: p.s2 });
   }
+  if (w.tutorial) imposeTome(w);
+}
+
+/** Partie guidée (décision 13) : le tome imposé à cette montée de niveau (le premier de TUTORIAL.tomes pas encore pris), ou null. */
+function imposedTome(w: World): TomeKey | null {
+  if (!w.tutorial) return null;
+  // emplacements de tome pleins (une partie reprise avec d'autres tomes) : plus rien à imposer ; compté sans allocation
+  let owned = 0;
+  for (const k in w.tomes) if (w.tomes[k as TomeKey] !== undefined) owned++;
+  if (owned >= w.maxTomes) return null;
+  // boucle indexée : pas d'itérateur si la fonction est un jour appelée à chaque image (relecture perf 1.66.0)
+  for (let i = 0; i < TUTORIAL.tomes.length; i++) if (w.tomes[TUTORIAL.tomes[i]] === undefined) return TUTORIAL.tomes[i];
+  return null;
+}
+
+/**
+ * Partie guidée (décision 13) : la carte du tome imposé passe en première position. Tirée avec les autres, elle garde
+ * ses lignes ; sinon elle prend la place de la dernière carte, avec la première ligne permise de sa famille (ordre de
+ * TOMES). Aucun nombre tiré ici : le tirage reste celui de `w.rng`.
+ */
+function imposeTome(w: World): void {
+  const k = imposedTome(w);
+  if (k === null || w.cards.length === 0 || w.cards[0].kind === 'heal') return;
+  let at = -1;
+  for (let i = 0; i < w.cards.length; i++) if (w.cards[i].kind === 't' && w.cards[i].key === k) at = i;
+  if (at < 0) {
+    const lines = TOMES[k],
+      taken = w.tmods[k]!;
+    let s0 = -1;
+    for (let i = 0; i < lines.length && s0 < 0; i++)
+      if ((lines[i].max === undefined || taken[i] < lines[i].max!) && lines[i].needs !== 'heal') s0 = i;
+    at = w.cards.length - 1;
+    w.cards[at] = { kind: 't', key: k, lv: 1, n: 1, s0, s1: -1, s2: -1 };
+  }
+  const c = w.cards[at];
+  for (let i = at; i > 0; i--) w.cards[i] = w.cards[i - 1];
+  w.cards[0] = c;
+}
+
+/**
+ * Partie guidée (décision 13) : sur une feuille de niveau au tome imposé, l'index de la seule carte qu'on peut prendre
+ * (la première) ; -1 si le choix est libre. La simulation refuse les autres (applyCard), le bot et l'interface le lisent.
+ */
+export function tutorialLock(w: World): number {
+  if (w.mode !== Mode.LevelUp) return -1;
+  const k = imposedTome(w);
+  const c = w.cards[0];
+  return k !== null && c !== undefined && c.kind === 't' && c.key === k ? 0 : -1;
 }
 
 /** Applique la ligne `s` (≥ 0) d'une carte d'arme ou de tome. */
@@ -170,6 +220,8 @@ function applyLine(w: World, c: Card, s: number): void {
 export function applyCard(w: World, idx: number): void {
   const c = w.cards[idx];
   if (!c) return;
+  const lock = tutorialLock(w);
+  if (lock >= 0 && idx !== lock) return; // partie guidée : le tome imposé seulement (décision 13)
   if (c.kind === 'i') {
     // phase 17 : objet d'un coffre
     gainItem(w, itemIndex(c.key as ItemKey));
@@ -211,7 +263,7 @@ const lastCards: Card[] = [];
 
 /** Une montée de niveau (cartes d'arme ou de tome) peut-elle être relancée ? Pas un coffre, un sanctuaire ni un soin. */
 export function canReroll(w: World): boolean {
-  if (w.mode !== Mode.LevelUp || w.rerolls <= 0 || w.cards.length === 0) return false;
+  if (w.mode !== Mode.LevelUp || w.rerolls <= 0 || w.cards.length === 0 || tutorialLock(w) >= 0) return false;
   const k = w.cards[0].kind;
   return k === 'w' || k === 't';
 }
@@ -253,15 +305,19 @@ export function nextChoice(w: World): void {
 }
 
 /**
- * Partie guidée (docs/specs/tutoriel.md, décision 4) : la première feuille de niveau propose au moins une carte rare. Le
- * tirage reste celui de `w.rng` (aucun nombre tiré ici) ; si aucune carte n'a deux lignes, la première carte d'arme ou de
- * tome à une ligne reçoit la première ligne de sa famille encore permise (ordre de WEAPON_LINES ou TOMES).
+ * Partie guidée (docs/specs/tutoriel.md, décisions 4 et 13) : la première feuille de niveau propose au moins une carte
+ * rare, le tome imposé quand il y en a un. Le tirage reste celui de `w.rng` (aucun nombre tiré ici) ; si aucune carte
+ * (permise) n'a deux lignes, la première carte d'arme ou de tome à une ligne reçoit la première ligne de sa famille encore
+ * permise (ordre de WEAPON_LINES ou TOMES).
  */
 function tutorialRare(w: World): void {
   w.tutoRare = true;
-  for (const c of w.cards) if (c.n >= 2) return;
-  for (const c of w.cards) {
-    if ((c.kind !== 'w' && c.kind !== 't') || c.n !== 1) continue;
+  // décision 13 : sur la feuille d'un tome imposé, la carte rare est celle qu'on peut prendre
+  const lock = tutorialLock(w);
+  for (let k = 0; k < w.cards.length; k++) if (w.cards[k].n >= 2 && (lock < 0 || k === lock)) return;
+  for (let k = 0; k < w.cards.length; k++) {
+    const c = w.cards[k];
+    if ((c.kind !== 'w' && c.kind !== 't') || c.n !== 1 || (lock >= 0 && k !== lock)) continue;
     const lines = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey] : TOMES[c.key as TomeKey];
     const taken = c.kind === 'w' ? w.wmods[c.key as WeaponKey] : w.tmods[c.key as TomeKey]!;
     for (let i = 0; i < lines.length; i++) {
