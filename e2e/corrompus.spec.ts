@@ -1,12 +1,19 @@
 // Monstres corrompus (docs/specs/corrompus.md) : l'interface, sur PC et sur téléphone, un test par scénario d'interface
 // (titres en anglais). La simulation est dans src/sim/corrupt.test.ts et src/meta/corrupt-hint.test.ts. Captures de
-// chaque corrompu et de leurs compétences dans shots/ (lues avant la livraison).
+// chaque corrompu et de leurs compétences dans shots/, et dans docs/captures/corrompus/ avec CAPTURES=1 (téléphone).
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { collectConsoleErrors, openGame, startRun } from './helpers';
 
 /** Types des sept monstres qui ont une compétence : Spectre, Dard, Brute, Volant, Cracheur, Archer, Sorcier. */
 const TYPES = [0, 1, 2, 4, 5, 9, 10];
+
+/** Capture dans shots/ ; au téléphone avec CAPTURES=1, aussi dans docs/captures/corrompus/ (relues pour la livraison). */
+async function shot(page: Page, project: string, name: string): Promise<void> {
+  await page.screenshot({ path: `shots/${project}-${name}.png` });
+  if (process.env.CAPTURES === '1' && project === 'mobile')
+    await page.screenshot({ path: `docs/captures/corrompus/${name}.jpg`, type: 'jpeg', quality: 70 });
+}
 
 /** Ce que les écrivains d'instances dessinent à l'image courante. */
 const count = (page: Page) =>
@@ -80,34 +87,53 @@ test('A corrupted monster is recognisable', async ({ page }, info) => {
   // sans appel de dessin en plus (décision 3) : mêmes écrivains, mêmes appels
   expect(after.calls, 'appels de dessin ajoutés par les corrompus').toBe(before.calls);
   expect(after.calls, 'budget d’appels').toBeLessThanOrEqual(p === 'mobile' ? 40 : 80);
-  await page.screenshot({ path: `shots/${p}-corrompus.png` });
+  await shot(page, p, 'corrompus');
 
-  // leurs compétences, lancées toutes ensemble : couloir de la Ruée, flaques, bombe, éventail, volée, pluie de feu
+  // leurs compétences, lancées toutes ensemble : couloir de la Ruée, bombe, éventail, volée, pluie de feu ; le Spectre
+  // (1 PV) tombe sous l'arme du héros et se scinde
   await page.evaluate(() => {
     const g = (window as any).__game,
       w = g.world;
-    for (let i = 0; i < w.enemyCount; i++) w.enemies[i].timer = 0;
+    for (let i = 0; i < w.enemyCount; i++) {
+      w.enemies[i].timer = 0;
+      if (w.enemies[i].type === 0 && !w.enemies[i].elite) w.enemies[i].hp = 0.01;
+    }
     g.debug.speed(0.25);
   });
+  // la Ruée arme son couloir : image figée
   await page.waitForFunction(
     () => {
       const w = (window as any).__game.world;
-      let flames = 0,
-        zones = 0;
-      for (let i = 0; i < w.shotCount; i++) {
-        if (w.shots[i].kind === 6) flames++;
-        if (w.shots[i].skill > 0) zones++;
-      }
-      return flames > 0 && zones >= 6;
+      for (let i = 0; i < w.enemyCount; i++) if (w.enemies[i].type === 1 && w.enemies[i].state === 1) return true;
+      return false;
     },
     null,
     { timeout: 60_000 },
   );
   await page.evaluate(() => (window as any).__game.debug.speed(0));
   await page.waitForTimeout(1500);
-  const skills = await count(page);
-  expect(skills.calls, 'budget d’appels, compétences lancées').toBeLessThanOrEqual(p === 'mobile' ? 40 : 80);
-  await page.screenshot({ path: `shots/${p}-corrompus-competences.png` });
+  const lane = await count(page);
+  expect(lane.calls, 'budget d’appels, compétences lancées').toBeLessThanOrEqual(p === 'mobile' ? 40 : 80);
+  await shot(page, p, 'corrompus-competences');
+  // puis les éclats de la Scission et une flaque de feu allumée
+  await page.evaluate(() => (window as any).__game.debug.speed(0.25));
+  await page.waitForFunction(
+    (arm) => {
+      const w = (window as any).__game.world;
+      let shards = 0,
+        lit = 0;
+      for (let i = 0; i < w.enemyCount; i++) if (w.enemies[i].corrupt === 2) shards++;
+      for (let i = 0; i < w.shotCount; i++) if (w.shots[i].kind === 6 && w.shots[i].t0 - w.shots[i].life > arm) lit++;
+      return shards > 0 && lit > 0;
+    },
+    0.65,
+    { timeout: 60_000 },
+  );
+  await page.evaluate(() => (window as any).__game.debug.speed(0));
+  await page.waitForTimeout(1500);
+  const fire = await count(page);
+  expect(fire.calls, 'budget d’appels, éclats et flaques').toBeLessThanOrEqual(p === 'mobile' ? 40 : 80);
+  await shot(page, p, 'corrompus-scission-feu');
   expect(errors).toEqual([]);
 });
 
