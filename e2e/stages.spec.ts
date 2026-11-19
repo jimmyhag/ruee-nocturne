@@ -103,6 +103,37 @@ test('monde 1 → 2 : chrono, totem activé en marchant, boss, portail, nouvelle
   expect(errors).toEqual([]);
 });
 
+// 1.66.0 (docs/specs/tutoriel.md, décision 18) : la mort du boss du totem fait tomber le chrono à 0 ; l'aide le dit
+test("The totem boss's death drops the clock to 0", async ({ page, hasTouch }) => {
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  const tap = (sel: string) => (hasTouch ? page.locator(sel).tap() : page.locator(sel).click());
+  await tap('#settingsBtn');
+  await tap('#helpBtn');
+  await expect(page.locator('#help dd[data-i18n="menu.ctrl.worlds"]')).toContainText(
+    'Quand le boss du totem meurt, le chrono tombe à 0',
+  );
+  await page.evaluate(() => (window as any).__game.start(3));
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await calm(page);
+  // la jauge du totem le rappelle ; l'activer ne change pas le chrono
+  await page.evaluate(() => {
+    const G = (window as any).__game;
+    G.debug.teleport(G.world.totem.x, G.world.totem.z);
+  });
+  await expect(page.locator('#poiText')).toHaveText('Totem du boss · à sa mort, le chrono tombe à 0');
+  await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, null, { timeout: 40_000 });
+  await expect(page.locator('#time')).toHaveText(/^9:\d\d$/);
+  // le boss tombe : bannière, chrono à 0 puis dépassement en rouge
+  await page.evaluate(() => (window as any).__game.debug.killBoss());
+  await expect(page.locator('#banner')).toContainText('Le chrono tombe à 0 : entre dans le portail !');
+  await expect(page.locator('#banner')).toContainText('Portail ouvert vers le monde 2');
+  await expect(page.locator('#timeBox')).toHaveClass(/over/);
+  await expect(page.locator('#time')).toHaveText(/^\+0:0\d$/);
+  expect(await page.evaluate(() => (window as any).__game.world.timeUp)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('chrono écoulé sans avoir appelé le boss : dépassement en rouge, le totem reste à activer (1.45.2)', async ({
   page,
 }, info) => {
@@ -125,7 +156,7 @@ test('chrono écoulé sans avoir appelé le boss : dépassement en rouge, le tot
   });
   await expect(page.locator('#poiChip')).toBeVisible();
   await expect(page.locator('#poiChip')).toHaveClass(/totem/);
-  await expect(page.locator('#poiText')).toHaveText('Totem du boss');
+  await expect(page.locator('#poiText')).toHaveText('Totem du boss · à sa mort, le chrono tombe à 0');
   await page.waitForFunction(() => (window as any).__game.world.totem.charge > 1.2, null, { timeout: 30_000 });
   await page.screenshot({ path: `shots/${info.project.name}-totem-jauge.png` });
   await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, null, { timeout: 40_000 });

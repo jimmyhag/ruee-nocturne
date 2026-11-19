@@ -118,23 +118,22 @@ const DAILY_TARGETS: Target[] = [
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' },
 ];
-// Partie guidée (docs/specs/tutoriel.md, décision 11), `--tutorial` : personne ne la perd avant d'avoir tout vu, et le boss
-// du totem, volontairement trop fort, tue le joueur en 20 à 60 s
+// Partie guidée (docs/specs/tutoriel.md, décision 17 de la révision 1.66.0), `--tutorial` : personne ne la perd avant
+// d'avoir tout vu, et le boss du totem, un boss normal, est un vrai combat : gagnable sans être donné
 const TUTORIAL_TARGETS: Target[] = [
   { name: 'boss atteint ≥ 90 %', min: 90, max: 100, get: (s) => s.tuto.reachPct, fmt: (v) => v.toFixed(1) + ' %' },
-  {
-    name: 'mort contre le boss ≥ 95 %',
-    min: 95,
-    max: 100,
-    get: (s) => s.tuto.bossDeathPct,
-    fmt: (v) => v.toFixed(1) + ' %',
-  },
-  { name: 'boss tue en 20–60 s', min: 20, max: 60, get: (s) => s.tuto.bossTimeP50, fmt: (v) => v.toFixed(0) + ' s' },
   {
     name: 'morts avant 5:00 ≤ 3 %',
     min: 0,
     max: 3,
     get: (s) => s.tuto.deadBefore5Pct,
+    fmt: (v) => v.toFixed(1) + ' %',
+  },
+  {
+    name: 'boss abattu 25–75 %',
+    min: 25,
+    max: 75,
+    get: (s) => s.tuto.killPct,
     fmt: (v) => v.toFixed(1) + ' %',
   },
 ];

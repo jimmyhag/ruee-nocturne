@@ -2,9 +2,12 @@ import { slopeAlong } from '../../src/sim/terrain';
 
 /** Phase 27 : variante du bot qui glisse dans les descentes (mesure, pas la référence d'équilibrage). */
 const BOT_SLIDE = typeof process !== 'undefined' && process.env?.BOT_SLIDE === '1';
-// phase 37 : chrono du monde (s) auquel le bot va activer le totem (6:00 par défaut : mesuré, 8:00 noie la build multi-armes du profil maxé dans la horde) ; BOT_FARM=1 : il reste après le
-// boss au lieu de prendre le portail (mesure de la prolongation)
-const BOT_TOTEM_AT = Number((typeof process !== 'undefined' && process.env?.BOT_TOTEM_AT) || 360);
+// phase 37 : chrono du monde (s) auquel le bot va activer le totem ; BOT_FARM=1 : il reste après le boss au lieu de prendre
+// le portail (mesure de la prolongation). 1.66.0 (décision 18 de docs/specs/tutoriel.md) : la mort du boss fait tomber le
+// chrono à 0, le temps qui reste est perdu ; le bot attend donc 7:30 (2:30 au chrono), pour que le boss tombe vers 8:30
+// (combat ≈ 40 s, marche comprise), avant la fin. Mesuré (maxé, 4 graines × 200) : 8:30 le noie dans la horde (monde 2
+// 66,9 % contre 73,5 % à 6:00, kills à 10 min et morts en prolongation hors cible) ; 7:30 coûte 4,4 points de monde 2
+const BOT_TOTEM_AT = Number((typeof process !== 'undefined' && process.env?.BOT_TOTEM_AT) || 450);
 const BOT_FARM = typeof process !== 'undefined' && process.env?.BOT_FARM === '1';
 import type { BoonKey, Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';

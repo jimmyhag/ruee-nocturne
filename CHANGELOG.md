@@ -2,6 +2,27 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.66.0 — 19 nov. 2026 (partie guidée v2, chrono du totem)
+
+La partie guidée te fait vraiment tout essayer, et son boss devient un vrai combat : si tu le bats, la suite t'attend.
+
+### Ajouté
+
+- **Deux tomes pour commencer** : dans la partie guidée, ta première montée de niveau te fait prendre le tome de Dégâts, la deuxième le tome de Projectiles. Les autres cartes restent visibles, éteintes. Ensuite tu choisis librement ; les autres tomes arrivent dès la partie suivante.
+- **Le portail dans la partie guidée** : si tu bats le Gardien, un ralenti te montre le portail, tu entres dans le monde 2 et la partie continue. À la fin, la feuille « À toi de jouer » salue ta victoire.
+
+### Modifié
+
+- **Quand le boss du totem meurt, le chrono tombe à 0** : le monde passe aussitôt en prolongation, la horde grossit jusqu'à ce que tu passes le portail, et le temps qui restait est perdu. Le totem s'active toujours quand tu veux, et le chrono continue pendant le combat : attends la fin pour vaincre son boss. Le défi du jour et le monde infini ne changent pas.
+- **Crâne et totem de boss, pour de vrai** : la partie guidée te demande de les activer, et une bannière redit leur effet.
+- **Le totem du monde attend son tour** dans la partie guidée : il est montré, mais ne s'active qu'à 2 minutes de la fin, pour le dernier défi de la partie.
+- **Le Gardien de la partie guidée** est un boss normal, plus un boss imbattable : à toi de le battre.
+
+### Technique
+
+- Spec : `docs/specs/tutoriel.md`, révision 1.66.0, décisions 13 à 18 (scénarios : `src/meta/tutorial.test.ts`, `src/sim/stages.test.ts`, `e2e/tutoriel.spec.ts`, `e2e/stages.spec.ts`, `tools/tutorial.test.ts`). Tomes imposés : `TUTORIAL.tomes` (`degats`, `projectiles`), les autres tomes écartés du tirage de la partie guidée avant tout tirage, la carte imposée mise en tête sans tirage (`imposeTome`) et, à la première feuille, rendue rare (`tutorialRare`), `tutorialLock` (la simulation refuse toute autre carte : bot, clavier et doigt ; pas de relance d'une feuille imposée). Crâne et totem de boss franchis sur `Ev.SkullOn` et `Ev.BossTotemOn` seulement (déjà activés avant l'étape : elle passe), bannière à deux lignes. Totem du monde verrouillé avant `TUTORIAL.forceAt` dans la partie guidée (`totemLocked`, `guideTotemWait` pour la ligne « Pas encore »). Boss du totem normal : `TUTORIAL.bossHp`, `bossDmg`, `bossCadence` retirés, le boss et ses doubles sans `TUTORIAL.dmg` (`dmgMulNow`). Feuille de fin : texte de victoire si le boss est tombé (`tuto.end.win`). Décision 18 : `stageBossDown` met `stageT` à `STAGE.dur` à l'ouverture du portail (prolongation au pas suivant, `Ev.TimeUp` x2 = 1, bannière avec la ligne du portail) ; la partie guidée ne tient plus son chrono une fois le portail ouvert. CLI : `--tutorial` va jusqu'au portail (`tutoBossKill`, `tutoKillTime`, `tutoPortal`), le bot prend les tomes imposés et reste dans le crâne et le totem de boss ; cibles `PROFILES.tutorial` de la décision 17 ; `tools/sim-pool.mjs` regroupe aussi `tutorial`. Bot : totem à 7:30 (`BOT_TOTEM_AT` 450, 6:00 avant).
+- Équilibrage (règle 13), bot moyen, 4 graines × 200 regroupées : partie guidée, boss atteint 97,1 %, abattu par 73,0 % de ceux-là, portail 70,9 % des parties, morts avant 5:00 1,0 % (`TUTORIAL` inchangé). Parties normales avant / après (même graines, bot au totem à 6:00 puis 7:30) : maxé monde 2 73,5 → 69,1 %, victoire 23,9 → 17,5 % ; nu monde 2 32,0 → 33,4 %, victoire 22,1 → 22,4 %, boss du totem en vie p50 35 → 26 s. Défi du jour (et sa suite en monde infini) identique au bit près. Détail dans `docs/GATES.md`.
+
 ## 1.65.1 — 19 nov. 2026
 
 ### Modifié

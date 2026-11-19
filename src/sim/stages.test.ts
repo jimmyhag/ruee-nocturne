@@ -1,8 +1,8 @@
 // Phase 37 : trois mondes (chrono, totem, boss, portail, prolongation, victoire), carte reconstruite à l'identique.
 import { describe, expect, it } from 'vitest';
-import { DISCOVER, ENDLESS, ENEMIES, GOLD, STAGE, STEP } from './balance';
+import { DAILY, DISCOVER, ENDLESS, ENEMIES, GOLD, STAGE, STEP } from './balance';
 import { hitEnemy } from './combat';
-import { endlessBosses, nextStage, stageSeed, startEndless, survivalType } from './stages';
+import { endlessBosses, nextStage, stageLeft, stageSeed, startEndless, survivalType } from './stages';
 import { startRun, step } from './step';
 import { Ev, Mode } from './types';
 import type { Input } from './types';
@@ -527,5 +527,94 @@ describe('carte explorée à 100 %', () => {
     const back = restoreWorld(JSON.parse(JSON.stringify(snapshotWorld(w))));
     expect(back.exploredAll).toBe(true);
     expect(run(back, 2, still, Ev.Explored)).toBe(0);
+  });
+});
+
+// 1.66.0 (docs/specs/tutoriel.md, décision 18, Jimmy) : la mort du boss du totem fait tomber le chrono à 0
+describe('chrono à 0 à la mort du boss du totem (décision 18)', () => {
+  it("The totem boss's death drops the clock to 0", () => {
+    for (const stage of [0, 1, 2]) {
+      const w = lab(12 + stage);
+      startRun(w);
+      for (let k = 0; k < stage; k++) nextStage(w);
+      w.nextWave = w.nextElite = w.nextEruption = 1e9;
+      w.stageT = 120; // 2:00 du monde : il reste 8 minutes au chrono
+      // activer le totem ne change pas le chrono : il continue pendant le combat
+      summon(w);
+      expect(w.totem.state, `monde ${stage + 1}`).toBe(1);
+      const during = w.stageT;
+      run(w, 5);
+      expect(w.stageT).toBeCloseTo(during + 5, 6);
+      expect(w.timeUp).toBe(false);
+      hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+      if (stage === STAGE.count - 1) {
+        expect(w.mode).toBe(Mode.Won); // dernier monde : la victoire, pas de portail
+        continue;
+      }
+      // le boss tombé : le chrono tombe à 0, la prolongation commence tout de suite, le portail reste ouvert
+      expect(w.portal.open).toBe(true);
+      expect(stageLeft(w)).toBe(0);
+      expect(run(w, STEP * 2, still, Ev.TimeUp)).toBe(1);
+      expect(w.timeUp).toBe(true);
+      expect(w.overT).toBeGreaterThan(0);
+      w.player.x = w.player.px = w.totem.x + 15; // il traîne loin du portail : la horde grossit
+      run(w, 10);
+      expect(w.overHp).toBeGreaterThan(1);
+      expect(w.overRate).toBeGreaterThan(1);
+      expect(w.portal.open).toBe(true);
+    }
+    // tué après la fin du chrono : rien ne change, la prolongation continue
+    const late = lab(20);
+    startRun(late);
+    late.stageT = STAGE.dur + 30;
+    summon(late);
+    run(late, 1);
+    const over = late.overT;
+    hitEnemy(late, late.bossIndex, 1e12, 0, 0, 0);
+    run(late, STEP);
+    expect(late.overT).toBeCloseTo(over + STEP, 6);
+  });
+
+  it('The daily challenge and endless mode are unchanged', () => {
+    // défi du jour : pas de totem du monde ; son boss final abattu ne touche pas au chrono
+    const d = new World(5, { daily: true });
+    d.player.maxHp = d.player.hp = 1e9;
+    startRun(d);
+    d.player.x = d.player.px = d.totem.x;
+    d.player.z = d.player.pz = d.totem.z;
+    run(d, STAGE.totemCharge + 1);
+    expect(d.totem.state).not.toBe(1);
+    expect(d.portal.open).toBe(false);
+    d.t = d.stageT = DAILY.bossAt + 1;
+    run(d, 1);
+    const left = stageLeft(d);
+    for (let i = 0; i < d.enemyCount; i++) if (ENEMIES[d.enemies[i].type].boss) hitEnemy(d, i, 1e12, 0, 0, 0);
+    run(d, STEP);
+    expect(stageLeft(d)).toBeCloseTo(left - STEP, 6);
+    expect(d.timeUp).toBe(false);
+    // monde infini (après la victoire) : tuer ses boss ne fait tomber aucun chrono ni ne lance de prolongation
+    const w = lab(41);
+    nextStage(w);
+    nextStage(w);
+    w.nextWave = w.nextElite = w.nextEruption = 1e9;
+    summon(w);
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    expect(w.mode).toBe(Mode.Won);
+    startEndless(w);
+    const stageT = w.stageT;
+    w.endlessT = w.nextEndlessBoss - 0.05;
+    run(w, 0.1);
+    let killed = 0;
+    for (let i = 0; i < w.enemyCount; i++)
+      if (w.enemies[i].alive && ENEMIES[w.enemies[i].type].boss) {
+        hitEnemy(w, i, 1e12, 0, 0, 0);
+        killed++;
+      }
+    expect(killed).toBeGreaterThan(0);
+    run(w, STEP);
+    expect(w.stageT).toBeCloseTo(stageT + 0.1 + STEP, 6);
+    expect(w.timeUp).toBe(false);
+    expect(w.overT).toBe(0);
+    expect(w.portal.open).toBe(false);
   });
 });

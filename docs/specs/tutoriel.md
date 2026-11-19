@@ -1,6 +1,6 @@
 # Première partie guidée — tout le jeu appris en jouant, au monde 1
 
-**Statut : 🟡 Prêt pour le dev** (révision 1.66.0 ; la 1.65.x est en ligne)
+**Statut : 🟢 Implémenté** (révision 1.66.0)
 
 Session du 19 novembre 2026, avec Jimmy, après la 1.64.0. Jimmy : « Pour le start du jeu,
 quand on est nouveau joueur, il faut qu'on fasse quelque chose de beaucoup plus assisté. […]
@@ -63,6 +63,7 @@ l'enchaînement avec « regarde, un portail… ». » Ces décisions **remplacen
 | 15 | Le totem du monde attend son tour | Dans la partie guidée, le **totem du monde ne s'active pas** avant son tour : rester dessus ne fait rien et une ligne dit « Pas encore : ce sera le dernier défi de la partie ». L'étape « totem du monde » des lieux le **montre** seulement (« Le totem du monde : tu l'activeras à la fin, pour affronter le boss du monde »). Son tour vient à **8:00** (décision 6, inchangée : flèche, bannière « Va activer la statue rouge : le boss du monde t'attend », chrono tenu à 0:30, horde éclaircie) : il devient activable à ce moment-là | décision 5 (totem du monde « quand tu es prêt ») |
 | 16 | Un vrai boss, et le portail dans la foulée | Le boss du totem de la partie guidée est un **boss normal** (plus de `TUTORIAL.bossHp`, `bossDmg`). S'il **tombe** : ralenti et consigne « Un portail est apparu : entre dedans pour découvrir la suite », flèche vers le portail ; à l'arrivée au monde 2, la consigne du nouveau monde ; la partie continue comme une partie normale (les monstres ne sont adoucis qu'au monde 1) et sa fin ouvre la feuille de fin de guide, avec un texte de victoire (« Tu as battu le Gardien ! … À toi de jouer ! »). S'il **tue** le joueur : la feuille « Le Gardien était trop fort… pour cette fois » de la 1.65.0. Ces deux consignes ne reviennent plus dans les parties suivantes (bits de `hints`) | décisions 7 et 8 (boss renforcé qui tue ; portail expliqué seulement dans la partie suivante) |
 | 17 | Équilibrage (règle 13) | Cibles de `--tutorial` (bot `average`, 4 graines × 200, regroupées) : **boss du monde atteint ≥ 90 %** ; **morts avant 5:00 ≤ 3 %** ; **boss du monde abattu entre 25 et 75 %** de ceux qui l'atteignent (un vrai combat, gagnable sans être donné) ; la CLI compte aussi les parties qui entrent dans le portail. Leviers : ceux de `TUTORIAL` (horde, monstres du monde 1, attente du totem), pas les boss eux-mêmes. Le bot active le crâne et le totem de boss quand le guide le demande et prend les tomes imposés. Les parties normales, adoucies et le défi du jour restent identiques au bit près | décision 11 (mourir contre le boss ≥ 95 %) |
+| 18 | La mort du boss du totem fait tomber le chrono à 0 (ajoutée au lot par Jimmy, 19 nov. 2026 : « pour que les gens attendent vraiment la fin ») | Règle de **toute partie**, mondes 1, 2 et 3 : le totem s'active quand on veut et son activation ne change rien au chrono, qui continue pendant le combat. C'est quand le **boss du totem meurt** (avec ses doubles) que le chrono du monde **tombe à 0** : le monde passe aussitôt en **prolongation** (l'état « chrono écoulé, la horde ne fait que grossir », sa rampe, son dépassement en rouge) tant que le portail est ouvert ; le temps qui restait est perdu. Au monde 3, sa mort reste la victoire. Textes : la ligne de l'aide (`menu.ctrl.worlds` : « Quand le boss du totem meurt, le chrono tombe à 0 : la horde grossit jusqu'à ce que tu passes le portail. Attends la fin pour le vaincre. »), la jauge du totem (« Totem du boss · à sa mort, le chrono tombe à 0 ») et une bannière à la mort du boss (« Le chrono tombe à 0 : entre dans le portail ! », avec la ligne du portail). Partie guidée : la décision 15 tient (totem verrouillé jusqu'à 8:00, puis obligatoire, chrono tenu à 0:30 jusqu'à l'activation et à 0:00 pendant le combat) ; la mort du boss y fait aussi tomber le chrono à 0, avec la consigne du portail (décision 16). Pas concernés : le défi du jour (pas de totem du monde) et le monde infini, identiques au bit près. Équilibrage (règle 13) : les parties normales changent, donc la mesure avant/après remplace l'identité au bit près : profils nu et maxé, 4 graines × 200 regroupées, toutes les cibles de `tools/targets.ts` (monde infini compris) ; le bot adapte l'heure du totem pour que le boss meure vers la fin du chrono (politique et mesures : `docs/GATES.md`) ; un écart se règle par la prolongation ou `STAGE` (`balance.ts`), ou se signale avec le levier | règle de la 1.45.2 (le chrono continue après la mort du boss) ; décision 17 (parties normales identiques au bit près) |
 
 Version **1.66.0**, branche `lot/tutoriel-v2`.
 
@@ -191,6 +192,20 @@ Fonctionnalité: Première partie guidée
     Soit 800 parties guidées simulées
     Alors au moins 90 % arrivent au boss et au plus 3 % meurent avant 5:00
     Et entre 25 et 75 % de ceux qui l'atteignent abattent le boss
+
+  Scénario: La mort du boss du totem fait tomber le chrono à 0
+    Soit une partie normale, au monde 1, 2 ou 3, avec du temps au chrono
+    Quand le joueur active le totem
+    Alors le chrono continue pendant le combat
+    Quand le boss du totem meurt
+    Alors le chrono tombe à 0, une bannière le dit et la prolongation commence tant que le portail est ouvert
+    Et au monde 3 c'est la victoire
+    Et l'aide et la jauge du totem expliquent la règle
+
+  Scénario: Le défi du jour et le monde infini ne changent pas
+    Soit le défi du jour, puis le monde infini après une victoire
+    Quand leurs boss meurent
+    Alors leur chrono n'est pas touché et aucune prolongation ne commence
 
 ## UI & Layout Contract
 

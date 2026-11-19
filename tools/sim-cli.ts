@@ -8,6 +8,8 @@ import {
   DAILY_ARMORY,
   DAILY_RULE_KEYS,
   DAILY_RULES,
+  BOSSTOTEM,
+  DIFFICULTY,
   STAGE,
   ENDLESS,
   ENEMIES,
@@ -36,6 +38,7 @@ import { tutorialOptions, worldOptions } from '../src/meta/shop';
 import { Step, guideCardsDone, guideForced, guideTarget, newGuide, updateGuide } from '../src/meta/guide';
 import type { GuideState } from '../src/meta/guide';
 import { BOT_TUNE, enforceAllowed, makeBot, pickAllowed } from './bots';
+import { tutorialLock } from '../src/sim/progression';
 import { startEndless } from '../src/sim/stages';
 import { ENDLESS_TARGETS, PROFILES, REF_PRICE, checkTargets } from './targets';
 import * as BALANCE from '../src/sim/balance';
@@ -255,6 +258,9 @@ interface RunResult {
   tutoBoss: boolean; // le totem du monde a été activé (le boss est venu)
   tutoBossDeath: boolean; // mort pendant le combat du boss du totem
   tutoBossTime: number; // s entre l'activation et la mort (-1 : pas mort contre lui)
+  tutoBossKill: boolean; // révision 1.66.0 : le boss du totem (et ses doubles) abattu, le portail s'ouvre
+  tutoKillTime: number; // s entre l'activation et la mort du boss (-1 : pas abattu)
+  tutoPortal: boolean; // entré dans le portail : arrivé au monde 2
   tutoStepAt5: number; // étape du guide à 5:00 (Step ; -1 : mort avant)
   tutoGuideEnd: number; // s de partie où le guide arrive à l'étape « seul » (-1 : jamais)
 }
@@ -283,6 +289,7 @@ function runOnce(seed: number, run: number): RunResult {
   const guide: GuideState | null = TUTO_ON ? newGuide(w, true, 0) : null;
   let tutoBoss = false,
     tutoBossAt = -1,
+    tutoKillAt = -1,
     tutoStepAt5 = -1,
     tutoGuideEnd = -1;
   const startWeapon = Object.keys(w.weapons)[0];
@@ -329,6 +336,9 @@ function runOnce(seed: number, run: number): RunResult {
   while (frame < maxFrames) {
     if (w.mode === Mode.LevelUp) {
       inp.pick = pickAllowed(bot, w, w.cards, ALLOWED);
+      // partie guidée (décision 13) : sur la feuille d'un tome imposé, le bot prend la seule carte permise
+      const lock = TUTO_ON ? tutorialLock(w) : -1;
+      if (lock >= 0) inp.pick = lock;
       inp.mx = inp.mz = 0;
       inp.jump = inp.spell = false;
       // partie guidée : la première feuille de niveau (cartes d'arme ou de tome) est celle que le guide explique
@@ -363,7 +373,7 @@ function runOnce(seed: number, run: number): RunResult {
         if (w.events[i].type === Ev.TotemOn && w.stage === 0) {
           tutoBoss = true;
           tutoBossAt = w.t;
-        }
+        } else if (w.events[i].type === Ev.PortalOpen && w.stage === 0 && tutoKillAt < 0) tutoKillAt = w.t;
     }
     for (let i = 0; i < w.eventCount; i++) {
       const e = w.events[i];
@@ -457,7 +467,9 @@ function runOnce(seed: number, run: number): RunResult {
       startEndless(w);
     }
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
-    if (TUTO_ON && w.portal.open) break; // partie guidée : le boss est tombé, la suite n'est plus la partie guidée
+    // partie guidée (révision 1.66.0) : le boss tombé, le bot entre dans le portail ; la suite, au monde 2, est une partie
+    // normale (les monstres n'y sont plus adoucis) : la mesure s'arrête à l'arrivée
+    if (TUTO_ON && w.stage > 0) break;
     // défi v2 : passé l'heure de l'or, la médaille est jouée si le boss final n'est plus en vie
     if (DAILY_ON && w.t > DAILY.goldAt && w.dailyBoss !== 1) break;
   }
@@ -517,7 +529,10 @@ function runOnce(seed: number, run: number): RunResult {
     aliveAtMinute: alive,
     tutoBoss,
     tutoBossDeath: tutoBoss && w.mode === Mode.Dead && w.totem.state === 1 && w.stage === 0,
-    tutoBossTime: tutoBoss && w.mode === Mode.Dead && w.totem.state === 1 ? w.t - tutoBossAt : -1,
+    tutoBossTime: tutoBoss && w.mode === Mode.Dead && w.totem.state === 1 && w.stage === 0 ? w.t - tutoBossAt : -1,
+    tutoBossKill: tutoKillAt >= 0,
+    tutoKillTime: tutoKillAt >= 0 ? tutoKillAt - tutoBossAt : -1,
+    tutoPortal: TUTO_ON && w.stage > 0,
     tutoStepAt5,
     tutoGuideEnd,
   };
@@ -525,8 +540,8 @@ function runOnce(seed: number, run: number): RunResult {
 
 /**
  * Partie guidée : le bot fait ce que demande le guide (src/meta/guide.ts), par-dessus sa conduite de bot moyen. Les
- * gestes sont faits dès que l'étape les demande ; les lieux, il y va (et reste dans le coffre ou le sanctuaire, regarde
- * le crâne et les totems sans entrer dans leur cercle).
+ * gestes sont faits dès que l'étape les demande ; les lieux, il y va et reste dedans jusqu'à ce que l'étape passe
+ * (coffre, sanctuaire, crâne et totem de boss, révision 1.66.0) ; le totem du monde, il le regarde sans y entrer.
  */
 const guideAt = { x: 0, z: 0 };
 function driveGuide(g: GuideState, w: World, inp: Input, frame: number): void {
@@ -553,11 +568,18 @@ function driveGuide(g: GuideState, w: World, inp: Input, frame: number): void {
   const dx = guideAt.x - P.x,
     dz = guideAt.z - P.z,
     d = Math.hypot(dx, dz) || 1;
-  // lieux « à voir » : on s'approche sans entrer dans le cercle ; coffre et sanctuaire : on reste dedans
-  const look = g.step === Step.Skull || g.step === Step.BossTotem || g.step === Step.Totem;
+  // le totem du monde, « à voir » : on s'approche sans entrer dans le cercle ; les autres lieux : on reste dedans
+  const look = g.step === Step.Totem;
   if (look && d < 8) return;
   if (!look && d < (g.step === Step.Chest ? 0.5 : 1.2)) {
     inp.mx = inp.mz = 0;
+    return;
+  }
+  // crâne et totem de boss : le bot moyen s'écarte d'un cercle dont la jauge monte ; le guide demande d'y rester
+  const r = g.step === Step.Skull ? DIFFICULTY.skullR : g.step === Step.BossTotem ? BOSSTOTEM.r : 0;
+  if (d < r * 1.5) {
+    inp.mx = dx / d;
+    inp.mz = dz / d;
     return;
   }
   inp.mx += (dx / d) * 2;
@@ -732,14 +754,18 @@ const summary = {
     ),
   ),
   deadBefore3minPct: (100 * results.filter((r) => r.time < 180).length) / RUNS,
-  // partie guidée (décision 11) : arriver au boss, mourir contre lui (part de ceux qui y arrivent), en combien de temps,
-  // et personne ne meurt pendant les cinq minutes des gestes et des lieux
+  // partie guidée (décision 17) : arriver au boss, l'abattre (part de ceux qui y arrivent), entrer dans le portail, et
+  // personne ne meurt pendant les cinq minutes des gestes et des lieux ; aussi : mourir contre lui, en combien de temps
   tuto: (() => {
     const reached = results.filter((r) => r.tutoBoss);
     const fights = results.filter((r) => r.tutoBossTime >= 0).map((r) => r.tutoBossTime);
+    const kills = results.filter((r) => r.tutoKillTime >= 0).map((r) => r.tutoKillTime);
     const ended = results.filter((r) => r.tutoGuideEnd >= 0).map((r) => r.tutoGuideEnd);
     return {
       reachPct: (100 * reached.length) / RUNS,
+      killPct: (100 * reached.filter((r) => r.tutoBossKill).length) / Math.max(1, reached.length),
+      portalPct: (100 * results.filter((r) => r.tutoPortal).length) / RUNS,
+      killTimeP50: pct(kills, 50),
       bossDeathPct: (100 * reached.filter((r) => r.tutoBossDeath).length) / Math.max(1, reached.length),
       bossTimeP10: pct(fights, 10),
       bossTimeP50: pct(fights, 50),
@@ -959,7 +985,7 @@ if (DAILY_ON) {
 if (TUTO_ON) {
   const T = summary.tuto;
   lines.push(
-    `guidée      boss atteint ${T.reachPct.toFixed(1)} % · mort contre lui ${T.bossDeathPct.toFixed(1)} % de ceux-là, en p10 ${T.bossTimeP10.toFixed(0)} s p50 ${T.bossTimeP50.toFixed(0)} s p90 ${T.bossTimeP90.toFixed(0)} s · morts avant 5:00 ${T.deadBefore5Pct.toFixed(1)} % · guide fini dans ${T.guideEndPct.toFixed(0)} % (p50 ${mmss(T.guideEndP50)}) · étape p50 à 5:00 : ${T.stepAt5P50}`,
+    `guidée      boss atteint ${T.reachPct.toFixed(1)} % · abattu ${T.killPct.toFixed(1)} % de ceux-là (p50 ${T.killTimeP50.toFixed(0)} s) · portail ${T.portalPct.toFixed(1)} % des parties · mort contre lui ${T.bossDeathPct.toFixed(1)} % de ceux-là, en p10 ${T.bossTimeP10.toFixed(0)} s p50 ${T.bossTimeP50.toFixed(0)} s p90 ${T.bossTimeP90.toFixed(0)} s · morts avant 5:00 ${T.deadBefore5Pct.toFixed(1)} % · guide fini dans ${T.guideEndPct.toFixed(0)} % (p50 ${mmss(T.guideEndP50)}) · étape p50 à 5:00 : ${T.stepAt5P50}`,
   );
 }
 lines.push(

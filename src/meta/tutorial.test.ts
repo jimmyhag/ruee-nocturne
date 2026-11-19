@@ -4,10 +4,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOSS,
+  BOSSTOTEM,
+  DIFFICULTY,
   ENEMIES,
   FIRST_RUNS,
   MAPCHEST,
-  PLAYER,
   REVEAL,
   SHRINE,
   SPAWN,
@@ -15,10 +16,10 @@ import {
   STEP,
   TUTORIAL,
 } from '../sim/balance';
-import { nextChoice } from '../sim/progression';
+import { applyCard, canReroll, nextChoice, tutorialLock } from '../sim/progression';
 import { restoreWorld, snapshotWorld } from '../sim/snapshot';
-import { tutorialRate } from '../sim/spawner';
-import { stageLeft } from '../sim/stages';
+import { difficultyHp, spawnEnemy, tutorialRate } from '../sim/spawner';
+import { stageLeft, totemLocked } from '../sim/stages';
 import { startRun, step } from '../sim/step';
 import { Ev, Mode, Pw } from '../sim/types';
 import type { Input } from '../sim/types';
@@ -32,6 +33,7 @@ import {
   guideForced,
   guideJump,
   guideTarget,
+  guideTotemWait,
   newGuide,
   readGuide,
   updateGuide,
@@ -184,6 +186,61 @@ describe('partie guidée : la première feuille de niveau (décision 4)', () => 
     }
     expect(adjusted).toBeGreaterThan(0); // le tirage seul n'en donnait pas toujours une
   });
+
+  it('The first two tomes are imposed', () => {
+    const [first, second] = TUTORIAL.tomes;
+    expect([first, second]).toEqual(['degats', 'projectiles']);
+    for (let skip = 0; skip < 30; skip++) {
+      const w = tutorialWorld(skip);
+      w.pending = 1;
+      nextChoice(w);
+      // le tome de Dégâts sur la première carte, la seule qu'on peut prendre
+      expect(w.cards[0], `décalage ${skip}`).toMatchObject({ kind: 't', key: first, lv: 1 });
+      expect(w.cards.length).toBeGreaterThan(1); // les autres restent visibles
+      expect(w.cards[0].n).toBeGreaterThanOrEqual(2); // la carte rare garantie de la première feuille : celle qu'on prend
+      expect(tutorialLock(w)).toBe(0);
+      expect(canReroll(w)).toBe(false); // pas de relance d'une feuille imposée
+      // une autre carte (bot, clavier 2-3 ou doigt : tous passent par la simulation) : rien ne se passe
+      const before = JSON.stringify({ cards: w.cards, tomes: w.tomes, weapons: w.weapons, pending: w.pending });
+      const state = w.rng.state();
+      for (let i = 1; i < w.cards.length; i++) step(w, { ...idle(), pick: i }, STEP);
+      expect(w.mode).toBe(Mode.LevelUp);
+      expect(JSON.stringify({ cards: w.cards, tomes: w.tomes, weapons: w.weapons, pending: w.pending })).toBe(before);
+      expect(w.rng.state()).toBe(state);
+      applyCard(w, 0);
+      expect(w.tomes[first]).toBe(1);
+      // à la deuxième montée, le tome de Projectiles
+      w.pending = 1;
+      nextChoice(w);
+      expect(w.cards[0]).toMatchObject({ kind: 't', key: second, lv: 1 });
+      expect(tutorialLock(w)).toBe(0);
+      applyCard(w, w.cards.length - 1);
+      expect(w.tomes[second]).toBeUndefined();
+      applyCard(w, 0);
+      expect(w.tomes[second]).toBe(1);
+      // ensuite le choix est libre, et aucun autre tome n'est proposé de toute la partie guidée
+      for (let k = 0; k < 40; k++) {
+        w.pending = 1;
+        nextChoice(w);
+        expect(tutorialLock(w)).toBe(-1);
+        for (const c of w.cards) if (c.kind === 't') expect(TUTORIAL.tomes).toContain(c.key);
+        applyCard(w, k % w.cards.length);
+      }
+      expect(Object.keys(w.tomes).sort()).toEqual([first, second].sort());
+    }
+    // une partie normale n'a ni tome imposé ni verrou
+    const n = new World(TUTORIAL.map, { ...tutorialOptions(), tutorial: false });
+    startRun(n);
+    let otherTome = false;
+    for (let k = 0; k < 20; k++) {
+      n.pending = 1;
+      nextChoice(n);
+      expect(tutorialLock(n)).toBe(-1);
+      for (const c of n.cards) if (c.kind === 't' && !TUTORIAL.tomes.includes(c.key as never)) otherTome = true;
+      applyCard(n, k % n.cards.length);
+    }
+    expect(otherTome).toBe(true);
+  });
 });
 
 describe('partie guidée : les lieux (décision 5)', () => {
@@ -218,6 +275,9 @@ describe('partie guidée : les lieux (décision 5)', () => {
       } else if (s === Step.Race) {
         teleport(w, at.x, at.z);
         play(w, g, 0.2); // passer l'arche du haut
+      } else if (s === Step.Skull || s === Step.BossTotem) {
+        teleport(w, at.x, at.z); // révision 1.66.0 (décision 14) : les activer
+        play(w, g, Math.max(DIFFICULTY.skullCharge, BOSSTOTEM.charge) + 0.2);
       } else {
         teleport(w, at.x + 6, at.z); // à côté, pour voir : jamais dans le cercle
         play(w, g, GUIDE.see + 0.2);
@@ -241,17 +301,71 @@ describe('partie guidée : les lieux (décision 5)', () => {
     expect(STEPS[g.step]).toBe('shrine');
   });
 
-  it('The skull and the boss totem are never imposed', () => {
+  it('The skull and the boss totem must be activated', () => {
     const w = quiet(tutorialWorld());
     const g = newGuide(w, true, 0);
     guideJump(g, w, Step.Skull);
-    play(w, g, GUIDE.see + 0.2); // le joueur ne bouge pas
-    expect(STEPS[g.step]).toBe('bossTotem');
-    play(w, g, GUIDE.see + 0.2);
-    expect(STEPS[g.step]).toBe('totem');
+    const at = { x: 0, z: 0 };
+    // le joueur ne l'active pas (il reste à côté, à le regarder) : la consigne reste
+    expect(guideTarget(g, w, at)).toBe(true);
+    teleport(w, at.x + 6, at.z);
+    play(w, g, 30);
+    expect(STEPS[g.step]).toBe('skull');
     expect(w.skullsOn).toBe(0);
-    expect(w.bossTotemsOn).toBe(0);
-    expect(w.player.difficulty).toBe(0);
+    // il l'active : l'étape du totem de boss commence (la bannière qui redit l'effet : e2e)
+    teleport(w, at.x, at.z);
+    play(w, g, DIFFICULTY.skullCharge + 0.2);
+    expect(w.skullsOn).toBe(1);
+    expect(w.player.difficulty).toBeCloseTo(DIFFICULTY.skullStep, 9);
+    expect(STEPS[g.step]).toBe('bossTotem');
+    // qui attend aussi son activation
+    expect(guideTarget(g, w, at)).toBe(true);
+    teleport(w, at.x + 6, at.z);
+    play(w, g, 30);
+    expect(STEPS[g.step]).toBe('bossTotem');
+    teleport(w, at.x, at.z);
+    play(w, g, BOSSTOTEM.charge + 0.2);
+    expect(w.bossTotemsOn).toBe(1);
+    expect(STEPS[g.step]).toBe('totem');
+    // un crâne déjà activé avant l'étape : la leçon est apprise, l'étape passe (comme le coffre)
+    const w2 = quiet(tutorialWorld());
+    const g2 = newGuide(w2, true, 0);
+    w2.skullsOn = 1;
+    guideJump(g2, w2, Step.Skull);
+    play(w2, g2, STEP * 2);
+    expect(STEPS[g2.step]).toBe('bossTotem');
+  });
+
+  it('The world totem does not activate before its turn', () => {
+    const w = quiet(tutorialWorld());
+    const g = newGuide(w, true, 0);
+    guideJump(g, w, Step.Totem);
+    // avant 8:00, le joueur reste sur le totem du monde : rien ne se passe, l'interface dit « Pas encore »
+    w.t = w.stageT = 200;
+    teleport(w, w.totem.x, w.totem.z);
+    expect(totemLocked(w)).toBe(true);
+    play(w, g, Math.max(STAGE.totemCharge * 3, GUIDE.see + 0.2));
+    expect(w.totem.state).toBe(0);
+    expect(w.totem.charge).toBe(0);
+    expect(guideTotemWait(g, w)).toBe(true);
+    expect(STEPS[g.step]).toBe('free'); // l'étape « totem » le montre seulement
+    // hors du cercle, plus de ligne
+    teleport(w, w.totem.x + STAGE.totemR + 1, w.totem.z);
+    expect(guideTotemWait(g, w)).toBe(false);
+    // 8:00 : il s'active normalement
+    w.t = w.stageT = TUTORIAL.forceAt;
+    teleport(w, w.totem.x, w.totem.z);
+    expect(totemLocked(w)).toBe(false);
+    expect(guideTotemWait(g, w)).toBe(false);
+    play(w, g, STAGE.totemCharge + 0.2);
+    expect(w.totem.state).toBe(1);
+    // une partie normale n'a pas ce verrou
+    const n = quiet(new World(TUTORIAL.map, { ...tutorialOptions(), tutorial: false }));
+    startRun(n);
+    teleport(n, n.totem.x, n.totem.z);
+    expect(totemLocked(n)).toBe(false);
+    for (let i = 0; i < (STAGE.totemCharge + 0.2) / STEP; i++) step(n, idle(), STEP);
+    expect(n.totem.state).toBe(1);
   });
 });
 
@@ -288,41 +402,84 @@ describe('partie guidée : le totem obligatoire et le boss (décisions 6 et 7)',
     expect(stageLeft(w)).toBeLessThan(TUTORIAL.hold);
   });
 
-  it('The guided run boss is too strong', () => {
-    // même appel du totem dans une partie normale et dans la partie guidée : le boss guidé est renforcé
+  it('The guided run boss is a real boss', () => {
+    // même appel du totem à 8:00 (avec un totem de boss activé : un double) dans une partie normale et dans la partie
+    // guidée : mêmes PV, mêmes dégâts, même rythme, alors que les monstres du monde 1 sont adoucis
     const call = (tutorial: boolean) => {
       const w = new World(TUTORIAL.map, { ...tutorialOptions(), tutorial });
       quiet(w);
+      w.t = w.stageT = TUTORIAL.forceAt;
+      w.bossExtra = 1;
       teleport(w, w.totem.x, w.totem.z);
       for (let i = 0; i < (STAGE.totemCharge + 0.2) / STEP; i++) step(w, idle(), STEP);
       expect(w.totem.state).toBe(1);
-      return w.enemies[w.bossIndex];
+      let extra = -1;
+      for (let i = 0; i < w.enemyCount; i++) if (w.enemies[i].totemExtra) extra = i;
+      const spawned = spawnEnemy(w, 0, 0, 10); // un monstre ordinaire du monde 1, au même moment
+      return { boss: w.enemies[w.bossIndex], extra: w.enemies[extra], mob: w.enemies[spawned] };
     };
     const normal = call(false),
       guided = call(true);
-    expect(guided.type).toBe(STAGE.bosses[0]); // le Gardien
-    expect(guided.max / normal.max).toBeCloseTo(TUTORIAL.bossHp, 6);
-    expect(guided.dmgMul / normal.dmgMul).toBeCloseTo(TUTORIAL.bossDmg * TUTORIAL.dmg, 6);
-    expect(guided.max).toBeGreaterThan(ENEMIES[STAGE.bosses[0]].hp * BOSS.hpMul[0] * SPAWN.hpScale(300) * 5);
-    // il tue un héros qui ne fait que l'attendre, en moins d'une minute (le héros, increvable le temps d'appeler le
-    // boss, repart avec ses PV de départ)
+    expect(guided.boss.type).toBe(STAGE.bosses[0]); // le Gardien
+    expect(guided.boss.max).toBeCloseTo(normal.boss.max, 6);
+    expect(guided.boss.max).toBeCloseTo(
+      ENEMIES[STAGE.bosses[0]].hp * BOSS.hpMul[0] * SPAWN.hpScale(STAGE.bossHpAt[0]),
+      6,
+    );
+    expect(guided.boss.dmgMul).toBeCloseTo(normal.boss.dmgMul, 9);
+    expect(guided.boss.cadence).toBe(normal.boss.cadence);
+    expect(guided.extra.max).toBeCloseTo(normal.extra.max, 6);
+    expect(guided.extra.dmgMul).toBeCloseTo(normal.extra.dmgMul, 9);
+    expect(guided.mob.dmgMul / normal.mob.dmgMul).toBeCloseTo(TUTORIAL.dmg, 9); // les monstres, eux, restent adoucis
+    // il tue le joueur : la feuille « À toi de jouer », l'or de la partie et la prime (méta ; l'écran : e2e)
+    const m = fresh();
+    const bonus = tutorialEnd(m, 120);
+    expect(bonus).toBe(TUTORIAL.gold);
+    expect(m.gold).toBe(120 + TUTORIAL.gold);
+  });
+
+  it('Beating the guided run boss shows the portal', () => {
     const w = quiet(tutorialWorld());
-    w.powerT[Pw.Gel] = 0;
+    const g = newGuide(w, true, 0);
     w.t = w.stageT = TUTORIAL.forceAt;
     teleport(w, w.totem.x, w.totem.z);
-    const g = newGuide(w, true, 0);
-    play(w, g, STAGE.totemCharge + 0.1);
+    play(w, g, STAGE.totemCharge + 0.2);
     expect(w.totem.state).toBe(1);
-    w.player.maxHp = w.player.hp = PLAYER.hp;
-    const called = w.t;
-    play(w, g, 60);
-    expect(w.mode).toBe(Mode.Dead);
-    expect(w.t - called).toBeLessThan(60);
-    // la feuille « À toi de jouer » : l'or de la partie et la prime (méta)
-    const m = fresh();
-    const bonus = tutorialEnd(m, Math.round(w.gold));
-    expect(bonus).toBe(TUTORIAL.gold);
-    expect(m.gold).toBe(Math.round(w.gold) + TUTORIAL.gold);
+    // le boss du totem tombe sous les coups du héros
+    const b = w.enemies[w.bossIndex];
+    b.hp = 1;
+    b.x = b.px = w.player.x + 3;
+    b.z = b.pz = w.player.z;
+    let opened = false;
+    for (let i = 0; i < 10 / STEP && !opened; i++) {
+      const t0 = w.t;
+      step(w, idle(), STEP);
+      for (let k = 0; k < w.eventCount; k++) if (w.events[k].type === Ev.PortalOpen) opened = true;
+      updateGuide(g, w, w.t - t0);
+      if (opened) break;
+    }
+    expect(opened).toBe(true);
+    // décision 18 : le chrono tombe à 0, la prolongation commence (comme dans toute partie)
+    expect(stageLeft(w)).toBe(0);
+    step(w, idle(), STEP);
+    expect(w.overT).toBeGreaterThan(0);
+    // ralenti et consigne (interface : e2e), flèche vers le portail
+    expect(g.hint).toBe(Hint.Portal);
+    const at = { x: 0, z: 0 };
+    expect(guideTarget(g, w, at)).toBe(true);
+    expect([at.x, at.z]).toEqual([w.totem.x, w.totem.z]);
+    g.hint = -1;
+    // il entre dans le portail : la consigne du nouveau monde, et la partie continue comme une partie normale
+    teleport(w, w.totem.x, w.totem.z);
+    play(w, g, STAGE.portalHold + 1); // les cartes du coffre du boss : la première
+    expect(w.stage).toBe(1);
+    expect(g.hint).toBe(Hint.World);
+    expect(w.mode).toBe(Mode.Play);
+    expect(tutorialRate(w)).toBe(1); // les monstres ne sont adoucis qu'au monde 1
+    const mob = w.enemies[spawnEnemy(w, 0, 0, 10)];
+    expect(mob.dmgMul).toBeCloseTo(SPAWN.dmgScale(w.diffT), 9);
+    expect(mob.max).toBeCloseTo(ENEMIES[0].hp * SPAWN.hpScale(w.diffT) * difficultyHp(w), 6);
+    expect(totemLocked(w)).toBe(false); // le totem du monde 2 n'attend pas
   });
 });
 

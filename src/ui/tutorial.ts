@@ -3,7 +3,16 @@
 // vit dans src/meta/guide.ts ; ici, seulement l'affichage. Les nœuds sont ceux de index.html (créés une fois) ; les
 // textes ne sont réécrits qu'au changement d'étape ou de consigne, la flèche seulement quand elle bouge d'un cran
 // (aucune allocation par image en régime permanent).
-import { GESTURE_STEPS, HINTS, STEPS, Step, guideForced, guideTarget, updateGuide } from '../meta/guide';
+import {
+  GESTURE_STEPS,
+  HINTS,
+  STEPS,
+  Step,
+  guideForced,
+  guideTarget,
+  guideTotemWait,
+  updateGuide,
+} from '../meta/guide';
 import type { GuideState, Hint } from '../meta/guide';
 import { has, t } from '../i18n';
 import { keyText, moveText } from './keys';
@@ -54,6 +63,7 @@ export class TutorialView {
   private hintT = 0;
   private slowT = 0;
   private wasForced = false;
+  private waiting = false; // décision 15 : sur le totem du monde avant son tour (« Pas encore »)
   private waveT = 0;
   private hl: HTMLElement | null = null;
   private readonly at = { x: 0, z: 0 };
@@ -74,6 +84,7 @@ export class TutorialView {
     this.hintKey = -1;
     this.hintT = this.slowT = this.waveT = 0;
     this.wasForced = guideForced(g, w);
+    this.waiting = false;
     this.stage = w.stage;
     this.shownStep = g.step; // une partie reprise à l'étape du saut ne repart pas au ralenti
     this.dirty = true;
@@ -141,6 +152,11 @@ export class TutorialView {
       this.dirty = true;
       if (forced) this.host.forced();
     }
+    const waiting = guideTotemWait(g, w);
+    if (waiting !== this.waiting) {
+      this.waiting = waiting;
+      this.dirty = true;
+    }
     // étape du saut : une onde au sol vers le joueur, toutes les 1,2 s, tant qu'il n'a pas sauté
     if (g.step === Step.Jump && shown) {
       this.waveT -= realDt;
@@ -159,13 +175,17 @@ export class TutorialView {
     if (!on && this.hl) this.highlight(null);
   }
 
-  /** Texte affiché : la consigne obligatoire, sinon une consigne de première apparition, sinon l'étape. */
+  /**
+   * Texte affiché : la consigne obligatoire, sinon « Pas encore » sur le totem du monde avant son tour, sinon une consigne
+   * de première apparition, sinon l'étape.
+   */
   private render(g: GuideState): void {
     this.dirty = false;
     let text = '',
       cmd = '',
       hl: Step | -1 = -1;
     if (this.wasForced) text = t('tuto.force');
+    else if (this.waiting) text = t('tuto.totemWait');
     else if (this.hintT > 0 && this.hintKey >= 0) {
       const k = 'tuto.hint.' + HINTS[this.hintKey];
       text = has(k) ? t(k, { n: this.stage + 1 }) : '';

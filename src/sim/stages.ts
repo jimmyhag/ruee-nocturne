@@ -6,7 +6,7 @@
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
 import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE, TUTORIAL } from './balance';
-import { difficultyHp, soft, spawnEnemy } from './spawner';
+import { difficultyHp, dmgMulNow, soft, spawnEnemy } from './spawner';
 import { TOTEM_HIDDEN } from './poi';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
@@ -39,14 +39,23 @@ export function adoptDaily(w: World): void {
 
 const poly = (c: readonly number[], m: number): number => 1 + c[0] * m + c[1] * m * m;
 
+/**
+ * Partie guidée (décision 15) : au monde 1, le totem du monde ne s'active pas avant TUTORIAL.forceAt s ; rester dessus
+ * ne fait rien (l'interface dit « Pas encore »). Faux hors de la partie guidée.
+ */
+export function totemLocked(w: World): boolean {
+  return w.tutorial && w.stage === 0 && !w.endless && w.stageT < TUTORIAL.forceAt;
+}
+
 /** Horloges du monde, prolongation, totem et portail. Appelé à chaque pas de jeu (Mode.Play), avant le spawner. */
 export function tickStage(w: World, dt: number): void {
   w.stageT += dt;
   const T = w.totem,
     P = w.player;
-  // partie guidée (décision 6), au monde 1 : le chrono s'arrête à TUTORIAL.hold s de la fin tant que le totem n'est pas activé, et ne
-  // passe jamais en prolongation (la difficulté, qui suit le chrono, s'arrête avec lui)
-  if (w.tutorial && w.stage === 0 && !w.endless) {
+  // partie guidée (décision 6), au monde 1 : le chrono s'arrête à TUTORIAL.hold s de la fin tant que le totem n'est pas activé, et
+  // ne passe pas en prolongation pendant le combat du boss (la difficulté, qui suit le chrono, s'arrête avec lui) ; le
+  // boss tombé, il tombe à 0 et la prolongation commence, comme dans toute partie (décision 18)
+  if (w.tutorial && w.stage === 0 && !w.endless && T.state !== 2) {
     const cap = T.state === 0 ? STAGE.dur - TUTORIAL.hold : STAGE.dur;
     if (w.stageT > cap) w.stageT = cap;
   }
@@ -93,7 +102,7 @@ export function tickStage(w: World, dt: number): void {
   }
   // totem : rester dans le cercle le charge, en sortir le vide (comme un sanctuaire)
   w.inTotem = false;
-  if (T.state === 0) {
+  if (T.state === 0 && !totemLocked(w)) {
     const inside = (T.x - P.x) ** 2 + (T.z - P.z) ** 2 < STAGE.totemR * STAGE.totemR;
     w.inTotem = inside; // phase 47 B : Coquille
     if (inside) T.charge += dt * (1 + ITEM.encens.charge * w.itemEff[It.Encens]); // Encens
@@ -189,12 +198,9 @@ export function summonStageBoss(w: World): void {
     w.overHp *
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
     Math.max(ITEM.idole.min, 1 - ITEM.idole.hp * w.itemEff[It.Idole]) * // phase 47 B : Idole
-    difficultyHp(w) * // phase 48
-    (w.tutorial && w.stage === 0 ? TUTORIAL.bossHp : 1); // partie guidée (décision 7) : volontairement trop fort
-  if (w.tutorial && w.stage === 0) {
-    e.dmgMul *= TUTORIAL.bossDmg;
-    e.cadence = TUTORIAL.bossCadence;
-  }
+    difficultyHp(w); // phase 48
+  // partie guidée (décision 16) : un boss normal, sans l'adoucissement des monstres du monde 1 (TUTORIAL.dmg)
+  if (w.tutorial) e.dmgMul = dmgMulNow(w, true);
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;
@@ -214,6 +220,7 @@ export function summonStageBoss(w: World): void {
     x.z = x.pz = T.z + Math.cos(b) * STAGE.bossDist;
     x.totemExtra = true;
     x.cadence = BOSSTOTEM.extraCadence;
+    if (w.tutorial) x.dmgMul = dmgMulNow(w, true); // partie guidée : un double exact, boss normal lui aussi
     w.totemAlive++;
     w.emit(Ev.BossSpawn, x.x, 2, x.z, w.bossCount + 1, xt, 2); // y2 = 2 : boss en plus
   }
@@ -292,6 +299,9 @@ export function stageBossDown(w: World, x: number, z: number): void {
   T.state = 2;
   w.portal.open = true;
   w.portal.charge = 0;
+  // 1.66.0 (décision 18 de docs/specs/tutoriel.md, Jimmy) : le chrono tombe à 0, le monde passe tout de suite en
+  // prolongation jusqu'au portail (Ev.TimeUp au pas suivant) ; le temps qui restait est perdu : on attend la fin
+  if (w.stageT < STAGE.dur) w.stageT = STAGE.dur;
   w.emit(Ev.PortalOpen, T.x, 0, T.z, w.stage + 2);
 }
 

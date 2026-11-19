@@ -1139,6 +1139,15 @@
         display: inline-block;
         margin-inline-start: 4px;
       }
+      /* partie guidée (décision 13) : le tome imposé, seule carte qu'on peut prendre, mis en avant */
+      #luHint.imposed {
+        color: var(--lantern);
+        font-weight: 700;
+      }
+      .card.imposed {
+        outline: 2px solid var(--lantern);
+        outline-offset: 2px;
+      }
       .skiptuto {
         margin-top: 10px;
         text-align: center;
@@ -4175,6 +4184,7 @@
       }
       .card.off {
         opacity: 0.45;
+        cursor: default;
       }
       .card .top {
         display: contents;
@@ -5606,8 +5616,9 @@
           <div data-reveal="4">
             <dt><span class="cap">10:00</span></dt>
             <dd data-i18n="menu.ctrl.worlds">
-              Avant la fin du chrono, active le totem (losange rouge sur la carte) et tue son boss : le portail mène au
-              monde suivant. Chrono écoulé, la horde ne fait que grossir.
+              Active le totem (losange rouge sur la carte) et tue son boss : le portail mène au monde suivant. Quand le
+              boss du totem meurt, le chrono tombe à 0 : la horde grossit jusqu'à ce que tu passes le portail. Attends
+              la fin pour le vaincre. Après la fin du chrono, les monstres ne font que se renforcer, boss compris.
             </dd>
           </div>
           <div>
