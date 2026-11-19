@@ -194,7 +194,7 @@ describe('partie guidée : la première feuille de niveau (décision 4)', () => 
       const w = tutorialWorld(skip);
       w.pending = 1;
       nextChoice(w);
-      // le tome de Dégâts sur la première carte, la seule qu'on peut prendre
+      // le Tome des dégâts sur la première carte, la seule qu'on peut prendre
       expect(w.cards[0], `décalage ${skip}`).toMatchObject({ kind: 't', key: first, lv: 1 });
       expect(w.cards.length).toBeGreaterThan(1); // les autres restent visibles
       expect(w.cards[0].n).toBeGreaterThanOrEqual(2); // la carte rare garantie de la première feuille : celle qu'on prend
@@ -209,7 +209,7 @@ describe('partie guidée : la première feuille de niveau (décision 4)', () => 
       expect(w.rng.state()).toBe(state);
       applyCard(w, 0);
       expect(w.tomes[first]).toBe(1);
-      // à la deuxième montée, le tome de Projectiles
+      // à la deuxième montée, le Tome des projectiles
       w.pending = 1;
       nextChoice(w);
       expect(w.cards[0]).toMatchObject({ kind: 't', key: second, lv: 1 });
@@ -227,6 +227,19 @@ describe('partie guidée : la première feuille de niveau (décision 4)', () => 
         applyCard(w, k % w.cards.length);
       }
       expect(Object.keys(w.tomes).sort()).toEqual([first, second].sort());
+    }
+    // une partie guidée reprise avec deux autres tomes déjà pris (emplacements pleins) : aucune feuille verrouillée,
+    // jamais plus de tomes que d'emplacements
+    const full = tutorialWorld(3);
+    full.tomes.cadence = 1; // pris avant la règle (sauvegarde de la 1.65), comme le dirait l'instantané
+    full.tomes.vitalite = 1;
+    expect(Object.keys(full.tomes).length).toBe(full.maxTomes);
+    for (let k = 0; k < 30; k++) {
+      full.pending = 1;
+      nextChoice(full);
+      expect(tutorialLock(full)).toBe(-1);
+      applyCard(full, k % full.cards.length);
+      expect(Object.keys(full.tomes).length).toBeLessThanOrEqual(full.maxTomes);
     }
     // une partie normale n'a ni tome imposé ni verrou
     const n = new World(TUTORIAL.map, { ...tutorialOptions(), tutorial: false });

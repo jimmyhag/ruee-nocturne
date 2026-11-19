@@ -575,6 +575,49 @@ describe('chrono à 0 à la mort du boss du totem (décision 18)', () => {
     expect(late.overT).toBeCloseTo(over + STEP, 6);
   });
 
+  it('The clock drop skips the lost time without a burst', () => {
+    // une vraie partie (ni lab ni horde retirée) : vagues, élites, éruptions, bonus et marchand à leurs heures
+    const w = new World(21);
+    startRun(w);
+    w.player.maxHp = w.player.hp = 1e9;
+    const idle: Input = { mx: 0, mz: 0, jump: false, spell: false, pick: -1 };
+    const play = (s: number, ev?: Ev) => {
+      let n = 0;
+      for (let f = 0; f < Math.round(s / STEP); f++) {
+        idle.pick = w.mode === Mode.LevelUp ? 0 : -1; // cartes et coffres : la première
+        step(w, idle, STEP);
+        if (ev !== undefined) n += count(w, ev);
+      }
+      return n;
+    };
+    play(120 - STAGE.totemCharge - 0.5);
+    summon(w);
+    expect(w.totem.state).toBe(1);
+    // le boss du totem tombe à 2:00 : 8 minutes sautées
+    const elitesBefore = w.enemies.slice(0, w.enemyCount).filter((e) => e.alive && e.elite).length;
+    const before = w.enemyCount;
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    expect(w.portal.open).toBe(true);
+    expect(stageLeft(w)).toBe(0);
+    w.player.x = w.player.px = w.totem.x + 15; // loin du portail : il reste au monde 1, en prolongation
+    let waves = 0,
+      merchant = 0;
+    for (let f = 0; f < Math.round(1 / STEP); f++) {
+      idle.pick = w.mode === Mode.LevelUp ? 0 : -1;
+      step(w, idle, STEP);
+      waves += count(w, Ev.Wave);
+      merchant += count(w, Ev.MerchantArrive);
+    }
+    // pas de rafale : ni vagues ni élites en série (avant le correctif : 8 vagues et ≈ 12 élites, 97 → 401 ennemis)
+    expect(waves).toBeLessThanOrEqual(1);
+    expect(w.enemies.slice(0, w.enemyCount).filter((e) => e.alive && e.elite).length).toBeLessThanOrEqual(elitesBefore + 1);
+    expect(w.enemyCount).toBeLessThan(before + 60);
+    // le passage du marchand de 2:30 (et celui de 7:30) tombait dans le temps sauté : perdu
+    expect(merchant + play(30, Ev.MerchantArrive)).toBe(0);
+    expect(w.merchant.active).toBe(false);
+    expect(w.overT).toBeGreaterThan(30); // la prolongation, elle, suit son cours
+  });
+
   it('The daily challenge and endless mode are unchanged', () => {
     // défi du jour : pas de totem du monde ; son boss final abattu ne touche pas au chrono
     const d = new World(5, { daily: true });

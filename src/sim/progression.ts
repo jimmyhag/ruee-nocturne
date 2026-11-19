@@ -162,6 +162,10 @@ export function rollChoices(w: World, avoid?: readonly Card[]): void {
 /** Partie guidée (décision 13) : le tome imposé à cette montée de niveau (le premier de TUTORIAL.tomes pas encore pris), ou null. */
 function imposedTome(w: World): TomeKey | null {
   if (!w.tutorial) return null;
+  // emplacements de tome pleins (une partie reprise avec d'autres tomes) : plus rien à imposer ; compté sans allocation
+  let owned = 0;
+  for (const k in w.tomes) if (w.tomes[k as TomeKey] !== undefined) owned++;
+  if (owned >= w.maxTomes) return null;
   // boucle indexée : pas d'itérateur si la fonction est un jour appelée à chaque image (relecture perf 1.66.0)
   for (let i = 0; i < TUTORIAL.tomes.length; i++) if (w.tomes[TUTORIAL.tomes[i]] === undefined) return TUTORIAL.tomes[i];
   return null;

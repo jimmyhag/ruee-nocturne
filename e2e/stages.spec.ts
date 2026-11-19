@@ -121,7 +121,9 @@ test("The totem boss's death drops the clock to 0", async ({ page, hasTouch }) =
     const G = (window as any).__game;
     G.debug.teleport(G.world.totem.x, G.world.totem.z);
   });
-  await expect(page.locator('#poiText')).toHaveText('Totem du boss · à sa mort, le chrono tombe à 0');
+  await expect(page.locator('#poiText')).toHaveText('Totem du boss');
+  await expect(page.locator('#poiNote')).toHaveText('À sa mort, le chrono tombe à 0');
+  await totemChipClear(page, hasTouch, 'fr');
   await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, null, { timeout: 40_000 });
   await expect(page.locator('#time')).toHaveText(/^9:\d\d$/);
   // le boss tombe : bannière, chrono à 0 puis dépassement en rouge
@@ -131,8 +133,41 @@ test("The totem boss's death drops the clock to 0", async ({ page, hasTouch }) =
   await expect(page.locator('#timeBox')).toHaveClass(/over/);
   await expect(page.locator('#time')).toHaveText(/^\+0:0\d$/);
   expect(await page.evaluate(() => (window as any).__game.world.timeUp)).toBe(true);
+  // en anglais, la jauge, plus longue, reste elle aussi hors des boutons
+  await page.evaluate(() => {
+    const G = (window as any).__game;
+    G.setMeta({ ...G.meta, settings: { ...G.meta.settings, lang: 'en' } });
+  });
+  await page.reload();
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await page.evaluate(() => (window as any).__game.start(3));
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await calm(page);
+  await page.evaluate(() => {
+    const G = (window as any).__game;
+    G.debug.teleport(G.world.totem.x, G.world.totem.z);
+  });
+  await expect(page.locator('#poiText')).toHaveText('Boss totem');
+  await expect(page.locator('#poiNote')).toHaveText('Boss down: the clock drops to 0');
+  await totemChipClear(page, hasTouch, 'en');
   expect(errors).toEqual([]);
 });
+
+/** La jauge du totem ne passe pas sous un bouton tactile (iPhone 13) ; capture au doigt avec CAPTURES=1. */
+async function totemChipClear(page: Page, hasTouch: boolean, lang: string): Promise<void> {
+  if (!hasTouch) return;
+  const chip = (await page.locator('#poiChip').boundingBox())!;
+  for (const id of ['#btnJump', '#btnSlide', '#btnSpell']) {
+    const b = await page.locator(id).boundingBox();
+    if (!b) continue;
+    const apart =
+      chip.x + chip.width <= b.x || b.x + b.width <= chip.x || chip.y + chip.height <= b.y || b.y + b.height <= chip.y;
+    expect(apart, `jauge du totem et ${id} (${lang})`).toBe(true);
+  }
+  if (process.env.CAPTURES !== '1') return;
+  await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true)); // l'onglet perf du debug
+  await page.screenshot({ path: `docs/captures/tutoriel/jauge-totem-${lang}.jpg`, type: 'jpeg', quality: 70 });
+}
 
 test('chrono écoulé sans avoir appelé le boss : dépassement en rouge, le totem reste à activer (1.45.2)', async ({
   page,
@@ -156,7 +191,8 @@ test('chrono écoulé sans avoir appelé le boss : dépassement en rouge, le tot
   });
   await expect(page.locator('#poiChip')).toBeVisible();
   await expect(page.locator('#poiChip')).toHaveClass(/totem/);
-  await expect(page.locator('#poiText')).toHaveText('Totem du boss · à sa mort, le chrono tombe à 0');
+  await expect(page.locator('#poiText')).toHaveText('Totem du boss');
+  await expect(page.locator('#poiNote')).toHaveText('À sa mort, le chrono tombe à 0');
   await page.waitForFunction(() => (window as any).__game.world.totem.charge > 1.2, null, { timeout: 30_000 });
   await page.screenshot({ path: `shots/${info.project.name}-totem-jauge.png` });
   await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, null, { timeout: 40_000 });

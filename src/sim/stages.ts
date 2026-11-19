@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE, TUTORIAL } from './balance';
+import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, MERCHANT, POWER, SPAWN, STAGE, TUTORIAL } from './balance';
 import { difficultyHp, dmgMulNow, soft, spawnEnemy } from './spawner';
 import { TOTEM_HIDDEN } from './poi';
 import { Ev, Mode } from './types';
@@ -280,6 +280,23 @@ export function summonSurvivalBoss(w: World, k: number): void {
 }
 
 /**
+ * Décision 18 : le chrono du monde saute de `skip` s. Le temps sauté est perdu, rien n'y rattrape son retard : les
+ * minuteries au chrono du monde (vagues, élites, éruptions, bonus de carte, départ du marchand) sont décalées d'autant,
+ * et les passages du marchand qui tombaient dans l'intervalle sont perdus. Les boss de survie (et leur préavis) ne
+ * viennent plus une fois le portail ouvert. Il reste la cadence normale de la prolongation.
+ */
+function skipStageTime(w: World, skip: number): void {
+  w.stageT += skip;
+  w.nextWave += skip;
+  w.nextElite += skip;
+  w.nextEruption += skip;
+  w.powerNext += skip;
+  const M = w.merchant;
+  if (M.active) M.until += skip;
+  while (M.next < MERCHANT.times.length && MERCHANT.times[M.next] <= w.stageT) M.next++;
+}
+
+/**
  * Le boss du totem est tombé (appelé par killEnemy) : portail vers le monde suivant, ou victoire au dernier monde.
  * Peu importe l'heure (1.45.1 puis 1.45.2) : appelé ou tué en prolongation, il ouvre quand même.
  */
@@ -301,7 +318,7 @@ export function stageBossDown(w: World, x: number, z: number): void {
   w.portal.charge = 0;
   // 1.66.0 (décision 18 de docs/specs/tutoriel.md, Jimmy) : le chrono tombe à 0, le monde passe tout de suite en
   // prolongation jusqu'au portail (Ev.TimeUp au pas suivant) ; le temps qui restait est perdu : on attend la fin
-  if (w.stageT < STAGE.dur) w.stageT = STAGE.dur;
+  if (w.stageT < STAGE.dur) skipStageTime(w, STAGE.dur - w.stageT);
   w.emit(Ev.PortalOpen, T.x, 0, T.z, w.stage + 2);
 }
 

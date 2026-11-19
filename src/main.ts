@@ -28,7 +28,7 @@ import { AudioBus } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtDay, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
-import { achName, achUnlock, characterName, itemName, synergyName, weaponName } from './ui/cards';
+import { achName, achUnlock, cardTitle, characterName, itemName, synergyName, weaponName } from './ui/cards';
 import { canGainItem } from './sim/items';
 import { WEAPON_KEYS } from './sim/weapons/defs';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
@@ -1273,7 +1273,7 @@ function openLevelUp(): void {
     : shrine
       ? t('shrine.hint')
       : lock >= 0
-        ? t('tuto.cards.take.' + world.cards[lock].key)
+        ? t('tuto.cards.take', { name: cardTitle(world.cards[lock]) }) // le nom affiché sur la carte
         : t('levelup.hint');
   $('luHint').classList.toggle('imposed', lock >= 0);
   $('luSlots').hidden = chest || shrine; // les emplacements d'armes et de tomes ne disent rien d'un objet ni d'un bonus
@@ -1289,7 +1289,10 @@ function openLevelUp(): void {
       const el = $('cards').children[i] as HTMLElement;
       el.classList.toggle('imposed', i === lock);
       el.classList.toggle('off', i !== lock);
-      if (i !== lock) el.setAttribute('aria-disabled', 'true');
+      if (i !== lock) {
+        el.setAttribute('aria-disabled', 'true');
+        el.setAttribute('aria-describedby', 'luHint'); // un lecteur d'écran dit pourquoi elle est éteinte
+      }
     }
   // partie guidée (décision 4) : la première feuille de niveau, en pause, explique armes, tomes et raretés
   $('luTuto').hidden = !(guide?.tutorial && !guide.cards && !chest && !shrine);

@@ -293,8 +293,8 @@ test('The first two tomes are imposed', async ({ page, hasTouch }) => {
   await guided(page, hasTouch);
   const tomes = () => page.evaluate(() => Object.keys((window as any).__game.world.tomes).sort() as string[]);
   for (const [key, name] of [
-    ['degats', 'Prends le tome de Dégâts'],
-    ['projectiles', 'Prends le tome de Projectiles'],
+    ['degats', 'Prends le Tome des dégâts'],
+    ['projectiles', 'Prends le Tome des projectiles'],
   ] as const) {
     await page.evaluate(() => (window as any).__game.debug.levelUp());
     await page.waitForFunction(() => (window as any).__game.app === 'levelup');
@@ -306,6 +306,8 @@ test('The first two tomes are imposed', async ({ page, hasTouch }) => {
     const n = await page.locator('#cards .card').count();
     expect(n).toBeGreaterThan(1);
     await expect(page.locator('#cards .card.off')).toHaveCount(n - 1);
+    // un lecteur d'écran dit pourquoi elles sont éteintes : la consigne
+    await expect(page.locator('#cards .card.off').first()).toHaveAttribute('aria-describedby', 'luHint');
     await expect(page.locator('#luReroll')).toBeDisabled();
     if (key === 'degats') {
       await page.waitForTimeout(600); // fin de l'entrée en cascade des cartes
@@ -408,6 +410,7 @@ test('The world totem does not activate before its turn', async ({ page, hasTouc
     G.debug.teleport(G.world.totem.x, G.world.totem.z);
   });
   await expect(page.locator('#tutoText')).toHaveText('Pas encore : ce sera le dernier défi de la partie');
+  await expect(page.locator('#poiChip')).toBeHidden(); // pas de jauge : elle contredirait « Pas encore »
   await shot(page, 'totem-pas-encore', hasTouch);
   // plus que la jauge d'activation, en temps de jeu
   await page.waitForFunction(

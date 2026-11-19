@@ -1037,6 +1037,21 @@
       #poiChip[hidden] {
         display: none;
       }
+      /* 1.66.0 (décision 18) : la règle du totem sous son titre, en retour à la ligne, assez étroite pour ne pas
+         passer sous le bouton de saut d'un téléphone */
+      #poiNote {
+        max-width: 190px;
+        white-space: normal;
+        text-align: center;
+        text-transform: none;
+        letter-spacing: 0.02em;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      #poiNote[hidden] {
+        display: none;
+      }
       /* partie guidée (docs/specs/tutoriel.md) : bulle de consigne sous le chrono et la puce d'objectif, flèche */
       #tuto {
         position: fixed;
@@ -5323,7 +5338,7 @@
       </div>
       <!-- phase 18 : coffre de carte ou sanctuaire tout proche (prix, jauge) -->
       <div id="poiChip" hidden>
-        <span id="poiText"></span><i id="poiBar"><b id="poiFill"></b></i>
+        <span id="poiText"></span><small id="poiNote" hidden></small><i id="poiBar"><b id="poiFill"></b></i>
       </div>
       <div id="bossbar" hidden>
         <span id="bossname">LE GARDIEN</span>
@@ -5617,8 +5632,9 @@
             <dt><span class="cap">10:00</span></dt>
             <dd data-i18n="menu.ctrl.worlds">
               Active le totem (losange rouge sur la carte) et tue son boss : le portail mène au monde suivant. Quand le
-              boss du totem meurt, le chrono tombe à 0 : la horde grossit jusqu'à ce que tu passes le portail. Attends
-              la fin pour le vaincre. Après la fin du chrono, les monstres ne font que se renforcer, boss compris.
+              boss du totem meurt, le chrono tombe à 0 : la horde grossit jusqu'à ce que tu passes le portail. Mieux
+              vaut donc vaincre le boss tard, près de la fin du chrono. Après la fin du chrono, les monstres ne font que
+              se renforcer, boss compris.
             </dd>
           </div>
           <div>

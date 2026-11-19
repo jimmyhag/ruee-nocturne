@@ -251,9 +251,12 @@ export function updateGuide(g: GuideState, w: World, dt: number): boolean {
     if (e.type === Ev.PowerDrop) fire(g, Hint.Power);
     else if (e.type === Ev.SurvivalWarn && e.x2 !== 1) fire(g, Hint.Survival);
     else if (e.type === Ev.MerchantArrive) fire(g, Hint.Merchant);
-    else if (e.type === Ev.PortalOpen && !(g.hints & (1 << Hint.Portal))) {
-      fire(g, Hint.Portal);
-      g.portal = true;
+    else if (e.type === Ev.PortalOpen) {
+      g.elite = w.nextElite; // décision 18 : la chute du chrono décale l'élite suivante, ce n'est pas une élite apparue
+      if (!(g.hints & (1 << Hint.Portal))) {
+        fire(g, Hint.Portal);
+        g.portal = true;
+      }
     } else if (e.type === Ev.StageStart) {
       g.portal = false;
       fire(g, Hint.World);
