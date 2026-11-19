@@ -98,7 +98,7 @@ export function withProgress(local: Meta, raw: unknown): Meta {
   m.missions = mergeMissions(local.missions, m.missions);
   // partie guidée : un appareil neuf qui reçoit la progression d'un joueur qui a déjà joué ne la propose pas, ni ses
   // consignes de première apparition (décision 1 : « ni progression reçue du nuage »)
-  if (local.tutorial === 0 && local.runs === 0 && m.runs > 0) {
+  if (local.tutorial === 0 && local.runs === 0 && (m.runs > 0 || m.reveal > 0)) {
     m.tutorial = 1;
     m.hints = ALL_HINTS;
   }

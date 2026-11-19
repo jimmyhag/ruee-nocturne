@@ -90,6 +90,15 @@ describe('partie guidée : qui la joue (décision 1)', () => {
     expect(old.hints).toBe(ALL_HINTS);
     expect(old.reveal).toBe(2); // le dévoilement en cours est gardé tel quel (décision 9)
     expect(tutorialDue(old)).toBe(false);
+    // joueur de la 1.64 qui n'a qu'abandonné des parties (lot L2 : une étape dévoilée, `runs` à 0) : il a déjà joué
+    const quitter = normalizeMeta({ version: 5, runs: 0, reveal: 2 });
+    expect(quitter.tutorial).toBe(1);
+    expect(quitter.hints).toBe(ALL_HINTS);
+    expect(quitter.reveal).toBe(2);
+    expect(quitter.softLeft).toBe(0);
+    expect(tutorialDue(quitter)).toBe(false);
+    expect(tutorialDue({ ...fresh(), reveal: 1 })).toBe(false);
+    expect(tutorialDue(withProgress(fresh(), { ...DEFAULT_META, runs: 0, reveal: 1 }))).toBe(false);
     // appareil neuf qui reçoit la progression d'un joueur qui a déjà joué
     const pulled = withProgress(fresh(), { ...DEFAULT_META, runs: 5, reveal: 4 });
     expect(tutorialDue(pulled)).toBe(false);
@@ -220,6 +229,16 @@ describe('partie guidée : les lieux (décision 5)', () => {
     expect(seen).toEqual(['chest', 'shrine', 'race', 'skull', 'bossTotem', 'totem']);
     expect(STEPS[g.step]).toBe('free');
     expect(w.totem.state).toBe(0); // le totem du monde est montré, pas activé
+  });
+
+  it('A chest opened during the gestures skips the chest step', () => {
+    const w = quiet(tutorialWorld());
+    const g = newGuide(w, true, 0);
+    guideJump(g, w, Step.SlideJump);
+    w.mapChestsOpened = TUTORIAL.freeChests; // le coffre offert est déjà pris : la consigne « l'or est offert » mentirait
+    guideJump(g, w, Step.Chest);
+    play(w, g, STEP * 2);
+    expect(STEPS[g.step]).toBe('shrine');
   });
 
   it('The skull and the boss totem are never imposed', () => {

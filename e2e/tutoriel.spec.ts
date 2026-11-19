@@ -78,6 +78,16 @@ test('A new player starts with the guided run', async ({ page, hasTouch }) => {
   expect(errors).toEqual([]);
 });
 
+test('A new player starts the guided run with Enter too', async ({ page, hasTouch }) => {
+  test.skip(hasTouch, 'clavier'); // règle 4 : le doigt passe par « Jouer » (test précédent)
+  await newPlayer(page);
+  await expect(page.locator('#menu')).toBeVisible();
+  await page.locator('body').focus(); // aucun bouton du menu n'a le focus, comme au chargement
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  expect(await page.evaluate(() => (window as any).__game.world.tutorial)).toBe(true);
+});
+
 test('An existing player never sees it', async ({ page, hasTouch }) => {
   await page.goto(TUTO_URL);
   await page.waitForFunction(() => (window as any).__game?.ready === true);

@@ -58,8 +58,13 @@ Fonctionnalité: Première partie guidée
     Alors la partie guidée commence au monde 1 avec l'Éclaireuse
     Et l'écran « Comment jouer » ne s'ouvre pas
 
+  Scénario: Un nouveau joueur la lance aussi avec Entrée
+    Soit un joueur qui n'a jamais joué, au clavier
+    Quand il presse Entrée au menu
+    Alors la partie guidée commence, comme avec « Jouer »
+
   Scénario: Un joueur existant ne la voit jamais
-    Soit un joueur qui a déjà joué
+    Soit un joueur qui a déjà joué (une partie finie, ou abandonnée après une minute de jeu)
     Quand il touche « Jouer »
     Alors une partie normale commence
 
@@ -82,6 +87,11 @@ Fonctionnalité: Première partie guidée
   Scénario: Les lieux de la carte sont montrés un par un
     Soit la partie guidée après les gestes
     Alors un coffre, un sanctuaire, une course, un crâne, un totem de boss et le totem du monde sont montrés tour à tour, près du joueur, avec une flèche
+
+  Scénario: Un coffre ouvert pendant les gestes saute l'étape du coffre
+    Soit un joueur qui a déjà ouvert le coffre offert avant que le guide le montre
+    Quand le guide arrive à l'étape du coffre
+    Alors il passe au sanctuaire, sans promettre un coffre gratuit qui ne l'est plus
 
   Scénario: Le crâne et le totem de boss ne sont jamais imposés
     Soit la partie guidée à l'étape du crâne
@@ -111,6 +121,11 @@ Fonctionnalité: Première partie guidée
     Quand le boss du totem tombe pour la première fois
     Alors un ralenti et une consigne montrent le portail
     Et la consigne ne revient plus aux parties suivantes
+
+  Scénario: La partie guidée se rejoue depuis l'Aide
+    Soit un joueur qui a fini ou passé la partie guidée
+    Quand il choisit « Rejouer la partie guidée » dans « Comment jouer »
+    Alors la partie guidée recommence au monde 1, sans nouvelle prime de fin de guide
 
   Scénario: La partie guidée se passe depuis la pause
     Soit la partie guidée en cours

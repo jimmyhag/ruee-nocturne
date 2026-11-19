@@ -2261,7 +2261,7 @@ input.onConfirm = () => {
   if (app === 'over' && document.activeElement?.closest?.('#over button, #over textarea')) return;
   if (app === 'menu') {
     if (savedRun) startGame(undefined, false, savedRun);
-    else startGame();
+    else playNew(false); // partie guidée : Entrée la lance aussi pour un nouveau joueur (règle 4)
   } else if (app === 'over') startGame();
   else if (app === 'victory') victoryContinue(); // phase 39 : Entrée = continuer en monde infini
 };

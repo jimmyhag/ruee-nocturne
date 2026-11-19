@@ -2,9 +2,13 @@
 import { FIRST_RUNS, REVEAL, TUTORIAL } from '../sim/balance';
 import type { Meta } from './save';
 
-/** Décision 1 : un nouveau joueur (aucune partie finie, partie guidée ni finie ni passée) commence par elle. */
+/**
+ * Décision 1 : un nouveau joueur (aucune partie finie, aucune étape dévoilée, partie guidée ni finie ni passée) commence
+ * par elle. Une partie abandonnée après une minute (lot L2) dévoile une étape sans compter dans `runs` : ce joueur-là
+ * a déjà joué.
+ */
 export function tutorialDue(m: Meta): boolean {
-  return m.tutorial === 0 && m.runs === 0;
+  return m.tutorial === 0 && m.runs === 0 && m.reveal === 0;
 }
 
 /** Décision 9 : tout est dévoilé (sans bannière « Nouveau ! »), les deux parties suivantes sont adoucies. */

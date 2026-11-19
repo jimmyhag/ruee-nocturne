@@ -180,7 +180,8 @@ function enter(g: GuideState, w: World, s: Step): void {
   g.t = 0;
   g.target = -1;
   g.base = s === Step.Move ? w.distance : w.kills;
-  if (s === Step.Chest) g.target = nearest(w, w.mapChests, closedChest);
+  // coffre : déjà ouvert pendant les gestes (le seul offert), il n'y a rien à apprendre ni d'or à promettre
+  if (s === Step.Chest) g.target = w.mapChestsOpened < TUTORIAL.freeChests ? nearest(w, w.mapChests, closedChest) : -1;
   else if (s === Step.Shrine) g.target = nearest(w, w.shrines, freeShrine);
   else if (s === Step.Race) g.target = nearestRace(w);
   else if (s === Step.SlideJump) g.target = nearestRamp(w);

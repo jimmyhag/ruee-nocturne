@@ -1,5 +1,5 @@
 // CLI d'équilibrage : fait jouer un bot N fois, imprime des percentiles, compare aux cibles.
-//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--reveal 0..4] [--tutorial] [--no-targets]
+//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--reveal 0..4] [--soft] [--tutorial] [--no-targets]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -103,6 +103,9 @@ const SLOT_OPT =
 // lot L2 : --reveal 0..4, étapes dévoilées (0 : première partie, sans glisse ni sanctuaire ni marchand ni totem ;
 // 0 et 1 : adoucies, FIRST_RUNS) ; absent = 4, tout (le jeu d'avant le lot, les cibles des profils)
 const REVEAL_OPT = args.has('reveal') ? Math.max(0, Math.min(REVEAL.max, +args.get('reveal')! | 0)) : undefined;
+// partie guidée : --soft, une des deux parties adoucies qui la suivent (tout dévoilé, FIRST_RUNS : `WorldOptions.soft`,
+// src/meta/shop.ts) ; cibles du lot L2 (décision 9) : morts avant 3 min ≤ 20 %, médiane ≤ cible du profil nu + 1 min
+const SOFT_ON = args.has('soft');
 // --no-item phenix,talisman : objets jamais obtenus (sim d'ablation de la porte 17)
 const NO_ITEM = new Set((args.get('no-item') ?? '').split(',').filter((k) => k.length > 0));
 for (const k of NO_ITEM)
@@ -269,7 +272,12 @@ function runOnce(seed: number, run: number): RunResult {
     ? new World(seed, dopts)
     : TUTO_ON
       ? new World(TUTORIAL.map, tutorialOptions())
-      : new World(seed, { character: CHARACTER, slots: SLOT_OPT, reveal: REVEAL_OPT });
+      : new World(seed, {
+          character: CHARACTER,
+          slots: SLOT_OPT,
+          reveal: REVEAL_OPT,
+          ...(SOFT_ON ? { soft: true } : {}),
+        });
   // partie guidée : une seule carte ; comme dans le jeu, le générateur est décalé avant le départ (main.ts : l'horloge)
   if (TUTO_ON) for (let k = (seed * 2654435761) % 1000; k > 0; k--) w.rng.next();
   const guide: GuideState | null = TUTO_ON ? newGuide(w, true, 0) : null;
@@ -621,6 +629,7 @@ const summary = {
   slots: `${SLOT_OPT.weapons},${SLOT_OPT.passives}`,
   profile: PROFILE,
   reveal: REVEAL_OPT ?? REVEAL.max,
+  soft: SOFT_ON,
   survival: {
     p10: pct(times, 10),
     p50: pct(times, 50),
@@ -902,7 +911,7 @@ for (let m = 1; m < summary.aliveCurve.length; m++)
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${TUTO_ON ? ` · carte ${TUTORIAL.map}` : ''}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${TUTO_ON ? ` · carte ${TUTORIAL.map}` : ''}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''}${SOFT_ON ? ' · --soft' : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,

@@ -272,6 +272,8 @@ export function normalizeMeta(raw: unknown): Meta {
   // lot L2 : une sauvegarde sans dévoilement (d'avant le lot) qui a fini au moins une partie reçoit tout
   const played = runs > 0 || num(st.runs) > 0;
   const reveal = readReveal(r.reveal, played);
+  // partie guidée : a déjà joué aussi celui qui n'a qu'abandonné des parties (lot L2 : une étape dévoilée, `runs` à 0)
+  const veteran = played || reveal > 0;
   const achievements = Array.isArray(r.achievements)
     ? r.achievements.filter((a): a is string => typeof a === 'string' && ACHIEVEMENT_IDS.has(a))
     : [];
@@ -331,9 +333,9 @@ export function normalizeMeta(raw: unknown): Meta {
     // sans champ (sauvegarde d'avant le lot) : les étapes déjà là ne s'annoncent pas
     seenReveal: typeof r.seenReveal === 'number' ? readReveal(r.seenReveal, false) : reveal,
     // partie guidée : une sauvegarde d'avant (sans le champ) qui a déjà joué ne la voit jamais, ni ses consignes
-    tutorial: typeof r.tutorial === 'number' ? Math.max(0, Math.min(2, Math.floor(r.tutorial) || 0)) : played ? 1 : 0,
+    tutorial: typeof r.tutorial === 'number' ? Math.max(0, Math.min(2, Math.floor(r.tutorial) || 0)) : veteran ? 1 : 0,
     softLeft: Math.max(0, Math.min(FIRST_RUNS.afterTutorial, Math.floor(num(r.softLeft)))),
-    hints: typeof r.hints === 'number' && Number.isFinite(r.hints) ? r.hints & ALL_HINTS : played ? ALL_HINTS : 0,
+    hints: typeof r.hints === 'number' && Number.isFinite(r.hints) ? r.hints & ALL_HINTS : veteran ? ALL_HINTS : 0,
     settings: normalizeSettings(se),
     slots: {
       weapons: Math.max(SLOTS_START.weapons, Math.min(MAX_WEAPONS, num(sl.weapons, SLOTS_START.weapons) | 0)),
