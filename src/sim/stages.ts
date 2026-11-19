@@ -5,7 +5,7 @@
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE } from './balance';
+import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, POWER, SPAWN, STAGE, TUTORIAL } from './balance';
 import { difficultyHp, soft, spawnEnemy } from './spawner';
 import { TOTEM_HIDDEN } from './poi';
 import { Ev, Mode } from './types';
@@ -44,6 +44,12 @@ export function tickStage(w: World, dt: number): void {
   w.stageT += dt;
   const T = w.totem,
     P = w.player;
+  // partie guidée (décision 6), au monde 1 : le chrono s'arrête à TUTORIAL.hold s de la fin tant que le totem n'est pas activé, et ne
+  // passe jamais en prolongation (la difficulté, qui suit le chrono, s'arrête avec lui)
+  if (w.tutorial && w.stage === 0 && !w.endless) {
+    const cap = T.state === 0 ? STAGE.dur - TUTORIAL.hold : STAGE.dur;
+    if (w.stageT > cap) w.stageT = cap;
+  }
   if (w.dailyEnd > 0) tickMedals(w); // défi v2 : argent et or se gagnent aussi pendant la suite en monde infini
   if (w.endless) {
     tickEndless(w, dt); // phase 39 : ni prolongation, ni totem, ni portail
@@ -79,7 +85,8 @@ export function tickStage(w: World, dt: number): void {
   // phase 42 : boss de survie tant que le portail n'est pas ouvert ; défi v2 : au défi du jour, le boss final à leur place
   if (w.dailyEnd > 0) tickFinalBoss(w);
   else if (T.state !== 2) tickSurvival(w);
-  if (over <= 0 && !w.stageWarned && T.state === 0 && STAGE.dur - w.stageT <= STAGE.warnLeft) {
+  // partie guidée : pas de rappel « plus qu'une minute » (le guide mène au totem dès TUTORIAL.forceAt, le chrono attend)
+  if (over <= 0 && !w.stageWarned && !(w.tutorial && w.stage === 0) && T.state === 0 && STAGE.dur - w.stageT <= STAGE.warnLeft) {
     // rappel : plus qu'une minute pour appeler le boss
     w.stageWarned = true;
     w.emit(Ev.BossWarn, T.x, 0, T.z, w.stage + 1, STAGE.bosses[w.stage]);
@@ -182,7 +189,12 @@ export function summonStageBoss(w: World): void {
     w.overHp *
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
     Math.max(ITEM.idole.min, 1 - ITEM.idole.hp * w.itemEff[It.Idole]) * // phase 47 B : Idole
-    difficultyHp(w); // phase 48
+    difficultyHp(w) * // phase 48
+    (w.tutorial && w.stage === 0 ? TUTORIAL.bossHp : 1); // partie guidée (décision 7) : volontairement trop fort
+  if (w.tutorial && w.stage === 0) {
+    e.dmgMul *= TUTORIAL.bossDmg;
+    e.cadence = TUTORIAL.bossCadence;
+  }
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
   e.z = e.pz = T.z + Math.cos(a) * STAGE.bossDist;
   w.bossIndex = i;
@@ -240,7 +252,8 @@ export function summonSurvivalBoss(w: World, k: number): void {
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
     STAGE.survival.hp[k] *
     difficultyHp(w) * // phase 48
-    soft(w, w.softHp); // lot L2 : premières parties adoucies (avant FIRST_RUNS.until seulement)
+    soft(w, w.softHp) * // lot L2 : premières parties adoucies (avant FIRST_RUNS.until seulement)
+    (w.tutorial && w.stage === 0 ? TUTORIAL.survivalHp : 1); // partie guidée
   w.survivalAlive++;
   if (w.bossIndex < 0) w.bossIndex = i; // la barre suit le boss du totem s'il est déjà là
   w.emit(Ev.BossSpawn, e.x, 2, e.z, w.bossCount, type, 1); // y2 = 1 : boss de survie

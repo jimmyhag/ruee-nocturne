@@ -248,7 +248,30 @@ export function nextChoice(w: World): void {
   if (w.pending > 0) {
     w.mode = Mode.LevelUp;
     rollChoices(w);
+    if (w.tutorial && !w.tutoRare) tutorialRare(w);
   } else w.mode = Mode.Play;
+}
+
+/**
+ * Partie guidée (docs/specs/tutoriel.md, décision 4) : la première feuille de niveau propose au moins une carte rare. Le
+ * tirage reste celui de `w.rng` (aucun nombre tiré ici) ; si aucune carte n'a deux lignes, la première carte d'arme ou de
+ * tome à une ligne reçoit la première ligne de sa famille encore permise (ordre de WEAPON_LINES ou TOMES).
+ */
+function tutorialRare(w: World): void {
+  w.tutoRare = true;
+  for (const c of w.cards) if (c.n >= 2) return;
+  for (const c of w.cards) {
+    if ((c.kind !== 'w' && c.kind !== 't') || c.n !== 1) continue;
+    const lines = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey] : TOMES[c.key as TomeKey];
+    const taken = c.kind === 'w' ? w.wmods[c.key as WeaponKey] : w.tmods[c.key as TomeKey]!;
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (i === c.s0 || (l.max !== undefined && taken[i] >= l.max) || l.needs === 'heal') continue;
+      c.s1 = i;
+      c.n = 2;
+      return;
+    }
+  }
 }
 
 export function tickGems(w: World, dt: number): void {

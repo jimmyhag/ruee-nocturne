@@ -344,6 +344,8 @@ export interface WorldOptions {
   daily?: boolean; // lot L3 : défi du jour court (DAILY), monde 1 seul, fin à DAILY.duration s
   rule?: number; // défi v2 : règle du jour (index dans DAILY_RULE_KEYS) ; undefined = aucune
   weapon?: WeaponKey; // défi v2 : arme de départ imposée (règle « Arme imposée ») ; undefined = celle du personnage
+  soft?: boolean; // partie guidée (décision 9) : partie adoucie (FIRST_RUNS) ; undefined = la règle du dévoilement (lot L2)
+  tutorial?: boolean; // partie guidée (docs/specs/tutoriel.md) : réglages TUTORIAL ; undefined = partie normale
 }
 /** Tomes (phase 12) : remplacent les passifs ; chaque carte de tome apporte 1 à 3 lignes de stats de sa famille. */
 export type TomeKey =

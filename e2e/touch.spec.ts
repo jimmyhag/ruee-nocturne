@@ -41,9 +41,9 @@ test.describe('tactile', () => {
 
   test('le bouton Perf de la pause affiche et masque l’onglet perf (parité F3)', async ({ page }) => {
     await page.goto('/'); // sans ?debug : l'onglet est masqué au départ, comme pour un joueur
-    // phase 14 : premier lancement, l'aide « Comment jouer » s'ouvre d'abord ; on la ferme comme un joueur
-    await expect(page.locator('#help')).toBeVisible();
-    await page.locator('#helpBackBtn').tap();
+    // partie guidée (1.65.0) : au premier lancement, plus d'aide « Comment jouer » ; « Jouer » lance la partie guidée,
+    // qui a la même pause (avec « Passer la partie guidée » en plus)
+    await expect(page.locator('#help')).toBeHidden();
     await page.locator('#playBtn').tap();
     await page.waitForFunction(() => document.getElementById('hud')?.hidden === false);
     await page.locator('#pauseBtn').tap();

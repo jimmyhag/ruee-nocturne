@@ -2,6 +2,30 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.65.0 — 19 nov. 2026 (partie guidée)
+
+Ta toute première partie te guide pas à pas dans le monde 1 : tout le jeu s'apprend en jouant, jusqu'au boss du monde.
+
+### Ajouté
+
+- **Partie guidée** : un nouveau joueur commence par elle en touchant « Jouer ». Une consigne à la fois, en haut de l'écran, avec le bouton à toucher sur téléphone ou la touche à presser au clavier, et une flèche vers ce qu'il faut voir. Chaque geste attend que tu le fasses : se déplacer, laisser ton héros tirer tout seul, ramasser les cristaux, sauter par-dessus une onde (au ralenti), glisser, sauter en pleine glisse, lancer ton sort.
+- **Les cartes expliquées** : à ta première montée de niveau, la feuille t'explique ce qu'est une arme, un tome, et ce que disent les couleurs (commune, rare bleue, épique or). Elle propose toujours au moins une carte rare.
+- **Les lieux du monde montrés un par un**, tout près : un coffre (ouvert gratuitement cette fois), un sanctuaire, une course, un crâne, un totem de boss et le totem du monde. Crâne et totem de boss sont seulement montrés : à toi de choisir.
+- **Seul ensuite**, avec une indication la première fois que tu croises un bonus au sol, une élite, un boss de survie ou le marchand. À deux minutes de la fin, une flèche te mène au totem rouge et le chrono t'attend à 0:30.
+- **« À toi de jouer ! »** : le boss de la partie guidée est volontairement trop fort. Après lui, une feuille te dit pourquoi, et tu gardes l'or de la partie avec une prime de fin de guide.
+- **Le portail et le monde 2 expliqués** la première fois que tu les vois, dans les parties suivantes.
+- **Rejouer la partie guidée** depuis « Comment jouer », et **la passer** depuis la pause. Fermée en cours de route, elle reprend à son étape.
+
+### Modifié
+
+- **Premières parties** : la partie guidée remplace l'écran « Comment jouer » du premier lancement et la découverte des systèmes partie après partie. Après elle, tout est disponible, et les deux parties suivantes restent un peu plus douces.
+- **Rien ne change pour les joueurs qui ont déjà joué** : ils ne voient ni la partie guidée ni ses indications.
+
+### Technique
+
+- Spec : `docs/specs/tutoriel.md` (15 scénarios : `src/meta/tutorial.test.ts`, `e2e/tutoriel.spec.ts`, `tools/tutorial.test.ts`). Sim : `WorldOptions.tutorial` et `TUTORIAL` (`balance.ts`) seulement : carte `TUTORIAL.map` (1825, lieux près du départ), horde légère jusqu'à 5:00 (`spawn`), monstres du monde 1 adoucis (`hp`, `dmg`), horde éclaircie (`wait`) et chrono tenu à 0:30 (`hold`) de 8:00 à l'activation du totem, sans prolongation ni rappel, boss du totem renforcé (`bossHp`, `bossDmg`), premier coffre de carte gratuit (`freeChests`), première feuille de niveau avec au moins une carte rare (ligne ajoutée sans tirage : l'état de `w.rng` est inchangé). `WorldOptions.soft` : les parties adoucies (`FIRST_RUNS`) deviennent les deux qui suivent la partie guidée (`FIRST_RUNS.afterTutorial`). Guide : automate pur `src/meta/guide.ts` (étapes franchies sur les événements de la sim, étapes « à voir » sur un délai, consignes de première apparition en bits), affichage `src/ui/tutorial.ts` (nœuds de `index.html` créés une fois, textes réécrits au changement d'étape, flèche écrite quand elle bouge, ralenti ×0,3 sur l'accumulateur de la boucle, coupé par « Effets réduits »), projection `GameScene.project`. Méta : `tutorial`, `softLeft`, `hints`, propres à l'appareil (`DEVICE_KEYS`) ; une sauvegarde ou une progression du nuage avec des parties jouées ne la propose jamais ; fin : `tutorialEnd` (or + `TUTORIAL.gold` la première fois, ni série, ni record, ni succès, ni classement), `tutorialSkip`. Partie gardée : l'état du guide dans `SavedRun.guide`. CLI : `--tutorial` (le bot fait les gestes et va aux lieux demandés par le même automate, puis au totem à 8:00), cibles `PROFILES.tutorial`. Crochets : `startTutorial()`, `guide`, `guideStep(n)`, `tutoScale`. Sous `?debug=1`, « Jouer » ne lance la partie guidée qu'avec `tuto=1` (comme l'aide avec `help=1`).
+- Équilibrage (règle 13), bot moyen, 4 graines × 200 parties guidées regroupées : boss atteint 96,4 %, mort contre lui 98,7 % de ceux-là, en 39 s (médiane ; p10 12 s, p90 102 s), morts avant 5:00 1,6 %. Parties adoucies qui suivent (`--soft`, tout dévoilé) : morts avant 3 min 17,9 %, survie médiane 5:28 ; la CI les mesure avec la partie guidée à chaque pull request. Parties normales et défi du jour identiques au bit près à la 1.64.0. Détail dans `docs/GATES.md`.
+
 ## 1.64.0 — 18 nov. 2026 (défi du jour v2)
 
 Le défi du jour devient un vrai défi : une règle qui change chaque jour, un boss final, des médailles, et la liberté de tenir aussi longtemps que tu peux.

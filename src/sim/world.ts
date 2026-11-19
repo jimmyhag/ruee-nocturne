@@ -298,6 +298,10 @@ export class World {
   softRate = 1.5;
   // lot L3 : fin du défi du jour (s du monde ; 0 = partie complète). Fixé à la création, gardé par l'instantané
   dailyEnd = 0;
+  // partie guidée (docs/specs/tutoriel.md) : réglages TUTORIAL ; première feuille de niveau déjà ajustée (une carte rare).
+  // Fixés à la création, gardés par l'instantané
+  tutorial = false;
+  tutoRare = false;
   // défi v2 (docs/specs/defi-v2.md) : règle du jour (index dans DAILY_RULE_KEYS, -1 aucune : partie complète, ou défi
   // gardé avant la mise à jour), boss final (0 à venir, 1 en vie, 2 abattu, 3 jamais venu : partie reprise d'avant la
   // mise à jour, déjà passée 4:00), son id dans le pool, préavis envoyé, et médaille (0 aucune, 1 bronze, 2 argent, 3 or)
@@ -379,7 +383,9 @@ export class World {
       this.player.maxHp = this.player.hp = Math.round(this.player.maxHp * R.heroHp); // Verre
       if (R.eliteFirst > 0) this.nextElite = R.eliteFirst; // Chasse aux élites
     }
-    const soft = this.reveal < FIRST_RUNS.below;
+    if (opts?.tutorial) this.tutorial = true;
+    // partie guidée (décision 9) : la méta dit si la partie est adoucie ; sinon la règle du dévoilement (lot L2)
+    const soft = this.tutorial ? false : (opts?.soft ?? this.reveal < FIRST_RUNS.below);
     this.softHp = soft ? FIRST_RUNS.hp : 1;
     this.softDmg = soft ? FIRST_RUNS.dmg : 1;
     this.softRate = soft ? FIRST_RUNS.rate : 1;

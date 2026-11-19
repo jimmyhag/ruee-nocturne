@@ -255,7 +255,16 @@ const COMBAT_TOMES: ReadonlySet<TomeKey> = new Set([
 // joueur « moyen » des cibles) ; `takeDefi` = il prend le tome de difficulté quand il sort (sinon jamais : un joueur qui
 // ne cherche pas la difficulté ne la prend pas par hasard)
 // `bossTotems` = totems de boss que le bot va activer dans chaque monde (0 : il n'y touche pas), dès `bossTotemAt` s
-export const BOT_TUNE = { tomePrior: 8, skulls: 0, skullEvery: 45, takeDefi: false, bossTotems: 0, bossTotemAt: 30 };
+// partie guidée (`--tutorial`) : `totemAt` = chrono du monde (s) auquel le bot va au totem (TUTORIAL.forceAt)
+export const BOT_TUNE = {
+  tomePrior: 8,
+  skulls: 0,
+  skullEvery: 45,
+  takeDefi: false,
+  bossTotems: 0,
+  bossTotemAt: 30,
+  totemAt: BOT_TOTEM_AT,
+};
 function lineValue(c: Card, s: number): number {
   if (s < 0) return 0;
   const l = c.kind === 'w' ? WEAPON_LINES[c.key as WeaponKey][s] : TOMES[c.key as TomeKey][s];
@@ -677,7 +686,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         }
       // phase 37 : à l'heure prévue, le totem (on reste dans le cercle tant que personne ne colle), puis le portail
       const T = w.totem;
-      const goTotem = T.state === 0 && w.stageT >= BOT_TOTEM_AT;
+      const goTotem = T.state === 0 && w.stageT >= BOT_TUNE.totemAt;
       const goPortal = w.portal.open && !BOT_FARM;
       if (goTotem || goPortal) {
         const tx = T.x - P.x,

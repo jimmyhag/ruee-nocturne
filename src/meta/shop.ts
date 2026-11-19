@@ -124,5 +124,22 @@ export function worldOptions(m: Meta, unlocked: WorldOptions['unlocked'], daily 
     rerolls: runRerolls(m), // phase 31 : relances de cartes
     bannedItems: bannedItems(m), // phase 40 : objets verrouillés ou retirés du tirage
     reveal: m.reveal, // lot L2 : dévoilement progressif
+    // partie guidée (décision 9) : les deux parties qui la suivent sont adoucies ; sinon la règle du lot L2
+    ...(m.softLeft > 0 ? { soft: true } : {}),
+  };
+}
+
+/**
+ * Partie guidée (docs/specs/tutoriel.md, décision 1) : l'Éclaireuse au kit de départ, comme un nouveau joueur, quelle
+ * que soit la méta (on peut la rejouer depuis l'Aide) ; tout dévoilé, réglages TUTORIAL. La carte est TUTORIAL.map.
+ */
+export function tutorialOptions(): WorldOptions {
+  return {
+    character: 'eclaireuse',
+    unlocked: unlockedWeapons(DEFAULT_META),
+    slots: { ...SLOTS_START },
+    rerolls: RUN_REROLL.base,
+    bannedItems: bannedItems(DEFAULT_META),
+    tutorial: true, // `reveal` absent : tout est dévoilé
   };
 }

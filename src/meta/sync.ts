@@ -6,6 +6,7 @@ import type { Meta } from './save';
 import { SLOTS_START } from '../sim/balance';
 import { keepMedals, mergeStreak } from './daily';
 import { mergeMissions } from './missions';
+import { ALL_HINTS } from './guide';
 
 /** Clés de Meta qui ne quittent jamais l'appareil. */
 export const DEVICE_KEYS = [
@@ -17,6 +18,11 @@ export const DEVICE_KEYS = [
   'seenHelp',
   'seenNotes',
   'seenReveal', // lot L2 : bannière « Nouveau ! » déjà vue sur cet appareil
+  // partie guidée : jouée sur cet appareil, parties adoucies qui restent, consignes vues (un autre appareil d'un joueur qui
+  // a déjà joué, `runs` > 0, ne la propose pas : src/meta/tutorial.ts)
+  'tutorial',
+  'softLeft',
+  'hints',
 ] as const;
 export type DeviceKey = (typeof DEVICE_KEYS)[number];
 export type Progress = Omit<Meta, DeviceKey>;
@@ -76,6 +82,9 @@ export function withProgress(local: Meta, raw: unknown): Meta {
     seenHelp: local.seenHelp,
     seenNotes: local.seenNotes,
     seenReveal: local.seenReveal,
+    tutorial: local.tutorial,
+    softLeft: local.softLeft,
+    hints: local.hints,
   });
   // lot L2 : dévoilement, le plus grand des deux (un ancien client sans le champ : migré par normalizeMeta). Les étapes
   // venues d'un autre appareil y ont été annoncées : pas de bannière ici ; celle gagnée sur cet appareil reste à annoncer
@@ -87,6 +96,12 @@ export function withProgress(local: Meta, raw: unknown): Meta {
   m.streak = mergeStreak(local.streak, m.streak);
   m.daily.medals = keepMedals(local.daily, m.daily); // défi v2 : les médailles ne viennent jamais du nuage
   m.missions = mergeMissions(local.missions, m.missions);
+  // partie guidée : un appareil neuf qui reçoit la progression d'un joueur qui a déjà joué ne la propose pas, ni ses
+  // consignes de première apparition (décision 1 : « ni progression reçue du nuage »)
+  if (local.tutorial === 0 && local.runs === 0 && (m.runs > 0 || m.reveal > 0)) {
+    m.tutorial = 1;
+    m.hints = ALL_HINTS;
+  }
   return m;
 }
 

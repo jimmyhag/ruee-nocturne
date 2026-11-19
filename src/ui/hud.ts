@@ -181,12 +181,14 @@ export class Hud {
    * Phase 37 : puce d'objectif du monde, sous le chrono. Totem à activer ou portail ouvert : flèche et distance ;
    * boss appelé : « Tue le boss » ; chrono écoulé sans passage : le message d'alerte. Chaînes construites au changement.
    */
+  /** Partie guidée : le totem n'est pas encore un objectif (le guide le montre à son étape, ou à 8:00). */
+  goalHold = false;
   private goal(w: World): void {
     const T = w.totem,
       P = w.player;
     // 0 rien, 1 totem, 2 boss, 3 portail, 5 monde infini : prochaine vague de boss (phase 39) ; 4 (totem fermé) n'existe
     // plus depuis la 1.45.2 : le totem reste actif après la fin du chrono
-    const kind = w.endless ? 5 : w.portal.open ? 3 : T.state === 0 ? 1 : T.state === 1 ? 2 : 0;
+    const kind = w.endless ? 5 : w.portal.open ? 3 : T.state === 0 ? (this.goalHold ? 0 : 1) : T.state === 1 ? 2 : 0;
     if (this.cache.goal !== kind) {
       this.cache.goal = kind;
       this.cache.gDeg = this.cache.gDist = undefined;

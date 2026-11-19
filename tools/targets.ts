@@ -118,7 +118,27 @@ const DAILY_TARGETS: Target[] = [
   { name: 'morts <3 min ≤ 20 %', min: 0, max: 20, get: (s) => s.deadBefore3minPct, fmt: (v) => v.toFixed(0) + ' %' },
   { name: 'chute max ≤ 22 pts/min', min: 0, max: 22, get: (s) => s.maxDrop, fmt: (v) => v + ' pts' },
 ];
-export const PROFILES = { naked: NAKED, maxed: MAXED, daily: DAILY_TARGETS };
+// Partie guidée (docs/specs/tutoriel.md, décision 11), `--tutorial` : personne ne la perd avant d'avoir tout vu, et le boss
+// du totem, volontairement trop fort, tue le joueur en 20 à 60 s
+const TUTORIAL_TARGETS: Target[] = [
+  { name: 'boss atteint ≥ 90 %', min: 90, max: 100, get: (s) => s.tuto.reachPct, fmt: (v) => v.toFixed(1) + ' %' },
+  {
+    name: 'mort contre le boss ≥ 95 %',
+    min: 95,
+    max: 100,
+    get: (s) => s.tuto.bossDeathPct,
+    fmt: (v) => v.toFixed(1) + ' %',
+  },
+  { name: 'boss tue en 20–60 s', min: 20, max: 60, get: (s) => s.tuto.bossTimeP50, fmt: (v) => v.toFixed(0) + ' s' },
+  {
+    name: 'morts avant 5:00 ≤ 3 %',
+    min: 0,
+    max: 3,
+    get: (s) => s.tuto.deadBefore5Pct,
+    fmt: (v) => v.toFixed(1) + ' %',
+  },
+];
+export const PROFILES = { naked: NAKED, maxed: MAXED, daily: DAILY_TARGETS, tutorial: TUTORIAL_TARGETS };
 const mmss = (v: number) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
 // phase 43 (grand rééquilibrage, demande de Jimmy) : monde infini, mesuré sur les parties gagnées qui continuent
 // (--endless). Avant : tenu p50 7:39, p90 17:51, 24 % des parties passaient 6 vagues ; un joueur va environ deux fois plus
