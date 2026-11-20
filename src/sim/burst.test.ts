@@ -6,8 +6,8 @@ import { killEnemy } from './combat';
 import { restoreWorld, snapshotWorld, type RunSnap } from './snapshot';
 import { spawnEnemy } from './spawner';
 import { step } from './step';
-import { Ev } from './types';
-import type { Input, WeaponKey } from './types';
+import { Ev, Mode } from './types';
+import type { Card, Input, WeaponKey } from './types';
 import { lineIndex, refreshStats, weaponStats } from './weapons/defs';
 import { World } from './world';
 
@@ -254,5 +254,22 @@ describe('la vraie faux (décisions 8, 9 et 11)', () => {
       w.wmods.faux[j] = Math.min(2, arcLines);
       expect(restoreWorld(JSON.parse(JSON.stringify(snapshotWorld(w))) as RunSnap).wmods.faux[j]).toBe(Math.min(2, arcLines));
     }
+  });
+
+  it('a card pending in a 1.68 run never pushes a converted scythe line past its cap', () => {
+    // décision 11 : la carte proposée avant la mise à jour garde l'index de la ligne, devenue « +1 faux »
+    const j = lineIndex(WEAPON_LINES.faux, 'n'),
+      max = WEAPON_LINES.faux[j].max!;
+    const w = arena('faux');
+    w.wmods.faux[j] = 16; // le cercle complet en lignes d'arc
+    w.mode = Mode.LevelUp;
+    w.cards = [{ kind: 'w', key: 'faux', lv: 2, n: 1, s0: j, s1: -1, s2: -1 } satisfies Card];
+    const snap = JSON.parse(JSON.stringify(snapshotWorld(w))) as RunSnap;
+    delete snap.rev;
+    const b = restoreWorld(snap);
+    expect(b.wmods.faux[j]).toBe(max);
+    step(b, { ...still, pick: 0 }, STEP); // la carte est choisie
+    expect(b.wmods.faux[j]).toBe(max);
+    expect(weaponStats(b, 'faux').n).toBe(FAUX.maxN);
   });
 });

@@ -1077,7 +1077,13 @@ function runOngoing(): boolean {
   return (
     world !== null &&
     world.mode !== Mode.Dead &&
-    (app === 'play' || app === 'pause' || app === 'levelup' || app === 'merchant' || app === 'map' || app === 'victory')
+    (app === 'play' ||
+      app === 'pause' ||
+      app === 'levelup' ||
+      app === 'merchant' ||
+      app === 'map' ||
+      app === 'victory' ||
+      app === 'info')
   );
 }
 /**

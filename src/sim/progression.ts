@@ -206,12 +206,22 @@ export function tutorialLock(w: World): number {
   return k !== null && c !== undefined && c.kind === 't' && c.key === k ? 0 : -1;
 }
 
-/** Applique la ligne `s` (≥ 0) d'une carte d'arme ou de tome. */
+/**
+ * Applique la ligne `s` (≥ 0) d'une carte d'arme ou de tome, jamais au-delà de son plafond (`max`) : le tirage n'en
+ * propose pas de plafonnée, mais une carte gardée dans une partie d'une autre version peut porter une ligne qui a changé
+ * de sens (1.69.0 : « +15° d'arc » devenu « +1 faux », docs/specs/rafales-faux-guidage.md, décision 11).
+ */
 function applyLine(w: World, c: Card, s: number): void {
   if (s < 0) return;
-  if (c.kind === 'w') w.wmods[c.key as WeaponKey][s]++;
-  else if (c.kind === 't') {
-    const k = c.key as TomeKey;
+  if (c.kind === 'w') {
+    const k = c.key as WeaponKey,
+      max = WEAPON_LINES[k][s]?.max;
+    if (max !== undefined && w.wmods[k][s] >= max) return;
+    w.wmods[k][s]++;
+  } else if (c.kind === 't') {
+    const k = c.key as TomeKey,
+      max = TOMES[k][s]?.max;
+    if (max !== undefined && w.tmods[k]![s] >= max) return;
     w.tmods[k]![s]++;
     applyTomeLine(w, k, s);
   }

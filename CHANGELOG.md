@@ -13,15 +13,11 @@ Tes projectiles partent en rafale, la Faux devient une vraie faux, et le jeu t'e
 
 ### Modifié
 
-- **Les projectiles en plus partent en rafale**, l'un après l'autre, comme une mitraille : Orbe, Lance, Boomerang et Fouet. Chacun vise au moment où il part : un ennemi solide prend deux tirs, le reste file vers la horde ; un ennemi seul prend toute la rafale ; des monstres fragiles en prennent un chacun.
+- **Les projectiles en plus partent en rafale**, l'un après l'autre, comme une mitraille : Orbe, Lance, Boomerang et Fouet. Chacun vise au moment où il part : un ennemi solide prend deux tirs, le reste file vers la horde ; un ennemi seul prend toute la rafale, là où les projectiles en plus partaient en éventail à côté de lui ; des monstres fragiles en prennent un chacun.
 - **Le Boomerang** part vers l'ennemi le plus proche, et **le Fouet** claque vers l'ennemi le plus proche (à défaut, devant toi) : ses claques en plus partent en rafale.
 - **La fin de la partie guidée** se lit d'un coup d'œil : ton résultat en grand, puis « Rejouer » ou « Retour au menu ».
 - **Le totem n'est pas pressé** : l'objectif dit « Survis · totem quand tu es prêt » ; « Active le totem » ne passe au rouge que dans la dernière minute du chrono. Dans la partie guidée, le totem de boss est présenté comme facultatif, et « Comment jouer » commence par « Rien ne presse ».
 - Une partie gardée avant la mise à jour garde sa Faux : ses améliorations d'arc deviennent des faux.
-
-### Corrigé
-
-- Avec un seul ennemi à portée, les projectiles en plus de l'Orbe et les lances en plus partaient en éventail à côté de lui : ils le touchent maintenant tous.
 
 ### Technique
 

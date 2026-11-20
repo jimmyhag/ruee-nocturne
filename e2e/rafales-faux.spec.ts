@@ -279,7 +279,8 @@ test('The totem is not in a hurry', async ({ page }, info) => {
   expect(errors).toEqual([]);
 });
 
-test('The scythe is visible, one to three scythes, within the draw-call budget', async ({ page }, info) => {
+// test de soutien (pas un scénario de la spec) : la faux se voit, et le budget d'appels de dessin tient
+test('la faux se voit, d’une à trois faux, dans le budget d’appels de dessin', async ({ page }, info) => {
   test.setTimeout(120_000);
   const errors = collectConsoleErrors(page);
   await openGame(page);
@@ -337,5 +338,83 @@ test('The scythe is visible, one to three scythes, within the draw-call budget',
   await page.waitForTimeout(150);
   await shot(page, 'rafale-orbe', info.project.name);
   await page.evaluate(() => (window as any).__game.debug.speed(1));
+  expect(errors).toEqual([]);
+});
+
+// tests de soutien (décision 5 et relecture) : la fenêtre passe après une carte de niveau ouverte au même pas, et une
+// partie dont la fenêtre est ouverte s'enregistre quand l'appli passe en arrière-plan
+test('la fenêtre attend la carte de niveau ouverte au même pas que la mort du boss', async ({ page, hasTouch }) => {
+  test.setTimeout(120_000);
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  await unseen(page, PORTAL);
+  await startRun(page, 3);
+  await calm(page);
+  await page.evaluate(() => {
+    const G = (window as any).__game;
+    const T = G.world.totem;
+    G.debug.teleport(T.x, T.z);
+    T.charge = 2.9;
+  });
+  await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, null, { timeout: 20_000 });
+  // au pas suivant, le Halo tue le boss (PV presque nuls, collé au héros, impulsion prête) et une montée de niveau
+  // attend : la mort du boss (portail, fenêtre) et la carte de niveau tombent au même pas
+  await page.evaluate(() => {
+    const G = (window as any).__game,
+      w = G.world;
+    G.debug.teleport(w.totem.x + 7, w.totem.z);
+    const b = w.enemies[w.bossIndex];
+    b.hp = 0.001;
+    b.x = b.px = w.player.x + 1;
+    b.z = b.pz = w.player.z;
+    w.weapons.aura = 1;
+    w.wstate.auraT = 0;
+    w.pending = 1;
+  });
+  await expect(page.locator('#levelup')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('#info')).toBeHidden();
+  expect(await page.evaluate(() => (window as any).__game.world.portal.open)).toBe(true);
+  expect(await page.evaluate(() => (window as any).__game.guide.win)).toBe(1 << 4); // la fenêtre attend
+  await page.waitForTimeout(500);
+  await expect(page.locator('#info')).toBeHidden();
+  // la carte choisie (doigt ou touche 1), la fenêtre s'ouvre
+  if (hasTouch) await page.locator('#cards .card').first().tap();
+  else await page.keyboard.press('Digit1');
+  for (let i = 0; i < 10 && (await app(page)) === 'levelup'; i++) {
+    // le coffre du boss a pu ajouter un choix : on prend aussi la première carte
+    if (hasTouch) await page.locator('#cards .card').first().tap();
+    else await page.keyboard.press('Digit1');
+    await page.waitForTimeout(300);
+  }
+  await expect(page.locator('#info')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('#infoTitle')).toHaveText('Le portail est ouvert !');
+  await gotIt(page, hasTouch);
+  expect(errors).toEqual([]);
+});
+
+test('une partie dont la fenêtre est ouverte s’enregistre en arrière-plan', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  await unseen(page, OVERTIME);
+  await startRun(page);
+  await calm(page);
+  await page.evaluate(() => (window as any).__game.debug.stageTime(598));
+  await untilInfo(page);
+  const t = await page.evaluate(() => (window as any).__game.world.t as number);
+  // l'appli passe en arrière-plan, fenêtre ouverte : la partie est écrite sur l'appareil
+  await page.evaluate(() => {
+    localStorage.removeItem('ruee-run');
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const saved = await page.evaluate(() => {
+    const raw = localStorage.getItem('ruee-run');
+    return raw ? (JSON.parse(raw) as { snap: { fields: { t: number } } }).snap.fields.t : null;
+  });
+  expect(saved).not.toBeNull();
+  expect(saved).toBeCloseTo(t, 6);
+  expect(await app(page)).toBe('info'); // la fenêtre reste ouverte (le jeu y est déjà en pause)
   expect(errors).toEqual([]);
 });

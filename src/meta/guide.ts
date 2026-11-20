@@ -79,6 +79,8 @@ export const enum Hint {
 }
 /** Consignes montrées dans une fenêtre (jeu en pause), une fois par joueur : bits de `GuideState.win` en attente. */
 export const WINDOW_HINTS: readonly Hint[] = [Hint.Portal, Hint.Overtime, Hint.Endless];
+/** Bits des fenêtres (masque de `GuideState.win`). */
+const WINDOW_MASK = WINDOW_HINTS.reduce((m, h) => m | (1 << h), 0);
 /**
  * Importance de chaque consigne (index : Hint) : deux au même moment, la plus importante passe. L'ordre des bits la
  * donnait jusqu'à la 1.66.0 ; la consigne des corrompus, ajoutée en dernier, est la moins importante : elle ne remplace
@@ -148,7 +150,8 @@ export function readGuide(raw: unknown): GuideState | null {
     hint: -1,
     elite: o.elite as number,
     portal: o.portal,
-    win: 0, // une fenêtre pas encore ouverte reviendra (son bit n'est retenu dans la méta qu'à l'ouverture)
+    // une fenêtre en attente (derrière une carte de niveau) quand la partie a été gardée : elle s'ouvre à la reprise
+    win: n(o.win) ? (o.win as number) & WINDOW_MASK : 0,
   };
 }
 

@@ -9,7 +9,7 @@ import { startRun, step } from '../sim/step';
 import { Ev, Mode, Pw } from '../sim/types';
 import type { Input } from '../sim/types';
 import { World } from '../sim/world';
-import { ALL_HINTS, HINTS, Hint, WINDOW_HINTS, newGuide, takeWindow, updateGuide } from './guide';
+import { ALL_HINTS, HINTS, Hint, WINDOW_HINTS, newGuide, readGuide, takeWindow, updateGuide } from './guide';
 import type { GuideState } from './guide';
 import { DEFAULT_META, normalizeMeta } from './save';
 import { worldOptions } from './shop';
@@ -122,5 +122,26 @@ describe('fenêtres de première fois', () => {
     w.mode = Mode.Play;
     expect(takeWindow(g)).toBe(Hint.Endless);
     expect(takeWindow(g)).toBe(-1);
+  });
+
+  it('a window waiting behind a sheet survives a saved run', () => {
+    // la partie est gardée pendant que la fenêtre attend derrière une carte de niveau : reprise, elle s'ouvre
+    const { w, g } = quietWorld(13, seenBut(Hint.Endless));
+    w.endless = true;
+    w.mode = Mode.LevelUp;
+    updateGuide(g, w, 0);
+    expect(g.win).toBe(1 << Hint.Endless);
+    const back = readGuide(JSON.parse(JSON.stringify(g)))!;
+    expect(back.win).toBe(1 << Hint.Endless);
+    expect(back.hints & (1 << Hint.Endless)).not.toBe(0); // vue pour l'automate : elle ne se remet pas en attente…
+    expect(takeWindow(back)).toBe(Hint.Endless); // …mais elle s'ouvre
+    // une sauvegarde abîmée ne réveille que des fenêtres
+    expect(readGuide({ ...JSON.parse(JSON.stringify(g)), win: 0xffff })!.win).toBe(
+      WINDOW_HINTS.reduce((m, h) => m | (1 << h), 0),
+    );
+    // une sauvegarde d'avant la 1.69.0 (sans le champ) : rien en attente
+    const old = JSON.parse(JSON.stringify(g));
+    delete old.win;
+    expect(readGuide(old)!.win).toBe(0);
   });
 });
