@@ -2,6 +2,30 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.68.0 — 20 nov. 2026 (le Cœur de la Nuit)
+
+Le monde 3 n'est plus la fin : un portail rouge mène au boss final.
+
+### Ajouté
+
+- **Le Cœur de la Nuit, le boss final** : quand le boss du monde 3 tombe, le monde est gagné, le chrono tombe à 0 et un portail rouge s'ouvre vers l'Arène, une petite arène ronde fermée par un cercle de flammes. Le Cœur de la Nuit y sort au centre, avec ses quatre phases, chacune annoncée par une bannière qui dit quoi faire :
+  - **le souvenir** : il reprend la charge du Gardien, la salve de l'Essaim-mère et les cercles du Colosse, une par une ;
+  - **les sceaux** : à 70 %, il devient invulnérable derrière quatre stèles violettes ; chacune brisée lui retire une part de sa vie, et des monstres corrompus arrivent pendant ce temps ;
+  - **l'éclipse** : à 40 %, l'Arène s'assombrit, le cercle de flammes se resserre et brûle, et deux doubles l'entourent : seul le vrai a les yeux qui brillent ;
+  - **la fureur** : à 15 %, ses attaques s'enchaînent et il lance le Jugement : toute l'Arène devient rouge, sauf une zone de lumière où courir à temps.
+- **La victoire, la vraie** : le vaincre donne de l'or, le succès « Aube » et ouvre le monde infini, où la nuit corrompt les monstres comme en prolongation.
+- **Comment jouer** explique le passage vers l'Arène et ses phases.
+
+### Modifié
+
+- **Le monde 3 vaincu reste une victoire** : statistique, succès et classement la comptent dès que son boss tombe, même si le Cœur de la Nuit gagne ensuite. L'écran de fin dit alors à quelle phase il t'a vaincu.
+- **Le monde infini commence après le boss final**, et il a maintenant des monstres corrompus. Celui du défi du jour ne change pas.
+- L'ancien succès « Aube » (terminer les trois mondes) s'appelle désormais « Trois mondes ».
+
+### Technique
+
+- Spec : `docs/specs/boss-final.md` (scénarios : `src/sim/final.test.ts`, `src/sim/final-golden.test.ts`, `src/meta/outcome.test.ts`, `e2e/boss-final.spec.ts`, `tools/final.test.ts`). À compléter avec la mesure.
+
 ## 1.67.0 — 19 nov. 2026 (monstres corrompus)
 
 Après la fin du chrono, chaque monde devient une autre partie : la nuit corrompt les monstres.

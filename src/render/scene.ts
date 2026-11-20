@@ -828,7 +828,9 @@ export class GameScene {
     // deux essences (sapin, feuillu) à couleurs par sommet : la couleur d'instance ne porte que la variation de teinte
     const firs = makeInstanced(firGeometry(), vc(), treeCap);
     this.treeData = new Float32Array(nTrees * 6);
-    this.lampData = new Float32Array(DECOR.lamps * 3);
+    // 1.68.0 : l'Arène du boss final n'a ni arbre ni cercle de pierres, donc ni lanterne ni herbe autour des arbres
+    const nLamps = nTrees > 0 ? DECOR.lamps : Math.min(DECOR.lamps, w.stoneCenters.length);
+    this.lampData = new Float32Array(nLamps * 3);
     const rounds = makeInstanced(roundTreeGeometry(), vc(), treeCap);
     // rocher posé au sol (origine au pied, comme le modèle stylisé qui le remplace : mêmes matrices)
     const rocks = makeInstanced(
@@ -897,7 +899,7 @@ export class GameScene {
       rocks.setMatrixAt(i, d.matrix);
     }
     // lanternes : au centre des cercles de pierres (phase 16), puis près des arbres (pas de collision) ; pied, tête, halo
-    for (let i = 0; i < DECOR.lamps; i++) {
+    for (let i = 0; i < nLamps; i++) {
       const c = w.stoneCenters[i];
       const o = c ?? w.obstacles[(i * 37) % nTrees];
       if (c) d.position.set(c.x, gy(c.x, c.z), c.z);
@@ -931,7 +933,7 @@ export class GameScene {
     this.graveData = new Float32Array(G);
     // herbe : touffes autour des arbres, jamais dans un lac
     let ng = 0;
-    for (let i = 0; i < GRASS; i++) {
+    for (let i = 0; i < GRASS && nTrees > 0; i++) {
       const o = w.obstacles[(i * 53) % nTrees];
       const ang = (i * 2.399) % TAU;
       const dist = o.r + 0.8 + ((i * 13) % 9) * 0.35;
@@ -951,7 +953,7 @@ export class GameScene {
     firs.count = nf;
     rounds.count = nr;
     rocks.count = nRocks;
-    posts.count = lamps.count = halos.count = DECOR.lamps;
+    posts.count = lamps.count = halos.count = nLamps;
     grass.count = ng;
     this.decorProc = [posts, lamps];
     this.treeProc = [firs, rounds];

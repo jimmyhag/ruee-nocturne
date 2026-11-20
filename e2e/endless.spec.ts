@@ -1,4 +1,4 @@
-// Phase 39 : monde infini. Victoire au monde 3 → écran de choix ; Continuer (Entrée ou doigt) → HUD « Monde infini »,
+// Phase 39 : monde infini. Victoire (1.68.0 : le boss final de l'Arène, après le monde 3) → écran de choix ; Continuer (Entrée ou doigt) → HUD « Monde infini »,
 // boss toutes les 2:30 ; mort → écran de fin avec le temps tenu. Terminer (Échap ou doigt) → écran de fin comme avant.
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -64,11 +64,13 @@ test('victoire → Terminer : écran de fin comme avant, pas de monde infini', a
   await calmWin(page);
   await press(page, hasTouch, 'Escape', '#vEnd');
   await expect(page.locator('#over')).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('#oStage')).toHaveText(/3 mondes|3 worlds/i);
+  // 1.68.0 : la victoire est celle du Cœur de la Nuit (le monde 3 vaincu compte aussi)
+  await expect(page.locator('#oStage')).toHaveText(/Cœur de la Nuit|Heart of the Night/i);
   const r = await page.evaluate(() => ({
     endless: (window as any).__game.world.endless,
     wins: (window as any).__game.meta.stats.wins,
+    hearts: (window as any).__game.meta.stats.hearts,
   }));
-  expect(r).toEqual({ endless: false, wins: 1 });
+  expect(r).toEqual({ endless: false, wins: 1, hearts: 1 });
   expect(errors).toEqual([]);
 });
