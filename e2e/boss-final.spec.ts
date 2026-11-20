@@ -112,7 +112,9 @@ test('Beating the world 3 boss opens the way to the Arena', async ({ page }, inf
   await expect(page.locator('#bossbar s')).toHaveCount(3);
   await page.waitForTimeout(600);
   await shot(page, info.project.name, 'phase1-souvenir');
-  expect(await drawCalls(page)).toBeLessThanOrEqual(40);
+  const calls1 = await drawCalls(page);
+  console.log(`[${info.project.name}] Arène, phase 1 : ${calls1} appels`);
+  expect(calls1).toBeLessThanOrEqual(40);
   expect(errors).toEqual([]);
 });
 
@@ -163,7 +165,9 @@ test('The final boss has four phases', async ({ page }, info) => {
   expect(decoys).toBe(2);
   await page.waitForTimeout(400);
   await shot(page, info.project.name, 'phase3-eclipse');
-  expect(await drawCalls(page)).toBeLessThanOrEqual(40); // budget mobile (PLAN §4.3), éclipse et doubles compris
+  const calls3 = await drawCalls(page);
+  console.log(`[${info.project.name}] Arène, éclipse et doubles : ${calls3} appels`);
+  expect(calls3).toBeLessThanOrEqual(40); // budget mobile (PLAN §4.3), éclipse et doubles compris
   // phase 4 : la fureur, « Cours à la lumière ! », puis le Jugement : l'Arène rouge, la zone sûre
   await nextPhase(page, 4);
   await expect.poll(() => banners(page)).toContain(FR['final.phase.4']);
@@ -183,7 +187,9 @@ test('The final boss has four phases', async ({ page }, info) => {
   expect(drawn.rings).toBeGreaterThanOrEqual(2);
   expect(drawn.red).toBeGreaterThanOrEqual(1);
   await shot(page, info.project.name, 'phase4-jugement');
-  expect(await drawCalls(page)).toBeLessThanOrEqual(40);
+  const calls4 = await drawCalls(page);
+  console.log(`[${info.project.name}] Arène, Jugement : ${calls4} appels`);
+  expect(calls4).toBeLessThanOrEqual(40);
   await page.evaluate(() => (window as any).__game.debug.speed(1));
   expect(errors).toEqual([]);
 });
