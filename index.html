@@ -1216,11 +1216,25 @@
           margin: 0;
           max-width: calc(50vw - max(16px, env(safe-area-inset-left, 0px)) - 28px);
         }
+        /* Gaucher : les boutons tactiles sont en bas à gauche, sous cette place ; la bulle passe à droite du héros, sous
+           la minicarte (62 + 96 px, 8 px d'écart) */
+        body.lefty #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        body.lefty #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          --tuto-under-map: 166px;
+          top: calc(env(safe-area-inset-top, 0px) + var(--tuto-under-map) * var(--hud-scale, 1));
+          left: auto;
+          right: max(16px, env(safe-area-inset-right, 0px));
+          max-width: calc(50vw - max(16px, env(safe-area-inset-right, 0px)) - 28px);
+        }
       }
       /* la minicarte fait 140 px à partir de 900 px de large */
       @media (orientation: landscape) and (max-height: 500px) and (min-width: 900px) {
         #tuto {
           --tuto-side: calc((max(16px, env(safe-area-inset-right, 0px)) + 140px) * var(--hud-scale, 1) + 12px);
+        }
+        body.lefty #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        body.lefty #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          --tuto-under-map: 210px;
         }
       }
       #tutoArrow {
