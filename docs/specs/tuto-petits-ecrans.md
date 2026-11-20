@@ -1,6 +1,6 @@
 # Consignes de la partie guidée lisibles sur les petits téléphones
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 20 novembre 2026. Version visée : **1.69.1**.
 
