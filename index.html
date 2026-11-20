@@ -314,6 +314,28 @@
         background: radial-gradient(ellipse at center, transparent 30%, var(--skull) 125%);
         transition: opacity 0.08s;
       }
+      /* 1.68.0 : l'éclipse du boss final, les bords s'assombrissent, le centre (le héros) reste lisible ; moins sombre et
+         sans transition en « effets réduits » (game-feel §9) et avec prefers-reduced-motion */
+      #vignette {
+        transition: background 1.2s ease;
+      }
+      body.eclipse #vignette {
+        background: radial-gradient(
+          ellipse at center,
+          transparent 30%,
+          rgba(8, 4, 20, 0.62) 78%,
+          rgba(4, 2, 12, 0.9) 105%
+        );
+      }
+      body.eclipse.fx-reduced #vignette {
+        transition: none;
+        background: radial-gradient(ellipse at center, transparent 45%, rgba(8, 4, 20, 0.4) 100%);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #vignette {
+          transition: none;
+        }
+      }
       /* phase 35 : Temps figé, voile bleuté par-dessus le jeu (CSS, gratuit côté GPU) */
       body.timestop #vignette {
         background: radial-gradient(ellipse at center, #9fe8ff1a 35%, #5fb8ffb0 115%);
@@ -1293,6 +1315,38 @@
         height: 100%;
         width: 100%;
         background: var(--swarm);
+      }
+      /* 1.68.0 : le Cœur de la Nuit. Barre violette, seuils de ses phases marqués, grise tant qu'il est invulnérable */
+      #bossbar div {
+        position: relative;
+      }
+      #bossbar s {
+        display: none;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        margin-left: -1px;
+        background: var(--moon);
+        opacity: 0.85;
+      }
+      #bossbar.final div {
+        height: 6px;
+      }
+      #bossbar.final s {
+        display: block;
+      }
+      #bossbar.final i {
+        background: #b06cff;
+      }
+      #bossbar.final span {
+        color: #c98cff;
+      }
+      #bossbar.final.shield i {
+        background: #8d93a6;
+      }
+      #bossbar.final.shield span {
+        color: #b8bcc8;
       }
       #perf {
         pointer-events: none; /* simple affichage : les gestes passent à l'écran dessous */
@@ -5342,7 +5396,8 @@
       </div>
       <div id="bossbar" hidden>
         <span id="bossname">LE GARDIEN</span>
-        <div><i id="bossfill"></i></div>
+        <!-- 1.68.0 : seuils des phases du Cœur de la Nuit (70, 40, 15 %), affichés pour lui seul (.final) -->
+        <div><i id="bossfill"></i><s style="left: 70%"></s><s style="left: 40%"></s><s style="left: 15%"></s></div>
       </div>
     </div>
     <div id="perf" hidden></div>
@@ -5644,6 +5699,16 @@
               que tu restes. Chacun a sa compétence : le Spectre se scinde, le Dard charge, la Brute laisse du feu, le
               Volant lâche des bombes, le Cracheur et l'Archer tirent en éventail, le Sorcier fait pleuvoir le feu. Plus
               dangereux, ils rapportent plus d'or et d'XP.
+            </dd>
+          </div>
+          <div data-reveal="4">
+            <dt><span class="cap">❖</span></dt>
+            <dd data-i18n="menu.ctrl.final">
+              Le Cœur de la Nuit : quand le boss du monde 3 tombe, le monde est gagné et un portail rouge mène à
+              l'Arène, où t'attend le boss final, en quatre phases. Il reprend les attaques des trois boss, se cache
+              derrière quatre sceaux à briser, s'entoure de doubles dans l'éclipse (seul le vrai a les yeux qui
+              brillent), puis lance le Jugement : cours à la lumière. Le vaincre ouvre le monde infini, où la nuit
+              corrompt les monstres.
             </dd>
           </div>
           <div>

@@ -3,7 +3,8 @@
 import { describe, expect, it } from 'vitest';
 import { BOSSTOTEM, DIFFICULTY, ENEMIES, MAPCHEST, SHRINE, STAGE, STEP } from './balance';
 import { killEnemy } from './combat';
-import { nextStage, startEndless, summonEndlessWave, summonStageBoss, summonSurvivalBoss } from './stages';
+import { enterArena, nextStage, startEndless, summonEndlessWave, summonStageBoss, summonSurvivalBoss } from './stages';
+import { summonHeart } from './final';
 import { step } from './step';
 import { Ev, Mode } from './types';
 import type { Input } from './types';
@@ -184,15 +185,16 @@ describe('totems de boss : un boss de plus à chaque vague', () => {
     expect(w.chests[w.chestCount - 1].boss).toBe(true);
     expect(w.totemAlive).toBe(0);
   });
-  it('au monde 3, la victoire attend aussi le dernier boss', () => {
+  it('au monde 3, le monde vaincu (1.68.0 : portail vers l’Arène) attend aussi le dernier boss', () => {
     const w = calm(7);
     w.stage = STAGE.count - 1;
     activate(w, 1);
     summonStageBoss(w);
     slay(w, bosses(w)[1]);
-    expect(w.mode).toBe(Mode.Play);
+    expect([w.cleared, w.portal.open]).toEqual([false, false]);
     slay(w, bosses(w)[0]);
-    expect(w.mode).toBe(Mode.Won);
+    expect([w.cleared, w.portal.open]).toEqual([true, true]);
+    expect(w.mode).toBe(Mode.Play);
   });
   it('sans totem de boss, rien ne change : un boss par vague', () => {
     const w = calm(7);
@@ -227,6 +229,15 @@ describe('totems de boss : un boss de plus à chaque vague', () => {
     activate(w, 1);
     summonStageBoss(w);
     for (const i of bosses(w).reverse()) slay(w, i);
+    expect(w.cleared).toBe(true);
+    // 1.68.0 : l'Arène du boss final, puis le monde infini (les totems du monde 3 y valent encore, pas dans l'Arène)
+    enterArena(w);
+    expect(w.bossExtra).toBe(1);
+    summonHeart(w);
+    expect(bosses(w).length).toBe(1); // le boss final seul
+    w.finalPhase = 4;
+    w.enemies[w.bossIndex].hp = 1;
+    slay(w, w.bossIndex);
     expect(w.mode).toBe(Mode.Won);
     startEndless(w);
     summonEndlessWave(w);

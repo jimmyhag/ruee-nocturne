@@ -51,6 +51,7 @@ export interface MetaStats {
   mapChests: number; // coffres de carte ouverts, cumulés
   bestStage: number; // phase 37 : meilleur monde atteint (1..3 ; 4 = les trois mondes terminés)
   endlessBest: number; // phase 39 : meilleur temps tenu en monde infini (s)
+  hearts: number; // 1.68.0 (docs/specs/boss-final.md) : le Cœur de la Nuit vaincu, cumulé
 }
 export interface MetaSettings {
   vibrate: boolean;
@@ -136,6 +137,7 @@ export const DEFAULT_META: Meta = {
     mapChests: 0,
     bestStage: 0,
     endlessBest: 0,
+    hearts: 0,
   },
   achievements: [],
   bought: [],
@@ -306,6 +308,7 @@ export function normalizeMeta(raw: unknown): Meta {
       mapChests: Math.max(0, num(st.mapChests) | 0),
       bestStage: Math.max(0, Math.min(4, num(st.bestStage) | 0)),
       endlessBest: Math.max(0, num(st.endlessBest) | 0),
+      hearts: Math.max(0, num(st.hearts) | 0),
     },
     achievements,
     bought: Array.isArray(r.bought) ? r.bought.filter((k): k is CharacterKey => isKey(k) && k !== 'eclaireuse') : [],

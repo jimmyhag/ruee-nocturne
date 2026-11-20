@@ -1,6 +1,7 @@
-import { ARCHER_TYPE, CRACHEUR_TYPE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, REVEAL, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
+import { ARCHER_TYPE, ARENA, CRACHEUR_TYPE, ELITE_TYPE, SORCIER_TYPE, ENEMIES, FLOW, ITEM, It, SYN, Syn, HAZARDS, REVIVE, ENEMY_SEPARATION, GOLD, KNOCKBACK_DECAY, PLAYER, PLAY_LIMIT, REVEAL, SLIDE, SPAWN, SPELL, VOLANT_TYPE, TRAIT, POWER, TERRAIN } from './balance';
 import { chargeOf, isCharger, tickCharger, tickEruptions } from './hazards';
 import { flameLit, tickTrail } from './corrupt';
+import { clampArena, tickFinal } from './final';
 import { ignoresGround, tickArcher, tickBoss, tickFlyer, tickSorcier, tickSpitter } from './bosses';
 import { burnEnemy, compactEnemies } from './combat';
 import { LEVEL_REROLL, applyCard, nextChoice, rerollLevel, tickChests, tickGems } from './progression';
@@ -12,7 +13,7 @@ import { castSpell, tickSpells } from './spells';
 import { hitEnemy } from './combat';
 import { respawnNear, spawnEnemy, tickSpawner } from './spawner';
 import { tickStage, retargetBoss } from './stages';
-import { Corrupt, Ev, HitSrc, HurtSrc, Mode, Pw, ShotKind, Skill, Spell, Trait } from './types';
+import { Corrupt, Ev, HitSrc, HurtSrc, Mode, Pw, Role, ShotKind, Skill, Spell, Trait } from './types';
 import { tickPowers } from './powers';
 import type { Input } from './types';
 import { placeFire, placeMine, tickProjectiles, tickWeapons } from './weapons/tick';
@@ -322,6 +323,16 @@ function stepPlayer(w: World, input: Input, dt: number): void {
   w.resolveObstacles(P.x, P.z, 0.4, out2, P.y);
   P.x = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[0]));
   P.z = Math.max(-PLAY_LIMIT, Math.min(PLAY_LIMIT, out2[1]));
+  if (w.stage === ARENA) {
+    // boss final (docs/specs/boss-final.md) : le cercle de flammes est infranchissable
+    const lim = w.arenaR - PLAYER.radius,
+      d2 = P.x * P.x + P.z * P.z;
+    if (d2 > lim * lim) {
+      const f = lim / Math.sqrt(d2);
+      P.x *= f;
+      P.z *= f;
+    }
+  }
   if (P.sliding || P.airMom) {
     // un obstacle absorbe l'élan : la vitesse conservée devient le déplacement réel
     P.mvx = (P.x - P.px) / dt - (P.airMom ? ix * walk * SLIDE.airControl : 0);
@@ -449,6 +460,7 @@ function stepEnemies(w: World, dt: number): void {
   const sablier = w.items[It.Sablier] > 0; // Sablier fêlé : élites et boss ralentis (phase 38 : > 0, il se cumule)
   const slow = Math.max(ITEM.sablier.min, ITEM.sablier.slow ** w.itemEff[It.Sablier]);
   const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé
+  const arena = w.stage === ARENA;
   // phase 47 : la riposte du tome Bastion s'ajoute aux Épines (même rythme, même source de coup)
   const thornMul = ITEM.epines.mul * w.itemEff[It.Epines] + P.thorns;
   let thorns = false;
@@ -486,6 +498,14 @@ function stepEnemies(w: World, dt: number): void {
       }
       if (e.toxT <= 0) e.tox = e.toxAcc = 0;
     }
+    if (e.role === Role.Seal) {
+      // boss final : un sceau est une stèle, il ne bouge ni ne blesse (on le brise)
+      e.px = e.x;
+      e.pz = e.z;
+      e.kx = e.kz = 0;
+      if (e.flash > 0) e.flash -= dt;
+      continue;
+    }
     if (e.type === ARCHER_TYPE || e.type === CRACHEUR_TYPE || e.type === SORCIER_TYPE) shooters++;
     e.px = e.x;
     e.pz = e.z;
@@ -508,7 +528,8 @@ function stepEnemies(w: World, dt: number): void {
       // corrompus, Scission : l'éclat reste figé le temps qu'on le voie (télégraphe), puis il fonce
       e.timer -= dt;
       mv[0] = mv[1] = 0;
-    } else if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
+    } else if (e.role !== Role.None) tickFinal(w, e, dt, dx, dz, d, mv); // le boss final et ses doubles
+    else if (def.boss) tickBoss(w, e, dt, dx, dz, d, mv);
     else if (isCharger(e)) tickCharger(w, e, dt, dx, dz, d, mv);
     else if (e.type === VOLANT_TYPE) tickFlyer(w, e, dt, dx, dz, d, mv);
     else if (e.type === CRACHEUR_TYPE) tickSpitter(w, e, dt, dx, dz, d, mv);
@@ -585,6 +606,7 @@ function stepEnemies(w: World, dt: number): void {
       e.x = out2[0];
       e.z = out2[1];
     }
+    if (arena) clampArena(w, e); // boss final : personne ne sort du cercle de flammes
     // corrompus, Traînée ardente : la Brute laisse des flaques de feu derrière elle
     if (e.corrupt === Corrupt.On && e.type === ELITE_TYPE && !frozen && e.stun <= 0) tickTrail(w, e, dt, d);
     if (!frozen) e.face = Math.atan2(dx, dz); // phase 35 : un ennemi figé ne suit plus le héros des yeux
@@ -607,7 +629,7 @@ function stepEnemies(w: World, dt: number): void {
         P.invul = Math.max(P.invul, C.invul);
         e.state = 3;
         e.timer = C.recover;
-        if (e.elite) w.lastHurt = HurtSrc.Charge;
+        if (e.elite || e.role !== Role.None) w.lastHurt = HurtSrc.Charge; // Brute élite, ou la charge du boss final
         else hurtBy(w, Skill.Rush);
       } else {
         // phase 17 : Rempart (Vitalité + Halo), le contact d'un ennemi dans le Halo est réduit

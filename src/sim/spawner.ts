@@ -1,5 +1,5 @@
-import { ARCHER, ARCHER_TYPE, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, DIFFICULTY, ELITE, FIRST_RUNS, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, TUTORIAL, VOLANT, VOLANT_TYPE } from './balance';
-import { Corrupt, Ev } from './types';
+import { ARCHER, ARCHER_TYPE, ARENA, BOSS, BOSS_TYPE, CAPS, CRACHEUR_TYPE, DIFFICULTY, ELITE, FIRST_RUNS, ELITE_TYPE, SORCIER_TYPE, ENEMIES, HAZARDS, SPAWN, STAGE, TUTORIAL, VOLANT, VOLANT_TYPE } from './balance';
+import { Corrupt, Ev, Role } from './types';
 import { maybeCorrupt } from './corrupt';
 import type { World } from './world';
 
@@ -107,6 +107,8 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.burn = e.burnT = e.burnAcc = 0;
   e.tox = e.toxT = e.toxAcc = 0; // phase 50
   e.corrupt = Corrupt.None; // corrompus : maybeCorrupt (tickSpawner) ou splitCorrupt le décident après coup
+  e.role = Role.None; // boss final (src/sim/final.ts) : le rôle est donné après coup
+  e.struck = 0;
   return w.enemyCount - 1;
 }
 
@@ -122,6 +124,7 @@ export function respawnNear(w: World, i: number): void {
 }
 
 export function tickSpawner(w: World, dt: number): void {
+  if (w.stage === ARENA) return; // le boss final : aucune horde, seulement les renforts de ses phases (src/sim/final.ts)
   // phase 37 : la difficulté suit le temps du monde (diffT) ; élites et vagues suivent le chrono du monde (stageT) ;
   // plus de boss à heure fixe (le totem appelle le boss du monde, stages.ts)
   const t = w.diffT,

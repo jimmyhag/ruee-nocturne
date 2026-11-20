@@ -100,6 +100,22 @@ export const FEEL = {
     trailMax: 6,
     marks: 64,
   },
+  // le Cœur de la Nuit (docs/specs/boss-final.md) : aura (× rayon) et yeux du boss (pas ceux des doubles : seul le vrai a
+  // les yeux qui brillent), flammes du cercle (particules par seconde, quelle que soit la fréquence d'image ; au plus
+  // `flamesMax` en vol dans le pool partagé, pour ne pas chasser les gerbes des coups), hauteur du mur, éclipse (part de
+  // lumière retirée ; « réduction des effets » : moins sombre, game-feel §9), halo du héros dans l'éclipse, zone sûre
+  final: {
+    aura: 1.25,
+    eye: 1.7,
+    flames: 60,
+    flamesMax: 80,
+    wall: 1.6,
+    eclipse: 0.5,
+    eclipseReduced: 0.25,
+    eclipseEase: 1.2,
+    heroGlow: 2.6,
+    safeBeam: 2.6,
+  },
   // phase 51 : coffre lâché par une élite ou un boss. Colonne fine et courte (celles des coffres de carte font 1 × 1),
   // halo au sol, apparition 0 → `over` → 1 en `pop` s
   chestDrop: {

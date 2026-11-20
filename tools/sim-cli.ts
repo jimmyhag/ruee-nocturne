@@ -3,6 +3,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
+  ARENA,
   CHARACTERS,
   DAILY,
   DAILY_ARMORY,
@@ -40,7 +41,8 @@ import type { GuideState } from '../src/meta/guide';
 import { BOT_TUNE, enforceAllowed, makeBot, pickAllowed } from './bots';
 import { tutorialLock } from '../src/sim/progression';
 import { startEndless } from '../src/sim/stages';
-import { ENDLESS_TARGETS, PROFILES, REF_PRICE, checkTargets } from './targets';
+import { FINAL_DONE } from '../src/sim/final';
+import { ENDLESS_TARGETS, FINAL_TARGETS, PROFILES, REF_PRICE, checkTargets } from './targets';
 import * as BALANCE from '../src/sim/balance';
 
 const args = new Map<string, string>();
@@ -208,7 +210,13 @@ interface RunResult {
   time: number;
   kills: number;
   level: number;
-  reachedEnd: boolean; // phase 37 : victoire (boss du monde 3 tué à temps)
+  reachedEnd: boolean; // phase 37 : victoire (1.68.0 : le monde 3 vaincu ; au défi du jour : le défi réussi)
+  // le boss final (docs/specs/boss-final.md) : Arène atteinte, boss vaincu, phase atteinte (1 à 4, 5 : vaincu), s entre
+  // son apparition et la fin du combat (victoire ou mort ; -1 : pas de combat)
+  arena: boolean;
+  final: boolean;
+  finalPhase: number;
+  finalFight: number;
   stage: number; // phase 37 : monde atteint (1..3)
   rule: string; // défi v2 : règle du jour ('' hors défi)
   startWeapon: string; // défi v2 : arme de départ (Arme imposée)
@@ -301,6 +309,8 @@ function runOnce(seed: number, run: number): RunResult {
     tutoGuideEnd = -1;
   const startWeapon = Object.keys(w.weapons)[0];
   let finalBossAt = -1;
+  let heartAt = -1, // boss final : s de partie à son apparition, et à la fin du combat
+    heartEnd = -1;
   if (WEAPONS) w.weapons = { [WEAPONS[0]]: 1 };
   // ablation : un objet exclu n'est jamais tiré (coffres et marchand)
   for (const k of NO_ITEM) w.itemBan[ITEM_KEYS.indexOf(k as never)] = 1;
@@ -334,6 +344,8 @@ function runOnce(seed: number, run: number): RunResult {
     [HurtSrc.Zone]: 'zone',
     [HurtSrc.Arrow]: 'flèche',
     [HurtSrc.Fire]: 'feu',
+    [HurtSrc.Judgement]: 'jugement', // boss final, phase 4
+    [HurtSrc.Flames]: 'flammes', // boss final, cercle de flammes de l'éclipse
   };
   // corrompus (décision 9) : cause de mort par compétence (w.hurtSkill), préfixée « corrompu: »
   const SKILL_NAMES = ['', 'scission', 'ruée', 'traînée', 'bombe', 'éventail', 'volée', 'pluie'];
@@ -411,6 +423,8 @@ function runOnce(seed: number, run: number): RunResult {
         }
       }
       if (e.type === Ev.BossKill && w.dailyBoss === 2 && finalBossAt < 0) finalBossAt = w.t; // défi v2
+      if (e.type === Ev.BossSpawn && e.y2 === 4) heartAt = w.t; // le boss final sort
+      if (e.type === Ev.Victory && heartAt >= 0 && heartEnd < 0) heartEnd = w.t;
       if (e.type === Ev.Eruption) eruptions++;
       if (e.type === Ev.PlayerHurt && w.lastHurt === HurtSrc.Eruption) eruptionHits++;
       if (e.type === Ev.PlayerHurt && frame % 15 === 0) {
@@ -480,6 +494,7 @@ function runOnce(seed: number, run: number): RunResult {
       };
       startEndless(w);
     }
+    if (w.mode === Mode.Dead && heartAt >= 0 && heartEnd < 0) heartEnd = w.t; // mort dans l'Arène
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
     // partie guidée (révision 1.66.0) : le boss tombé, le bot entre dans le portail ; la suite, au monde 2, est une partie
     // normale (les monstres n'y sont plus adoucis) : la mesure s'arrête à l'arrivée
@@ -487,17 +502,23 @@ function runOnce(seed: number, run: number): RunResult {
     // défi v2 : passé l'heure de l'or, la médaille est jouée si le boss final n'est plus en vie
     if (DAILY_ON && w.t > DAILY.goldAt && w.dailyBoss !== 1) break;
   }
+  // 1.68.0 : la « victoire » des cibles reste le monde 3 vaincu (décision 13) ; au défi du jour, le défi réussi
+  const won = DAILY_ON ? w.mode === Mode.Won || w.endless : w.cleared;
   return {
     seed,
     time: w.t,
     kills: w.kills,
     level: w.player.level,
-    reachedEnd: w.mode === Mode.Won || w.endless,
+    reachedEnd: won,
+    arena: heartAt >= 0 || w.stage === ARENA,
+    final: w.finalPhase === FINAL_DONE,
+    finalPhase: w.finalPhase,
+    finalFight: heartAt >= 0 && heartEnd >= 0 ? heartEnd - heartAt : -1,
     rule: DAILY_ON ? DAILY_RULE_KEYS[rule] : '',
     startWeapon,
     medal: w.medal,
     finalBossAt,
-    chal: charChal.map((a) => a.get(DEFAULT_META.stats, runCharStats(CHARACTER, w, w.mode === Mode.Won || w.endless))),
+    chal: charChal.map((a) => a.get(DEFAULT_META.stats, runCharStats(CHARACTER, w, won))),
     endless: w.endless,
     endlessT: w.endlessT,
     endlessWave: w.endlessWave,
@@ -713,6 +734,33 @@ const summary = {
     results.flatMap((r) => r.bossFight),
     90,
   ),
+  // le boss final (docs/specs/boss-final.md, décision 13) : sur les parties qui atteignent l'Arène
+  final: (() => {
+    const reached = results.filter((r) => r.arena);
+    const dead = reached.filter((r) => !r.final && r.finalFight >= 0);
+    const fights = reached.filter((r) => r.finalFight >= 0).map((r) => r.finalFight);
+    const byPhase = [1, 2, 3, 4].map((p) =>
+      dead.length ? (100 * dead.filter((r) => r.finalPhase === p).length) / dead.length : 0,
+    );
+    const causes: Record<string, number> = {};
+    for (const r of dead) causes[r.deathBy] = (causes[r.deathBy] ?? 0) + 1;
+    return {
+      n: reached.length,
+      reachedPct: (100 * reached.length) / RUNS,
+      winPct: reached.length ? (100 * reached.filter((r) => r.final).length) / reached.length : 0,
+      fightP50: pct(fights, 50),
+      fightP90: pct(fights, 90),
+      winFightP50: pct(
+        reached.filter((r) => r.final).map((r) => r.finalFight),
+        50,
+      ),
+      deaths: dead.length,
+      deathPhasePct: byPhase,
+      deathPhaseMax: Math.max(...byPhase),
+      judgePct: dead.length ? (100 * (causes['jugement'] ?? 0)) / dead.length : 0,
+      causes,
+    };
+  })(),
   // phase 43 : monde infini (--endless), sur les parties gagnées qui ont continué
   endless: (() => {
     const inf = results.filter((r) => r.endless);
@@ -1049,6 +1097,17 @@ lines.push(
     )
     .join(' · ')}`,
 );
+// le boss final (docs/specs/boss-final.md) : parties qui atteignent l'Arène, vaincu, durée du combat, morts par phase
+{
+  const F = summary.final;
+  const why = Object.entries(F.causes)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${k} ${Math.round((100 * v) / Math.max(1, F.deaths))} %`)
+    .join(' · ');
+  lines.push(
+    `boss final  Arène ${F.reachedPct.toFixed(1)} % (${F.n} parties) · vaincu ${F.winPct.toFixed(1)} % de celles-là · combat p50 ${mmss(F.fightP50)} (p90 ${mmss(F.fightP90)} ; victoires p50 ${mmss(F.winFightP50)}) · morts par phase ${F.deathPhasePct.map((v) => v.toFixed(0)).join(' / ')} % · Jugement ${F.judgePct.toFixed(0)} % · ${why}`,
+  );
+}
 // phase 39 : monde infini (--endless), sur les parties gagnées seulement
 if (ENDLESS_ON) {
   const inf = results.filter((r) => r.endless);
@@ -1133,10 +1192,12 @@ lines.push(
 );
 lines.push(`sort        ${summary.spellPerMin} lancers par minute · ${summary.spellKillPct} % des kills`);
 // phase 43 : avec --endless, les cibles du monde infini s'ajoutent (s'il y a des parties gagnées à mesurer)
-const checks = checkTargets(
-  summary,
-  ENDLESS_ON && summary.endless.n > 0 ? [...PROFILES[PROFILE], ...ENDLESS_TARGETS] : PROFILES[PROFILE],
-);
+const checks = checkTargets(summary, [
+  ...PROFILES[PROFILE],
+  ...(ENDLESS_ON && summary.endless.n > 0 ? ENDLESS_TARGETS : []),
+  // boss final (décision 13) : profil maxé, s'il y a des parties dans l'Arène
+  ...(PROFILE === 'maxed' && summary.final.n > 0 ? FINAL_TARGETS : []),
+]);
 lines.push(`cibles      ${checks.map((c) => `${c.ok ? '✔' : '✘'} ${c.name} (${c.value})`).join('  ')}`);
 if (!checks.every((c) => c.ok)) lines.push('cibles non atteintes : à régler dans balance.ts (survivor-design §9)');
 console.log(lines.join('\n'));

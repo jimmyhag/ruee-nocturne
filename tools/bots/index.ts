@@ -15,11 +15,13 @@ const BOT_FARM = BOT_FARM_ENV === 1;
 const BOT_FARM_FOR = BOT_FARM_ENV > 1 ? BOT_FARM_ENV : 0;
 import type { BoonKey, Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
-import { ShotKind, Spell } from '../../src/sim/types';
+import { Role, ShotKind, Spell } from '../../src/sim/types';
 import { Rng } from '../../src/sim/rng';
 import {
+  ARENA,
   BOSSTOTEM,
   DIFFICULTY,
+  FINAL,
   ENEMIES,
   HAZARDS,
   MAPCHEST,
@@ -37,6 +39,97 @@ import { MERCHANT_LEAVE, canAffordAny } from '../../src/sim/merchant';
 import { cardSynergy } from '../../src/sim/synergies';
 
 const POWER_SEEK2 = 16 * 16; // phase 35 : rayon (u²) où le bot va chercher un bonus au sol
+
+/**
+ * Le boss final (docs/specs/boss-final.md, décision 12) : ce que fait un joueur moyen dans l'Arène, ajouté à l'entrée
+ * (`out`, déjà écrite par la fuite et les esquives). Sceaux : le plus proche d'abord. Éclipse : il se tient à portée du
+ * vrai boss (ses armes visent le plus proche), loin des doubles. Cercle de flammes : il s'écarte du bord. Jugement : il
+ * court à la zone sûre et y reste, rien d'autre ne compte. Renvoie vrai si l'entrée est imposée (Jugement).
+ */
+const ARENA_AVOID = 3; // u entre le héros et le corps du boss final (ou d'un double) en deçà desquels il s'écarte
+/**
+ * Un joueur ne marche pas dans le boss : à moins de ARENA_AVOID u de son corps (ou d'un double), il s'en écarte. Et il
+ * lit le couloir rouge de sa charge : dans le couloir, il en sort par le côté le plus proche.
+ */
+function avoidHeart(w: World, out: Input, k0: number): boolean {
+  const P = w.player;
+  let near = false;
+  for (let i = 0; i < w.enemyCount; i++) {
+    const e = w.enemies[i];
+    if (!e.alive || (e.role !== Role.Heart && e.role !== Role.Decoy)) continue;
+    const dx = P.x - e.x,
+      dz = P.z - e.z,
+      dd = Math.sqrt(dx * dx + dz * dz) || 1,
+      gap = dd - e.r;
+    if (e.state === 1 && isCharger(e)) {
+      const along = dx * e.tx + dz * e.tz,
+        side = dx * e.tz - dz * e.tx; // signé : de quel côté du couloir
+      if (along > 0 && along < FINAL.charge.dist + e.r + 1 && Math.abs(side) < e.r + 1.2) {
+        const s = side >= 0 ? 1 : -1;
+        out.mx += e.tz * s * 4;
+        out.mz += -e.tx * s * 4;
+        near = true;
+      }
+    }
+    if (gap >= ARENA_AVOID) continue;
+    const k = k0 * (1 + (ARENA_AVOID - gap) / ARENA_AVOID);
+    out.mx += (dx / dd) * k;
+    out.mz += (dz / dd) * k;
+    near = true;
+  }
+  return near;
+}
+function arenaMove(w: World, out: Input): boolean {
+  const P = w.player;
+  if (w.judgeT > 0) {
+    const dx = w.judgeX - P.x,
+      dz = w.judgeZ - P.z,
+      l = Math.sqrt(dx * dx + dz * dz);
+    if (l < FINAL.judge.r * 0.45) out.mx = out.mz = 0;
+    else {
+      out.mx = dx / l;
+      out.mz = dz / l;
+    }
+    avoidHeart(w, out, 1);
+    return true;
+  }
+  let tx = 0,
+    tz = 0,
+    td = 1e12,
+    want = 0; // distance voulue à la cible
+  for (let i = 0; i < w.enemyCount; i++) {
+    const e = w.enemies[i];
+    if (!e.alive) continue;
+    const goal = w.seals > 0 ? e.role === Role.Seal : e.role === Role.Heart;
+    if (!goal) continue;
+    const d = (e.x - P.x) ** 2 + (e.z - P.z) ** 2;
+    if (d < td) {
+      td = d;
+      tx = e.x - P.x;
+      tz = e.z - P.z;
+      want = e.role === Role.Seal ? e.r + 1.2 : e.r + 4.5;
+    }
+  }
+  const near = avoidHeart(w, out, 3); // le boss ou un double tout près : il s'en écarte d'abord
+  if (td < 1e12) {
+    const d = Math.sqrt(td) || 1;
+    // trop loin : il y va ; sur un sceau, il y reste (ses armes le brisent) ; près du boss, la fuite décide
+    const k = near ? 0.5 : w.seals > 0 ? 2.4 : 1.2;
+    if (d > want) {
+      out.mx += (tx / d) * k;
+      out.mz += (tz / d) * k;
+    }
+  }
+  // le cercle de flammes : on s'en écarte avant de le toucher (il se resserre dans l'éclipse)
+  const r = Math.sqrt(P.x * P.x + P.z * P.z),
+    edge = w.arenaR - (w.finalPhase >= 3 ? 3 : 2);
+  if (r > edge && r > 1e-6) {
+    const k = 3 * (1 + (r - edge));
+    out.mx -= (P.x / r) * k;
+    out.mz -= (P.z / r) * k;
+  }
+  return false;
+}
 import { canOpenMapChest } from '../../src/sim/poi';
 
 export interface Bot {
@@ -392,6 +485,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         diving = false;
       for (let i = 0; i < w.enemyCount; i++) {
         const e = w.enemies[i];
+        if (e.role === Role.Seal) continue; // boss final : un sceau ne blesse pas, on le brise (arenaMove)
         const dx = e.x - P.x,
           dz = e.z - P.z,
           d2 = dx * dx + dz * dz;
@@ -713,6 +807,8 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       if (stay) {
         out.mx = out.mz = 0;
       }
+      // boss final : l'Arène a ses propres buts (sceaux, vrai boss, bord, zone sûre du Jugement)
+      const judged = w.stage === ARENA && arenaMove(w, out);
       // attiré par la gemme la plus proche dans gemRadius (même en fuyant)
       let gx = 0,
         gz = 0,
@@ -726,7 +822,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
           gz = g.z - P.z;
         }
       }
-      if (gd < gemR2 && !stay) {
+      if (gd < gemR2 && !stay && !judged) {
         const l = Math.sqrt(gd) || 1;
         const k = n > 0 ? pullFleeing : pullFree;
         out.mx += (gx / l) * k;
@@ -753,7 +849,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
         case Spell.Collet:
         case Spell.Bourse:
           // lancé vers le gros du danger : on vise la masse pour ce pas (la sim lance dans la direction de l'entrée)
-          cast = near8 >= 4;
+          cast = near8 >= 4 && !judged; // pas pendant la course à la zone sûre du Jugement
           if (cast && P.spellCd <= 0) {
             const l = Math.sqrt(cx * cx + cz * cz) || 1;
             out.mx = cx / l;

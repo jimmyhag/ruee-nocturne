@@ -2,6 +2,31 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.68.0 — 20 nov. 2026 (le Cœur de la Nuit)
+
+Le monde 3 n'est plus la fin : un portail rouge mène au boss final.
+
+### Ajouté
+
+- **Le Cœur de la Nuit, le boss final** : quand le boss du monde 3 tombe, le monde est gagné, le chrono tombe à 0 et un portail rouge s'ouvre vers l'Arène, une petite arène ronde fermée par un cercle de flammes. Le Cœur de la Nuit y sort au centre, avec ses quatre phases, chacune annoncée par une bannière qui dit quoi faire :
+  - **le souvenir** : il reprend la charge du Gardien, la salve de l'Essaim-mère et les cercles du Colosse, une par une ;
+  - **les sceaux** : à 70 %, il devient invulnérable derrière quatre stèles violettes ; chacune brisée lui retire une part de sa vie, et des monstres corrompus arrivent pendant ce temps ;
+  - **l'éclipse** : à 40 %, l'Arène s'assombrit, le cercle de flammes se resserre et brûle, et deux doubles l'entourent : seul le vrai a les yeux qui brillent ;
+  - **la fureur** : à 15 %, ses attaques s'enchaînent et il lance le Jugement : toute l'Arène devient rouge, sauf une zone de lumière où courir à temps.
+- **La victoire, la vraie** : le vaincre donne de l'or, le succès « Aube » et ouvre le monde infini, où la nuit corrompt les monstres comme en prolongation.
+- **Comment jouer** explique le passage vers l'Arène et ses phases.
+
+### Modifié
+
+- **Le monde 3 vaincu reste une victoire** : statistique, succès et classement la comptent dès que son boss tombe, même si le Cœur de la Nuit gagne ensuite. L'écran de fin dit alors à quelle phase il t'a vaincu.
+- **Le monde infini commence après le boss final**, et il a maintenant des monstres corrompus. Celui du défi du jour ne change pas.
+- L'ancien succès « Aube » (terminer les trois mondes) s'appelle désormais « Trois mondes ».
+
+### Technique
+
+- Spec : `docs/specs/boss-final.md` (scénarios : `src/sim/final.test.ts`, `src/sim/final-golden.test.ts`, `src/meta/outcome.test.ts`, `e2e/boss-final.spec.ts`, `tools/final.test.ts`). L'Arène est le « monde » `ARENA` (`w.stage` 3) : carte vide (`buildArena`, graine `ARENA_SEED`, refaite à la reprise), cercle de flammes `w.arenaR` qui tient héros et ennemis, ni horde, ni éruptions, ni marchand, ni bonus. Module `src/sim/final.ts` (phases, sceaux, doubles, cercle, Jugement, script du boss et de ses doubles) ; rôles d'ennemi `Role` (boss, double, sceau : une Brute immobile dessinée en stèle) ; un coup ne franchit jamais un seuil de phase, un coup bloqué émet `Ev.Blocked` (flash gris, son mat, pas de chiffre) ; la charge passe par celle des Brutes élites (`isCharger`, `chargeOf`), salve et cercles par `fireVolley` et `zoneAt` de `bosses.ts`. `stageBossDown` au monde 3 : `w.cleared`, bonus d'or de fin, chute du chrono, portail (`enterArena`) ; `startEndless` depuis l'Arène refait la carte du monde 3 et active les corrompus (`w.endlessCorrupt`, part au temps du monde infini) ; une sauvegarde de la 1.67 garde sa victoire (`adoptCleared`). Progression : `runOutcome` (`src/meta/outcome.ts`), statistique `hearts`, succès `aube`. Rendu : mur de flammes (un appel, dans l'Arène seule), boss et doubles teints et agrandis dans les écrivains des ennemis et des lueurs, sceaux dans celui des totems de boss, Jugement dans ceux des télégraphes et des lieux, éclipse par les lumières, la brume et une vignette CSS (plus douce en effets réduits). Sons : échantillons existants à une autre hauteur (`audio.final`). CLI : lignes et cibles du boss final (`FINAL_TARGETS`), `tools/sim-pool.mjs` les regroupe ; bot : sceaux, vrai boss, couloir de la charge, bord du cercle, zone sûre ; `tools/bench.ts` mesure aussi l'Arène.
+- Équilibrage (règle 13), bot moyen, 4 graines × 200 regroupées : boss final vaincu par 50,0 % des 128 parties maxées qui l'atteignent, combat p50 2:29, morts par phase 32,8 / 31,3 / 25,0 / 10,9 %, Jugement 3,1 % des morts ; cibles existantes identiques (maxé victoire 16,6 %, nu 23,8 %) ; défi du jour et partie guidée identiques au bit près (40 parties de chaque, 0 champ différent sur 2 480). Monde infini, mesuré à part sur les parties qui battent le boss final : maxé tenu p50 2:58 → 2:10 (64 parties), nu 7:33 → 1:44 (25 parties). Détail dans `docs/GATES.md`.
+
 ## 1.67.0 — 19 nov. 2026 (monstres corrompus)
 
 Après la fin du chrono, chaque monde devient une autre partie : la nuit corrompt les monstres.

@@ -1,8 +1,9 @@
 import { BASTION, BLOOD, CHEST, CORRUPT, CRIT, ELITE, ENDLESS, ENEMIES, FROST, GOLD, ITEM, It, POWER, TRAIT, XP } from './balance';
 import { stageBossDown } from './stages';
 import { WEAPON_KEYS } from './weapons/defs';
-import { Corrupt, Ev, HIT_CRIT, HitSrc, Mode, Pw, Trait } from './types';
+import { Corrupt, Ev, HIT_CRIT, HitSrc, Mode, Pw, Role, Trait } from './types';
 import { splitCorrupt } from './corrupt';
+import { heartDamage, heartDown, hitBlocked, sealDown } from './final';
 import { powerOnKill } from './powers';
 import type { World } from './world';
 import { itemHeal, lifesteal, talismanKill } from './items';
@@ -14,6 +15,8 @@ import { itemHeal, lifesteal, talismanKill } from './items';
 export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: number, fz: number, src: HitSrc = HitSrc.Orbe): boolean {
   const e = w.enemies[i];
   if (!e.alive) return false;
+  // boss final (docs/specs/boss-final.md) : invulnérable (pause, sceaux) ou un double, le coup ne passe pas
+  if (e.role !== Role.None && hitBlocked(w, e)) return false;
   const def = ENEMIES[e.type];
   const P = w.player;
   let dealt = dmg * P.dmgMul * (e.elite || def.boss ? P.eliteDmgMul : 1) * w.rule().heroDmg; // tome Dégâts : élites et boss ; défi v2 : Verre
@@ -57,6 +60,7 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
     e.burnT = D.t;
     if (dps > e.burn) e.burn = dps;
   }
+  if (e.role === Role.Heart) dealt = heartDamage(w, e, dealt); // boss final : un coup s'arrête au seuil de la phase suivante
   e.hp -= dealt;
   e.flash = 0.1;
   if (w.healBank > 0) lifesteal(w, Math.min(dealt, e.hp + dealt)); // phase 31 : réserve vide ou pas d'objet de soin : rien
@@ -74,7 +78,8 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
   }
   w.emit(Ev.Hit, e.x, e.y, e.z, dealt, src + crit, ux, uz); // x2 : source, + HIT_CRIT si critique (phase 23)
   if (e.hp <= 0) {
-    if (e.corrupt !== Corrupt.Shard) w.srcKills[src]++; // phase 41 : défis par personnage (un éclat de Scission : rien)
+    // phase 41 : défis par personnage (un éclat de Scission, un sceau du boss final : rien)
+    if (e.corrupt !== Corrupt.Shard && e.role !== Role.Seal) w.srcKills[src]++;
     killEnemy(w, i);
     return true;
   }
@@ -85,11 +90,15 @@ export function hitEnemy(w: World, i: number, dmg: number, kb: number, fx: numbe
 export function burnEnemy(w: World, i: number, dmg: number, src: HitSrc = HitSrc.Burn): void {
   const e = w.enemies[i];
   if (!e.alive) return;
+  if (e.role !== Role.None) {
+    dmg = heartDamage(w, e, dmg); // boss final invulnérable, ou un double : rien (sans retour : ce n'est pas un coup)
+    if (dmg <= 0) return;
+  }
   e.hp -= dmg;
   e.flash = 0.1;
   w.emit(Ev.Hit, e.x, e.y, e.z, dmg, src, 0, 0);
   if (e.hp <= 0) {
-    if (e.corrupt !== Corrupt.Shard) w.srcKills[src]++;
+    if (e.corrupt !== Corrupt.Shard && e.role !== Role.Seal) w.srcKills[src]++;
     killEnemy(w, i);
   }
 }
@@ -102,6 +111,13 @@ export function killEnemy(w: World, i: number): void {
     // (missions, classement, succès), ni or, ni XP, ni bonus au sol, ni effet « au kill » (soin, Calice, Collier,
     // Talisman…) ; seul le retour de la mort (gerbe, son : Ev.Kill)
     w.emit(Ev.Kill, e.x, e.y, e.z, e.type, 0);
+    e.alive = false;
+    return;
+  }
+  if (e.role === Role.Seal) {
+    // boss final (docs/specs/boss-final.md) : un sceau brisé n'est pas un monstre vaincu (rien « au kill », comme un
+    // éclat de la Scission) ; il retire sa part de PV au boss
+    sealDown(w, e);
     e.alive = false;
     return;
   }
@@ -130,7 +146,11 @@ export function killEnemy(w: World, i: number): void {
   const air = w.trait === Trait.DejaMorte && !w.player.onGround ? TRAIT.dejamorte.airXpMul : 1;
   const xp = def.xp * (e.elite ? ELITE.xpMul * w.player.eliteLoot : 1) * air; // phase 47 : tome Défi
   dropGem(w, e.x, e.z, e.corrupt === Corrupt.On ? xp * CORRUPT.xp : xp);
-  if (def.boss) {
+  if (e.role === Role.Heart) {
+    // le Cœur de la Nuit vaincu : la victoire totale (src/sim/final.ts), ni soin ni coffre (la partie s'arrête là)
+    w.emit(Ev.BossKill, e.x, e.y, e.z, e.type);
+    heartDown(w, e);
+  } else if (def.boss) {
     // phase 42 : un boss de survie ne soigne pas et ne laisse qu'un coffre d'élite (mesuré : avec la récompense d'un
     // vrai boss, il rendait la partie plus facile, profil maxé 41 → 53 % de victoires)
     // phase 48 : avec un totem de boss, le combat du totem compte plusieurs boss ; seul le dernier à tomber soigne,
@@ -160,7 +180,7 @@ export function killEnemy(w: World, i: number): void {
     } else if (totem) {
       if (e.id === w.totemBossId) w.totemBossId = -1;
       w.totemAlive = Math.max(0, w.totemAlive - 1);
-      stageBossDown(w, e.x, e.z); // phase 37 : boss du totem → portail, ou victoire au monde 3 (phase 48 : le dernier)
+      stageBossDown(w); // phase 37 : boss du totem → portail (1.68.0 : au monde 3, vers l'Arène) ; phase 48 : le dernier
     } else w.survivalAlive = Math.max(0, w.survivalAlive - 1); // phase 42 : boss de survie (n'ouvre rien)
   } else {
     if (e.elite) dropChest(w, e.x, e.z, false);

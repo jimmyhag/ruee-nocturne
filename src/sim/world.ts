@@ -1,18 +1,18 @@
 import type { DailyRule } from './balance';
-import { DAILY_RULE_KEYS, DAILY_RULES, NO_RULE, BOON_KEYS, CAPS, FIRST_RUNS, REVEAL, DAILY, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
+import { DAILY_RULE_KEYS, DAILY_RULES, NO_RULE, FINAL, BOON_KEYS, CAPS, FIRST_RUNS, REVEAL, DAILY, CHARACTERS, CRIT, MAX_PASSIVES, MAX_WEAPONS, PLAYER, SPAWN, SPELL, ITEM_KEYS, SYNERGIES, ITEM, TOMES, TOME_KEYS, TRAIT, XP, WEAPON_LINES, LEVEL_MAX, TREE_CELL, WORLD_HALF, ZONES, HAZARDS, FLOW, MAP, DISCOVER, METEOR, It, RUN_REROLL, LAMES, POWER, VITRIOL, ESPRITS, BALISE } from './balance';
 import { buildMap, buildZones, cellKey, segDist } from './map';
 import { FlowField } from './flow';
 import { TERRAIN_N, buildTerrain, heightAt, settlePlaces, slopeMul } from './terrain';
 import type { Kicker, Piste, Plateau, Ramp } from './terrain';
 import type { Race } from './poi';
-import { buildPOI, hideUnrevealed } from './poi';
+import { TOTEM_HIDDEN, buildPOI, hideUnrevealed } from './poi';
 import type { BossTotem, MapChest, Shrine, Skull } from './poi';
 import { makeMerchant } from './merchant';
 import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Corrupt, Ev, Mode, ProjKind, ShotKind, Skill, Spell, Trait, HurtSrc, HitSrc } from './types';
+import { Corrupt, Ev, Mode, ProjKind, Role, ShotKind, Skill, Spell, Trait, HurtSrc, HitSrc } from './types';
 import type {
   Card,
   Chest,
@@ -316,6 +316,27 @@ export class World {
   dailyBossId = -1;
   dailyBossWarned = false;
   medal = 0;
+  // le Cœur de la Nuit (docs/specs/boss-final.md) : monde 3 vaincu (ce qui comptait comme la victoire avant le lot) ;
+  // combat de l'Arène (src/sim/final.ts) : phase (0 avant l'apparition, 1 à 4, FINAL_DONE vaincu), s passées dans
+  // l'Arène, id du boss, pause d'un changement de phase (s, invulnérable), rayon du cercle de flammes et s avant son
+  // prochain pas, sceaux debout, s avant les prochains renforts, Jugement (s avant l'impact, 0 : aucun ; zone sûre ; s
+  // avant le suivant), s avant le retour de chaque double parti en fumée (0 : aucun en attente) ; monde infini d'après le
+  // boss final, avec corrompus (une partie de la 1.67 reprise en monde infini : sans)
+  cleared = false;
+  finalPhase = 0;
+  arenaT = 0;
+  finalId = -1;
+  finalPause = 0;
+  arenaR: number = FINAL.arenaR;
+  ringT = 0;
+  seals = 0;
+  addT = 0;
+  judgeT = 0;
+  judgeX = 0;
+  judgeZ = 0;
+  judgeNext = 0;
+  readonly decoyBack = new Float64Array(FINAL.decoy.n);
+  endlessCorrupt = false;
   /**
    * Règle du jour en cours (NO_RULE hors défi) : lue à l'apparition d'un monstre ou au coup, sans allocation. Un index
    * hors de la liste (sauvegarde abîmée, ou écrite par une version plus récente puis relue après un retour en arrière)
@@ -423,6 +444,10 @@ export class World {
    * carte est d'abord vidé : la carte obtenue est exactement celle d'un World neuf de même graine (test map/stages).
    */
   buildMapFor(seed: number): void {
+    if (seed === ARENA_SEED) {
+      this.buildArena(); // instantané pris dans l'Arène (phase 49 : la carte est refaite à la reprise)
+      return;
+    }
     this.seed = seed;
     this.obstacles = [];
     this.treeCount = this.rockEnd = this.stoneEnd = 0;
@@ -460,6 +485,47 @@ export class World {
     settlePlaces(this); // posés exactement à plat
     buildPOI(this, r); // coffres et sanctuaires (sommets, pieds de rampes, combes), le totem du monde, puis les crânes
     hideUnrevealed(this); // lot L2 : après tous les tirages, la carte d'une graine reste la même
+  }
+
+  /**
+   * L'Arène du boss final (docs/specs/boss-final.md) : une carte vide et plate, sans lieux ni totem ; le cercle de
+   * flammes (w.arenaR) la ferme. Sa « graine » est ARENA_SEED (jamais celle d'une vraie carte).
+   */
+  buildArena(): void {
+    this.seed = ARENA_SEED;
+    this.obstacles = [];
+    this.treeCount = this.rockEnd = this.stoneEnd = 0;
+    this.propKinds = new Uint8Array(0);
+    this.decor = [];
+    this.yards = [];
+    this.camps = [];
+    this.walls = [];
+    this.places = [];
+    this.stoneCenters = [];
+    this.lakes = [];
+    this.woods = [];
+    this.plateaus = [];
+    this.ramps = [];
+    this.combes = [];
+    this.pistes = [];
+    this.kickers = [];
+    this.races = [];
+    this.obstacleGrid.clear();
+    this.wallGrid.clear();
+    this.height.fill(0);
+    this.seen.fill(0);
+    this.seenCount = 0;
+    this.exploredAll = true; // pas de prime d'exploration dans l'Arène
+    this.seenT = 0;
+    this.solid.fill(0);
+    this.near.fill(0);
+    this.mapChests.length = 0;
+    this.shrines.length = 0;
+    this.skulls.length = 0;
+    this.bossTotems.length = 0;
+    this.flow.ready = false;
+    this.totem.x = this.totem.z = this.totem.charge = 0;
+    this.totem.state = TOTEM_HIDDEN;
   }
 
   // ---------- événements ----------
@@ -694,6 +760,8 @@ export class World {
   }
 }
 
+/** « Graine » de la carte de l'Arène (buildArena) : une vraie graine est un entier positif. */
+export const ARENA_SEED = -1;
 /** Joueur de départ : constantes PLAYER, puis personnage, puis paliers de boutique (opts). */
 /** Cases de découverte par côté (phase 27). */
 export const SEEN_N = Math.ceil((2 * WORLD_HALF) / DISCOVER.cell);
@@ -939,6 +1007,8 @@ function makeEnemy(): Enemy {
     toxAcc: 0,
     slowT: 0,
     corrupt: Corrupt.None,
+    role: Role.None,
+    struck: 0,
   };
   // phase 47 B (relecture perf) : la brûlure est fractionnaire ; forme « double » dès la création, comme pour Player,
   // sinon le premier embrasement déprécie la forme de tous les ennemis en plein combat

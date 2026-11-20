@@ -1,17 +1,18 @@
 // Hooks de debug et de test (skill sim-testing §6) : exposés sur `window.__game`
 // uniquement en développement ou avec `?debug=1`. Jamais appelés par le jeu lui-même.
 import type { GameScene } from './render/scene';
-import { CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STAGE, STEP, WEAPON_LINES } from './sim/balance';
+import { ARENA, CAPS, ITEM_KEYS, MERCHANT, POWER_KEYS, STAGE, STEP, WEAPON_LINES } from './sim/balance';
 import { dropPower } from './sim/powers';
 import { dropChest, hitEnemy } from './sim/combat';
-import { nextStage, stageBossDown } from './sim/stages';
+import { enterArena, nextStage, stageBossDown } from './sim/stages';
+import { heartOf, summonHeart } from './sim/final';
 import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
 import { corrupt } from './sim/corrupt';
 import { refreshStats } from './sim/weapons/defs';
 import { step } from './sim/step';
 import { syncTiers } from './sim/tiers';
-import { Ev, Mode } from './sim/types';
+import { Ev, Mode, Role } from './sim/types';
 import type { Pw } from './sim/types';
 import type { Input, ItemKey, PowerKey, WeaponKey } from './sim/types';
 import type { World } from './sim/world';
@@ -182,14 +183,54 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       const world = w();
       if (world && world.bossIndex >= 0) hitEnemy(world, world.bossIndex, 1e12, 0, 0, 0);
     },
-    /** Phase 39 : victoire immédiate (monde 3, boss du totem tué à temps) : ouvre l'écran de victoire. */
+    /**
+     * Phase 39 : victoire immédiate, l'écran de victoire. 1.68.0 : le monde 3 vaincu, l'Arène, puis le boss final
+     * abattu (la victoire est la sienne).
+     */
     win(): void {
       const world = w();
       if (!world || world.mode !== Mode.Play) return;
+      if (world.stage !== ARENA) debug.arena();
+      if (world.finalPhase === 0) summonHeart(world);
+      const h = heartOf(world);
+      if (!h) return;
+      world.finalPhase = 4;
+      world.finalPause = 0;
+      h.hp = 1;
+      hitEnemy(world, world.enemies.indexOf(h), 1e12, 0, world.player.x, world.player.z);
+    },
+    /**
+     * 1.68.0 : le monde 3 vaincu (son boss tombé), puis l'Arène du boss final, comme par le portail rouge. `now` : le
+     * boss sort tout de suite (tests : sans attendre ses FINAL.appear s de jeu ; pas de bannière d'apparition).
+     */
+    arena(now = false): void {
+      const world = w();
+      if (!world || world.mode !== Mode.Play || world.stage === ARENA) return;
       while (world.stage < STAGE.count - 1) nextStage(world);
-      host.afterStage();
       world.totem.state = 1;
-      stageBossDown(world, world.player.x, world.player.z);
+      stageBossDown(world);
+      enterArena(world);
+      host.afterStage();
+      if (now) summonHeart(world);
+    },
+    /**
+     * 1.68.0 : le boss final passe à sa phase suivante (le fait sortir s'il le faut), comme sous les coups d'un joueur :
+     * il est amené au seuil (en phase 2, les sceaux sont brisés) et le pas de jeu suivant change de phase, avec sa
+     * bannière et sa pause (invulnérable). Une phase par appel : attendre `world.finalPhase` avant le suivant.
+     */
+    finalPhase(): void {
+      const world = w();
+      if (!world || world.stage !== ARENA) return;
+      if (world.finalPhase === 0) summonHeart(world);
+      const h = heartOf(world);
+      if (!h || world.finalPhase >= 4) return;
+      world.finalPause = 0;
+      if (world.finalPhase === 2)
+        for (let i = 0; i < world.enemyCount; i++) {
+          const s = world.enemies[i];
+          if (s.alive && s.role === Role.Seal) hitEnemy(world, i, 1e12, 0, s.x, s.z);
+        }
+      else hitEnemy(world, world.enemies.indexOf(h), 1e12, 0, world.player.x, world.player.z);
     },
     /** Phase 39 : temps passé en monde infini (la prochaine vague sort à `nextEndlessBoss`). */
     endlessTime(s: number): void {

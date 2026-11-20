@@ -1,4 +1,5 @@
 import {
+  ARENA,
   BOSSTOTEM,
   DIFFICULTY,
   ENEMIES,
@@ -18,7 +19,9 @@ import { canGainItem, maxCopies } from '../sim/items';
 import { mapChestPrice } from '../sim/poi';
 import { enemyIntensity, type Intensity } from '../sim/spawner';
 import { stageLeft, totemLocked } from '../sim/stages';
+import { heartShielded } from '../sim/final';
 import { spellCooldown } from '../sim/spells';
+import { Role } from '../sim/types';
 import type { BoonKey, Card, ItemKey, TomeKey, WeaponKey } from '../sim/types';
 import { cardSynergy } from '../sim/synergies';
 import { TOME_LOOK, WEAPONS } from '../sim/weapons/defs';
@@ -58,6 +61,7 @@ export class Hud {
   private cache: Record<string, string | number | boolean | undefined> = {};
   /** Noms de boss précalculés dans la langue courante : aucune chaîne construite par frame. */
   private bossNames: string[] = [];
+  private heartName = '';
   private foes: Intensity = { hp: 1, dmg: 1, spd: 1, rate: 1 }; // phase 53 : rempli par enemyIntensity, jamais réalloué
   private els = {
     diffLbl: $('diffLbl'),
@@ -142,6 +146,7 @@ export class Hud {
   /** Recalcule les libellés qui dépendent de la langue (changement à chaud depuis les réglages). */
   relabel(): void {
     this.bossNames = ENEMIES.map((_, i) => enemyName(i).toUpperCase());
+    this.heartName = t('boss.heart').toUpperCase(); // 1.68.0 : le boss final
     delete this.cache.bossname;
     delete this.cache.bossKey; // phase 48 : la barre (« nom +n ») et la pastille « Boss +n » se réécrivent
     delete this.cache.bossX;
@@ -388,10 +393,12 @@ export class Hud {
       this.els.poiText.textContent = t('bosstotem.chip');
       this.els.poiChip.classList.remove('poor');
     }
-    // boss en plus par vague dans ce monde (totems de boss activés)
-    if (this.cache.bossX !== w.bossExtra) {
-      this.cache.bossX = w.bossExtra;
-      this.els.bossXLbl.hidden = w.bossExtra === 0;
+    // boss en plus par vague dans ce monde (totems de boss activés) ; 1.68.0 : pas dans l'Arène (ceux du monde 3
+    // valent pour le monde infini qui la suit, pas pour le boss final)
+    const bossX = w.stage === ARENA ? 0 : w.bossExtra;
+    if (this.cache.bossX !== bossX) {
+      this.cache.bossX = bossX;
+      this.els.bossXLbl.hidden = bossX === 0;
       this.els.bossXLbl.textContent = t('hud.bossExtra', { n: w.bossExtra });
     }
     if (this.cache.diff !== diff) {
@@ -422,15 +429,18 @@ export class Hud {
     }
     this.text('lvl', String(P.level));
     // phase 37 : « Monde 2 », chrono qui descend ; après 0:00, le dépassement en rouge (+0:45)
+    const arena = w.stage === ARENA && !w.endless;
     const stageKey = w.endless ? -1 : w.dailyEnd > 0 ? -2 : w.stage;
     if (this.cache.stage !== stageKey) {
       this.cache.stage = stageKey;
-      // phase 39 : monde infini ; lot L3 : défi du jour (son chrono de 5:00 descend)
+      // phase 39 : monde infini ; lot L3 : défi du jour (son chrono de 5:00 descend) ; 1.68.0 : l'Arène, sans chrono
       this.els.stageLbl.textContent = w.endless
         ? t('hud.endless')
         : w.dailyEnd > 0
           ? t('hud.daily')
-          : t('hud.stage', { n: w.stage + 1 });
+          : arena
+            ? t('hud.arena')
+            : t('hud.stage', { n: w.stage + 1 });
     }
     const over = !w.endless && w.overT > 0;
     if (this.cache.over !== over) {
@@ -441,9 +451,11 @@ export class Hud {
     // (c'est le score du jour), plus le compte à rebours
     const secs = w.endless
       ? Math.floor(w.dailyEnd > 0 ? w.t : w.endlessT)
-      : over
-        ? Math.floor(w.overT)
-        : Math.ceil(stageLeft(w));
+      : arena
+        ? Math.floor(w.arenaT) // l'Arène : le temps passé face au boss final compte vers le haut
+        : over
+          ? Math.floor(w.overT)
+          : Math.ceil(stageLeft(w));
     if (this.cache.secs !== secs) {
       this.cache.secs = secs;
       this.els.time.textContent = over ? '+' + fmtTime(secs) : fmtTime(secs);
@@ -482,13 +494,23 @@ export class Hud {
       const b = w.enemies[w.bossIndex];
       this.width('bossfill', b.hp / b.max);
       // phase 48 : plusieurs boss à la fois (totems de boss, boss de survie encore en vie) : la barre en suit un et dit
-      // combien il en reste d'autres
-      const others = (w.endless ? w.endlessAlive : w.survivalAlive + w.totemAlive) - 1;
-      const key = b.type * 16 + Math.max(0, others);
+      // combien il en reste d'autres. 1.68.0 : le Cœur de la Nuit, ses trois seuils marqués, gris tant qu'il est
+      // invulnérable (« · invulnérable » : pause d'un changement de phase, sceaux debout)
+      const heart = b.role === Role.Heart,
+        shield = heart && heartShielded(w);
+      const others = heart ? 0 : (w.endless ? w.endlessAlive : w.survivalAlive + w.totemAlive) - 1;
+      const key = heart ? (shield ? -2 : -1) : b.type * 16 + Math.max(0, others);
       if (this.cache.bossKey !== key) {
         this.cache.bossKey = key;
-        this.els.bossname.textContent =
-          others > 0 ? t('boss.more', { name: this.bossNames[b.type], n: others }) : this.bossNames[b.type];
+        this.els.bossbar.classList.toggle('final', heart);
+        this.els.bossbar.classList.toggle('shield', shield);
+        this.els.bossname.textContent = heart
+          ? shield
+            ? t('boss.shielded', { name: this.heartName }).toUpperCase()
+            : this.heartName
+          : others > 0
+            ? t('boss.more', { name: this.bossNames[b.type], n: others })
+            : this.bossNames[b.type];
       }
     }
     // phase 35 : bonus actifs, pastille visible et barre de durée (écrite par pas de 2 %)

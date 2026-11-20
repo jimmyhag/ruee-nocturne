@@ -533,6 +533,68 @@ export const ENDLESS = {
   merchantAt: 75,
 };
 
+// Le Cœur de la Nuit (docs/specs/boss-final.md, 1.68.0) : le boss final, dans l'Arène, après le monde 3. L'Arène est un
+// quatrième « monde » (w.stage === ARENA) : petite carte ronde et fermée, sans chrono, sans horde, sans lieux. Le boss a
+// quatre phases (souvenir, sceaux, éclipse, fureur) ; le vaincre ouvre le monde infini corrompu. Réglé par
+// `npm run sim` (règle 13, décision 13 : 40 à 60 % des parties maxées qui l'atteignent le battent, combat p50 2 à 4 min).
+// Réglage : 208 entrées dans l'Arène (parties maxées, bot moyen) rejouées avec chaque essai (docs/GATES.md) ; au départ
+// (PV ×2, attaques toutes les 1,8 s, dégâts ×1) 93 % de victoires en 75 s ; retenu : 55 % en 2:28 sur ces combats, et
+// 4 graines × 200 parties maxées de la CLI pour la mesure de la décision 13 (docs/GATES.md)
+export const ARENA = STAGE.count; // indice de l'Arène dans w.stage : après les trois mondes
+export const FINAL = {
+  arenaR: 16, // u : rayon du cercle de flammes à l'entrée (≈ un écran et demi de téléphone en largeur)
+  entry: 10, // u au sud du centre : le héros arrive là, le boss sort au centre (devant lui à l'écran)
+  appear: 3, // s après l'entrée : le boss sort au centre (bannière « Le Cœur de la Nuit »)
+  // difficulté de l'Arène (diffT) : celle de la fin du chrono du monde 3, figée (pas de chrono ici) ; dégâts des
+  // monstres et du boss à ce niveau, comme le boss du totem du monde 3
+  diffT: STAGE.dur + STAGE.offset[STAGE.count - 1],
+  // PV × ceux d'un boss du totem du monde 3 appelé maintenant (même calcul, sans prolongation ni Idole) : à ×4,5 le
+  // combat durait 2:00 et le bot gagnait 9 fois sur 10 ; ×8,5 avec les dégâts ci-dessous : 2:25
+  hp: 8.5,
+  // dégâts de ses attaques, de sa charge et de son contact (et de ses doubles) × ceux d'un monstre de la fin du monde 3 :
+  // à ×1, le kit complet ne mourait qu'à sa charge. ×1,65 : 47 % sur les combats rejoués mais 42 % dans la CLI (4 graines
+  // × 200, au bord de la cible) ; ×1,5 : 55 % rejoués
+  dmg: 1.5,
+  scale: 1.5, // taille du modèle (rendu) × celle du Colosse, dont il reprend le modèle
+  // rayon de collision (u) : un peu plus que le Colosse (2,6), moins que son modèle agrandi : le couloir de sa charge (son
+  // diamètre) reste franchissable d'un pas de côté pendant l'annonce
+  r: 3.2,
+  // seuils de PV des phases 2 (sceaux), 3 (éclipse) et 4 (fureur) ; un coup ne franchit jamais un seuil (il s'y arrête)
+  phases: [0.7, 0.4, 0.15],
+  pause: 1.5, // s : à chaque changement de phase, le boss s'arrête, invulnérable (game-feel §9 : on respire)
+  // phase 1, le souvenir : une attaque de chaque boss, une par une, en boucle (charge, salve, cercles), `gap` s entre deux
+  // (1,8 s : personne ne mourait en phase 1 ; 0,8 s : 29 % des morts de l'Arène, comme les autres phases)
+  gap: 0.8,
+  // la charge du Gardien, avec le couloir rouge de la charge des Brutes élites (mêmes champs que HAZARDS.charge) : 0,8 s
+  // d'annonce (celle du Gardien), puis `dist` u à `speed` u/s, un coup de `dmg` (× ses dégâts) ; `range` : au-delà, il
+  // passe à l'attaque suivante. Sa première cause de mort (≈ 80 % chez le bot, qui sort du couloir d'un pas de côté) :
+  // 26 tuait d'un coup (et à 4 u de rayon, le couloir ne se quittait pas à temps) ; 14 la rendait inoffensive
+  charge: { first: 0, range: 16, telegraph: 0.8, dist: 11, speed: 12, recover: 0.6, period: 0, dmg: 18, invul: 0.5 },
+  volleyN: 9, // la Salve de l'Essaim-mère (BOSS.volley), quatre projectiles de plus : elle remplit l'Arène
+  zoneN: 6, // les cercles du Colosse (BOSS.zone*) : un sous le héros, cinq autour (à 4, le bot en sortait toujours)
+  // phase 2, les sceaux : `n` stèles à `dist` u du centre ; chacune a `hp` × les PV max du boss et en emporte `drain`
+  // (4 × 7,5 % : les 30 points de la phase, 70 → 40 %) ; tant qu'il en reste une, il ne prend aucun dégât
+  seal: { n: 4, dist: 11, hp: 0.05, drain: 0.075, r: 1.2 },
+  sealCadence: 0.7, // ses attaques pendant les sceaux, × (plus lentes : on court d'une stèle à l'autre)
+  // renforts des sceaux : `n` corrompus toutes les `every` s au bord du cercle, tirés parmi `types` (Spectre, Dard, Brute,
+  // Volant : ceux qui viennent au contact ; les tireurs garderaient leurs distances hors du cercle)
+  adds: { first: 4, every: 8, n: 3, types: [0, 1, 2, 4] },
+  // phase 3, l'éclipse : le cercle de flammes se resserre de `step` u toutes les `every` s jusqu'à `min` u ; il rougit
+  // `warn` s avant chaque pas (game-feel §9 : ≥ 0,7 s) ; le toucher brûle `dps` PV/s (× les dégâts du boss)
+  ring: { every: 5, warn: 0.7, step: 1.5, min: 8, dps: 12 },
+  // deux doubles (les vrais doubles de la phase 50) : seul le vrai prend des dégâts ; touché `hits` fois, un double
+  // part en fumée et revient `back` s plus tard ; ils attaquent moins souvent que lui (`cadence` × son rythme ; à 0,5,
+  // l'éclipse ne tuait presque personne)
+  decoy: { n: 2, dist: 6, hits: 3, back: 6, cadence: 0.75 },
+  furyHaste: 1.5, // phase 4, la fureur : ses attaques s'enchaînent ×1,5
+  // le Jugement (phase 4) : toutes les `every` s (la première `first` s après la pause), toute l'Arène rougit sauf une
+  // zone sûre de rayon `r`, annoncée `telegraph` s avant l'impact ; elle est placée à r + min(`far`, vitesse du héros ×
+  // telegraph × `reach`) u de lui : loin, mais atteignable à la course. Hors de la zone : `frac` × les PV max (armure
+  // comprise) ; pas la mort à coup sûr (0,6 : 9 % des morts de l'Arène, cible ≤ 25 %)
+  judge: { first: 3, every: 12, telegraph: 1.5, r: 2.6, far: 5, reach: 0.6, frac: 0.6 },
+  gold: 500, // or de la victoire totale (× or du héros), en plus du bonus de fin
+};
+
 // zones de terrain (PLAN §3.4) : lacs qui ralentissent, bois denses qui canalisent
 export const ZONES = {
   lakes: 3,

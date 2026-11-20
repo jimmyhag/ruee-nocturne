@@ -1,6 +1,6 @@
 // Phase 35 : bonus au sol. Posés sur la carte devant le joueur et lâchés par les ennemis ; ramassés en marchant
 // dessus (jamais attirés par l'aimant) : Aimant (toutes les gemmes), Pluie d'or, Élan, Temps figé, Rage.
-import { CAPS, PLAY_LIMIT, POWER } from './balance';
+import { ARENA, CAPS, PLAY_LIMIT, POWER } from './balance';
 import { Ev, Pw } from './types';
 import type { World } from './world';
 
@@ -37,6 +37,7 @@ export function dropPower(w: World, x: number, z: number, kind: Pw): void {
 
 /** Tirage au kill (appelé par killEnemy) : rare sur un ennemi normal, fréquent sur une élite, garanti sur un boss. */
 export function powerOnKill(w: World, x: number, z: number, elite: boolean, boss: boolean): void {
+  if (w.stage === ARENA) return; // le boss final (docs/specs/boss-final.md) : aucun bonus dans l'Arène (un Gel le figerait)
   if (boss) {
     for (let k = 0; k < POWER.bossDrops; k++) {
       const a = w.rng.range(0, Math.PI * 2);
@@ -90,8 +91,8 @@ export function tickPowers(w: World, dt: number): void {
       w.emit(Ev.PowerEnd, w.player.x, 0, w.player.z, k);
     }
   }
-  // bonus de carte
-  if (w.stageT >= w.powerNext) {
+  // bonus de carte (aucun dans l'Arène)
+  if (w.stageT >= w.powerNext && w.stage !== ARENA) {
     // phase 37 : au chrono du monde (remis à zéro à chaque monde)
     w.powerNext = w.stageT + w.rng.range(POWER.mapEvery[0], POWER.mapEvery[1]);
     if (w.powerCount < CAPS.powers) dropOnMap(w);

@@ -22,7 +22,8 @@ import {
 import { hitEnemy } from './combat';
 import { applyCard, rollChoices } from './progression';
 import { spawnEnemy } from './spawner';
-import { nextStage, startEndless } from './stages';
+import { enterArena, nextStage, startEndless } from './stages';
+import { summonHeart } from './final';
 import { startRun, step } from './step';
 import { Ev, Mode, ShotKind } from './types';
 import type { Enemy, Input } from './types';
@@ -116,6 +117,12 @@ describe('monde infini resserré (phase 43)', () => {
     w.player.z = w.player.pz = w.totem.z;
     w.player.gPrev = w.heightAt(w.totem.x, w.totem.z);
     run(w, STAGE.totemCharge + 0.2);
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    // 1.68.0 (docs/specs/boss-final.md) : le monde 3 vaincu mène à l'Arène ; le boss final abattu, la victoire
+    enterArena(w);
+    summonHeart(w);
+    w.finalPhase = 4;
+    w.enemies[w.bossIndex].hp = 1;
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
     expect(w.mode).toBe(Mode.Won);
     startEndless(w);
