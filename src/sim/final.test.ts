@@ -156,6 +156,59 @@ describe('le passage vers l’Arène (décisions 1 et 2)', () => {
   });
 });
 
+describe('les coffres du monde 3 dans l’Arène', () => {
+  it('the world 3 boss chest follows the hero into the Arena and opens there', () => {
+    // le coffre du boss du monde 3, pas encore ouvert, passe le portail avec le héros (sa récompense) ; il s'ouvre dans
+    // l'Arène comme ailleurs, la feuille d'objets se ferme, puis le combat reprend normalement
+    const w = world3(35);
+    summonStageBoss(w);
+    hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    expect(w.chestCount).toBeGreaterThan(0);
+    const chests = w.chestCount,
+      items = w.itemOrder.length;
+    enterArena(w);
+    expect(w.chestCount).toBe(chests);
+    for (let i = 0; i < w.chestCount; i++)
+      expect(Math.hypot(w.chests[i].x, w.chests[i].z)).toBeLessThan(w.arenaR - 1); // dans le cercle, devant lui
+    // il marche vers le coffre : la feuille d'objets s'ouvre (le jeu s'arrête), il prend la première carte
+    const go: Input = { ...still, mz: 1 };
+    let sheets = 0;
+    for (let f = 0; f < 60 * 10 && w.chestCount > 0; f++) {
+      if (w.mode === Mode.LevelUp) {
+        sheets++;
+        const t = w.arenaT;
+        step(w, { ...still, pick: 0 }, STEP);
+        expect(w.arenaT).toBe(t); // pendant la feuille, l'Arène attend
+      } else {
+        const c = w.chests[0];
+        go.mx = c.x - w.player.x;
+        go.mz = c.z - w.player.z;
+        step(w, go, STEP);
+      }
+    }
+    for (let f = 0; f < 10 && w.mode === Mode.LevelUp; f++) {
+      sheets++;
+      step(w, { ...still, pick: 0 }, STEP);
+    }
+    expect(w.chestCount).toBe(0);
+    expect(sheets).toBeGreaterThan(0);
+    expect(w.itemOrder.length).toBeGreaterThan(items);
+    expect(w.mode).toBe(Mode.Play);
+    // le combat reprend : le boss sort et attaque (annonce d'une attaque, ou cercles au sol)
+    expect(run(w, FINAL.appear + 1)).toBe(0);
+    const h = heartOf(w)!;
+    expect(w.finalPhase).toBe(1);
+    let attacks = 0;
+    for (let f = 0; f < 60 * 8; f++) {
+      step(w, still, STEP);
+      attacks += count(w, Ev.BossRoar) + count(w, Ev.Telegraph);
+    }
+    expect(attacks).toBeGreaterThan(0);
+    expect(h.alive).toBe(true);
+    expect([w.stage, w.mode]).toEqual([ARENA, Mode.Play]);
+  });
+});
+
 describe('les quatre phases (décisions 3 à 8)', () => {
   it('The final boss has four phases', () => {
     const { w, h } = arena(41);
