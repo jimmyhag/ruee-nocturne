@@ -413,3 +413,120 @@ test('The draw call budget holds with tiers', async ({ page }, info) => {
   expect(ab.tiers.mines).toBe(2);
   expect(ab.tiered, 'aucun appel de dessin en plus avec les paliers').toBe(ab.plain);
 });
+
+// 1.69.2 (docs/specs/rendu-allege.md) : au rendu allégé, les ennemis lointains passent dans un InstancedMesh jumeau en
+// version simple (un appel de plus par type qui en a assez) ; l'herbe seule (fleurs et buissons : deux appels de moins)
+// et le décor moins loin. Le budget d'appels tient au point le plus dense du décor, 400 ennemis, 4 armes, sort en cours,
+// et les triangles baissent par rapport au net.
+test('The draw call budget holds when lightened', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await page.goto('/?debug=1&stress=400');
+  await page.waitForFunction(() => (window as any).__game?.ready === true);
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, reveal: 4, seenReveal: 4, settings: { ...g.meta.settings, quality: 'auto' } });
+  });
+  await page.locator('#playBtn').click();
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await page.waitForFunction(
+    () => {
+      const s = (window as any).__game.scene;
+      return s.heroKind === 'gltf' && s.propsReady === true && s.natureReady === true && s.enemyKind === 'gltf';
+    },
+    null,
+    { timeout: 20_000 },
+  );
+  // point le plus dense du décor (même calcul que « 400 ennemis au point le plus dense du décor »)
+  const at = await page.evaluate(() => {
+    const s = (window as any).__game.scene;
+    const pts: [number, number, number, number][] = [];
+    const T = s.treeData as Float32Array,
+      L = s.lampData as Float32Array,
+      G = s.graveData as Float32Array;
+    for (let i = 0; i < T.length; i += 6) pts.push([T[i], T[i + 2], 640, 48 * 48]);
+    for (let i = 0; i < L.length; i += 3) pts.push([L[i], L[i + 2], 570, 900]);
+    for (let i = 0; i < G.length; i += 4) pts.push([G[i], G[i + 2], 1000, 900]);
+    let best = { x: 0, z: 0, w: -1 };
+    for (const [x, z] of pts) {
+      let w = 0;
+      for (const [x2, z2, k, r2] of pts) if ((x - x2) ** 2 + (z - z2) ** 2 < r2) w += k;
+      if (w > best.w) best = { x, z, w };
+    }
+    return best;
+  });
+  await page.evaluate(({ x, z }) => {
+    const g = (window as any).__game;
+    const d = g.debug;
+    d.slowFrames(20); // ni lentes ni fluides : le palier imposé reste
+    d.jsTime(4);
+    g.world.player.need = 1e9;
+    for (const k of Object.keys(g.world.weapons)) delete g.world.weapons[k];
+    for (const [k, lv] of [
+      ['lames', 8],
+      ['meteores', 8],
+      ['foudre', 8],
+      ['orbe', 8],
+    ])
+      d.give(k, lv);
+    d.teleport(x + 1.5, z + 1.5);
+  }, at);
+  await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
+  const sample = async (step: number) => {
+    // le palier, puis deux images rendues avec lui (SwiftShader peut mettre plus d'une seconde par image au net : un
+    // délai fixe relirait l'image d'avant)
+    await page.evaluate(async (n) => {
+      (window as any).__game.debug.renderStep(n);
+      const next = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(0))));
+      await next();
+      await next();
+    }, step);
+    const worst = { calls: 0, triangles: 0 };
+    for (let k = 0; k < 4; k++) {
+      await page.keyboard.press('ShiftLeft'); // Bond : silhouettes de dash à l'écran
+      for (let f = 0; f < 4; f++) {
+        await page.waitForTimeout(100);
+        const r = await page.evaluate(() => {
+          const g = (window as any).__game;
+          return {
+            calls: g.renderer.info.render.calls as number,
+            triangles: g.renderer.info.render.triangles as number,
+          };
+        });
+        worst.calls = Math.max(worst.calls, r.calls);
+        worst.triangles = Math.max(worst.triangles, r.triangles);
+      }
+    }
+    return worst;
+  };
+  const net = await sample(0);
+  const lite = await sample(1);
+  const floor = await sample(4);
+  console.log(
+    `[${info.project.name}] pire point, net ${net.calls} appels ${(net.triangles / 1000).toFixed(1)} k tris ; allégé ${lite.calls} appels ${(lite.triangles / 1000).toFixed(1)} k ; ×0,6 ${floor.calls} appels ${(floor.triangles / 1000).toFixed(1)} k`,
+  );
+  for (const r of [lite, floor])
+    expect(r.calls, `draw calls ≤ ${callBudget(info.project.name)} (allégé)`).toBeLessThanOrEqual(
+      callBudget(info.project.name),
+    );
+  // la horde bouge d'un relevé à l'autre : les triangles se comparent sur une image figée, au net puis allégée
+  const same = await page.evaluate(async () => {
+    const g = (window as any).__game;
+    const next = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(0))));
+    g.debug.speed(0);
+    const look = async (n: number) => {
+      g.debug.renderStep(n);
+      await next();
+      await next();
+      return { calls: g.renderer.info.render.calls as number, triangles: g.renderer.info.render.triangles as number };
+    };
+    const net = await look(0);
+    const lite = await look(1);
+    g.debug.speed(1);
+    return { net, lite };
+  });
+  console.log(
+    `[${info.project.name}] image figée : net ${same.net.calls} appels ${(same.net.triangles / 1000).toFixed(1)} k tris ; allégé ${same.lite.calls} appels ${(same.lite.triangles / 1000).toFixed(1)} k`,
+  );
+  expect(same.lite.triangles, 'moins de triangles qu’au net').toBeLessThan(same.net.triangles);
+  expect(same.lite.calls).toBeLessThanOrEqual(callBudget(info.project.name));
+});

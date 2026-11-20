@@ -10,6 +10,7 @@ import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
 import { corrupt } from './sim/corrupt';
 import { refreshStats } from './sim/weapons/defs';
+import { fireAngle } from './sim/weapons/tick';
 import { step } from './sim/step';
 import { syncTiers } from './sim/tiers';
 import { Ev, Mode, Role } from './sim/types';
@@ -42,6 +43,8 @@ export interface DebugHost {
   guideStep(n: number): void;
   /** Ralenti du guide en cours (1 : aucun). */
   tutoScale(): number;
+  /** 1.69.2 : palier du rendu auto imposé (0 net, 1 allégé, 2-4 résolution ×0,85 → ×0,6), mesures et captures. */
+  renderStep(n: number): void;
   audioVoices(): number;
   /** Phase 36 : état du son (planche décodée, musique en cours, gains des bus). */
   audioState(): { samples: boolean; music: string; sfx: number; musicGain: number; drops: number };
@@ -72,6 +75,8 @@ export interface DebugRuntime {
   speed: number;
   /** Tests du repli de qualité (phase 9) : durée de frame simulée en ms (0 = mesure réelle). */
   slowFrames: number;
+  /** 1.69.2 : temps JS d'une frame simulé en ms (0 = mesure réelle) : teste un JS lent face à un GPU lent. */
+  jsTime: number;
 }
 
 export function installDebugHooks(host: DebugHost): DebugRuntime | null {
@@ -320,6 +325,26 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
     slowFrames(ms: number): void {
       runtime.slowFrames = Math.max(0, ms);
     },
+    /**
+     * 1.69.2 : fait croire à la boucle que le JS de chaque frame dure `ms` (0 = réel). Avec `slowFrames`, distingue une
+     * lenteur du JS (jsTime proche de slowFrames : la résolution ne baisse pas) d'une lenteur du GPU (jsTime petit).
+     */
+    jsTime(ms: number): void {
+      runtime.jsTime = Math.max(0, ms);
+    },
+    /**
+     * 1.69.2 : salve de `n` orbes du héros tout autour de lui, à des vitesses différentes (8 à 12,5 u/s), qui percent
+     * tout : plus de projectiles en vol que le plafond du rendu allégé (tests).
+     */
+    volley(n: number): void {
+      const world = w();
+      if (!world) return;
+      for (let k = 0; k < n; k++) fireAngle(world, k * 2.39996, 1, 999, 8 + (k % 10) * 0.5);
+    },
+    /** 1.69.2 : impose un palier du rendu auto (le réglage doit être « auto »). */
+    renderStep(n: number): void {
+      host.renderStep(n);
+    },
     /** Fixe le nombre d'ennemis à maintenir (0 = arrêt). Équivaut à `?stress=n`. */
     stress(n: number): void {
       stressTarget = Math.min(CAPS.enemies, Math.max(0, n | 0));
@@ -333,6 +358,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
   const runtime: DebugRuntime = {
     speed: 1,
     slowFrames: 0,
+    jsTime: 0,
     onFrame(world) {
       if (stressTarget <= 0) return;
       if (stressWorld !== world) {
