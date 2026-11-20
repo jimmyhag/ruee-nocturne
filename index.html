@@ -1049,9 +1049,14 @@
           top: calc(env(safe-area-inset-top, 0px) + 64px);
           font-size: 13.5px;
         }
-        /* 1.69.0 : « Survis · totem quand tu es prêt » passe sur deux lignes entre les chiffres et la minicarte */
-        #goalText {
-          max-width: 46vw;
+        /* 1.69.0 : « Survis · totem quand tu es prêt » passe sur deux lignes, entre les chiffres et la minicarte */
+        #goalChip.g1 {
+          gap: 6px;
+        }
+        #goalChip.g1 #goalText {
+          max-width: 100px;
+          font-size: 12px;
+          letter-spacing: 0.06em;
           white-space: normal;
           text-align: center;
           line-height: 1.15;
