@@ -1,7 +1,7 @@
 // Carte de la partie (phase 27) : minicarte du HUD (autour du joueur, redessinée 4 fois par seconde) et grande carte
 // (toute la carte, à l'ouverture). Fond construit une fois par carte (relief, lacs, ouvrages), brouillard sur ce qui
 // n'est pas encore découvert (w.seen, tenu par la sim). Lecture seule du monde. Hors de la boucle de rendu 3D.
-import { ARENA, DISCOVER, ENEMIES, FINAL, It, PLAY_LIMIT, WORLD_HALF } from '../sim/balance';
+import { ARENA, DISCOVER, ENEMIES, FINAL, It, PLAY_LIMIT, STAGE, WORLD_HALF } from '../sim/balance';
 import { ringWarned } from '../sim/final';
 import { Role } from '../sim/types';
 import { SEEN_N } from '../sim/world';
@@ -334,7 +334,14 @@ export class MapView {
       const x = this.X(T.x),
         z = this.Z(T.z),
         a = r * 2.2;
-      ctx.fillStyle = w.portal.open ? '#5fd3ff' : T.state === 1 ? '#ff8a5e' : '#ff4d5e';
+      // 1.68.0 : le portail du monde 3, vers l'Arène du boss final, est rouge
+      ctx.fillStyle = w.portal.open
+        ? w.stage === STAGE.count - 1
+          ? '#ff3b5c'
+          : '#5fd3ff'
+        : T.state === 1
+          ? '#ff8a5e'
+          : '#ff4d5e';
       ctx.strokeStyle = '#0c0f1a';
       ctx.lineWidth = 1;
       ctx.beginPath();

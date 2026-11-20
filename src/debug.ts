@@ -210,27 +210,23 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       host.afterStage();
     },
     /**
-     * 1.68.0 : amène le boss final à sa phase `p` (1 à 4), comme les coups d'un joueur : seuils, sceaux brisés en phase
-     * 2. La pause du changement de phase commence (bannière, invulnérable) ; `calm` : sans la pause (captures).
+     * 1.68.0 : le boss final passe à sa phase suivante (le fait sortir s'il le faut), comme sous les coups d'un joueur :
+     * il est amené au seuil (en phase 2, les sceaux sont brisés) et le pas de jeu suivant change de phase, avec sa
+     * bannière et sa pause (invulnérable). Une phase par appel : attendre `world.finalPhase` avant le suivant.
      */
-    finalPhase(p: number, calm = false): void {
+    finalPhase(): void {
       const world = w();
       if (!world || world.stage !== ARENA) return;
       if (world.finalPhase === 0) summonHeart(world);
-      for (let k = 0; k < 8 && world.finalPhase < p; k++) {
-        world.finalPause = 0;
-        const h = heartOf(world);
-        if (!h) return;
-        if (world.finalPhase === 2)
-          for (let i = 0; i < world.enemyCount; i++) {
-            const s = world.enemies[i];
-            if (s.alive && s.role === Role.Seal) hitEnemy(world, i, 1e12, 0, s.x, s.z);
-          }
-        else hitEnemy(world, world.enemies.indexOf(h), 1e12, 0, world.player.x, world.player.z);
-        step(world, { ...still, pick: -1 }, STEP); // le seuil franchi : la phase suivante commence
-      }
-      if (calm) world.finalPause = 0;
-      host.afterSimJump();
+      const h = heartOf(world);
+      if (!h || world.finalPhase >= 4) return;
+      world.finalPause = 0;
+      if (world.finalPhase === 2)
+        for (let i = 0; i < world.enemyCount; i++) {
+          const s = world.enemies[i];
+          if (s.alive && s.role === Role.Seal) hitEnemy(world, i, 1e12, 0, s.x, s.z);
+        }
+      else hitEnemy(world, world.enemies.indexOf(h), 1e12, 0, world.player.x, world.player.z);
     },
     /** Phase 39 : temps passé en monde infini (la prochaine vague sort à `nextEndlessBoss`). */
     endlessTime(s: number): void {

@@ -50,6 +50,11 @@ async function arena(page: Page): Promise<void> {
   });
   await page.waitForFunction(() => (window as any).__game.world.finalPhase === 1, null, { timeout: 20_000 });
 }
+/** Le boss final passe à la phase `p` (la suivante), comme sous les coups : le jeu change de phase au pas suivant. */
+async function nextPhase(page: Page, p: number): Promise<void> {
+  await page.evaluate(() => (window as any).__game.debug.finalPhase());
+  await page.waitForFunction((n) => (window as any).__game.world.finalPhase === n, p, { timeout: 10_000 });
+}
 const drawCalls = (page: Page): Promise<number> =>
   page.evaluate(async () => {
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -82,8 +87,12 @@ test('Beating the world 3 boss opens the way to the Arena', async ({ page }, inf
   expect(w3).toEqual({ cleared: true, portal: true, over: true, stage: 2, mode: 0 });
   await expect(page.locator('#victory')).toBeHidden(); // plus de feuille de victoire à ce moment
   await page.evaluate(() => {
-    const w = (window as any).__game.world;
-    (window as any).__game.debug.teleport(w.totem.x + 6, w.totem.z + 4); // le portail dans le champ, le héros à côté
+    const g = (window as any).__game,
+      w = g.world;
+    w.enemyCount = 0; // la horde de la prolongation retirée pour la capture
+    w.spawnAcc = -1e9;
+    w.nextWave = w.nextElite = 1e9;
+    g.debug.teleport(w.totem.x, w.totem.z + 5.5); // le portail au-dessus du héros, à l'écran
   });
   await page.waitForTimeout(400);
   await shot(page, info.project.name, 'portail-rouge');
@@ -113,7 +122,7 @@ test('The final boss has four phases', async ({ page }, info) => {
   await hero(page, 5);
   await arena(page);
   // phase 2 : « Brise les sceaux ! », barre grise « invulnérable », quatre stèles, un coup ne fait rien
-  await page.evaluate(() => (window as any).__game.debug.finalPhase(2));
+  await nextPhase(page, 2);
   await expect.poll(() => banners(page)).toContain(FR['final.phase.2']);
   await expect(page.locator('#bossbar')).toHaveClass(/shield/);
   await expect(page.locator('#bossname')).toContainText('INVULNÉRABLE');
@@ -137,11 +146,13 @@ test('The final boss has four phases', async ({ page }, info) => {
   await page.waitForTimeout(500);
   await shot(page, info.project.name, 'phase2-sceaux');
   // phase 3 : l'éclipse, « Trouve le vrai ! », deux doubles ; l'Arène s'assombrit (moins en effets réduits)
-  await page.evaluate(() => (window as any).__game.debug.finalPhase(3));
+  await nextPhase(page, 3);
   await expect.poll(() => banners(page)).toContain(FR['final.phase.3']);
   await expect.poll(() => banners(page)).toContain(FR['final.phase.3.sub']);
   await expect(page.locator('body')).toHaveClass(/eclipse/);
-  await expect(page.locator('#bossbar')).not.toHaveClass(/shield/, { timeout: 5000 });
+  // la pause du changement de phase passée (1,5 s de jeu : plus de temps réel sur un runner lent), il redevient vulnérable
+  await page.waitForFunction(() => (window as any).__game.world.finalPause <= 0, null, { timeout: 20_000 });
+  await expect(page.locator('#bossbar')).not.toHaveClass(/shield/);
   await page.waitForFunction(() => (window as any).__game.scene.eclipse > 0.8, null, { timeout: 10_000 });
   const decoys = await page.evaluate(() => {
     const w = (window as any).__game.world;
@@ -154,7 +165,7 @@ test('The final boss has four phases', async ({ page }, info) => {
   await shot(page, info.project.name, 'phase3-eclipse');
   expect(await drawCalls(page)).toBeLessThanOrEqual(40); // budget mobile (PLAN §4.3), éclipse et doubles compris
   // phase 4 : la fureur, « Cours à la lumière ! », puis le Jugement : l'Arène rouge, la zone sûre
-  await page.evaluate(() => (window as any).__game.debug.finalPhase(4));
+  await nextPhase(page, 4);
   await expect.poll(() => banners(page)).toContain(FR['final.phase.4']);
   await page.waitForFunction(() => (window as any).__game.world.judgeT > 0.7, null, { timeout: 20_000 });
   await page.evaluate(() => (window as any).__game.debug.speed(0));
@@ -182,7 +193,7 @@ test('Dying in the Arena keeps the world 3 victory', async ({ page }) => {
   const errors = collectConsoleErrors(page);
   await hero(page, 6);
   await arena(page);
-  await page.evaluate(() => (window as any).__game.debug.finalPhase(2));
+  await nextPhase(page, 2);
   await page.evaluate(() => (window as any).__game.debug.kill());
   await page.waitForFunction(() => (window as any).__game.app === 'over', null, { timeout: 15_000 });
   await expect(page.locator('#oTitle')).toHaveText(FR['over.heartDead']);

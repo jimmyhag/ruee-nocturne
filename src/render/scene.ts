@@ -209,8 +209,7 @@ export class GameScene {
   // corrompus (docs/specs/corrompus.md, décision 3) : teinte violette par type, yeux relevés dans la boucle des ennemis
   // (x, y des yeux, z) et dessinés avec les lueurs ; traînée de particules au compte-gouttes
   private corruptColor: THREE.Color[] = [];
-  // x, y des yeux, z, y du centre du corps, rayon de l'aura, phase, taille des yeux (0 : un double du boss final, sans
-  // yeux qui brillent)
+  // x, y des yeux, z, y du centre du corps, rayon de l'aura, phase, taille des yeux (plus grands pour le boss final)
   private corruptBuf = new Float32Array(FEEL.corrupt.marks * 7);
   /**
    * « Réduction des effets » (réglage, ou prefers-reduced-motion tant que le joueur n'a rien choisi : main.ts) : la
@@ -2072,7 +2071,8 @@ export class GameScene {
         const look = this.enemyMorph[e.type] ? ENEMY_LOOKS[e.type] : null,
           tall = look ? look.height * s : e.r * FEEL.elite.top,
           head = e.type === VOLANT_TYPE ? ey + 0.15 : ey + tall * FEEL.corrupt.eyeAt;
-        if (this.corruptN < FEEL.corrupt.marks) {
+        // un double du boss final n'a ni aura ni yeux : seul le vrai brille (décision 6)
+        if (e.role !== Role.Decoy && this.corruptN < FEEL.corrupt.marks) {
           const o = this.corruptN++ * 7;
           this.corruptBuf[o] = ex + Math.sin(e.face) * e.r * 0.5;
           this.corruptBuf[o + 1] = head;
@@ -2080,7 +2080,7 @@ export class GameScene {
           this.corruptBuf[o + 3] = e.type === VOLANT_TYPE ? ey : ey + tall * 0.45; // centre du corps (aura)
           this.corruptBuf[o + 4] = heart ? e.r * FEEL.final.aura : e.r * s * FEEL.corrupt.aura;
           this.corruptBuf[o + 5] = e.bob;
-          this.corruptBuf[o + 6] = e.role === Role.Decoy ? 0 : heart ? FEEL.final.eye : FEEL.corrupt.eye;
+          this.corruptBuf[o + 6] = heart ? FEEL.final.eye : FEEL.corrupt.eye;
         }
         if (trail > 0 && Math.random() < trailP) {
           trail--;
@@ -2557,17 +2557,16 @@ export class GameScene {
         brx,
         now * 0.6 + ph,
       );
-      if (this.corruptBuf[o + 6] > 0)
-        this.glowW.put(
-          this.corruptBuf[o],
-          this.corruptBuf[o + 1],
-          this.corruptBuf[o + 2],
-          0,
-          this.corruptBuf[o + 6] * (0.85 + 0.15 * Math.sin(now * 9 + ph)),
-          this.cCorruptEye,
-          brx,
-          now + ph,
-        );
+      this.glowW.put(
+        this.corruptBuf[o],
+        this.corruptBuf[o + 1],
+        this.corruptBuf[o + 2],
+        0,
+        this.corruptBuf[o + 6] * (0.85 + 0.15 * Math.sin(now * 9 + ph)),
+        this.cCorruptEye,
+        brx,
+        now + ph,
+      );
     }
     // 1.68.0 : dans l'éclipse, un halo chaud autour du héros (la zone autour de lui reste lisible)
     if (this.eclipse > 0.05)

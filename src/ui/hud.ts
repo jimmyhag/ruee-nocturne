@@ -506,7 +506,7 @@ export class Hud {
         this.els.bossbar.classList.toggle('shield', shield);
         this.els.bossname.textContent = heart
           ? shield
-            ? t('boss.shielded', { name: this.heartName })
+            ? t('boss.shielded', { name: this.heartName }).toUpperCase()
             : this.heartName
           : others > 0
             ? t('boss.more', { name: this.bossNames[b.type], n: others })
