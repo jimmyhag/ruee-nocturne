@@ -116,3 +116,23 @@ export function tickTrail(w: World, e: Enemy, dt: number, d: number): void {
 export function flameLit(life: number, t0: number): boolean {
   return t0 - life >= CORRUPT.trail.arm;
 }
+
+/**
+ * Victoire au monde 3 pendant la prolongation : le monde infini n'a pas de corrompus (décision 1). Ceux qui vivent
+ * redeviennent des monstres ordinaires (la Ruée armée ou lancée s'arrête, la Brute ne pose plus rien), et les dangers
+ * de leurs compétences encore au sol ou en vol (flaques, bombes, crachats, flèches, boules de feu) disparaissent.
+ * Appelé une fois, par startEndless : hors de la boucle de jeu.
+ */
+export function clearCorrupt(w: World): void {
+  for (let i = 0; i < w.enemyCount; i++) {
+    const e = w.enemies[i];
+    if (e.corrupt === Corrupt.None) continue;
+    if (e.corrupt === Corrupt.On && (e.type === DARD_TYPE || e.type === ELITE_TYPE)) {
+      e.state = 0; // ni couloir, ni sprint, ni flaque en attente : un Dard ou une Brute ordinaires
+      e.timer = 0;
+    }
+    e.corrupt = Corrupt.None;
+  }
+  for (let i = w.shotCount - 1; i >= 0; i--) if (w.shots[i].skill !== Skill.None || w.shots[i].kind === ShotKind.Flame) w.freeShot(i);
+  w.flames = 0;
+}

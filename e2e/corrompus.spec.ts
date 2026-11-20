@@ -156,7 +156,7 @@ test('Corrupted monsters are explained the first time', async ({ page }) => {
   });
   await page.waitForFunction(() => (window as any).__game.world.corrupted > 0, null, { timeout: 60_000 });
   await expect(page.locator('#tutoText')).toHaveText(
-    "Monstres corrompus : l'infini les réveille. Plus dangereux, ils rapportent plus.",
+    'Après le chrono, la nuit corrompt les monstres : violets, ils ont une compétence et rapportent plus.',
   );
   // retenue : elle ne revient plus
   const hints = await page.evaluate(() => (window as any).__game.meta.hints as number);

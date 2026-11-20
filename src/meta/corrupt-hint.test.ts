@@ -5,7 +5,7 @@ import { STAGE, STEP } from '../sim/balance';
 import { tickSpawner } from '../sim/spawner';
 import { Ev } from '../sim/types';
 import { World } from '../sim/world';
-import { ALL_HINTS, HINTS, Hint, newGuide, updateGuide } from './guide';
+import { ALL_HINTS, HINTS, Hint, hintRank, newGuide, updateGuide } from './guide';
 import { DEFAULT_META, normalizeMeta } from './save';
 import { worldOptions } from './shop';
 import fr from '../i18n/fr.json';
@@ -33,9 +33,18 @@ describe('monstres corrompus : la consigne (décision 7)', () => {
   it('Corrupted monsters are explained the first time', () => {
     expect(HINTS[Hint.Corrupt]).toBe('corrupt');
     expect((fr as Record<string, string>)['tuto.hint.corrupt']).toBe(
-      "Monstres corrompus : l'infini les réveille. Plus dangereux, ils rapportent plus.",
+      'Après le chrono, la nuit corrompt les monstres : violets, ils ont une compétence et rapportent plus.',
     );
-    expect((en as Record<string, string>)['tuto.hint.corrupt']).toBeTruthy();
+    expect((en as Record<string, string>)['tuto.hint.corrupt']).toBe(
+      'After the clock runs out, the night corrupts the monsters: purple, each has a skill and pays more.',
+    );
+    // ni l'un ni l'autre ne parle du monde infini (celui d'après la victoire, sans corrompus) : la prolongation
+    for (const k of ['tuto.hint.corrupt', 'menu.ctrl.corrupt']) {
+      expect((fr as Record<string, string>)[k]).not.toMatch(/infini/i);
+      expect((en as Record<string, string>)[k]).not.toMatch(/endless/i);
+      expect((fr as Record<string, string>)[k]).toMatch(/chrono/);
+      expect((en as Record<string, string>)[k]).toMatch(/clock/);
+    }
     // un joueur qui n'a jamais vu de corrompu (toutes les autres consignes vues) : une seule fois, au premier
     const seen = ALL_HINTS & ~(1 << Hint.Corrupt);
     const first = overtime(7, seen);
@@ -56,5 +65,46 @@ describe('monstres corrompus : la consigne (décision 7)', () => {
     w.emit(Ev.Corrupt, 0, 0, 0, 1, 1);
     updateGuide(g, w, 0);
     expect(g.hint).toBe(-1);
+  });
+  it('the portal hint comes first, the corrupted one waits for the next corrupted monster', () => {
+    // un joueur qui n'a vu ni le portail ni les corrompus : le boss du totem tombe, le portail s'ouvre ; le premier
+    // corrompu arrive une seconde plus tard, pendant que la consigne du portail est en attente ou affichée
+    const fresh = ALL_HINTS & ~(1 << Hint.Portal) & ~(1 << Hint.Corrupt);
+    const w = new World(3);
+    const g = newGuide(w, false, fresh);
+    w.clearEvents();
+    w.portal.open = true;
+    w.emit(Ev.PortalOpen, w.totem.x, 0, w.totem.z, 2);
+    w.emit(Ev.Corrupt, 0, 0, 0, 1, 0); // au même pas : la consigne du portail est en attente
+    updateGuide(g, w, 0);
+    expect(g.hint).toBe(Hint.Portal);
+    expect(g.hints & (1 << Hint.Corrupt)).toBe(0); // pas retenue : elle reviendra
+    // affichée (src/ui/tutorial.ts) ; un corrompu apparaît pendant qu'elle est à l'écran
+    let shown = g.hint;
+    g.hint = -1;
+    w.clearEvents();
+    w.emit(Ev.Corrupt, 0, 0, 0, 1, 0);
+    updateGuide(g, w, 0);
+    expect(g.hint).toBe(Hint.Corrupt);
+    // l'interface garde la plus importante à l'écran et rend sa chance à l'autre (même règle que src/ui/tutorial.ts)
+    expect(hintRank(shown)).toBeGreaterThan(hintRank(g.hint));
+    g.hints &= ~(1 << g.hint);
+    g.hint = -1;
+    expect(g.hints & (1 << Hint.Portal)).not.toBe(0); // le portail est vu
+    // la consigne du portail partie, le corrompu suivant a la sienne, une fois
+    w.clearEvents();
+    w.emit(Ev.Corrupt, 0, 0, 0, 0, 0);
+    updateGuide(g, w, 0);
+    expect(g.hint).toBe(Hint.Corrupt);
+    shown = g.hint;
+    g.hint = -1;
+    w.clearEvents();
+    w.emit(Ev.Corrupt, 0, 0, 0, 0, 0);
+    updateGuide(g, w, 0);
+    expect(g.hint).toBe(-1);
+    expect(shown).toBe(Hint.Corrupt);
+    // la consigne des corrompus ne passe devant aucune autre
+    for (let h = 0; h < HINTS.length; h++)
+      if (h !== Hint.Corrupt) expect(hintRank(h)).toBeGreaterThan(hintRank(Hint.Corrupt));
   });
 });

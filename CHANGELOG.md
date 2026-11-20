@@ -4,7 +4,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [S
 
 ## 1.67.0 — 19 nov. 2026 (monstres corrompus)
 
-Après la fin du chrono, chaque monde devient une autre partie : l'infini réveille des monstres corrompus.
+Après la fin du chrono, chaque monde devient une autre partie : la nuit corrompt les monstres.
 
 ### Ajouté
 

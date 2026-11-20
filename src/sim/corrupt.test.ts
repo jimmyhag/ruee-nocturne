@@ -187,22 +187,25 @@ describe('monstres corrompus : le défi du jour et le monde infini (décision 1)
   function fields(w: World): string {
     const f = snapshotWorld(w).fields;
     delete f.noCorrupt;
+    delete f.corrupted; // compteur de la CLI
     return JSON.stringify(f);
   }
   it('The daily challenge and the endless world do not change', () => {
-    // défi du jour : le même avec et sans corrompus (sans eux, c'est la partie d'avant le lot : docs/GATES.md compare
-    // aussi 40 défis avant / après, champ par champ)
+    // défi du jour : le même avec et sans corrompus, même si sa prolongation était entamée (sans eux, c'est la partie
+    // d'avant le lot : docs/GATES.md compare aussi 40 défis avant / après, champ par champ, suite en monde infini comprise)
     const opts = worldOptions(DEFAULT_META, undefined, true);
     const a = new World(77, opts),
       b = new World(77, { ...opts, noCorrupt: true });
     for (const w of [a, b]) {
       startRun(w);
-      play(w, 45);
+      w.overT = 60; // forcé : le défi ne passe jamais en prolongation, mais même alors, aucun corrompu
+      play(w, 12);
     }
     expect(a.dailyEnd).toBe(DAILY.duration);
     expect(a.corrupted).toBe(0);
     expect(fields(a)).toBe(fields(b));
-    // monde infini d'après la victoire : même suite, avec ou sans corrompus, même partie d'une prolongation
+    // monde infini d'après une victoire en prolongation, avec des corrompus vivants, une Ruée armée, des flaques au sol
+    // et des dangers en vol (monde c) : il repart exactement comme le même monde dont les monstres sont ordinaires (d)
     const c = new World(9),
       d = new World(9, { noCorrupt: true });
     for (const w of [c, d]) {
@@ -210,14 +213,48 @@ describe('monstres corrompus : le défi du jour et le monde infini (décision 1)
       w.stage = STAGE.count - 1;
       w.stageT = w.diffT = STAGE.dur + 30; // vaincu en prolongation
       w.overT = 30;
+      for (const type of [0, DARD_TYPE, ELITE_TYPE, VOLANT_TYPE, CRACHEUR_TYPE, ARCHER_TYPE, SORCIER_TYPE]) {
+        const e = w.enemies[spawnEnemy(w, type, type, 7)];
+        if (w !== c) continue;
+        corrupt(w, e);
+        if (type === DARD_TYPE) {
+          e.state = 1; // Ruée armée
+          e.timer = 0.3;
+        }
+      }
+    }
+    for (const [kind, skill] of [
+      [ShotKind.Flame, Skill.Trail],
+      [ShotKind.Flame, Skill.Trail],
+      [ShotKind.Zone, Skill.Bomb],
+      [ShotKind.Spit, Skill.Fan],
+      [ShotKind.Arrow, Skill.Volley],
+      [ShotKind.Fireball, Skill.Rain],
+    ] as const) {
+      const s = c.allocShot()!;
+      s.kind = kind;
+      s.skill = skill;
+      s.x = s.px = c.player.x + 1;
+      s.z = s.pz = c.player.z;
+      s.r = 1.5;
+      s.life = s.t0 = 2;
+      s.dmg = 10;
+      if (kind === ShotKind.Flame) c.flames++;
+    }
+    for (const w of [c, d]) {
       w.mode = Mode.Won;
       startEndless(w);
-      play(w, 45);
     }
     expect(c.endless).toBe(true);
-    expect(c.corrupted).toBe(0);
+    for (let i = 0; i < c.enemyCount; i++) expect(c.enemies[i].corrupt).toBe(Corrupt.None);
+    expect(c.shotCount).toBe(0);
+    expect(c.flames).toBe(0);
     expect(fields(c)).toBe(fields(d));
-  }, 90_000);
+    const before = c.corrupted;
+    for (const w of [c, d]) play(w, 8);
+    expect(c.corrupted).toBe(before); // aucun corrompu de plus en monde infini
+    expect(fields(c)).toBe(fields(d));
+  });
 });
 
 describe('monstres corrompus : compétences (décision 4)', () => {
