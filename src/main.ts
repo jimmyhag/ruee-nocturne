@@ -3459,7 +3459,7 @@ function handleEvents(w: World, now: number): void {
           S.particles.ring(e.x, 0.4, e.z, PAL.corruptEye, (40 * fx) | 0, 9, 3);
           S.particles.burst(e.x, e.y + 2, e.z, PAL.corrupt, (30 * fx) | 0, 6, 8);
           if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.boss);
-        }
+        } else if (e.v === FINAL_DONE) hud.banner(t('over.heartDown'), 'reward'); // la victoire totale
         break;
       case Ev.Blocked:
         // coup sans effet (boss invulnérable, ou un double) : étincelles grises, son mat, pas de chiffre
