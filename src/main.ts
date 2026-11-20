@@ -3111,6 +3111,7 @@ function handleEvents(w: World, now: number): void {
   const fx = reduced ? 0.5 : 1; // particules ÷2 en mode réduit
   const PT = FEEL.particles;
   let bladeSnd = false; // phase 32 : un seul son de lame par pas, même si plusieurs cibles sont frappées
+  let scytheSnd = false; // 1.69.0 : un seul son de faux par pas, même à trois faux
   for (let i = 0; i < w.eventCount; i++) {
     const e = w.events[i];
     switch (e.type) {
@@ -3235,7 +3236,10 @@ function handleEvents(w: World, now: number): void {
             1,
           );
         }
-        audio.scythe();
+        if (!scytheSnd) {
+          audio.scythe();
+          scytheSnd = true;
+        }
         break;
       }
       case Ev.MeteorWarn:
