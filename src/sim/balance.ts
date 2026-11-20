@@ -538,7 +538,8 @@ export const ENDLESS = {
 // quatre phases (souvenir, sceaux, éclipse, fureur) ; le vaincre ouvre le monde infini corrompu. Réglé par
 // `npm run sim` (règle 13, décision 13 : 40 à 60 % des parties maxées qui l'atteignent le battent, combat p50 2 à 4 min).
 // Réglage : 208 entrées dans l'Arène (parties maxées, bot moyen) rejouées avec chaque essai (docs/GATES.md) ; au départ
-// (PV ×2, attaques toutes les 1,8 s, dégâts ×1) 93 % de victoires en 75 s ; retenu : 47 % en 2:25
+// (PV ×2, attaques toutes les 1,8 s, dégâts ×1) 93 % de victoires en 75 s ; retenu : 55 % en 2:28 sur ces combats, et
+// 4 graines × 200 parties maxées de la CLI pour la mesure de la décision 13 (docs/GATES.md)
 export const ARENA = STAGE.count; // indice de l'Arène dans w.stage : après les trois mondes
 export const FINAL = {
   arenaR: 16, // u : rayon du cercle de flammes à l'entrée (≈ un écran et demi de téléphone en largeur)
@@ -551,8 +552,9 @@ export const FINAL = {
   // combat durait 2:00 et le bot gagnait 9 fois sur 10 ; ×8,5 avec les dégâts ci-dessous : 2:25
   hp: 8.5,
   // dégâts de ses attaques, de sa charge et de son contact (et de ses doubles) × ceux d'un monstre de la fin du monde 3 :
-  // à ×1, le kit complet ne mourait qu'à sa charge ; ×1,6 : 50 % de victoires, ×1,65 avec des doubles plus lents : 47 %
-  dmg: 1.65,
+  // à ×1, le kit complet ne mourait qu'à sa charge. ×1,65 : 47 % sur les combats rejoués mais 42 % dans la CLI (4 graines
+  // × 200, au bord de la cible) ; ×1,5 : 55 % rejoués
+  dmg: 1.5,
   scale: 1.5, // taille du modèle (rendu) × celle du Colosse, dont il reprend le modèle
   // rayon de collision (u) : un peu plus que le Colosse (2,6), moins que son modèle agrandi : le couloir de sa charge (son
   // diamètre) reste franchissable d'un pas de côté pendant l'annonce
