@@ -7,11 +7,18 @@
 //
 // Après une mise à jour du jeu, la restauration tolère les écarts : un champ absent de la sauvegarde garde sa valeur
 // neuve, un champ inconnu est ignoré. SNAP_FORMAT ne monte que si un changement rend les anciennes sauvegardes fausses.
+import { FAUX, WEAPON_LINES } from './balance';
 import { syncTiers } from './tiers';
-import { refreshStats } from './weapons/defs';
+import { WEAPONS, lineIndex, refreshStats } from './weapons/defs';
 import { World } from './world';
 
 export const SNAP_FORMAT = 1;
+/**
+ * Révision du contenu d'un instantané (absente avant la 1.69.0 : 0). Elle ne casse pas la reprise : restoreWorld convertit
+ * ce qui a changé de sens. 1 (1.69.0, docs/specs/rafales-faux-guidage.md, décision 11) : la ligne « +15° d'arc » de la Faux
+ * est devenue « +1 faux », à la même place.
+ */
+export const SNAP_REV = 1;
 
 /** Champs refaits par buildMapFor (carte du monde courant), refaits à chaque pas, ou recalculés : jamais sauvegardés. */
 export const MAP_FIELDS: ReadonlySet<string> = new Set([
@@ -61,6 +68,7 @@ const REPLACED: ReadonlySet<string> = new Set(['weapons', 'tomes']);
 
 export interface RunSnap {
   format: number;
+  rev?: number; // SNAP_REV à l'écriture
   startSeed: number;
   seed: number; // graine de la carte du monde courant
   rng: number;
@@ -203,7 +211,25 @@ export function snapshotWorld(w: World): RunSnap {
     if (k in POOLS) fields[k] = encodePool(v as Record<string, unknown>[], rec[POOLS[k]] as number, k);
     else fields[k] = encode(v, k);
   }
-  return { format: SNAP_FORMAT, startSeed: w.startSeed, seed: w.seed, rng: w.rng.state(), flow: w.flow.save(), fields };
+  return {
+    format: SNAP_FORMAT,
+    rev: SNAP_REV,
+    startSeed: w.startSeed,
+    seed: w.seed,
+    rng: w.rng.state(),
+    flow: w.flow.save(),
+    fields,
+  };
+}
+
+/**
+ * Partie gardée avant la 1.69.0 : ses lignes « +15° d'arc » (FAUX.legacyArcStep) deviennent des faux, une de plus par
+ * tranche d'un arc de faux gagnée, arrondi au plus proche, au plus le plafond de la ligne (le tour complet).
+ */
+function legacyScythes(w: World): void {
+  const j = lineIndex(WEAPON_LINES.faux, 'n');
+  const deg = w.wmods.faux[j] * FAUX.legacyArcStep;
+  w.wmods.faux[j] = Math.min(WEAPON_LINES.faux[j].max ?? 0, Math.round(deg / WEAPONS.faux.base.arc));
 }
 
 /** World reconstruit : carte du monde courant refaite, puis état de la partie réécrit par-dessus. */
@@ -222,6 +248,7 @@ export function restoreWorld(s: RunSnap): World {
   w.rng.setState(s.rng);
   w.flow.load(s.flow);
   w.eventCount = 0;
+  if ((s.rev ?? 0) < 1) legacyScythes(w);
   refreshStats(w);
   syncTiers(w); // lot L5 : partie gardée avant les paliers, paliers retrouvés sans célébration
   return w;

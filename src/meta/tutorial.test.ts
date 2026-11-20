@@ -36,6 +36,7 @@ import {
   guideTotemWait,
   newGuide,
   readGuide,
+  takeWindow,
   updateGuide,
 } from './guide';
 import { revealNews } from './reveal';
@@ -417,7 +418,7 @@ describe('partie guidée : le totem obligatoire et le boss (décisions 6 et 7)',
 
   it('The guided run boss is a real boss', () => {
     // même appel du totem à 8:00 (avec un totem de boss activé : un double) dans une partie normale et dans la partie
-    // guidée : mêmes PV, mêmes dégâts, même rythme, alors que les monstres du monde 1 sont adoucis
+    // guidée : mêmes dégâts, même rythme, alors que les monstres du monde 1 sont adoucis
     const call = (tutorial: boolean) => {
       const w = new World(TUTORIAL.map, { ...tutorialOptions(), tutorial });
       quiet(w);
@@ -434,14 +435,16 @@ describe('partie guidée : le totem obligatoire et le boss (décisions 6 et 7)',
     const normal = call(false),
       guided = call(true);
     expect(guided.boss.type).toBe(STAGE.bosses[0]); // le Gardien
-    expect(guided.boss.max).toBeCloseTo(normal.boss.max, 6);
+    // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12 amendée) : ses PV × TUTORIAL.bossHp, réglé par la simulation
+    // (la rafale entière part sur un boss seul) ; le reste est celui d'un boss normal
+    expect(guided.boss.max).toBeCloseTo(normal.boss.max * TUTORIAL.bossHp, 6);
     expect(guided.boss.max).toBeCloseTo(
-      ENEMIES[STAGE.bosses[0]].hp * BOSS.hpMul[0] * SPAWN.hpScale(STAGE.bossHpAt[0]),
+      ENEMIES[STAGE.bosses[0]].hp * BOSS.hpMul[0] * SPAWN.hpScale(STAGE.bossHpAt[0]) * TUTORIAL.bossHp,
       6,
     );
     expect(guided.boss.dmgMul).toBeCloseTo(normal.boss.dmgMul, 9);
     expect(guided.boss.cadence).toBe(normal.boss.cadence);
-    expect(guided.extra.max).toBeCloseTo(normal.extra.max, 6);
+    expect(guided.extra.max).toBeCloseTo(normal.extra.max * TUTORIAL.bossHp, 6);
     expect(guided.extra.dmgMul).toBeCloseTo(normal.extra.dmgMul, 9);
     expect(guided.mob.dmgMul / normal.mob.dmgMul).toBeCloseTo(TUTORIAL.dmg, 9); // les monstres, eux, restent adoucis
     // il tue le joueur : la feuille « À toi de jouer », l'or de la partie et la prime (méta ; l'écran : e2e)
@@ -476,8 +479,9 @@ describe('partie guidée : le totem obligatoire et le boss (décisions 6 et 7)',
     expect(stageLeft(w)).toBe(0);
     step(w, idle(), STEP);
     expect(w.overT).toBeGreaterThan(0);
-    // ralenti et consigne (interface : e2e), flèche vers le portail
-    expect(g.hint).toBe(Hint.Portal);
+    // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 2) : la fenêtre du portail (interface : e2e), flèche vers lui
+    expect(g.hint).toBe(-1);
+    expect(takeWindow(g)).toBe(Hint.Portal);
     const at = { x: 0, z: 0 };
     expect(guideTarget(g, w, at)).toBe(true);
     expect([at.x, at.z]).toEqual([w.totem.x, w.totem.z]);
@@ -555,7 +559,7 @@ describe('partie guidée : les consignes uniques (décision 8)', () => {
     w.portal.open = true;
     w.emit(Ev.PortalOpen, w.totem.x, 0, w.totem.z, 2);
     updateGuide(g, w, 0);
-    expect(g.hint).toBe(Hint.Portal); // consigne (et ralenti : interface)
+    expect(takeWindow(g)).toBe(Hint.Portal); // 1.69.0 (rafales-faux-guidage.md, décision 2) : sa fenêtre (interface)
     const at = { x: 0, z: 0 };
     expect(guideTarget(g, w, at)).toBe(true); // flèche vers le portail
     expect([at.x, at.z]).toEqual([w.totem.x, w.totem.z]);

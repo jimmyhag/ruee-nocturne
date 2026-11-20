@@ -81,6 +81,11 @@ export function spawnEnemy(w: World, type: number, ang: number, dist: number, el
   e.lastBoom = -9;
   e.lastLance = -9;
   e.lanceBits = 0;
+  // 1.69.0 : rien en route vers un nouveau venu, aucun tir de rafale reçu (l'emplacement a pu servir à un autre)
+  e.inbound = 0;
+  e.inboundT = -9;
+  e.burstId = -1;
+  e.burstHits = 0;
   e.lastPatins = -9;
   e.face = 0;
   e.spd = w.rng.range(0.9, 1.1) * SPAWN.spdScale(w.diffT) * w.overSpd * R.spd;

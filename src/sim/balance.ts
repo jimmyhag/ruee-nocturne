@@ -229,6 +229,10 @@ export const TUTORIAL = {
   hp: 0.45, // PV des monstres du monde 1 × (pas des boss : leurs PV sont calculés à part)
   dmg: 0.35, // dégâts des monstres du monde 1 × (boss de survie compris ; pas le boss du totem ni ses doubles)
   survivalHp: 1, // PV des boss de survie (3:00, 7:00) ×
+  // PV du boss du totem du monde 1 (et de ses doubles) × : 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12
+  // amendée, sparring du 20 nov.) : la rafale entière part sur un boss seul (les tomes imposés donnent des projectiles en
+  // plus), abattu dans 94 % des combats à ×1 ; ×2 : 85 % ; ×3 : 73 % ; ×4 : 59 % (2 graines × 200)
+  bossHp: 3.5,
   // tomes imposés (décision 13) : le premier à la première montée de niveau, le second à la deuxième ; aucun autre
   // tome n'est tiré de toute la partie guidée (ses deux emplacements de tome sont pris)
   tomes: ['degats', 'projectiles'] as readonly TomeKey[],
@@ -245,7 +249,11 @@ export const DAILY = {
   bossAt: 240, // s de partie : le boss final (celui du totem du monde 1) sort autour du joueur
   bossWarn: 10, // s de préavis (bannière « Boss final »), comme un boss de survie
   bossDist: 12, // u du joueur à l'apparition
-  bossHp: 1.8, // PV du boss final, × ceux du boss du totem du monde 1 (même règle de calcul), réglé par `npm run sim -- --daily`
+  // PV du boss final, × ceux du boss du totem du monde 1 (même règle de calcul), réglé par `npm run sim -- --daily`.
+  // 1.69.0 (décision 12 amendée, sparring du 20 nov.) : la rafale entière part sur lui ; argent 35 % à ×1,8, 33 % à
+  // ×2,3, 26 % à ×2,8 (règles mêlées, 2 graines × 200) ; par règle (4 graines × 200 chacune), ×3,3 : 28 % regroupé
+  // mais Élites et Nuée à 35 % ; ×4,3 : 24 % regroupé, 13 à 31 % selon la règle
+  bossHp: 4.3,
   // rythme de ses attaques (comme BOSSTOTEM.extraCadence) : face au kit de départ, c'est lui qui tue, pas ses PV
   bossCadence: 0.6,
   goldAt: 600, // s de partie : vivant à 10:00 (5 minutes de monde infini) avec l'argent, c'est l'or
@@ -549,8 +557,10 @@ export const FINAL = {
   // monstres et du boss à ce niveau, comme le boss du totem du monde 3
   diffT: STAGE.dur + STAGE.offset[STAGE.count - 1],
   // PV × ceux d'un boss du totem du monde 3 appelé maintenant (même calcul, sans prolongation ni Idole) : à ×4,5 le
-  // combat durait 2:00 et le bot gagnait 9 fois sur 10 ; ×8,5 avec les dégâts ci-dessous : 2:25
-  hp: 8.5,
+  // combat durait 2:00 et le bot gagnait 9 fois sur 10 ; ×8,5 avec les dégâts ci-dessous : 2:25. 1.69.0
+  // (docs/specs/rafales-faux-guidage.md, décision 12 amendée, sparring du 20 nov.) : la rafale entière part sur lui,
+  // vaincu dans 66 % des combats à ×8,5 ; ×10,5 et ×12,5 : 59 % (mêmes 73 combats) ; ×16 : 48 %, combat p50 2:50
+  hp: 16,
   // dégâts de ses attaques, de sa charge et de son contact (et de ses doubles) × ceux d'un monstre de la fin du monde 3 :
   // à ×1, le kit complet ne mourait qu'à sa charge. ×1,65 : 47 % sur les combats rejoués mais 42 % dans la CLI (4 graines
   // × 200, au bord de la cible) ; ×1,5 : 55 % rejoués
@@ -997,6 +1007,9 @@ export const BOSS = {
 export const BOOMERANG = {
   rehit: 0.45, // un ennemi n'est touché qu'une fois par passage (aller, puis retour)
   safetyLife: 6, // libéré bien avant par le retour ; sécurité si le joueur fuit plus vite
+  // 1.69.0 (décision 7) : lancé vers l'ennemi le plus proche, où qu'il soit (comme avant, il part dès qu'un ennemi
+  // existe ; seule la direction change) ; sans aucun ennemi, nouvel essai dans `wait` s
+  wait: 0.15,
 };
 // phase 32 (demande de Jimmy) : les Lames ne tournent plus autour du héros (le Halo le fait déjà) ; toutes les `cd` s, elles
 // frappent les `n` ennemis les plus proches à moins de `range` u, chaque coup touchant tout ce qui est à moins de `r` de la cible
@@ -1007,13 +1020,40 @@ export const LAMES = {
   first: 0.3, // s avant le premier coup d'une partie
 };
 // phase 28 : comportement des armes nouvelles
-export const FAUX = { kb: 7, wait: 0.15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s
-export const LANCE = { range: 16, hitR: 0.45, kb: 2, spread: 0.16, lifeMargin: 1.15, retry: 0.25, maxPerSalvo: 30 }; // cible : l'ennemi le plus loin à moins de 16 u ; éventail de 0,16 rad entre lances ; sans cible, nouvel essai dans 0,25 s ; au plus 30 lances par salve (un bit par lance)
+// 1.69.0 (docs/specs/rafales-faux-guidage.md, décisions 9 et 11) : la Faux gagne des faux (stat `n`), chacune couvre son
+// arc fixe (stat `arc`, 120°), côte à côte et centrées sur le regard : 1 devant, 2 tout l'avant, 3 le tour complet.
+// maxN : au-delà, une faux de plus ne couvre rien de plus (le tour est complet) : le tome Projectiles s'y arrête aussi.
+// legacyArcStep : degrés d'une ligne « +15° d'arc » d'une partie gardée en 1.68, convertie en faux à la reprise
+export const FAUX = { kb: 7, wait: 0.15, maxN: 3, legacyArcStep: 15 }; // recul fort ; sans ennemi à portée, nouvel essai dans 0,15 s
+/**
+ * 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 6, Jimmy : « comme Megabonk », « un par un ») : les projectiles
+ * en plus de l'Orbe, de la Lance, du Boomerang et du Fouet partent en rafale, un après l'autre, chacun vers la cible de
+ * l'arme au moment où il part, sauf si elle est « couverte » (dégâts en route suffisants, ou BURST.maxSame tirs de la
+ * rafale déjà reçus) : il passe alors à la suivante (multi-cible gardé, précisions de Jimmy). La recharge part du
+ * premier tir.
+ */
+export const BURST = {
+  // s entre deux tirs d'une rafale, ramené à recharge / n quand la rafale ne tiendrait pas dans la recharge : la cadence
+  // d'une arme ne baisse jamais à cause de la rafale. Règle 13 (docs/GATES.md) : l'Orbe à 0,12 s sans ce plafond
+  // (rafales plus longues que la recharge) faisait tomber les victoires du profil nu de 23,8 à 4,4 %, lui qui monte une
+  // seule arme à 6 projectiles et plus : l'écart n'est pas un levier, il reste à 0,08
+  gap: { orbe: 0.08, lance: 0.08, boomerang: 0.08, fouet: 0.08 },
+  // s : marge après l'arrivée prévue d'un tir pendant laquelle ses dégâts comptent « en route » vers sa cible (un tir de
+  // la rafale saute une cible que ceux en vol suffisent à tuer, précision de Jimmy) ; au-delà, le tir est raté
+  margin: 0.1,
+  // tirs d'une même rafale vers un même ennemi tant que d'autres, à portée, ne sont pas couverts (précision de Jimmy) :
+  // à 2, une élite proche ne boit plus toute la rafale pendant que la horde avance ; 3 si élites et boss tiennent
+  // nettement plus longtemps à la simulation (boss en vie p50)
+  maxSame: 2,
+};
+export const LANCE = { range: 16, hitR: 0.45, kb: 2, lifeMargin: 1.15, retry: 0.25, maxPerSalvo: 30 }; // cible : l'ennemi le plus loin à moins de 16 u (1.69.0 : chaque lance de la rafale le vise au moment où elle part) ; sans cible, nouvel essai dans 0,25 s ; au plus 30 lances par rafale (un bit par lance)
 export const METEOR = { delay: 0.6, range: 13, around: 8, kb: 3, max: 32, tries: 8 }; // cercle annoncé 0,6 s ; sur un ennemi à < 13 u (8 tirages au plus), sinon autour du joueur ; 32 en attente au plus (le surplus d'une salve est perdu)
 // phase 47 C (demande de Jimmy : des armes) : quatre armes, chacune avec sa portée, son ciblage et son rythme
 // Fouet : courte · direction du regard · rapide. Une claque en ligne (longueur = stat r), très fort recul.
 // halfW : demi-largeur de la ligne ; wait : nouvel essai sans ennemi à portée ; h : hauteur de la main (départ du trait)
-export const FOUET = { kb: 13, halfW: 0.9, wait: 0.15, maxDirs: 4, h: 0.9 };
+// 1.69.0 (décision 7) : chaque claque d'une rafale (n claques) vise l'ennemi le plus proche à portée, sinon le regard ;
+// maxLashes : claques par rafale au plus
+export const FOUET = { kb: 13, halfW: 0.9, wait: 0.15, maxLashes: 4, h: 0.9 };
 // Vitriol : moyenne · le plus gros groupe · dégâts dans la durée. Flaque de `dur` s, un coup toutes les `tick` s, ralentit.
 export const VITRIOL = { range: 11, dur: 4, tick: 0.5, slowT: 0.7, max: 8, tries: 6, retry: 0.3 };
 // Esprits : courte · automatique · continu. Ils tournent autour du héros, foncent sur un ennemi proche, reviennent.
@@ -1131,7 +1171,9 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'r', step: 0.05, kind: 'pct', max: 15, weight: 2 },
-    { stat: 'arc', step: 15, kind: 'add', max: 16, weight: 2 }, // degrés : jusqu'au cercle complet
+    // 1.69.0 (décision 9) : « +1 faux » remplace « +15° d'arc », à la même place (index gardé par les parties en cours) ;
+    // ligne rare comme tout « +1 », deux au plus : trois faux font le tour complet
+    { stat: 'n', step: 1, kind: 'add', max: 2, weight: 1, label: 'scythes' },
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
   lance: [
@@ -1153,7 +1195,7 @@ export const WEAPON_LINES: Record<WeaponKey, StatLine[]> = {
     { stat: 'dmg', step: 0.1, kind: 'pct', weight: 3 },
     { stat: 'cd', step: -0.05, kind: 'pct', max: 15, weight: 3 },
     { stat: 'r', step: 0.06, kind: 'pct', max: 10, weight: 2, label: 'reach' }, // longueur de la claque
-    { stat: 'n', step: 1, kind: 'add', max: 2, weight: 1, label: 'dirs' }, // devant et derrière au départ, puis les côtés
+    { stat: 'n', step: 1, kind: 'add', max: 2, weight: 1, label: 'lashes' }, // 1.69.0 : claques par rafale (deux au départ)
     { stat: 'crit', step: 0.05, kind: 'add', max: 8, weight: 2 },
   ],
   vitriol: [

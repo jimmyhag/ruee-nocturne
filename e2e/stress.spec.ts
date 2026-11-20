@@ -249,7 +249,16 @@ test('400 ennemis au bord et au coin de la carte, pendant un sort : budget tenu'
 
 // Phase 30 (relecture perf) : les effets d'armes (sprites lumineux, arcs, éclairs, halo) sous charge. Le kit de départ
 // n'a qu'une arme : ici, 4 armes (le plafond d'emplacements) parmi les plus chargées à l'écran, 400 ennemis.
-async function weaponsBudget(page: Page, info: TestInfo, kit: [string, number][], label: string): Promise<void> {
+/** `lines` : lignes ajoutées à la main (arme, index de la ligne, nombre), par exemple les « +1 faux » (1.69.0). */
+async function weaponsBudget(
+  page: Page,
+  info: TestInfo,
+  kit: [string, number][],
+  label: string,
+  lines: [string, number, number][] = [],
+): Promise<void> {
+  // la Faux ne fauche qu'un ennemi à sa portée (3,2 u) : on en pose quelques-uns contre le héros avant chaque relevé
+  const scythes = kit.some(([k]) => k === 'faux');
   const errors = collectConsoleErrors(page);
   await page.goto('/?debug=1&stress=400');
   await page.waitForFunction(() => (window as any).__game?.ready === true);
@@ -267,17 +276,25 @@ async function weaponsBudget(page: Page, info: TestInfo, kit: [string, number][]
     null,
     { timeout: 20_000 },
   );
-  await page.evaluate((kit) => {
-    const g = (window as any).__game;
-    g.world.player.need = 1e9;
-    for (const k of Object.keys(g.world.weapons)) delete g.world.weapons[k];
-    for (const [k, lv] of kit) g.debug.give(k, lv);
-  }, kit);
+  await page.evaluate(
+    ([kit, lines]) => {
+      const g = (window as any).__game;
+      g.world.player.need = 1e9;
+      for (const k of Object.keys(g.world.weapons)) delete g.world.weapons[k];
+      for (const [k, lv] of kit) g.debug.give(k, lv);
+      for (const [k, j, n] of lines) {
+        g.world.wmods[k][j] = n;
+        g.debug.upgrade(k, 0); // stats recalculées
+      }
+    },
+    [kit, lines] as const,
+  );
   await page.waitForFunction(() => (window as any).__game.world.enemyCount >= 380, null, { timeout: 15_000 });
   await page.waitForTimeout(1500);
   const measure = async () => {
-    const worst = { calls: 0, triangles: 0, glow: 0 };
+    const worst = { calls: 0, triangles: 0, glow: 0, scythes: 0 };
     for (let f = 0; f < 16; f++) {
+      if (scythes) await page.evaluate(() => (window as any).__game.debug.spawn(2, 4, 2.4));
       await page.waitForTimeout(90);
       const r = await page.evaluate(() => {
         const g = (window as any).__game;
@@ -285,11 +302,13 @@ async function weaponsBudget(page: Page, info: TestInfo, kit: [string, number][]
           calls: g.renderer.info.render.calls as number,
           triangles: g.renderer.info.render.triangles as number,
           glow: g.scene.glowW.mesh.count as number,
+          scythes: g.scene.scytheW.mesh.count as number,
         };
       });
       worst.calls = Math.max(worst.calls, r.calls);
       worst.triangles = Math.max(worst.triangles, r.triangles);
       worst.glow = Math.max(worst.glow, r.glow);
+      worst.scythes = Math.max(worst.scythes, r.scythes);
     }
     return worst;
   };
@@ -304,6 +323,7 @@ async function weaponsBudget(page: Page, info: TestInfo, kit: [string, number][]
     `[${info.project.name}] ${label} : pixel ${px.calls} appels, ${(px.triangles / 1000).toFixed(1)} k tris ; net ${net.calls} appels, ${(net.triangles / 1000).toFixed(1)} k tris ; lueurs ≤ ${Math.max(px.glow, net.glow)}`,
   );
   expect(px.glow, 'des lueurs sont à l’écran').toBeGreaterThan(0);
+  if (scythes) expect(Math.max(px.scythes, net.scythes), 'des faux à l’écran').toBeGreaterThan(0);
   expect(px.calls, `draw calls ≤ ${callBudget(info.project.name)}`).toBeLessThanOrEqual(callBudget(info.project.name));
   expect(px.triangles, 'triangles ≤ 150 k (pixel)').toBeLessThan(150_000);
   expect(net.calls, `draw calls ≤ ${callBudget(info.project.name)} (net)`).toBeLessThanOrEqual(
@@ -324,6 +344,27 @@ test('400 ennemis, 4 armes au niveau 8 : budget tenu avec les effets', async ({ 
       ['orbe', 8],
     ],
     '4 armes',
+  );
+});
+
+// 1.69.0 (docs/specs/rafales-faux-guidage.md, relecture perf) : les trois faux (un InstancedMesh de plus, le seul) avec
+// les rafales de l'Orbe, de la Lance et du Fouet, à 400 ennemis : le budget d'appels tient (mobile : 40)
+test('400 ennemis, trois faux et les rafales : budget tenu', async ({ page }, info) => {
+  await weaponsBudget(
+    page,
+    info,
+    [
+      ['faux', 8],
+      ['orbe', 8],
+      ['lance', 8],
+      ['fouet', 8],
+    ],
+    'trois faux et rafales',
+    [
+      ['faux', 3, 2], // « +1 faux » × 2 : trois faux, le tour complet
+      ['orbe', 2, 5], // « +1 projectile » × 5
+      ['lance', 2, 4],
+    ],
   );
 });
 

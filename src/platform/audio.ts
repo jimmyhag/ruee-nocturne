@@ -426,9 +426,24 @@ export class AudioBus {
     v.end = t + dur + 0.02;
   }
 
+  /**
+   * Tir (un par projectile depuis les rafales de la 1.69.0 : une Orbe à 9 projectiles en joue 9 par salve) : au plus un
+   * son par MIN_GAP.orb s, échantillon comme repli synthétisé ; les particules de chaque tir restent.
+   */
   shoot(): void {
     if (this.sample('orb', this.sfx, 0.7, PRIO.shoot)) return;
+    if (this.gapped('orb')) return;
     this.tone(this.sfx, 880 + Math.random() * 80, 0.05, 'triangle', 0.12, -400, PRIO.shoot);
+  }
+  /** Repli synthétisé : même écart minimal que l'échantillon (MIN_GAP) ; vrai si ce son doit se taire. */
+  private gapped(key: SfxKey): boolean {
+    if (!this.ctx) return true;
+    const gap = MIN_GAP[key],
+      last = this.lastPlay[key],
+      now = this.ctx.currentTime;
+    if (gap !== undefined && last !== undefined && now - last < gap && now >= last) return true;
+    this.lastPlay[key] = now;
+    return false;
   }
   /** Phase 36 : estoc de la Lance. */
   lance(): void {
@@ -741,6 +756,7 @@ export class AudioBus {
   /** Lancer de boomerang. */
   throwSound(): void {
     if (this.sample('throw', this.sfx, 0.7, PRIO.shoot)) return;
+    if (this.gapped('throw')) return; // 1.69.0 : un lancer par boomerang de la rafale
     this.tone(this.sfx, 700, 0.12, 'triangle', 0.14, -300, PRIO.shoot);
   }
   /** Bouclier (phase 28) : choc de métal. */

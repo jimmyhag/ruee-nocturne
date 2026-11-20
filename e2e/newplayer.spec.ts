@@ -89,7 +89,11 @@ test('personnage : le Bûcheron débloqué devient sélectionnable et démarre a
   expect(w.hp).toBe(130);
 });
 
-// Porte de phase 6 : un nouveau personnage en moins de 5 runs (achat en or), et l'achat lui-même.
+// Porte de phase 6 : un nouveau personnage en moins de 5 runs (achat en or), et l'achat lui-même. Décision de Jimmy
+// (20 nov. 2026, lot 1.69.0) : le nombre de parties n'est plus vérifié ici, sur un seul tirage figé (une partie qui
+// diverge au hasard faisait passer ou échouer la porte) ; il l'est par tools/newplayer.test.ts sur 8 tirages (« The
+// Veilleuse unlocks in fewer than 5 runs for a new player »). Ici, le parcours de l'interface : verrou, or crédité à
+// chaque partie, achat.
 test('personnage acheté en or : la Veilleuse se débloque en moins de 5 runs d’un nouveau joueur', async ({ page }) => {
   await openGame(page);
   const veilleuse = page.locator('#chars .char[data-char="veilleuse"]');
@@ -101,7 +105,8 @@ test('personnage acheté en or : la Veilleuse se débloque en moins de 5 runs d�
   await expect(buy).toHaveClass(/poor/);
   await expect(buy).toBeDisabled();
   await page.locator('#charactersBackBtn').click();
-  let runs = 0;
+  let runs = 0,
+    before = 0;
   for (; runs < 4; runs++) {
     await startRun(page, 10 + runs);
     await page.evaluate(() => (window as any).__game.debug.god());
@@ -116,9 +121,17 @@ test('personnage acheté en or : la Veilleuse se débloque en moins de 5 runs d�
     await expect(page.locator('#over')).toBeVisible({ timeout: 5000 });
     await page.locator('#menuBtn').click();
     const gold = await page.evaluate(() => (window as any).__game.meta.gold as number);
+    expect(gold, `or crédité par la partie ${runs + 1}`).toBeGreaterThan(before); // chaque partie rapporte
+    before = gold;
     if (gold >= 800) break;
   }
-  expect(runs + 1, 'runs nécessaires').toBeLessThan(5);
+  // le nombre de parties est jugé par tools/newplayer.test.ts (8 tirages) : ce tirage-ci, s'il n'a pas atteint le prix,
+  // est complété par le crochet de débogage de la méta pour tester l'achat
+  if (before < 800)
+    await page.evaluate(() => {
+      const g = (window as any).__game;
+      g.setMeta({ ...g.meta, gold: 800 });
+    });
   await openCharacters(page);
   await veilleuse.click();
   await expect(buy).not.toHaveClass(/poor/);

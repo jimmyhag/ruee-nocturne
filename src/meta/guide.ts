@@ -53,7 +53,19 @@ export const GESTURE_STEPS: readonly Step[] = [Step.Move, Step.Jump, Step.Slide,
  */
 // corrompus (docs/specs/corrompus.md, décision 7) : le premier monstre corrompu, en prolongation (bit ajouté en dernier :
 // les bits sont gardés dans la sauvegarde)
-export const HINTS = ['power', 'elite', 'survival', 'merchant', 'portal', 'world', 'corrupt'] as const;
+// 1.69.0 (docs/specs/rafales-faux-guidage.md, décisions 2 à 5) : le portail, la prolongation et le monde infini
+// s'expliquent dans une fenêtre qui met le jeu en pause (WINDOW_HINTS), pas dans la bulle ; bits ajoutés en dernier
+export const HINTS = [
+  'power',
+  'elite',
+  'survival',
+  'merchant',
+  'portal',
+  'world',
+  'corrupt',
+  'overtime',
+  'endless',
+] as const;
 export const enum Hint {
   Power = 0,
   Elite,
@@ -62,14 +74,20 @@ export const enum Hint {
   Portal,
   World,
   Corrupt,
+  Overtime, // 1.69.0 : « Temps écoulé ! », le chrono à 0 sans le boss du monde tué
+  Endless, // 1.69.0 : « Monde infini ! », la première entrée (défi du jour compris)
 }
+/** Consignes montrées dans une fenêtre (jeu en pause), une fois par joueur : bits de `GuideState.win` en attente. */
+export const WINDOW_HINTS: readonly Hint[] = [Hint.Portal, Hint.Overtime, Hint.Endless];
+/** Bits des fenêtres (masque de `GuideState.win`). */
+const WINDOW_MASK = WINDOW_HINTS.reduce((m, h) => m | (1 << h), 0);
 /**
  * Importance de chaque consigne (index : Hint) : deux au même moment, la plus importante passe. L'ordre des bits la
  * donnait jusqu'à la 1.66.0 ; la consigne des corrompus, ajoutée en dernier, est la moins importante : elle ne remplace
  * jamais une consigne affichée ou en attente (la plus fréquente, celle du portail, tombe une seconde avant le premier
  * corrompu), elle attend et revient au corrompu suivant.
  */
-const HINT_RANK: readonly number[] = [1, 2, 3, 4, 5, 6, 0];
+const HINT_RANK: readonly number[] = [1, 2, 3, 4, 5, 6, 0, 7, 8];
 export const hintRank = (h: number): number => HINT_RANK[h] ?? -1;
 /** Tous les bits de consignes : un joueur d'avant la partie guidée les a toutes « vues ». */
 export const ALL_HINTS = (1 << HINTS.length) - 1;
@@ -93,6 +111,7 @@ export interface GuideState {
   hint: number; // consigne apparue à ce pas (index dans HINTS), à afficher puis remettre à -1 ; -1 aucune
   elite: number; // heure de la prochaine élite connue (w.nextElite) : quand elle avance, une élite vient d'apparaître
   portal: boolean; // la flèche montre le portail (après sa consigne, jusqu'au monde suivant)
+  win: number; // 1.69.0 : fenêtres en attente (bits de WINDOW_HINTS), ouvertes par l'interface dès que le jeu le permet
 }
 
 export function newGuide(w: World, tutorial: boolean, hints: number): GuideState {
@@ -107,6 +126,7 @@ export function newGuide(w: World, tutorial: boolean, hints: number): GuideState
     hint: -1,
     elite: w.nextElite,
     portal: false,
+    win: 0,
   };
   return g;
 }
@@ -130,6 +150,8 @@ export function readGuide(raw: unknown): GuideState | null {
     hint: -1,
     elite: o.elite as number,
     portal: o.portal,
+    // une fenêtre en attente (derrière une carte de niveau) quand la partie a été gardée : elle s'ouvre à la reprise
+    win: n(o.win) ? (o.win as number) & WINDOW_MASK : 0,
   };
 }
 
@@ -241,13 +263,40 @@ function passedBy(g: GuideState, w: World, type: Ev, y2: number): boolean {
   }
 }
 
-/** Consigne de première apparition : une fois par joueur. */
+/**
+ * Consigne de première apparition : une fois par joueur. 1.69.0 : pendant qu'une fenêtre attend ou va s'ouvrir, la bulle
+ * se tait (elle s'userait derrière la pause) ; la consigne reviendra à sa prochaine apparition.
+ */
 function fire(g: GuideState, h: Hint): void {
   const bit = 1 << h;
+  if (g.win !== 0) return;
   if (g.hints & bit || (g.hint >= 0 && hintRank(g.hint) > hintRank(h))) return; // une plus importante attend (HINT_RANK)
   if (g.hint >= 0) g.hints &= ~(1 << g.hint); // la moins importante reviendra à sa prochaine apparition
   g.hints |= bit;
   g.hint = h;
+}
+
+/** Fenêtre de première fois (WINDOW_HINTS) : une fois par joueur, mise en attente jusqu'à ce que l'interface l'ouvre. */
+function fireWindow(g: GuideState, h: Hint): void {
+  const bit = 1 << h;
+  if (g.hints & bit) return;
+  g.hints |= bit;
+  g.win |= bit;
+}
+
+/**
+ * Fenêtre à ouvrir maintenant (index dans HINTS), retirée de l'attente ; -1 s'il n'y en a pas. L'interface l'appelle
+ * quand le jeu tourne sans autre feuille ouverte (décision 5 : carte de niveau, coffre ou marchand passent d'abord).
+ */
+export function takeWindow(g: GuideState): number {
+  for (let i = 0; i < WINDOW_HINTS.length; i++) {
+    const bit = 1 << WINDOW_HINTS[i];
+    if (g.win & bit) {
+      g.win &= ~bit;
+      return WINDOW_HINTS[i];
+    }
+  }
+  return -1;
 }
 
 /**
@@ -267,14 +316,22 @@ export function updateGuide(g: GuideState, w: World, dt: number): boolean {
     else if (e.type === Ev.PortalOpen) {
       g.elite = w.nextElite; // décision 18 : la chute du chrono décale l'élite suivante, ce n'est pas une élite apparue
       if (!(g.hints & (1 << Hint.Portal))) {
-        fire(g, Hint.Portal);
+        fireWindow(g, Hint.Portal); // 1.69.0, décision 2 : une fenêtre à la place de la bulle
         g.portal = true;
       }
-    } else if (e.type === Ev.StageStart) {
+    } else if (e.type === Ev.TimeUp && e.x2 !== 1)
+      fireWindow(g, Hint.Overtime); // décision 3 : chrono à 0, boss du monde pas tué (sinon le portail l'explique)
+    else if (e.type === Ev.StageStart) {
       g.portal = false;
       fire(g, Hint.World);
     }
     if (g.step !== Step.Free && passedBy(g, w, e.type, e.y2)) enter(g, w, (g.step + 1) as Step);
+  }
+  if (w.endless) fireWindow(g, Hint.Endless); // décision 4 : la première entrée en monde infini, défi du jour compris
+  if (g.win !== 0 && g.hint >= 0) {
+    // une bulle tombée au même pas qu'une fenêtre (le bonus lâché par le boss) attend sa prochaine apparition
+    g.hints &= ~(1 << g.hint);
+    g.hint = -1;
   }
   if (w.nextElite !== g.elite) {
     if (w.nextElite > g.elite && w.stageT > 0) fire(g, Hint.Elite);

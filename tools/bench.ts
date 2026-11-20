@@ -1,5 +1,5 @@
 // Bench : 400 ennemis forcés, 600 steps. Échoue si p95 > 6 ms, max > 20 ms ou tas +2 Mo.
-import { It, STEP } from '../src/sim/balance';
+import { It, STEP, WEAPON_LINES } from '../src/sim/balance';
 import { gainItem } from '../src/sim/items';
 import { startRun, step } from '../src/sim/step';
 import { spawnEnemy } from '../src/sim/spawner';
@@ -149,7 +149,50 @@ const aP95 = arenaTimes[Math.floor(0.95 * arenaTimes.length)],
 console.log(
   `Arène (boss final, phases 2–${a.finalPhase}, 900 pas) : p50 ${arenaTimes[arenaTimes.length >> 1].toFixed(3)} ms · p95 ${aP95.toFixed(3)} ms · max ${aMax.toFixed(3)} ms · tas ${aHeapMb >= 0 ? '+' : ''}${aHeapMb.toFixed(2)} Mo`,
 );
+// 1.69.0 (docs/specs/rafales-faux-guidage.md, relecture perf) : les rafales et les trois faux. Orbe, Lance, Fouet et
+// Faux, chaque ligne « +1 » au plafond et le tome Projectiles à +3 : rafales de 9 orbes, 8 lances, 4 claques, 3 faux,
+// cibles choisies tir par tir parmi 400 ennemis (burstTarget) ; mêmes budgets, aucune allocation attendue
+const r = new World(3);
+startRun(r);
+r.t = r.stageT = r.diffT = 400;
+r.weapons = { orbe: 8, lance: 8, fouet: 8, faux: 8 };
+for (const k of ['orbe', 'lance', 'fouet', 'faux'] as const) {
+  const lines = WEAPON_LINES[k];
+  for (let j = 0; j < lines.length; j++) if (lines[j].stat === 'n') r.wmods[k][j] = lines[j].max ?? 0;
+}
+r.player.projAdd = 3;
+refreshStats(r);
+r.player.maxHp = 1e9;
+for (let i = 0; i < 400; i++) spawnEnemy(r, MIX[i % MIX.length], (i / 400) * Math.PI * 2, 3 + (i % 17));
+const burstTimes: number[] = [];
+const runBurst = (n: number, keep: boolean) => {
+  for (let i = 0; i < n; i++) {
+    inp.mx = Math.cos(i / 60);
+    inp.mz = Math.sin(i / 60);
+    r.player.hp = HP;
+    const t0 = performance.now();
+    step(r, inp, STEP);
+    if (keep) burstTimes.push(performance.now() - t0);
+    if (r.enemyCount < 380)
+      for (let k = r.enemyCount; k < 400; k++) spawnEnemy(r, MIX[k % MIX.length], k, 4 + (k % 13));
+  }
+};
+runBurst(120, false); // chauffe
+gc?.();
+const bHeap0 = process.memoryUsage().heapUsed;
+runBurst(600, true);
+gc?.();
+const bHeapMb = (process.memoryUsage().heapUsed - bHeap0) / 1048576;
+burstTimes.sort((x, y) => x - y);
+const bP95 = burstTimes[Math.floor(0.95 * burstTimes.length)],
+  bMax = burstTimes[burstTimes.length - 1];
+console.log(
+  `rafales et faux (Orbe ${r.wstats.orbe.n}, Lance ${r.wstats.lance.n}, Fouet ${r.wstats.fouet.n}, Faux ${r.wstats.faux.n} ; 600 pas, ~${r.enemyCount} ennemis) : p50 ${burstTimes[burstTimes.length >> 1].toFixed(3)} ms · p95 ${bP95.toFixed(3)} ms · max ${bMax.toFixed(3)} ms · tas ${bHeapMb >= 0 ? '+' : ''}${bHeapMb.toFixed(2)} Mo`,
+);
 const ok =
+  bP95 <= 6 &&
+  bMax <= 20 &&
+  bHeapMb <= 2 &&
   +p(0.95) <= 6 &&
   maxMs <= 20 &&
   heapMb <= 2 &&

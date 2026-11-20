@@ -12,13 +12,15 @@ import { FINAL_TARGETS } from './targets';
  * <g> --out …`, lue par `node tools/sim-pool.mjs`, sur les parties qui atteignent l'Arène. Changer un réglage de FINAL
  * (ou de BOSS, HAZARDS.charge, CORRUPT) sans refaire la mesure fait échouer le test ; après une nouvelle mesure, recopier les chiffres et la nouvelle empreinte.
  */
-const MEASURED_FOR = 'f1715f7ae336ff46'; // FINAL, BOSS, HAZARDS.charge et CORRUPT de la mesure (24426f2)
+// 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12 amendée) : FINAL.hp ×8,5 → ×16, la rafale entière partant
+// maintenant sur le boss seul (vaincu 66,2 % à ×8,5) ; mesure refaite, 4 graines × 200
+const MEASURED_FOR = 'de32a84e73b3fd1a'; // FINAL, BOSS, HAZARDS.charge et CORRUPT de la mesure
 const MEASURED = {
-  arena: 128, // parties maxées qui atteignent l'Arène, sur 800
-  winPct: 50.0, // % de celles-là qui battent le boss final
-  fightP50: 149, // s, de son apparition à la fin du combat (victoire ou mort) : 2:29
-  deathPhasePct: [32.8, 31.3, 25.0, 10.9], // % des morts dans l'Arène, par phase
-  judgePct: 3.1, // % des morts dans l'Arène dues au Jugement
+  arena: 133, // parties maxées qui atteignent l'Arène, sur 800
+  winPct: 46.6, // % de celles-là qui battent le boss final
+  fightP50: 172, // s, de son apparition à la fin du combat (victoire ou mort) : 2:52
+  deathPhasePct: [27.5, 30.4, 11.6, 30.4], // % des morts dans l'Arène, par phase
+  judgePct: 5.8, // % des morts dans l'Arène dues au Jugement
 };
 
 describe('le boss final : réglage par la simulation (décision 13)', () => {

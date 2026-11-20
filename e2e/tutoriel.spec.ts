@@ -341,7 +341,7 @@ test('The first two tomes are imposed', async ({ page, hasTouch }) => {
 
 test('The map places are shown one by one', async ({ page, hasTouch }) => {
   await guided(page, hasTouch);
-  const texts = ['coffre', 'sanctuaire', 'course', 'crâne', 'totem de boss', 'totem du monde'];
+  const texts = ['coffre', 'sanctuaire', 'course', 'crâne', 'Totem de boss', 'totem du monde']; // 1.69.0 : « Totem de boss, facultatif »
   for (let k = 0; k < PLACES.length; k++) {
     await jumpTo(page, S.chest + k);
     await expect(page.locator('#tutoText')).toContainText(texts[k]);
@@ -384,7 +384,8 @@ test('The skull and the boss totem must be activated', async ({ page, hasTouch }
   await expect(page.locator('#banner')).toContainText('plus de monstres, plus de récompenses', { timeout: 40_000 });
   await page.waitForFunction((n) => (window as any).__game.guide.step === n, S.bossTotem);
   await shot(page, 'crane-active', hasTouch);
-  await expect(page.locator('#tutoText')).toContainText('Active le totem de boss');
+  // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 10) : le totem de boss est dit facultatif
+  await expect(page.locator('#tutoText')).toContainText('Totem de boss, facultatif');
   await page.waitForTimeout(1500);
   expect(await g(page)).toBe(S.bossTotem);
   const bt = await place('bossTotems');
@@ -456,8 +457,9 @@ test('The guided run boss is a real boss', async ({ page, hasTouch }) => {
   await page.evaluate(() => (window as any).__game.debug.kill());
   await expect(page.locator('#tutoEnd')).toBeVisible({ timeout: 8000 });
   await expect(page.locator('#over')).toBeHidden(); // pas l'écran de fin habituel
-  await expect(page.locator('#teTitle')).toHaveText('À toi de jouer !');
-  await expect(page.locator('#teText')).toContainText('Le Gardien était trop fort');
+  // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 1) : le résultat en titre, l'encouragement dessous
+  await expect(page.locator('#teTitle')).toHaveText('Le Gardien était trop fort… pour cette fois');
+  await expect(page.locator('#teText')).toContainText('reviens le battre');
   await expect(page.locator('#teBonus')).toHaveText('+150');
   const runGold = +(await page.locator('#teGold').textContent())!;
   const meta = await page.evaluate(() => (window as any).__game.meta);
@@ -492,7 +494,7 @@ test('Beating the guided run boss shows the portal', async ({ page, hasTouch }) 
     T.charge = 2.9;
   });
   await page.waitForFunction(() => (window as any).__game.world.totem.state === 1);
-  // le boss tombe : ralenti, consigne et flèche vers le portail
+  // le boss tombe : 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 2), la fenêtre du portail, puis la flèche
   await page.evaluate(() => {
     const w = (window as any).__game.world;
     const b = w.enemies[w.bossIndex];
@@ -500,8 +502,11 @@ test('Beating the guided run boss shows the portal', async ({ page, hasTouch }) 
     b.x = b.px = w.player.x + 3;
     b.z = b.pz = w.player.z;
   });
-  await expect(page.locator('#tutoText')).toHaveText('Un portail est apparu : entre dedans pour découvrir la suite');
-  await page.waitForFunction(() => (window as any).__game.tutoScale < 1); // ralenti
+  await expect(page.locator('#info')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#infoTitle')).toHaveText('Le portail est ouvert !');
+  if (hasTouch) await page.locator('#infoOk').tap();
+  else await page.keyboard.press('Enter');
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
   await expect(page.locator('#tutoArrow')).toBeVisible();
   await shot(page, 'portail-guidee', hasTouch);
   // il entre dans le portail : la consigne du nouveau monde, la partie continue
@@ -515,7 +520,8 @@ test('Beating the guided run boss shows the portal', async ({ page, hasTouch }) 
   // sa fin ouvre la feuille de fin de guide, avec le texte de victoire
   await page.evaluate(() => (window as any).__game.debug.kill());
   await expect(page.locator('#tutoEnd')).toBeVisible({ timeout: 8000 });
-  await expect(page.locator('#teText')).toContainText('Tu as battu le Gardien');
+  await expect(page.locator('#teTitle')).toHaveText('Tu as battu le Gardien !');
+  await expect(page.locator('#teTitle')).toHaveClass(/win/); // doré
   await expect(page.locator('#teBonus')).toHaveText('+150');
   await shot(page, 'victoire-guidee', hasTouch);
   const hints = await page.evaluate(() => (window as any).__game.meta.hints as number);
@@ -544,10 +550,14 @@ test('The portal is explained the first time', async ({ page, hasTouch }) => {
     b.x = b.px = w.player.x + 3;
     b.z = b.pz = w.player.z;
   });
-  await expect(page.locator('#tutoText')).toHaveText('Un portail est apparu : entre dedans pour découvrir la suite');
-  await page.waitForFunction(() => (window as any).__game.tutoScale < 1); // ralenti
-  await expect(page.locator('#tutoArrow')).toBeVisible();
+  // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 2) : une fenêtre, jeu en pause, à la place de la bulle
+  await expect(page.locator('#info')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('#infoTitle')).toHaveText('Le portail est ouvert !');
   await shot(page, 'portail', hasTouch);
+  if (hasTouch) await page.locator('#infoOk').tap();
+  else await page.keyboard.press('Space');
+  await page.waitForFunction(() => (window as any).__game.app === 'play');
+  await expect(page.locator('#tutoArrow')).toBeVisible();
   // retenue : elle ne revient plus
   const hints = await page.evaluate(() => (window as any).__game.meta.hints as number);
   expect(hints & (1 << 4)).toBeTruthy();

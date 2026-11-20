@@ -17,8 +17,9 @@ import { PROFILES, checkTargets } from './targets';
  * abattu (% de ceux qui l'atteignent), parties entrées dans le portail (%). Changer un réglage de TUTORIAL ou du guide
  * sans refaire la mesure fait échouer le test ; après une nouvelle mesure, recopier les chiffres et la nouvelle empreinte.
  */
-const MEASURED_FOR = '8a49ba54bd839a6c';
-const MEASURED = { reachPct: 97.1, deadBefore5Pct: 1.0, killPct: 73.0, portalPct: 70.9 };
+// 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12 amendée) : TUTORIAL.bossHp ×3,5, mesure 4 graines × 200
+const MEASURED_FOR = 'bce04b07c0b89c21';
+const MEASURED = { reachPct: 97.3, deadBefore5Pct: 1.3, killPct: 65.9, portalPct: 64.1 };
 
 describe('partie guidée : réglage par la simulation (décision 17)', () => {
   it('Nobody loses the guided run before the boss', () => {

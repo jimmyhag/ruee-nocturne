@@ -23,7 +23,7 @@ import type { World } from '../sim/world';
 export const TUTO_FEEL = {
   slow: 0.3, // ralenti (décision 2) : × le temps réel injecté dans la boucle (le pas fixe ne change pas)
   slowJump: 2.5, // s réelles : l'onde à franchir de l'étape du saut
-  slowHint: 1.6, // s réelles : un danger (boss de survie) ou le portail, à leur première apparition
+  slowHint: 1.6, // s réelles : un danger (boss de survie), à sa première apparition
   hint: 5, // s réelles d'affichage d'une consigne de première apparition
   forceMs: 4000, // ms : bannière « Va activer le totem rouge » au moment où elle commence
   edge: 44, // px : marge de la flèche au bord de l'écran
@@ -122,7 +122,8 @@ export class TutorialView {
       this.hintKey = g.hint;
       this.hintT = TUTO_FEEL.hint;
       this.stage = w.stage;
-      if (HINTS[g.hint] === 'survival' || HINTS[g.hint] === 'portal') this.slowT = TUTO_FEEL.slowHint;
+      // 1.69.0 : le portail s'explique dans une fenêtre en pause (main.ts : openInfo), sans ralenti
+      if (HINTS[g.hint] === 'survival') this.slowT = TUTO_FEEL.slowHint;
       this.host.hintShown(g.hint);
       g.hint = -1;
       this.dirty = true;

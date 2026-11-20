@@ -208,7 +208,8 @@ export function summonStageBoss(w: World): void {
     w.overHp *
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
     Math.max(ITEM.idole.min, 1 - ITEM.idole.hp * w.itemEff[It.Idole]) * // phase 47 B : Idole
-    difficultyHp(w); // phase 48
+    difficultyHp(w) * // phase 48
+    (w.tutorial && w.stage === 0 ? TUTORIAL.bossHp : 1); // 1.69.0 : partie guidée, réglé par la simulation
   // partie guidée (décision 16) : un boss normal, sans l'adoucissement des monstres du monde 1 (TUTORIAL.dmg)
   if (w.tutorial) e.dmgMul = dmgMulNow(w, true);
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;
@@ -393,6 +394,7 @@ function clearField(w: World): void {
   // ce qui vise des coordonnées de l'ancienne carte : météores annoncés, sorts qui durent (Collet, Bourse)
   w.wstate.metN = 0;
   w.wstate.vitN = w.wstate.balN = w.wstate.spN = 0; // phase 47 C : flaques, balises, esprits (ils repartent du héros)
+  w.wstate.orbeLeft = w.wstate.lanceLeft = w.wstate.boomLeft = w.wstate.fouetLeft = 0; // 1.69.0 : rafales en cours
   P.spellT = 0;
   w.sstate.pending = w.sstate.bondPending = false;
   w.stageT = 0;

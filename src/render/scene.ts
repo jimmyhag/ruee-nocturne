@@ -71,6 +71,7 @@ import { borderGeometry } from './border';
 import { Base, MotionState } from './motion';
 import { OUTLINE, stylize, toonGradient, toonMaterial } from './toon';
 import { glowTexture, runeRingTexture, slashTexture, softDiscTexture, softGlow, SLASH_ARC } from './textures';
+import { scytheGeometry } from './scythe';
 import { buildShrine } from './shrine';
 import { buildSkull } from './skull';
 import { buildTotem, stoneMaterial, TOTEM_HEIGHT } from './totem';
@@ -141,7 +142,7 @@ const FOG = { near: 30, far: 115 }; // phase 44 : brume au loin seulement (la ca
 const ELITE_MARKS = 48; // élites marquées à l'écran, au plus (anneaux, aura, couronne)
 const ELITE_RINGS = 2 * ELITE_MARKS; // phase 51 : deux anneaux dorés par élite
 const GLOW_CAP = 1536; // phase 30 : sprites lumineux (orbes et traînées, feu, météores, lances, mines, boomerangs)
-const SLASH_CAP = FEEL.blade.max + FEEL.slash.max * 3; // croissants : coups des Lames + arcs de Faux (3 croissants à 360°)
+const SLASH_CAP = FEEL.blade.max + FEEL.scythe.max; // croissants : coups des Lames + traînées des faux (une par faux)
 const BORDER_VIEW = 46; // phase 29 : u au-delà desquels un segment de lisière n'est plus dessiné (hors de la vue)
 const ENEMY_TINT_KEEP = 0.88; // part de blanc dans la teinte d'un ennemi (phase 46 B : les textures KayKit portent déjà la couleur)
 const ENEMY_RIM_WHITE = 0.6; // part de blanc dans la couleur du liseré
@@ -249,8 +250,11 @@ export class GameScene {
   private glowW: InstanceWriter;
   /** Phase 30 : arcs de lame (Faux, sillage des Lames) : un appel. */
   private slashW: InstanceWriter;
-  private slashes: { x: number; z: number; r: number; a: number; arc: number; life: number }[] = [];
-  private slashN = 0;
+  // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 8) : faux en train de faucher (une par Ev.Scythe), suivant le
+  // héros ; une seule famille instanciée pour toutes (scytheW), leur traînée dans les croissants (slashW)
+  private scytheW: InstanceWriter;
+  private scythes: { r: number; a: number; arc: number; life: number }[] = [];
+  private scytheN = 0;
   /** Phase 32 : coups des Lames en cours (posés par blade()). */
   private blades: { x: number; z: number; r: number; a: number; life: number }[] = [];
   private bladeN = 0;
@@ -683,12 +687,16 @@ export class GameScene {
       ),
     );
     this.scene.add(this.metW.mesh);
-    this.scene.add(this.bladeW.mesh, this.slashW.mesh);
+    this.scytheW = new InstanceWriter(
+      makeInstanced(scytheGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true }), FEEL.scythe.max),
+    );
+    this.scene.add(this.bladeW.mesh, this.slashW.mesh, this.scytheW.mesh);
     this.writers.push(
       ...this.enemyW,
       this.shadowW,
       this.glowW,
       this.slashW,
+      this.scytheW,
       this.boomW,
       this.mineW,
       this.bombW,
@@ -1563,19 +1571,17 @@ export class GameScene {
   }
 
   /**
-   * Phase 30 : coup de Faux, un arc de lame visible qui couvre l'angle réel de l'arme (direction dx, dz ; portée r ;
-   * `arcDeg` : ouverture totale en degrés, jusqu'à 360 avec les cartes).
+   * 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 8) : une faux apparaît et fauche son arc autour du héros
+   * (milieu de l'arc dans la direction dx, dz ; portée r ; `arcDeg` : son arc en degrés), avec sa traînée.
    */
-  scythe(x: number, z: number, r: number, dx: number, dz: number, arcDeg: number): void {
-    if (this.slashN >= FEEL.slash.max) return;
-    const sl = this.slashes[this.slashN] ?? { x: 0, z: 0, r: 0, a: 0, arc: 0, life: 0 };
-    this.slashes[this.slashN++] = sl;
-    sl.x = x;
-    sl.z = z;
-    sl.r = r;
-    sl.a = Math.atan2(dx, dz);
-    sl.arc = (Math.min(360, arcDeg) * Math.PI) / 180;
-    sl.life = FEEL.slash.life;
+  scythe(r: number, dx: number, dz: number, arcDeg: number): void {
+    if (this.scytheN >= FEEL.scythe.max) return;
+    const sc = this.scythes[this.scytheN] ?? { r: 0, a: 0, arc: 0, life: 0 }; // réserve qui grandit une fois
+    this.scythes[this.scytheN++] = sc;
+    sc.r = r;
+    sc.a = Math.atan2(dx, dz);
+    sc.arc = (Math.min(360, arcDeg) * Math.PI) / 180;
+    sc.life = FEEL.scythe.life;
   }
 
   /** Saut du joueur (Ev.Jump) : élan du héros glTF, puis la pose en l'air (Fall) prend le relais. */
@@ -2773,30 +2779,30 @@ export class GameScene {
         }
       }
     }
-    // phase 30 : arcs de Faux en cours (posés par scythe(), balayage pendant leur courte vie)
-    for (let i = this.slashN - 1; i >= 0; i--) {
-      const sl = this.slashes[i];
-      sl.life -= dt;
-      if (sl.life <= 0) {
-        const last = this.slashes[--this.slashN];
-        this.slashes[this.slashN] = sl;
-        this.slashes[i] = last;
+    // 1.69.0 : faux en cours (posées par scythe()) : chacune balaie son arc autour du héros (sens croissant de l'angle,
+    // celui du bord d'attaque du croissant), sa traînée en croissant la suit ; elle rétrécit et disparaît à la fin
+    this.scytheW.begin();
+    const SC = FEEL.scythe,
+      sY = gp + py + SC.h;
+    for (let i = this.scytheN - 1; i >= 0; i--) {
+      const sc = this.scythes[i];
+      sc.life -= dt;
+      if (sc.life <= 0) {
+        const last = this.scythes[--this.scytheN];
+        this.scythes[this.scytheN] = sc;
+        this.scythes[i] = last;
         continue;
       }
-      const f = sl.life / FEEL.slash.life; // 1 → 0
-      this.cSlashTmp.copy(this.tSlashFaux.c).multiplyScalar(Math.min(1, f * 1.8));
-      const sweep = (0.5 - f) * FEEL.slash.sweep;
-      // un croissant couvre 2·SLASH_ARC ; au-delà (cartes d'arc), plusieurs croissants se répartissent sur l'ouverture
-      const span = 2 * SLASH_ARC,
-        nArc = sl.arc > span ? Math.ceil(sl.arc / span) : 1,
-        step = nArc > 1 ? (sl.arc - span) / (nArc - 1) : 0,
-        y = this.gy(sl.x, sl.z) + 0.9,
-        rr = sl.r * (1.05 - f * 0.1);
-      for (let j = 0; j < nArc; j++) {
-        const off = nArc > 1 ? -(sl.arc - span) / 2 + j * step : 0;
-        this.slashW.put(sl.x, y, sl.z, sl.a - Math.PI / 2 + sweep + off, rr, this.cSlashTmp);
-      }
+      const f = Math.min(1, (SC.life - sc.life) / SC.sweep), // 0 → 1 pendant le balayage
+        e = 1 - (1 - f) * (1 - f), // départ vif, fin amortie
+        ang = sc.a - sc.arc / 2 + sc.arc * e,
+        out = Math.min(1, sc.life / SC.fade); // rétrécit sur ses dernières SC.fade s
+      this.scytheW.put(px, sY, pz, ang, sc.r * SC.scale * out, this.tSlashFaux.c);
+      // traînée : le bord d'attaque du croissant sur la lame, plus vive au cœur du balayage
+      this.cSlashTmp.copy(this.tSlashFaux.c).multiplyScalar(Math.min(1, (1 - f * 0.6) * out * 1.4));
+      this.slashW.put(px, sY - 0.05, pz, ang - SLASH_ARC - Math.PI / 2, sc.r * 1.02, this.cSlashTmp);
     }
+    this.scytheW.end();
     this.bladeW.end();
     this.slashW.end();
 

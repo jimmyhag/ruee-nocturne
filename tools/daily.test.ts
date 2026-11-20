@@ -89,14 +89,15 @@ const REPLAY = { kills: 29 };
  * fait échouer le test (relecture de l'inspecteur : les chiffres recopiés ne suivaient pas les réglages). Après une
  * nouvelle mesure, recopier les chiffres ci-dessous et la nouvelle empreinte.
  */
-const MEASURED_FOR = '0f8cdc531fb8a4b3';
+const MEASURED_FOR = 'c576bd8eeb5c61fa';
 const MEASURED: Record<DailyRuleKey, [number, number, number]> = {
-  swift: [40.8, 19.9, 2.9],
-  elites: [39.6, 29.0, 5.5],
-  swarm: [47.6, 29.1, 6.5],
-  glass: [46.4, 22.4, 2.9],
-  giants: [49.6, 17.9, 2.3],
-  armory: [46.5, 17.5, 5.6],
+  // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12 amendée) : rafales, et DAILY.bossHp ×1,8 → ×4,3
+  swift: [42.0, 24.3, 5.1],
+  elites: [47.8, 31.1, 9.6],
+  swarm: [50.5, 29.5, 8.1],
+  glass: [50.1, 26.4, 5.9],
+  giants: [53.0, 19.8, 2.8],
+  armory: [49.3, 12.6, 4.6],
 };
 
 describe('défi v2 : un défi juste quelle que soit la règle (décision 9)', () => {

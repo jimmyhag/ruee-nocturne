@@ -169,8 +169,8 @@ test('Corrupted monsters are explained the first time', async ({ page }) => {
   test.setTimeout(120_000);
   const errors = collectConsoleErrors(page);
   await openGame(page);
-  // un joueur qui a vu toutes les autres consignes, jamais un corrompu
-  await page.evaluate(() => (window as any).__game.setMeta({ ...(window as any).__game.meta, hints: 63 }));
+  // un joueur qui a vu toutes les autres consignes (fenêtres de la 1.69.0 comprises), jamais un corrompu
+  await page.evaluate(() => (window as any).__game.setMeta({ ...(window as any).__game.meta, hints: 511 & ~(1 << 6) }));
   await startRun(page, 3);
   // le monde passe en prolongation (+1 min) : la horde y amène des corrompus ; ni vague ni élite en rattrapage
   await page.evaluate(() => {

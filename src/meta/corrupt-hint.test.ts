@@ -5,7 +5,7 @@ import { STAGE, STEP } from '../sim/balance';
 import { tickSpawner } from '../sim/spawner';
 import { Ev } from '../sim/types';
 import { World } from '../sim/world';
-import { ALL_HINTS, HINTS, Hint, hintRank, newGuide, updateGuide } from './guide';
+import { ALL_HINTS, HINTS, Hint, hintRank, newGuide, takeWindow, updateGuide } from './guide';
 import { DEFAULT_META, normalizeMeta } from './save';
 import { worldOptions } from './shop';
 import fr from '../i18n/fr.json';
@@ -77,19 +77,18 @@ describe('monstres corrompus : la consigne (décision 7)', () => {
     w.emit(Ev.PortalOpen, w.totem.x, 0, w.totem.z, 2);
     w.emit(Ev.Corrupt, 0, 0, 0, 1, 0); // au même pas : la consigne du portail est en attente
     updateGuide(g, w, 0);
-    expect(g.hint).toBe(Hint.Portal);
+    // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 2) : le portail s'explique dans une fenêtre, en attente
+    expect(g.win).toBe(1 << Hint.Portal);
+    expect(g.hint).toBe(-1);
     expect(g.hints & (1 << Hint.Corrupt)).toBe(0); // pas retenue : elle reviendra
-    // affichée (src/ui/tutorial.ts) ; un corrompu apparaît pendant qu'elle est à l'écran
-    let shown = g.hint;
-    g.hint = -1;
+    // un corrompu apparaît pendant que la fenêtre attend (une feuille de niveau est ouverte) : la bulle se tait encore
     w.clearEvents();
     w.emit(Ev.Corrupt, 0, 0, 0, 1, 0);
     updateGuide(g, w, 0);
-    expect(g.hint).toBe(Hint.Corrupt);
-    // l'interface garde la plus importante à l'écran et rend sa chance à l'autre (même règle que src/ui/tutorial.ts)
-    expect(hintRank(shown)).toBeGreaterThan(hintRank(g.hint));
-    g.hints &= ~(1 << g.hint);
-    g.hint = -1;
+    expect(g.hint).toBe(-1);
+    expect(g.hints & (1 << Hint.Corrupt)).toBe(0);
+    let shown = takeWindow(g); // ouverte (main.ts), puis fermée
+    expect(shown).toBe(Hint.Portal);
     expect(g.hints & (1 << Hint.Portal)).not.toBe(0); // le portail est vu
     // la consigne du portail partie, le corrompu suivant a la sienne, une fois
     w.clearEvents();

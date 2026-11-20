@@ -2,6 +2,29 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.69.0 — 20 nov. 2026 (rafales, vraie faux, explications au bon moment)
+
+Tes projectiles partent en rafale, la Faux devient une vraie faux, et le jeu t'explique ce qui change au moment où ça arrive.
+
+### Ajouté
+
+- **Une vraie faux** : la Faux n'est plus un trait lumineux, c'est une faux, manche et lame courbe, qui apparaît et fauche son arc à chaque coup. La nouvelle amélioration **+1 faux** en ajoute une à côté de la première : deux faux couvrent tout l'avant, trois font le tour complet. Le Tome des projectiles en donne aussi.
+- **Des fenêtres qui expliquent, une seule fois** : la première fois qu'un portail s'ouvre, que le chrono tombe à 0 sans que le boss du monde soit vaincu, ou que tu entres dans un monde infini, une fenêtre met le jeu en pause et t'explique ce qui se passe. « Compris », et la partie reprend.
+
+### Modifié
+
+- **Les projectiles en plus partent en rafale**, l'un après l'autre, comme une mitraille : Orbe, Lance, Boomerang et Fouet. Chacun vise au moment où il part : un ennemi solide prend deux tirs, le reste file vers la horde ; un ennemi seul prend toute la rafale, là où les projectiles en plus partaient en éventail à côté de lui ; des monstres fragiles en prennent un chacun.
+- **Le Boomerang** part vers l'ennemi le plus proche, et **le Fouet** claque vers l'ennemi le plus proche (à défaut, devant toi) : ses claques en plus partent en rafale.
+- **La fin de la partie guidée** se lit d'un coup d'œil : ton résultat en grand, puis « Rejouer » ou « Retour au menu ».
+- **Le totem n'est pas pressé** : l'objectif dit « Survis · totem quand tu es prêt » ; « Active le totem » ne passe au rouge que dans la dernière minute du chrono. Dans la partie guidée, le totem de boss est présenté comme facultatif, et « Comment jouer » commence par « Rien ne presse ».
+- **Le Cœur de la Nuit, le boss final du défi du jour et le Gardien de la partie guidée ont plus de vie** : la rafale entière les vise maintenant quand ils sont seuls, ils restent un vrai combat.
+- Une partie gardée avant la mise à jour garde sa Faux : ses améliorations d'arc deviennent des faux.
+
+### Technique
+
+- Spec : `docs/specs/rafales-faux-guidage.md` (scénarios : `src/sim/burst.test.ts`, `src/meta/windows.test.ts`, `e2e/rafales-faux.spec.ts`, `tools/rafales.test.ts`). Rafales : état préalloué dans `w.wstate` (tirs restants, écart, identifiant de rafale), donc dans l'instantané ; cible par `burstTarget` (`src/sim/weapons/tick.ts`) : la première, dans l'ordre de l'arme, qui n'est pas couverte (dégâts en route `Enemy.inbound` jusqu'à `inboundT`, ou `BURST.maxSame` tirs de la rafale `Enemy.burstId`) ; écart `BURST.gap` ramené à recharge / n. Faux : stat `n` (ligne « +1 faux » à la place de « +15° d'arc », même index), `FAUX.maxN`, un `Ev.Scythe` par faux ; une partie gardée en 1.68 convertit ses lignes (`SNAP_REV`, `src/sim/snapshot.ts`). Fenêtres : bits `Hint.Overtime` (7) et `Hint.Endless` (8), `Hint.Portal` passe en fenêtre ; `GuideState.win` et `takeWindow` (`src/meta/guide.ts`), écran `#info` (`main.ts`). HUD : objectifs `g1` (« quand tu es prêt »), `g6` (dernière minute), `g7` (après le chrono). Rendu : `src/render/scythe.ts` (modèle procédural, contour par silhouette dessous), `scytheW` dans `scene.ts`, un appel de plus tant qu'une faux est à l'écran.
+- Équilibrage (règle 13), bot moyen, 4 graines × 200 regroupées : maxé monde 2 69,3 → 79,1 %, victoire 16,6 → 17,3 % ; nu victoire 23,8 → 24,9 % ; chaque arme choisie dans 21,5 à 26,3 % des parties. Les combats contre un boss seul, où la rafale entière part sur lui, sont réglés par ses PV (décision 12 amendée, sparring du 20 nov.) : `FINAL.hp` 8,5 → 16 (vaincu 66,2 → 46,6 %), `DAILY.bossHp` 1,8 → 4,3 (argent 35,3 → 23,9 %, chaque règle dans sa cible), `TUTORIAL.bossHp` 3,5 (Gardien de la partie guidée abattu 93,6 → 65,9 %). Relecture : la partie s'enregistre fenêtre ouverte, une fenêtre en attente est gardée à la reprise, une ligne de carte n'est jamais appliquée au-delà de son plafond ; le son des tirs en rafale est fusionné (repli synthétisé compris) ; bench et stress couvrent les rafales et les trois faux. Détail dans `docs/GATES.md`.
+
 ## 1.68.0 — 20 nov. 2026 (le Cœur de la Nuit)
 
 Le monde 3 n'est plus la fin : un portail rouge mène au boss final.
