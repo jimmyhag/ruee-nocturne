@@ -398,8 +398,10 @@ describe('fin de partie dans l’Arène (décisions 9 à 11)', () => {
     toPhase(w, h, 4);
     const gold = w.gold,
       t0 = w.goldBonusT;
+    w.player.hp = w.player.maxHp * 0.3;
     w.clearEvents();
     expect(strike(w, h, 1e12)).toBe(true);
+    expect(w.player.hp).toBe(w.player.maxHp); // soin complet, comme tout boss du totem
     // la victoire totale : la feuille de victoire (Mode.Won), le bonus d'or de fin et FINAL.gold
     expect(w.mode).toBe(Mode.Won);
     expect(count(w, Ev.Victory)).toBe(1);

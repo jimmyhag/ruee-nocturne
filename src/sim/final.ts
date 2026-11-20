@@ -471,7 +471,8 @@ export function sealDown(w: World, e: Enemy): void {
 
 /**
  * Le boss final est vaincu (combat.ts) : victoire totale. La partie s'arrête (Mode.Won, feuille de victoire : monde
- * infini ou fin), bonus d'or de fin (secondes depuis le dernier bonus) et FINAL.gold ; les doubles s'évanouissent.
+ * infini ou fin), bonus d'or de fin (secondes depuis le dernier bonus) et FINAL.gold, soin complet ; les doubles
+ * s'évanouissent.
  */
 export function heartDown(w: World, e: Enemy): void {
   w.finalPhase = FINAL_DONE;
@@ -481,8 +482,12 @@ export function heartDown(w: World, e: Enemy): void {
     const o = w.enemies[i];
     if (o.alive && o.role === Role.Decoy) decoyGone(w, o);
   }
+  // comme tout boss du totem abattu : soin complet et l'XP au sol aimantée (le monde infini qui suit part de là)
+  const P = w.player;
+  P.hp = P.maxHp;
+  for (let g = 0; g < w.gemCount; g++) w.gems[g].mag = true;
   w.mode = Mode.Won;
-  w.gold += ((w.t - w.goldBonusT) * GOLD.perSecond + FINAL.gold) * w.player.goldMul;
+  w.gold += ((w.t - w.goldBonusT) * GOLD.perSecond + FINAL.gold) * P.goldMul;
   w.goldBonusT = w.t;
   w.emit(Ev.FinalPhase, e.x, e.y, e.z, FINAL_DONE);
   w.emit(Ev.Victory, e.x, 1, e.z, w.t);
