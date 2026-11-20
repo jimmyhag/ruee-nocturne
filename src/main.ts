@@ -36,7 +36,7 @@ import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll, tutorialLock } from './sim/progression';
 import { adoptDaily, startEndless, totemLocked } from './sim/stages';
 import { FINAL_DONE, adoptCleared } from './sim/final';
-import { runOutcome } from './meta/outcome';
+import { creditAbandoned, creditOutcome, runOutcome } from './meta/outcome';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -1120,7 +1120,27 @@ function countAbandon(): void {
   if (savedRun.snap.fields.tutorial === true) return; // la partie guidée abandonnée ne compte pas
   revealAfterRun(meta, run);
   softAfterRun(meta, run); // partie guidée : une des parties adoucies qui la suivent
-  if (meta.reveal !== before || meta.softLeft !== softBefore) saveMeta(meta);
+  // 1.68.0 : une partie qui avait vaincu le monde 3 (Arène, feuille de victoire, monde infini) garde sa victoire
+  // (statistiques, défi du personnage, succès, classement) : un joueur ne perd jamais sa progression
+  let won: ReturnType<typeof creditAbandoned> = null;
+  if (!savedRun.daily && savedRun.snap.fields.cleared === true) {
+    try {
+      const w = restoreWorld(savedRun.snap);
+      won = creditAbandoned(meta, w, savedRun.character as CharacterKey);
+      if (won) {
+        checkAchievements(meta);
+        queueScore({
+          stage: 4,
+          time: Math.floor(w.t),
+          kills: w.kills,
+          char: savedRun.character as CharacterKey,
+        });
+      }
+    } catch {
+      /* instantané illisible : rien à créditer, la partie est oubliée comme avant */
+    }
+  }
+  if (won || meta.reveal !== before || meta.softLeft !== softBefore) saveMeta(meta);
 }
 function forgetRun(): void {
   savedRun = null;
@@ -1578,8 +1598,7 @@ function gameOver(): void {
   st.elites += runStats.elites;
   st.bosses += runStats.bosses;
   st.triples += world.triples;
-  st.wins += won ? 1 : 0;
-  st.hearts += outcome.heart ? 1 : 0; // succès « Aube »
+  creditOutcome(st, outcome); // victoires, Cœur de la Nuit vaincu (succès « Aube »), meilleur monde
   st.bestTime = Math.max(st.bestTime, heldT);
   st.runs++;
   // défis (phase 6) : meilleurs scores en un run
@@ -1667,9 +1686,12 @@ function gameOver(): void {
     ...(dailyRun && runRanked ? { day: runDay } : {}),
   });
   renderOverScreen();
-  S.particles.burst(world.player.x, 1, world.player.z, won || dailyOk ? PAL.gold : PAL.accent, 30, 8, 8);
+  // la fête seulement pour une partie gagnée qu'on termine (feuille de victoire, défi réussi) ; 1.68.0 : une mort,
+  // même après la victoire du monde 3 (dans l'Arène, en monde infini), est une défaite pour l'oreille et pour l'œil
+  const celebrate = world.mode === Mode.Won;
+  S.particles.burst(world.player.x, 1, world.player.z, celebrate ? PAL.gold : PAL.accent, 30, 8, 8);
   if (!reducedFx()) S.shake = 0.5;
-  if ((won && !world.endless) || (dailyOk && !world.endless)) audio.victory();
+  if (celebrate) audio.victory();
   else audio.death();
   // lot L3 : bannière « Défi réussi ! » (et la tenue offerte au 7e jour de série) avant l'écran de fin
   const gift = streak?.outfit ? t('over.outfitGift', { character: characterName(streak.outfit) }) : '';
@@ -1803,7 +1825,10 @@ function renderVictory(): void {
       return li;
     }),
   );
-  $('vText').textContent = t(daily ? 'victory.dailyText' : 'victory.text');
+  // 1.68.0 : une partie gardée par la 1.67 sur sa feuille de victoire (le monde 3 était la fin) garde son ancien texte
+  $('vText').textContent = t(
+    daily ? 'victory.dailyText' : world.finalPhase === FINAL_DONE ? 'victory.text' : 'victory.textWorlds',
+  );
   $('vContinue').textContent = t(daily ? 'victory.dailyContinue' : 'victory.continue');
 }
 function victoryContinue(): void {

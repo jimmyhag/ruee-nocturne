@@ -9,8 +9,10 @@ import { step } from '../sim/step';
 import { Mode } from '../sim/types';
 import { World } from '../sim/world';
 import { checkAchievements } from './achievements';
-import { runOutcome } from './outcome';
+import { creditAbandoned, creditOutcome, runOutcome } from './outcome';
 import { normalizeMeta } from './save';
+import { restoreWorld, snapshotWorld } from '../sim/snapshot';
+import type { RunSnap } from '../sim/snapshot';
 
 /** Le monde 3 vaincu (son boss abattu), puis l'Arène, le boss final sorti. */
 function inArena(seed: number): World {
@@ -29,9 +31,8 @@ function inArena(seed: number): World {
 function record(w: World) {
   const m = normalizeMeta({ version: 5 });
   const o = runOutcome(w);
-  m.stats.wins += o.won ? 1 : 0;
-  m.stats.hearts += o.heart ? 1 : 0;
-  m.stats.bestStage = Math.max(m.stats.bestStage, o.won ? 4 : w.stage + 1);
+  creditOutcome(m.stats, o);
+  m.stats.bestStage = Math.max(m.stats.bestStage, w.stage + 1);
   return { m, o, fresh: checkAchievements(m).map((a) => a.id) };
 }
 
@@ -58,7 +59,8 @@ describe('la progression après l’Arène (décisions 1, 9 et 10)', () => {
     hitEnemy(w, w.enemies.indexOf(h), 1e12, 0, 0, 0);
     expect(w.mode).toBe(Mode.Won);
     const { m, o, fresh } = record(w);
-    expect(o).toEqual({ won: true, heart: true, arena: true });
+    // vaincu, le boss final n'a pas gagné : l'écran de fin dit « Victoire ! », pas « Vaincu par le Cœur de la Nuit »
+    expect(o).toEqual({ won: true, heart: true, arena: false });
     expect([m.stats.wins, m.stats.hearts]).toEqual([1, 1]);
     expect(fresh).toEqual(expect.arrayContaining(['win', 'aube']));
     // mort ensuite en monde infini : la victoire et le boss final restent comptés
@@ -71,5 +73,31 @@ describe('la progression après l’Arène (décisions 1, 9 et 10)', () => {
     const d = new World(5, { daily: true });
     d.mode = Mode.Won;
     expect(runOutcome(d)).toEqual({ won: false, heart: false, arena: false });
+  });
+
+  it('a run saved after world 3 and abandoned for a new one keeps its victory', () => {
+    // la partie gardée (instantané, comme sur l'appareil), puis « Nouvelle partie » : main.ts (countAbandon) la relit
+    const keep = (w: World): World => restoreWorld(JSON.parse(JSON.stringify(snapshotWorld(w))) as RunSnap);
+    const m = normalizeMeta({ version: 5 });
+    const o = creditAbandoned(m, keep(inArena(6)), 'eclaireuse');
+    expect(o).toEqual({ won: true, heart: false, arena: true });
+    expect([m.stats.wins, m.stats.hearts, m.stats.bestStage]).toEqual([1, 0, 4]);
+    expect(m.chars.eclaireuse?.wins).toBe(1); // défi « victoire » du personnage
+    expect(m.chars.eclaireuse?.runs).toBe(0); // le reste de la partie abandonnée ne compte pas, comme avant
+    expect(checkAchievements(m).map((a) => a.id)).toContain('win');
+    // le boss final abattu (feuille de victoire gardée) : sa victoire aussi
+    const won = inArena(7);
+    won.finalPhase = 4;
+    const h = heartOf(won)!;
+    h.hp = 1;
+    hitEnemy(won, won.enemies.indexOf(h), 1e12, 0, 0, 0);
+    const m2 = normalizeMeta({ version: 5 });
+    expect(creditAbandoned(m2, keep(won), 'eclaireuse')).toEqual({ won: true, heart: true, arena: false });
+    expect([m2.stats.wins, m2.stats.hearts]).toEqual([1, 1]);
+    // une partie qui n'a pas vaincu le monde 3, ou un défi du jour : rien
+    const m3 = normalizeMeta({ version: 5 });
+    expect(creditAbandoned(m3, keep(new World(8)), 'eclaireuse')).toBeNull();
+    expect(creditAbandoned(m3, keep(new World(9, { daily: true })), 'eclaireuse')).toBeNull();
+    expect(m3.stats.wins).toBe(0);
   });
 });

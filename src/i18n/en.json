@@ -1174,5 +1174,6 @@
   "over.dawn": "Dawn rises over the three worlds",
   "ach.aube.name": "Dawn",
   "ach.aube.text": "Defeat the Heart of the Night",
-  "banner.timeUpArena": "The clock drops to 0: the red portal leads to the Arena"
+  "banner.timeUpArena": "The clock drops to 0: the red portal leads to the Arena",
+  "victory.textWorlds": "All three worlds have fallen. You can stay: bosses arrive every 2:30, more and more of them."
 }
