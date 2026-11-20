@@ -1,7 +1,7 @@
 // Dangers à esquiver par le mouvement (phase 11) : éruptions sous les pieds et charge des Brutes élites.
 // L'anneau de choc du Gardien est émis dans bosses.ts ; les trois sont résolus dans step.ts (tickShots, stepEnemies).
-import { CORRUPT, DARD_TYPE, ELITE_TYPE, ENEMIES, HAZARDS, SPAWN } from './balance';
-import { Corrupt, Ev, ShotKind, Skill } from './types';
+import { ARENA, CORRUPT, DARD_TYPE, ELITE_TYPE, ENEMIES, FINAL, HAZARDS, SPAWN } from './balance';
+import { Corrupt, Ev, Role, ShotKind, Skill } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
 
@@ -14,8 +14,8 @@ export function eruptionPeriod(t: number): number {
 
 /** Déclenche une éruption sous le joueur quand le minuteur tombe : cercle fixe (télégraphe), pic au même endroit. */
 export function tickEruptions(w: World): void {
-  // phase 37 : minuteur au chrono du monde, cadence et dégâts au temps de difficulté (+ prolongation)
-  if (w.stageT < w.nextEruption) return;
+  // phase 37 : minuteur au chrono du monde, cadence et dégâts au temps de difficulté (+ prolongation) ; pas dans l'Arène
+  if (w.stageT < w.nextEruption || w.stage === ARENA) return;
   w.nextEruption = w.stageT + eruptionPeriod(w.diffT);
   const s = w.allocShot();
   if (!s) return;
@@ -50,15 +50,20 @@ export function emitRing(w: World, e: Enemy): void {
 
 /**
  * Vrai pour une Brute élite, ou un Dard corrompu (Ruée, docs/specs/corrompus.md) : il charge en ligne droite après un
- * télégraphe (états 0 poursuite, 1 armé, 2 charge, 3 récupération).
+ * télégraphe (états 0 poursuite, 1 armé, 2 charge, 3 récupération). Le boss final et ses doubles (docs/specs/boss-final.md)
+ * aussi, quand l'attaque en cours de leur boucle est la charge (e.combo 0) : même couloir, même coup, même esquive.
  */
 export function isCharger(e: Enemy): boolean {
-  return (e.elite && e.type === ELITE_TYPE) || (e.corrupt === Corrupt.On && e.type === DARD_TYPE);
+  return (
+    (e.elite && e.type === ELITE_TYPE) ||
+    (e.corrupt === Corrupt.On && e.type === DARD_TYPE) ||
+    ((e.role === Role.Heart || e.role === Role.Decoy) && e.combo === 0)
+  );
 }
 
-/** Réglages de la charge de `e` : celle des Brutes élites, ou la Ruée d'un Dard corrompu (mêmes champs). */
+/** Réglages de la charge de `e` : celle des Brutes élites, la Ruée d'un Dard corrompu, ou celle du boss final. */
 export function chargeOf(e: Enemy): typeof HAZARDS.charge {
-  return e.elite ? HAZARDS.charge : CORRUPT.rush;
+  return e.role !== Role.None ? FINAL.charge : e.elite ? HAZARDS.charge : CORRUPT.rush;
 }
 
 /** Déplacement voulu (u/s) d'un chargeur (isCharger), écrit dans mv[0], mv[1]. dx/dz/d : vecteur vers le joueur. */

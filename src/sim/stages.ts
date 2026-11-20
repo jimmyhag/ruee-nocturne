@@ -1,14 +1,16 @@
 // Phase 37 (Jimmy) : trois mondes de STAGE.dur s. Chaque monde a sa carte, son totem et son boss :
 //   - rester STAGE.totemCharge s dans le cercle du totem (tant que le chrono tourne) appelle le boss du monde ;
 //   - boss tué avant la fin du chrono → portail à la place du totem ; y rester STAGE.portalHold s mène au monde suivant
-//     (nouvelle carte, build gardée). Au monde 3, c'est la victoire (le boss final viendra dans une phase suivante) ;
+//     (nouvelle carte, build gardée). Au monde 3 (1.68.0, docs/specs/boss-final.md), le monde est vaincu et le portail
+//     rouge mène à l'Arène du boss final (src/sim/final.ts) ; le vaincre ouvre le monde infini ;
 //   - chrono à 0 : plus de passage si le boss n'est pas tombé, et la prolongation renforce les monstres de minute en
 //     minute (STAGE.over) : on peut rester farmer, mais pas longtemps.
 // Sim pure : ni three ni DOM ; aucune allocation par pas (nextStage, une fois par monde, peut allouer : nouvelle carte).
-import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, MERCHANT, POWER, SPAWN, STAGE, TUTORIAL } from './balance';
+import { ARENA, BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, FINAL, GOLD, HAZARDS, ITEM, It, MERCHANT, POWER, SPAWN, STAGE, TUTORIAL } from './balance';
 import { difficultyHp, dmgMulNow, soft, spawnEnemy } from './spawner';
 import { TOTEM_HIDDEN } from './poi';
 import { clearCorrupt } from './corrupt';
+import { tickArena } from './final';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
 import { startRun } from './step';
@@ -51,6 +53,10 @@ export function totemLocked(w: World): boolean {
 /** Horloges du monde, prolongation, totem et portail. Appelé à chaque pas de jeu (Mode.Play), avant le spawner. */
 export function tickStage(w: World, dt: number): void {
   w.stageT += dt;
+  if (w.stage === ARENA) {
+    tickArena(w, dt); // le boss final : ni chrono, ni totem, ni portail (src/sim/final.ts)
+    return;
+  }
   const T = w.totem,
     P = w.player;
   // partie guidée (décision 6), au monde 1 : le chrono s'arrête à TUTORIAL.hold s de la fin tant que le totem n'est pas activé, et
@@ -115,7 +121,10 @@ export function tickStage(w: World, dt: number): void {
   if (G.open) {
     const inside = (T.x - P.x) ** 2 + (T.z - P.z) ** 2 < STAGE.portalR * STAGE.portalR;
     G.charge = inside ? G.charge + dt : 0;
-    if (G.charge >= STAGE.portalHold) nextStage(w);
+    if (G.charge >= STAGE.portalHold) {
+      if (w.stage >= STAGE.count - 1) enterArena(w); // 1.68.0 : le portail rouge du monde 3
+      else nextStage(w);
+    }
   }
 }
 
@@ -298,21 +307,20 @@ function skipStageTime(w: World, skip: number): void {
 }
 
 /**
- * Le boss du totem est tombé (appelé par killEnemy) : portail vers le monde suivant, ou victoire au dernier monde.
- * Peu importe l'heure (1.45.1 puis 1.45.2) : appelé ou tué en prolongation, il ouvre quand même.
+ * Le boss du totem est tombé (appelé par killEnemy) : portail vers le monde suivant. Peu importe l'heure (1.45.1 puis
+ * 1.45.2) : appelé ou tué en prolongation, il ouvre quand même. Au monde 3 (1.68.0, docs/specs/boss-final.md, décision
+ * 1) : le monde 3 est vaincu, ce qui était la victoire (statistique, succès, classement : `cleared`, et le bonus d'or de
+ * fin, ici) ; le portail est rouge et mène à l'Arène du boss final.
  */
-export function stageBossDown(w: World, x: number, z: number): void {
+export function stageBossDown(w: World): void {
   const T = w.totem;
   if (T.state !== 1) return;
   if (w.totemAlive > 0) return; // phase 48 : un totem de boss a été activé, il reste des boss du combat en vie
   if (w.stage >= STAGE.count - 1) {
-    T.state = 2;
-    w.mode = Mode.Won;
-    // bonus de fin (secondes survécues / 10) ; phase 39 : la mort en monde infini ne repaie que le temps d'après
+    w.cleared = true;
+    // bonus de fin (secondes survécues / 10) ; la mort dans l'Arène ou en monde infini ne repaie que le temps d'après
     w.gold += (w.t - w.goldBonusT) * GOLD.perSecond * w.player.goldMul;
     w.goldBonusT = w.t;
-    w.emit(Ev.Victory, x, 1, z, w.t);
-    return;
   }
   T.state = 2;
   w.portal.open = true;
@@ -328,6 +336,49 @@ export function stageBossDown(w: World, x: number, z: number): void {
  * le niveau, les objets, l'or et les relances restent. L'XP au sol est ramassée, les coffres suivent le joueur.
  */
 export function nextStage(w: World): void {
+  clearField(w);
+  w.bossExtra = 0; // les totems de boss valent pour leur monde (ceux du monde 3, aussi pour le monde infini d'après l'Arène)
+  w.stage++;
+  w.diffT = STAGE.offset[w.stage];
+  w.nextElite = STAGE.eliteFirst[w.stage];
+  // éruptions : à leur heure de difficulté, mais jamais dans les 20 premières secondes d'un monde
+  w.nextEruption = Math.max(STAGE.eruptionGrace, HAZARDS.eruption.after - STAGE.offset[w.stage]);
+  w.powerNext = POWER.mapFirst;
+  w.buildMapFor(stageSeed(w.startSeed, w.stage)); // remet aussi le totem à zéro (placeTotem)
+  placeHero(w, 0, 0);
+  startRun(w); // ennemis de départ, comme au premier monde
+  w.emit(Ev.StageStart, 0, 0, 0, w.stage + 1);
+}
+
+/**
+ * 1.68.0 (docs/specs/boss-final.md, décision 2) : le portail rouge du monde 3 mène à l'Arène, petite carte ronde et
+ * vide, fermée par le cercle de flammes ; aucune horde. Le héros arrive au sud du centre, le boss sort au centre
+ * FINAL.appear s plus tard (src/sim/final.ts). La difficulté y est celle de la fin du chrono du monde 3, figée.
+ */
+export function enterArena(w: World): void {
+  clearField(w);
+  w.stage = ARENA;
+  w.diffT = FINAL.diffT;
+  w.nextElite = w.nextEruption = w.powerNext = Infinity; // ni élites, ni éruptions, ni bonus (gardes : stage === ARENA)
+  w.buildArena();
+  w.finalPhase = 0;
+  w.arenaT = 0;
+  w.finalId = -1;
+  w.finalPause = 0;
+  w.arenaR = FINAL.arenaR;
+  w.ringT = 0;
+  w.seals = 0;
+  w.judgeT = w.judgeNext = 0;
+  w.decoyBack.fill(0);
+  placeHero(w, 0, FINAL.entry);
+  w.emit(Ev.StageStart, 0, 0, 0, ARENA + 1);
+}
+
+/**
+ * Ce qui ne passe pas d'une carte à l'autre (monde suivant, Arène, monde infini d'après l'Arène) : l'XP au sol est
+ * ramassée, ennemis, tirs et effets posés disparaissent, les horloges du monde repartent de zéro.
+ */
+function clearField(w: World): void {
   const P = w.player;
   // XP au sol : ramassée (elle était à lui)
   for (let i = 0; i < w.gemCount; i++) P.xp += w.gems[i].v * P.xpMul;
@@ -343,9 +394,7 @@ export function nextStage(w: World): void {
   w.wstate.vitN = w.wstate.balN = w.wstate.spN = 0; // phase 47 C : flaques, balises, esprits (ils repartent du héros)
   P.spellT = 0;
   w.sstate.pending = w.sstate.bondPending = false;
-  w.stage++;
   w.stageT = 0;
-  w.diffT = STAGE.offset[w.stage];
   w.overT = 0;
   w.overRate = w.overHp = w.overDmg = w.overSpd = 1;
   w.timeUp = false;
@@ -355,7 +404,6 @@ export function nextStage(w: World): void {
   w.survivalAlive = 0;
   w.totemBossId = -1;
   w.totemAlive = 0; // phase 48
-  w.bossExtra = 0; // les totems de boss valent pour leur monde
   w.portal.open = false;
   w.portal.charge = 0;
   w.merchant = makeMerchant();
@@ -363,14 +411,13 @@ export function nextStage(w: World): void {
   w.boredomUntil = 0;
   w.lastAction = w.t;
   w.nextWave = SPAWN.wavePeriod;
-  w.nextElite = STAGE.eliteFirst[w.stage];
-  // éruptions : à leur heure de difficulté, mais jamais dans les 20 premières secondes d'un monde
-  w.nextEruption = Math.max(STAGE.eruptionGrace, HAZARDS.eruption.after - STAGE.offset[w.stage]);
-  w.powerNext = POWER.mapFirst;
-  w.buildMapFor(stageSeed(w.startSeed, w.stage)); // remet aussi le totem à zéro (placeTotem)
-  // le joueur repart du centre de la nouvelle carte, debout
-  P.x = P.px = 0;
-  P.z = P.pz = 0;
+}
+
+/** Le héros repart de (x, z) sur la nouvelle carte, debout ; les coffres pas encore ouverts sont posés devant lui. */
+function placeHero(w: World, x: number, z: number): void {
+  const P = w.player;
+  P.x = P.px = x;
+  P.z = P.pz = z;
   P.y = P.py = 0;
   P.vx = P.vz = P.vy = 0;
   P.mvx = P.mvz = 0;
@@ -380,15 +427,13 @@ export function nextStage(w: World): void {
   P.airMom = false;
   P.slideJump = false;
   P.gv = 0;
-  P.gPrev = w.heightAt(0, 0);
+  P.gPrev = w.heightAt(x, z);
   // coffres pas encore ouverts (le coffre du boss, souvent) : posés devant le joueur
   for (let i = 0; i < w.chestCount; i++) {
     const c = w.chests[i];
-    c.x = Math.sin(i * 1.3) * 3;
-    c.z = 3 + Math.cos(i * 1.3) * 1.5;
+    c.x = x + Math.sin(i * 1.3) * 3;
+    c.z = z + 3 + Math.cos(i * 1.3) * 1.5;
   }
-  startRun(w); // ennemis de départ, comme au premier monde
-  w.emit(Ev.StageStart, 0, 0, 0, w.stage + 1);
 }
 
 // ---- phase 39 : monde infini ----
@@ -400,11 +445,25 @@ export function endlessBosses(k: number): number {
 
 /**
  * Après la victoire, le joueur continue (écran de victoire) : la partie reprend sur la carte du monde 3, sans chrono
- * (pas de prolongation) ; une vague de boss toutes les ENDLESS.period s.
+ * (pas de prolongation) ; une vague de boss toutes les ENDLESS.period s. 1.68.0 (docs/specs/boss-final.md, décision
+ * 11) : la victoire est celle du boss final ; le monde infini quitte l'Arène pour la carte du monde 3, refaite, et a des
+ * corrompus. Rien de l'Arène ne passe (ni tirs, ni renforts). Le défi du jour garde sa suite d'avant, sans corrompus.
  */
 export function startEndless(w: World): void {
   if (w.mode !== Mode.Won || w.endless) return;
   w.clearEvents(); // les événements du pas de la victoire ont déjà été traités (relecture perf : double comptage)
+  if (w.stage === ARENA) {
+    clearField(w);
+    w.stage = STAGE.count - 1;
+    w.nextElite = STAGE.eliteFirst[w.stage];
+    w.nextEruption = STAGE.eruptionGrace;
+    w.powerNext = POWER.mapFirst;
+    w.buildMapFor(stageSeed(w.startSeed, w.stage));
+    w.totem.state = TOTEM_HIDDEN; // son boss est vaincu depuis longtemps : ni totem, ni portail
+    placeHero(w, 0, 0);
+    w.endlessCorrupt = true;
+    w.emit(Ev.StageStart, 0, 0, 0, w.stage + 1, 1); // x2 = 1 : la carte change sans bannière de monde
+  }
   w.endless = true;
   w.endlessT = 0;
   w.endlessDiff0 = w.diffT; // phase 43 : difficulté au moment de la victoire, point de départ du monde infini

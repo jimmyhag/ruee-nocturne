@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { DAILY, DISCOVER, ENDLESS, ENEMIES, GOLD, STAGE, STEP } from './balance';
 import { hitEnemy } from './combat';
-import { endlessBosses, nextStage, stageLeft, stageSeed, startEndless, survivalType } from './stages';
+import { endlessBosses, enterArena, nextStage, stageLeft, stageSeed, startEndless, survivalType } from './stages';
+import { summonHeart } from './final';
 import { startRun, step } from './step';
 import { Ev, Mode } from './types';
 import type { Input } from './types';
@@ -40,6 +41,14 @@ function summon(w: World): number {
   w.player.z = w.player.pz = w.totem.z;
   w.player.gPrev = w.heightAt(w.totem.x, w.totem.z);
   return run(w, STAGE.totemCharge + 0.2, still, Ev.BossSpawn);
+}
+/** 1.68.0 (docs/specs/boss-final.md) : du monde 3 vaincu à la victoire totale, le boss final abattu d'un coup en phase 4. */
+function beatFinal(w: World): void {
+  enterArena(w);
+  summonHeart(w);
+  w.finalPhase = 4;
+  w.enemies[w.bossIndex].hp = 1;
+  hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
 }
 /** Ce qui définit une carte (comparé entre un monde neuf et un monde reconstruit). */
 function mapOf(w: World) {
@@ -155,7 +164,7 @@ describe('mondes (phase 37)', () => {
     expect(w.portal.open).toBe(true);
     expect(w.mode).toBe(Mode.Play);
   });
-  it('monde 3 : le boss appelé à temps et tué en prolongation donne la victoire (1.45.1)', () => {
+  it('monde 3 : le boss appelé à temps et tué en prolongation vainc le monde 3 (1.45.1 ; 1.68.0 : portail vers l’Arène)', () => {
     const w = lab(9);
     w.stage = STAGE.count - 1;
     summon(w);
@@ -163,7 +172,9 @@ describe('mondes (phase 37)', () => {
     run(w, 0.2);
     expect(w.totem.state).toBe(1);
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
-    expect(w.mode).toBe(Mode.Won);
+    expect(w.cleared).toBe(true);
+    expect(w.portal.open).toBe(true);
+    expect(w.mode).toBe(Mode.Play);
   });
   it('chrono écoulé sans avoir appelé le boss : le totem s’active encore, son boss ouvre le portail (1.45.2)', () => {
     const w = lab(10);
@@ -199,7 +210,7 @@ describe('mondes (phase 37)', () => {
     expect(mults[4][1]).toBeGreaterThan(4); // +3 min : mortel (PV ×4,75)
     expect(mults[4][3]).toBeLessThanOrEqual(STAGE.over.spdMax);
   });
-  it('monde 3 : son boss tué à temps donne la victoire', () => {
+  it('monde 3 : son boss tué à temps vainc le monde 3, sans feuille de victoire (1.68.0 : portail vers l’Arène)', () => {
     const w = lab(13);
     nextStage(w);
     nextStage(w);
@@ -207,10 +218,12 @@ describe('mondes (phase 37)', () => {
     w.player.hp = w.player.maxHp = 1e9;
     summon(w);
     expect(w.enemies[w.bossIndex].type).toBe(STAGE.bosses[2]);
+    expect(w.cleared).toBe(false);
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
-    expect(w.mode).toBe(Mode.Won);
-    expect(count(w, Ev.Victory)).toBe(1);
-    expect(w.portal.open).toBe(false);
+    expect(w.cleared).toBe(true);
+    expect(w.mode).toBe(Mode.Play);
+    expect(count(w, Ev.Victory)).toBe(0);
+    expect(w.portal.open).toBe(true);
   });
   it('déterministe à travers les mondes : même graine, mêmes entrées, même partie', () => {
     const play = () => {
@@ -228,7 +241,7 @@ describe('mondes (phase 37)', () => {
 });
 
 describe('monde infini (phase 39)', () => {
-  /** Victoire au monde 3 (boss du totem tué à temps), joueur invincible. */
+  /** Victoire : le monde 3 vaincu (boss du totem tué à temps), puis le boss final (1.68.0) ; joueur invincible. */
   function won(seed: number): World {
     const w = lab(seed);
     nextStage(w);
@@ -237,6 +250,7 @@ describe('monde infini (phase 39)', () => {
     w.nextWave = w.nextElite = w.nextEruption = 1e9;
     summon(w);
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    beatFinal(w);
     expect(w.mode).toBe(Mode.Won);
     return w;
   }
@@ -257,9 +271,9 @@ describe('monde infini (phase 39)', () => {
   it('1, 1, 2, 2, 3, 3, 4, 4, 4 boss par vague', () => {
     expect([0, 1, 2, 3, 4, 5, 6, 7, 8].map(endlessBosses)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 4]);
   });
-  it('continuer après la victoire : même carte, plus de prolongation, une vague de boss toutes les 2:30', () => {
+  it('continuer après la victoire : la carte du monde 3, plus de prolongation, une vague de boss toutes les 2:30', () => {
     const w = won(31);
-    const seed = w.seed;
+    const seed = stageSeed(w.startSeed, STAGE.count - 1);
     startEndless(w);
     expect(w.mode).toBe(Mode.Play);
     expect(w.endless).toBe(true);
@@ -429,20 +443,34 @@ describe('boss de survie (phase 42)', () => {
     expect(run(w, 0.2, still, Ev.BossSpawn)).toBe(0); // portail ouvert : plus de boss de survie
   });
   it('un boss de survie en vie à la victoire est compté en monde infini', () => {
-    const w = arena(46);
-    nextStage(w);
-    nextStage(w);
-    w.survivalNext = 0;
-    w.stageT = S.at[1] - 0.05;
-    w.survivalNext = 1;
-    run(w, 0.1);
-    expect(w.survivalAlive).toBe(1);
-    summon(w);
-    const t = alive(w).find((i) => w.enemies[i].id === w.totemBossId)!;
-    hitEnemy(w, t, 1e12, 0, 0, 0);
-    expect(w.mode).toBe(Mode.Won);
+    const play = () => {
+      const w = arena(46);
+      nextStage(w);
+      nextStage(w);
+      w.survivalNext = 0;
+      w.stageT = S.at[1] - 0.05;
+      w.survivalNext = 1;
+      run(w, 0.1);
+      expect(w.survivalAlive).toBe(1);
+      summon(w);
+      const t = alive(w).find((i) => w.enemies[i].id === w.totemBossId)!;
+      hitEnemy(w, t, 1e12, 0, 0, 0);
+      expect(w.cleared).toBe(true);
+      expect(w.survivalAlive).toBe(1); // il reste au monde 3, portail ouvert
+      return w;
+    };
+    // une partie gardée par la 1.67 sur sa feuille de victoire (le monde 3 était la fin) : il passe en monde infini
+    const old = play();
+    old.mode = Mode.Won;
+    startEndless(old);
+    expect([old.endlessAlive, old.survivalAlive]).toEqual([1, 0]);
+    // 1.68.0 : il ne suit pas le héros dans l'Arène (ni, après elle, dans le monde infini)
+    const w = play();
+    enterArena(w);
+    expect([w.survivalAlive, w.enemyCount]).toEqual([0, 0]);
+    beatFinal(w);
     startEndless(w);
-    expect([w.endlessAlive, w.survivalAlive]).toEqual([1, 0]);
+    expect([w.endlessAlive, w.survivalAlive]).toEqual([0, 0]);
   });
   it('remis à zéro au monde suivant ; jamais en monde infini ; déterministe', () => {
     const w = arena(44);
@@ -547,10 +575,9 @@ describe('chrono à 0 à la mort du boss du totem (décision 18)', () => {
       expect(w.stageT).toBeCloseTo(during + 5, 6);
       expect(w.timeUp).toBe(false);
       hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
-      if (stage === STAGE.count - 1) {
-        expect(w.mode).toBe(Mode.Won); // dernier monde : la victoire, pas de portail
-        continue;
-      }
+      // 1.68.0 : au monde 3 aussi (le monde est vaincu, le portail rouge mène à l'Arène)
+      expect(w.cleared).toBe(stage === STAGE.count - 1);
+      expect(w.mode).toBe(Mode.Play);
       // le boss tombé : le chrono tombe à 0, la prolongation commence tout de suite, le portail reste ouvert
       expect(w.portal.open).toBe(true);
       expect(stageLeft(w)).toBe(0);
@@ -642,6 +669,7 @@ describe('chrono à 0 à la mort du boss du totem (décision 18)', () => {
     w.nextWave = w.nextElite = w.nextEruption = 1e9;
     summon(w);
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    beatFinal(w);
     expect(w.mode).toBe(Mode.Won);
     startEndless(w);
     const stageT = w.stageT;

@@ -10,7 +10,7 @@ import type { World } from './world';
 const TAU = Math.PI * 2;
 
 /** Cercle au sol qui explose après `telegraph` s (zones du Colosse, Traque des boss). Pris dans le pool de tirs. */
-function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dmg: number): Shot | null {
+export function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dmg: number): Shot | null {
   const s = w.allocShot();
   if (!s) return null;
   s.kind = ShotKind.Zone;
@@ -22,6 +22,35 @@ function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dm
   s.dmg = dmg;
   w.emit(Ev.Telegraph, x, 0, z, r, telegraph);
   return s;
+}
+
+/**
+ * Salve de l'Essaim-mère (phase 43) : `n` projectiles en éventail dans la direction (e.tx, e.tz), au sol ; on les saute
+ * ou on passe entre deux. Reprise par le Cœur de la Nuit (src/sim/final.ts).
+ */
+export function fireVolley(w: World, e: Enemy, n: number): void {
+  const V = BOSS.volley;
+  let fired = 0;
+  for (let k = 0; k < n; k++) {
+    const s = w.allocShot();
+    if (!s) break;
+    fired++;
+    const a = (k - (n - 1) / 2) * V.spread,
+      c = Math.cos(a),
+      sn = Math.sin(a),
+      vx = e.tx * c - e.tz * sn,
+      vz = e.tx * sn + e.tz * c;
+    s.kind = ShotKind.Spit;
+    s.boss = true;
+    s.r = V.r;
+    s.x = s.px = e.x + vx * e.r;
+    s.z = s.pz = e.z + vz * e.r;
+    s.vx = vx * V.speed;
+    s.vz = vz * V.speed;
+    s.life = V.life;
+    s.dmg = V.dmg * e.dmgMul;
+  }
+  if (fired > 0) w.emit(Ev.Spit, e.x, e.y, e.z, 0, e.tx, 0, e.tz); // pas de son sans projectile (pool plein)
 }
 
 /** Déplacement (u/s) décidé par le script du boss `e`, écrit dans mv[0], mv[1]. dx/dz/d : vecteur vers le joueur. */
@@ -177,28 +206,7 @@ export function tickBoss(w: World, e: Enemy, dt: number, dx: number, dz: number,
           e.state = 0;
           if (e.combo === 1) {
             e.combo = 0;
-            const n = e.phase2 ? V.n2 : V.n;
-            let fired = 0;
-            for (let k = 0; k < n; k++) {
-              const s = w.allocShot();
-              if (!s) break;
-              fired++;
-              const a = (k - (n - 1) / 2) * V.spread,
-                c = Math.cos(a),
-                sn = Math.sin(a),
-                vx = e.tx * c - e.tz * sn,
-                vz = e.tx * sn + e.tz * c;
-              s.kind = ShotKind.Spit;
-              s.boss = true;
-              s.r = V.r;
-              s.x = s.px = e.x + vx * e.r;
-              s.z = s.pz = e.z + vz * e.r;
-              s.vx = vx * V.speed;
-              s.vz = vz * V.speed;
-              s.life = V.life;
-              s.dmg = V.dmg * e.dmgMul;
-            }
-            if (fired > 0) w.emit(Ev.Spit, e.x, e.y, e.z, 0, e.tx, 0, e.tz); // pas de son sans projectile (pool plein)
+            fireVolley(w, e, e.phase2 ? V.n2 : V.n);
           }
         }
       }

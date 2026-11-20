@@ -51,6 +51,19 @@ export interface Enemy {
   toxT: number; // s restantes de toxine
   toxAcc: number; // s écoulées depuis le dernier coup de toxine
   corrupt: Corrupt; // monstre corrompu (docs/specs/corrompus.md) : 0 normal, 1 corrompu, 2 petit spectre de la Scission
+  role: Role; // le Cœur de la Nuit (docs/specs/boss-final.md) : 0 ordinaire, 1 le boss final, 2 un de ses doubles, 3 un sceau
+  struck: number; // un double du boss final : coups reçus depuis son retour (FINAL.decoy.hits : il part en fumée)
+}
+
+/**
+ * Rôle d'un ennemi dans l'Arène (docs/specs/boss-final.md) : le Cœur de la Nuit (un Colosse agrandi), ses doubles de
+ * l'éclipse (des Colosses que les coups ne blessent pas) et les sceaux de la phase 2 (des stèles immobiles à briser).
+ */
+export const enum Role {
+  None = 0,
+  Heart,
+  Decoy,
+  Seal,
 }
 
 /**
@@ -126,6 +139,8 @@ export const enum HurtSrc {
   Arrow, // phase 16
   Fire, // phase 16 : boule de feu du Sorcier
   Corrupt, // corrompus : une compétence corrompue (laquelle : w.hurtSkill)
+  Judgement, // boss final, phase 4 : hors de la zone sûre à l'impact du Jugement
+  Flames, // boss final, phase 3 : le cercle de flammes touché
 }
 
 /** Projectile ennemi : ne touche jamais un joueur en l'air (airborneSafeY). */
@@ -275,7 +290,14 @@ export const enum Ev {
   Explored, // phase 53 : carte du monde explorée à 100 %, v = or gagné
   WeaponTier, // lot L5 : arme arrivée à un palier visuel en (x,y,z) = héros, v = palier (1..3), x2 = index dans WEAPON_KEYS
   Medal, // défi v2 : médaille gagnée en (x,y,z) = héros, v = médaille (1 bronze, 2 argent, 3 or)
-  Corrupt, // corrompus : en (x,y,z), v = type du monstre, x2 = 0 apparition d'un corrompu, 1 compétence lancée (Skill en y2) ; dernière valeur
+  Corrupt, // corrompus : en (x,y,z), v = type du monstre, x2 = 0 apparition d'un corrompu, 1 compétence lancée (Skill en y2)
+  // le Cœur de la Nuit (docs/specs/boss-final.md)
+  FinalPhase, // le boss final entre dans la phase v (2 sceaux, 3 éclipse, 4 fureur) en (x,y,z) ; 5 : vaincu
+  Blocked, // un coup ne le blesse pas (boss invulnérable, ou un double) en (x,y,z) : flash gris, son mat, pas de chiffre
+  Decoy, // un double en (x,y,z) : x2 = 0 part en fumée, 1 revient
+  Seal, // un sceau en (x,z) : x2 = 0 posé, 1 brisé ; v = sceaux restants
+  RingWarn, // le cercle de flammes rougit : il se resserre dans v s, jusqu'au rayon x2
+  Judgement, // le Jugement : x2 = 0 annonce (zone sûre en (x,z), rayon v, impact dans y2 s), 1 impact
 }
 
 export interface GameEvent {

@@ -10,9 +10,13 @@ import { Corrupt, Ev, ShotKind, Skill } from './types';
 import type { Enemy } from './types';
 import type { World } from './world';
 
-/** Des corrompus peuvent-ils apparaître maintenant ? En prolongation d'un monde, hors défi du jour et monde infini. */
+/**
+ * Des corrompus peuvent-ils apparaître maintenant ? En prolongation d'un monde, et (docs/specs/boss-final.md, décision
+ * 11) dans le monde infini d'après le boss final ; jamais au défi du jour (ni dans sa suite en monde infini).
+ */
 export function corruptOn(w: World): boolean {
-  return w.overT > 0 && !w.endless && w.dailyEnd <= 0 && !w.noCorrupt;
+  if (w.dailyEnd > 0 || w.noCorrupt) return false;
+  return w.endless ? w.endlessCorrupt : w.overT > 0;
 }
 
 /** Compétence d'un type de monstre (Skill.None : aucun, les boss). */
@@ -43,7 +47,8 @@ function skillOf(type: number): Skill {
  */
 export function maybeCorrupt(w: World, i: number): void {
   if (i < 0 || !corruptOn(w)) return;
-  if (w.rng.next() < CORRUPT.share(w.overT)) corrupt(w, w.enemies[i]);
+  // la même montée qu'en prolongation : depuis la fin du chrono, ou depuis l'entrée en monde infini
+  if (w.rng.next() < CORRUPT.share(w.endless ? w.endlessT : w.overT)) corrupt(w, w.enemies[i]);
 }
 
 /** Corrompt `e` (un monstre ordinaire, ni élite ni boss) : sa compétence est prête, l'apparition s'annonce. */

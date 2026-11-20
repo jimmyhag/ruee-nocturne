@@ -189,7 +189,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       while (world.stage < STAGE.count - 1) nextStage(world);
       host.afterStage();
       world.totem.state = 1;
-      stageBossDown(world, world.player.x, world.player.z);
+      stageBossDown(world);
     },
     /** Phase 39 : temps passé en monde infini (la prochaine vague sort à `nextEndlessBoss`). */
     endlessTime(s: number): void {

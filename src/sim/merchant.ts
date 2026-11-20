@@ -1,7 +1,7 @@
 // Marchand (phase 17, PLAN §3.6) : une échoppe s'installe près du joueur aux heures MERCHANT.times et reste
 // MERCHANT.stay s. Y entrer met la partie en pause (Mode.Merchant) : objets en vente (w.offers, kind 'i'), relance, départ.
 // On paie avec l'or de la partie ; ce qui n'est pas dépensé reste acquis à la fin du run.
-import { ENDLESS, MERCHANT, PLAY_LIMIT, REVEAL } from './balance';
+import { ARENA, ENDLESS, MERCHANT, PLAY_LIMIT, REVEAL } from './balance';
 import { canGainItem, gainItem, itemIndex, merchantOffers, rollItemChoices } from './items';
 import { Ev, Mode } from './types';
 import type { ItemKey } from './types';
@@ -34,7 +34,7 @@ const out2 = new Float64Array(2);
 
 /** Apparition, départ, entrée du joueur. Appelé à chaque pas de jeu (Mode.Play). */
 export function tickMerchant(w: World): void {
-  if (w.reveal < REVEAL.merchant) return; // lot L2 : pas encore dévoilé, il ne passe pas
+  if (w.reveal < REVEAL.merchant || w.stage === ARENA) return; // lot L2 : pas encore dévoilé, il ne passe pas ; ni dans l'Arène
   const M = w.merchant;
   // phase 37 : aux heures MERCHANT.times de chaque monde (chrono du monde) ; 1.34.1 : en monde infini, entre deux vagues
   // de boss (ENDLESS.merchantAt après chaque vague, sur le chrono du monde infini)
