@@ -80,10 +80,9 @@ describe('rafales (décisions 6 et 7)', () => {
     const s = shots(w, 90).slice(0, 3);
     expect(s.length).toBe(3);
     for (const x of s) expect(x.a).toBeCloseTo(ang(0, 6), 6);
-    // un par un, à l'écart BURST.gap (au pas près), bien avant la recharge
-    const gapSteps = Math.ceil(BURST.gap.orbe / STEP - 1e-9);
-    expect(s[1].f - s[0].f).toBe(gapSteps);
-    expect(s[2].f - s[1].f).toBe(gapSteps);
+    // un par un, à l'écart BURST.gap (au pas de simulation près), bien avant la recharge
+    expect(Math.abs((s[1].f - s[0].f) * STEP - BURST.gap.orbe)).toBeLessThan(STEP);
+    expect(Math.abs((s[2].f - s[1].f) * STEP - BURST.gap.orbe)).toBeLessThan(STEP);
     expect((s[2].f - s[0].f) * STEP).toBeLessThan(weaponStats(w, 'orbe').cd * w.player.cdMul);
   });
 

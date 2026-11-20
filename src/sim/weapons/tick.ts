@@ -143,11 +143,11 @@ function aimAt(w: World, i: number, dmg: number, speed: number, burst: number): 
 }
 
 /**
- * 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 6) : écart entre deux tirs d'une rafale de `n` tirs, ramené à
- * `cd / n` quand la rafale ne tiendrait pas dans la recharge `cd` (elle part du premier tir) : la cadence ne baisse pas.
+ * 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 6) : écart entre deux tirs d'une rafale (BURST.gap), toujours plus
+ * court que la recharge `cd`. Une rafale de n tirs peut durer plus que la recharge : la suivante attend qu'elle finisse.
  */
-function burstGap(gap: number, cd: number, n: number): number {
-  return n > 1 ? Math.min(gap, cd / n) : gap;
+function burstGap(gap: number, cd: number): number {
+  return Math.min(gap, cd);
 }
 
 /** Orbe : un tir vers l'ennemi le plus proche à moins de 15 u au moment du tir (burstTarget). Faux s'il n'y en a pas. */
@@ -253,7 +253,7 @@ export function tickWeapons(w: World, dt: number): void {
     if (S.orbeLeft > 0 && (S.orbeGap -= dt) <= 0) {
       if (orbeShot(w, s)) {
         S.orbeLeft--;
-        S.orbeGap += burstGap(BURST.gap.orbe, s.cd * P.cdMul, s.n);
+        S.orbeGap += burstGap(BURST.gap.orbe, s.cd * P.cdMul);
       } else S.orbeLeft = 0; // plus aucune cible : la rafale s'arrête
     }
     if (S.orbeT <= 0 && S.orbeLeft === 0) {
@@ -262,7 +262,7 @@ export function tickWeapons(w: World, dt: number): void {
         const cd = s.cd * P.cdMul;
         S.orbeT = echo(w, cd); // la recharge part du premier tir
         S.orbeLeft = Math.max(0, s.n - 1);
-        S.orbeGap = burstGap(BURST.gap.orbe, cd, s.n);
+        S.orbeGap = burstGap(BURST.gap.orbe, cd);
       } else S.orbeT = 0.15;
     }
   }
@@ -388,7 +388,7 @@ export function tickWeapons(w: World, dt: number): void {
     if (S.boomLeft > 0 && (S.boomGap -= dt) <= 0) {
       if (boomShot(w, s)) {
         S.boomLeft--;
-        S.boomGap += burstGap(BURST.gap.boomerang, s.cd * P.cdMul, s.n);
+        S.boomGap += burstGap(BURST.gap.boomerang, s.cd * P.cdMul);
       } else S.boomLeft = 0;
     }
     if (S.boomT <= 0 && S.boomLeft === 0) {
@@ -397,7 +397,7 @@ export function tickWeapons(w: World, dt: number): void {
         const cd = s.cd * P.cdMul;
         S.boomT = echo(w, cd);
         S.boomLeft = Math.max(0, s.n - 1);
-        S.boomGap = burstGap(BURST.gap.boomerang, cd, s.n);
+        S.boomGap = burstGap(BURST.gap.boomerang, cd);
       } else S.boomT = BOOMERANG.wait;
     }
   }
@@ -451,7 +451,7 @@ export function tickWeapons(w: World, dt: number): void {
       if (S.lanceI < LANCE.maxPerSalvo && lanceShot(w, s, S.lanceI)) {
         S.lanceI++;
         S.lanceLeft--;
-        S.lanceGap += burstGap(BURST.gap.lance, s.cd * P.cdMul, nL);
+        S.lanceGap += burstGap(BURST.gap.lance, s.cd * P.cdMul);
       } else S.lanceLeft = 0;
     }
     if (S.lanceT <= 0 && S.lanceLeft === 0) {
@@ -463,7 +463,7 @@ export function tickWeapons(w: World, dt: number): void {
         S.lanceT = echo(w, cd);
         S.lanceI = 1;
         S.lanceLeft = Math.max(0, nL - 1);
-        S.lanceGap = burstGap(BURST.gap.lance, cd, nL);
+        S.lanceGap = burstGap(BURST.gap.lance, cd);
       } else S.lanceT = LANCE.retry;
     }
   }
@@ -522,7 +522,7 @@ export function tickWeapons(w: World, dt: number): void {
     if (S.fouetLeft > 0 && (S.fouetGap -= dt) <= 0) {
       lash(w, s, false);
       S.fouetLeft--;
-      S.fouetGap += burstGap(BURST.gap.fouet, s.cd * P.cdMul, nW);
+      S.fouetGap += burstGap(BURST.gap.fouet, s.cd * P.cdMul);
     }
     if (S.fouetT <= 0 && S.fouetLeft === 0) {
       S.fouetB = ++S.burstSeq;
@@ -530,7 +530,7 @@ export function tickWeapons(w: World, dt: number): void {
         const cd = s.cd * P.cdMul;
         S.fouetT = echo(w, cd);
         S.fouetLeft = Math.max(0, nW - 1);
-        S.fouetGap = burstGap(BURST.gap.fouet, cd, nW);
+        S.fouetGap = burstGap(BURST.gap.fouet, cd);
       } else S.fouetT = FOUET.wait;
     }
   }
