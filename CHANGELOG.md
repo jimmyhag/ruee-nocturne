@@ -2,6 +2,17 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.69.1 — 20 nov. 2026
+
+### Corrigé
+
+- **Les consignes de la partie guidée se lisent sur les petits téléphones** : à l'horizontale sur un petit écran, la bulle de consigne tombait au milieu de l'écran, sur ton héros, et passait sous la minicarte. Elle se place maintenant juste sous le chrono, entre tes PV et la minicarte, et pendant un combat de boss elle se range à gauche du héros. Sur un téléphone étroit tenu en hauteur, elle ne déborde plus de l'écran.
+- **La flèche de la partie guidée** ne se cache plus sous la consigne et ne sort plus par le haut de l'écran : quand le lieu montré est tout près, elle se pose dessous et pointe vers lui.
+
+### Technique
+
+- Spec : `docs/specs/tuto-petits-ecrans.md` (scénarios : `e2e/tuto-petits-ecrans.spec.ts`, rectangles englobants à 568 × 320, 640 × 360, 667 × 375 et 320 × 568). `#tuto` (`index.html`) : requête `(orientation: landscape) and (max-height: 500px)`, en haut à 78 px (98 px sous la puce d'objectif ou du marchand, à gauche du héros à 146 px avec la barre de boss ou les deux puces), largeur bornée par la minicarte des deux côtés, 14 px, longueurs multipliées par `--hud-scale` ; en portrait, la barre de boss ne remonte plus la bulle sur la minicarte ; à moins de 360 px de large, `max-width: calc(100vw - 16px)`. La bulle est centrée par ses marges (plus de `translateX`) pour que `arrowFrame` (`src/ui/tutorial.ts`) lise sa place en nombres (`offsetLeft`…, sans allocation) et en écarte la flèche (`TUTO_FEEL.clear`). PC, tablettes et iPhone 13 en portrait hors combat de boss : rectangles de la bulle identiques avant et après. Captures : `docs/captures/tuto-petits-ecrans/`.
+
 ## 1.69.0 — 20 nov. 2026 (rafales, vraie faux, explications au bon moment)
 
 Tes projectiles partent en rafale, la Faux devient une vraie faux, et le jeu t'explique ce qui change au moment où ça arrive.
