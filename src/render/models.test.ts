@@ -123,7 +123,8 @@ describe('modèles (phases 20, 21, 25, 26)', () => {
     }
     // deux textures par monde, légères (chargées après le menu, hors précache)
     expect(Object.keys(MANIFEST.ground).length).toBe(GROUND.worlds.length * 2);
-    expect(PAL.stages.length).toBe(GROUND.worlds.length);
+    // 1.68.0 : une ambiance de plus, l'Arène du boss final, qui reprend les textures du monde 3
+    expect(PAL.stages.length).toBe(GROUND.worlds.length + 1);
     for (const [file, bytes] of Object.entries(MANIFEST.ground)) {
       expect(fs.statSync(path.join(DIR, file)).size, file).toBe(bytes);
       expect(bytes, file).toBeLessThanOrEqual(120_000);

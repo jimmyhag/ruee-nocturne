@@ -7,6 +7,18 @@ interface StageDecor {
   bush: [string, number];
   flowers: string[];
 }
+/** Le décor du monde 3, repris (assombri) par l'Arène du boss final. */
+const MARSH: StageDecor = {
+  trees: [
+    ['dead_a', 0x8f9ab8],
+    ['pine_b', 0x4f8292],
+    ['dead_b', 0x8894b0],
+    ['leafy_c', 0x7fae9e],
+  ],
+  grass: 0x8dbfae,
+  bush: ['bush', 0x5f9486],
+  flowers: ['plant', 'flowers_a'],
+};
 export const PAL = {
   // phase 14 : nuit bleue profonde, lanternes chaudes (les anciennes valeurs violettes : 1c1226 / 5d4f7d / ff8a3d / ffcc4d)
   ink: 0x0f1628,
@@ -41,6 +53,13 @@ export const PAL = {
   corrupt: 0x9a3cff, // corrompus (docs/specs/corrompus.md) : violet maladif, teinte d'instance des monstres corrompus…
   corruptEye: 0xc98cff, // …leurs yeux qui luisent et leur traînée
   flame: 0xff6a2a, // corrompus : flaque de feu de la Brute (Traînée ardente), une fois allumée
+  // le Cœur de la Nuit (docs/specs/boss-final.md) : coup bloqué (gris), cercle de flammes de l'Arène (et son rouge quand
+  // il va se resserrer), portail rouge du monde 3, zone sûre du Jugement (lumière dorée sur l'Arène rouge)
+  blocked: 0xb8bcc8,
+  ringFire: 0xff7a2a,
+  ringWarn: 0xff2438,
+  portalRed: 0xff3b5c,
+  safe: 0xfff0a8,
   dust: 0x9aa4c2,
   cream: 0xf3ecdc,
   gem: 0x59d8ff,
@@ -104,17 +123,14 @@ export const PAL = {
       dusk: { fog: 0x8fb4b0, sky: 0xdaf5e6, ground: 0x4a4a6a, hemi: 1.9, sun: 0xe4ffe9, sunI: 2.2 },
       night: { fog: 0x2f4654, sky: 0xa6dcc8, ground: 0x34304e, hemi: 1.7, sun: 0xc8b8ff, sunI: 1.6 },
       tint: 0xffffff,
-      decor: {
-        trees: [
-          ['dead_a', 0x8f9ab8],
-          ['pine_b', 0x4f8292],
-          ['dead_b', 0x8894b0],
-          ['leafy_c', 0x7fae9e],
-        ],
-        grass: 0x8dbfae,
-        bush: ['bush', 0x5f9486],
-        flowers: ['plant', 'flowers_a'],
-      } as StageDecor,
+      decor: MARSH,
+    },
+    {
+      // 1.68.0 : l'Arène du boss final, le sol du marais assombri sous une nuit violette (pas de cycle : toujours la nuit)
+      dusk: { fog: 0x241a3a, sky: 0xb49cff, ground: 0x2c2448, hemi: 1.55, sun: 0xd2b8ff, sunI: 1.35 },
+      night: { fog: 0x241a3a, sky: 0xb49cff, ground: 0x2c2448, hemi: 1.55, sun: 0xd2b8ff, sunI: 1.35 },
+      tint: 0x9c8cb4, // sol du monde 3 (ses textures), assombri
+      decor: MARSH,
     },
   ],
 };

@@ -138,6 +138,20 @@ const TUTORIAL_TARGETS: Target[] = [
   },
 ];
 export const PROFILES = { naked: NAKED, maxed: MAXED, daily: DAILY_TARGETS, tutorial: TUTORIAL_TARGETS };
+// Le Cœur de la Nuit (docs/specs/boss-final.md, décision 13), profil maxé, sur les parties qui atteignent l'Arène (4
+// graines × 200 regroupées) : « bien plus chiant et fort que les autres » (Jimmy), sans être un mur
+export const FINAL_TARGETS: Target[] = [
+  { name: 'boss final vaincu 40–60 %', min: 40, max: 60, get: (s) => s.final.winPct, fmt: (v) => v.toFixed(0) + ' %' },
+  { name: 'combat final p50 2–4 min', min: 120, max: 240, get: (s) => s.final.fightP50, fmt: (v) => mmss(v) },
+  {
+    name: 'aucune phase > 50 % des morts',
+    min: 0,
+    max: 50,
+    get: (s) => s.final.deathPhaseMax,
+    fmt: (v) => v.toFixed(0) + ' %',
+  },
+  { name: 'Jugement ≤ 25 % des morts', min: 0, max: 25, get: (s) => s.final.judgePct, fmt: (v) => v.toFixed(0) + ' %' },
+];
 const mmss = (v: number) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
 // phase 43 (grand rééquilibrage, demande de Jimmy) : monde infini, mesuré sur les parties gagnées qui continuent
 // (--endless). Avant : tenu p50 7:39, p90 17:51, 24 % des parties passaient 6 vagues ; un joueur va environ deux fois plus

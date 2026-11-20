@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import {
+  ARENA,
   BOSS,
   CAPS,
+  FINAL,
   DECOR,
   ENEMIES,
   ARCHER,
@@ -32,6 +34,7 @@ import {
 } from '../sim/balance';
 import { chargeOf, isCharger } from '../sim/hazards';
 import { flameLit } from '../sim/corrupt';
+import { FINAL_DONE, hitsBlocked, ringWarned } from '../sim/final';
 import { TOTEM_HIDDEN, canOpenMapChest } from '../sim/poi';
 import { spellSize } from '../sim/spells';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -40,7 +43,7 @@ import { ENEMY_LOOKS, enemyOutlineMaterial, loadEnemyModels } from './enemyModel
 import type { BakedEnemy } from './enemyModels';
 import { writeLoopPose, writeOncePose } from './pose';
 import type { NatureKey, NatureSet, PropGeometry, PropKey } from './models';
-import { Corrupt, Mode, ProjKind, Pw, ShotKind, Spell } from '../sim/types';
+import { Corrupt, Mode, ProjKind, Pw, Role, ShotKind, Spell } from '../sim/types';
 import type { CharacterKey, Enemy, WeaponKey } from '../sim/types';
 import type { World } from '../sim/world';
 import { weaponStats } from '../sim/weapons/defs';
@@ -206,7 +209,9 @@ export class GameScene {
   // corrompus (docs/specs/corrompus.md, décision 3) : teinte violette par type, yeux relevés dans la boucle des ennemis
   // (x, y des yeux, z) et dessinés avec les lueurs ; traînée de particules au compte-gouttes
   private corruptColor: THREE.Color[] = [];
-  private corruptBuf = new Float32Array(FEEL.corrupt.marks * 6);
+  // x, y des yeux, z, y du centre du corps, rayon de l'aura, phase, taille des yeux (0 : un double du boss final, sans
+  // yeux qui brillent)
+  private corruptBuf = new Float32Array(FEEL.corrupt.marks * 7);
   /**
    * « Réduction des effets » (réglage, ou prefers-reduced-motion tant que le joueur n'a rien choisi : main.ts) : la
    * traînée des corrompus est divisée par deux et leur violet ne bat plus.
@@ -220,6 +225,20 @@ export class GameScene {
   private cCorruptAura = new THREE.Color(PAL.corrupt).multiplyScalar(FEEL.corrupt.auraA);
   private cFlame = new THREE.Color(PAL.flame);
   private cFlameNow = new THREE.Color();
+  // le Cœur de la Nuit (docs/specs/boss-final.md) : coup bloqué (gris), cercle de flammes (un appel, seulement dans
+  // l'Arène), portail rouge, Jugement ; l'éclipse (0 → 1) assombrit lumières et brume
+  private cBlocked = new THREE.Color(PAL.blocked).multiplyScalar(1.15);
+  private cPortalRed = new THREE.Color(PAL.portalRed);
+  private cSafe = new THREE.Color(PAL.safe).multiplyScalar(1.4);
+  private cRing = new THREE.Color();
+  private cRingFire = new THREE.Color(PAL.ringFire);
+  private cRingWarn = new THREE.Color(PAL.ringWarn);
+  private cHeroGlow = new THREE.Color(PAL.lantern).multiplyScalar(0.55);
+  private arenaRing!: THREE.Mesh;
+  private ringMat!: THREE.MeshBasicMaterial;
+  private ringR: number = FINAL.arenaR;
+  /** Éclipse du boss final, 0 → 1 (phases 3 et 4), adoucie ; lue aussi par les tests e2e. */
+  eclipse = 0;
   private cEliteAura = new THREE.Color(PAL.gold).multiplyScalar(FEEL.elite.auraA);
   private cCrown = new THREE.Color(0xffb020).multiplyScalar(1.3); // or soutenu : se détache du corps, jaune clair
   private cChestHalo = new THREE.Color(PAL.gold).multiplyScalar(FEEL.chestDrop.haloA);
@@ -304,6 +323,10 @@ export class GameScene {
   // textures de sol par monde (phase 44) : [tapis, terre], null tant qu'elles chargent (repli : texture dessinée)
   private groundSet: ([THREE.Texture, THREE.Texture] | null)[] = [null, null, null];
   private groundAsked = [false, false, false];
+  /** Textures de sol du monde courant (1.68.0 : l'Arène reprend celles du monde 3). */
+  private groundIdx(): number {
+    return Math.min(this.stageIdx, STAGE.count - 1);
+  }
   private groundMap2 = { value: null as THREE.Texture | null };
   private propTreeW: InstanceWriter[] = []; // sapin orange, sapin jaune, arbre mort, arbre mort moyen
   private propLampW: InstanceWriter;
@@ -694,7 +717,7 @@ export class GameScene {
       makeInstanced(
         new THREE.RingGeometry(0.7, 1, 40).rotateX(-Math.PI / 2),
         additive(0xffffff, 0.7),
-        SHRINE.count + 4 + DIFFICULTY.skullMax + BOSSTOTEM.max,
+        SHRINE.count + 4 + DIFFICULTY.skullMax + BOSSTOTEM.max + FINAL.seal.n + 2, // 1.68.0 : sceaux, zone sûre
       ),
     );
     // colonne de lumière : cylindre ouvert, additif, 16 u de haut, visible au-dessus des arbres
@@ -703,13 +726,38 @@ export class GameScene {
         new THREE.CylinderGeometry(0.28, 0.5, 16, 8, 1, true).translate(0, 8, 0),
         additive(0xffffff, 0.22),
         // phase 27 : 30 coffres et 14 sanctuaires ; phase 37 : le totem ; phase 48 : les crânes ; phase 51 : coffres lâchés
-        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullMax + BOSSTOTEM.max + CAPS.chests,
+        MAPCHEST.count + SHRINE.count + 1 + DIFFICULTY.skullMax + BOSSTOTEM.max + CAPS.chests + FINAL.seal.n + 1,
       ),
     );
     this.scene.add(this.mapChestW.mesh, this.holdW.mesh, this.shrineW.mesh, this.shrineGlowW.mesh, this.beamW.mesh);
     // phase 48 : totems de boss, la géométrie du totem du monde en instances (runes à la couleur d'instance), un appel
-    this.bossTotemW = new InstanceWriter(makeInstanced(this.totem.mesh.geometry, stoneMaterial(), BOSSTOTEM.max));
+    // 1.68.0 : les sceaux du boss final sont ces stèles (jamais en même temps que les totems de boss : l'Arène n'en a pas)
+    this.bossTotemW = new InstanceWriter(
+      makeInstanced(this.totem.mesh.geometry, stoneMaterial(), Math.max(BOSSTOTEM.max, FINAL.seal.n)),
+    );
     this.scene.add(this.skullW.mesh, this.bossTotemW.mesh);
+    // 1.68.0 : le cercle de flammes de l'Arène, un mur bas additif qui s'efface vers le haut (un appel, dans l'Arène seule)
+    const wall = new THREE.CylinderGeometry(1, 1, FEEL.final.wall, 72, 1, true).translate(0, FEEL.final.wall / 2, 0);
+    const pos = wall.getAttribute('position'),
+      fade = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const k = 1 - pos.getY(i) / FEEL.final.wall; // 1 au pied, 0 en haut
+      fade[i * 3] = fade[i * 3 + 1] = fade[i * 3 + 2] = k * k;
+    }
+    wall.setAttribute('color', new THREE.BufferAttribute(fade, 3));
+    this.ringMat = new THREE.MeshBasicMaterial({
+      color: PAL.ringFire,
+      vertexColors: true,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      forceSinglePass: true,
+    });
+    this.arenaRing = new THREE.Mesh(wall, this.ringMat);
+    this.arenaRing.visible = false;
+    this.arenaRing.frustumCulled = false;
+    this.scene.add(this.arenaRing);
     this.writers.push(
       this.mapChestW,
       this.holdW,
@@ -1580,13 +1628,15 @@ export class GameScene {
     // colonne de lumière suffit, et l'appel de rendu est rendu au budget (40 sur mobile, mesuré à 40 sans cela)
     const inView = near && d2 < TOTEM_VIEW2;
     if (w.portal.open) {
+      // 1.68.0 : le portail du monde 3 est rouge (il mène à l'Arène du boss final)
+      const pc = w.stage === STAGE.count - 1 ? this.cPortalRed : this.cBeamBlue;
       if (near)
         for (let k = 0; k < 3; k++) {
           const r = STAGE.portalR * (0.55 + k * 0.25) * (1 + Math.sin(now * 3 + k * 2) * 0.06);
-          this.cPoi.copy(this.cBeamBlue).multiplyScalar(0.7 + Math.sin(now * 4 + k) * 0.3);
+          this.cPoi.copy(pc).multiplyScalar(0.7 + Math.sin(now * 4 + k) * 0.3);
           this.shrineGlowW.put(T.x, g + STAGE.portalR * 1.15, T.z, now * (0.6 + k * 0.3), r, this.cPoi, Math.PI / 2, 0);
         }
-      this.beamW.put(T.x, g, T.z, 0, 2.2, this.cBeamBlue, 0, 0, 1.1, 2.2);
+      this.beamW.put(T.x, g, T.z, 0, 2.2, pc, 0, 0, 1.1, 2.2);
       return;
     }
     const fought = T.state === 1;
@@ -1608,14 +1658,77 @@ export class GameScene {
     }
   }
 
+  /**
+   * 1.68.0 (docs/specs/boss-final.md) : l'Arène du boss final, dans les écrivains des lieux (aucun appel de plus, sauf le
+   * mur de flammes) : sceaux (stèles violettes, anneau, colonne), Jugement (toute l'Arène rouge, zone sûre dorée), mur
+   * de flammes qui rougit avant de se resserrer, flammèches le long du cercle.
+   */
+  private drawArena(w: World, now: number): void {
+    for (let i = 0; i < w.enemyCount; i++) {
+      const e = w.enemies[i];
+      if (!e.alive || e.role !== Role.Seal) continue;
+      const f = e.flash > 0 ? 1.6 : 1;
+      this.cPoi.copy(this.cCorruptEye).multiplyScalar((1.1 + Math.sin(now * 4 + i) * 0.2) * f);
+      this.bossTotemW.put(e.x, -0.02, e.z, i * 1.3, FEEL.bossTotem.height / TOTEM_HEIGHT, this.cPoi, 0, 0);
+      this.cPoi.copy(this.cCorrupt).multiplyScalar(0.6 + 0.4 * (e.hp / e.max));
+      this.shrineGlowW.put(e.x, 0.12, e.z, now * 0.6, e.r * 1.6, this.cPoi, 0, 0);
+      this.beamW.put(e.x, 0, e.z, 0, FEEL.bossTotem.beam, this.cCorrupt, 0, 0, 1, FEEL.bossTotem.beam);
+    }
+    if (w.judgeT > 0) {
+      // la zone sûre du Jugement : un cercle de lumière et sa colonne (le rouge de l'Arène : drawJudgement)
+      const J = FINAL.judge;
+      const pulse = 1 + Math.sin(now * 10) * 0.05;
+      this.shrineGlowW.put(w.judgeX, 0.14, w.judgeZ, now, J.r * pulse, this.cSafe, 0, 0);
+      this.shrineGlowW.put(w.judgeX, 0.15, w.judgeZ, -now * 1.3, J.r * 0.6 * pulse, this.cSafe, 0, 0);
+      this.beamW.put(w.judgeX, 0, w.judgeZ, 0, FEEL.final.safeBeam, this.cSafe, 0, 0, 1, FEEL.final.safeBeam);
+    }
+  }
+  /** Le Jugement : l'Arène se remplit de rouge pendant l'annonce (écrivains des télégraphes, ouverts : bloc des tirs). */
+  private drawJudgement(w: World): void {
+    if (w.stage !== ARENA || w.judgeT <= 0) return;
+    const f = 1 - w.judgeT / FINAL.judge.telegraph;
+    this.zoneW.put(0, 0.08, 0, 0, w.arenaR, this.cTele, 0, 0);
+    this.zoneFillW.put(0, 0.06, 0, 0, w.arenaR * (0.35 + 0.65 * f), this.cTele, 0, 0);
+  }
+  /** Le mur de flammes de l'Arène : rayon adouci, rouge qui bat avant un pas, flammèches (moins en effets réduits). */
+  private drawRing(w: World, dt: number, now: number): void {
+    const on = w.stage === ARENA;
+    this.arenaRing.visible = on;
+    if (!on) {
+      this.ringR = FINAL.arenaR;
+      return;
+    }
+    this.ringR += (w.arenaR - this.ringR) * Math.min(1, dt * 5);
+    this.arenaRing.scale.set(this.ringR, 1 + Math.sin(now * 7) * 0.06, this.ringR);
+    const warn = ringWarned(w);
+    this.cRing.copy(warn ? this.cRingWarn : this.cRingFire);
+    if (!this.reducedFx)
+      this.cRing.multiplyScalar(warn ? 1.2 + Math.sin(now * 22) * 0.5 : 0.9 + Math.sin(now * 5) * 0.1);
+    this.ringMat.color.copy(this.cRing);
+    const n = Math.round(FEEL.final.flames * (this.reducedFx ? 0.5 : 1) * (warn ? 2 : 1));
+    for (let k = 0; k < n; k++) {
+      const a = Math.random() * Math.PI * 2;
+      this.particles.burst(
+        Math.sin(a) * this.ringR,
+        0.2,
+        Math.cos(a) * this.ringR,
+        warn ? PAL.ringWarn : PAL.ringFire,
+        1,
+        0.6,
+        3,
+        false,
+      );
+    }
+  }
+
   /** Phase 37 : ambiance du monde `i` (lumières du cycle et teinte du sol) ; phase 44 : textures du sol et décor. */
   private stageIdx = 0;
   setStage(i: number): void {
     const st = (this.stageIdx = Math.max(0, Math.min(PAL.stages.length - 1, i)));
     this.groundMat.color.setHex(PAL.stages[st].tint);
     this.applyGround();
-    this.askGround(st);
-    if (st > 0 && st + 1 < PAL.stages.length) this.askGround(st + 1); // monde suivant prêt avant le portail
+    this.askGround(this.groundIdx());
+    if (st > 0 && st + 1 < STAGE.count) this.askGround(st + 1); // monde suivant prêt avant le portail
     this.dressStage();
   }
   /** Demande (une fois) les deux textures de sol d'un monde ; appliquées si c'est le monde courant. */
@@ -1626,7 +1739,7 @@ export class GameScene {
       ([a, b]) => {
         a.repeat.set((WORLD_HALF * 2) / GROUND_TILE, (WORLD_HALF * 2) / GROUND_TILE);
         this.groundSet[st] = [a, b];
-        if (this.stageIdx === st) this.applyGround();
+        if (this.groundIdx() === st) this.applyGround();
       },
       (e: unknown) => {
         this.groundAsked[st] = false; // nouvel essai au prochain passage dans ce monde
@@ -1636,7 +1749,7 @@ export class GameScene {
   }
   /** Textures du sol du monde courant (ou la texture dessinée tant qu'elles chargent). */
   private applyGround(): void {
-    const set = this.groundSet[this.stageIdx],
+    const set = this.groundSet[this.groundIdx()],
       proc = this.groundTex(this.qualityLevel > 0);
     this.groundMat.map = set ? set[0] : proc;
     this.groundMap2.value = set ? set[1] : proc;
@@ -1663,6 +1776,14 @@ export class GameScene {
     this.hemi.intensity = lerp(a.hemi, b.hemi, f);
     this.sun.color.copy(this.cSun);
     this.sun.intensity = lerp(a.sunI, b.sunI, f);
+    if (this.eclipse > 0) {
+      // 1.68.0 : l'éclipse du boss final retire une part de la lumière et noircit la brume (moins en « effets réduits »)
+      const k = this.eclipse * (this.reducedFx ? FEEL.final.eclipseReduced : FEEL.final.eclipse);
+      this.hemi.intensity *= 1 - k;
+      this.sun.intensity *= 1 - k * 0.8;
+      this.fog.color.multiplyScalar(1 - k);
+      (this.scene.background as THREE.Color).copy(this.fog.color);
+    }
     this.night = Math.min(1, t / 300);
     if (this.haloMat) this.haloMat.opacity = 0.015 + 0.11 * f;
   }
@@ -1692,6 +1813,10 @@ export class GameScene {
       pz = lerp(P.pz, P.z, alpha),
       py = lerp(P.py, P.y, alpha);
     const gp = this.gy(px, pz); // phase 18 : sol local sous le joueur (la sim donne y au-dessus du sol)
+    const arena = w.stage === ARENA;
+    const eclTarget = arena && w.finalPhase >= 3 && w.finalPhase < FINAL_DONE ? 1 : 0;
+    this.eclipse += (eclTarget - this.eclipse) * Math.min(1, dt * FEEL.final.eclipseEase);
+    if (this.eclipse < 0.002) this.eclipse = eclTarget;
     this.lightCycle(w.stageT);
     this.fireflies.update(px, pz, now, this.night);
     this.particles.billboardRx = this.bolts.billboardRx = -Math.atan2(
@@ -1700,6 +1825,7 @@ export class GameScene {
     );
 
     this.terrain.follow(px, pz); // phase 27 : la fenêtre de sol suit le joueur (recalée par pas de 16 u)
+    this.drawRing(w, dt, now); // 1.68.0 : le cercle de flammes de l'Arène
     // phase 29 : segments de lisière au-delà de la vue écartés (le frustum seul en gardait 3 à 5 dans le brouillard)
     if ((px - this.borderX) ** 2 + (pz - this.borderZ) ** 2 > 16) {
       this.borderX = px;
@@ -1876,11 +2002,12 @@ export class GameScene {
     this.frozenPose = frozen;
     for (let i = 0; i < w.enemyCount; i++) {
       const e = w.enemies[i];
-      if (!e.alive) continue;
+      if (!e.alive || e.role === Role.Seal) continue; // les sceaux sont des stèles (dessinées avec les lieux)
       const def = ENEMIES[e.type];
       const ex = lerp(e.px, e.x, alpha),
         ez = lerp(e.pz, e.z, alpha);
       const boss = def.boss;
+      const heart = e.role === Role.Heart || e.role === Role.Decoy; // le boss final ou un double : violet, agrandi
       // modèles 3D (pieds à y = 0) : posés au sol, la marche animée remplace le hop ; e.y (hauteur de rendu des
       // silhouettes procédurales, centrées) ne sert plus qu'au Volant, qui vole (1.21.4)
       const grounded = !!this.enemyMorph[e.type] && e.type !== VOLANT_TYPE;
@@ -1893,7 +2020,9 @@ export class GameScene {
       // phase 19 : un ennemi étourdi pâlit (jaune), un ennemi ralenti bleuit ; le flash blanc du coup passe avant
       let col =
         e.flash > 0
-          ? this.cFlash
+          ? hitsBlocked(w, e)
+            ? this.cBlocked // 1.68.0 : un coup qui ne le blesse pas (invulnérable, ou un double) : gris, pas blanc
+            : this.cFlash
           : frozen
             ? this.cFreeze
             : e.stun > 0
@@ -1906,13 +2035,14 @@ export class GameScene {
                     ? this.cTox // phase 50 : boss empoisonné (Toxine), vert
                     : e.burnT > 0
                       ? this.cBurn // phase 47 B : en feu (Dent de dragon), orangé
-                      : e.corrupt !== Corrupt.None
-                        ? this.corruptColor[e.type] // corrompus : violet maladif (décision 3)
+                      : e.corrupt !== Corrupt.None || heart
+                        ? this.corruptColor[e.type] // corrompus : violet maladif (décision 3) ; le boss final aussi
                         : e.elite
                           ? this.eliteColor[e.type]
                           : this.enemyColor[e.type];
       let s = (e.flash > 0 ? S.hitScale : 1) * (e.elite ? FEEL.elite.scale : 1);
       if (e.corrupt === Corrupt.Shard) s *= CORRUPT.split.r; // éclat de la Scission : un petit spectre
+      if (heart) s *= FINAL.scale; // le Cœur de la Nuit : le Colosse agrandi
       const eg = this.gy(ex, ez);
       const ey = (grounded ? 0 : e.y + hop) + eg;
       let marked = false;
@@ -1931,9 +2061,9 @@ export class GameScene {
           this.eliteBuf[o + 4] = e.bob;
         }
       }
-      if (e.corrupt !== Corrupt.None) {
+      if (e.corrupt !== Corrupt.None || heart) {
         // le violet bat (sauf pendant un flash, un gel, une brûlure, et en « réduction des effets ») ; yeux qui luisent ;
-        // fine traînée
+        // fine traînée. 1.68.0 : le boss final et ses doubles aussi (aura plus serrée) ; seul le vrai a des yeux
         if (col === this.corruptColor[e.type] && !this.reducedFx)
           col = this.cCorruptNow.copy(col).multiplyScalar(1 + FEEL.corrupt.pulse * Math.sin(now * 6 + e.bob));
         // yeux : à hauteur de tête, un peu devant le visage (le Volant, centré sur sa hauteur de vol : à son centre)
@@ -1941,13 +2071,14 @@ export class GameScene {
           tall = look ? look.height * s : e.r * FEEL.elite.top,
           head = e.type === VOLANT_TYPE ? ey + 0.15 : ey + tall * FEEL.corrupt.eyeAt;
         if (this.corruptN < FEEL.corrupt.marks) {
-          const o = this.corruptN++ * 6;
+          const o = this.corruptN++ * 7;
           this.corruptBuf[o] = ex + Math.sin(e.face) * e.r * 0.5;
           this.corruptBuf[o + 1] = head;
           this.corruptBuf[o + 2] = ez + Math.cos(e.face) * e.r * 0.5;
           this.corruptBuf[o + 3] = e.type === VOLANT_TYPE ? ey : ey + tall * 0.45; // centre du corps (aura)
-          this.corruptBuf[o + 4] = e.r * s;
+          this.corruptBuf[o + 4] = heart ? e.r * FEEL.final.aura : e.r * s * FEEL.corrupt.aura;
           this.corruptBuf[o + 5] = e.bob;
+          this.corruptBuf[o + 6] = e.role === Role.Decoy ? 0 : heart ? FEEL.final.eye : FEEL.corrupt.eye;
         }
         if (trail > 0 && Math.random() < trailP) {
           trail--;
@@ -1984,6 +2115,7 @@ export class GameScene {
       } else if (boss) {
         this.enemyW[e.type].put(ex, ey, ez, e.type === 3 && !this.enemyMorph[3] ? now * 1.4 : e.face, s, col);
         this.poseEnemy(e.type, e, now);
+        if (heart && e.state === 1 && isCharger(e)) this.chargeLane(e, ex, ez, eg); // 1.68.0 : la charge du Gardien
       } else if (e.type === 1) {
         this.enemyW[1].put(ex, ey, ez, e.face, s, col, 0, 0, s, s * S.enemyStretch);
         this.poseEnemy(1, e, now);
@@ -2123,6 +2255,7 @@ export class GameScene {
     }
     this.spitW.end();
     this.arrowW.end();
+    this.drawJudgement(w); // 1.68.0
     this.zoneW.end();
     this.zoneFillW.end();
 
@@ -2310,6 +2443,7 @@ export class GameScene {
       }
     }
     this.drawTotem(w, px, pz, now);
+    if (arena) this.drawArena(w, now);
     this.mapChestW.end();
     this.skullW.end();
     this.bossTotemW.end();
@@ -2409,29 +2543,33 @@ export class GameScene {
     // corrompus (décision 3) : les yeux luisent, une lueur violette à hauteur des yeux (écrivain des lueurs, déjà actif)
     // et une aura violette autour du corps (une forme en plus : une teinte seule se lit mal sur un modèle texturé)
     for (let i = 0; i < this.corruptN; i++) {
-      const o = i * 6,
+      const o = i * 7,
         ph = this.corruptBuf[o + 5];
       this.glowW.put(
         this.corruptBuf[o],
         this.corruptBuf[o + 3],
         this.corruptBuf[o + 2],
         0,
-        this.corruptBuf[o + 4] * FEEL.corrupt.aura * (0.9 + 0.1 * Math.sin(now * 5 + ph)),
+        this.corruptBuf[o + 4] * (0.9 + 0.1 * Math.sin(now * 5 + ph)),
         this.cCorruptAura,
         brx,
         now * 0.6 + ph,
       );
-      this.glowW.put(
-        this.corruptBuf[o],
-        this.corruptBuf[o + 1],
-        this.corruptBuf[o + 2],
-        0,
-        FEEL.corrupt.eye * (0.85 + 0.15 * Math.sin(now * 9 + ph)),
-        this.cCorruptEye,
-        brx,
-        now + ph,
-      );
+      if (this.corruptBuf[o + 6] > 0)
+        this.glowW.put(
+          this.corruptBuf[o],
+          this.corruptBuf[o + 1],
+          this.corruptBuf[o + 2],
+          0,
+          this.corruptBuf[o + 6] * (0.85 + 0.15 * Math.sin(now * 9 + ph)),
+          this.cCorruptEye,
+          brx,
+          now + ph,
+        );
     }
+    // 1.68.0 : dans l'éclipse, un halo chaud autour du héros (la zone autour de lui reste lisible)
+    if (this.eclipse > 0.05)
+      this.glowW.put(px, gp + 0.4, pz, 0, FEEL.final.heroGlow * this.eclipse, this.cHeroGlow, brx, now * 0.3);
     this.gemW.end();
     if (w.powerT[Pw.Rage] > 0) {
       const hx = lerp(w.player.px, w.player.x, alpha),

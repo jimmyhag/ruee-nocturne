@@ -92,6 +92,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'survie15', goal: 900, get: (s) => s.bestTime, time: true, survival: true, unlocks: { item: 'calice' } },
   { id: 'survie20', goal: 1200, get: (s) => s.bestTime, time: true, survival: true, unlocks: { item: 'couronne' } },
   { id: 'win', goal: 1, get: (s) => s.wins, unlocks: { character: 'revenante' } },
+  // 1.68.0 (docs/specs/boss-final.md, décision 10) : la vraie fin du jeu, le Cœur de la Nuit vaincu
+  { id: 'aube', goal: 1, get: (s) => s.hearts },
   // défis (phase 6) : des objectifs de maîtrise dans un seul run, pas du cumul
   { id: 'intouchable', goal: 240, get: (s) => s.noHitBest, time: true, unlocks: { character: 'feufollet' } },
   { id: 'marathon', goal: 4000, get: (s) => s.distanceBest, unlocks: { item: 'boussole' } },

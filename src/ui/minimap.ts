@@ -1,7 +1,9 @@
 // Carte de la partie (phase 27) : minicarte du HUD (autour du joueur, redessinée 4 fois par seconde) et grande carte
 // (toute la carte, à l'ouverture). Fond construit une fois par carte (relief, lacs, ouvrages), brouillard sur ce qui
 // n'est pas encore découvert (w.seen, tenu par la sim). Lecture seule du monde. Hors de la boucle de rendu 3D.
-import { DISCOVER, ENEMIES, It, PLAY_LIMIT, WORLD_HALF } from '../sim/balance';
+import { ARENA, DISCOVER, ENEMIES, FINAL, It, PLAY_LIMIT, WORLD_HALF } from '../sim/balance';
+import { ringWarned } from '../sim/final';
+import { Role } from '../sim/types';
 import { SEEN_N } from '../sim/world';
 import { TOTEM_HIDDEN } from '../sim/poi';
 import type { World } from '../sim/world';
@@ -344,6 +346,7 @@ export class MapView {
       ctx.fill();
       ctx.stroke();
     }
+    if (w.stage === ARENA) this.arena(ctx, w, k, r);
     ctx.fillStyle = '#ff4d5e';
     for (let i = 0; i < w.enemyCount; i++) {
       const e = w.enemies[i];
@@ -445,6 +448,42 @@ export class MapView {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.newLabel, left + tw / 2, top + h / 2 + 0.5);
+  }
+
+  /**
+   * 1.68.0 (docs/specs/boss-final.md) : l'Arène du boss final. Le cercle de flammes (rouge quand il va se resserrer),
+   * les sceaux (losanges violets, toujours visibles : c'est l'objectif de la phase 2) et la zone sûre du Jugement.
+   */
+  private arena(ctx: CanvasRenderingContext2D, w: World, k: number, r: number): void {
+    ctx.strokeStyle = ringWarned(w) ? '#ff2438' : '#ff7a2a';
+    ctx.lineWidth = Math.max(1.5, r * 0.7);
+    ctx.beginPath();
+    ctx.arc(this.X(0), this.Z(0), w.arenaR * k, 0, Math.PI * 2);
+    ctx.stroke();
+    if (w.judgeT > 0) {
+      ctx.fillStyle = '#fff0a8';
+      ctx.beginPath();
+      ctx.arc(this.X(w.judgeX), this.Z(w.judgeZ), Math.max(r * 1.5, FINAL.judge.r * k), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = '#0c0f1a';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#c98cff';
+    for (let i = 0; i < w.enemyCount; i++) {
+      const e = w.enemies[i];
+      if (!e.alive || e.role !== Role.Seal) continue;
+      const x = this.X(e.x),
+        z = this.Z(e.z),
+        a = r * 2;
+      ctx.beginPath();
+      ctx.moveTo(x, z - a);
+      ctx.lineTo(x + a, z);
+      ctx.lineTo(x, z + a);
+      ctx.lineTo(x - a, z);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
   }
 
   /** Fond de la nouvelle carte, à préparer hors d'une image de jeu (lancement de la partie). */

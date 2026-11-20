@@ -1,4 +1,5 @@
 import {
+  ARENA,
   CHARACTERS,
   DAILY,
   ELITE_TYPE,
@@ -24,7 +25,7 @@ import type { GameScene } from './render/scene';
 import { PAL } from './render/palette';
 import { FEEL, HitStop, tierCelebration } from './render/feel';
 import { InputManager } from './platform/input';
-import { AudioBus } from './platform/audio';
+import { AudioBus, FinalSfx } from './platform/audio';
 import { Hud, flashCard, gearHtml, renderCards, showRevealed } from './ui/hud';
 import { statsHTML } from './ui/stats';
 import { LANG_SETTINGS, fmtDay, fmtTime, getLang, has, ordinal, resolveLang, setLang, t } from './i18n';
@@ -34,6 +35,8 @@ import { WEAPON_KEYS } from './sim/weapons/defs';
 import { MERCHANT_LEAVE, MERCHANT_REROLL, rerollCost } from './sim/merchant';
 import { LEVEL_REROLL, canReroll, tutorialLock } from './sim/progression';
 import { adoptDaily, startEndless, totemLocked } from './sim/stages';
+import { FINAL_DONE, adoptCleared } from './sim/final';
+import { runOutcome } from './meta/outcome';
 import type { Achievement } from './meta/achievements';
 import {
   exportMeta,
@@ -964,6 +967,7 @@ function startGame(
     }
     daily = resume.daily;
     if (daily) adoptDaily(restored); // relecture du lot L3 : un défi gardé avant la mise à jour devient le défi court
+    adoptCleared(restored); // 1.68.0 : une victoire gardée par la 1.67 reste la victoire du monde 3
     runChar = resume.character;
     runOutfit = resume.outfit;
     runDay = resume.day ?? todayKey();
@@ -1149,7 +1153,9 @@ function updateResumeBtn(): void {
     const time = fmtTime(r.summary.endless ? r.summary.t : r.summary.stageT);
     $('resumeRunInfo').textContent = r.summary.endless
       ? t('menu.resumeInfoEndless', { time })
-      : t('menu.resumeInfo', { stage: r.summary.stage, time });
+      : r.summary.stage === ARENA + 1 // le boss final : « Arène · 1:20 »
+        ? t('menu.resumeInfoArena', { time })
+        : t('menu.resumeInfo', { stage: r.summary.stage, time });
     $('resumeRunBtn').setAttribute('aria-label', t('menu.resumeAria', { info: $('resumeRunInfo').textContent ?? '' }));
   }
   $('abandonRow').hidden = abandonFor === null;
@@ -1188,7 +1194,8 @@ function beatText(): string {
  * reconstruits pendant le fondu, ambiance du monde, bannière avec son nom.
  */
 const stageFade = $('stageFade');
-function onStageStart(n: number): void {
+/** `quiet` : la carte change sans bannière de monde (1.68.0 : le monde infini quitte l'Arène, sa bannière suit). */
+function onStageStart(n: number, quiet = false): void {
   if (!world || !scene) return;
   const S = scene;
   const fade = stageFade;
@@ -1204,11 +1211,21 @@ function onStageStart(n: number): void {
   S.snapCamera(world);
   fade.style.transition = 'opacity 0.8s ease-out';
   fade.style.opacity = '0';
-  hud.banner(t('banner.stage', { n, name: t('stage.name.' + n) }), 'info');
+  if (quiet) return;
+  // 1.68.0 : l'Arène du boss final n'est pas un « monde n »
+  if (n === ARENA + 1) hud.banner(t('banner.arena'), 'danger', t('banner.arenaSub'));
+  else hud.banner(t('banner.stage', { n, name: t('stage.name.' + n) }), 'info');
   audio.whoosh();
   audio.levelUp();
 }
+/** 1.68.0 : vignette sombre de l'éclipse (body.eclipse ; « réduction des effets » : plus légère, index.html). */
+let eclipseOn = false;
+function setEclipse(on: boolean): void {
+  eclipseOn = on;
+  document.body.classList.toggle('eclipse', on);
+}
 function toMenu(): void {
+  setEclipse(false);
   app = 'menu';
   world = null;
   guide = null;
@@ -1418,6 +1435,8 @@ function choose(i: number): void {
 /** Ce que l'écran de mort affiche, gardé pour le re-rendre dans l'autre langue (un objet par mort, pas par frame). */
 let lastOver: {
   won: boolean;
+  heart: boolean; // 1.68.0 : le Cœur de la Nuit vaincu (victoire totale)
+  arena: boolean; // 1.68.0 : mort dans l'Arène, contre lui
   rec: boolean;
   gold: number;
   dailyRank: number;
@@ -1444,9 +1463,13 @@ function renderOverScreen(): void {
   $('oTime').textContent = fmtTime(world.t);
   $('oStage').textContent = world.endless // phase 39 : monde infini
     ? t('over.endless', { time: fmtTime(world.endlessT), n: world.endlessWave })
-    : o.won
-      ? t('over.stages')
-      : t('over.stage', { n: world.stage + 1 }); // phase 37
+    : o.heart // 1.68.0 : le boss final vaincu, ou la phase où il a gagné
+      ? t('over.heartDown')
+      : o.arena
+        ? t('over.heartPhase', { n: Math.min(4, Math.max(1, world.finalPhase)) })
+        : o.won
+          ? t('over.stages')
+          : t('over.stage', { n: world.stage + 1 }); // phase 37
   $('oLvl').textContent = String(world.player.level);
   $('oGear').innerHTML = gearHtml(world); // phase 38 : l'équipement de la partie
   $('oKills').textContent = String(world.kills);
@@ -1467,7 +1490,15 @@ function renderOverScreen(): void {
   $('oGold').textContent = String(o.gold);
   // défi v2 : un défi réussi le reste après la suite en monde infini (sa médaille sous le titre)
   $('oTitle').textContent = t(
-    o.dailyOk ? 'over.dailyDone' : world.endless ? 'over.endlessEnd' : o.won ? 'over.win' : 'over.dead',
+    o.dailyOk
+      ? 'over.dailyDone'
+      : world.endless
+        ? 'over.endlessEnd'
+        : o.arena
+          ? 'over.heartDead' // 1.68.0 : « Vaincu par le Cœur de la Nuit »
+          : o.won
+            ? 'over.win'
+            : 'over.dead',
   );
   $('oTitle').classList.toggle('win', o.won || o.dailyOk);
   $('oMedal').hidden = o.medal === 0;
@@ -1497,7 +1528,7 @@ function renderOverScreen(): void {
   $('oNext').hidden = ns < 0;
   if (ns >= 0) $('oNext').textContent = t('over.nextSlot', { name: slotName(ns), cond: slotCondition(ns) });
   $('oMsg').innerHTML = o.won
-    ? `<span class="newrec">${esc(t('over.reaperDown'))}</span>`
+    ? `<span class="newrec">${esc(t(o.heart ? 'over.dawn' : 'over.reaperDown'))}</span>`
     : o.dailyRank > 0
       ? esc(
           o.dailyRank === 1
@@ -1510,9 +1541,10 @@ function renderOverScreen(): void {
           ? `<span class="newrec">${esc(t('over.newRecord'))}</span>${esc(t('over.plusGold', { gold: g }))}`
           : esc(t('over.toBeat', { time: fmtTime(meta.bestTime - world.t), gold: g }));
 }
-function gameOver(won = false): void {
+function gameOver(): void {
   timestopOn = false; // phase 35
   document.body.classList.remove('timestop');
+  setEclipse(false);
   if (!world || !scene) return;
   if (tutorialRun) {
     tutorialOver();
@@ -1520,6 +1552,10 @@ function gameOver(won = false): void {
   }
   const S = scene;
   app = 'over';
+  // 1.68.0 (docs/specs/boss-final.md) : la victoire est le monde 3 vaincu, acquise même si le héros meurt ensuite (dans
+  // l'Arène ou en monde infini) ; le Cœur de la Nuit vaincu compte à part ; rien de cela au défi du jour
+  const outcome = runOutcome(world),
+    won = outcome.won;
   forgetRun(); // phase 49 : une partie finie n'est plus à reprendre
   // défi v2 (décision 10, récompenses inchangées) : la suite d'un défi du jour en monde infini ne compte pas pour le
   // record de survie ni pour les succès de survie (survie10 débloque le Bûcheron, survie15 et survie20 des objets) ;
@@ -1543,6 +1579,7 @@ function gameOver(won = false): void {
   st.bosses += runStats.bosses;
   st.triples += world.triples;
   st.wins += won ? 1 : 0;
+  st.hearts += outcome.heart ? 1 : 0; // succès « Aube »
   st.bestTime = Math.max(st.bestTime, heldT);
   st.runs++;
   // défis (phase 6) : meilleurs scores en un run
@@ -1604,6 +1641,8 @@ function gameOver(won = false): void {
   const gap = runBeat ? challengeGap({ t: world.t, k: world.kills }, runBeat) : undefined;
   lastOver = {
     won,
+    heart: outcome.heart,
+    arena: outcome.arena,
     rec,
     gold,
     dailyRank,
@@ -1777,7 +1816,7 @@ function victoryContinue(): void {
 }
 function victoryEnd(): void {
   if (!world || app !== 'victory') return;
-  gameOver(world.dailyEnd <= 0); // défi v2 : terminer un défi réussi n'est pas la victoire des trois mondes
+  gameOver(); // défi v2 : terminer un défi réussi n'est pas la victoire des trois mondes (runOutcome)
 }
 $('vContinue').onclick = () => victoryContinue();
 $('vEnd').onclick = () => victoryEnd();
@@ -3306,16 +3345,21 @@ function handleEvents(w: World, now: number): void {
         if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
         audio.shrine();
         break;
-      case Ev.PortalOpen:
-        S.particles.ring(e.x, 0.3, e.z, PAL.xp, (50 * fx) | 0, 6, 9);
-        S.particles.burst(e.x, 1.2, e.z, PAL.xp, (30 * fx) | 0, 4, 9, false);
-        hud.banner(t('banner.portal', { n: e.v }), 'info');
+      case Ev.PortalOpen: {
+        // 1.68.0 : au monde 3, le monde est vaincu et le portail, rouge, mène à l'Arène du boss final
+        const arena = e.v === ARENA + 1,
+          c = arena ? PAL.hp : PAL.xp;
+        S.particles.ring(e.x, 0.3, e.z, c, (50 * fx) | 0, 6, 9);
+        S.particles.burst(e.x, 1.2, e.z, c, (30 * fx) | 0, 4, 9, false);
+        if (arena) hud.banner(t('banner.cleared'), 'reward', t('banner.arenaPortal'));
+        else hud.banner(t('banner.portal', { n: e.v }), 'info');
         hud.flash('gold');
         audio.evolve();
         vibrate(60);
         break;
+      }
       case Ev.StageStart:
-        onStageStart(e.v);
+        onStageStart(e.v, e.x2 === 1);
         break;
       case Ev.Medal:
         // défi v2 : argent (boss final abattu après 5:00) ou or (10:00 tenues) : bannière, gerbe dorée, son
@@ -3347,11 +3391,14 @@ function handleEvents(w: World, now: number): void {
       case Ev.TimeUp:
         // 1.66.0 (décision 18) : x2 = 1, le boss du totem vient de tomber et le chrono tombe à 0 ; la ligne du portail
         // reste sous la bannière (celle de PortalOpen, au pas précédent, serait aussitôt remplacée)
-        hud.banner(
-          t(e.x2 === 1 ? 'banner.timeUpOpen' : e.x2 === 2 ? 'banner.timeUpFight' : 'banner.timeUp'),
-          'danger',
-          e.x2 === 1 ? t('banner.portal', { n: e.v + 1 }) : '',
-        );
+        // 1.68.0 : au monde 3, la bannière garde « Monde 3 vaincu ! » (celle de PortalOpen ne dure qu'un pas)
+        if (e.x2 === 1 && e.v === STAGE.count) hud.banner(t('banner.cleared'), 'reward', t('banner.timeUpArena'));
+        else
+          hud.banner(
+            t(e.x2 === 1 ? 'banner.timeUpOpen' : e.x2 === 2 ? 'banner.timeUpFight' : 'banner.timeUp'),
+            'danger',
+            e.x2 === 1 ? t('banner.portal', { n: e.v + 1 }) : '',
+          );
         hud.flash('hurt');
         audio.bossWarn();
         vibrate(120);
@@ -3390,15 +3437,70 @@ function handleEvents(w: World, now: number): void {
           const k = 'banner.boss.' + ENEMIES[e.x2 | 0].key; // événement rare : la concaténation est acceptable
           const name = t(has(k) ? k : 'banner.boss.default');
           // phase 42 : boss de survie ; phase 48 : un boss en plus (y2 = 2) n'écrase pas la bannière du boss du totem
-          // défi v2 : y2 = 3, le boss final du défi
-          if (e.y2 !== 2)
+          // défi v2 : y2 = 3, le boss final du défi ; 1.68.0 : y2 = 4, le Cœur de la Nuit
+          if (e.y2 === 4) hud.banner(t('banner.heart'), 'danger', t('banner.heartSub'));
+          else if (e.y2 !== 2)
             hud.banner(
               e.y2 === 1 ? t('banner.survival', { name }) : e.y2 === 3 ? t('banner.finalBoss', { name }) : name,
               'danger',
             );
         }
         audio.boss();
-        if (!reduced) S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE ? FEEL.shake.boss : FEEL.shake.elite);
+        if (!reduced)
+          S.shake = Math.max(S.shake, e.x2 === REAPER_TYPE || e.y2 === 4 ? FEEL.shake.boss : FEEL.shake.elite);
+        break;
+      // ---- le Cœur de la Nuit (docs/specs/boss-final.md, décision 8 : chaque événement a son retour) ----
+      case Ev.FinalPhase:
+        if (e.v >= 2 && e.v <= 4) {
+          // changement de phase : bannière qui dit quoi faire, rugissement, anneau violet, secousse (le boss s'arrête)
+          hud.banner(t(`final.phase.${e.v | 0}`), 'danger', t(`final.phase.${e.v | 0}.sub`));
+          audio.final(FinalSfx.Phase);
+          vibrate(120);
+          S.particles.ring(e.x, 0.4, e.z, PAL.corruptEye, (40 * fx) | 0, 9, 3);
+          S.particles.burst(e.x, e.y + 2, e.z, PAL.corrupt, (30 * fx) | 0, 6, 8);
+          if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.boss);
+        }
+        break;
+      case Ev.Blocked:
+        // coup sans effet (boss invulnérable, ou un double) : étincelles grises, son mat, pas de chiffre
+        S.particles.burst(e.x, e.y + 1.5, e.z, PAL.blocked, (3 * fx) | 0, 3, 2, false);
+        audio.final(FinalSfx.Blocked);
+        break;
+      case Ev.Decoy:
+        // un double part en fumée (x2 = 0) ou revient (x2 = 1)
+        S.particles.burst(e.x, 1.4, e.z, PAL.dust, (26 * fx) | 0, 4, 4);
+        S.particles.burst(e.x, 1.8, e.z, PAL.corrupt, (10 * fx) | 0, 3, 5, false);
+        audio.final(FinalSfx.Decoy);
+        break;
+      case Ev.Seal:
+        if (e.x2 === 0) {
+          // posé : colonne violette (les quatre en même temps : un seul son)
+          S.particles.burst(e.x, 1.5, e.z, PAL.corruptEye, (16 * fx) | 0, 3, 9, false);
+          if (e.v === 1) audio.final(FinalSfx.Seal);
+        } else {
+          // brisé : il emporte sa part des PV du boss (le chiffre est sur le boss)
+          S.particles.burst(e.x, 1.2, e.z, PAL.corruptEye, (30 * fx) | 0, 7, 8);
+          S.particles.ring(e.x, 0.3, e.z, PAL.gold, (24 * fx) | 0, 5, 3);
+          if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.elite);
+          hud.flash('gold');
+          audio.final(FinalSfx.SealBreak);
+          vibrate(60);
+        }
+        break;
+      case Ev.RingWarn:
+        audio.final(FinalSfx.RingWarn); // le cercle de flammes rougit (rendu) : il se resserre dans 0,7 s
+        break;
+      case Ev.Judgement:
+        if (e.x2 === 0) {
+          // l'annonce : l'Arène rougit, la zone sûre s'allume (rendu)
+          S.particles.ring(e.x, 0.4, e.z, PAL.gold, (30 * fx) | 0, e.v * 2.2, 1.5);
+          audio.final(FinalSfx.Judgement);
+          vibrate(60);
+        } else {
+          S.particles.ring(w.player.x, 0.3, w.player.z, PAL.telegraph, (40 * fx) | 0, 10, 4);
+          if (!reduced) S.shake = Math.max(S.shake, FEEL.shake.boss);
+          audio.final(FinalSfx.JudgementHit);
+        }
         break;
       case Ev.BossRoar:
         audio.roar();
@@ -3548,8 +3650,8 @@ function frame(nowMs: number): void {
     if (n === 4) acc = 0; // on ne rattrape pas : évite la spirale de la mort
     if (debugRt) debugRt.onFrame(world); // mode stress (debug uniquement) ; null en prod
     if (world.mode === Mode.Dead)
-      // phase 39 : la victoire est acquise si l'on est en monde infini ; défi v2 : pas après un défi du jour (sa médaille compte)
-      gameOver(world.endless && world.dailyEnd <= 0);
+      // 1.68.0 : la victoire (le monde 3 vaincu) est acquise après lui ; défi v2 : pas au défi du jour (runOutcome)
+      gameOver();
     else if (world.mode === Mode.Won) openVictory();
     else if (world.mode === Mode.LevelUp) openLevelUp();
     else if (world.mode === Mode.Merchant) openMerchant();
@@ -3567,6 +3669,9 @@ function frame(nowMs: number): void {
         stageFade.style.opacity = String(f);
       }
     } else if (portalFade !== 0) portalFade = 0;
+    // 1.68.0 : l'éclipse du boss final (phases 3 et 4) assombrit les bords (vignette CSS, écrite au changement)
+    const eclipseNow = world.stage === ARENA && world.finalPhase >= 3 && world.finalPhase < FINAL_DONE;
+    if (eclipseNow !== eclipseOn) setEclipse(eclipseNow);
     const frozenNow = world.powerT[Pw.Gel] > 0; // phase 35 : voile bleuté du Temps figé (classe CSS, écrite au changement)
     if (frozenNow !== timestopOn) {
       timestopOn = frozenNow;

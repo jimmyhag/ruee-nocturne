@@ -40,6 +40,32 @@ const CORRUPT_SFX: readonly { key: SfxKey; rate: number; vol: number }[] = [
   { key: 'arrow', rate: 0.8, vol: 0.6 },
   { key: 'cast', rate: 0.8, vol: 0.7 },
 ];
+/**
+ * Le Cœur de la Nuit (docs/specs/boss-final.md, décision 8) : un son par événement, pris aux échantillons existants à
+ * une autre hauteur (pas de nouveau son : hors périmètre). Index : FinalSfx.
+ */
+const FINAL_SFX: readonly { key: SfxKey; rate: number; vol: number }[] = [
+  { key: 'thud', rate: 0.6, vol: 0.45 }, // coup bloqué : son mat
+  { key: 'bossRoar', rate: 0.7, vol: 1 }, // changement de phase : rugissement grave
+  { key: 'shrine', rate: 0.6, vol: 0.8 }, // sceau posé
+  { key: 'blast', rate: 0.75, vol: 0.9 }, // sceau brisé
+  { key: 'whoosh', rate: 0.6, vol: 0.7 }, // double qui part en fumée ou revient
+  { key: 'charge', rate: 0.6, vol: 0.7 }, // le cercle de flammes rougit
+  { key: 'meteorWarn', rate: 0.55, vol: 1 }, // annonce du Jugement
+  { key: 'eruption', rate: 0.7, vol: 1 }, // impact du Jugement
+];
+export const enum FinalSfx {
+  Blocked = 0,
+  Phase,
+  Seal,
+  SealBreak,
+  Decoy,
+  RingWarn,
+  Judgement,
+  JudgementHit,
+}
+/** Coups bloqués : au plus un son toutes les BLOCKED_GAP s (une arme continue en ferait un mur). */
+const BLOCKED_GAP = 0.12;
 /** 1.31.1 : écart minimal (s) entre deux lectures d'un même son ; une rafale d'armes ne fait plus un mur de bruit. */
 const MIN_GAP: Partial<Record<SfxKey, number>> = {
   orb: 0.2,
@@ -694,6 +720,19 @@ export class AudioBus {
     this.tone(this.sfx, 220 * k.rate, 0.2, 'sawtooth', 0.12, -90, PRIO.hit);
   }
   private corruptAt = -1e9;
+  /** Le Cœur de la Nuit : le son de l'événement `k` (FinalSfx). */
+  final(k: FinalSfx): void {
+    if (k === FinalSfx.Blocked) {
+      const now = this.ctx?.currentTime ?? 0;
+      if (now - this.blockedAt < BLOCKED_GAP) return;
+      this.blockedAt = now;
+    }
+    const s = FINAL_SFX[k];
+    const prio = k === FinalSfx.Blocked ? PRIO.hit : PRIO.boss;
+    if (this.sample(s.key, this.sfx, s.vol, prio, s.rate)) return;
+    this.tone(this.sfx, 160 * s.rate, 0.25, 'sawtooth', 0.15 * s.vol, -80, prio);
+  }
+  private blockedAt = -1e9;
   /** Plongée d'un Volant. */
   dive(): void {
     if (this.sample('dive', this.sfx, 0.6, PRIO.hit)) return;
