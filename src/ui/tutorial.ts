@@ -6,6 +6,7 @@
 import {
   GESTURE_STEPS,
   HINTS,
+  hintRank,
   STEPS,
   Step,
   guideForced,
@@ -113,7 +114,7 @@ export class TutorialView {
     if (g.hint >= 0) {
       // deux consignes au même moment (le portail et le bonus que lâche le boss) : la plus importante reste affichée,
       // l'autre attend sa prochaine apparition
-      if (this.hintT > 0 && this.hintKey > g.hint) {
+      if (this.hintT > 0 && hintRank(this.hintKey) > hintRank(g.hint)) {
         g.hints &= ~(1 << g.hint);
         g.hint = -1;
         return;

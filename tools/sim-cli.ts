@@ -1,5 +1,5 @@
 // CLI d'équilibrage : fait jouer un bot N fois, imprime des percentiles, compare aux cibles.
-//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--reveal 0..4] [--soft] [--tutorial] [--no-targets]
+//   npm run sim -- --runs 200 --bot average --seed 42 [--until 1200] [--out sim/out.json] [--weapons orbe,foudre] [--reveal 0..4] [--soft] [--tutorial] [--no-corrupt] [--no-targets]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -109,6 +109,10 @@ const REVEAL_OPT = args.has('reveal') ? Math.max(0, Math.min(REVEAL.max, +args.g
 // partie guidée : --soft, une des deux parties adoucies qui la suivent (tout dévoilé, FIRST_RUNS : `WorldOptions.soft`,
 // src/meta/shop.ts) ; cibles du lot L2 (décision 9) : morts avant 3 min ≤ 20 %, médiane ≤ cible du profil nu + 1 min
 const SOFT_ON = args.has('soft');
+// corrompus (docs/specs/corrompus.md, décision 9) : --no-corrupt, la partie sans monstres corrompus (mesure avant / après ;
+// sans eux, les parties sont celles d'avant le lot au bit près). La prolongation se mesure avec BOT_FARM=1 (le bot reste
+// après le boss au lieu de prendre le portail, tools/bots/index.ts)
+const NO_CORRUPT = args.has('no-corrupt');
 // --no-item phenix,talisman : objets jamais obtenus (sim d'ablation de la porte 17)
 const NO_ITEM = new Set((args.get('no-item') ?? '').split(',').filter((k) => k.length > 0));
 for (const k of NO_ITEM)
@@ -215,10 +219,11 @@ interface RunResult {
   endlessT: number;
   endlessWave: number;
   overT: number; // s de prolongation tenues dans le dernier monde (0 : mort avant la fin du chrono)
+  corrupted: number; // corrompus apparus dans la partie (docs/specs/corrompus.md)
   totemAt: number[]; // chrono du monde (s) à l'activation de chaque totem
   bossFight: number[]; // s entre l'appel et la mort de chaque boss de totem
   bossLife: { totem: number[]; survie: number[]; infini: number[] }; // phase 43 : s en vie de chaque boss tué, par sorte
-  atWin: { items: number; level: number; weaponLv: number } | null; // phase 43 : état à l'entrée en monde infini
+  atWin: { items: number; level: number; weaponLv: number; gold: number } | null; // phase 43 : état à l'entrée en monde infini (1.67.0 : or gardé)
   killsAt10: number;
   levelAt10: number;
   weapons: Record<string, number>;
@@ -269,6 +274,7 @@ function runOnce(seed: number, run: number): RunResult {
   // défi v2 : règle imposée (--rule), ou les six à tour de rôle ; Arme imposée : les douze armes à tour de rôle
   const rule = RULE >= 0 ? RULE : run % DAILY_RULE_KEYS.length;
   const dopts = worldOptions(DEFAULT_META, undefined, true);
+  if (NO_CORRUPT) dopts.noCorrupt = true;
   if (DAILY_ON) {
     dopts.rule = rule;
     if (DAILY_RULES[DAILY_RULE_KEYS[rule]].armory)
@@ -277,12 +283,13 @@ function runOnce(seed: number, run: number): RunResult {
   const w = DAILY_ON
     ? new World(seed, dopts)
     : TUTO_ON
-      ? new World(TUTORIAL.map, tutorialOptions())
+      ? new World(TUTORIAL.map, { ...tutorialOptions(), ...(NO_CORRUPT ? { noCorrupt: true } : {}) })
       : new World(seed, {
           character: CHARACTER,
           slots: SLOT_OPT,
           reveal: REVEAL_OPT,
           ...(SOFT_ON ? { soft: true } : {}),
+          ...(NO_CORRUPT ? { noCorrupt: true } : {}),
         });
   // partie guidée : une seule carte ; comme dans le jeu, le générateur est décalé avant le départ (main.ts : l'horloge)
   if (TUTO_ON) for (let k = (seed * 2654435761) % 1000; k > 0; k--) w.rng.next();
@@ -328,6 +335,8 @@ function runOnce(seed: number, run: number): RunResult {
     [HurtSrc.Arrow]: 'flèche',
     [HurtSrc.Fire]: 'feu',
   };
+  // corrompus (décision 9) : cause de mort par compétence (w.hurtSkill), préfixée « corrompu: »
+  const SKILL_NAMES = ['', 'scission', 'ruée', 'traînée', 'bombe', 'éventail', 'volée', 'pluie'];
   const alive: number[] = [];
   const maxFrames = UNTIL / STEP;
   // phase 16 : ennemis coincés (au sol, hors boss et tireurs, ni au contact) : échantillon toutes les 0,5 s
@@ -463,7 +472,12 @@ function runOnce(seed: number, run: number): RunResult {
     }
     // phase 39 : --endless, le bot continue en monde infini après la victoire ; défi v2 : toujours au défi du jour
     if (w.mode === Mode.Won && (ENDLESS_ON || DAILY_ON)) {
-      atWin = { items: w.items.reduce((a, n) => a + n, 0), level: w.player.level, weaponLv: w.weaponLvBest };
+      atWin = {
+        items: w.items.reduce((a, n) => a + n, 0),
+        level: w.player.level,
+        weaponLv: w.weaponLvBest,
+        gold: Math.round(w.gold),
+      };
       startEndless(w);
     }
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
@@ -502,7 +516,13 @@ function runOnce(seed: number, run: number): RunResult {
     weaponLvAt10,
     cards: cardsTaken,
     lines: linesTaken,
-    deathBy: w.mode === Mode.Dead ? (HURT_NAMES[w.lastHurt] ?? lastHurtType) : '—',
+    deathBy:
+      w.mode !== Mode.Dead
+        ? '—'
+        : w.lastHurt === HurtSrc.Corrupt
+          ? `corrompu:${SKILL_NAMES[w.hurtSkill]}`
+          : (HURT_NAMES[w.lastHurt] ?? lastHurtType),
+    corrupted: w.corrupted,
     eruptions,
     eruptionHits,
     stuck,
@@ -675,6 +695,12 @@ const summary = {
     90,
   ),
   overDeathPct: (100 * results.filter((r) => !r.reachedEnd && r.overT > 0).length) / RUNS,
+  // corrompus (décision 9) : part des morts en prolongation dues à une compétence corrompue, et le détail par compétence
+  corruptDeathPct: (() => {
+    const over = results.filter((r) => !r.reachedEnd && r.overT > 0);
+    return over.length ? (100 * over.filter((r) => r.deathBy.startsWith('corrompu:')).length) / over.length : 0;
+  })(),
+  corruptPerRun: +(results.reduce((a, r) => a + r.corrupted, 0) / RUNS).toFixed(1),
   totemP50: pct(
     results.flatMap((r) => r.totemAt),
     50,
@@ -937,7 +963,7 @@ for (let m = 1; m < summary.aliveCurve.length; m++)
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT} · seed ${SEED}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${TUTO_ON ? ` · carte ${TUTORIAL.map}` : ''}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''}${SOFT_ON ? ' · --soft' : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT}${process.env.BOT_FARM === '1' ? ' (BOT_FARM : reste en prolongation)' : Number(process.env.BOT_FARM) > 1 ? ` (BOT_FARM : ${process.env.BOT_FARM} s en prolongation, puis le portail)` : ''} · seed ${SEED}${NO_CORRUPT ? ' · --no-corrupt' : ''}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${TUTO_ON ? ` · carte ${TUTORIAL.map}` : ''}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''}${SOFT_ON ? ' · --soft' : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,
@@ -991,6 +1017,20 @@ if (TUTO_ON) {
 lines.push(
   `mondes      monde 2 atteint ${summary.stage2Pct.toFixed(0)} % · monde 3 ${summary.stage3Pct.toFixed(0)} % · victoire ${summary.reachedEndPct.toFixed(0)} % · totem p50 à ${mmss(summary.totemP50)} · boss tués ${summary.bossWinPct.join('/')} % en p50 ${summary.bossFightP50.toFixed(0)} s (p90 ${summary.bossFightP90.toFixed(0)} s) · morts en prolongation ${summary.overDeathPct.toFixed(0)} % après p50 ${summary.overP50.toFixed(0)} s (p90 ${summary.overP90.toFixed(0)} s)`,
 );
+{
+  // corrompus (décision 9) : causes des morts en prolongation, par compétence corrompue
+  const over = results.filter((r) => !r.reachedEnd && r.overT > 0);
+  const why: Record<string, number> = {};
+  for (const r of over) why[r.deathBy] = (why[r.deathBy] ?? 0) + 1;
+  lines.push(
+    `corrompus   ${NO_CORRUPT ? 'aucun (--no-corrupt)' : `${summary.corruptPerRun} par partie`} · ${summary.corruptDeathPct.toFixed(1)} % des morts en prolongation par une compétence · ${Object.entries(
+      why,
+    )
+      .sort((x, y) => y[1] - x[1])
+      .map(([k, v]) => `${k} ${((100 * v) / over.length).toFixed(1)} %`)
+      .join(' · ')}`,
+  );
+}
 lines.push(
   `boss        en vie p50 : totem ${summary.bossLifeP50.totem.toFixed(0)} s · survie ${summary.bossLifeP50.survie.toFixed(0)} s · monde infini ${summary.bossLifeP50.infini.toFixed(0)} s`,
 );

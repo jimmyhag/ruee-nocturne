@@ -24,6 +24,22 @@ const MAX_VOICES = 24;
 const BUSY_MINOR = 4;
 const BUSY_MID = 7;
 const HEARD_EVERY = 0.8;
+/** Corrompus : écart minimal (s) entre deux sons d'apparition (en prolongation, plusieurs par seconde). */
+const CORRUPT_SPAWN_GAP = 0.6;
+/**
+ * Corrompus : son de chaque compétence (index = Skill de src/sim/types.ts), un échantillon existant dont la hauteur est
+ * décalée (plus grave : le même danger, en malade). Scission, Ruée, Traînée ardente, Bombardier, Éventail, Volée, Pluie.
+ */
+const CORRUPT_SFX: readonly { key: SfxKey; rate: number; vol: number }[] = [
+  { key: 'thud', rate: 0.7, vol: 0.6 },
+  { key: 'thud', rate: 0.7, vol: 0.6 },
+  { key: 'charge', rate: 1.3, vol: 0.8 },
+  { key: 'cast', rate: 0.6, vol: 0.45 },
+  { key: 'dive', rate: 0.7, vol: 0.6 },
+  { key: 'spit', rate: 0.75, vol: 0.7 },
+  { key: 'arrow', rate: 0.8, vol: 0.6 },
+  { key: 'cast', rate: 0.8, vol: 0.7 },
+];
 /** 1.31.1 : écart minimal (s) entre deux lectures d'un même son ; une rafale d'armes ne fait plus un mur de bruit. */
 const MIN_GAP: Partial<Record<SfxKey, number>> = {
   orb: 0.2,
@@ -659,6 +675,25 @@ export class AudioBus {
     if (this.sample('charge', this.sfx, 0.9, PRIO.boss)) return;
     this.tone(this.sfx, 110, 0.35, 'sawtooth', 0.3, 90, PRIO.boss);
   }
+  /**
+   * Monstres corrompus (docs/specs/corrompus.md, décisions 3 et 10) : `skill` 0, une apparition (son commun discret, au
+   * plus un toutes les CORRUPT_SPAWN_GAP s) ; sinon la compétence lancée (Skill), un échantillon existant à une autre
+   * hauteur. Pas de nouveau son (hors périmètre).
+   */
+  corrupt(skill: number): void {
+    if (skill === 0) {
+      const now = this.ctx?.currentTime ?? 0;
+      if (now - this.corruptAt < CORRUPT_SPAWN_GAP) return;
+      this.corruptAt = now;
+      if (this.sample('dive', this.sfx, 0.35, PRIO.hit, 0.55)) return;
+      this.tone(this.sfx, 300, 0.4, 'sine', 0.06, -140, PRIO.hit);
+      return;
+    }
+    const k = CORRUPT_SFX[skill] ?? CORRUPT_SFX[0];
+    if (this.sample(k.key, this.sfx, k.vol, PRIO.hit, k.rate)) return;
+    this.tone(this.sfx, 220 * k.rate, 0.2, 'sawtooth', 0.12, -90, PRIO.hit);
+  }
+  private corruptAt = -1e9;
   /** Plongée d'un Volant. */
   dive(): void {
     if (this.sample('dive', this.sfx, 0.6, PRIO.hit)) return;

@@ -49,9 +49,11 @@ export const GESTURE_STEPS: readonly Step[] = [Step.Move, Step.Jump, Step.Slide,
 
 /**
  * Consignes de première apparition (décisions 5 et 8), une fois par joueur (bits de `Meta.hints`) : clés des textes
- * `tuto.hint.<clé>`, dans l'ordre des bits, du moins au plus important (deux au même moment : la plus importante).
+ * `tuto.hint.<clé>`, dans l'ordre des bits (gardés dans la sauvegarde) ; leur importance : HINT_RANK.
  */
-export const HINTS = ['power', 'elite', 'survival', 'merchant', 'portal', 'world'] as const;
+// corrompus (docs/specs/corrompus.md, décision 7) : le premier monstre corrompu, en prolongation (bit ajouté en dernier :
+// les bits sont gardés dans la sauvegarde)
+export const HINTS = ['power', 'elite', 'survival', 'merchant', 'portal', 'world', 'corrupt'] as const;
 export const enum Hint {
   Power = 0,
   Elite,
@@ -59,7 +61,16 @@ export const enum Hint {
   Merchant,
   Portal,
   World,
+  Corrupt,
 }
+/**
+ * Importance de chaque consigne (index : Hint) : deux au même moment, la plus importante passe. L'ordre des bits la
+ * donnait jusqu'à la 1.66.0 ; la consigne des corrompus, ajoutée en dernier, est la moins importante : elle ne remplace
+ * jamais une consigne affichée ou en attente (la plus fréquente, celle du portail, tombe une seconde avant le premier
+ * corrompu), elle attend et revient au corrompu suivant.
+ */
+const HINT_RANK: readonly number[] = [1, 2, 3, 4, 5, 6, 0];
+export const hintRank = (h: number): number => HINT_RANK[h] ?? -1;
 /** Tous les bits de consignes : un joueur d'avant la partie guidée les a toutes « vues ». */
 export const ALL_HINTS = (1 << HINTS.length) - 1;
 
@@ -233,7 +244,7 @@ function passedBy(g: GuideState, w: World, type: Ev, y2: number): boolean {
 /** Consigne de première apparition : une fois par joueur. */
 function fire(g: GuideState, h: Hint): void {
   const bit = 1 << h;
-  if (g.hints & bit || g.hint > h) return; // une consigne plus importante attend déjà d'être affichée (ordre de HINTS)
+  if (g.hints & bit || (g.hint >= 0 && hintRank(g.hint) > hintRank(h))) return; // une plus importante attend (HINT_RANK)
   if (g.hint >= 0) g.hints &= ~(1 << g.hint); // la moins importante reviendra à sa prochaine apparition
   g.hints |= bit;
   g.hint = h;
@@ -251,6 +262,8 @@ export function updateGuide(g: GuideState, w: World, dt: number): boolean {
     if (e.type === Ev.PowerDrop) fire(g, Hint.Power);
     else if (e.type === Ev.SurvivalWarn && e.x2 !== 1) fire(g, Hint.Survival);
     else if (e.type === Ev.MerchantArrive) fire(g, Hint.Merchant);
+    else if (e.type === Ev.Corrupt && e.x2 === 0)
+      fire(g, Hint.Corrupt); // un corrompu apparaît
     else if (e.type === Ev.PortalOpen) {
       g.elite = w.nextElite; // décision 18 : la chute du chrono décale l'élite suivante, ce n'est pas une élite apparue
       if (!(g.hints & (1 << Hint.Portal))) {

@@ -1,18 +1,18 @@
 // Scripts des boss (survivor-design §7) : 2 attaques télégraphiées + phase à 50 % PV, 45–90 s.
 // Chaque script écrit le déplacement voulu dans `mv` (u/s) ; les dégâts de contact restent gérés par step.ts.
-import { ARCHER, BOSS, BOSS_TYPE, COLOSSUS_TYPE, CRACHEUR, DARD_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SLIDE, SORCIER, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
+import { ARCHER, BOSS, BOSS_TYPE, COLOSSUS_TYPE, CORRUPT, CRACHEUR, DARD_TYPE, ENEMIES, HAZARDS, REAPER_TYPE, SLIDE, SORCIER, SWARM_TYPE, VOLANT, VOLANT_TYPE } from './balance';
 import { emitRing } from './hazards';
 import { spawnEnemy } from './spawner';
-import { Ev, ShotKind } from './types';
-import type { Enemy } from './types';
+import { Corrupt, Ev, ShotKind, Skill } from './types';
+import type { Enemy, Shot } from './types';
 import type { World } from './world';
 
 const TAU = Math.PI * 2;
 
 /** Cercle au sol qui explose après `telegraph` s (zones du Colosse, Traque des boss). Pris dans le pool de tirs. */
-function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dmg: number): void {
+function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dmg: number): Shot | null {
   const s = w.allocShot();
-  if (!s) return;
+  if (!s) return null;
   s.kind = ShotKind.Zone;
   s.r = r;
   s.x = s.px = x;
@@ -21,6 +21,7 @@ function zoneAt(w: World, x: number, z: number, r: number, telegraph: number, dm
   s.life = s.t0 = telegraph; // t0 : durée totale, pour le remplissage du disque au rendu
   s.dmg = dmg;
   w.emit(Ev.Telegraph, x, 0, z, r, telegraph);
+  return s;
 }
 
 /** Déplacement (u/s) décidé par le script du boss `e`, écrit dans mv[0], mv[1]. dx/dz/d : vecteur vers le joueur. */
@@ -277,6 +278,23 @@ export function tickFlyer(w: World, e: Enemy, dt: number, dx: number, dz: number
   const def = ENEMIES[e.type];
   const sp = def.speed * e.spd;
   e.timer -= dt;
+  if (e.corrupt === Corrupt.On) {
+    // corrompus, Bombardier : il plane sans jamais plonger et lâche une bombe sous le joueur (la zone du Colosse : cercle
+    // rouge CORRUPT.bomb.telegraph s, puis explosion ; un joueur en l'air y échappe)
+    const B = CORRUPT.bomb;
+    mv[0] = (dx / d) * sp;
+    mv[1] = (dz / d) * sp;
+    e.y += (VOLANT.hover - e.y) * Math.min(1, dt * 6);
+    if (e.timer <= 0 && d < B.range) {
+      e.timer = B.period;
+      const s = zoneAt(w, w.player.x, w.player.z, B.r, B.telegraph, B.dmg * e.dmgMul);
+      if (s) {
+        s.skill = Skill.Bomb;
+        w.emit(Ev.Corrupt, e.x, e.y, e.z, e.type, 1, Skill.Bomb);
+      }
+    }
+    return;
+  }
   if (e.state === 0) {
     // approche en planant
     mv[0] = (dx / d) * sp;
@@ -348,18 +366,31 @@ export function tickSpitter(w: World, e: Enemy, dt: number, dx: number, dz: numb
     if (e.timer <= 0) {
       e.state = 0;
       e.timer = C.period;
-      const s = w.allocShot();
-      if (s) {
+      // corrompus, Éventail : trois crachats en éventail au lieu d'un
+      const fan = e.corrupt === Corrupt.On,
+        n = fan ? CORRUPT.fan.n : 1;
+      let fired = 0;
+      for (let k = 0; k < n; k++) {
+        const s = w.allocShot();
+        if (!s) break;
+        fired++;
+        const a = (k - (n - 1) / 2) * CORRUPT.fan.spread,
+          c = Math.cos(a),
+          sn = Math.sin(a),
+          vx = ux * c - uz * sn,
+          vz = ux * sn + uz * c;
         s.kind = ShotKind.Spit;
+        s.skill = fan ? Skill.Fan : Skill.None;
         s.r = C.shotR;
         s.x = s.px = e.x;
         s.z = s.pz = e.z;
-        s.vx = ux * C.shotSpeed;
-        s.vz = uz * C.shotSpeed;
+        s.vx = vx * C.shotSpeed;
+        s.vz = vz * C.shotSpeed;
         s.life = C.shotLife;
         s.dmg = C.shotDmg * e.dmgMul;
-        w.emit(Ev.Spit, e.x, e.y, e.z, 0, ux, 0, uz);
       }
+      if (fired > 0 && fan) w.emit(Ev.Corrupt, e.x, e.y, e.z, e.type, 1, Skill.Fan);
+      else if (fired > 0) w.emit(Ev.Spit, e.x, e.y, e.z, 0, ux, 0, uz);
     }
   }
 }
@@ -377,21 +408,25 @@ export function tickArcher(w: World, e: Enemy, dt: number, dx: number, dz: numbe
   if (e.state === 1) {
     mv[0] = mv[1] = 0; // immobile pendant la visée : lisible
   } else keepDistance(ux, uz, sp, d, A.keepMin, A.keepMax, A.orbit, mv);
+  // corrompus, Volée perçante : la volée de l'élite, plus rapide, annoncée par une visée plus longue
+  const volley = e.corrupt === Corrupt.On,
+    aim = volley ? CORRUPT.volley.aim : A.aim,
+    speed = A.shotSpeed * (volley ? CORRUPT.volley.speed : 1);
   e.timer -= dt;
   if (e.state === 0) {
     e.aim = 0;
     if (e.timer <= 0 && d < A.keepMax + A.fireMargin) {
       e.state = 1;
-      e.timer = A.aim;
+      e.timer = aim;
       e.tx = ux; // direction visée, figée : la ligne de visée ne suit pas le joueur
       e.tz = uz;
     }
   } else {
-    e.aim = 1 - Math.max(0, e.timer / A.aim);
+    e.aim = 1 - Math.max(0, e.timer / aim);
     if (e.timer <= 0) {
       e.state = 0;
       e.timer = A.period * w.rng.range(0.85, 1.15); // désynchronisés
-      const n = e.elite ? A.volley : 1;
+      const n = e.elite || volley ? A.volley : 1;
       for (let k = 0; k < n; k++) {
         const s = w.allocShot();
         if (!s) break;
@@ -401,16 +436,18 @@ export function tickArcher(w: World, e: Enemy, dt: number, dx: number, dz: numbe
           vx = e.tx * c - e.tz * sn,
           vz = e.tx * sn + e.tz * c;
         s.kind = ShotKind.Arrow;
+        s.skill = volley ? Skill.Volley : Skill.None;
         s.r = A.shotR;
         s.x = s.px = e.x + vx * (e.r + A.muzzle);
         s.z = s.pz = e.z + vz * (e.r + A.muzzle);
-        s.vx = vx * A.shotSpeed;
-        s.vz = vz * A.shotSpeed;
-        s.life = A.shotLife;
-        s.dmg = A.shotDmg * e.dmgMul;
+        s.vx = vx * speed;
+        s.vz = vz * speed;
+        s.life = volley ? A.shotLife / CORRUPT.volley.speed : A.shotLife; // même portée
+        s.dmg = A.shotDmg * e.dmgMul * (volley ? CORRUPT.volley.dmg : 1);
         s.hit = false;
       }
-      w.emit(Ev.Arrow, e.x, e.y, e.z, n, e.tx, 0, e.tz);
+      if (volley) w.emit(Ev.Corrupt, e.x, e.y, e.z, e.type, 1, Skill.Volley);
+      else w.emit(Ev.Arrow, e.x, e.y, e.z, n, e.tx, 0, e.tz);
     }
   }
 }
@@ -438,21 +475,40 @@ export function tickSorcier(w: World, e: Enemy, dt: number, dx: number, dz: numb
     if (e.timer <= 0) {
       e.state = 0;
       e.timer = S.period * w.rng.range(0.85, 1.15);
-      const s = w.allocShot();
-      if (s) {
-        s.kind = ShotKind.Fireball;
-        s.r = S.r;
-        s.x = s.px = w.player.x;
-        s.z = s.pz = w.player.z;
-        s.vx = s.vz = 0;
-        s.ox = e.x;
-        s.oz = e.z;
-        s.life = s.t0 = S.cast;
-        s.dmg = S.dmg * e.dmgMul;
-        s.hit = false;
-        w.emit(Ev.Cast, e.x, e.y + 0.8, e.z, S.r, s.x, S.cast, s.z);
-        w.emit(Ev.Telegraph, s.x, 0, s.z, S.r, S.cast);
+      if (e.corrupt === Corrupt.On) {
+        // corrompus, Pluie de feu : trois boules de feu en triangle autour du joueur (orientation tirée)
+        const R = CORRUPT.rain,
+          a0 = w.rng.range(0, TAU);
+        let fired = 0;
+        for (let k = 0; k < R.n; k++) {
+          const a = a0 + (k / R.n) * TAU;
+          if (fireballAt(w, e, w.player.x + Math.sin(a) * R.dist, w.player.z + Math.cos(a) * R.dist, Skill.Rain)) fired++;
+        }
+        if (fired > 0) w.emit(Ev.Corrupt, e.x, e.y + 0.8, e.z, e.type, 1, Skill.Rain);
+      } else {
+        const s = fireballAt(w, e, w.player.x, w.player.z, Skill.None);
+        if (s) w.emit(Ev.Cast, e.x, e.y + 0.8, e.z, S.r, s.x, S.cast, s.z);
       }
     }
   }
+}
+
+/** Boule de feu du Sorcier `e` qui retombe en (x, z) après SORCIER.cast s ; son cercle se remplit au sol pendant le vol. */
+function fireballAt(w: World, e: Enemy, x: number, z: number, skill: Skill): Shot | null {
+  const S = SORCIER;
+  const s = w.allocShot();
+  if (!s) return null;
+  s.kind = ShotKind.Fireball;
+  s.skill = skill;
+  s.r = S.r;
+  s.x = s.px = x;
+  s.z = s.pz = z;
+  s.vx = s.vz = 0;
+  s.ox = e.x;
+  s.oz = e.z;
+  s.life = s.t0 = S.cast;
+  s.dmg = S.dmg * e.dmgMul * (skill === Skill.Rain ? CORRUPT.rain.dmg : 1);
+  s.hit = false;
+  w.emit(Ev.Telegraph, s.x, 0, s.z, S.r, S.cast);
+  return s;
 }

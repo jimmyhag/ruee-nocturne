@@ -826,6 +826,44 @@ export const SORCIER = {
   fireMargin: 3,
 };
 
+// Monstres corrompus (docs/specs/corrompus.md, Jimmy : « rendre l'infini de chaque monde différent du monde normal »).
+// En prolongation seulement (monde 1 à 3 ; ni défi du jour, ni monde infini), un monstre tiré normalement devient
+// corrompu avec une part qui monte de share0 à share1 en rampT s ; jamais une élite ni un boss. Chaque type a une
+// compétence qui réutilise un danger déjà dessiné, sonorisé et esquivé par le bot (survivor-design §7), annoncée au
+// moins 0,6 s avant de toucher (game-feel §9). Les valeurs sont choisies par la simulation (règle 13, docs/GATES.md).
+export const CORRUPT = {
+  share0: 0.1, // part des apparitions corrompues à l'entrée en prolongation (décision 2)…
+  share1: 0.4, // …jusqu'à 40 % : plus on reste, plus l'infini est l'infini
+  rampT: 180, // s de prolongation pour passer de share0 à share1 (+3 min), plafonnée ensuite
+  share: (over: number): number => CORRUPT.share0 + (CORRUPT.share1 - CORRUPT.share0) * Math.min(1, Math.max(0, over) / CORRUPT.rampT),
+  // récompense (décision 6) : une raison de rester un peu, pas une ferme ; ×1,5 et pas ×2 (anti boule de neige)
+  gold: 1.5,
+  xp: 1.5,
+  // Spectre, Scission : à sa mort, `n` éclats rapides et fragiles (part `hp` des PV du parent, rayon ×`r`, vitesse
+  // ×`spd`), sans XP ni or ; ils restent figés `wake` s (le temps de les voir) avant de foncer
+  split: { n: 2, hp: 0.35, r: 0.7, spd: 1.6, wake: 0.6, gap: 0.5 },
+  // Dard, Ruée : la charge des Brutes élites (HAZARDS.charge, mêmes champs) : couloir rouge 0,6 s puis sprint en ligne
+  // droite ; plus courte et plus légère qu'une charge de Brute (un Dard est fragile), mais plus fréquente
+  rush: { first: 1.5, range: 9, telegraph: 0.6, dist: 7, speed: 15, recover: 0.6, period: 4, dmg: 10, invul: 0.5 },
+  // Brute, Traînée ardente : une flaque de feu toutes les `every` s derrière elle (à moins de `near` u du joueur :
+  // celles qu'on ne voit pas ne servent à rien), inerte `arm` s (le disque se remplit ; 0,6 s vues, plus le pas de la pose) puis brûle `dur` s ; `dps` × les
+  // dégâts du monstre ; `max` flaques au plus (le pool de tirs reste aux crachats, flèches et éruptions). Mesuré (bot qui
+  // reste, maxé, graine 42) : à 14 PV/s toutes les 0,8 s, la Traînée faisait 14 % des morts en prolongation ; 6 / 1 s
+  trail: { every: 1, arm: 0.65, dur: 3, r: 1.1, dps: 6, near: 22, max: 24 },
+  // Volant, Bombardier : au lieu de plonger, il lâche une bombe sous le joueur (cercle rouge 1 s, la zone du Colosse)
+  bomb: { period: 2.8, range: 10, r: 1.7, telegraph: 1, dmg: 12 },
+  // Cracheur, Éventail : trois crachats en éventail (rad entre deux) après la même visée de 0,6 s
+  fan: { n: 3, spread: 0.32 },
+  // Archer, Volée perçante : la volée de l'élite (ARCHER.volley), flèches `speed` fois plus rapides (même portée) ; visée
+  // allongée à 0,6 s (0,5 s pour un Archer ordinaire) : une volée rapide s'annonce plus tôt ; `dmg` × celle d'une flèche
+  // (trois flèches pleines à ×1,35 : 7 % des morts en prolongation à elles seules)
+  volley: { aim: 0.6, speed: 1.25, dmg: 0.6 },
+  // Sorcier, Pluie de feu : trois boules de feu en triangle autour du joueur, à `dist` u de lui (son centre reste à
+  // l'abri : on lit les trois cercles avant de bouger) ; `dmg` × celle d'une boule de feu (pleines : 10 % des morts en
+  // prolongation, la première cause corrompue)
+  rain: { n: 3, dist: 2.4, dmg: 0.45 },
+};
+
 export const BOSS = {
   chargeRange: 14, // Gardien : charge seulement si le joueur est à moins de 14 u
   chargeTelegraph: 0.8, // Gardien : recul + rugissement avant la charge

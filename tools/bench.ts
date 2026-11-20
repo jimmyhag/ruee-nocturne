@@ -3,6 +3,7 @@ import { It, STEP } from '../src/sim/balance';
 import { gainItem } from '../src/sim/items';
 import { startRun, step } from '../src/sim/step';
 import { spawnEnemy } from '../src/sim/spawner';
+import { corrupt } from '../src/sim/corrupt';
 import { World } from '../src/sim/world';
 import { refreshStats } from '../src/sim/weapons/defs';
 import { snapshotWorld } from '../src/sim/snapshot';
@@ -19,6 +20,9 @@ refreshStats(w);
 // masse + Volants + Cracheurs : types 0,1,2 puis 4 et 5 (le modulo 5 ignore le Gardien, type 3)
 const MIX = [0, 1, 2, 4, 5, 9, 10]; // masse + Volants + Cracheurs + Archers et Sorciers (phase 16 ; le Gardien, type 3, est exclu) ; hissé hors de la fenêtre de mesure du tas
 for (let i = 0; i < 390; i++) spawnEnemy(w, MIX[i % MIX.length], (i / 390) * Math.PI * 2, 6 + (i % 17));
+// 1.67.0 (docs/specs/corrompus.md) : un monstre sur trois corrompu, comme en fin de prolongation (Scission, Ruée,
+// flaques de feu, bombes, éventails, volées, pluies de feu) ; leurs compétences prennent le pool de tirs, sans allocation
+for (let i = 0; i < w.enemyCount; i++) if (i % 3 === 0) corrupt(w, w.enemies[i]);
 // phase 43 (relecture perf) : six boss enragés en phase 2 (deux de chaque), pour que le bench couvre leurs attaques
 // (Traque et Éclats depuis la phase 45, double onde, salve, croix, onde de choc) : tirs pris dans le pool, aucune allocation attendue
 for (let i = 0; i < 6; i++) {
@@ -53,7 +57,11 @@ for (let i = 0; i < 600; i++) {
   const t0 = performance.now();
   step(w, inp, STEP);
   times.push(performance.now() - t0);
-  if (w.enemyCount < 380) for (let k = w.enemyCount; k < 400; k++) spawnEnemy(w, MIX[k % MIX.length], k, 8 + (k % 13));
+  if (w.enemyCount < 380)
+    for (let k = w.enemyCount; k < 400; k++) {
+      const j = spawnEnemy(w, MIX[k % MIX.length], k, 8 + (k % 13));
+      if (j >= 0 && k % 3 === 0) corrupt(w, w.enemies[j]);
+    }
 }
 gc?.();
 const heap1 = process.memoryUsage().heapUsed;

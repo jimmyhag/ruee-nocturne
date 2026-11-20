@@ -12,7 +12,7 @@ import type { MerchantState } from './merchant';
 import { WEAPONS, WEAPON_KEYS, applyTomeLine, lineIndex, refreshStats } from './weapons/defs';
 import { SpatialGrid } from './grid';
 import { Rng } from './rng';
-import { Ev, Mode, ProjKind, ShotKind, Spell, Trait, HurtSrc, HitSrc } from './types';
+import { Corrupt, Ev, Mode, ProjKind, ShotKind, Skill, Spell, Trait, HurtSrc, HitSrc } from './types';
 import type {
   Card,
   Chest,
@@ -132,6 +132,12 @@ export class World {
   lastAction = 0; // dernier coup donné ou reçu
   nextEruption = HAZARDS.eruption.after; // phase 11 : prochaine éruption (temps de jeu)
   lastHurt: HurtSrc = HurtSrc.Contact; // dernière source de dégâts (cause de mort dans la CLI)
+  hurtSkill: Skill = Skill.None; // corrompus : la compétence quand lastHurt vaut HurtSrc.Corrupt
+  // corrompus (docs/specs/corrompus.md) : désactivés (CLI `--no-corrupt`, fixé à la création), flaques de feu au sol
+  // (recomptées à chaque pas), corrompus apparus dans la partie (CLI)
+  noCorrupt = false;
+  flames = 0;
+  corrupted = 0;
   boredomUntil = 0;
 
   // armes et tomes (phase 12) : niveau = nombre d'améliorations ; lignes prises par stat dans wmods / tmods
@@ -384,6 +390,7 @@ export class World {
       if (R.eliteFirst > 0) this.nextElite = R.eliteFirst; // Chasse aux élites
     }
     if (opts?.tutorial) this.tutorial = true;
+    if (opts?.noCorrupt) this.noCorrupt = true;
     // partie guidée (décision 9) : la méta dit si la partie est adoucie ; sinon la règle du dévoilement (lot L2)
     const soft = this.tutorial ? false : (opts?.soft ?? this.reveal < FIRST_RUNS.below);
     this.softHp = soft ? FIRST_RUNS.hp : 1;
@@ -518,6 +525,7 @@ export class World {
     s.hit = false;
     s.ox = s.oz = 0;
     s.t0 = 1;
+    s.skill = Skill.None; // corrompus : un tir ordinaire n'a pas de compétence
     return s;
   }
   freeShot(i: number): void {
@@ -930,6 +938,7 @@ function makeEnemy(): Enemy {
     toxT: 0,
     toxAcc: 0,
     slowT: 0,
+    corrupt: Corrupt.None,
   };
   // phase 47 B (relecture perf) : la brûlure est fractionnaire ; forme « double » dès la création, comme pour Player,
   // sinon le premier embrasement déprécie la forme de tous les ennemis en plein combat
@@ -963,7 +972,7 @@ function makeProj(): Projectile {
   };
 }
 function makeShot(): Shot {
-  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false, ox: 0, oz: 0, t0: 1, boss: false };
+  return { alive: false, kind: ShotKind.Spit, r: 0.4, x: 0, z: 0, px: 0, pz: 0, vx: 0, vz: 0, life: 0, dmg: 0, hit: false, ox: 0, oz: 0, t0: 1, boss: false, skill: Skill.None };
 }
 function makeGem(): Gem {
   return { alive: false, x: 0, z: 0, v: 1, mag: false, s: 0, age: 0 };

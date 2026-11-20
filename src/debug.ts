@@ -7,6 +7,7 @@ import { dropChest, hitEnemy } from './sim/combat';
 import { nextStage, stageBossDown } from './sim/stages';
 import { gainItem } from './sim/items';
 import { spawnEnemy } from './sim/spawner';
+import { corrupt } from './sim/corrupt';
 import { refreshStats } from './sim/weapons/defs';
 import { step } from './sim/step';
 import { syncTiers } from './sim/tiers';
@@ -114,6 +115,15 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       const world = w();
       if (!world) return;
       for (let i = 0; i < n; i++) spawnEnemy(world, type, (i / n) * Math.PI * 2, dist);
+    },
+    /** Corrompus (docs/specs/corrompus.md) : `n` monstres corrompus de `type` en cercle à `dist` u (tests, captures). */
+    corrupt(type: number, n = 1, dist = 8): void {
+      const world = w();
+      if (!world) return;
+      for (let i = 0; i < n; i++) {
+        const k = spawnEnemy(world, type, (i / n) * Math.PI * 2, dist);
+        if (k >= 0) corrupt(world, world.enemies[k]);
+      }
     },
     god(): void {
       const world = w();

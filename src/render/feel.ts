@@ -80,6 +80,26 @@ export const FEEL = {
     crownBob: 0.12,
     top: 2.7, // × rayon : hauteur de la tête sans modèle chargé (repli procédural)
   },
+  // corrompus (docs/specs/corrompus.md, décision 3) : reconnus en 0,2 s sans appel de dessin de plus. Teinte d'instance
+  // violette (`tint` : part du violet, `bright` : surexposée, elle multiplie une texture déjà colorée ; `pulse` : elle
+  // bat), yeux qui luisent (une lueur à hauteur des yeux, `eye` u, `eyeAt` × la hauteur du modèle), aura violette et une fine traînée
+  // de particules (une toutes les `trailEvery` s par corrompu, au plus `trailMax` par image : le cap des particules
+  // reste aux kills). `marks` : corrompus marqués à l'écran au plus (lueurs des yeux)
+  corrupt: {
+    tint: 0.8,
+    bright: 1.3,
+    // modèles chargés : la texture porte déjà la couleur du type, le violet doit la couvrir davantage (relecture perf)
+    tintModel: 0.9,
+    brightModel: 1.43,
+    pulse: 0.12,
+    eye: 0.75,
+    eyeAt: 0.78,
+    aura: 3.2, // × rayon : aura violette autour du corps (une forme en plus, game-feel §9 bis)
+    auraA: 0.7,
+    trailEvery: 0.18,
+    trailMax: 6,
+    marks: 64,
+  },
   // phase 51 : coffre lâché par une élite ou un boss. Colonne fine et courte (celles des coffres de carte font 1 × 1),
   // halo au sol, apparition 0 → `over` → 1 en `pop` s
   chestDrop: {

@@ -8,6 +8,7 @@
 import { BOSS, BOSSTOTEM, CAPS, DAILY, ENDLESS, ENEMIES, GOLD, HAZARDS, ITEM, It, MERCHANT, POWER, SPAWN, STAGE, TUTORIAL } from './balance';
 import { difficultyHp, dmgMulNow, soft, spawnEnemy } from './spawner';
 import { TOTEM_HIDDEN } from './poi';
+import { clearCorrupt } from './corrupt';
 import { Ev, Mode } from './types';
 import { makeMerchant } from './merchant';
 import { startRun } from './step';
@@ -414,6 +415,7 @@ export function startEndless(w: World): void {
   w.survivalAlive = 0;
   w.overT = 0;
   w.overRate = w.overHp = w.overDmg = w.overSpd = 1;
+  clearCorrupt(w); // corrompus : aucun en monde infini, même vainqueur en prolongation (docs/specs/corrompus.md)
   w.portal.open = false;
   w.mode = Mode.Play;
   w.emit(Ev.EndlessStart, w.player.x, 0, w.player.z);
