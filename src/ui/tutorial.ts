@@ -28,6 +28,7 @@ export const TUTO_FEEL = {
   forceMs: 4000, // ms : bannière « Va activer le totem rouge » au moment où elle commence
   edge: 44, // px : marge de la flèche au bord de l'écran
   above: 56, // px : la flèche se pose au-dessus du lieu quand il est à l'écran
+  clear: 24, // px : demi-diagonale de la flèche tournée (23) : l'écart de son centre au haut de l'écran et à la bulle
   wave: 1.2, // s réelles entre deux ondes au sol de l'étape du saut
 };
 
@@ -271,6 +272,21 @@ export class TutorialView {
       py = height / 2 + dy * k;
       ang = (Math.atan2(dx, -dy) * 180) / Math.PI;
     }
+    // 1.69.1 (docs/specs/tuto-petits-ecrans.md, décision 4) : la flèche reste dans l'écran et ne passe pas sur la bulle.
+    // Au-dessus d'un lieu tout en haut de l'écran, ou sur la bulle (écran bas : le lieu juste devant le héros), elle se
+    // pose sous le lieu, pointe vers le haut ; au bord de l'écran, elle glisse sous la bulle. La place de la bulle se lit
+    // en nombres (offset*, centrée par ses marges), sans rien allouer.
+    const B = this.box,
+      c = F.clear;
+    const across = !B.hidden && px > B.offsetLeft - c && px < B.offsetLeft + B.offsetWidth + c,
+      bt = B.offsetTop - c,
+      bb = B.offsetTop + B.offsetHeight + c;
+    if (inside && (py < c || (across && py > bt && py < bb))) {
+      py += 2 * F.above;
+      ang = 0;
+    }
+    if (across && py > bt && py < bb) py = bb;
+    py = Math.min(py, height - c);
     px = Math.round(px / 2) * 2;
     py = Math.round(py / 2) * 2;
     ang = Math.round(ang / 3) * 3;
