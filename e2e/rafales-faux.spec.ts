@@ -1,7 +1,7 @@
 // Rafales, faux et explications au bon moment (docs/specs/rafales-faux-guidage.md, 1.69.0) : l'interface, sur PC
 // (clavier) et sur téléphone (doigt), un test par scénario d'interface (titres en anglais). La simulation et la méta sont
 // dans src/sim/burst.test.ts et src/meta/windows.test.ts. Avec CAPTURES=1, les captures vont dans
-// docs/captures/rafales-faux/ (sinon dans shots/).
+// docs/captures/rafales-faux/ (sinon dans shots/, en PNG).
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { collectConsoleErrors, openGame, startRun } from './helpers';
@@ -13,8 +13,10 @@ const PORTAL = 4,
 
 async function shot(page: Page, name: string, project: string): Promise<void> {
   await page.evaluate(() => ((document.getElementById('perf') as HTMLElement).hidden = true)); // l'onglet perf du debug
-  const dir = process.env.CAPTURES === '1' ? 'docs/captures/rafales-faux' : 'shots';
-  await page.screenshot({ path: `${dir}/${project}-${name}.png` });
+  // dans docs/ : en JPEG, comme les captures des autres lots (le PNG pèse dix fois plus)
+  if (process.env.CAPTURES === '1')
+    await page.screenshot({ path: `docs/captures/rafales-faux/${project}-${name}.jpg`, type: 'jpeg', quality: 80 });
+  else await page.screenshot({ path: `shots/${project}-${name}.png` });
 }
 const app = (page: Page) => page.evaluate(() => (window as any).__game.app as string);
 /** Un joueur qui a tout vu, sauf la fenêtre `bit`. */
