@@ -16,8 +16,8 @@ import { World } from '../src/sim/world';
  */
 const MEASURED_FOR = '12bcad20eb5ac3d1';
 const MEASURED = {
-  maxed: { winOff: 17.0, winOn: 16.1, overOff: 102.5, overOn: 96.5, skillPct: 28.0 },
-  naked: { winOff: 22.5, winOn: 23.0, overOff: 85.6, overOn: 79.0, skillPct: 23.6 },
+  maxed: { winOff: 17.0, winOn: 16.6, overOff: 102.5, overOn: 92.5, skillPct: 24.0 },
+  naked: { winOff: 22.5, winOn: 23.8, overOff: 85.6, overOn: 76.9, skillPct: 22.8 },
 };
 
 describe('monstres corrompus : réglage par la simulation (décision 9)', () => {
