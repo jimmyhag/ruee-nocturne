@@ -145,5 +145,27 @@ for (const prefix of prefixes)
           : ''
       } · corrompus ${(all.reduce((a, r) => a + (r.corrupted ?? 0), 0) / n).toFixed(1)} par partie`,
     );
+    // le boss final (docs/specs/boss-final.md, décision 13) : sur les parties qui atteignent l'Arène, vaincu, durée du
+    // combat (de son apparition à la fin : victoire ou mort), morts par phase, part du Jugement
+    const arena = all.filter((r) => r.arena);
+    if (arena.length) {
+      const dead = arena.filter((r) => !r.final && r.finalFight >= 0);
+      const fights = arena.filter((r) => r.finalFight >= 0).map((r) => r.finalFight);
+      const causes = {};
+      for (const r of dead) causes[r.deathBy] = (causes[r.deathBy] ?? 0) + 1;
+      console.log(
+        `   boss final ${arena.length} parties dans l'Arène (${pct(arena.length, n)} %) · vaincu ${pct(
+          arena.filter((r) => r.final).length,
+          arena.length,
+        )} % · combat p50 ${fmt(quantile(fights, 0.5))} p90 ${fmt(quantile(fights, 0.9))} · morts par phase ${[
+          1, 2, 3, 4,
+        ]
+          .map((p) => pct(dead.filter((r) => r.finalPhase === p).length, dead.length))
+          .join(' / ')} % · Jugement ${pct(causes['jugement'] ?? 0, dead.length)} % · causes ${Object.entries(causes)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `${k} ${pct(v, dead.length)} %`)
+          .join(' · ')}`,
+      );
+    }
     console.log(`   par graine (monde 2 / monde 3 / victoire) ${perSeed.join(' · ')}`);
   }

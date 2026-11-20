@@ -7,6 +7,10 @@ import { corrupt } from '../src/sim/corrupt';
 import { World } from '../src/sim/world';
 import { refreshStats } from '../src/sim/weapons/defs';
 import { snapshotWorld } from '../src/sim/snapshot';
+import { hitEnemy } from '../src/sim/combat';
+import { heartOf, summonHeart } from '../src/sim/final';
+import { enterArena, nextStage } from '../src/sim/stages';
+import { Role } from '../src/sim/types';
 
 const w = new World(1);
 startRun(w);
@@ -84,6 +88,58 @@ snapTimes.sort((a, b) => a - b);
 const snapMs = snapTimes[snapTimes.length >> 1];
 console.log(`instantané de partie : p50 ${snapMs.toFixed(2)} ms · ${(snapLen / 1024).toFixed(0)} Ko`);
 const maxMs = times[times.length - 1];
-const ok = +p(0.95) <= 6 && maxMs <= 20 && heapMb <= 2 && snapMs <= 6 && snapLen <= 600_000; // max : une désoptimisation V8 après une carte se voit ici (phase 12)
+// 1.68.0 (docs/specs/boss-final.md) : l'Arène du boss final, éclipse puis fureur (doubles qui partent et reviennent,
+// cercle de flammes qui se resserre, Jugement), 60 corrompus et les mêmes armes : aucune allocation par pas attendue
+const a = new World(2);
+a.weapons = { orbe: 5, aura: 3, boomerang: 3, mines: 3 };
+refreshStats(a);
+a.player.maxHp = 1e9;
+nextStage(a);
+nextStage(a);
+enterArena(a);
+summonHeart(a);
+for (let k = 0; k < 8 && a.finalPhase < 3; k++) {
+  a.finalPause = 0;
+  const h = heartOf(a)!;
+  if (a.finalPhase === 2) {
+    for (let i = 0; i < a.enemyCount; i++) if (a.enemies[i].role === Role.Seal) hitEnemy(a, i, 1e12, 0, 0, 0);
+  } else hitEnemy(a, a.enemies.indexOf(h), 1e12, 0, 0, 0);
+  step(a, inp, STEP);
+}
+for (let i = 0; i < 60; i++) {
+  const j = spawnEnemy(a, MIX[i % MIX.length], (i / 60) * Math.PI * 2, 6);
+  if (j >= 0 && i % 2 === 0) corrupt(a, a.enemies[j]);
+}
+const arenaTimes: number[] = [];
+const runArena = (n: number) => {
+  for (let i = 0; i < n; i++) {
+    inp.mx = Math.cos(i / 50);
+    inp.mz = Math.sin(i / 50);
+    a.player.hp = HP;
+    const h = heartOf(a);
+    if (h && a.finalPhase === 4) h.hp = h.max; // il ne tombe pas pendant la mesure
+    const t0 = performance.now();
+    step(a, inp, STEP);
+    arenaTimes.push(performance.now() - t0);
+  }
+};
+runArena(120); // chauffe
+arenaTimes.length = 0;
+gc?.();
+const aHeap0 = process.memoryUsage().heapUsed;
+runArena(300); // l'éclipse
+const h3 = heartOf(a)!;
+a.finalPause = 0;
+hitEnemy(a, a.enemies.indexOf(h3), 1e12, 0, 0, 0); // la fureur
+runArena(300);
+gc?.();
+const aHeapMb = (process.memoryUsage().heapUsed - aHeap0) / 1048576;
+arenaTimes.sort((x, y) => x - y);
+const aP95 = arenaTimes[Math.floor(0.95 * arenaTimes.length)];
+console.log(
+  `Arène (boss final, phases ${3}–${a.finalPhase}) : p50 ${arenaTimes[arenaTimes.length >> 1].toFixed(3)} ms · p95 ${aP95.toFixed(3)} ms · tas ${aHeapMb >= 0 ? '+' : ''}${aHeapMb.toFixed(2)} Mo`,
+);
+const ok =
+  +p(0.95) <= 6 && maxMs <= 20 && heapMb <= 2 && snapMs <= 6 && snapLen <= 600_000 && aP95 <= 6 && aHeapMb <= 2; // max : une désoptimisation V8 après une carte se voit ici (phase 12)
 console.log(ok ? 'BENCH OK' : 'BENCH ÉCHEC (p95 ≤ 6 ms, max ≤ 20 ms, tas ≤ +2 Mo, instantané ≤ 6 ms et 600 Ko)');
 process.exit(ok ? 0 : 1);
