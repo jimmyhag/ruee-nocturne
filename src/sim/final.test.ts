@@ -83,6 +83,7 @@ describe('le passage vers l’Arène (décisions 1 et 2)', () => {
     run(w, STAGE.totemCharge + 0.2);
     expect(w.totem.state).toBe(1);
     hitEnemy(w, w.bossIndex, 1e12, 0, 0, 0);
+    w.powerT[Pw.Gel] = 3; // un Temps figé ramassé juste avant le portail
     // le monde 3 compte comme vaincu (la victoire d'avant), sans feuille de victoire ; bonus d'or de fin payé
     expect(w.cleared).toBe(true);
     expect(w.mode).toBe(Mode.Play);
@@ -102,6 +103,7 @@ describe('le passage vers l’Arène (décisions 1 et 2)', () => {
     expect(w.seed).toBe(ARENA_SEED);
     expect([w.obstacles.length, w.walls.length, w.mapChests.length, w.shrines.length, w.skulls.length]).toEqual([0, 0, 0, 0, 0]);
     expect([w.enemyCount, w.shotCount, w.overT]).toEqual([0, 0, 0]);
+    expect(Math.max(...w.powerT)).toBe(0); // aucun bonus du monde 3 (un Temps figé figerait le boss)
     expect(w.arenaR).toBe(FINAL.arenaR);
     expect(w.player.z).toBeCloseTo(FINAL.entry, 6);
     // ni horde, ni marchand, ni éruption, ni bonus : le boss sort au centre FINAL.appear s après l'entrée

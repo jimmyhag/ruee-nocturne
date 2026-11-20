@@ -360,6 +360,7 @@ export function enterArena(w: World): void {
   w.stage = ARENA;
   w.diffT = FINAL.diffT;
   w.nextElite = w.nextEruption = w.powerNext = Infinity; // ni élites, ni éruptions, ni bonus (gardes : stage === ARENA)
+  w.powerT.fill(0); // un bonus pris au monde 3 (un Temps figé) ne passe pas dans l'Arène
   w.buildArena();
   w.finalPhase = 0;
   w.arenaT = 0;

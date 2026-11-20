@@ -158,6 +158,19 @@ test('The final boss has four phases', async ({ page }, info) => {
   await expect.poll(() => banners(page)).toContain(FR['final.phase.4']);
   await page.waitForFunction(() => (window as any).__game.world.judgeT > 0.7, null, { timeout: 20_000 });
   await page.evaluate(() => (window as any).__game.debug.speed(0));
+  // la zone sûre est dessinée : sa colonne de lumière et ses anneaux (écrivains des lieux), l'Arène rouge (télégraphes)
+  const drawn = await page.evaluate(async () => {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const s = (window as any).__game.scene;
+    return {
+      beams: s.beamW.mesh.count as number,
+      rings: s.shrineGlowW.mesh.count as number,
+      red: s.zoneFillW.mesh.count as number,
+    };
+  });
+  expect(drawn.beams).toBeGreaterThanOrEqual(1);
+  expect(drawn.rings).toBeGreaterThanOrEqual(2);
+  expect(drawn.red).toBeGreaterThanOrEqual(1);
   await shot(page, info.project.name, 'phase4-jugement');
   expect(await drawCalls(page)).toBeLessThanOrEqual(40);
   await page.evaluate(() => (window as any).__game.debug.speed(1));
