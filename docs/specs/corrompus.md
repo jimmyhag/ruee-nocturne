@@ -1,6 +1,6 @@
 # Monstres corrompus — l'infini de chaque monde devient une autre façon de jouer
 
-**Statut : 🟡 Prêt pour le dev** (après la fusion de la 1.66.0, dont il dépend)
+**Statut : 🟢 Implémenté**
 
 Session du 19 novembre 2026, avec Jimmy, après la 1.65.1. Jimmy : « Il faudra revoir le monde infini [de chaque
 monde], le rendre différent du monde normal. » Parmi les pistes proposées, il retient « les monstres corrompus avec
