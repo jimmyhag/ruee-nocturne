@@ -1774,6 +1774,7 @@ function openInfo(h: number): void {
   app = 'info';
   renderInfo();
   showOnly('info');
+  hud.hideBanner(); // la fenêtre dit déjà ce que la bannière annonçait (temps écoulé, portail)
   hintShown(h as Hint);
   audio.bossWarn(); // un signal court : le jeu s'arrête pour une raison
   if (!input.isTouch) $('infoOk').focus({ preventScroll: true }); // Entrée, Espace : « Compris » (règle 4)

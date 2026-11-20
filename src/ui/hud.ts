@@ -654,6 +654,12 @@ export class Hud {
     this.bannerT = window.setTimeout(() => b.classList.remove('on'), ms);
   }
 
+  /** 1.69.0 : la bannière s'efface (une fenêtre de première fois s'ouvre : elle se lisait en transparence derrière). */
+  hideBanner(): void {
+    clearTimeout(this.bannerT);
+    this.els.banner.classList.remove('on');
+  }
+
   perf(lines: string): void {
     this.els.perf.textContent = lines;
   }

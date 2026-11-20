@@ -1049,6 +1049,13 @@
           top: calc(env(safe-area-inset-top, 0px) + 64px);
           font-size: 13.5px;
         }
+        /* 1.69.0 : « Survis · totem quand tu es prêt » passe sur deux lignes entre les chiffres et la minicarte */
+        #goalText {
+          max-width: 46vw;
+          white-space: normal;
+          text-align: center;
+          line-height: 1.15;
+        }
         #merchantChip {
           left: auto;
           right: 12px;

@@ -2,6 +2,27 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.69.0 — 20 nov. 2026 (rafales, vraie faux, explications au bon moment)
+
+Tes projectiles partent en rafale, la Faux devient une vraie faux, et le jeu t'explique ce qui change au moment où ça arrive.
+
+### Ajouté
+
+- **Une vraie faux** : la Faux n'est plus un trait lumineux, c'est une faux, manche et lame courbe, qui apparaît et fauche son arc à chaque coup. La nouvelle amélioration **+1 faux** en ajoute une à côté de la première : deux faux couvrent tout l'avant, trois font le tour complet. Le Tome des projectiles en donne aussi.
+- **Des fenêtres qui expliquent, une seule fois** : la première fois qu'un portail s'ouvre, que le chrono tombe à 0 sans que le boss du monde soit vaincu, ou que tu entres dans un monde infini, une fenêtre met le jeu en pause et t'explique ce qui se passe. « Compris », et la partie reprend.
+
+### Modifié
+
+- **Les projectiles en plus partent en rafale**, l'un après l'autre, comme une mitraille : Orbe, Lance, Boomerang et Fouet. Chacun vise au moment où il part : un ennemi solide prend deux tirs, le reste file vers la horde ; un ennemi seul prend toute la rafale ; des monstres fragiles en prennent un chacun.
+- **Le Boomerang** part vers l'ennemi le plus proche, et **le Fouet** claque vers l'ennemi le plus proche (à défaut, devant toi) : ses claques en plus partent en rafale.
+- **La fin de la partie guidée** se lit d'un coup d'œil : ton résultat en grand, puis « Rejouer » ou « Retour au menu ».
+- **Le totem n'est pas pressé** : l'objectif dit « Survis · totem quand tu es prêt » ; « Active le totem » ne passe au rouge que dans la dernière minute du chrono. Dans la partie guidée, le totem de boss est présenté comme facultatif, et « Comment jouer » commence par « Rien ne presse ».
+- Une partie gardée avant la mise à jour garde sa Faux : ses améliorations d'arc deviennent des faux.
+
+### Technique
+
+- Spec : `docs/specs/rafales-faux-guidage.md` (scénarios : `src/sim/burst.test.ts`, `src/meta/windows.test.ts`, `e2e/rafales-faux.spec.ts`, `tools/rafales.test.ts`).
+
 ## 1.68.0 — 20 nov. 2026 (le Cœur de la Nuit)
 
 Le monde 3 n'est plus la fin : un portail rouge mène au boss final.

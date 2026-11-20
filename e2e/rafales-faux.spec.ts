@@ -36,7 +36,7 @@ async function calm(page: Page): Promise<void> {
     w.enemyCount = 0;
   });
 }
-/** Le boss du totem du monde appelé (le héros dans le cercle), puis abattu par un vrai coup. */
+/** Le boss du totem du monde appelé (le héros dans le cercle), puis abattu par l'arme du héros. */
 async function beatTotemBoss(page: Page): Promise<void> {
   await page.evaluate(() => {
     const G = (window as any).__game;
@@ -45,7 +45,16 @@ async function beatTotemBoss(page: Page): Promise<void> {
     T.charge = 2.9;
   });
   await page.waitForFunction(() => (window as any).__game.world.totem.state === 1, null, { timeout: 20_000 });
-  await page.evaluate(() => (window as any).__game.debug.killBoss());
+  // le héros s'écarte du portail à venir ; le boss, à 1 PV, tombe sous ses coups dans un pas de jeu (comme en partie)
+  await page.evaluate(() => {
+    const G = (window as any).__game,
+      w = G.world;
+    G.debug.teleport(w.totem.x + 7, w.totem.z);
+    const b = w.enemies[w.bossIndex];
+    b.hp = 1;
+    b.x = b.px = w.player.x + 2.5;
+    b.z = b.pz = w.player.z;
+  });
 }
 /** Attend la fenêtre ; une feuille de cartes (coffre du boss sous les pieds) passe d'abord : on la ferme. */
 async function untilInfo(page: Page): Promise<void> {
