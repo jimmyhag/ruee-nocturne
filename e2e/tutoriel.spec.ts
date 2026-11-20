@@ -341,7 +341,7 @@ test('The first two tomes are imposed', async ({ page, hasTouch }) => {
 
 test('The map places are shown one by one', async ({ page, hasTouch }) => {
   await guided(page, hasTouch);
-  const texts = ['coffre', 'sanctuaire', 'course', 'crâne', 'totem de boss', 'totem du monde'];
+  const texts = ['coffre', 'sanctuaire', 'course', 'crâne', 'Totem de boss', 'totem du monde']; // 1.69.0 : « Totem de boss, facultatif »
   for (let k = 0; k < PLACES.length; k++) {
     await jumpTo(page, S.chest + k);
     await expect(page.locator('#tutoText')).toContainText(texts[k]);
