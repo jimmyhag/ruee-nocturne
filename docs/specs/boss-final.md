@@ -1,6 +1,6 @@
 # Le Cœur de la Nuit — un boss final après le monde 3, puis le monde infini corrompu
 
-**Statut : 🟡 Prêt pour le dev** (après la fusion de la 1.67.0, dont il dépend)
+**Statut : 🟢 Implémenté**
 
 Session du 20 novembre 2026, avec Jimmy, pendant la 1.67.0. Jimmy : « Dans le monde 3, il va y avoir une étape en plus :
 une fois le boss de fin mort, on va devoir être transporté dans un autre monde qui sera le boss final du jeu, et celui-là
