@@ -3,7 +3,7 @@
 // être un mur » se mesure avec la CLI (tools/final.test.ts recopie la mesure de docs/GATES.md). Bannières, gris des
 // coups bloqués et zone sûre à l'écran : e2e/boss-final.spec.ts.
 import { describe, expect, it } from 'vitest';
-import { ARENA, CHARACTERS, CORRUPT, ENEMIES, FINAL, GOLD, PLAYER, STAGE, STEP } from './balance';
+import { ARENA, CHARACTERS, CORRUPT, FINAL, GOLD, PLAYER, STAGE, STEP } from './balance';
 import { corruptOn, maybeCorrupt } from './corrupt';
 import { hitEnemy } from './combat';
 import { FINAL_DONE, adoptCleared, heartOf, judgeDist, summonHeart } from './final';
@@ -122,7 +122,7 @@ describe('le passage vers l’Arène (décisions 1 et 2)', () => {
     expect(at).toEqual([0, 0]); // au centre
     const h = heartOf(w)!;
     expect(h.type).toBe(STAGE.bosses[2]);
-    expect(h.r).toBeCloseTo(ENEMIES[h.type].r * FINAL.scale, 9);
+    expect(h.r).toBe(FINAL.r);
     expect(w.bossIndex).toBe(w.enemies.indexOf(h));
     // le cercle de flammes est infranchissable
     w.player.x = w.player.px = 0;
@@ -326,6 +326,7 @@ describe('les quatre phases (décisions 3 à 8)', () => {
         const a = f * 0.37;
         w.player.x = w.player.px = Math.sin(a) * (w.arenaR - 1) * ((f % 7) / 6);
         w.player.z = w.player.pz = Math.cos(a) * (w.arenaR - 1) * ((f % 7) / 6);
+        w.player.hp = w.player.maxHp; // le Jugement le touche souvent : il ne doit pas tomber pendant la mesure
         step(w, still, STEP);
         for (let i = 0; i < w.eventCount; i++) {
           const e = w.events[i];

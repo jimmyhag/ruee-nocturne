@@ -85,7 +85,8 @@ function colossus(w: World, role: Role, x: number, z: number): Enemy | null {
   const e = w.enemies[i];
   e.x = e.px = x;
   e.z = e.pz = z;
-  e.r = ENEMIES[COLOSSUS_TYPE].r * FINAL.scale;
+  e.r = FINAL.r;
+  e.dmgMul *= FINAL.dmg;
   e.role = role;
   e.state = 0;
   e.timer = FINAL.gap;
@@ -133,7 +134,7 @@ export function tickArena(w: World, dt: number): void {
     flamesTouch(w, dt, h);
   }
   if (w.finalPhase === 3) tickDecoys(w, dt, h);
-  if (w.finalPhase === 4) tickJudgement(w, dt);
+  if (w.finalPhase === 4) tickJudgement(w, dt, h);
 }
 
 /** Le boss franchit un seuil : bannière et son (Ev.FinalPhase), pause invulnérable, et ce que la phase apporte. */
@@ -286,7 +287,7 @@ function flamesTouch(w: World, dt: number, h: Enemy): void {
  * r + min(far, vitesse × telegraph × reach) u du héros : loin, mais atteignable à la course. À l'impact, hors de la
  * zone : FINAL.judge.frac × les PV max (armure comprise).
  */
-function tickJudgement(w: World, dt: number): void {
+function tickJudgement(w: World, dt: number, h: Enemy): void {
   const J = FINAL.judge,
     P = w.player;
   if (w.judgeT > 0) {
@@ -311,7 +312,7 @@ function tickJudgement(w: World, dt: number): void {
   if (w.finalPause > 0) return;
   w.judgeNext -= dt;
   if (w.judgeNext > 0) return;
-  judgeSpot(w);
+  judgeSpot(w, h);
   w.judgeT = J.telegraph;
   w.emit(Ev.Judgement, w.judgeX, 0, w.judgeZ, J.r, 0, J.telegraph);
 }
@@ -322,17 +323,21 @@ export function judgeDist(w: World): number {
   return J.r + Math.min(J.far, w.player.speed * J.telegraph * J.reach);
 }
 
-/** Place la zone sûre : à judgeDist du héros, dans une direction tirée, à l'intérieur du cercle ; sinon vers le centre. */
-function judgeSpot(w: World): void {
+/**
+ * Place la zone sûre : à judgeDist du héros, dans une direction tirée, à l'intérieur du cercle et pas sous le boss `h`
+ * (on ne court pas au contact) ; à défaut, de l'autre côté du centre.
+ */
+function judgeSpot(w: World, h: Enemy): void {
   const P = w.player,
     D = judgeDist(w),
     lim = Math.max(0, w.arenaR - FINAL.judge.r - 0.5),
+    clear = h.r + FINAL.judge.r + 1,
     a0 = w.rng.range(0, TAU);
   for (let k = 0; k < 8; k++) {
     const a = a0 + (k * TAU) / 8,
       x = P.x + Math.sin(a) * D,
       z = P.z + Math.cos(a) * D;
-    if (x * x + z * z <= lim * lim) {
+    if (x * x + z * z <= lim * lim && (x - h.x) ** 2 + (z - h.z) ** 2 >= clear * clear) {
       w.judgeX = x;
       w.judgeZ = z;
       return;
