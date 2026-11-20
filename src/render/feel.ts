@@ -101,12 +101,14 @@ export const FEEL = {
     marks: 64,
   },
   // le Cœur de la Nuit (docs/specs/boss-final.md) : aura (× rayon) et yeux du boss (pas ceux des doubles : seul le vrai a
-  // les yeux qui brillent), flammes du cercle (particules par image, hauteur du mur), éclipse (part de lumière retirée ;
-  // « réduction des effets » : moins sombre, game-feel §9), halo du héros dans l'éclipse, Jugement (zone sûre)
+  // les yeux qui brillent), flammes du cercle (particules par seconde, quelle que soit la fréquence d'image ; au plus
+  // `flamesMax` en vol dans le pool partagé, pour ne pas chasser les gerbes des coups), hauteur du mur, éclipse (part de
+  // lumière retirée ; « réduction des effets » : moins sombre, game-feel §9), halo du héros dans l'éclipse, zone sûre
   final: {
     aura: 1.25,
     eye: 1.7,
-    flames: 3,
+    flames: 60,
+    flamesMax: 80,
     wall: 1.6,
     eclipse: 0.5,
     eclipseReduced: 0.25,

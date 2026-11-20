@@ -199,8 +199,11 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       h.hp = 1;
       hitEnemy(world, world.enemies.indexOf(h), 1e12, 0, world.player.x, world.player.z);
     },
-    /** 1.68.0 : le monde 3 vaincu (son boss tombé), puis l'Arène du boss final, comme par le portail rouge. */
-    arena(): void {
+    /**
+     * 1.68.0 : le monde 3 vaincu (son boss tombé), puis l'Arène du boss final, comme par le portail rouge. `now` : le
+     * boss sort tout de suite (tests : sans attendre ses FINAL.appear s de jeu ; pas de bannière d'apparition).
+     */
+    arena(now = false): void {
       const world = w();
       if (!world || world.mode !== Mode.Play || world.stage === ARENA) return;
       while (world.stage < STAGE.count - 1) nextStage(world);
@@ -208,6 +211,7 @@ export function installDebugHooks(host: DebugHost): DebugRuntime | null {
       stageBossDown(world);
       enterArena(world);
       host.afterStage();
+      if (now) summonHeart(world);
     },
     /**
      * 1.68.0 : le boss final passe à sa phase suivante (le fait sortir s'il le faut), comme sous les coups d'un joueur :

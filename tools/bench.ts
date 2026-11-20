@@ -98,14 +98,19 @@ nextStage(a);
 nextStage(a);
 enterArena(a);
 summonHeart(a);
-for (let k = 0; k < 8 && a.finalPhase < 3; k++) {
+/** Le boss final passe à la phase suivante (seuil atteint, sceaux brisés en phase 2), pause retirée. */
+const nextPhase = (): void => {
+  const p0 = a.finalPhase;
+  for (let k = 0; k < 4 && a.finalPhase === p0; k++) {
+    a.finalPause = 0;
+    const h = heartOf(a)!;
+    if (a.finalPhase === 2) {
+      for (let i = 0; i < a.enemyCount; i++) if (a.enemies[i].role === Role.Seal) hitEnemy(a, i, 1e12, 0, 0, 0);
+    } else hitEnemy(a, a.enemies.indexOf(h), 1e12, 0, 0, 0);
+    step(a, inp, STEP);
+  }
   a.finalPause = 0;
-  const h = heartOf(a)!;
-  if (a.finalPhase === 2) {
-    for (let i = 0; i < a.enemyCount; i++) if (a.enemies[i].role === Role.Seal) hitEnemy(a, i, 1e12, 0, 0, 0);
-  } else hitEnemy(a, a.enemies.indexOf(h), 1e12, 0, 0, 0);
-  step(a, inp, STEP);
-}
+};
 for (let i = 0; i < 60; i++) {
   const j = spawnEnemy(a, MIX[i % MIX.length], (i / 60) * Math.PI * 2, 6);
   if (j >= 0 && i % 2 === 0) corrupt(a, a.enemies[j]);
@@ -118,28 +123,40 @@ const runArena = (n: number) => {
     a.player.hp = HP;
     const h = heartOf(a);
     if (h && a.finalPhase === 4) h.hp = h.max; // il ne tombe pas pendant la mesure
+    if (a.finalPhase === 2)
+      for (let k = 0; k < a.enemyCount; k++) if (a.enemies[k].role === Role.Seal) a.enemies[k].hp = a.enemies[k].max; // les sceaux tiennent
     const t0 = performance.now();
     step(a, inp, STEP);
     arenaTimes.push(performance.now() - t0);
   }
 };
+nextPhase(); // les sceaux : stèles, renforts corrompus (le premier groupe tout de suite), boss invulnérable
+a.addT = 0;
 runArena(120); // chauffe
 arenaTimes.length = 0;
 gc?.();
 const aHeap0 = process.memoryUsage().heapUsed;
+runArena(300); // les sceaux et leurs renforts
+nextPhase();
 runArena(300); // l'éclipse
-const h3 = heartOf(a)!;
-a.finalPause = 0;
-hitEnemy(a, a.enemies.indexOf(h3), 1e12, 0, 0, 0); // la fureur
-runArena(300);
+nextPhase();
+runArena(300); // la fureur
 gc?.();
 const aHeapMb = (process.memoryUsage().heapUsed - aHeap0) / 1048576;
 arenaTimes.sort((x, y) => x - y);
-const aP95 = arenaTimes[Math.floor(0.95 * arenaTimes.length)];
+const aP95 = arenaTimes[Math.floor(0.95 * arenaTimes.length)],
+  aMax = arenaTimes[arenaTimes.length - 1];
 console.log(
-  `Arène (boss final, phases ${3}–${a.finalPhase}) : p50 ${arenaTimes[arenaTimes.length >> 1].toFixed(3)} ms · p95 ${aP95.toFixed(3)} ms · tas ${aHeapMb >= 0 ? '+' : ''}${aHeapMb.toFixed(2)} Mo`,
+  `Arène (boss final, phases 2–${a.finalPhase}, 900 pas) : p50 ${arenaTimes[arenaTimes.length >> 1].toFixed(3)} ms · p95 ${aP95.toFixed(3)} ms · max ${aMax.toFixed(3)} ms · tas ${aHeapMb >= 0 ? '+' : ''}${aHeapMb.toFixed(2)} Mo`,
 );
 const ok =
-  +p(0.95) <= 6 && maxMs <= 20 && heapMb <= 2 && snapMs <= 6 && snapLen <= 600_000 && aP95 <= 6 && aHeapMb <= 2; // max : une désoptimisation V8 après une carte se voit ici (phase 12)
+  +p(0.95) <= 6 &&
+  maxMs <= 20 &&
+  heapMb <= 2 &&
+  snapMs <= 6 &&
+  snapLen <= 600_000 &&
+  aP95 <= 6 &&
+  aMax <= 20 &&
+  aHeapMb <= 2; // max : une désoptimisation V8 après une carte se voit ici (phase 12)
 console.log(ok ? 'BENCH OK' : 'BENCH ÉCHEC (p95 ≤ 6 ms, max ≤ 20 ms, tas ≤ +2 Mo, instantané ≤ 6 ms et 600 Ko)');
 process.exit(ok ? 0 : 1);

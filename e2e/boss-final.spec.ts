@@ -41,14 +41,18 @@ async function hero(page: Page, variant = 3): Promise<void> {
   });
   await recordBanners(page);
 }
-/** Dans l'Arène, le boss sorti (comme après le portail rouge). */
+/**
+ * Dans l'Arène, le boss sorti (comme après le portail rouge) : le crochet de debug le fait sortir tout de suite, sans
+ * attendre ses 3 s de jeu (un runner lent en mettait 20 en temps réel).
+ */
 async function arena(page: Page): Promise<void> {
-  await page.evaluate(() => {
+  const phase = await page.evaluate(() => {
     const g = (window as any).__game;
-    g.debug.arena();
+    g.debug.arena(true);
     g.world.chestCount = 0; // le coffre du boss du monde 3 ouvrirait une feuille d'objets
+    return g.world.finalPhase as number;
   });
-  await page.waitForFunction(() => (window as any).__game.world.finalPhase === 1, null, { timeout: 20_000 });
+  expect(phase).toBe(1);
 }
 /** Le boss final passe à la phase `p` (la suivante), comme sous les coups : le jeu change de phase au pas suivant. */
 async function nextPhase(page: Page, p: number): Promise<void> {
@@ -100,11 +104,17 @@ test('Beating the world 3 boss opens the way to the Arena', async ({ page }, inf
   await page.evaluate(() => {
     const w = (window as any).__game.world;
     (window as any).__game.debug.teleport(w.totem.x, w.totem.z);
+    w.portal.charge = 0.99; // déjà presque une seconde dans le portail : il passe au pas suivant (temps de jeu)
   });
-  await page.waitForFunction(() => (window as any).__game.world.stage === 3, null, { timeout: 15_000 });
+  await page.waitForFunction(() => (window as any).__game.world.stage === 3);
   await expect.poll(() => banners(page)).toContain(FR['banner.arena']);
   await expect(page.locator('#stageLbl')).toHaveText(FR['hud.arena']);
-  await page.waitForFunction(() => (window as any).__game.world.finalPhase === 1, null, { timeout: 15_000 });
+  // l'heure de son apparition (FINAL.appear) avancée : il sort au pas suivant, par la boucle du jeu (bannière comprise)
+  await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    w.arenaT = Math.max(w.arenaT, 2.99);
+  });
+  await page.waitForFunction(() => (window as any).__game.world.finalPhase === 1);
   await expect.poll(() => banners(page)).toContain(FR['banner.heart']);
   await expect(page.locator('#bossbar')).toBeVisible();
   await expect(page.locator('#bossbar')).toHaveClass(/final/);
@@ -153,7 +163,7 @@ test('The final boss has four phases', async ({ page }, info) => {
   await expect.poll(() => banners(page)).toContain(FR['final.phase.3.sub']);
   await expect(page.locator('body')).toHaveClass(/eclipse/);
   // la pause du changement de phase passée (1,5 s de jeu : plus de temps réel sur un runner lent), il redevient vulnérable
-  await page.waitForFunction(() => (window as any).__game.world.finalPause <= 0, null, { timeout: 20_000 });
+  await page.evaluate(() => ((window as any).__game.world.finalPause = 0)); // la pause finie (sans attendre 1,5 s de jeu)
   await expect(page.locator('#bossbar')).not.toHaveClass(/shield/);
   await page.waitForFunction(() => (window as any).__game.scene.eclipse > 0.8, null, { timeout: 10_000 });
   const decoys = await page.evaluate(() => {
@@ -171,7 +181,13 @@ test('The final boss has four phases', async ({ page }, info) => {
   // phase 4 : la fureur, « Cours à la lumière ! », puis le Jugement : l'Arène rouge, la zone sûre
   await nextPhase(page, 4);
   await expect.poll(() => banners(page)).toContain(FR['final.phase.4']);
-  await page.waitForFunction(() => (window as any).__game.world.judgeT > 0.7, null, { timeout: 20_000 });
+  // le premier Jugement avancé (sans attendre ses 4,5 s de jeu) : il s'annonce au pas suivant
+  await page.evaluate(() => {
+    const w = (window as any).__game.world;
+    w.finalPause = 0;
+    w.judgeNext = 0.01;
+  });
+  await page.waitForFunction(() => (window as any).__game.world.judgeT > 0.7);
   await page.evaluate(() => (window as any).__game.debug.speed(0));
   // la zone sûre est dessinée : sa colonne de lumière et ses anneaux (écrivains des lieux), l'Arène rouge (télégraphes)
   const drawn = await page.evaluate(async () => {
@@ -218,6 +234,8 @@ test('Beating the Heart of the Night opens the corrupted endless world', async (
   await page.waitForFunction(() => (window as any).__game.app === 'victory', null, { timeout: 15_000 });
   await expect(page.locator('#vText')).toHaveText(FR['victory.text']);
   await shot(page, info.project.name, 'victoire');
+  // relecture : l'écran de fin de cette partie, si on la terminait ici, serait « Victoire ! » (pas une défaite)
+  expect(await page.evaluate(() => (window as any).__game.world.finalPhase)).toBe(5);
   // continuer : le monde infini (la carte du monde 3), avec des corrompus
   if (info.project.name === 'mobile') await page.locator('#vContinue').tap();
   else await page.keyboard.press('Digit1');
@@ -233,5 +251,38 @@ test('Beating the Heart of the Night opens the corrupted endless world', async (
   await expect(page.locator('#oUnlocked')).toContainText(FR['ach.aube.name']);
   const st = await page.evaluate(() => (window as any).__game.meta.stats);
   expect([st.wins, st.hearts]).toEqual([1, 1]);
+  expect(errors).toEqual([]);
+});
+
+test('Ending after the final victory shows the victory screen', async ({ page }, info) => {
+  const errors = collectConsoleErrors(page);
+  await hero(page, 9);
+  await arena(page);
+  await page.evaluate(() => (window as any).__game.debug.win());
+  await page.waitForFunction(() => (window as any).__game.app === 'victory');
+  // « Terminer » : l'écran de fin dit la victoire, avec le boss final vaincu
+  if (info.project.name === 'mobile') await page.locator('#vEnd').tap();
+  else await page.keyboard.press('Digit2');
+  await page.waitForFunction(() => (window as any).__game.app === 'over');
+  await expect(page.locator('#oTitle')).toHaveText(FR['over.win']);
+  await expect(page.locator('#oStage')).toHaveText(FR['over.heartDown']);
+  const st = await page.evaluate(() => (window as any).__game.meta.stats);
+  expect([st.wins, st.hearts]).toEqual([1, 1]);
+  expect(errors).toEqual([]);
+});
+
+test('A run kept by 1.67 on its victory sheet keeps its former text', async ({ page }) => {
+  const errors = collectConsoleErrors(page);
+  await hero(page, 10);
+  // la feuille de victoire d'une partie gardée par la 1.67 : monde 3 gagné, boss final jamais vu (finalPhase 0)
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.debug.nextStage();
+    g.debug.nextStage();
+    g.world.cleared = true;
+    g.world.mode = 3; // Mode.Won : main.ts ouvre la feuille de victoire
+  });
+  await page.waitForFunction(() => (window as any).__game.app === 'victory');
+  await expect(page.locator('#vText')).toHaveText(FR['victory.textWorlds']);
   expect(errors).toEqual([]);
 });

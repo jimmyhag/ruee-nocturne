@@ -86,6 +86,8 @@ const WHITE = new THREE.Color(0xffffff);
 const MINE_IDLE = new THREE.Color(0xc4c8d6); // bombe KayKit non armée : texture assombrie
 const AURA_DISC = 0.08; // opacité du disque du Halo (lot L5 : plus lumineux à chaque palier)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+/** Vie la plus longue d'une particule de gerbe (fx.ts : 0,3 à 0,6 s) : borne le débit des flammèches du cercle. */
+const FLAME_LIFE = 0.6;
 const lam = (c: number) => toonMaterial({ color: c }); // phase 15 : toon partout (sauf lumineux et sol)
 // 1.42.1 : plus d'additif pur (délavé sur le sol clair), voir softGlow
 const additive = (color: number, opacity: number) =>
@@ -236,6 +238,7 @@ export class GameScene {
   private arenaRing!: THREE.Mesh;
   private ringMat!: THREE.MeshBasicMaterial;
   private ringR: number = FINAL.arenaR;
+  private flameAcc = 0; // flammèches du cercle dues (débit par seconde)
   /** Éclipse du boss final, 0 → 1 (phases 3 et 4), adoucie ; lue aussi par les tests e2e. */
   eclipse = 0;
   private cEliteAura = new THREE.Color(PAL.gold).multiplyScalar(FEEL.elite.auraA);
@@ -587,7 +590,8 @@ export class GameScene {
       makeInstanced(new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.9), CAPS.shots + 8),
     );
     this.zoneFillW = new InstanceWriter(
-      makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.42), CAPS.shots),
+      // + 8 : les ovales des charges et le disque du Jugement (1.68.0), en plus d'un disque par tir
+      makeInstanced(new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2), flat(PAL.telegraph, 0.42), CAPS.shots + 8),
     );
     this.chestW = new InstanceWriter(makeInstanced(new THREE.BoxGeometry(0.9, 0.62, 0.62), lam(PAL.gold), 16));
     this.netW = new InstanceWriter(makeInstanced(netGeometry(), flat(PAL.gold, 0.85), 2));
@@ -1684,12 +1688,17 @@ export class GameScene {
       this.beamW.put(w.judgeX, 0, w.judgeZ, 0, FEEL.final.safeBeam, this.cSafe, 0, 0, 1, FEEL.final.safeBeam);
     }
   }
-  /** Le Jugement : l'Arène se remplit de rouge pendant l'annonce (écrivains des télégraphes, ouverts : bloc des tirs). */
-  private drawJudgement(w: World): void {
+  /**
+   * Le Jugement : l'Arène se remplit de rouge pendant l'annonce. Écrit dès l'ouverture des écrivains des télégraphes
+   * (bord : zoneW, disque : zoneFillW), avant les tirs : un tampon plein refuserait un cercle de Colosse, jamais lui.
+   */
+  private drawJudgementFill(w: World): void {
     if (w.stage !== ARENA || w.judgeT <= 0) return;
     const f = 1 - w.judgeT / FINAL.judge.telegraph;
-    this.zoneW.put(0, 0.08, 0, 0, w.arenaR, this.cTele, 0, 0);
     this.zoneFillW.put(0, 0.06, 0, 0, w.arenaR * (0.35 + 0.65 * f), this.cTele, 0, 0);
+  }
+  private drawJudgementRing(w: World): void {
+    if (w.stage === ARENA && w.judgeT > 0) this.zoneW.put(0, 0.08, 0, 0, w.arenaR, this.cTele, 0, 0);
   }
   /** Le mur de flammes de l'Arène : rayon adouci, rouge qui bat avant un pas, flammèches (moins en effets réduits). */
   private drawRing(w: World, dt: number, now: number): void {
@@ -1706,7 +1715,15 @@ export class GameScene {
     if (!this.reducedFx)
       this.cRing.multiplyScalar(warn ? 1.2 + Math.sin(now * 22) * 0.5 : 0.9 + Math.sin(now * 5) * 0.1);
     this.ringMat.color.copy(this.cRing);
-    const n = Math.round(FEEL.final.flames * (this.reducedFx ? 0.5 : 1) * (warn ? 2 : 1));
+    // débit par seconde (le même à 60 ou 120 Hz) ; une flammèche vit au plus 0,6 s : le débit est borné pour qu'il n'y
+    // en ait jamais plus de flamesMax en vol
+    const rate = Math.min(
+      FEEL.final.flames * (this.reducedFx ? 0.5 : 1) * (warn ? 2 : 1),
+      FEEL.final.flamesMax / FLAME_LIFE,
+    );
+    this.flameAcc = Math.min(this.flameAcc + rate * dt, FEEL.final.flamesMax);
+    const n = Math.floor(this.flameAcc);
+    this.flameAcc -= n;
     for (let k = 0; k < n; k++) {
       const a = Math.random() * Math.PI * 2;
       this.particles.burst(
@@ -1999,6 +2016,7 @@ export class GameScene {
     const trailP = (dt / FEEL.corrupt.trailEvery) * fxK;
     this.aims.begin();
     this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
+    this.drawJudgementFill(w); // 1.68.0 : en premier, il n'est jamais refusé
     const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé, ennemis givrés et sans sautillement
     this.frozenPose = frozen;
     for (let i = 0; i < w.enemyCount; i++) {
@@ -2158,6 +2176,7 @@ export class GameScene {
     this.arrowW.begin();
     this.glowW.begin(); // phase 30 : rempli par les boules de feu, les projectiles, les lances et les météores
     this.zoneW.begin();
+    this.drawJudgementRing(w); // 1.68.0 : en premier, il n'est jamais refusé
     for (let i = 0; i < w.shotCount; i++) {
       const sh = w.shots[i];
       if (sh.kind === ShotKind.Spit) {
@@ -2257,7 +2276,6 @@ export class GameScene {
     }
     this.spitW.end();
     this.arrowW.end();
-    this.drawJudgement(w); // 1.68.0
     this.zoneW.end();
     this.zoneFillW.end();
 
