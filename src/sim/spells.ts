@@ -4,7 +4,7 @@
 // Zéro allocation : tampons de module, état dans w.sstate et dans le joueur.
 import { CAPS, ENEMIES, ITEM, It, PLAYER, PLAY_LIMIT, SPELL } from './balance';
 import { hitEnemy } from './combat';
-import { Ev, HitSrc, Spell } from './types';
+import { Corrupt, Ev, HitSrc, Spell } from './types';
 import type { Player } from './types';
 import { fireAngle } from './weapons/tick';
 import type { World } from './world';
@@ -37,7 +37,7 @@ export function spellSize(P: Player): number {
 }
 /** Coup de sort : compté pour la CLI (part des kills faits par le sort). */
 function zap(w: World, i: number, dmg: number, kb: number, fx: number, fz: number): void {
-  if (hitEnemy(w, i, dmg, kb, fx, fz, HitSrc.Spell)) w.sstate.kills++;
+  if (hitEnemy(w, i, dmg, kb, fx, fz, HitSrc.Spell) && w.enemies[i].corrupt !== Corrupt.Shard) w.sstate.kills++; // éclat : rien
 }
 function clampLimit(v: number): number {
   return v < -PLAY_LIMIT ? -PLAY_LIMIT : v > PLAY_LIMIT ? PLAY_LIMIT : v;

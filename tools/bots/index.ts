@@ -8,7 +8,11 @@ const BOT_SLIDE = typeof process !== 'undefined' && process.env?.BOT_SLIDE === '
 // (combat ≈ 40 s, marche comprise), avant la fin. Mesuré (maxé, 4 graines × 200) : 8:30 le noie dans la horde (monde 2
 // 66,9 % contre 73,5 % à 6:00, kills à 10 min et morts en prolongation hors cible) ; 7:30 coûte 4,4 points de monde 2
 const BOT_TOTEM_AT = Number((typeof process !== 'undefined' && process.env?.BOT_TOTEM_AT) || 450);
-const BOT_FARM = typeof process !== 'undefined' && process.env?.BOT_FARM === '1';
+// 1.67.0 (docs/specs/corrompus.md, relecture) : BOT_FARM=60, il reste 60 s en prolongation puis prend le portail (le
+// joueur qui farme les corrompus avant de passer : mesure de la boule de neige) ; BOT_FARM=1, il reste jusqu'à la mort
+const BOT_FARM_ENV = Number((typeof process !== 'undefined' && process.env?.BOT_FARM) || 0);
+const BOT_FARM = BOT_FARM_ENV === 1;
+const BOT_FARM_FOR = BOT_FARM_ENV > 1 ? BOT_FARM_ENV : 0;
 import type { BoonKey, Card, Input, ItemKey, TomeKey, WeaponKey } from '../../src/sim/types';
 import type { World } from '../../src/sim/world';
 import { ShotKind, Spell } from '../../src/sim/types';
@@ -692,7 +696,7 @@ export function makeAverage(seed: number, opts: AverageOptions = {}): Bot {
       // phase 37 : à l'heure prévue, le totem (on reste dans le cercle tant que personne ne colle), puis le portail
       const T = w.totem;
       const goTotem = T.state === 0 && w.stageT >= BOT_TUNE.totemAt;
-      const goPortal = w.portal.open && !BOT_FARM;
+      const goPortal = w.portal.open && !BOT_FARM && w.overT >= BOT_FARM_FOR;
       if (goTotem || goPortal) {
         const tx = T.x - P.x,
           tz = T.z - P.z,

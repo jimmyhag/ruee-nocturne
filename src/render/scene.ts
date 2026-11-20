@@ -207,6 +207,11 @@ export class GameScene {
   // (x, y des yeux, z) et dessinés avec les lueurs ; traînée de particules au compte-gouttes
   private corruptColor: THREE.Color[] = [];
   private corruptBuf = new Float32Array(FEEL.corrupt.marks * 6);
+  /**
+   * « Réduction des effets » (réglage, ou prefers-reduced-motion tant que le joueur n'a rien choisi : main.ts) : la
+   * traînée des corrompus est divisée par deux et leur violet ne bat plus.
+   */
+  reducedFx = false;
   /** Corrompus dont les yeux luisent à cette image (lu par les tests e2e). */
   corruptN = 0;
   private cCorrupt = new THREE.Color(PAL.corrupt);
@@ -1860,8 +1865,11 @@ export class GameScene {
     this.metW.begin(); // anneaux des élites (ici) puis cercles des météores (plus bas)
     this.eliteN = 0;
     this.corruptN = 0;
-    let trail = FEEL.corrupt.trailMax; // particules de traînée encore permises à cette image
-    const trailP = dt / FEEL.corrupt.trailEvery; // chance par corrompu et par image
+    // particules de traînée encore permises à cette image, et chance par corrompu et par image ; « réduction des effets »
+    // (game-feel §9) : ÷2
+    const fxK = this.reducedFx ? 0.5 : 1;
+    let trail = Math.round(FEEL.corrupt.trailMax * fxK);
+    const trailP = (dt / FEEL.corrupt.trailEvery) * fxK;
     this.aims.begin();
     this.zoneFillW.begin(); // ovales de charge (ici) puis disques des télégraphes (bloc des tirs)
     const frozen = w.powerT[Pw.Gel] > 0; // phase 35 : Temps figé, ennemis givrés et sans sautillement
@@ -1924,8 +1932,9 @@ export class GameScene {
         }
       }
       if (e.corrupt !== Corrupt.None) {
-        // le violet bat (sauf pendant un flash, un gel, une brûlure) ; yeux qui luisent ; fine traînée
-        if (col === this.corruptColor[e.type])
+        // le violet bat (sauf pendant un flash, un gel, une brûlure, et en « réduction des effets ») ; yeux qui luisent ;
+        // fine traînée
+        if (col === this.corruptColor[e.type] && !this.reducedFx)
           col = this.cCorruptNow.copy(col).multiplyScalar(1 + FEEL.corrupt.pulse * Math.sin(now * 6 + e.bob));
         // yeux : à hauteur de tête, un peu devant le visage (le Volant, centré sur sa hauteur de vol : à son centre)
         const look = this.enemyMorph[e.type] ? ENEMY_LOOKS[e.type] : null,

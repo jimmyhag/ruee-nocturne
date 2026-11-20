@@ -43,36 +43,59 @@ test('A corrupted monster is recognisable', async ({ page }, info) => {
     const s = (window as any).__game.scene;
     return s.enemyKind === 'gltf' && s.propsReady === true;
   });
-  // jeu figé, joueur invincible, plus de montée de niveau ; horde retirée : un monstre de chaque type en cercle, une
-  // élite pour que les lueurs soient déjà dessinées (comme en combat), et des particules
-  await page.evaluate((types) => {
+  // jeu figé, joueur invincible et sans arme, plus de montée de niveau ; horde retirée : un monstre de chaque type en
+  // cercle, une élite pour que les lueurs soient déjà dessinées (comme en combat), et des particules
+  const place = (corrupt: boolean) =>
+    page.evaluate(
+      ([types, corrupt]) => {
+        const g = (window as any).__game,
+          w = g.world;
+        w.enemyCount = 0;
+        for (let i = 0; i < types.length; i++)
+          if (corrupt) g.debug.corrupt(types[i], 1, 4.5);
+          else g.debug.spawn(types[i], 1, 4.5);
+        // chacun à sa place sur un cercle (debug.spawn et debug.corrupt posent à l'angle 0), compétences en attente
+        for (let i = 0; i < w.enemyCount; i++) {
+          const e = w.enemies[i],
+            a = (i / w.enemyCount) * Math.PI * 2;
+          e.x = e.px = w.player.x + Math.sin(a) * 4.5;
+          e.z = e.pz = w.player.z + Math.cos(a) * 4.5;
+          e.timer = 99;
+        }
+        g.debug.elite(0, 9, 0.3);
+        g.scene.particles.burst(w.player.x, 1, w.player.z + 3, 0xffffff, 4, 0.1, 0.1, false); // particules dessinées
+      },
+      [TYPES, corrupt] as const,
+    );
+  /** Particules vivantes après 1,5 s de jeu (tirs et plongées en attente, héros sans arme), puis le jeu refigé. */
+  const particlesAfterPlay = async () => {
+    await page.evaluate(() => (window as any).__game.debug.speed(1));
+    await page.waitForTimeout(1500);
+    return page.evaluate(() => {
+      const g = (window as any).__game;
+      g.debug.speed(0);
+      return g.scene.particles.alive as number;
+    });
+  };
+  await page.evaluate(() => {
     const g = (window as any).__game,
       w = g.world;
     g.debug.god();
+    for (const k of Object.keys(w.weapons)) delete w.weapons[k];
     w.player.need = 1e9;
     w.powerNext = w.nextWave = w.nextElite = w.nextEruption = 1e9;
     w.spawnAcc = -1e9;
-    w.enemyCount = 0;
     g.debug.speed(0);
-    for (let i = 0; i < types.length; i++) g.debug.spawn(types[i], 1, 4.5);
-    // chacun à sa place sur un cercle (debug.spawn place à l'angle 0)
-    for (let i = 0; i < w.enemyCount; i++) {
-      const e = w.enemies[i],
-        a = (i / w.enemyCount) * Math.PI * 2;
-      e.x = e.px = w.player.x + Math.sin(a) * 4.5;
-      e.z = e.pz = w.player.z + Math.cos(a) * 4.5;
-    }
-    g.debug.elite(0, 9, 0.3);
-    g.scene.particles.burst(w.player.x, 1, w.player.z + 3, 0xffffff, 4, 0.1, 0.1, false);
-  }, TYPES);
+  });
+  // les monstres ordinaires jouent d'abord 1,5 s (particules de référence), puis reprennent leur place, figés
+  await place(false);
+  const trail0 = await particlesAfterPlay();
+  await place(false);
   await page.waitForTimeout(2000); // quelques images, même à 1 image par seconde en rendu logiciel
   const before = await count(page);
   expect(before.eyes).toBe(0);
-  // les mêmes monstres, corrompus
-  await page.evaluate(() => {
-    const w = (window as any).__game.world;
-    for (let i = 0; i < w.enemyCount; i++) if (!w.enemies[i].elite) w.enemies[i].corrupt = 1;
-  });
+  // les mêmes monstres, aux mêmes places, corrompus (crochet de débogage debug.corrupt)
+  await place(true);
   await expect.poll(async () => (await count(page)).eyes, { timeout: 20_000 }).toBe(TYPES.length);
   const after = await count(page);
   // teints de violet : le bleu domine le vert, ce qui n'est vrai d'aucun monstre ordinaire (texture presque blanche)
@@ -88,6 +111,11 @@ test('A corrupted monster is recognisable', async ({ page }, info) => {
   expect(after.calls, 'appels de dessin ajoutés par les corrompus').toBe(before.calls);
   expect(after.calls, 'budget d’appels').toBeLessThanOrEqual(p === 'mobile' ? 40 : 80);
   await shot(page, p, 'corrompus');
+  // la fine traînée de particules (décision 3) : bien plus de particules vivantes qu'avec les mêmes monstres ordinaires
+  const trail1 = await particlesAfterPlay();
+  expect(trail1, 'traînée des corrompus').toBeGreaterThan(trail0 + 5);
+  await place(true); // de nouveau à leur place pour les compétences
+  await page.evaluate(() => (window as any).__game.debug.give('orbe', 1)); // l'arme qui fera tomber le Spectre
 
   // leurs compétences, lancées toutes ensemble : couloir de la Ruée, bombe, éventail, volée, pluie de feu ; le Spectre
   // (1 PV) tombe sous l'arme du héros et se scinde

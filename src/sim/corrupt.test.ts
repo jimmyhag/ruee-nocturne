@@ -13,6 +13,7 @@ import {
   ELITE_TYPE,
   ENEMIES,
   GOLD,
+  It,
   SORCIER,
   SORCIER_TYPE,
   STAGE,
@@ -20,7 +21,8 @@ import {
   VOLANT_TYPE,
 } from './balance';
 import { corrupt, corruptOn, flameLit, maybeCorrupt } from './corrupt';
-import { killEnemy } from './combat';
+import { hitEnemy, killEnemy } from './combat';
+import { gainItem } from './items';
 import { MERCHANT_LEAVE } from './merchant';
 import { snapshotWorld } from './snapshot';
 import { spawnEnemy, tickSpawner } from './spawner';
@@ -395,6 +397,9 @@ describe('monstres corrompus : compétences (décision 4)', () => {
       // Pluie : à partir des mains levées (le joueur au centre du triangle est à l'abri : il est poussé dans un cercle)
       [SORCIER_TYPE, 13, (_, e) => () => e.state === 1],
     ];
+    // valeurs d'origine, rendues après chaque cas (les essais ci-dessous les changent le temps d'un cas)
+    const bruteDmg = ENEMIES[ELITE_TYPE].dmg,
+      rainDist = CORRUPT.rain.dist;
     for (const [type, dist, start] of cases) {
       const w = quiet();
       const e = corrupted(w, type, dist);
@@ -414,8 +419,8 @@ describe('monstres corrompus : compétences (décision 4)', () => {
         expect(t, ENEMIES[type].key).toBeGreaterThanOrEqual(0.6 - 1e-6);
         expect(t, ENEMIES[type].key).toBeLessThan(6); // le danger touche bien
       } finally {
-        ENEMIES[ELITE_TYPE].dmg = 24;
-        CORRUPT.rain.dist = 2.4;
+        ENEMIES[ELITE_TYPE].dmg = bruteDmg;
+        CORRUPT.rain.dist = rainDist;
       }
     }
     expect(flameLit(CORRUPT.trail.dur - 0.01, CORRUPT.trail.arm + CORRUPT.trail.dur)).toBe(true);
@@ -424,6 +429,48 @@ describe('monstres corrompus : compétences (décision 4)', () => {
 });
 
 describe('monstres corrompus : récompense (décision 6)', () => {
+  it('a Scission shard gives nothing at all: no kill, no gold, no XP, no on-kill effect', () => {
+    const w = quiet();
+    // tout ce qui réagit à un kill : Vitalité (soin), Calice, Collier, Talisman ; héros en l'air (kills aériens)
+    for (const it of [It.Calice, It.Collier, It.Talisman]) gainItem(w, it);
+    w.player.killHeal = 5;
+    w.player.hp = w.player.maxHp - 100;
+    w.player.spellCd = 5;
+    w.player.onGround = false;
+    w.healBank = 1e9;
+    const e = corrupted(w, 0, 6);
+    killEnemy(w, w.enemies.indexOf(e)); // Scission : deux éclats
+    const shard = w.enemies.findIndex((x, i) => i < w.enemyCount && x.alive && x.corrupt === Corrupt.Shard);
+    expect(shard).toBeGreaterThanOrEqual(0);
+    const before = {
+      kills: w.kills,
+      air: w.airKills,
+      src: Array.from(w.srcKills),
+      gold: w.gold,
+      gems: w.gemCount,
+      hp: w.player.hp,
+      cd: w.player.spellCd,
+      talisman: w.talismanKills,
+      powers: w.powersDropped,
+      spell: w.sstate.kills,
+    };
+    w.clearEvents();
+    expect(hitEnemy(w, shard, 1e9, 0, w.player.x, w.player.z)).toBe(true);
+    expect(events(w, Ev.Kill)).toBe(1); // le retour de la mort reste (gerbe, son)
+    expect({
+      kills: w.kills,
+      air: w.airKills,
+      src: Array.from(w.srcKills),
+      gold: w.gold,
+      gems: w.gemCount,
+      hp: w.player.hp,
+      cd: w.player.spellCd,
+      talisman: w.talismanKills,
+      powers: w.powersDropped,
+      spell: w.sstate.kills,
+    }).toEqual(before);
+    expect(w.enemies[shard].alive).toBe(false);
+  });
   it('a corrupted monster pays CORRUPT.gold and CORRUPT.xp times a normal one', () => {
     const w = quiet();
     const a = w.enemies[spawnEnemy(w, DARD_TYPE, 0, 10)];

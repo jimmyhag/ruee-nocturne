@@ -223,7 +223,7 @@ interface RunResult {
   totemAt: number[]; // chrono du monde (s) à l'activation de chaque totem
   bossFight: number[]; // s entre l'appel et la mort de chaque boss de totem
   bossLife: { totem: number[]; survie: number[]; infini: number[] }; // phase 43 : s en vie de chaque boss tué, par sorte
-  atWin: { items: number; level: number; weaponLv: number } | null; // phase 43 : état à l'entrée en monde infini
+  atWin: { items: number; level: number; weaponLv: number; gold: number } | null; // phase 43 : état à l'entrée en monde infini (1.67.0 : or gardé)
   killsAt10: number;
   levelAt10: number;
   weapons: Record<string, number>;
@@ -472,7 +472,12 @@ function runOnce(seed: number, run: number): RunResult {
     }
     // phase 39 : --endless, le bot continue en monde infini après la victoire ; défi v2 : toujours au défi du jour
     if (w.mode === Mode.Won && (ENDLESS_ON || DAILY_ON)) {
-      atWin = { items: w.items.reduce((a, n) => a + n, 0), level: w.player.level, weaponLv: w.weaponLvBest };
+      atWin = {
+        items: w.items.reduce((a, n) => a + n, 0),
+        level: w.player.level,
+        weaponLv: w.weaponLvBest,
+        gold: Math.round(w.gold),
+      };
       startEndless(w);
     }
     if (w.mode === Mode.Dead || w.mode === Mode.Won) break;
@@ -958,7 +963,7 @@ for (let m = 1; m < summary.aliveCurve.length; m++)
 
 const lines: string[] = [];
 lines.push(
-  `runs ${RUNS} · bot ${BOT}${process.env.BOT_FARM === '1' ? ' (BOT_FARM : reste en prolongation)' : ''} · seed ${SEED}${NO_CORRUPT ? ' · --no-corrupt' : ''}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${TUTO_ON ? ` · carte ${TUTORIAL.map}` : ''}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''}${SOFT_ON ? ' · --soft' : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
+  `runs ${RUNS} · bot ${BOT}${process.env.BOT_FARM === '1' ? ' (BOT_FARM : reste en prolongation)' : Number(process.env.BOT_FARM) > 1 ? ` (BOT_FARM : ${process.env.BOT_FARM} s en prolongation, puis le portail)` : ''} · seed ${SEED}${NO_CORRUPT ? ' · --no-corrupt' : ''}${CHARACTER !== 'eclaireuse' ? ` · --character ${CHARACTER}` : ''}${WEAPONS ? ` · --weapons ${WEAPONS.join(',')}` : ''} ${NO_ITEM.size ? ` · --no-item ${[...NO_ITEM].join(',')}` : ''} · emplacements ${SLOT_OPT.weapons}/${SLOT_OPT.passives} · objets ${ITEMS_ARG} · profil ${PROFILE}${TUTO_ON ? ` · carte ${TUTORIAL.map}` : ''}${REVEAL_OPT !== undefined ? ` · --reveal ${REVEAL_OPT}` : ''}${SOFT_ON ? ' · --soft' : ''} · ${elapsed.toFixed(1)} s (${summary.runsPerMin} runs/min)`,
 );
 lines.push(
   `survie      p10 ${mmss(summary.survival.p10)}  p50 ${mmss(summary.survival.p50)}  p90 ${mmss(summary.survival.p90)}  fin atteinte ${summary.reachedEndPct.toFixed(0)} %`,

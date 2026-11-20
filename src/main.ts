@@ -239,6 +239,7 @@ function loadScene(urgent = false): Promise<GameScene> {
       throw e;
     }
     scene = s;
+    s.reducedFx = reducedFx(); // corrompus : réduction des effets
     s.setQuality(qualityLevel()); // phase 9 : niveau de rendu (réglage ou repli automatique de la session)
     await atRest();
     s.setCharacter(meta.character, outfitOf(meta, meta.character)); // héros de la prochaine partie, chargé et compilé d'avance
@@ -356,6 +357,7 @@ function applyFx(): void {
   hud.flashMul = r ? 0.4 : 1;
   document.body.classList.toggle('calm', r); // interface Nocturne : les animations du menu s'arrêtent (décision 19)
   document.body.classList.toggle('fx-reduced', r); // lot L5 : coupe le liseré animé du palier III
+  if (scene) scene.reducedFx = r; // corrompus : traînée ÷2, pas de battement violet
   $('fxBtn').textContent = t(
     r ? (meta.fxChosen ? 'settings.fx.reduced' : 'settings.fx.reducedSystem') : 'settings.fx.full',
   );
