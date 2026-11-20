@@ -1295,8 +1295,8 @@ export class GameScene {
       // corrompus : violet franc et surexposé, comme l'or des élites (la texture porte déjà la couleur du type)
       this.corruptColor[t]
         .set(PAL.enemy[t])
-        .lerp(this.cCorrupt, 0.9)
-        .multiplyScalar(FEEL.corrupt.bright * 1.1);
+        .lerp(this.cCorrupt, FEEL.corrupt.tintModel)
+        .multiplyScalar(FEEL.corrupt.brightModel);
     }
     this.cFlash = ENEMY_FLASH;
     this.enemyHop = 0.25;

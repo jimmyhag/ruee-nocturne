@@ -88,6 +88,9 @@ export const FEEL = {
   corrupt: {
     tint: 0.8,
     bright: 1.3,
+    // modèles chargés : la texture porte déjà la couleur du type, le violet doit la couvrir davantage (relecture perf)
+    tintModel: 0.9,
+    brightModel: 1.43,
     pulse: 0.12,
     eye: 0.75,
     eyeAt: 0.78,
