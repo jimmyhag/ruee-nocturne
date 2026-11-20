@@ -1009,6 +1009,34 @@
       #goalChip.g3 #goalArrow {
         color: var(--rare);
       }
+      /* 1.69.0 (décision 10) : « Active le totem » rouge qui pulse dans la dernière minute, rouge vif après le chrono */
+      #goalChip.g6,
+      #goalChip.g7 {
+        color: var(--swarm);
+      }
+      #goalChip.g6 {
+        animation: goalPulse 0.9s ease-in-out infinite alternate;
+      }
+      #goalChip.g7 {
+        color: #ff2d45;
+        text-shadow:
+          0 0 10px rgba(255, 45, 69, 0.75),
+          0 1px 2px rgba(6, 9, 24, 0.9);
+      }
+      @keyframes goalPulse {
+        to {
+          opacity: 0.55;
+          transform: translateX(-50%) scale(1.08);
+        }
+      }
+      body.calm #goalChip.g6 {
+        animation: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #goalChip.g6 {
+          animation: none;
+        }
+      }
       #goalDist,
       #merchantDist {
         font-weight: 500;
@@ -4411,6 +4439,33 @@
       .h1.dead {
         color: var(--moon);
       }
+      .h1.alert {
+        color: var(--swarm);
+      }
+      /* 1.69.0 : fin de la partie guidée (le résultat en titre) et fenêtres de première fois */
+      .h1.tetitle,
+      .h1.infotitle {
+        font-size: 34px;
+        line-height: 38px;
+        text-wrap: balance;
+      }
+      .teline,
+      .infoline {
+        margin: 0;
+        font-size: 15.5px;
+        line-height: 22px;
+        color: var(--moon);
+      }
+      .infoline:empty {
+        display: none;
+      }
+      @media (max-width: 480px) {
+        .h1.tetitle,
+        .h1.infotitle {
+          font-size: 28px;
+          line-height: 32px;
+        }
+      }
       /* phase 47 : fiche de stats du héros (écran de pause), lignes à filets groupées par libellé espacé */
       .sheet {
         display: grid;
@@ -6415,15 +6470,29 @@
       </div>
     </section>
     <!-- partie guidée (décision 7) : après la mort voulue contre le boss du totem, « À toi de jouer » (kit de #over) -->
-    <section id="tutoEnd" class="screen overlay" hidden>
+    <!-- 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 1) : le résultat en titre, en grand ; Rejouer ou le menu -->
+    <section id="tutoEnd" class="screen overlay" hidden role="dialog" aria-modal="true" aria-labelledby="teTitle">
       <div class="panel">
-        <h2 class="h1 win" id="teTitle" data-i18n="tuto.end.title">À toi de jouer !</h2>
-        <p class="note" id="teText"></p>
+        <h2 class="h1 win tetitle" id="teTitle"></h2>
+        <p class="teline" id="teText"></p>
         <div class="stats two">
           <div><b id="teGold">0</b><span data-i18n="tuto.end.gold">Or gagné</span></div>
           <div><b id="teBonus">+0</b><span data-i18n="tuto.end.bonus">Prime de fin de guide</span></div>
         </div>
-        <button class="btn-full" id="tePlayBtn" data-i18n="menu.play">Jouer</button>
+        <button class="btn-full" id="tePlayBtn" data-i18n="tuto.end.replay">Rejouer</button>
+        <div class="overnav">
+          <button class="btn-act" id="teMenuBtn" data-i18n="tuto.end.menu">Retour au menu</button>
+        </div>
+      </div>
+    </section>
+    <!-- 1.69.0 (décisions 2 à 5) : fenêtre de première fois (portail, temps écoulé, monde infini), jeu en pause -->
+    <section id="info" class="screen overlay" hidden role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+      <div class="panel">
+        <h2 class="h1 win infotitle" id="infoTitle"></h2>
+        <p class="infoline" id="infoL1"></p>
+        <p class="infoline" id="infoL2"></p>
+        <p class="infoline" id="infoL3"></p>
+        <button class="btn-full" id="infoOk" data-i18n="win.ok">Compris</button>
       </div>
     </section>
     <div id="nogl" class="screen inner" hidden>

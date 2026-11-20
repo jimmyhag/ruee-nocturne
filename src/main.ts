@@ -3,6 +3,7 @@ import {
   CHARACTERS,
   DAILY,
   ELITE_TYPE,
+  ENDLESS,
   ENEMIES,
   ITEM_KEYS,
   MAP,
@@ -88,7 +89,7 @@ import {
   tutorialOptions,
   worldOptions,
 } from './meta/shop';
-import { Step, guideCardsDone, guideJump, newGuide, readGuide } from './meta/guide';
+import { HINTS, Step, guideCardsDone, guideJump, newGuide, readGuide, takeWindow } from './meta/guide';
 import type { GuideState, Hint } from './meta/guide';
 import { softAfterRun, tutorialDue, tutorialEnd, tutorialSkip } from './meta/tutorial';
 import { TUTO_FEEL, TutorialView } from './ui/tutorial';
@@ -291,7 +292,8 @@ type AppMode =
   | 'consent'
   | 'merchant'
   | 'map'
-  | 'tutoEnd';
+  | 'tutoEnd'
+  | 'info';
 const SCREENS = [
   'menu',
   'levelup',
@@ -313,6 +315,7 @@ const SCREENS = [
   'consent',
   'map',
   'tutoEnd', // partie guidée : « À toi de jouer »
+  'info', // 1.69.0 : fenêtre de première fois (portail, temps écoulé, monde infini)
 ] as const;
 let backTo: AppMode = 'menu'; // écran à rouvrir en quittant boutique / succès / réglages
 // lot L1 : mesure anonyme de fréquentation, seulement sur accord (src/platform/retention.ts, sans SDK Firebase)
@@ -426,7 +429,8 @@ function gameShown(): boolean {
     app === 'map' ||
     app === 'victory' ||
     app === 'over' ||
-    app === 'tutoEnd'
+    app === 'tutoEnd' ||
+    app === 'info'
   ); // les écrans intérieurs (réglages ou emplacements ouverts depuis la pause ou la fin) ont leur propre fond opaque
 }
 /** Écrans intérieurs de l'accueil : la barre d'onglets les accompagne quand ils sont ouverts depuis l'accueil. */
@@ -825,6 +829,7 @@ function applyLang(): void {
   else if (app === 'pause') renderPauseRule();
   else if (app === 'notes') renderNotesScreen();
   else if (app === 'tutoEnd') renderTutoEnd();
+  else if (app === 'info') renderInfo();
   tuto.refresh(); // partie guidée : la consigne dans la nouvelle langue
   if (world) hud.setBeat(beatText()); // lot L4
 }
@@ -1732,20 +1737,73 @@ function tutorialOver(): void {
     () => {
       if (app !== 'tutoEnd') return;
       showOnly('tutoEnd');
-      if (!input.isTouch) $('tePlayBtn').focus({ preventScroll: true });
+      if (!input.isTouch) $('tePlayBtn').focus({ preventScroll: true }); // Entrée : Rejouer (règle 4)
     },
     reducedFx() ? 700 : TUTO_END_MS,
   );
 }
+/** 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 1) : le résultat en titre (doré pour la victoire), l'encouragement dessous. */
 function renderTutoEnd(): void {
-  $('teText').textContent = t('tuto.end.' + tutoOver.end);
+  const title = $('teTitle');
+  title.textContent = t('tuto.end.' + tutoOver.end);
+  title.className = 'h1 tetitle ' + (tutoOver.end === 'win' ? 'win' : 'dead');
+  $('teText').textContent = t('tuto.end.' + tutoOver.end + 'Text');
   $('teGold').textContent = String(tutoOver.gold);
   $('teBonus').textContent = '+' + tutoOver.bonus;
 }
 $('tePlayBtn').onclick = () => {
   if (app !== 'tutoEnd') return;
-  startGame();
+  startGame(); // « Rejouer » : une partie normale, comme « Jouer » avant la 1.69.0
 };
+$('teMenuBtn').onclick = () => {
+  if (app === 'tutoEnd') toMenu();
+};
+addEventListener('keydown', (e) => {
+  if (app !== 'tutoEnd' || e.repeat || e.code !== 'Escape') return;
+  e.preventDefault();
+  toMenu();
+});
+
+// ---------- 1.69.0 (docs/specs/rafales-faux-guidage.md, décisions 2 à 5) : fenêtres de première fois ----------
+/** Fenêtre ouverte (index dans HINTS : portail, temps écoulé, monde infini), -1 aucune. */
+let infoHint = -1;
+/** Ouvre la fenêtre `h`, jeu en pause ; retenue dans la méta (une fois par joueur, bits synchronisés comme les consignes). */
+function openInfo(h: number): void {
+  if (!world || h < 0 || app !== 'play') return;
+  infoHint = h;
+  app = 'info';
+  renderInfo();
+  showOnly('info');
+  hintShown(h as Hint);
+  audio.bossWarn(); // un signal court : le jeu s'arrête pour une raison
+  if (!input.isTouch) $('infoOk').focus({ preventScroll: true }); // Entrée, Espace : « Compris » (règle 4)
+}
+function renderInfo(): void {
+  const k = HINTS[infoHint];
+  if (!k || !world) return;
+  const title = $('infoTitle');
+  title.textContent = t(`win.${k}.title`);
+  title.className = 'h1 infotitle ' + (k === 'overtime' ? 'alert' : 'win');
+  const P = ENDLESS.period;
+  // le portail du monde 3 mène au boss final (1.68.0), pas à un monde
+  const l2 = k === 'portal' && world.stage >= STAGE.count - 1 ? 'win.portal.l2final' : `win.${k}.l2`;
+  $('infoL1').textContent = t(`win.${k}.l1`, { m: Math.floor(P / 60), s: String(P % 60).padStart(2, '0') });
+  $('infoL2').textContent = t(l2);
+  $('infoL3').textContent = has(`win.${k}.l3`) ? t(`win.${k}.l3`) : '';
+}
+function closeInfo(): void {
+  if (app !== 'info') return;
+  infoHint = -1;
+  backToPlay();
+}
+$('infoOk').onclick = closeInfo;
+addEventListener('keydown', (e) => {
+  if (app !== 'info' || e.repeat) return;
+  if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space' || e.code === 'Escape') {
+    e.preventDefault();
+    closeInfo();
+  }
+});
 /** Décision 10 : « Passer la partie guidée » (pause) : la partie s'arrête sans compter, tout est dévoilé, retour au menu. */
 function skipTutorial(): void {
   if (!tutorialRun || app !== 'pause') return;
@@ -3156,7 +3214,7 @@ function handleEvents(w: World, now: number): void {
       }
       case Ev.Scythe: {
         // phase 30 : arc de lame visible (balayage), plus quelques étincelles violettes le long du tranchant
-        S.scythe(e.x, e.z, e.v, e.x2, e.z2, e.y2);
+        S.scythe(e.v, e.x2, e.z2, e.y2); // 1.69.0 : une faux par événement
         const n = (8 * fx) | 0,
           half = (Math.min(360, e.y2) * Math.PI) / 360,
           a0 = Math.atan2(e.x2, e.z2);
@@ -3680,6 +3738,9 @@ function frame(nowMs: number): void {
     else if (world.mode === Mode.Won) openVictory();
     else if (world.mode === Mode.LevelUp) openLevelUp();
     else if (world.mode === Mode.Merchant) openMerchant();
+    // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 5) : une fenêtre de première fois attend que le jeu tourne
+    // sans autre feuille (carte de niveau, coffre, marchand passent d'abord)
+    else if (guide && guide.win !== 0) openInfo(takeWindow(guide));
     hurtT -= realDt;
     // partie guidée : la puce « Active le totem » attend que le guide montre le totem (ou le rende obligatoire)
     hud.goalHold = guide !== null && guide.tutorial && totemLocked(world);
@@ -3740,7 +3801,8 @@ function frame(nowMs: number): void {
     app === 'map' ||
     app === 'over' ||
     app === 'victory' ||
-    app === 'tutoEnd';
+    app === 'tutoEnd' ||
+    app === 'info';
   if (duckNow !== duckOn) {
     duckOn = duckNow;
     audio.duck(duckNow);

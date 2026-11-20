@@ -181,7 +181,7 @@ test('chrono écoulé sans avoir appelé le boss : dépassement en rouge, le tot
   await page.waitForFunction(() => (window as any).__game.world.overT > 0, null, { timeout: 30_000 });
   await expect(page.locator('#timeBox')).toHaveClass(/over/);
   await expect(page.locator('#time')).toHaveText(/^\+0:0\d$/);
-  await expect(page.locator('#goalChip')).toHaveClass(/g1/);
+  await expect(page.locator('#goalChip')).toHaveClass(/g7/); // 1.69.0 (rafales-faux-guidage.md, décision 10) : « Active le totem » en rouge vif
   expect(await page.evaluate(() => (window as any).__game.world.totem.state)).toBe(0);
   // dans le cercle : la jauge d'activation s'affiche, comme pour un sanctuaire, et le boss arrive malgré le chrono
   await page.evaluate(() => {

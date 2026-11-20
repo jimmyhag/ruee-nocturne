@@ -8,7 +8,7 @@ import { collectConsoleErrors, openGame, startRun } from './helpers';
 const CASES: [string, string][] = [
   ['orbe', 'g.scene.glowW.mesh.count > 0'],
   ['foudre', 'g.scene.bolts.w.mesh.count > 0'],
-  ['faux', 'g.scene.slashW.mesh.count > 0 && g.scene.slashN > 0'],
+  ['faux', 'g.scene.slashW.mesh.count > 0 && g.scene.scytheW.mesh.count > 0'], // 1.69.0 : la faux et sa traînée
   ['lames', 'g.scene.slashW.mesh.count > 0'],
   ['lance', 'g.scene.glowW.mesh.count > 0 && g.scene.bladeW.mesh.count > 0'],
   ['meteores', 'g.scene.glowW.mesh.count > 0 && g.world.wstate.metN > 0'],

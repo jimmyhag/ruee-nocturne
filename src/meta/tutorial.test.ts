@@ -36,6 +36,7 @@ import {
   guideTotemWait,
   newGuide,
   readGuide,
+  takeWindow,
   updateGuide,
 } from './guide';
 import { revealNews } from './reveal';
@@ -476,8 +477,9 @@ describe('partie guidée : le totem obligatoire et le boss (décisions 6 et 7)',
     expect(stageLeft(w)).toBe(0);
     step(w, idle(), STEP);
     expect(w.overT).toBeGreaterThan(0);
-    // ralenti et consigne (interface : e2e), flèche vers le portail
-    expect(g.hint).toBe(Hint.Portal);
+    // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 2) : la fenêtre du portail (interface : e2e), flèche vers lui
+    expect(g.hint).toBe(-1);
+    expect(takeWindow(g)).toBe(Hint.Portal);
     const at = { x: 0, z: 0 };
     expect(guideTarget(g, w, at)).toBe(true);
     expect([at.x, at.z]).toEqual([w.totem.x, w.totem.z]);
@@ -555,7 +557,7 @@ describe('partie guidée : les consignes uniques (décision 8)', () => {
     w.portal.open = true;
     w.emit(Ev.PortalOpen, w.totem.x, 0, w.totem.z, 2);
     updateGuide(g, w, 0);
-    expect(g.hint).toBe(Hint.Portal); // consigne (et ralenti : interface)
+    expect(takeWindow(g)).toBe(Hint.Portal); // 1.69.0 (rafales-faux-guidage.md, décision 2) : sa fenêtre (interface)
     const at = { x: 0, z: 0 };
     expect(guideTarget(g, w, at)).toBe(true); // flèche vers le portail
     expect([at.x, at.z]).toEqual([w.totem.x, w.totem.z]);

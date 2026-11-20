@@ -55,7 +55,8 @@ export type BannerTone = 'reward' | 'danger' | 'info';
 
 /** HUD en DOM : toute écriture passe par un cache pour ne toucher le DOM que si la valeur change. */
 /** Phase 37 : textes de la puce d'objectif, par sorte (1 totem, 2 boss, 3 portail, 4 fermé). */
-const GOAL_KEYS = ['', 'goal.totem', 'goal.boss', 'goal.portal', '', 'goal.nextBoss'];
+// 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 10) : 1 le totem quand on est prêt, 6 dernière minute, 7 chrono à 0
+const GOAL_KEYS = ['', 'goal.ready', 'goal.boss', 'goal.portal', '', 'goal.nextBoss', 'goal.totem', 'goal.totem'];
 
 export class Hud {
   private cache: Record<string, string | number | boolean | undefined> = {};
@@ -192,9 +193,22 @@ export class Hud {
   private goal(w: World): void {
     const T = w.totem,
       P = w.player;
-    // 0 rien, 1 totem, 2 boss, 3 portail, 5 monde infini : prochaine vague de boss (phase 39) ; 4 (totem fermé) n'existe
+    // 0 rien, 1 totem (« quand tu es prêt »), 2 boss, 3 portail, 5 monde infini : prochaine vague de boss (phase 39),
+    // 6 totem dans la dernière minute (rouge qui pulse), 7 totem après le chrono (rouge vif) ; 4 (totem fermé) n'existe
     // plus depuis la 1.45.2 : le totem reste actif après la fin du chrono
-    const kind = w.endless ? 5 : w.portal.open ? 3 : T.state === 0 ? (this.goalHold ? 0 : 1) : T.state === 1 ? 2 : 0;
+    const left = STAGE.dur - w.stageT,
+      totem = left <= 0 ? 7 : left <= STAGE.warnLeft ? 6 : 1;
+    const kind = w.endless
+      ? 5
+      : w.portal.open
+        ? 3
+        : T.state === 0
+          ? this.goalHold
+            ? 0
+            : totem
+          : T.state === 1
+            ? 2
+            : 0;
     if (this.cache.goal !== kind) {
       this.cache.goal = kind;
       this.cache.gDeg = this.cache.gDist = undefined;
@@ -202,8 +216,9 @@ export class Hud {
       el.hidden = kind === 0;
       el.className = 'goal g' + kind;
       this.els.goalText.textContent = kind === 0 || kind === 5 ? '' : t(GOAL_KEYS[kind]);
-      this.els.goalArrow.hidden = kind !== 1 && kind !== 3;
-      this.els.goalDist.hidden = kind !== 1 && kind !== 3;
+      const arrow = kind === 1 || kind === 3 || kind === 6 || kind === 7;
+      this.els.goalArrow.hidden = !arrow;
+      this.els.goalDist.hidden = !arrow;
     }
     if (kind === 5) {
       const s = Math.max(0, Math.ceil(w.nextEndlessBoss - w.endlessT));
@@ -213,7 +228,7 @@ export class Hud {
       }
       return;
     }
-    if (kind !== 1 && kind !== 3) return;
+    if (kind !== 1 && kind !== 3 && kind !== 6 && kind !== 7) return;
     const dx = T.x - P.x,
       dz = T.z - P.z,
       deg = Math.round((Math.atan2(dx, -dz) * 180) / Math.PI / 5) * 5,

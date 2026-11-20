@@ -155,7 +155,10 @@ export const FEEL = {
     powerHalo: 2.8, // phase 35 : halo d'un bonus au sol
     rageHalo: 2.8, // halo rouge du héros pendant la Rage
   },
-  slash: { life: 0.2, sweep: 0.5, max: 8 }, // Faux : durée de l'arc (s), balayage (rad) pendant sa vie, arcs en même temps
+  // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 8) : une faux balaie son arc en `sweep` s, puis rétrécit en
+  // `fade` s ; `max` faux à l'écran (3 faux par coup, recharge plancher ≈ 0,3 s) ; `scale` : taille du modèle en portées ;
+  // `h` : hauteur de la lame au-dessus du sol sous le héros (les mains)
+  scythe: { life: 0.32, sweep: 0.25, fade: 0.07, max: 12, scale: 1, h: 0.75 },
   // phase 32 : coup des Lames sur une cible (l'épée tourne autour de la cible en traçant un croissant)
   blade: {
     life: 0.22,
