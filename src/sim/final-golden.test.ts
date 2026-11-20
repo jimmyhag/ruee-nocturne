@@ -103,13 +103,15 @@ describe('le défi du jour et la partie guidée (docs/specs/boss-final.md)', () 
 /**
  * Relevé sur le code d'avant le lot (1.67.0, be0d9c1). 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12 : « le défi
  * du jour et la partie guidée changent avec les armes ») : la dernière empreinte, le combat du totem de la partie guidée,
- * est relevée de nouveau (l'Orbe saute une cible que ses tirs en vol suffisent à tuer) ; les cinq autres n'ont pas bougé.
+ * est relevée de nouveau (l'Orbe saute une cible que ses tirs en vol suffisent à tuer) ; puis (décision 12 amendée,
+ * sparring du 20 nov.) les PV du boss final du défi (`DAILY.bossHp`) et du boss de la partie guidée (`TUTORIAL.bossHp`) :
+ * les empreintes 2 à 4 (le défi depuis son boss final) et 6 relevées de nouveau ; la 1 et la 5 n'ont pas bougé.
  */
 const GOLDEN: string[] = [
   '15b3ebae3ff5a868',
-  'efa80d4d0195d62e',
-  'fdb0efdd7468f4f4',
-  '351f35fcb10c56a4',
+  '1e2feea983a58904',
+  '4f10d057f492b3cd',
+  '90a4c00340834225',
   'acfc08418721f0de',
-  'e4681cb2f4205a69',
+  'f640cb4f021e6be0',
 ];

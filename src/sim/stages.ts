@@ -208,7 +208,8 @@ export function summonStageBoss(w: World): void {
     w.overHp *
     (1 + w.bossCount * STAGE.bossHpPerBoss) *
     Math.max(ITEM.idole.min, 1 - ITEM.idole.hp * w.itemEff[It.Idole]) * // phase 47 B : Idole
-    difficultyHp(w); // phase 48
+    difficultyHp(w) * // phase 48
+    (w.tutorial && w.stage === 0 ? TUTORIAL.bossHp : 1); // 1.69.0 : partie guidée, réglé par la simulation
   // partie guidée (décision 16) : un boss normal, sans l'adoucissement des monstres du monde 1 (TUTORIAL.dmg)
   if (w.tutorial) e.dmgMul = dmgMulNow(w, true);
   e.x = e.px = T.x + Math.sin(a) * STAGE.bossDist;

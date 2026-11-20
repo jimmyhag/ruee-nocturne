@@ -1,6 +1,6 @@
 # Rafales de projectiles, vraie faux, explications au bon moment
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 20 novembre 2026, avec Jimmy, pendant ses essais de la 1.68.0. Version visée : **1.69.0**.
 

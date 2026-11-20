@@ -229,6 +229,10 @@ export const TUTORIAL = {
   hp: 0.45, // PV des monstres du monde 1 × (pas des boss : leurs PV sont calculés à part)
   dmg: 0.35, // dégâts des monstres du monde 1 × (boss de survie compris ; pas le boss du totem ni ses doubles)
   survivalHp: 1, // PV des boss de survie (3:00, 7:00) ×
+  // PV du boss du totem du monde 1 (et de ses doubles) × : 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12
+  // amendée, sparring du 20 nov.) : la rafale entière part sur un boss seul (les tomes imposés donnent des projectiles en
+  // plus), abattu dans 94 % des combats à ×1 ; ×2 : 85 % ; ×3 : 73 % ; ×4 : 59 % (2 graines × 200)
+  bossHp: 3.5,
   // tomes imposés (décision 13) : le premier à la première montée de niveau, le second à la deuxième ; aucun autre
   // tome n'est tiré de toute la partie guidée (ses deux emplacements de tome sont pris)
   tomes: ['degats', 'projectiles'] as readonly TomeKey[],
@@ -245,7 +249,11 @@ export const DAILY = {
   bossAt: 240, // s de partie : le boss final (celui du totem du monde 1) sort autour du joueur
   bossWarn: 10, // s de préavis (bannière « Boss final »), comme un boss de survie
   bossDist: 12, // u du joueur à l'apparition
-  bossHp: 1.8, // PV du boss final, × ceux du boss du totem du monde 1 (même règle de calcul), réglé par `npm run sim -- --daily`
+  // PV du boss final, × ceux du boss du totem du monde 1 (même règle de calcul), réglé par `npm run sim -- --daily`.
+  // 1.69.0 (décision 12 amendée, sparring du 20 nov.) : la rafale entière part sur lui ; argent 35 % à ×1,8, 33 % à
+  // ×2,3, 26 % à ×2,8 (règles mêlées, 2 graines × 200) ; par règle (4 graines × 200 chacune), ×3,3 : 28 % regroupé
+  // mais Élites et Nuée à 35 % ; ×4,3 : 24 % regroupé, 13 à 31 % selon la règle
+  bossHp: 4.3,
   // rythme de ses attaques (comme BOSSTOTEM.extraCadence) : face au kit de départ, c'est lui qui tue, pas ses PV
   bossCadence: 0.6,
   goldAt: 600, // s de partie : vivant à 10:00 (5 minutes de monde infini) avec l'argent, c'est l'or
@@ -549,8 +557,10 @@ export const FINAL = {
   // monstres et du boss à ce niveau, comme le boss du totem du monde 3
   diffT: STAGE.dur + STAGE.offset[STAGE.count - 1],
   // PV × ceux d'un boss du totem du monde 3 appelé maintenant (même calcul, sans prolongation ni Idole) : à ×4,5 le
-  // combat durait 2:00 et le bot gagnait 9 fois sur 10 ; ×8,5 avec les dégâts ci-dessous : 2:25
-  hp: 8.5,
+  // combat durait 2:00 et le bot gagnait 9 fois sur 10 ; ×8,5 avec les dégâts ci-dessous : 2:25. 1.69.0
+  // (docs/specs/rafales-faux-guidage.md, décision 12 amendée, sparring du 20 nov.) : la rafale entière part sur lui,
+  // vaincu dans 66 % des combats à ×8,5 ; ×10,5 et ×12,5 : 59 % (mêmes 73 combats) ; ×16 : 48 %, combat p50 2:50
+  hp: 16,
   // dégâts de ses attaques, de sa charge et de son contact (et de ses doubles) × ceux d'un monstre de la fin du monde 3 :
   // à ×1, le kit complet ne mourait qu'à sa charge. ×1,65 : 47 % sur les combats rejoués mais 42 % dans la CLI (4 graines
   // × 200, au bord de la cible) ; ×1,5 : 55 % rejoués
