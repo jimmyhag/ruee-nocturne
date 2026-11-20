@@ -19,9 +19,14 @@ Tes projectiles partent en rafale, la Faux devient une vraie faux, et le jeu t'e
 - **Le totem n'est pas pressé** : l'objectif dit « Survis · totem quand tu es prêt » ; « Active le totem » ne passe au rouge que dans la dernière minute du chrono. Dans la partie guidée, le totem de boss est présenté comme facultatif, et « Comment jouer » commence par « Rien ne presse ».
 - Une partie gardée avant la mise à jour garde sa Faux : ses améliorations d'arc deviennent des faux.
 
+### Corrigé
+
+- Avec un seul ennemi à portée, les projectiles en plus de l'Orbe et les lances en plus partaient en éventail à côté de lui : ils le touchent maintenant tous.
+
 ### Technique
 
-- Spec : `docs/specs/rafales-faux-guidage.md` (scénarios : `src/sim/burst.test.ts`, `src/meta/windows.test.ts`, `e2e/rafales-faux.spec.ts`, `tools/rafales.test.ts`).
+- Spec : `docs/specs/rafales-faux-guidage.md` (scénarios : `src/sim/burst.test.ts`, `src/meta/windows.test.ts`, `e2e/rafales-faux.spec.ts`, `tools/rafales.test.ts`). Rafales : état préalloué dans `w.wstate` (tirs restants, écart, identifiant de rafale), donc dans l'instantané ; cible par `burstTarget` (`src/sim/weapons/tick.ts`) : la première, dans l'ordre de l'arme, qui n'est pas couverte (dégâts en route `Enemy.inbound` jusqu'à `inboundT`, ou `BURST.maxSame` tirs de la rafale `Enemy.burstId`) ; écart `BURST.gap` ramené à recharge / n. Faux : stat `n` (ligne « +1 faux » à la place de « +15° d'arc », même index), `FAUX.maxN`, un `Ev.Scythe` par faux ; une partie gardée en 1.68 convertit ses lignes (`SNAP_REV`, `src/sim/snapshot.ts`). Fenêtres : bits `Hint.Overtime` (7) et `Hint.Endless` (8), `Hint.Portal` passe en fenêtre ; `GuideState.win` et `takeWindow` (`src/meta/guide.ts`), écran `#info` (`main.ts`). HUD : objectifs `g1` (« quand tu es prêt »), `g6` (dernière minute), `g7` (après le chrono). Rendu : `src/render/scythe.ts` (modèle procédural, contour par silhouette dessous), `scytheW` dans `scene.ts`, un appel de plus tant qu'une faux est à l'écran.
+- Équilibrage (règle 13), bot moyen, 4 graines × 200 regroupées : maxé monde 2 69,3 → 79,1 %, victoire 16,6 → 17,3 % ; nu victoire 23,8 → 24,9 % ; chaque arme choisie dans 21,5 à 26,3 % des parties. Trois combats contre un boss seul sortent de leur cible (boss final vaincu 66,2 %, argent du défi 35,3 %, boss de la partie guidée abattu 93,6 %) : un boss seul reçoit toute la rafale ; les leviers de la spec ne le règlent pas, décision de Jimmy attendue. Détail dans `docs/GATES.md`.
 
 ## 1.68.0 — 20 nov. 2026 (le Cœur de la Nuit)
 
