@@ -111,5 +111,5 @@ const GOLDEN: string[] = [
   'fdb0efdd7468f4f4',
   '351f35fcb10c56a4',
   'acfc08418721f0de',
-  'cff3effd5916dc26',
+  'e4681cb2f4205a69',
 ];

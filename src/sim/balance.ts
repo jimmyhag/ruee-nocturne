@@ -1020,13 +1020,14 @@ export const FAUX = { kb: 7, wait: 0.15, maxN: 3, legacyArcStep: 15 }; // recul 
  * en plus de l'Orbe, de la Lance, du Boomerang et du Fouet partent en rafale, un après l'autre, chacun vers la cible de
  * l'arme au moment où il part, sauf si elle est « couverte » (dégâts en route suffisants, ou BURST.maxSame tirs de la
  * rafale déjà reçus) : il passe alors à la suivante (multi-cible gardé, précisions de Jimmy). La recharge part du
- * premier tir ; une rafale plus longue que la recharge retarde la suivante, qui part dès qu'elle finit.
+ * premier tir.
  */
 export const BURST = {
-  // s entre deux tirs d'une rafale, jamais plus que la recharge de l'arme. Orbe 0,12 (règle 13, docs/GATES.md) : à 0,08
-  // les rafales tenaient toujours dans la recharge et l'Orbe à 6 projectiles et plus gagnait trop, car plus aucun tir
-  // n'était perdu (monde 2 atteint +10 points au profil maxé) ; 0,12 étale les grosses rafales au-delà de la recharge
-  gap: { orbe: 0.12, lance: 0.08, boomerang: 0.08, fouet: 0.08 },
+  // s entre deux tirs d'une rafale, ramené à recharge / n quand la rafale ne tiendrait pas dans la recharge : la cadence
+  // d'une arme ne baisse jamais à cause de la rafale. Règle 13 (docs/GATES.md) : l'Orbe à 0,12 s sans ce plafond
+  // (rafales plus longues que la recharge) faisait tomber les victoires du profil nu de 23,8 à 4,4 %, lui qui monte une
+  // seule arme à 6 projectiles et plus : l'écart n'est pas un levier, il reste à 0,08
+  gap: { orbe: 0.08, lance: 0.08, boomerang: 0.08, fouet: 0.08 },
   // s : marge après l'arrivée prévue d'un tir pendant laquelle ses dégâts comptent « en route » vers sa cible (un tir de
   // la rafale saute une cible que ceux en vol suffisent à tuer, précision de Jimmy) ; au-delà, le tir est raté
   margin: 0.1,
