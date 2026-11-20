@@ -157,6 +157,22 @@ export class World {
   bladeRangeMul = 1; // Bûcheron : lames à portée +20 %
   wstate = {
     orbeT: 0.4,
+    // 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 6) : rafales en cours (tirs restants, s avant le suivant) de
+    // l'Orbe, de la Lance, du Boomerang et du Fouet ; dans l'instantané comme tout le World (reprise identique)
+    orbeLeft: 0,
+    orbeGap: 0,
+    lanceLeft: 0,
+    lanceGap: 0,
+    lanceI: 0, // index de la prochaine lance de la rafale (son bit dans la salve)
+    boomLeft: 0,
+    boomGap: 0,
+    fouetLeft: 0,
+    fouetGap: 0,
+    // identifiants des rafales en cours (BURST.maxSame : tirs reçus par un ennemi dans la rafale), tirés d'une même suite
+    burstSeq: 0,
+    orbeB: 0,
+    boomB: 0,
+    fouetB: 0,
     auraT: 0,
     auraPulse: 0,
     foudreT: 1.5,
@@ -979,6 +995,10 @@ function makeEnemy(): Enemy {
     lastBoom: -9,
     lastLance: -9,
     lanceBits: 0,
+    inbound: 0,
+    inboundT: -9,
+    burstId: -1,
+    burstHits: 0,
     lastPatins: -9,
     spd: 1,
     dmgMul: 1,

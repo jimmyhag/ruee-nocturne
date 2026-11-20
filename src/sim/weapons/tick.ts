@@ -1,7 +1,7 @@
-import { BALISE, BOOMERANG, CAPS, ENEMIES, ESPRITS, FAUX, FOUET, ITEM, It, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT, VITRIOL } from '../balance';
+import { BALISE, BOOMERANG, BURST, CAPS, ENEMIES, ESPRITS, FAUX, FOUET, ITEM, It, LAMES, LANCE, METEOR, MINES, SYN, Syn, TRAIT, VITRIOL } from '../balance';
 import { hitEnemy } from '../combat';
 import { Ev, HitSrc, ProjKind, Trait } from '../types';
-import type { Projectile } from '../types';
+import type { Enemy, Projectile } from '../types';
 import type { World } from '../world';
 import { weaponStats } from './defs';
 
@@ -16,7 +16,7 @@ function echo(w: World, cd: number): number {
 
 const MAX_ENEMY_R = 2.6; // Colosse
 // tampons réutilisés (zéro allocation)
-const near = new Int32Array(9); // Orbe : 1 + 5 lignes + 3 (tome Projectiles) tirs au plus
+const near = new Int32Array(9); // Lames et Esprits : 1 + 4 lignes + 3 (tome Projectiles) cibles au plus
 const nearD = new Float64Array(9);
 const seen = new Int32Array(16);
 const seenX = new Float64Array(9); // phase 32 : positions des cibles des Lames (taille de `near`)
@@ -80,9 +80,164 @@ export function fireAngle(w: World, a: number, dmg: number, pierce: number, spee
   return p;
 }
 
-function fire(w: World, targetIdx: number, dmg: number, pierce: number, speed: number, spread: number): void {
-  const e = w.enemies[targetIdx];
-  fireAngle(w, Math.atan2(e.x - w.player.x, e.z - w.player.z) + spread, dmg, pierce, speed);
+/**
+ * 1.69.0 (docs/specs/rafales-faux-guidage.md, décisions 6 et 7, précisions de Jimmy) : cible d'un tir de rafale. La plus
+ * proche (`far` faux : Orbe, Boomerang, Fouet) ou la plus loin (`far` vrai : Lance) à moins de `range` u qui n'est pas
+ * « couverte » : les dégâts déjà en route vers elle suffisent à la tuer, ou elle a déjà reçu BURST.maxSame tirs de cette
+ * rafale (`burst`). Si toutes le sont, le tir repart vers la première. Un ennemi seul reçoit toute la rafale, une élite
+ * dans la horde deux tirs (le reste va à la horde), une horde fragile un tir chacun. -1 s'il n'y a aucun ennemi à
+ * portée. Un seul balayage, sans tri ni allocation.
+ */
+function burstTarget(w: World, range: number, far: boolean, burst: number): number {
+  const P = w.player,
+    r2 = range * range;
+  let first = -1,
+    fd = far ? -1 : r2,
+    pick = -1,
+    pd = fd;
+  for (let i = 0; i < w.enemyCount; i++) {
+    const e = w.enemies[i];
+    if (!e.alive) continue;
+    const dx = e.x - P.x,
+      dz = e.z - P.z,
+      d = dx * dx + dz * dz;
+    if (d >= r2) continue;
+    if (far ? d > fd : d < fd) {
+      fd = d;
+      first = i;
+    }
+    if (e.inboundT > w.t && e.inbound >= e.hp) continue; // déjà condamné par les tirs en vol
+    if (e.burstId === burst && e.burstHits >= BURST.maxSame) continue; // sa part de la rafale est prise
+    if (far ? d > pd : d < pd) {
+      pd = d;
+      pick = i;
+    }
+  }
+  return pick >= 0 ? pick : first;
+}
+
+/** Un tir de la rafale `burst` part vers `e` (BURST.maxSame). */
+function countShot(e: Enemy, burst: number): void {
+  if (e.burstId !== burst) {
+    e.burstId = burst;
+    e.burstHits = 0;
+  }
+  e.burstHits++;
+}
+
+/**
+ * Un tir de rafale part vers l'ennemi `i` : compté pour sa rafale, et ses dégâts attendus (multiplicateurs du héros,
+ * sans critique) comptent comme « en route » jusqu'à l'arrivée prévue (distance / vitesse + BURST.margin) ; au-delà,
+ * le compteur repart de zéro.
+ */
+function aimAt(w: World, i: number, dmg: number, speed: number, burst: number): void {
+  const e = w.enemies[i],
+    P = w.player;
+  countShot(e, burst);
+  const dx = e.x - P.x,
+    dz = e.z - P.z,
+    arrive = w.t + Math.sqrt(dx * dx + dz * dz) / Math.max(1e-6, speed) + BURST.margin;
+  if (e.inboundT <= w.t) e.inbound = 0;
+  e.inbound += dmg * P.dmgMul * (e.elite || ENEMIES[e.type].boss ? P.eliteDmgMul : 1) * w.rule().heroDmg;
+  e.inboundT = Math.max(e.inboundT, arrive);
+}
+
+/**
+ * 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 6) : écart entre deux tirs d'une rafale de `n` tirs, ramené à
+ * `cd / n` quand la rafale ne tiendrait pas dans la recharge `cd` (elle part du premier tir) : la cadence ne baisse pas.
+ */
+function burstGap(gap: number, cd: number, n: number): number {
+  return n > 1 ? Math.min(gap, cd / n) : gap;
+}
+
+/** Orbe : un tir vers l'ennemi le plus proche à moins de 15 u au moment du tir (burstTarget). Faux s'il n'y en a pas. */
+function orbeShot(w: World, s: Record<string, number>): boolean {
+  const ti = burstTarget(w, 15, false, w.wstate.orbeB);
+  if (ti < 0) return false;
+  const P = w.player,
+    t = w.enemies[ti];
+  const a = Math.atan2(t.x - P.x, t.z - P.z);
+  fireAngle(w, a, s.dmg, s.pierce, s.speed);
+  aimAt(w, ti, s.dmg, s.speed, w.wstate.orbeB);
+  P.recoil = 0.14;
+  w.emit(Ev.Shoot, P.x + Math.sin(a) * 0.6, P.y + 1, P.z + Math.cos(a) * 0.6, 1);
+  return true;
+}
+
+/** Lance : une lance (bit `i` de la salve en cours) vers l'ennemi le plus loin à portée (burstTarget). Faux s'il n'y en a pas. */
+function lanceShot(w: World, s: Record<string, number>, i: number): boolean {
+  const P = w.player;
+  const best = burstTarget(w, LANCE.range, true, w.wstate.lanceSalvo);
+  if (best < 0) return false;
+  const t = w.enemies[best];
+  const a = Math.atan2(t.x - P.x, t.z - P.z);
+  const p = fireAngle(w, a, s.dmg, 999, s.speed);
+  aimAt(w, best, s.dmg, s.speed, w.wstate.lanceSalvo);
+  if (p) {
+    p.kind = ProjKind.Lance;
+    p.life = (LANCE.range / s.speed) * LANCE.lifeMargin * P.projLifeMul;
+    p.hit0 = w.wstate.lanceSalvo; // une lance n'a pas de liste d'ennemis touchés : hit0 = salve, hit1 = bit de la lance
+    p.hit1 = 1 << i;
+  }
+  w.emit(Ev.Shoot, P.x + Math.sin(a) * 0.6, P.y + 1, P.z + Math.cos(a) * 0.6, 1, 1); // x2 = 1 : Lance (son)
+  return true;
+}
+
+/** Boomerang : un lancer vers l'ennemi le plus proche, où qu'il soit (burstTarget). Faux s'il n'y en a aucun. */
+function boomShot(w: World, s: Record<string, number>): boolean {
+  const ti = burstTarget(w, Infinity, false, w.wstate.boomB);
+  if (ti < 0) return false;
+  const P = w.player,
+    t = w.enemies[ti];
+  const p = fireAngle(w, Math.atan2(t.x - P.x, t.z - P.z), s.dmg, 999, s.speed);
+  aimAt(w, ti, s.dmg, s.speed, w.wstate.boomB);
+  if (p) {
+    p.kind = ProjKind.Boomerang;
+    p.r = s.range;
+    p.life = BOOMERANG.safetyLife;
+    p.y = P.y + 0.9;
+  }
+  w.emit(Ev.Throw, P.x, P.y + 0.9, P.z, 1);
+  return true;
+}
+
+/**
+ * Fouet : une claque en ligne vers l'ennemi le plus proche à portée ; sans lui, dans la direction du regard, sauf pour
+ * le premier coup d'une rafale (`first`), qui ne part que sur une cible. Faux si rien n'a claqué.
+ */
+function lash(w: World, s: Record<string, number>, first: boolean): boolean {
+  const P = w.player,
+    L = s.r;
+  let dx = P.dirX,
+    dz = P.dirZ;
+  const ti = burstTarget(w, L, false, w.wstate.fouetB); // la claque frappe aussitôt : rien à mettre « en route »
+  if (ti >= 0) {
+    const t = w.enemies[ti];
+    countShot(t, w.wstate.fouetB);
+    const ex = t.x - P.x,
+      ez = t.z - P.z,
+      d = Math.sqrt(ex * ex + ez * ez);
+    if (d > 1e-6) {
+      dx = ex / d;
+      dz = ez / d;
+    }
+  } else if (first) return false;
+  const n = w.grid.query(w.enemies, P.x, P.z, L, MAX_ENEMY_R, hits);
+  let touched = 0;
+  for (let k = 0; k < n; k++) {
+    const e = w.enemies[hits[k]];
+    if (!e.alive) continue;
+    const ex = e.x - P.x,
+      ez = e.z - P.z,
+      along = ex * dx + ez * dz;
+    if (along < -e.r || along > L + e.r) continue;
+    if (Math.abs(ex * dz - ez * dx) > FOUET.halfW + e.r) continue;
+    hitEnemy(w, hits[k], s.dmg, FOUET.kb, P.x, P.z, HitSrc.Fouet);
+    touched++;
+  }
+  if (w.syn[Syn.Saignee] && touched > 0) P.hp = Math.min(P.maxHp, P.hp + SYN.saignee.heal * Math.min(touched, SYN.saignee.max));
+  w.emit(Ev.Whip, P.x, P.y + FOUET.h, P.z, L, dx, 0, dz);
+  return true;
 }
 
 export function tickWeapons(w: World, dt: number): void {
@@ -90,23 +245,24 @@ export function tickWeapons(w: World, dt: number): void {
     S = w.wstate;
 
   // ---- Orbe filante / Nova ----
+  // 1.69.0 (décision 6) : ses n projectiles partent en rafale, chacun vers l'ennemi le plus proche au moment du tir
   const lvO = w.weapons.orbe ?? 0;
   if (lvO > 0) {
     const s = weaponStats(w, 'orbe');
     S.orbeT -= dt;
-    if (S.orbeT <= 0) {
-      const nShots = Math.min(s.n, near.length);
-      const found = nearest(w, nShots, 15);
-      if (found > 0) {
-        S.orbeT = echo(w, s.cd * P.cdMul);
-        for (let i = 0; i < nShots; i++) {
-          const spread = i >= found ? (i - found + 1) * 0.35 : 0;
-          fire(w, near[i % found], s.dmg, s.pierce, s.speed, spread);
-        }
-        const t = w.enemies[near[0]];
-        const a = Math.atan2(t.x - P.x, t.z - P.z);
-        P.recoil = 0.14;
-        w.emit(Ev.Shoot, P.x + Math.sin(a) * 0.6, P.y + 1, P.z + Math.cos(a) * 0.6, nShots);
+    if (S.orbeLeft > 0 && (S.orbeGap -= dt) <= 0) {
+      if (orbeShot(w, s)) {
+        S.orbeLeft--;
+        S.orbeGap += burstGap(BURST.gap.orbe, s.cd * P.cdMul, s.n);
+      } else S.orbeLeft = 0; // plus aucune cible : la rafale s'arrête
+    }
+    if (S.orbeT <= 0 && S.orbeLeft === 0) {
+      S.orbeB = ++S.burstSeq; // une rafale nouvelle : ses tirs se comptent à part (BURST.maxSame)
+      if (orbeShot(w, s)) {
+        const cd = s.cd * P.cdMul;
+        S.orbeT = echo(w, cd); // la recharge part du premier tir
+        S.orbeLeft = Math.max(0, s.n - 1);
+        S.orbeGap = burstGap(BURST.gap.orbe, cd, s.n);
       } else S.orbeT = 0.15;
     }
   }
@@ -224,35 +380,40 @@ export function tickWeapons(w: World, dt: number): void {
     }
   }
 
-  // ---- Boomerang : part dans la direction du regard, revient, traverse ----
+  // ---- Boomerang : part vers l'ennemi le plus proche (1.69.0, en rafale ; le regard avant), revient, traverse ----
   const lvB = w.weapons.boomerang ?? 0;
   if (lvB > 0) {
     const s = weaponStats(w, 'boomerang');
     S.boomT -= dt;
-    if (S.boomT <= 0 && w.enemyCount > 0) {
-      S.boomT = echo(w, s.cd * P.cdMul);
-      const base = Math.atan2(P.dirX, P.dirZ);
-      for (let i = 0; i < s.n; i++) {
-        // le 2e part dans le dos, les suivants sur les côtés
-        const p = fireAngle(w, base + (i === 0 ? 0 : i === 1 ? Math.PI : i === 2 ? Math.PI / 2 : -Math.PI / 2), s.dmg, 999, s.speed);
-        if (!p) break;
-        p.kind = ProjKind.Boomerang;
-        p.r = s.range;
-        p.life = BOOMERANG.safetyLife;
-        p.y = P.y + 0.9;
-      }
-      w.emit(Ev.Throw, P.x, P.y + 0.9, P.z, s.n);
+    if (S.boomLeft > 0 && (S.boomGap -= dt) <= 0) {
+      if (boomShot(w, s)) {
+        S.boomLeft--;
+        S.boomGap += burstGap(BURST.gap.boomerang, s.cd * P.cdMul, s.n);
+      } else S.boomLeft = 0;
+    }
+    if (S.boomT <= 0 && S.boomLeft === 0) {
+      S.boomB = ++S.burstSeq;
+      if (boomShot(w, s)) {
+        const cd = s.cd * P.cdMul;
+        S.boomT = echo(w, cd);
+        S.boomLeft = Math.max(0, s.n - 1);
+        S.boomGap = burstGap(BURST.gap.boomerang, cd, s.n);
+      } else S.boomT = BOOMERANG.wait;
     }
   }
 
-  // ---- Faux (phase 28) : arc devant le joueur, fauche et repousse ----
+  // ---- Faux (phase 28) : des faux autour du regard, qui fauchent ensemble et repoussent ----
+  // 1.69.0 (décision 9) : n faux de `arc` degrés chacune, côte à côte et centrées sur le regard (1 devant, 2 tout
+  // l'avant, 3 le tour complet) ; un ennemi dans l'ouverture totale est fauché une fois par coup
   const lvX = w.weapons.faux ?? 0;
   if (lvX > 0) {
     const s = weaponStats(w, 'faux');
     S.fauxT -= dt;
     if (S.fauxT <= 0) {
-      const r = s.r,
-        cosHalf = Math.cos(Math.min(Math.PI, (s.arc * Math.PI) / 360)), // arc en degrés
+      const nF = Math.max(1, Math.min(FAUX.maxN, s.n)),
+        open = Math.min(360, nF * s.arc), // ouverture totale, en degrés
+        r = s.r,
+        cosHalf = Math.cos((open * Math.PI) / 360),
         dx0 = P.dirX,
         dz0 = P.dirZ;
       const n = w.grid.query(w.enemies, P.x, P.z, r, MAX_ENEMY_R, hits);
@@ -262,53 +423,47 @@ export function tickWeapons(w: World, dt: number): void {
         const dx = e.x - P.x,
           dz = e.z - P.z,
           d = Math.sqrt(dx * dx + dz * dz);
-        if (d > 1e-6 && (dx * dx0 + dz * dz0) / d < cosHalf && d > e.r) continue; // hors de l'arc (sauf collé au joueur)
+        if (open < 360 && d > 1e-6 && (dx * dx0 + dz * dz0) / d < cosHalf && d > e.r) continue; // hors des faux (sauf collé au joueur)
         if (hitEnemy(w, hits[k], s.dmg, FAUX.kb, P.x, P.z, HitSrc.Faux)) fauched++;
       }
       if (n > 0) {
         S.fauxT = echo(w, s.cd * P.cdMul);
         if (w.syn[Syn.Moissonneuse] && fauched > 0) P.hp = Math.min(P.maxHp, P.hp + SYN.moissonneuse.heal * Math.min(fauched, SYN.moissonneuse.max));
-        w.emit(Ev.Scythe, P.x, P.y + 0.9, P.z, r, dx0, s.arc, dz0);
+        // une faux par événement : direction de son milieu (x2, z2), son arc en degrés (y2) ; l'écart entre deux faux
+        // est ramené à 360 / n quand elles font le tour
+        const a0 = Math.atan2(dx0, dz0),
+          stepDeg = Math.min(s.arc, 360 / nF);
+        for (let j = 0; j < nF; j++) {
+          const a = a0 + ((j - (nF - 1) / 2) * stepDeg * Math.PI) / 180;
+          w.emit(Ev.Scythe, P.x, P.y + 0.9, P.z, r, Math.sin(a), s.arc, Math.cos(a));
+        }
       } else S.fauxT = FAUX.wait;
     }
   }
 
-  // ---- Lance (phase 28) : vers l'ennemi le plus loin à portée, perce tout ----
+  // ---- Lance (phase 28) : vers l'ennemi le plus loin à portée, perce tout ; 1.69.0 : en rafale ----
   const lvN = w.weapons.lance ?? 0;
   if (lvN > 0) {
     const s = weaponStats(w, 'lance');
+    const nL = Math.min(s.n, LANCE.maxPerSalvo);
     S.lanceT -= dt;
-    if (S.lanceT <= 0) {
-      let best = -1,
-        bd = 0;
-      const R2 = LANCE.range * LANCE.range;
-      for (let i = 0; i < w.enemyCount; i++) {
-        const e = w.enemies[i];
-        if (!e.alive) continue;
-        const dx = e.x - P.x,
-          dz = e.z - P.z,
-          d = dx * dx + dz * dz;
-        if (d < R2 && d > bd) {
-          bd = d;
-          best = i;
-        }
-      }
-      if (best >= 0) {
-        S.lanceT = echo(w, s.cd * P.cdMul);
-        const t = w.enemies[best];
-        const a0 = Math.atan2(t.x - P.x, t.z - P.z);
-        const salvo = ++S.lanceSalvo;
-        const nL = Math.min(s.n, LANCE.maxPerSalvo);
-        for (let i = 0; i < nL; i++) {
-          const a = a0 + (i === 0 ? 0 : (((i + 1) >> 1) * (i % 2 === 1 ? 1 : -1)) * LANCE.spread);
-          const p = fireAngle(w, a, s.dmg, 999, s.speed);
-          if (!p) break;
-          p.kind = ProjKind.Lance;
-          p.life = (LANCE.range / s.speed) * LANCE.lifeMargin * P.projLifeMul;
-          p.hit0 = salvo; // une lance n'a pas de liste d'ennemis touchés : hit0 = salve, hit1 = bit de la lance
-          p.hit1 = 1 << i;
-        }
-        w.emit(Ev.Shoot, P.x + Math.sin(a0) * 0.6, P.y + 1, P.z + Math.cos(a0) * 0.6, s.n, 1); // x2 = 1 : Lance (son)
+    if (S.lanceLeft > 0 && (S.lanceGap -= dt) <= 0) {
+      if (S.lanceI < LANCE.maxPerSalvo && lanceShot(w, s, S.lanceI)) {
+        S.lanceI++;
+        S.lanceLeft--;
+        S.lanceGap += burstGap(BURST.gap.lance, s.cd * P.cdMul, nL);
+      } else S.lanceLeft = 0;
+    }
+    if (S.lanceT <= 0 && S.lanceLeft === 0) {
+      // une salve de plus : chaque lance touche chaque ennemi une fois (un bit par lance) ; son numéro sert aussi
+      // d'identifiant de rafale (BURST.maxSame), pris dans la même suite que les autres armes
+      S.lanceSalvo = S.burstSeq = Math.max(S.burstSeq, S.lanceSalvo) + 1; // (une partie gardée en 1.68 a déjà des salves)
+      if (lanceShot(w, s, 0)) {
+        const cd = s.cd * P.cdMul;
+        S.lanceT = echo(w, cd);
+        S.lanceI = 1;
+        S.lanceLeft = Math.max(0, nL - 1);
+        S.lanceGap = burstGap(BURST.gap.lance, cd, nL);
       } else S.lanceT = LANCE.retry;
     }
   }
@@ -357,40 +512,25 @@ export function tickWeapons(w: World, dt: number): void {
     }
   }
 
-  // ---- Fouet (phase 47 C) : claque en ligne devant le héros, puis derrière et sur les côtés ----
+  // ---- Fouet (phase 47 C) : claque en ligne ; 1.69.0 (décisions 6 et 7) : n claques en rafale, chacune vers l'ennemi
+  // le plus proche à portée, sinon dans la direction du regard ; une rafale ne part que sur une cible ----
   const lvW = w.weapons.fouet ?? 0;
   if (lvW > 0) {
     const s = weaponStats(w, 'fouet');
+    const nW = Math.min(FOUET.maxLashes, s.n);
     S.fouetT -= dt;
-    if (S.fouetT <= 0) {
-      const L = s.r,
-        dirs = Math.min(FOUET.maxDirs, s.n | 0);
-      const n = w.grid.query(w.enemies, P.x, P.z, L, MAX_ENEMY_R, hits);
-      let touched = 0;
-      for (let d = 0; d < dirs && n > 0; d++) {
-        // 0 devant, 1 derrière, 2 à gauche, 3 à droite
-        const dx = d === 0 ? P.dirX : d === 1 ? -P.dirX : d === 2 ? -P.dirZ : P.dirZ,
-          dz = d === 0 ? P.dirZ : d === 1 ? -P.dirZ : d === 2 ? P.dirX : -P.dirX;
-        for (let k = 0; k < n; k++) {
-          const e = w.enemies[hits[k]];
-          if (!e.alive) continue; // déjà tué par une autre direction
-          const ex = e.x - P.x,
-            ez = e.z - P.z,
-            along = ex * dx + ez * dz;
-          if (along < -e.r || along > L + e.r) continue;
-          if (Math.abs(ex * dz - ez * dx) > FOUET.halfW + e.r) continue;
-          hitEnemy(w, hits[k], s.dmg, FOUET.kb, P.x, P.z, HitSrc.Fouet);
-          touched++;
-        }
-      }
-      if (touched > 0) {
-        S.fouetT = echo(w, s.cd * P.cdMul);
-        if (w.syn[Syn.Saignee]) P.hp = Math.min(P.maxHp, P.hp + SYN.saignee.heal * Math.min(touched, SYN.saignee.max));
-        for (let d = 0; d < dirs; d++) {
-          const dx = d === 0 ? P.dirX : d === 1 ? -P.dirX : d === 2 ? -P.dirZ : P.dirZ,
-            dz = d === 0 ? P.dirZ : d === 1 ? -P.dirZ : d === 2 ? P.dirX : -P.dirX;
-          w.emit(Ev.Whip, P.x, P.y + FOUET.h, P.z, L, dx, 0, dz);
-        }
+    if (S.fouetLeft > 0 && (S.fouetGap -= dt) <= 0) {
+      lash(w, s, false);
+      S.fouetLeft--;
+      S.fouetGap += burstGap(BURST.gap.fouet, s.cd * P.cdMul, nW);
+    }
+    if (S.fouetT <= 0 && S.fouetLeft === 0) {
+      S.fouetB = ++S.burstSeq;
+      if (lash(w, s, true)) {
+        const cd = s.cd * P.cdMul;
+        S.fouetT = echo(w, cd);
+        S.fouetLeft = Math.max(0, nW - 1);
+        S.fouetGap = burstGap(BURST.gap.fouet, cd, nW);
       } else S.fouetT = FOUET.wait;
     }
   }

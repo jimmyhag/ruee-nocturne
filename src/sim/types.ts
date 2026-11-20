@@ -19,6 +19,12 @@ export interface Enemy {
   lastBoom: number; // dernier coup de boomerang (un par passage)
   lastLance: number; // phase 28 : salve de Lance qui l'a touché en dernier
   lanceBits: number; // lances de cette salve qui l'ont déjà touché (un bit par lance : chacune ne touche qu'une fois)
+  // 1.69.0 : dégâts des tirs de rafale en vol vers lui, valables jusqu'à inboundT (heure de jeu), au-delà 0 ; tirs
+  // reçus de la rafale burstId (BURST.maxSame)
+  inbound: number;
+  inboundT: number;
+  burstId: number;
+  burstHits: number;
   lastPatins: number; // phase 28 : dernier coup des Patins de braise
   spd: number;
   dmgMul: number;

@@ -20,19 +20,21 @@ export const WEAPONS: Record<WeaponKey, WeaponDef> = {
   // longue · aléatoire + chaîne · lent et fort
   // phase 30 (Jimmy) : une seule cible au départ, les ricochets viennent des cartes (ligne chain, Projectiles, Orage)
   foudre: { glyph: 'ϟ', color: '#d8f4ff', base: { cd: 1.4, dmg: 34, chain: 0, crit: 0, stun: 0 } }, // chain = ricochets (cibles = chain + 1)
-  // longue · direction du regard · salve
+  // longue · le plus proche (1.69.0 ; le regard avant) · salve
   boomerang: { glyph: '⟲', color: '#7ee0a1', base: { cd: 1.7, dmg: 14, range: 9, speed: 14, n: 1, crit: 0 } },
   // contact · là où je passe · pose
   mines: { glyph: '✸', color: '#ff7a3d', base: { cd: 0.9, dmg: 30, r: 2.2, n: 5, chain: 0, crit: 0 } },
-  // phase 28 — courte · devant (regard) · salve : un arc qui fauche et repousse
-  faux: { glyph: '☾', color: '#c9b3ff', base: { cd: 1.1, dmg: 20, r: 3.2, arc: 120, crit: 0 } }, // arc en degrés
+  // phase 28 — courte · devant (regard) · salve : des faux qui fauchent et repoussent
+  // 1.69.0 : n faux (une au départ), chacune couvre `arc` degrés, côte à côte autour du regard (FAUX.maxN : le tour complet)
+  faux: { glyph: '☾', color: '#c9b3ff', base: { cd: 1.1, dmg: 20, r: 3.2, arc: 120, n: 1, crit: 0 } },
   // longue · ennemi le plus loin (ligne) · lent : perce tout
   lance: { glyph: '➹', color: '#9fe8ff', base: { cd: 2.0, dmg: 30, speed: 22, n: 1, crit: 0 } },
   // longue · zone aléatoire autour · lent : cercles annoncés, puis impact
   meteores: { glyph: '☄', color: '#ff9a5a', base: { cd: 2.0, dmg: 42, r: 2.4, n: 1, crit: 0 } }, // phase 33 : un météore par salve au départ (2 avant, recharge 2,5 s) ; à 2,0 s, même profil qu'avant seule (3:28 contre 3:21) — à 1,4 s, 17:27
   // phase 47 C
-  // courte · direction du regard · rapide : une claque en ligne (r = longueur), n = directions (devant et derrière, puis
-  // les côtés). 1.48.0 : devant seul, elle ne touchait rien quand on fuit (6 % de victoires contre 18 % sans elle)
+  // courte · le plus proche à portée, sinon le regard · rapide : une claque en ligne (r = longueur), n = claques par rafale
+  // (1.69.0 ; avant : directions, devant et derrière puis les côtés). 1.48.0 : devant seul, elle ne touchait rien quand
+  // on fuit (6 % de victoires contre 18 % sans elle)
   fouet: { glyph: '〽', color: '#ffb46b', base: { cd: 0.8, dmg: 14, r: 5.5, n: 2, crit: 0 } },
   // moyenne · le plus gros groupe · dégâts dans la durée : dmg par coup de flaque (un toutes les VITRIOL.tick s)
   vitriol: { glyph: '⚗', color: '#9be36a', base: { cd: 3.4, dmg: 8, r: 2.6, n: 1, crit: 0 } },

@@ -9,6 +9,8 @@ import {
   CHARACTERS,
   CHOICE,
   ENEMIES,
+  FAUX,
+  FOUET,
   SYNERGIES,
   TOMES,
   WEAPON_LINES,
@@ -233,19 +235,22 @@ export function weaponSummary(w: World, k: WeaponKey): string {
       return t('weapon.boomerang.stats', { n: s.n, range: Math.round(s.range), dmg: Math.round(s.dmg) });
     case 'mines':
       return t('weapon.mines.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
-    case 'faux':
+    case 'faux': {
+      const n = Math.max(1, Math.min(FAUX.maxN, s.n)); // 1.69.0 : faux côte à côte, chacune son arc
       return t('weapon.faux.stats', {
-        deg: Math.round(Math.min(360, s.arc)),
+        n,
+        deg: Math.round(Math.min(360, n * s.arc)),
         dmg: Math.round(s.dmg),
         r: +s.r.toFixed(1),
       });
+    }
     case 'lance':
       return t('weapon.lance.stats', { n: s.n, dmg: Math.round(s.dmg) });
     case 'meteores':
       return t('weapon.meteores.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
     // phase 47 C
     case 'fouet':
-      return t('weapon.fouet.stats', { n: Math.min(4, s.n), dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
+      return t('weapon.fouet.stats', { n: Math.min(FOUET.maxLashes, s.n), dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
     case 'vitriol':
       return t('weapon.vitriol.stats', { n: s.n, dmg: Math.round(s.dmg), r: +s.r.toFixed(1) });
     case 'esprits':

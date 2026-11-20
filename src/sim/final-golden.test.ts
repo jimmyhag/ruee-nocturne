@@ -100,12 +100,16 @@ describe('le défi du jour et la partie guidée (docs/specs/boss-final.md)', () 
   });
 });
 
-/** Relevé sur le code d'avant le lot (1.67.0, be0d9c1). */
+/**
+ * Relevé sur le code d'avant le lot (1.67.0, be0d9c1). 1.69.0 (docs/specs/rafales-faux-guidage.md, décision 12 : « le défi
+ * du jour et la partie guidée changent avec les armes ») : la dernière empreinte, le combat du totem de la partie guidée,
+ * est relevée de nouveau (l'Orbe saute une cible que ses tirs en vol suffisent à tuer) ; les cinq autres n'ont pas bougé.
+ */
 const GOLDEN: string[] = [
   '15b3ebae3ff5a868',
   'efa80d4d0195d62e',
   'fdb0efdd7468f4f4',
   '351f35fcb10c56a4',
   'acfc08418721f0de',
-  'b6d90f25df5ae4ef',
+  'e4681cb2f4205a69',
 ];

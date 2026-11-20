@@ -393,6 +393,7 @@ function clearField(w: World): void {
   // ce qui vise des coordonnées de l'ancienne carte : météores annoncés, sorts qui durent (Collet, Bourse)
   w.wstate.metN = 0;
   w.wstate.vitN = w.wstate.balN = w.wstate.spN = 0; // phase 47 C : flaques, balises, esprits (ils repartent du héros)
+  w.wstate.orbeLeft = w.wstate.lanceLeft = w.wstate.boomLeft = w.wstate.fouetLeft = 0; // 1.69.0 : rafales en cours
   P.spellT = 0;
   w.sstate.pending = w.sstate.bondPending = false;
   w.stageT = 0;

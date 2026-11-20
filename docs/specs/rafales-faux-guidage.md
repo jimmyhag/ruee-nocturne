@@ -45,7 +45,7 @@ parité) ; la règle 13 (tout réglage choisi par la simulation) ; le budget d'a
 | 3 | La prolongation annoncée | La première fois que le chrono d'un monde atteint 0 **sans** que son boss ait été tué (une fois par joueur) : fenêtre « Temps écoulé ! » : les monstres se renforcent chaque minute et la nuit les corrompt ; active la statue rouge, tue le boss et prends le portail. Si le boss est tué avant (chute du chrono), c'est la fenêtre du portail (décision 2) qui l'explique | Jimmy |
 | 4 | Le monde infini annoncé | La première entrée dans un monde infini (une fois par joueur, défi du jour compris) : fenêtre « Monde infini ! » : plus de chrono, une vague de boss toutes les 2 min 30, des monstres toujours plus forts ; tiens le plus longtemps possible. Le texte ne parle pas de corrompus (le monde infini du défi n'en a pas) | Jimmy : « oui les deux » |
 | 5 | Les fenêtres | Feuille dans le style des autres (titre, deux ou trois lignes, bouton « Compris », focus clavier sur le bouton, Entrée/Espace et toucher), jeu en pause pendant qu'elle est ouverte ; une feuille déjà ouverte (carte de niveau, coffre, marchand) passe d'abord, la fenêtre attend. Bits dans `meta.hints` (synchronisés comme aujourd'hui) | Jimmy : « pause ok » ; règle 4 |
-| 6 | Rafale de projectiles | Les projectiles en plus de l'**Orbe**, de la **Lance**, du **Boomerang** et du **Fouet** ne partent plus en même temps : une **rafale**, un projectile après l'autre (écart `BURST.gap`, de l'ordre de 0,08 s, toujours plus court que la recharge), chacun vers la cible de l'arme **au moment où il part**. Une cible immobile reçoit une ligne de projectiles ; une cible qui bouge ou meurt fait tourner la rafale vers la suivante. La recharge part du premier tir | Jimmy : « comme Megabonk », « un par un » |
+| 6 | Rafale de projectiles | Les projectiles en plus de l'**Orbe**, de la **Lance**, du **Boomerang** et du **Fouet** ne partent plus en même temps : une **rafale**, un projectile après l'autre (écart `BURST.gap`, de l'ordre de 0,08 s, toujours plus court que la recharge), chacun vers la cible de l'arme **au moment où il part** : la première, dans l'ordre de l'arme, qui n'est pas **couverte**. Une cible est couverte quand les dégâts déjà en route vers elle suffisent à la tuer, ou quand elle a déjà reçu `BURST.maxSame` projectiles de cette rafale (2, ou 3 si élites et boss tiennent nettement plus longtemps à la simulation). Si toutes les cibles à portée sont couvertes, le projectile repart vers la première : un ennemi seul reçoit toute la rafale, un ennemi solide dans la horde en reçoit deux et le reste va à la horde, une horde fragile reçoit un projectile chacun ; une cible qui bouge ou meurt fait tourner la rafale vers la suivante. La recharge part du premier tir | Jimmy : « comme Megabonk », « un par un » ; puis (précisions du 20 nov.) garder le multi-cible, et qu'une élite proche n'absorbe pas toute la rafale pendant que la horde avance |
 | 7 | La cible de chaque arme | Orbe : l'ennemi le plus proche (aujourd'hui : un ennemi différent par projectile). Lance : l'ennemi le plus loin à portée (aujourd'hui : éventail). **Boomerang** : l'ennemi le plus proche (aujourd'hui : direction du regard puis dos et côtés). **Fouet** : l'ennemi le plus proche à sa portée, sinon la direction du regard (aujourd'hui : devant, derrière, côtés). Sans ennemi, l'arme attend comme aujourd'hui. Foudre, Météores, Mines, Lames, Vitriol, Esprits, Balise : inchangés | Jimmy : « tirés tous normalement vers les cibles existantes » |
 | 8 | La vraie faux | Un modèle de **faux** (manche et lame courbe, procédural ou CC0, contour et teinte de l'arme) apparaît à chaque coup et **fauche** son arc (balayage ≈ 0,25 s, traînée), à la place du trait lumineux. Son, flash, recul et chiffres comme aujourd'hui (règle 3) | Jimmy |
 | 9 | Plusieurs faux | La faux gagne un nombre `n` (1 au départ) que le tome Projectiles et le bonus de sanctuaire augmentent comme les autres armes, et une ligne « +1 faux » **remplace** la ligne « +15° d'arc ». Chaque faux couvre un arc fixe (≈ 120°) ; les faux se placent **côte à côte, centrées sur la direction du regard** : 1 faux devant, 2 faux couvrent tout l'avant, 3 faux et plus le tour complet. Elles fauchent ensemble | Jimmy : « deux faux en face du joueur », « le tour complet si trop de projectiles » ; le regard garde la faux maniable (recommandation du sparring) |
@@ -91,6 +91,22 @@ Fonctionnalité: Rafales, faux et explications au bon moment
   Scénario: La rafale suit la cible du moment
     Soit une rafale en cours dont la cible meurt
     Alors le projectile suivant part vers le nouvel ennemi le plus proche
+
+  Scénario: Un ennemi solide seul reçoit toute la rafale
+    Soit une Orbe à 5 projectiles et un seul ennemi solide à portée
+    Quand elle tire
+    Alors les 5 projectiles partent l'un après l'autre vers lui
+
+  Scénario: Un ennemi solide dans la horde reçoit deux tirs et le reste va à la horde
+    Soit une Orbe à 5 projectiles, une élite proche et trois monstres fragiles plus loin
+    Quand elle tire
+    Alors les 2 premiers projectiles partent vers l'élite
+    Et chacun des trois monstres fragiles reçoit un des 3 suivants
+
+  Scénario: Une rafale se répartit sur des ennemis fragiles
+    Soit une Orbe à 3 projectiles et trois monstres qu'un projectile suffit à tuer
+    Quand elle tire
+    Alors chacun reçoit un projectile
 
   Scénario: Les faux couvrent l'avant puis tout le tour
     Soit une faux avec 1, puis 2, puis 3 faux

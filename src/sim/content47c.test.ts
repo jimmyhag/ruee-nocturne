@@ -61,21 +61,17 @@ describe('quatre armes de la phase 47 C', () => {
       for (const l of WEAPON_LINES[k]) expect(l.stat in WEAPONS[k].base, `${k}.${l.stat}`).toBe(true);
     });
   });
-  it('Fouet : une ligne devant et derrière le héros, pas sur les côtés ; les lignes ajoutent les côtés', () => {
+  it('Fouet (1.69.0) : ses claques partent en rafale vers le plus proche à portée, la rafale passe au suivant ; rien au-delà', () => {
+    // docs/specs/rafales-faux-guidage.md, décisions 6 et 7 : avant, une claque devant et derrière au même pas
     const w = solo('fouet');
     const L = weaponStats(w, 'fouet').r;
-    const front = dummy(w, 0, L - 1),
-      side = dummy(w, FOUET.halfW + 2.5, 0),
-      back = dummy(w, 0, -(L - 1)),
-      far = dummy(w, 0, L + 3);
     const pos = [
-      [0, L - 1],
-      [FOUET.halfW + 2.5, 0],
-      [0, -(L - 1)],
-      [0, L + 3],
+      [FOUET.halfW + 2.5, 0], // le plus proche, sur le côté
+      [0, L - 1], // devant, plus loin
+      [0, L + 3], // hors de portée
     ];
-    const ids = [front, side, back, far];
-    const got = [0, 0, 0, 0];
+    const ids = pos.map(([x, z]) => dummy(w, x, z));
+    const got = [0, 0, 0];
     let cracks = 0;
     const run = (frames: number) => {
       for (let f = 0; f < frames; f++) {
@@ -86,9 +82,7 @@ describe('quatre armes de la phase 47 C', () => {
           e.kx = e.kz = 0;
           e.hp = 1e9;
         });
-        w.player.dirX = 0;
-        w.player.dirZ = 1;
-        tick(w, 4);
+        tick(w, 3);
         cracks += count(w, Ev.Whip);
         for (let k = 0; k < w.eventCount; k++) {
           const ev = w.events[k];
@@ -100,19 +94,32 @@ describe('quatre armes de la phase 47 C', () => {
       }
     };
     run(180);
-    expect(got[0]).toBeGreaterThanOrEqual(3);
-    expect(got[1]).toBe(0); // sur le côté : hors de la ligne
-    expect(got[2]).toBe(got[0]); // derrière : touché à chaque claque, comme devant
-    expect(got[3]).toBe(0); // trop loin
-    expect(cracks).toBe(got[0] * 2); // un trait par direction
-    // +2 directions : les deux côtés aussi
+    // deux claques par rafale (BURST.maxSame = 2), toutes deux sur le plus proche, l'une après l'autre
+    expect(weaponStats(w, 'fouet').n).toBe(2);
+    expect(got[0]).toBeGreaterThanOrEqual(4);
+    expect(got[1]).toBe(0);
+    expect(got[2]).toBe(0); // trop loin
+    expect(cracks).toBe(got[0]); // une claque, un trait
+    // +2 claques : les deux de plus passent au suivant à portée (le plus proche a reçu sa part de la rafale)
     w.wmods.fouet[WEAPON_LINES.fouet.findIndex((l) => l.stat === 'n')] = 2;
     refreshStats(w);
     expect(weaponStats(w, 'fouet').n).toBe(4);
     got.fill(0);
     run(180);
     expect(got[1]).toBeGreaterThanOrEqual(3);
-    expect(got[3]).toBe(0);
+    expect(got[2]).toBe(0);
+    // seul hors de portée : aucune claque (l'arme attend)
+    const w2 = solo('fouet');
+    const far = dummy(w2, 0, L + 3);
+    let lone = 0;
+    for (let f = 0; f < 120; f++) {
+      const e = w2.enemies[far];
+      e.x = w2.player.x;
+      e.z = w2.player.z + L + 3;
+      tick(w2, 1);
+      lone += count(w2, Ev.Whip);
+    }
+    expect(lone).toBe(0);
   });
   it('Vitriol : la flaque blesse par à-coups, ralentit et s’éteint', () => {
     const w = solo('vitriol');
