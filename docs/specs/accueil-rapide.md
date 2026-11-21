@@ -1,6 +1,6 @@
 # L'accueil s'affiche sans attendre, dans toutes les langues
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 21 novembre 2026. Pas de nouvelle version : correctif livré avec la réparation de la CI (branche
 `ci/lenteur`).

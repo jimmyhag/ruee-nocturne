@@ -5,6 +5,8 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { parsePatchNotes } from './src/meta/patch-notes.ts';
+import { injectEarlyI18n } from './src/i18n/early.ts';
+import en from './src/i18n/en.json' with { type: 'json' };
 import pkg from './package.json' with { type: 'json' };
 
 // SINGLE=1 : build en un seul fichier HTML (publication en artifact / test rapide), sans PWA.
@@ -14,6 +16,11 @@ const SINGLE = !!process.env.SINGLE;
 /** Remplace %APP_VERSION% dans les pages HTML (la page « À propos » n'a pas de module JS pour lire `define`). */
 function htmlVersion(): Plugin {
   return { name: 'ruee:html-version', transformIndexHtml: (html) => html.replace(/%APP_VERSION%/g, pkg.version) };
+}
+
+/** Accueil traduit avant le premier affichage (docs/specs/accueil-rapide.md) : script en ligne tiré de en.json. */
+function earlyI18n(): Plugin {
+  return { name: 'ruee:early-i18n', transformIndexHtml: (html) => injectEarlyI18n(html, en) };
 }
 
 /**
@@ -39,6 +46,7 @@ function patchNotes(): Plugin {
 export default defineConfig({
   plugins: [
     htmlVersion(),
+    earlyI18n(),
     patchNotes(),
     ...(SINGLE ? [viteSingleFile()] : []),
     VitePWA({

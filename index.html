@@ -21,15 +21,18 @@
     <link rel="preload" as="image" type="image/webp" href="/ui/bg-night.webp" fetchpriority="high" />
     <script>
       // Évite d'afficher le menu en français puis de le traduire (décalage de mise en page) : si la langue effective
-      // n'est pas le français, le menu reste invisible jusqu'au script principal (quelques dizaines de ms).
+      // n'est pas le français, l'accueil reste invisible jusqu'au script précoce posé juste après lui (marqueur
+      // « accueil-traduit », remplacé au build par src/i18n/early.ts), qui le traduit avant le premier affichage, sans
+      // attendre le script principal (docs/specs/accueil-rapide.md).
       (function () {
         try {
           var m = JSON.parse(localStorage.getItem('ruee-meta') || 'null');
           var s = m && m.settings && m.settings.lang;
           var l = s === 'fr' || s === 'en' ? s : /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
           if (l !== 'fr') {
+            document.documentElement.lang = l; // lu par le script précoce
             document.documentElement.classList.add('lang-pending');
-            // garde-fou : si le script principal ne s'exécute pas, le menu (en français) réapparaît
+            // garde-fou : si le script précoce ne s'exécute pas, le menu (en français) réapparaît
             setTimeout(function () {
               document.documentElement.classList.remove('lang-pending');
             }, 1500);
@@ -40,7 +43,8 @@
       })();
     </script>
     <style>
-      html.lang-pending #menu {
+      html.lang-pending #menu,
+      html.lang-pending #tabBar {
         visibility: hidden;
       }
       /* Interface « Nocturne » (docs/specs/ui-nocturne.md, maquette docs/design/menus/) : Barlow et Barlow Condensed
@@ -5595,7 +5599,7 @@
             <svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
           </button>
           <div class="heroinfo" aria-live="polite">
-            <div class="heroname" id="heroName">Éclaireuse</div>
+            <div class="heroname" id="heroName" data-i18n-early="char.eclaireuse.name">Éclaireuse</div>
             <div class="herosub" id="heroSub"></div>
             <div class="dots" id="heroDots" aria-hidden="true"></div>
           </div>
@@ -5686,6 +5690,7 @@
     <div class="tabtip" id="tabTip" role="status" hidden data-i18n="menu.lockedTab">
       Se débloque après ta première partie
     </div>
+    <!-- accueil-traduit -->
 
     <section id="characters" class="screen inner" hidden>
       <div class="panel">
