@@ -24,10 +24,12 @@ vi.mock('idb-keyval', () => ({
 
 class MemStore {
   data = new Map<string, string>();
+  full = false; // quota dépassé : l'écriture lève, la lecture marche
   getItem(k: string): string | null {
     return this.data.get(k) ?? null;
   }
   setItem(k: string, v: string): void {
+    if (this.full) throw new DOMException('quota', 'QuotaExceededError');
     this.data.set(k, v);
   }
   removeItem(k: string): void {
@@ -223,5 +225,47 @@ describe('Une sauvegarde qui ne recule jamais (1.69.3)', () => {
     s.saveMeta(m);
     ({ s, m } = await boot());
     expect(m.gold).toBe(90);
+  });
+
+  it('Two tabs never let an older copy win', async () => {
+    // (A) les deux stockages marchent : l'onglet B sauvegarde deux fois, puis l'onglet A, ouvert avant, sauvegarde et la
+    // page se ferme avant la fin de son écriture IndexedDB : sa sauvegarde, la dernière, doit gagner
+    let a = await boot();
+    a.s.saveMeta(a.m);
+    await flush();
+    a = await boot();
+    const b = await boot(); // second onglet, ouvert sur la même sauvegarde
+    b.m.gold = 11;
+    b.s.saveMeta(b.m);
+    b.m.gold = 12;
+    b.s.saveMeta(b.m);
+    await flush();
+    idb.hold = true;
+    a.m.gold = 13;
+    a.s.saveMeta(a.m);
+    idb.hold = false;
+    expect((await boot()).m.gold).toBe(13);
+  });
+
+  it('Two tabs with a full localStorage keep the latest IndexedDB copy', async () => {
+    // (B) localStorage plein : sa copie reste la dernière de l'onglet A ; l'onglet B, qui a moins compté, écrit ensuite
+    // dans IndexedDB seul : sa sauvegarde, la dernière, gagne, et la réparation ne l'écrase pas
+    let a = await boot();
+    a.s.saveMeta(a.m);
+    await flush();
+    a = await boot();
+    const b = await boot();
+    for (const gold of [21, 22, 23, 24]) {
+      a.m.gold = gold;
+      a.s.saveMeta(a.m);
+    }
+    await flush();
+    ls.full = true;
+    b.m.gold = 30;
+    b.s.saveMeta(b.m);
+    await flush();
+    expect(lsCopy().gold).toBe(24);
+    expect((await boot()).m.gold).toBe(30);
+    expect(idbCopy().gold).toBe(30);
   });
 });

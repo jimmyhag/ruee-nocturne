@@ -472,9 +472,13 @@ export function onMetaSaved(cb: ((m: Meta) => void) | null): void {
   onSaved = cb;
 }
 
-/** localStorage tout de suite (seul stockage sûr si la page se ferme), IndexedDB sans attendre ; un numéro neuf. */
+/**
+ * localStorage tout de suite (seul stockage sûr si la page se ferme), IndexedDB sans attendre ; un numéro neuf, au-dessus
+ * de celui de la copie localStorage, relu à chaque sauvegarde (hors de la boucle chaude) : un autre onglet a pu écrire
+ * depuis, et une copie localStorage restée en arrière (quota) ne passe jamais devant une écriture IndexedDB plus récente.
+ */
 export function saveMeta(m: Meta): void {
-  if (rev < 0) seen(revOf(readLocal())); // sauvegarde avant toute lecture : le numéro suit quand même la copie locale
+  seen(revOf(readLocal()));
   rev = Math.max(rev, 0) + 1;
   const copy: Stored = { ...m, rev };
   try {
