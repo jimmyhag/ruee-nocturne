@@ -127,6 +127,30 @@ test('Slow JavaScript does not lower the resolution', async ({ page }) => {
   expect(s.pixel).toBe(false);
 });
 
+// Décision 5 précisée (sparring, 21 nov.) : un téléphone limité par le GPU bloque dans l'envoi des commandes
+// (renderer.render) ; ce temps n'est pas du JS, la résolution doit donc baisser. Ici l'envoi attend 60 ms à chaque image
+// et les images durent 80 ms (crochet slowFrames : SwiftShader seul les ferait durer bien plus, et n'importe quel
+// temps JS passerait sous 70 %) ; compté comme du JS, l'envoi ferait croire à un JS goulot (60 > 0,7 × 80).
+test('A GPU-blocked submit still lowers the resolution', async ({ page }) => {
+  test.setTimeout(90_000);
+  await autoRun(page);
+  const net = await state(page);
+  await page.evaluate(() => {
+    const r = (window as any).__game.renderer;
+    const submit = r.render;
+    r.render = function (scene: unknown, camera: unknown) {
+      const end = performance.now() + 60;
+      while (performance.now() < end); // file de commandes pleine
+      submit.call(this, scene, camera);
+    };
+  });
+  await frames(page, 80, 0); // temps JS : mesure réelle
+  await stepIs(page, 2, 30_000); // allégé, puis ×0,85 : le JS mesuré ne compte pas l'attente
+  const s = await state(page);
+  expect(s.h).toBeLessThan(net.h);
+  expect(s.pixel).toBe(false);
+});
+
 test('Rendering climbs back when the horde passes', async ({ page }) => {
   test.setTimeout(90_000);
   await autoRun(page);

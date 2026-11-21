@@ -3672,9 +3672,10 @@ function handleEvents(w: World, now: number): void {
 // ---------- boucle principale : pas fixe + interpolation ----------
 let last = performance.now();
 let acc = 0;
-// temps JS de chaque image : anneau de 120 frames (2 s à 60 Hz) et copie triée préallouée, aucune allocation par frame.
-// 1.69.2 : toujours mesuré (plus seulement onglet perf ouvert) : l'automate du rendu y lit si le JS est le goulot
-const PERF_WINDOW = 120;
+// temps JS de chaque image : anneau de 240 frames (2 s à 120 Hz, 4 s à 60 Hz) et copie triée préallouée, aucune
+// allocation par frame. 1.69.2 : toujours mesuré (plus seulement onglet perf ouvert) : l'automate du rendu y lit si le JS
+// est le goulot ; une fenêtre de 2 s tient dans l'anneau jusqu'à 120 Hz (windowP95)
+const PERF_WINDOW = 240;
 const frameTimes = new Float64Array(PERF_WINDOW).fill(4);
 const frameSorted = new Float64Array(PERF_WINDOW);
 let frameIdx = 0;
@@ -3829,16 +3830,21 @@ function frame(nowMs: number): void {
   }
   // interface Nocturne (décision 6) : le menu et ses écrans ont un fond illustré, opaque ; la scène 3D ne rend que
   // la partie (en jeu, et derrière les écrans de partie : pause, cartes, marchand, carte, victoire, fin)
+  let submitMs = 0; // envoi au GPU de cette image (renderer.render) : pas du JS pour le rendu auto
   if (world && scene && gameShown()) {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
     scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
+    submitMs = scene.submitMs;
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
     scene.marks.update(world.powers, world.powerCount, now, scene.camera, innerWidth, innerHeight); // phase 35
   }
   if (world) tuto.arrowFrame(world, innerWidth, innerHeight); // après le rendu : la caméra de cette image
 
-  // temps JS de l'image (1.69.2 : toujours mesuré) ; `debug.jsTime` le remplace dans les tests
-  frameTimes[frameIdx++ % PERF_WINDOW] = debugRt && debugRt.jsTime > 0 ? debugRt.jsTime : performance.now() - t0;
+  // temps JS de l'image (1.69.2 : toujours mesuré) : simulation et préparation de la scène, sans l'envoi au GPU, qui
+  // attend une file de commandes pleine quand le GPU est le goulot (spec, décision 5, précisée le 21 nov.) ;
+  // `debug.jsTime` le remplace dans les tests
+  frameTimes[frameIdx++ % PERF_WINDOW] =
+    debugRt && debugRt.jsTime > 0 ? debugRt.jsTime : performance.now() - t0 - submitMs;
   if (perfOn && scene) {
     fpsFrames++;
     if (fpsT0 === 0) {
@@ -3862,7 +3868,7 @@ function frame(nowMs: number): void {
       const p95 = frameSorted[(PERF_WINDOW * 0.95) | 0];
       const info = scene.info();
       hud.perf(
-        `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
+        `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (240 images, sans envoi GPU)\n` +
           `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'} ×${stopRatio.toFixed(2)}\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world

@@ -81,7 +81,7 @@ import { AimLines, Bolts, DamageNumbers, Particles, PowerMarks } from './fx';
 import { InstanceWriter, makeInstanced } from './instancing';
 import { PAL } from './palette';
 import { TIER_LOOK, TierTint, tierHex, tierScale } from './tiers';
-import { QUALITY_STEPS, nearestCut } from './quality';
+import { QUALITY_STEPS, nearestCut, pickFarTypes } from './quality';
 
 const TAU = Math.PI * 2;
 const WHITE = new THREE.Color(0xffffff);
@@ -136,6 +136,7 @@ const LITE = {
   particles: 250,
   enemyNear: 12,
   farMin: 16, // ennemis lointains d'un type, à l'image d'avant, sous lesquels son jumeau simple ne vaut pas son appel
+  // (un type déjà simplifié le reste jusqu'à farMin / 2 : pickFarTypes de quality.ts)
   farTypes: 3, // types simplifiés au plus (ceux qui ont le plus d'ennemis lointains) : au plus 3 appels de plus
   propDraw: 38,
   smallDraw: 24,
@@ -1597,6 +1598,8 @@ export class GameScene {
   private projTies = 0;
   /** Projectiles du héros en vol dessinés à la dernière image (orbes, boomerangs, lances) : tests du plafond. */
   projDrawn = 0;
+  /** ms passées dans `renderer.render` (envoi au GPU) au dernier rendu : retirées du temps JS de l'image (`main.ts`). */
+  submitMs = 0;
   private projCut(w: World, px: number, pz: number): number {
     let n = 0;
     for (let i = 0; i < w.projCount; i++) {
@@ -1621,24 +1624,6 @@ export class GameScene {
   }
 
   /**
-   * 1.69.2 : types d'ennemis dont les lointains passent en version simple à cette image : les LITE.farTypes qui en
-   * avaient le plus à l'image d'avant, s'ils en avaient au moins LITE.farMin (chaque jumeau coûte un appel ; budget
-   * mobile de 40). Onze types, aucune allocation.
-   */
-  private pickFarTypes(): void {
-    const use = this.farUse,
-      prev = this.farPrev;
-    use.fill(0);
-    for (let k = 0; k < LITE.farTypes; k++) {
-      let best = -1;
-      for (let t = 0; t < prev.length; t++)
-        if (use[t] === 0 && prev[t] >= LITE.farMin && (best < 0 || prev[t] > prev[best])) best = t;
-      if (best < 0) return;
-      use[best] = 1;
-    }
-  }
-
-  /**
    * Change le rendu : `pixel` (réglage manuel, ≈ 380 px de haut, plus proche voisin) ou net au palier `step` du réglage
    * auto (QUALITY_STEPS : 0 net, 1 allégé, puis résolution ×0,85, ×0,7, ×0,6, toujours lisse). Taille interne, filtrage
    * du sol, classe CSS, rendu allégé. Idempotent.
@@ -1646,16 +1631,21 @@ export class GameScene {
   setQuality(pixel: boolean, step = 0): void {
     const level = pixel ? 0 : 2;
     step = pixel ? 0 : Math.max(0, Math.min(QUALITY_STEPS.length - 1, step | 0));
+    // facteur de la taille interne avant et après (-1 : pixel) : setSize seulement s'il change, une fois
+    const sizeWas = this.qualityLevel === 0 ? -1 : QUALITY_STEPS[this.step].scale,
+      sizeNow = level === 0 ? -1 : QUALITY_STEPS[step].scale;
     if (step !== this.step) {
       this.step = step;
       this.lite = QUALITY_STEPS[step].lite;
       this.particles.cap = this.lite ? LITE.particles : FEEL.particles.cap;
-      this.applySize();
       this.propX = this.propZ = 1e9; // le décor dessiné dépend du palier : refait au prochain rendu
     }
-    if (level === this.qualityLevel) return;
+    if (level !== this.qualityLevel) this.setLevel(level);
+    if (sizeNow !== sizeWas) this.applySize(); // à la fin : applySize lit le niveau et le palier posés ci-dessus
+  }
+  /** Niveau pixel (0) ou net (2) : détail des formes, géométrie des ennemis, sol, semis, classe CSS. */
+  private setLevel(level: number): void {
     this.qualityLevel = level;
-    this.applySize();
     setDetail(level > 0 ? 12 : 7);
     // formes procédurales plus lisses (ou non) : modèle reconstruit ; le héros glTF ne dépend pas du détail
     if (this.heroKind !== 'gltf') this.setCharacter(this.modelKey, this.modelSkin, true);
@@ -2143,7 +2133,7 @@ export class GameScene {
     const near2 = this.lite ? LITE.enemyNear * LITE.enemyNear : Infinity; // 1.69.2 : au-delà, version simple
     this.farPrev.set(this.farSeen);
     this.farSeen.fill(0);
-    this.pickFarTypes();
+    pickFarTypes(this.farPrev, this.farUse, LITE.farMin, LITE.farTypes); // hystérésis : pas de bascule
     this.metW.begin(); // anneaux des élites (ici) puis cercles des météores (plus bas)
     this.eliteN = 0;
     this.corruptN = 0;
@@ -3093,7 +3083,11 @@ export class GameScene {
       this.shake = Math.max(0, this.shake - dt * FEEL.shake.decay);
     }
     this.camera.lookAt(this.camLook);
+    // 1.69.2 (spec, décision 5 précisée le 21 nov.) : l'envoi au GPU peut attendre une file de commandes pleine ; son
+    // temps est mesuré à part pour que `main.ts` ne le compte pas comme du JS
+    const s0 = performance.now();
     this.renderer.render(this.scene, this.camera);
+    this.submitMs = performance.now() - s0;
     this.keepFrustum();
   }
 

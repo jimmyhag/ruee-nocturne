@@ -8,6 +8,7 @@ import {
   QualityChange,
   nearestCut,
   newAutoQuality,
+  pickFarTypes,
   windowP95,
   qualityIdle,
   qualityNewRun,
@@ -170,5 +171,26 @@ describe('rendu auto (1.69.2)', () => {
     expect(windowP95(ring, idx, 500, tmp)).toBe(114);
     expect(windowP95(ring, idx, 1, tmp)).toBe(119);
     expect(windowP95(new Float64Array(4).fill(7), 2, 0, new Float64Array(4))).toBe(7);
+  });
+
+  it('pickFarTypes keeps a chosen type while it has half the minimum, and a tie never flips it', () => {
+    const seen = new Int32Array(6),
+      use = new Uint8Array(6);
+    const pick = (counts: number[]) => {
+      seen.set(counts);
+      pickFarTypes(seen, use, 16, 3);
+      return Array.from(use);
+    };
+    // les trois types qui en ont le plus, au moins 16
+    expect(pick([40, 30, 20, 10, 0, 50])).toEqual([1, 1, 0, 0, 0, 1]);
+    // un type choisi reste choisi à 8 lointains (16 / 2), même devancé ; il sort sous 8
+    expect(pick([8, 30, 60, 10, 0, 50])).toEqual([1, 1, 0, 0, 0, 1]);
+    expect(pick([7, 30, 60, 10, 0, 50])).toEqual([0, 1, 1, 0, 0, 1]);
+    // égalité pour la troisième place : le type déjà choisi la garde, image après image
+    for (let k = 0; k < 5; k++) expect(pick([30, 30, 20, 20, 0, 30])).toEqual([0, 1, 1, 0, 0, 1]);
+    expect(pick([30, 30, 20, 21, 0, 30])).toEqual([0, 1, 1, 0, 0, 1]);
+    // plus personne : tout se libère, puis les places se reprennent au minimum
+    expect(pick([0, 0, 0, 0, 0, 0])).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(pick([15, 16, 0, 0, 0, 0])).toEqual([0, 1, 0, 0, 0, 0]);
   });
 });

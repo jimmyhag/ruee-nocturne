@@ -135,8 +135,9 @@ export function nearestCut(d2: Float32Array, n: number, cap: number): number {
 
 /**
  * p95 des `n` dernières valeurs écrites dans l'anneau `ring` (prochaine écriture à l'index `idx`, qui croît sans
- * fin) : les images d'une fenêtre de mesure seulement, pas celles d'avant (à 5 images par seconde, l'anneau de 120
- * images couvre 24 s). `tmp` (même taille que l'anneau) est la copie de travail. Sans allocation.
+ * fin) : les images d'une fenêtre de mesure seulement, pas celles d'avant (à 5 images par seconde, l'anneau couvre
+ * presque une minute). Au-delà de sa taille (240 dans `main.ts` : 2 s à 120 Hz), seules les dernières images sont lues.
+ * `tmp` (même taille que l'anneau) est la copie de travail. Sans allocation.
  */
 export function windowP95(ring: Float64Array, idx: number, n: number, tmp: Float64Array): number {
   const N = ring.length;
@@ -145,4 +146,27 @@ export function windowP95(ring: Float64Array, idx: number, n: number, tmp: Float
   for (let k = 1; k <= n; k++) tmp[k - 1] = ring[(((idx - k) % N) + N) % N];
   tmp.sort();
   return tmp[N - n + ((n * 0.95) | 0)];
+}
+
+/**
+ * Types d'ennemis simplifiés au loin (rendu allégé), avec hystérésis. `seen[t]` : ennemis lointains du type `t` à
+ * l'image d'avant ; `use[t]` (entrée : choix d'avant, sortie : choix de cette image) : 1 si ses lointains passent en
+ * version simple. Un type choisi le reste tant qu'il a au moins `min / 2` lointains ; une place libre va au type qui en
+ * a le plus (au moins `min`, à égalité le plus petit index). Un type choisi n'est jamais délogé par un autre : pas de
+ * bascule d'un modèle à l'autre d'une image à la suivante, même à égalité pour la dernière place. Sans allocation.
+ */
+export function pickFarTypes(seen: Int32Array, use: Uint8Array, min: number, max: number): void {
+  let n = 0;
+  for (let t = 0; t < use.length; t++) {
+    if (use[t] === 1 && n < max && seen[t] >= min / 2) n++;
+    else use[t] = 0;
+  }
+  while (n < max) {
+    let best = -1;
+    for (let t = 0; t < use.length; t++)
+      if (use[t] === 0 && seen[t] >= min && (best < 0 || seen[t] > seen[best])) best = t;
+    if (best < 0) return;
+    use[best] = 1;
+    n++;
+  }
 }
