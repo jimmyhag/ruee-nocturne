@@ -19,6 +19,11 @@ Session du 21 novembre 2026. Pas de nouvelle version : correctif livré avec la 
 joueur (`settings.lang`) prioritaire sur celle du navigateur, la bascule de langue à chaud, la règle 8 (rien ne sort
 de l'appareil).
 
+- Correction après implémentation (21 nov.) : sur un profil vierge, l'élément LCP de Lighthouse est le texte de
+  l'aide « Comment jouer », ouverte par `main.ts` au premier lancement, et non l'accueil masqué. Ce correctif garde
+  sa valeur pour les joueurs non francophones (accueil visible et traduit sans attendre), mais ne déplace pas le LCP
+  de la porte (87 → 89 en local, LCP ≈ 3,7 s inchangé).
+
 ## Décisions
 
 | # | Question | Décision | Pourquoi |
