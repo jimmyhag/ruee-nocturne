@@ -262,7 +262,7 @@ function loadScene(urgent = false): Promise<GameScene> {
 }
 // ---------- langue ----------
 // Lue avant tout rendu (le HUD précalcule les noms de boss) : réglage du joueur, sinon langue du navigateur.
-const metaAtStart = peekMeta(); // synchrone (localStorage) : le menu est juste dès le premier affichage, IndexedDB confirme
+const metaAtStart = peekMeta(); // synchrone (localStorage) : le menu est juste dès le premier affichage ; loadMeta garde la copie la plus récente
 setLang(resolveLang(metaAtStart.settings.lang, navigator.language));
 applyLangStatic();
 

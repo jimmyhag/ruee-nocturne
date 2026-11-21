@@ -405,33 +405,65 @@ function normalizeCodex(raw: unknown): Record<string, number> {
 }
 
 /**
- * Lecture synchrone du repli localStorage (saveMeta écrit les deux stockages) : le menu est juste dès le premier
- * affichage, sans attendre IndexedDB. loadMeta() confirme ensuite depuis la source durable.
+ * 1.69.3 (docs/specs/sauvegarde-sure.md) : chaque copie écrite (localStorage, IndexedDB) porte un numéro de révision
+ * `rev`, croissant sur l'appareil, et le chargement garde la plus récente des deux. Le numéro est hors de Meta :
+ * normalizeMeta l'écarte, si bien qu'il ne part ni dans le compte (sync.ts), ni dans l'export, et qu'un import en reçoit
+ * un neuf à sa sauvegarde. Une copie sans numéro (sauvegarde d'avant) vaut 0 et reçoit le sien à la sauvegarde suivante.
  */
-export function peekMeta(): Meta {
+let rev = -1; // plus grand numéro lu ou écrit ; -1 : aucune copie encore lue
+type Stored = Meta & { rev?: number };
+function revOf(raw: unknown): number {
+  const r = raw && typeof raw === 'object' ? (raw as { rev?: unknown }).rev : undefined;
+  return typeof r === 'number' && Number.isSafeInteger(r) && r > 0 ? r : 0;
+}
+function seen(r: number): void {
+  if (r > rev) rev = r;
+}
+/** Copie localStorage, analysée ; null si absente, illisible ou stockage bloqué. */
+function readLocal(): unknown {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return normalizeMeta(JSON.parse(raw));
+    return raw ? (JSON.parse(raw) as unknown) : null;
   } catch {
-    /* stockage bloqué */
+    return null; // stockage bloqué ou texte illisible
   }
-  return normalizeMeta(DEFAULT_META);
+}
+/** IndexedDB au mieux : absent ou bloqué, idb-keyval lève tout de suite (pas seulement par sa promesse). */
+function idb<T>(op: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return op().catch(() => undefined);
+  } catch {
+    return Promise.resolve(undefined);
+  }
 }
 
+/**
+ * Lecture synchrone de la copie localStorage : le menu est juste dès le premier affichage, sans attendre IndexedDB.
+ * loadMeta() compare ensuite les deux copies.
+ */
+export function peekMeta(): Meta {
+  const raw = readLocal();
+  seen(revOf(raw));
+  return normalizeMeta(raw || DEFAULT_META);
+}
+
+/**
+ * Les deux copies, la plus récente gagne ; à égalité (ou sans numéro des deux côtés), IndexedDB, comme avant la 1.69.3.
+ * Quand localStorage gagne, sa copie est réécrite dans IndexedDB : l'écriture qui n'avait pas abouti est rattrapée.
+ */
 export async function loadMeta(): Promise<Meta> {
-  try {
-    const v = await get<unknown>(KEY);
-    if (v) return normalizeMeta(v);
-  } catch {
-    /* IndexedDB indisponible */
+  const durable = await idb(() => get<unknown>(KEY));
+  const local = readLocal();
+  const dRev = revOf(durable),
+    lRev = revOf(local);
+  seen(Math.max(dRev, lRev));
+  if (local && (!durable || lRev > dRev)) {
+    const m = normalizeMeta(local);
+    const copy: Stored = lRev > 0 ? { ...m, rev: lRev } : m;
+    void idb(() => set(KEY, copy));
+    return m;
   }
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return normalizeMeta(JSON.parse(raw));
-  } catch {
-    /* stockage bloqué */
-  }
-  return normalizeMeta(DEFAULT_META);
+  return normalizeMeta(durable || DEFAULT_META);
 }
 
 let onSaved: ((m: Meta) => void) | null = null;
@@ -440,13 +472,17 @@ export function onMetaSaved(cb: ((m: Meta) => void) | null): void {
   onSaved = cb;
 }
 
+/** localStorage tout de suite (seul stockage sûr si la page se ferme), IndexedDB sans attendre ; un numéro neuf. */
 export function saveMeta(m: Meta): void {
+  if (rev < 0) seen(revOf(readLocal())); // sauvegarde avant toute lecture : le numéro suit quand même la copie locale
+  rev = Math.max(rev, 0) + 1;
+  const copy: Stored = { ...m, rev };
   try {
-    localStorage.setItem(KEY, JSON.stringify(m));
+    localStorage.setItem(KEY, JSON.stringify(copy));
   } catch {
     /* ignoré */
   }
-  set(KEY, m).catch(() => {});
+  void idb(() => set(KEY, copy));
   onSaved?.(m);
 }
 

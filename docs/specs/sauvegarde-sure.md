@@ -1,6 +1,6 @@
 # Une sauvegarde qui ne recule jamais
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 21 novembre 2026. Version visée : **1.69.3**.
 

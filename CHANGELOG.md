@@ -2,6 +2,18 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.69.3 — 21 nov. 2026 (une sauvegarde qui ne recule jamais)
+
+Ta dernière sauvegarde est toujours celle que le jeu recharge.
+
+### Corrigé
+
+- **Une sauvegarde qui ne recule jamais** : si le jeu se fermait ou se rechargeait juste après un changement, il pouvait revenir à la sauvegarde d'avant : un réglage changé (la langue, par exemple), mais aussi l'or, les déblocages ou les records d'une partie qui venait de finir. Le jeu recharge maintenant toujours la plus récente. Les sauvegardes existantes se chargent comme avant, sans rien perdre.
+
+### Technique
+
+- Spec : `docs/specs/sauvegarde-sure.md` (scénarios : `src/meta/save.test.ts`, `e2e/sauvegarde.spec.ts`). `saveMeta` (`src/meta/save.ts`) écrit chaque copie, localStorage (synchrone) et IndexedDB (asynchrone), avec un numéro de révision `rev` croissant ; `loadMeta` lit les deux et garde la plus récente, IndexedDB à égalité ou quand aucune n'a de numéro (sauvegardes d'avant, qui reçoivent le leur à la sauvegarde suivante) ; quand localStorage gagne, sa copie est réécrite dans IndexedDB. Le numéro est hors de `Meta` : `normalizeMeta` l'écarte, il n'est donc ni dans `PROGRESS_KEYS` ni dans le document Firestore, ni dans l'export ; un import en reçoit un neuf. IndexedDB absent : `saveMeta` ne lève plus (il levait quand `indexedDB` n'existe pas). Mesure sur le build de `main` (aed970f) : l'e2e échoue dès le 1er des 10 essais ; avec le correctif, 10 sur 10 sur PC et sur mobile. L'attente d'IndexedDB de `e2e/defi-amis.spec.ts` compare la copie sans son numéro.
+
 ## 1.69.0 — 20 nov. 2026 (rafales, vraie faux, explications au bon moment)
 
 Tes projectiles partent en rafale, la Faux devient une vraie faux, et le jeu t'explique ce qui change au moment où ça arrive.
