@@ -45,8 +45,9 @@ async function openLink(page: Page, params: string, scene = true): Promise<void>
 }
 
 /**
- * Attend que la méta soit écrite dans IndexedDB avant de recharger la page : au chargement, la méta durable remplace celle
- * du repli localStorage, et une écriture encore en route ferait revenir l'ancienne.
+ * Attend que la méta soit écrite dans IndexedDB avant de recharger la page. Avant la 1.69.3, la méta durable remplaçait
+ * celle de localStorage et une écriture encore en route faisait revenir l'ancienne ; depuis, la copie la plus récente
+ * gagne (e2e/sauvegarde.spec.ts), et l'attente vérifie encore que la copie IndexedDB rejoint la méta en mémoire.
  */
 async function persisted(page: Page): Promise<void> {
   await page.waitForFunction(
@@ -60,7 +61,9 @@ async function persisted(page: Page): Promise<void> {
           get.onerror = () => done(false);
           get.onsuccess = () => {
             db.close();
-            done(JSON.stringify(get.result) === JSON.stringify((window as any).__game.meta));
+            // 1.69.3 : la copie porte aussi son numéro de révision (docs/specs/sauvegarde-sure.md), hors de la méta
+            const { rev: _rev, ...stored } = get.result ?? {};
+            done(JSON.stringify(stored) === JSON.stringify((window as any).__game.meta));
           };
         };
       }),
