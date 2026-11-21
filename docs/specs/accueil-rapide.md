@@ -34,6 +34,9 @@ de l'appareil).
 | 4 | Poids | Le code précoce reste petit (quelques ko gzip au plus) et ne charge ni Three.js ni la simulation | C'est le but |
 | 5 | La porte | Inchangée : seuil 85, médiane de 3, mobile simulé, Chrome en `en-US` | On corrige le jeu, pas la mesure |
 
+- Amendement (sparring, 21 nov.) : depuis `docs/specs/demarrage-rapide.md`, un profil vierge voit d'abord l'aide du
+  premier lancement ; le scénario 1 porte donc sur un joueur qui l'a déjà vue.
+
 ## Hors périmètre
 
 Les autres écrans ; la taille du script principal ; la mesure Lighthouse elle-même.
@@ -45,7 +48,7 @@ Les autres écrans ; la taille du script principal ; la mesure Lighthouse elle-m
 Fonctionnalité: L'accueil s'affiche sans attendre, dans toutes les langues
 
   Scénario: Un navigateur en anglais voit l'accueil traduit dès le premier affichage
-    Soit un navigateur en anglais, sans sauvegarde
+    Soit un navigateur en anglais, avec une sauvegarde où l'aide a déjà été vue
     Quand la page d'accueil se charge
     Alors l'accueil est visible avant la fin du script principal
     Et ses textes sont en anglais dès qu'il est visible
