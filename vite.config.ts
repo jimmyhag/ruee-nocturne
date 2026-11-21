@@ -40,6 +40,7 @@ function preloadMain(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
+        if (ctx.path !== '/index.html') return html; // la page du jeu seule : « À propos » n'exécute aucun script
         const chunks = Object.values(ctx.bundle ?? {});
         const main = chunks.find((c) => c.type === 'chunk' && !!c.facadeModuleId?.endsWith('/src/main.ts'));
         if (main?.type !== 'chunk') return html; // build en un seul fichier : tout est dans la page
@@ -155,7 +156,8 @@ export default defineConfig({
       ? undefined
       : {
           input: {
-            main: fileURLToPath(new URL('./index.html', import.meta.url)),
+            // l'entrée du jeu est src/boot.ts : son fichier s'appelle boot-*.js, main-*.js est le script principal
+            boot: fileURLToPath(new URL('./index.html', import.meta.url)),
             about: fileURLToPath(new URL('./a-propos/index.html', import.meta.url)),
           },
         },

@@ -636,9 +636,11 @@ function vibrate(ms: number): void {
     /* non supporté */
   }
 }
+/** `keepScroll` : l'écran est déjà affiché (l'aide du premier lancement, par index.html) ; il garde son défilement. */
 function openScreen(
   id:
     'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help' | 'daily' | 'notes',
+  keepScroll = false,
 ): void {
   if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings') {
     backTo = app === 'settings' ? 'menu' : app;
@@ -679,7 +681,8 @@ function openScreen(
     applySettings();
     $('settingsMsg').textContent = '';
   }
-  showTop(id);
+  if (keepScroll) showOnly(id);
+  else showTop(id);
 }
 /** Passe d'ergonomie (décision 12) : un écran ouvert commence toujours en haut (titre et flèche retour visibles). */
 function showTop(id: AppMode): void {
@@ -3970,7 +3973,7 @@ document.documentElement.classList.remove('help-due'); // le script de l'aide ne
 if (!linked && !meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   if (tutorialDue(meta)) {
     setHelpFirst(true);
-    openScreen('help');
+    openScreen('help', helpShown); // déjà à l'écran : le joueur a pu la faire défiler
     if (!input.isTouch) queueMicrotask(() => $('helpPlayBtn').focus({ preventScroll: true }));
   } else {
     setHelpFirst(false);
@@ -4135,6 +4138,14 @@ const debugRt = installDebugHooks({
     for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const)
       addEventListener(ev, warm, { once: true, passive: true });
     $('playBtn').addEventListener('pointerenter', warm, { once: true });
+    // docs/specs/demarrage-rapide.md : un geste fait sur l'aide avant ce script (noté par index.html avec son instant)
+    // compte comme le premier : la scène se prépare dès que l'écran est au repos. Le son, lui, attend un vrai geste
+    // (`firstGesture` : un AudioContext ne démarre que dans un geste ; le relâchement du doigt suffit, même ici)
+    const touched = Number(document.documentElement.dataset.touched);
+    if (touched > 0) {
+      lastPress = Math.max(lastPress, touched);
+      warm();
+    }
   }
 }
 // docs/specs/demarrage-rapide.md : « Jouer » de l'aide touché (ou Entrée) avant que ce script ne la reprenne ; le script

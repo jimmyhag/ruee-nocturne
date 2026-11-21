@@ -98,6 +98,7 @@ const helpScript = (dev = false): string => {
 /** Exécute le script de l'aide sur une aide factice. */
 function runHelp(o: { lang: string; due: boolean; coarse?: boolean; dev?: boolean; search?: string }) {
   const root = new Set(o.due ? ['help-due'] : []);
+  const rootData: Record<string, string> = {};
   const body = new Set<string>();
   const el = <T extends object>(id: string, extra: T = {} as T) => ({
     id,
@@ -136,15 +137,25 @@ function runHelp(o: { lang: string; due: boolean; coarse?: boolean; dev?: boolea
   const document = {
     documentElement: {
       lang: o.lang,
+      dataset: rootData,
       classList: { contains: (c: string) => root.has(c), remove: (c: string) => root.delete(c) },
     },
     body: { classList: { add: (c: string) => body.add(c) } },
     getElementById: (id: string) => byId[id],
   };
+  // écouteurs de la fenêtre : premier geste noté sur <html>
+  const listeners = new Map<string, () => void>();
   runInNewContext(helpScript(o.dev), {
     document,
     location: { search: o.search ?? '' },
     matchMedia: () => ({ matches: !!o.coarse }),
+    performance: { now: () => 1234.4 },
+    addEventListener: (type: string, f: () => void, opts: { capture: boolean; passive: boolean }) => {
+      if (opts.capture && opts.passive) listeners.set(type, f);
+    },
+    removeEventListener: (type: string, f: () => void, capture: boolean) => {
+      if (capture && listeners.get(type) === f) listeners.delete(type);
+    },
   });
   return {
     shown: !help.hidden,
@@ -160,6 +171,11 @@ function runHelp(o: { lang: string; due: boolean; coarse?: boolean; dev?: boolea
     press: () => {
       play.onclick?.();
       return play.dataset.early;
+    },
+    listened: () => [...listeners.keys()].sort(),
+    gesture: (type: string) => {
+      listeners.get(type)?.();
+      return rootData.touched;
     },
   };
 }
@@ -218,5 +234,13 @@ describe('aide du premier lancement affichée par la page', () => {
 
   it('a press on Play before the main script is noted for it', () => {
     expect(runHelp({ lang: 'fr', due: true }).press()).toBe('1');
+  });
+
+  it('the first gesture before the main script is noted with its time, once', () => {
+    const r = runHelp({ lang: 'fr', due: true });
+    expect(r.listened()).toEqual(['keydown', 'pointerdown', 'touchstart']);
+    expect(r.gesture('touchstart')).toBe('1234'); // l'instant, pour que main.ts compte le repos à partir de lui
+    expect(r.listened()).toEqual([]); // un seul geste noté
+    expect(runHelp({ lang: 'fr', due: false }).listened()).toEqual([]); // sans aide : main.ts écoute lui-même
   });
 });

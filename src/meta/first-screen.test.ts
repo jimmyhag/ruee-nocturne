@@ -37,11 +37,12 @@ const documentElement = {
 };
 const loc = { hash: '', search: '' };
 const nav = { language: 'fr-FR' };
+const timers: { f: () => void; ms: number }[] = [];
 const ctx = createContext({
   localStorage: storage,
   navigator: nav,
   location: loc,
-  setTimeout: () => 0,
+  setTimeout: (f: () => void, ms: number) => timers.push({ f, ms }),
   document: {
     documentElement,
     createElement: () => ({}),
@@ -54,6 +55,7 @@ function inline(p: Page): { help: boolean; preload: string[]; lang: string; pend
   page = p;
   classes.clear();
   preload.length = 0;
+  timers.length = 0;
   documentElement.lang = 'fr';
   loc.hash = p.hash ?? '';
   loc.search = p.search ?? '';
@@ -130,6 +132,15 @@ describe('premier écran décidé par la page', () => {
     ];
     expect(cases.map((p) => inline(p).help)).toEqual([false, false, true, false, true]);
     for (const p of cases) expect(inline(p).help).toBe(main(p));
+  });
+
+  it('the home screen comes back after 1.5 s if the help script never runs', () => {
+    expect(inline({ raw: null, language: 'fr-FR' }).help).toBe(true);
+    expect(timers.map((t) => t.ms)).toEqual([1500]); // garde-fou, comme celui de `lang-pending`
+    timers[0].f();
+    expect(classes.has('help-due')).toBe(false);
+    expect(inline({ raw: JSON.stringify({ version: 5, seenHelp: true }) }).help).toBe(false);
+    expect(timers).toEqual([]); // pas d'aide, pas de minuterie (navigateur français)
   });
 
   it('the help preloads the weight of its key caps; the home screen loads nothing more', () => {

@@ -11,7 +11,9 @@
 // joueur. Le script de <head> le décide (classe `help-due`) ; un second script, posé juste après l'aide, la traduit et
 // l'affiche dans l'état exact où main.ts la mettra (`setHelpFirst(true)` puis `openScreen('help')` : sans flèche
 // retour ni « Rejouer la partie guidée », systèmes non dévoilés masqués, « Jouer » au focus hors tactile). « Jouer »
-// touché d'ici là est noté (`data-early`) : main.ts lance la partie guidée dès qu'il reprend l'aide.
+// touché d'ici là est noté (`data-early`) : main.ts lance la partie guidée dès qu'il reprend l'aide. Le premier geste
+// (appui, touche) est noté aussi (`data-touched` sur <html>, son instant) : main.ts prépare alors la scène comme après
+// un premier geste.
 
 /** Marqueur d'index.html : fin de l'accueil, remplacé par le script précoce. */
 const MARK = '<!-- accueil-traduit -->';
@@ -117,6 +119,9 @@ export function injectEarlyI18n(html: string, en: Record<string, string>, dev = 
       `g('helpBackBtn').hidden=true;g('helpTutoBtn').hidden=true;document.body.classList.add('help-first');` +
       `g('menu').hidden=true;p.hidden=false;h.classList.remove('help-due');` +
       `p=g('helpPlayBtn');p.onclick=function(){p.dataset.early='1'};` +
+      `var v=['pointerdown','keydown','touchstart'],u=function(){h.dataset.touched=String(Math.round(performance.now()));` +
+      `for(j=0;j<v.length;j++)removeEventListener(v[j],u,true)};` +
+      `for(i=0;i<v.length;i++)addEventListener(v[i],u,{capture:true,passive:true});` +
       `if(!matchMedia('(pointer: coarse)').matches)p.focus({preventScroll:true});})();`;
     out = out.replace(HELP_MARK, `<script>${js}</script>`);
   }

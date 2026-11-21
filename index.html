@@ -76,6 +76,11 @@
               : 0;
         if (tu !== 0 || runs !== 0 || rv !== 0) return;
         h.classList.add('help-due');
+        // garde-fou, comme `lang-pending` : si le script de l'aide ne s'exécute pas, l'accueil réapparaît (main.ts
+        // ouvrira l'aide comme avant)
+        setTimeout(function () {
+          h.classList.remove('help-due');
+        }, 1500);
         // la graisse des touches de l'aide (.cap) : chargée avant son premier affichage, sinon les touches changent de
         // largeur à son arrivée et « Jouer » se décale (CLS)
         var f = document.createElement('link');
