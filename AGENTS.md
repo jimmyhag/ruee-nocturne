@@ -113,8 +113,8 @@ HUD subscribe to them, never the reverse.
 | ui | `src/ui/` | Native DOM (no UI framework): HUD, sheets, cards, the guided run's prompt and arrow | `src/sim/`, `src/render/`, `src/platform/`, `src/meta/`, `src/i18n/` |
 | platform | `src/platform/` | Input, audio, storage, PWA, sharing, the account (the only Firebase import), the retention measure (Firestore REST, no SDK) | `src/sim/`, `src/meta/` |
 | meta | `src/meta/` | Saved progression (with the progressive reveal of systems), the guided run (its guide, a pure automaton, which also queues the first-time windows: portal, time up, endless world), the daily challenge (rule of the day, medals) and its streak, daily missions, the result card and challenge link, friends, achievements, what a finished run counts for (world 3 cleared, final boss beaten), library, sync, leaderboard and retention shapes | `src/sim/`, `src/platform/`, `src/i18n/` |
-| i18n | `src/i18n/` | French and English strings, number formats, the home screen's early translation (inlined in `index.html` at build) | `src/sim/`, `src/meta/` |
-| entry | `src/main.ts`, `src/debug.ts` | Composition: the loop, the event handlers, the debug hooks (`?debug=1`) | everything |
+| i18n | `src/i18n/` | French and English strings, number formats, the early scripts inlined in `index.html` at build: the home screen's translation and the first-launch help, shown before the main script | `src/sim/`, `src/meta/` |
+| entry | `src/boot.ts`, `src/main.ts`, `src/debug.ts` | The page's entry (`boot.ts`: imports the main script, after the first paint on a first launch); composition: the loop, the event handlers, the debug hooks (`?debug=1`) | everything |
 | tools | `tools/` | Node CLIs: simulation and bots, bench, assets, audio, icons, interface images, Lighthouse, retention reading | `src/` |
 
 The lint enforces the `sim` and `render` rows and the Firebase rule (`eslint.config.js`);

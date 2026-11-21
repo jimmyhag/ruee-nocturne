@@ -11,7 +11,12 @@ test.use({ locale: 'en-US' });
 async function loadWithoutMain(page: Page, savedLang?: 'fr' | 'en'): Promise<void> {
   await page.route(/\/assets\/main-[^/]+\.js$/, () => {}); // jamais servi
   await page.addInitScript((lang) => {
-    if (lang) localStorage.setItem('ruee-meta', JSON.stringify({ version: 5, settings: { lang } }));
+    // aide déjà vue : depuis docs/specs/demarrage-rapide.md, le premier écran d'un profil vierge est l'aide (testée par
+    // e2e/demarrage-rapide.spec.ts) ; l'accueil est celui de tous les lancements suivants
+    localStorage.setItem(
+      'ruee-meta',
+      JSON.stringify({ version: 5, seenHelp: true, ...(lang ? { settings: { lang } } : {}) }),
+    );
     const w = window as unknown as { __shown?: { play: string; lang: string; pendingSeen: boolean } };
     let pendingSeen = false;
     const note = () => {

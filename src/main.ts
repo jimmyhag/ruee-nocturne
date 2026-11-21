@@ -144,6 +144,15 @@ import { Retention } from './platform/retention';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const VERSION = __APP_VERSION__;
+/**
+ * Démarrage en plusieurs tâches (docs/specs/demarrage-rapide.md, décision 2) : la suite part dans une autre tâche, après
+ * que le navigateur a pu peindre et répondre. `scheduler.yield` la reprend avant les autres tâches en attente ; sinon une
+ * minuterie. (Pas d'attente au niveau du module : elle couperait le script principal en plusieurs fichiers.)
+ */
+function nextTask(): Promise<void> {
+  const s = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  return s?.yield ? s.yield() : new Promise((r) => setTimeout(r, 0));
+}
 
 // ---------- rendu (module chargé à part : three + src/render ≈ 150 ko gzip) ----------
 // Le menu s'affiche et répond sans WebGL. Le module de rendu n'est pas préchargé avec la page (interface « Nocturne » :
@@ -417,7 +426,8 @@ function refitGear(): void {
 addEventListener('resize', resize);
 addEventListener('orientationchange', resize);
 visualViewport?.addEventListener('resize', resize);
-resize();
+// la première taille est relevée par la première image (`frame`) et par la scène quand elle se construit : pas de lecture
+// de la mise en page ici, qui la forcerait dans la tâche du démarrage (docs/specs/demarrage-rapide.md)
 
 /** La partie est à l'écran (en jeu ou sous un écran de partie) : la scène 3D se rend ; au menu, plus rien (décision 6). */
 function gameShown(): boolean {
@@ -3871,13 +3881,14 @@ function frame(nowMs: number): void {
 }
 
 // ---------- démarrage ----------
-function applyMeta(): void {
+/** Applique la méta à l'écran ; `home` faux : l'accueil, caché sous l'aide du premier lancement, sera rendu plus tard. */
+function applyMeta(home = true): void {
   heroView = meta.character; // le carrousel repart du héros choisi de la sauvegarde
   audio.setMuted(meta.muted);
   applyFx();
   applyQuality();
   applySettings();
-  updateBestLine();
+  if (home) updateBestLine();
   syncLang();
   refreshAccount();
 }
@@ -3913,7 +3924,11 @@ addEventListener('keydown', firstGesture, true);
     box.querySelector('summary')?.focus({ preventScroll: true });
   });
 }
-applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
+// docs/specs/demarrage-rapide.md : l'aide du premier lancement, déjà affichée par index.html, couvre l'accueil ; il est
+// rendu dans la tâche suivante (décision 2)
+const helpShown = document.body.classList.contains('help-first');
+let homeLater = helpShown;
+applyMeta(!homeLater); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
 retention.open(); // lot L1 : le lancement est une ouverture (rien ne part sans accord)
 // lot L4 : un lien de défi (`/#defi=…`, dans le fragment : rien ne part vers l'hébergeur) ouvre sa feuille au menu
@@ -3948,16 +3963,26 @@ addEventListener('hashchange', () => {
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
 // partie guidée (1.65.1, retour de Jimmy) : un nouveau joueur voit d'abord les touches, sans retour possible ;
 // seul « Jouer » ferme l'aide, et lance la partie guidée
+// docs/specs/demarrage-rapide.md : le script en ligne d'index.html l'a déjà affichée (même décision, sans attendre ce
+// script) ; ce qui suit la reprend sans rien changer à l'écran. S'il s'est trompé (lien de défi illisible, sauvegarde
+// hors norme), on corrige ici.
+document.documentElement.classList.remove('help-due'); // le script de l'aide ne s'est pas exécuté : plus de masque
 if (!linked && !meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   if (tutorialDue(meta)) {
     setHelpFirst(true);
     openScreen('help');
     if (!input.isTouch) queueMicrotask(() => $('helpPlayBtn').focus({ preventScroll: true }));
   } else {
+    setHelpFirst(false);
     meta.seenHelp = true;
     saveMeta(meta);
     openScreen('help');
   }
+} else if (helpShown) {
+  setHelpFirst(false);
+  homeLater = false;
+  updateBestLine();
+  showOnly('menu');
 }
 // phase 49 : une partie gardée sur l'appareil ? Lecture synchrone d'abord (menu juste dès l'affichage), IndexedDB ensuite
 function takeRun(r: RunRead): void {
@@ -3969,6 +3994,8 @@ function takeRun(r: RunRead): void {
 }
 takeRun(peekRun());
 updateResumeBtn();
+// docs/specs/demarrage-rapide.md (décision 2) : l'accueil caché sous l'aide est rendu dans une tâche à part
+if (homeLater) void nextTask().then(updateBestLine);
 if (!savedRun)
   void readRun().then((r) => {
     if (app !== 'menu' || savedRun) return;
@@ -4108,5 +4135,14 @@ const debugRt = installDebugHooks({
     for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const)
       addEventListener(ev, warm, { once: true, passive: true });
     $('playBtn').addEventListener('pointerenter', warm, { once: true });
+  }
+}
+// docs/specs/demarrage-rapide.md : « Jouer » de l'aide touché (ou Entrée) avant que ce script ne la reprenne ; le script
+// d'index.html l'a noté, la partie guidée part maintenant
+{
+  const b = $('helpPlayBtn');
+  if (b.dataset.early) {
+    delete b.dataset.early;
+    if (!$('help').hidden) b.click(); // l'aide est toujours là (pas de seconde partie)
   }
 }

@@ -1,6 +1,6 @@
 # Un premier lancement rapide sur un téléphone modeste
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 21 novembre 2026. Pas de nouvelle version de jeu : correctif de performance, noté sous « Technique ».
 
