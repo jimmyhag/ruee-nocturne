@@ -100,6 +100,20 @@ describe('t, pluriel, formats', () => {
     expect(t('weapon.orbe.stats', { n: 2, dmg: 15, pierce: 1 })).toBe('2 tirs, 15 dégâts, transperce 1');
     expect(t('weapon.orbe.stats', { n: 1, dmg: 10, pierce: 1 })).toBe('1 tir, 10 dégâts, transperce 1');
   });
+  it('whole numbers are written as Intl writes them, in both languages', () => {
+    // docs/specs/demarrage-rapide.md : un entier ne construit pas Intl.NumberFormat (démarrage), même écriture
+    const nums = [
+      0, -0, 1, 7, 42, 999, 1000, 1234, 9999, 10_000, 123_456, 1_000_000, 98_765_432, -3, -1000, -1_234_567,
+    ];
+    for (let n = 1; n < Number.MAX_SAFE_INTEGER / 7; n = n * 7 + 3) nums.push(n, -n);
+    nums.push(Number.MAX_SAFE_INTEGER, 2.5, 0.25, 1234.5, -0.5, 1e21, NaN, Infinity);
+    for (const l of ['fr', 'en'] as const) {
+      setLang(l);
+      const nf = new Intl.NumberFormat(l === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 2 });
+      for (const n of nums) expect(fmtNum(n), `${l} ${n}`).toBe(nf.format(n));
+    }
+    setLang('fr');
+  });
   it('anglais : 1 seul au singulier, nombres à l’anglaise', () => {
     setLang('en');
     expect(t('runs', { n: 0 })).toBe('0 runs');

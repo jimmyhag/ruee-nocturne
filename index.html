@@ -21,26 +21,82 @@
     <link rel="preload" as="image" type="image/webp" href="/ui/bg-night.webp" fetchpriority="high" />
     <script>
       // Évite d'afficher le menu en français puis de le traduire (décalage de mise en page) : si la langue effective
-      // n'est pas le français, le menu reste invisible jusqu'au script principal (quelques dizaines de ms).
+      // n'est pas le français, l'accueil reste invisible jusqu'au script précoce posé juste après lui (marqueur
+      // « accueil-traduit », remplacé au build par src/i18n/early.ts), qui le traduit avant le premier affichage, sans
+      // attendre le script principal (docs/specs/accueil-rapide.md).
+      // Premier écran d'un nouveau joueur (docs/specs/demarrage-rapide.md) : décidé ici, avec les informations que lira
+      // main.ts (sauvegarde locale, lien de défi, mode debug), et affiché par le script posé après l'aide (marqueur
+      // « aide-premiere », src/i18n/early.ts), sans attendre le script principal. `help-due` masque l'accueil d'ici
+      // là. Même décision que main.ts (`tutorialDue` sur la sauvegarde normalisée) : test src/meta/first-screen.test.ts.
       (function () {
+        var h = document.documentElement,
+          m = null,
+          read = false;
         try {
-          var m = JSON.parse(localStorage.getItem('ruee-meta') || 'null');
+          m = JSON.parse(localStorage.getItem('ruee-meta') || 'null');
+          read = true;
+        } catch (e) {
+          /* stockage bloqué ou illisible : français, et la sauvegarde vide de peekMeta */
+        }
+        if (read) {
           var s = m && m.settings && m.settings.lang;
           var l = s === 'fr' || s === 'en' ? s : /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
           if (l !== 'fr') {
-            document.documentElement.classList.add('lang-pending');
-            // garde-fou : si le script principal ne s'exécute pas, le menu (en français) réapparaît
+            h.lang = l; // lu par le script précoce
+            h.classList.add('lang-pending');
+            // garde-fou : si le script précoce ne s'exécute pas, le menu (en français) réapparaît
             setTimeout(function () {
-              document.documentElement.classList.remove('lang-pending');
+              h.classList.remove('lang-pending');
             }, 1500);
           }
-        } catch (e) {
-          /* stockage bloqué : français */
         }
+        // l'aide du premier lancement : ni après un lien de défi, ni dans les tests (sauf ?help=1)
+        var q = location.search;
+        if (/^#?defi=/.test(location.hash) || (q.indexOf('debug') >= 0 && q.indexOf('help=1') < 0)) return;
+        var n = function (v) {
+          return typeof v === 'number' && isFinite(v) ? v : 0;
+        };
+        var r = m && typeof m === 'object' ? m : {};
+        if (n(r.version) < 3) r = { seenHelp: r.seenHelp, reveal: n(r.runs) > 0 ? 4 : 0, tutorial: r.tutorial };
+        if (r.seenHelp === true) return;
+        var runs = Math.max(0, n(r.runs)),
+          st = r.stats && typeof r.stats === 'object' ? r.stats : {},
+          played = runs > 0 || n(st.runs) > 0;
+        var rv =
+          typeof r.reveal === 'number' && isFinite(r.reveal)
+            ? Math.max(0, Math.min(4, Math.floor(r.reveal)))
+            : played
+              ? 4
+              : 0;
+        var tu =
+          typeof r.tutorial === 'number'
+            ? Math.max(0, Math.min(2, Math.floor(r.tutorial) || 0))
+            : played || rv > 0
+              ? 1
+              : 0;
+        if (tu !== 0 || runs !== 0 || rv !== 0) return;
+        h.classList.add('help-due');
+        // garde-fou, comme `lang-pending` : si le script de l'aide ne s'exécute pas, l'accueil réapparaît (main.ts
+        // ouvrira l'aide comme avant)
+        setTimeout(function () {
+          h.classList.remove('help-due');
+        }, 1500);
+        // la graisse des touches de l'aide (.cap) : chargée avant son premier affichage, sinon les touches changent de
+        // largeur à son arrivée et « Jouer » se décale (CLS)
+        var f = document.createElement('link');
+        f.rel = 'preload';
+        f.as = 'font';
+        f.type = 'font/woff2';
+        f.crossOrigin = 'anonymous';
+        f.href = '/fonts/barlow-condensed-600-latin.woff2';
+        document.head.appendChild(f);
       })();
     </script>
     <style>
-      html.lang-pending #menu {
+      html.lang-pending #menu,
+      html.lang-pending #tabBar,
+      html.help-due #menu,
+      html.help-due #tabBar {
         visibility: hidden;
       }
       /* Interface « Nocturne » (docs/specs/ui-nocturne.md, maquette docs/design/menus/) : Barlow et Barlow Condensed
@@ -1117,9 +1173,11 @@
       /* partie guidée (docs/specs/tutoriel.md) : bulle de consigne sous le chrono et la puce d'objectif, flèche */
       #tuto {
         position: fixed;
-        left: 50%;
+        /* centrée par ses marges, sans transform : la flèche lit sa place (offsetLeft…) sans rien allouer (1.69.1) */
+        left: 0;
+        right: 0;
+        margin: 0 auto;
         top: calc(env(safe-area-inset-top, 0px) + 136px);
-        transform: translateX(-50%);
         display: flex;
         align-items: center;
         gap: 10px;
@@ -1163,6 +1221,76 @@
         #tuto {
           top: calc(env(safe-area-inset-top, 0px) + 170px); /* sous la minicarte, qui occupe le haut à droite */
           font-size: 14.5px;
+        }
+      }
+      /* 1.69.1 (docs/specs/tuto-petits-ecrans.md, décision 2) : en portrait, la barre de boss ne fait plus remonter la
+         bulle sous la minicarte (à 150 px, elle passait sur son bas) : elle reste à 170 px, déjà sous la barre */
+      @media (max-width: 480px) {
+        #hud:has(#bossbar:not([hidden])) ~ #tuto {
+          top: calc(env(safe-area-inset-top, 0px) + 170px);
+        }
+      }
+      /* portrait étroit (320 px) : la bulle reste dans l'écran (elle en débordait de 2 px de chaque côté) */
+      @media (max-width: 359.98px) {
+        #tuto {
+          box-sizing: border-box;
+          max-width: calc(100vw - 16px);
+        }
+      }
+      /* 1.69.1 (docs/specs/tuto-petits-ecrans.md, décision 2) : téléphone à l'horizontale (568 × 320 à 932 × 430). À
+         136 px, la bulle tombait sur le héros (au centre de l'écran) et sous la minicarte : elle remonte juste sous le
+         chrono, centrée, aussi large que le permet la minicarte de chaque côté (le bloc de gauche, sous ses PV, ne
+         dépasse pas cette marge), sur deux ou trois lignes de 14 px. Les longueurs suivent la taille du HUD des
+         réglages (--hud-scale), qui agrandit le chrono, les puces et la minicarte */
+      @media (orientation: landscape) and (max-height: 500px) {
+        #tuto {
+          --tuto-side: calc((max(16px, env(safe-area-inset-right, 0px)) + 96px) * var(--hud-scale, 1) + 12px);
+          box-sizing: border-box;
+          top: calc(env(safe-area-inset-top, 0px) + 78px * var(--hud-scale, 1));
+          max-width: calc(100vw - 2 * var(--tuto-side));
+          gap: 8px;
+          padding: 4px 10px;
+          font-size: 14px;
+          line-height: 1.15;
+          letter-spacing: 0.01em;
+        }
+        #tutoCmd {
+          padding: 1px 6px;
+        }
+        /* la puce d'objectif ou celle du marchand sous le chrono : la bulle passe dessous */
+        #hud:has(#goalChip:not([hidden])) ~ #tuto,
+        #hud:has(#merchantChip:not([hidden])) ~ #tuto {
+          top: calc(env(safe-area-inset-top, 0px) + 98px * var(--hud-scale, 1));
+        }
+        /* barre de boss, ou les deux puces : plus de place au-dessus du héros ; la bulle passe à sa gauche, sous la
+           barre, et laisse au héros 28 px de chaque côté du centre */
+        #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          top: calc(env(safe-area-inset-top, 0px) + 146px * var(--hud-scale, 1));
+          left: max(16px, env(safe-area-inset-left, 0px));
+          right: auto;
+          margin: 0;
+          max-width: calc(50vw - max(16px, env(safe-area-inset-left, 0px)) - 28px);
+        }
+        /* Gaucher : les boutons tactiles sont en bas à gauche, sous cette place ; la bulle passe à droite du héros, sous
+           la minicarte (62 + 96 px, 8 px d'écart) */
+        body.lefty #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        body.lefty #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          --tuto-under-map: 166px;
+          top: calc(env(safe-area-inset-top, 0px) + var(--tuto-under-map) * var(--hud-scale, 1));
+          left: auto;
+          right: max(16px, env(safe-area-inset-right, 0px));
+          max-width: calc(50vw - max(16px, env(safe-area-inset-right, 0px)) - 28px);
+        }
+      }
+      /* la minicarte fait 140 px à partir de 900 px de large */
+      @media (orientation: landscape) and (max-height: 500px) and (min-width: 900px) {
+        #tuto {
+          --tuto-side: calc((max(16px, env(safe-area-inset-right, 0px)) + 140px) * var(--hud-scale, 1) + 12px);
+        }
+        body.lefty #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        body.lefty #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          --tuto-under-map: 210px;
         }
       }
       #tutoArrow {
@@ -5595,7 +5723,7 @@
             <svg class="ln" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
           </button>
           <div class="heroinfo" aria-live="polite">
-            <div class="heroname" id="heroName">Éclaireuse</div>
+            <div class="heroname" id="heroName" data-i18n-early="char.eclaireuse.name">Éclaireuse</div>
             <div class="herosub" id="heroSub"></div>
             <div class="dots" id="heroDots" aria-hidden="true"></div>
           </div>
@@ -5686,6 +5814,7 @@
     <div class="tabtip" id="tabTip" role="status" hidden data-i18n="menu.lockedTab">
       Se débloque après ta première partie
     </div>
+    <!-- accueil-traduit -->
 
     <section id="characters" class="screen inner" hidden>
       <div class="panel">
@@ -5746,17 +5875,17 @@
           <div data-reveal="4">
             <dt><span class="cap">◆</span></dt>
             <dd data-i18n="menu.ctrl.bosstotem">
-              Totems de boss (orange) : chacun ajoute un boss à toutes les vagues de boss du monde. Le portail attend
-              qu'ils soient tous vaincus.
+              Totems de boss (orange, 1 à 3 par monde, toujours affichés sur la carte) : chacun ajoute un double du boss
+              à toutes les vagues de boss du monde. Le portail attend qu'ils soient tous vaincus.
             </dd>
           </div>
           <div data-reveal="4">
             <dt><span class="cap">10:00</span></dt>
             <dd data-i18n="menu.ctrl.worlds">
-              Active le totem (losange rouge sur la carte) et tue son boss : le portail mène au monde suivant. Quand le
-              boss du totem meurt, le chrono tombe à 0 : la horde grossit jusqu'à ce que tu passes le portail. Mieux
-              vaut donc vaincre le boss tard, près de la fin du chrono. Après la fin du chrono, les monstres ne font que
-              se renforcer, boss compris.
+              Rien ne presse : active le totem (losange rouge sur la carte) quand tu es prêt et tue son boss : le
+              portail mène au monde suivant. Quand le boss du totem meurt, le chrono tombe à 0 : la horde grossit
+              jusqu'à ce que tu passes le portail. Mieux vaut donc vaincre le boss tard, près de la fin du chrono. Après
+              la fin du chrono, les monstres ne font que se renforcer, boss compris.
             </dd>
           </div>
           <div data-reveal="4">
@@ -5781,13 +5910,17 @@
           <div>
             <dt><span class="cap">5:00</span></dt>
             <dd data-i18n="menu.ctrl.daily">
-              Défi du jour : 5 minutes, la même partie pour tous. Le terminer chaque jour fait grandir ta série.
+              Défi du jour : 5 minutes, la même partie pour tous, avec une règle qui change chaque jour et un boss final
+              à 4:00. Médaille de bronze à 5:00, d'argent si le boss tombe, d'or si tu tiens jusqu'à 10:00 en
+              continuant. Le terminer chaque jour fait grandir ta série : de l'or chaque jour, une tenue au 7e. Un joker
+              par semaine pardonne un jour oublié.
             </dd>
           </div>
           <div>
             <dt><span class="cap">✓</span></dt>
             <dd data-i18n="menu.ctrl.missions">
               Missions du jour : trois objectifs qui changent chaque jour, à remplir dans n'importe quelle partie.
+              Chacune paie son or à la fin de la partie qui la remplit.
             </dd>
           </div>
         </dl>
@@ -5797,6 +5930,7 @@
         </button>
       </div>
     </section>
+    <!-- aide-premiere -->
     <!-- 1.48.1 (retour de Jimmy : « le défi du jour, je ne sais pas ce que c'est ») : le bouton ouvre cette feuille -->
     <section id="daily" class="screen inner" hidden>
       <div class="panel">
@@ -6510,6 +6644,6 @@
     <div id="nogl" class="screen inner" hidden>
       <p data-i18n="nogl.text">WebGL n'est pas disponible sur cet appareil, le jeu ne peut pas démarrer.</p>
     </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/boot.ts"></script>
   </body>
 </html>
