@@ -1,6 +1,6 @@
 # Une image nette même quand la horde grossit
 
-**Statut : 🟡 Prêt pour le dev**
+**Statut : 🟢 Implémenté**
 
 Session du 20 novembre 2026. Version visée : **1.69.2**.
 
