@@ -2,6 +2,21 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
+## 1.69.2 — 20 nov. 2026 (une image nette même quand la horde grossit)
+
+Quand la horde devient énorme, le jeu allège ce qu'il dessine au lieu de pixeliser l'image, et redevient net quand ça se calme.
+
+### Modifié
+
+- **Plus d'image pixelisée en réglage « Auto »** : quand ton téléphone peine, le jeu dessine d'abord moins de choses sans importance (tes projectiles les plus lointains, leurs traînées, une partie des étincelles, les fleurs et le décor au loin, les monstres éloignés un peu moins détaillés), puis seulement baisse un peu la résolution. L'image peut devenir un peu plus douce, jamais pixelisée. Le mode « Pixel » reste disponible dans les réglages.
+- **Rien de dangereux ne disparaît** : tirs ennemis, cercles d'alerte, monstres, élites, boss, coffres et bonus restent tous dessinés, et chacun de tes coups garde son flash, son son et son chiffre.
+- **L'image remonte** : quand la horde passe, le rendu redevient net petit à petit. Un pic de monde 3 ne gâche plus le boss final.
+- Le message « Rendu allégé » n'apparaît plus qu'une fois par partie, quand la résolution baisse pour la première fois.
+
+### Technique
+
+- Spec : `docs/specs/rendu-allege.md` (scénarios : `src/render/quality.test.ts`, `e2e/quality.spec.ts`, budget allégé dans `e2e/stress.spec.ts`). Automate pur `src/render/quality.ts` : paliers `QUALITY_STEPS` (net, allégé, allégé ×0,85, ×0,7, ×0,6, toujours lisse), seuils `AUTO_QUALITY` (fenêtre lente au-delà de 24 ms de p95 des intervalles, 3 de suite pour descendre ; confortable sous 18 ms, 5 de suite, soit 10 s, pour remonter ; JS au-delà de 70 % du p95 des intervalles : la résolution ne baisse pas ; un palier qui retombe moins de 20 s après une remontée reste bloqué pour la partie). Le p95 se calcule sur les images de la fenêtre seulement (`windowP95`) ; le temps JS de chaque image (simulation et préparation de la scène, sans l'envoi au GPU, `GameScene.submitMs`) est toujours mesuré, sans allocation, sur un anneau de 240 images (2 s à 120 Hz). Types d'ennemis simplifiés choisis avec hystérésis (`pickFarTypes`). Rendu allégé (`LITE` de `src/render/scene.ts`) : 20 projectiles du héros en vol dessinés au plus, les plus proches (`nearestCut`), un fantôme de traînée, 250 particules au plus, ennemis de masse à plus de 12 u en version simple dans un `InstancedMesh` jumeau (à partir de 16 par type), arbres à 38 u, lanternes et cimetières à 24 u, herbe seule à 26 u. Onglet perf : palier et p95 du JS. Crochets de debug `jsTime`, `renderStep`, `volley`. Mesures avant / après dans `docs/GATES.md`.
+
 ## 1.69.1 — 20 nov. 2026
 
 ### Corrigé

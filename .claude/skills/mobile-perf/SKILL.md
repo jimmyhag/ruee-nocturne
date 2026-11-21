@@ -32,7 +32,7 @@ class Pool<T> { items: T[]; count = 0; constructor(n: number, make: () => T) { t
 - Collision ennemi-joueur : 1 requête. Projectiles : 1 requête par projectile. Aura : 1 requête de rayon r. Jamais O(n²).
 
 ## 4. Rendu
-- Résolution interne : net par défaut depuis la phase 9 (CSS × DPR ≤ 2), avec repli automatique vers ×0,75 puis le mode pixel (≈ 400 px de haut) quand le p95 des frames dépasse 24 ms ; le mode pixel reste le levier n°1 de secours (voir `three-rendering`).
+- Résolution interne : net par défaut depuis la phase 9 (CSS × DPR ≤ 2). 1.69.2 : en auto, le repli allège d'abord ce qui se dessine (rendu allégé), puis baisse la résolution par paliers ×0,85, ×0,7, ×0,6, toujours lisses ; le mode pixel (≈ 400 px de haut) n'est plus qu'un réglage manuel (voir `three-rendering`).
 - ≤ 40 draw calls : une `InstancedMesh` par famille, décor statique fusionné.
 - Pas de shadow map, pas de post-traitement, pas de `MeshStandardMaterial`.
 - `renderer.info.autoReset = false` + reset manuel si on veut cumuler.
@@ -49,7 +49,7 @@ function frame(now) { let dt = min(0.1, (now - last)/1000); last = now; acc += d
 }
 ```
 - `visibilitychange` → pause. Retour d'onglet → `last = now` (pas de méga-step).
-- Repli automatique (phase 9, `main.ts`) : p95 des intervalles de frame > 24 ms pendant 3 fenêtres de 2 s → niveau de rendu − 1 (2 net → 1 net ×0,75 → 0 pixel), bannière « Rendu allégé », jamais de remontée en cours de run. Testé par `debug.slowFrames(ms)` (`e2e/quality.spec.ts`).
+- Rendu auto (1.69.2, automate pur `src/render/quality.ts`, appelé par `main.ts` à chaque fenêtre de 2 s, en jeu) : p95 des intervalles et p95 du temps JS, sur les images de la fenêtre seulement (`windowP95` : anneau de 240 images, 2 s à 120 Hz ; à 5 images par seconde il couvrirait presque une minute). Temps JS = simulation et préparation de la scène, **sans** `renderer.render` (`GameScene.submitMs`) : sur un téléphone limité par le GPU, l'envoi attend une file de commandes pleine et ferait croire à un JS goulot. Trois fenêtres au-delà de 24 ms → un palier plus bas (net → net allégé → ×0,85 → ×0,7 → ×0,6) ; si le JS dépasse 70 % du p95 des intervalles, la résolution ne baisse pas (elle n'accélère pas le JS), seul l'allègement s'applique. Cinq fenêtres sous 18 ms (10 s) → un palier plus haut ; un palier qui retombe moins de 20 s après une remontée reste bloqué pour la partie. Bannière « Rendu allégé » à la première baisse de résolution de la partie seulement. Le temps JS de chaque image est toujours mesuré (anneau préalloué). Testé par `debug.slowFrames(ms)` et `debug.jsTime(ms)` (`e2e/quality.spec.ts`) ; `debug.renderStep(n)` impose un palier (mesures, captures).
 
 ## 6. Mémoire et chargement
 - Build ≤ 1,5 Mo gz. Three importé par modules (`three/src/...` ou tree-shaking Vite), pas de `three/examples/jsm/*` en vrac.

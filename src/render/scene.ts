@@ -81,6 +81,7 @@ import { AimLines, Bolts, DamageNumbers, Particles, PowerMarks } from './fx';
 import { InstanceWriter, makeInstanced } from './instancing';
 import { PAL } from './palette';
 import { TIER_LOOK, TierTint, tierHex, tierScale } from './tiers';
+import { QUALITY_STEPS, nearestCut, pickFarTypes } from './quality';
 
 const TAU = Math.PI * 2;
 const WHITE = new THREE.Color(0xffffff);
@@ -116,8 +117,31 @@ const flat = (color: number, opacity: number) =>
     forceSinglePass: true,
   });
 
-// rendu net (phase 9) : DPR plafonné à 2, hauteur interne ≤ 1600 px, niveau intermédiaire ×0,75
-const QUALITY = { maxDpr: 2, maxHeight: 1600, midScale: 0.75 };
+// rendu net (phase 9) : DPR plafonné à 2, hauteur interne ≤ 1600 px ; 1.69.2 : en « auto », facteur du palier
+// (QUALITY_STEPS de quality.ts, ×1 → ×0,6, toujours lisse)
+const QUALITY = { maxDpr: 2, maxHeight: 1600 };
+/**
+ * 1.69.2 (docs/specs/rendu-allege.md, décision 3) : rendu allégé des paliers « auto » au-delà du net. Ne retire que ce
+ * qui ne porte pas d'information de jeu ; valeurs choisies au stress test (400 ennemis, 4 armes), chiffres dans la PR.
+ * `projCap` : projectiles du héros en vol dessinés (les plus proches de lui ; dégâts, sons et chiffres restent) ;
+ * `ghosts` : fantômes de traînée par projectile ; `particles` : plafond des particules (les plus anciennes sont
+ * remplacées) ; `enemyNear` : u au-delà desquels un ennemi de masse prend la version simple (≈ 150 triangles), dans un
+ * InstancedMesh jumeau (un appel de plus par type, payé seulement à partir de `farMin` ennemis lointains, pour les
+ * `farTypes` types qui en ont le plus) ;
+ * `propDraw`, `smallDraw`, `scatter` : rayons du décor (arbres ; lanternes et cimetières ; herbe, fleurs, buissons).
+ */
+const LITE = {
+  projCap: 20,
+  ghosts: 1,
+  particles: 250,
+  enemyNear: 12,
+  farMin: 16, // ennemis lointains d'un type, à l'image d'avant, sous lesquels son jumeau simple ne vaut pas son appel
+  // (un type déjà simplifié le reste jusqu'à farMin / 2 : pickFarTypes de quality.ts)
+  farTypes: 3, // types simplifiés au plus (ceux qui ont le plus d'ennemis lointains) : au plus 3 appels de plus
+  propDraw: 38,
+  smallDraw: 24,
+  scatter: 26,
+};
 
 // capacités d'instances par type d'ennemi (CAPS.enemies = 520 au total)
 const ARCHER_RANGE = ARCHER.shotSpeed * ARCHER.shotLife;
@@ -133,8 +157,8 @@ const GRAVE_NEAR = 8; // …dont au plus 8 dessinés autour du joueur (≈ 1 k t
 const LAMP_NEAR = 12; // lanternes KayKit (≈ 570 triangles) dessinées au plus
 const SMALL_DRAW = 30; // rayon des lanternes et cimetières (petits, perdus dans le brouillard au-delà)
 // phase 44 : semis d'herbe, de fleurs et de buissons autour du joueur (décor stylisé), tiré d'une grille de cases
-// rayon : les coins hauts de l'écran sont à ≈ 30 u du joueur (16:9), 31 u en portrait. En rendu « pixel » (secours
-// des téléphones lents) : rayon réduit, herbe seule et deux fois moins dense (relecture perf : +0 appel, ≈ +5 k triangles).
+// rayon : les coins hauts de l'écran sont à ≈ 30 u du joueur (16:9), 31 u en portrait. En rendu « pixel » (réglage
+// manuel) : rayon réduit, herbe seule et deux fois moins dense (relecture perf : +0 appel, ≈ +5 k triangles).
 const SCATTER = { cell: 2, draw: 32, drawPixel: 26, grass: 480, flowers: 72, bushes: 44 };
 const TREE_H = 4.7; // hauteur des arbres stylisés avant l'échelle de chaque arbre (≈ ×0,75)
 const GROUND_TILE = 7; // unités monde par répétition des textures de sol (phase 44)
@@ -200,6 +224,13 @@ export class GameScene {
   private enemyBaked: (BakedEnemy | null)[] = [];
   private enemyMorph: (Float32Array | null)[] = []; // morphTexture.image.data de chaque type (ligne = 1 + poses)
   private bossOutline: (THREE.InstancedMesh | null)[] = [];
+  // 1.69.2 : jumeaux des ennemis de masse en version simple, pour les ennemis loin du héros au rendu allégé (leurs
+  // propres matrices et poses ; vides, ils ne coûtent aucun appel) ; null : pas de modèle cuit, ou un boss
+  private enemyFarW: (InstanceWriter | null)[] = [];
+  private enemyFarMorph: (Float32Array | null)[] = [];
+  private farSeen = new Int32Array(ENEMY_CAPS.length); // ennemis lointains par type à cette image…
+  private farPrev = new Int32Array(ENEMY_CAPS.length); // …et à la précédente (le jumeau ne sert qu'au-delà de LITE.farMin)
+  private farUse = new Uint8Array(ENEMY_CAPS.length); // 1 : le type passe ses ennemis lointains dans son jumeau
   private enemyHop = 1; // hop et roulis des silhouettes procédurales, adoucis pour des squelettes qui marchent
   private enemyRoll = 1;
   private cFlash = WHITE; // flash du coup : blanc sur les couleurs de sommet, surexposé sur une texture
@@ -475,8 +506,14 @@ export class GameScene {
   private camPos = new THREE.Vector3(0, 14, 12);
   private camLook = new THREE.Vector3();
   camScale = 1;
-  // qualité (phase 9) : 0 pixel (≈ 380 px de haut, nearest), 1 net ×0,75, 2 net ×1 (CSS × DPR ≤ 2, ≤ 1600 px de haut)
+  // qualité (phase 9) : 0 pixel (≈ 380 px de haut, nearest), 2 net (CSS × DPR ≤ 2, ≤ 1600 px de haut) ; 1.69.2 : plus
+  // de niveau 1, le réglage auto choisit un palier de QUALITY_STEPS (`step`, 0 = net) : allégé, puis résolution ×0,85…
   qualityLevel = 2;
+  step = 0;
+  private lite = false;
+  // 1.69.2 : distance² au héros de chaque projectile du héros en vol, et copie de travail du plafond (aucune allocation)
+  private projD2 = new Float32Array(CAPS.projectiles);
+  private projSel = new Float32Array(CAPS.projectiles);
   private sizeW = 1;
   private sizeH = 1;
   private groundMat: THREE.MeshLambertMaterial;
@@ -546,6 +583,8 @@ export class GameScene {
       const m = makeInstanced(geos[t], toonMaterial({ vertexColors: true }), ENEMY_CAPS[t]);
       this.scene.add(m);
       this.enemyW.push(new InstanceWriter(m));
+      this.enemyFarW.push(null);
+      this.enemyFarMorph.push(null);
       this.enemyColor.push(new THREE.Color(PAL.enemy[t]));
       this.eliteColor.push(new THREE.Color(PAL.enemy[t]).lerp(this.cGold, 0.75).multiplyScalar(FEEL.elite.bright));
       this.corruptColor.push(
@@ -1327,6 +1366,19 @@ export class GameScene {
         op.morphTexture = tex;
         probes.add(op);
       }
+      // 1.69.2 : jumeau en version simple (même matériau) pour les ennemis lointains du rendu allégé
+      let far: InstanceWriter | null = null,
+        farData: Float32Array | null = null;
+      if (!b.boss && b.geo.pixel !== b.geo.net) {
+        far = new InstanceWriter(makeInstanced(b.geo.pixel, mat, cap));
+        farData = new Float32Array(len * cap);
+        const ft = new THREE.DataTexture(farData, len, cap, THREE.RedFormat, THREE.FloatType);
+        ft.needsUpdate = true;
+        far.mesh.morphTexture = ft;
+        const fp = new THREE.InstancedMesh(b.geo.pixel, mat, 1);
+        fp.morphTexture = ft;
+        probes.add(fp);
+      }
       todo.push(() => {
         mesh.geometry.dispose();
         // niveau choisi à l'échange : la qualité a pu changer pendant la compilation asynchrone
@@ -1340,6 +1392,13 @@ export class GameScene {
         }
         this.enemyMorph[t] = data;
         this.bossOutline[t] = outline;
+        if (far) {
+          far.mesh.updateMorphTargets();
+          this.scene.add(far.mesh);
+          this.writers.push(far);
+        }
+        this.enemyFarW[t] = far;
+        this.enemyFarMorph[t] = farData;
       });
     }
     this.enemyStatus = 'compilation des shaders';
@@ -1390,13 +1449,16 @@ export class GameScene {
       0.25 + f * e.r * 0.9,
     );
   }
-  /** Poses de l'ennemi qui vient d'être écrit (dernière instance de son type) : marche en boucle, ou geste. */
-  private poseEnemy(t: number, e: Enemy, now: number): void {
-    const data = this.enemyMorph[t];
+  /**
+   * Poses de l'ennemi qui vient d'être écrit (dernière instance de `wr`, l'écrivain de son type, ou son jumeau lointain
+   * en version simple) : marche en boucle, ou geste.
+   */
+  private poseEnemy(t: number, e: Enemy, now: number, wr: InstanceWriter): void {
+    const data = wr === this.enemyW[t] ? this.enemyMorph[t] : this.enemyFarMorph[t];
     if (!data) return;
     const b = this.enemyBaked[t]!;
     const len = 1 + b.loop + b.action;
-    const row = this.enemyW[t].last; // -1 : instance refusée (capacité pleine), rien à poser
+    const row = wr.last; // -1 : instance refusée (capacité pleine), rien à poser
     if (row < 0) return;
     if (this.frozenPose) {
       // phase 35 : Temps figé, pose de marche arrêtée (un instant différent par ennemi), pas de geste
@@ -1422,9 +1484,11 @@ export class GameScene {
     this.propX = px;
     this.propZ = pz;
     for (const wr of this.propTreeW) wr.begin();
+    const pr = this.lite ? LITE.propDraw : PROP_DRAW,
+      sr = this.lite ? LITE.smallDraw : SMALL_DRAW; // 1.69.2 : décor dessiné moins loin au rendu allégé
     const T = this.treeData,
-      R2 = PROP_DRAW * PROP_DRAW,
-      r2 = SMALL_DRAW * SMALL_DRAW;
+      R2 = pr * pr,
+      r2 = sr * sr;
     for (let i = 0; i < T.length; i += 6) {
       const dx = T[i] - px,
         dz = T[i + 2] - pz;
@@ -1460,10 +1524,11 @@ export class GameScene {
    * fleurs, un buisson en lisière de terre. Rien sur la terre nue, les pistes, les lacs. Aucune allocation.
    */
   private scatter(px: number, pz: number): void {
-    const lite = this.qualityLevel === 0;
+    const pixel = this.qualityLevel === 0,
+      grassOnly = pixel || this.lite; // 1.69.2 : allégé, l'herbe seule (fleurs et buissons : 2 appels rendus aux jumeaux)
     const C = SCATTER.cell,
-      R = lite ? SCATTER.drawPixel : SCATTER.draw,
-      grassP = lite ? 0.3 : 0.6,
+      R = pixel ? SCATTER.drawPixel : this.lite ? LITE.scatter : SCATTER.draw,
+      grassP = pixel ? 0.3 : 0.6,
       R2 = R * R,
       lim = WORLD_HALF - 1.5;
     this.grassW.begin();
@@ -1488,10 +1553,10 @@ export class GameScene {
         const ry = pick * 61,
           sc = 0.8 + ((h >>> 5) & 31) / 62;
         if (bare > 0.2 && bare < 0.6 && pick > 0.86) {
-          if (!lite) this.bushW.put(x, this.gy(x, z) - 0.06, z, ry, sc, WHITE);
+          if (!grassOnly) this.bushW.put(x, this.gy(x, z) - 0.06, z, ry, sc, WHITE);
         } else if (bare > 0.3) continue;
         else if (pick < grassP) this.grassW.put(x, this.gy(x, z) - 0.03, z, ry, sc, WHITE);
-        else if (!lite && pick >= 0.6 && pick < 0.68) this.flowerW.put(x, this.gy(x, z) - 0.02, z, ry, sc, WHITE);
+        else if (!grassOnly && pick >= 0.6 && pick < 0.68) this.flowerW.put(x, this.gy(x, z) - 0.02, z, ry, sc, WHITE);
       }
     this.grassW.end();
     this.flowerW.end();
@@ -1518,19 +1583,69 @@ export class GameScene {
       rh = h / s;
     } else {
       const dpr = Math.min(QUALITY.maxDpr, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1);
-      const k = Math.min(dpr, QUALITY.maxHeight / h) * (this.qualityLevel === 1 ? QUALITY.midScale : 1);
+      const k = Math.min(dpr, QUALITY.maxHeight / h) * QUALITY_STEPS[this.step].scale; // 1.69.2 : palier auto
       rw = w * k;
       rh = h * k;
     }
     this.renderer.setSize(Math.max(1, Math.round(rw)), Math.max(1, Math.round(rh)), false);
   }
 
-  /** Change le niveau de rendu (0 pixel, 1 net ×0,75, 2 net) : taille interne, filtrage du sol, classe CSS. Idempotent. */
-  setQuality(level: number): void {
-    level = Math.max(0, Math.min(2, level | 0));
-    if (level === this.qualityLevel) return;
+  /**
+   * 1.69.2 : seuil de distance² au héros des projectiles du héros dessinés au rendu allégé (+∞ : tous). Les mines et
+   * les plaques de feu, posées au sol, ne comptent pas (toujours dessinées). `projTies` : places laissées aux projectiles
+   * exactement au seuil (une salve part du même point). Aucune allocation.
+   */
+  private projTies = 0;
+  /** Projectiles du héros en vol dessinés à la dernière image (orbes, boomerangs, lances) : tests du plafond. */
+  projDrawn = 0;
+  /** ms passées dans `renderer.render` (envoi au GPU) au dernier rendu : retirées du temps JS de l'image (`main.ts`). */
+  submitMs = 0;
+  private projCut(w: World, px: number, pz: number): number {
+    let n = 0;
+    for (let i = 0; i < w.projCount; i++) {
+      const p = w.projs[i];
+      if (p.kind === ProjKind.Mine || p.kind === ProjKind.Fire) {
+        this.projD2[i] = -1;
+        continue;
+      }
+      const dx = p.x - px,
+        dz = p.z - pz;
+      this.projSel[n++] = this.projD2[i] = dx * dx + dz * dz;
+    }
+    const cut = nearestCut(this.projSel, n, LITE.projCap);
+    if (cut === Infinity) return cut;
+    let below = 0;
+    for (let i = 0; i < w.projCount; i++) {
+      const d = this.projD2[i];
+      if (d >= 0 && d < cut) below++;
+    }
+    this.projTies = LITE.projCap - below;
+    return cut;
+  }
+
+  /**
+   * Change le rendu : `pixel` (réglage manuel, ≈ 380 px de haut, plus proche voisin) ou net au palier `step` du réglage
+   * auto (QUALITY_STEPS : 0 net, 1 allégé, puis résolution ×0,85, ×0,7, ×0,6, toujours lisse). Taille interne, filtrage
+   * du sol, classe CSS, rendu allégé. Idempotent.
+   */
+  setQuality(pixel: boolean, step = 0): void {
+    const level = pixel ? 0 : 2;
+    step = pixel ? 0 : Math.max(0, Math.min(QUALITY_STEPS.length - 1, step | 0));
+    // facteur de la taille interne avant et après (-1 : pixel) : setSize seulement s'il change, une fois
+    const sizeWas = this.qualityLevel === 0 ? -1 : QUALITY_STEPS[this.step].scale,
+      sizeNow = level === 0 ? -1 : QUALITY_STEPS[step].scale;
+    if (step !== this.step) {
+      this.step = step;
+      this.lite = QUALITY_STEPS[step].lite;
+      this.particles.cap = this.lite ? LITE.particles : FEEL.particles.cap;
+      this.propX = this.propZ = 1e9; // le décor dessiné dépend du palier : refait au prochain rendu
+    }
+    if (level !== this.qualityLevel) this.setLevel(level);
+    if (sizeNow !== sizeWas) this.applySize(); // à la fin : applySize lit le niveau et le palier posés ci-dessus
+  }
+  /** Niveau pixel (0) ou net (2) : détail des formes, géométrie des ennemis, sol, semis, classe CSS. */
+  private setLevel(level: number): void {
     this.qualityLevel = level;
-    this.applySize();
     setDetail(level > 0 ? 12 : 7);
     // formes procédurales plus lisses (ou non) : modèle reconstruit ; le héros glTF ne dépend pas du détail
     if (this.heroKind !== 'gltf') this.setCharacter(this.modelKey, this.modelSkin, true);
@@ -2010,8 +2125,15 @@ export class GameScene {
     this.netW.end();
 
     // ennemis : hop constant, flash blanc au coup, élites dorées avec anneau, Volants avec ombre
-    for (let t = 0; t < this.enemyW.length; t++) this.enemyW[t].begin();
+    for (let t = 0; t < this.enemyW.length; t++) {
+      this.enemyW[t].begin();
+      this.enemyFarW[t]?.begin();
+    }
     this.shadowW.begin();
+    const near2 = this.lite ? LITE.enemyNear * LITE.enemyNear : Infinity; // 1.69.2 : au-delà, version simple
+    this.farPrev.set(this.farSeen);
+    this.farSeen.fill(0);
+    pickFarTypes(this.farPrev, this.farUse, LITE.farMin, LITE.farTypes); // hystérésis : pas de bascule
     this.metW.begin(); // anneaux des élites (ici) puis cercles des météores (plus bas)
     this.eliteN = 0;
     this.corruptN = 0;
@@ -2033,6 +2155,12 @@ export class GameScene {
         ez = lerp(e.pz, e.z, alpha);
       const boss = def.boss;
       const heart = e.role === Role.Heart || e.role === Role.Decoy; // le boss final ou un double : violet, agrandi
+      // 1.69.2 : rendu allégé, un ennemi de masse loin du héros passe en version simple (jamais un boss ni une élite)
+      const farW = this.enemyFarW[e.type];
+      const isFar =
+        farW !== null && !boss && !heart && !e.elite && (ex - px) * (ex - px) + (ez - pz) * (ez - pz) > near2;
+      if (isFar) this.farSeen[e.type]++;
+      const ew = isFar && this.farUse[e.type] === 1 ? farW : this.enemyW[e.type];
       // modèles 3D (pieds à y = 0) : posés au sol, la marche animée remplace le hop ; e.y (hauteur de rendu des
       // silhouettes procédurales, centrées) ne sert plus qu'au Volant, qui vole (1.21.4)
       const grounded = !!this.enemyMorph[e.type] && e.type !== VOLANT_TYPE;
@@ -2119,7 +2247,7 @@ export class GameScene {
         // point le plus bas ne traverse pas le sol
         const vb = this.enemyMorph[e.type] ? this.enemyBaked[e.type] : null;
         const sway = vb ? 0.4 : 1;
-        this.enemyW[e.type].put(
+        ew.put(
           ex,
           vb ? Math.max(ey, eg + vb.low * s) : ey,
           ez,
@@ -2129,27 +2257,27 @@ export class GameScene {
           Math.sin(now * 6 + e.bob) * 0.25 * sway,
           Math.sin(now * 4 + e.bob) * 0.2 * sway,
         );
-        this.poseEnemy(e.type, e, now); // battement d'ailes
+        this.poseEnemy(e.type, e, now, ew); // battement d'ailes
       } else if (e.type === SWARM_TYPE) {
         s *= e.state === 1 ? 1.25 : 1 + Math.sin(now * 3) * 0.04; // pulsation à la ponte
         // procédural : la masse tourne sur elle-même ; squelette : il regarde où il va
-        this.enemyW[e.type].put(ex, ey, ez, this.enemyMorph[e.type] ? e.face : now * 0.6, s, col);
-        this.poseEnemy(e.type, e, now);
+        ew.put(ex, ey, ez, this.enemyMorph[e.type] ? e.face : now * 0.6, s, col);
+        this.poseEnemy(e.type, e, now, ew);
       } else if (e.type === REAPER_TYPE) {
-        this.enemyW[e.type].put(ex, ey, ez, this.enemyMorph[e.type] ? e.face : now * 0.8, s, col);
-        this.poseEnemy(e.type, e, now);
+        ew.put(ex, ey, ez, this.enemyMorph[e.type] ? e.face : now * 0.8, s, col);
+        this.poseEnemy(e.type, e, now, ew);
       } else if (boss) {
-        this.enemyW[e.type].put(ex, ey, ez, e.type === 3 && !this.enemyMorph[3] ? now * 1.4 : e.face, s, col);
-        this.poseEnemy(e.type, e, now);
+        ew.put(ex, ey, ez, e.type === 3 && !this.enemyMorph[3] ? now * 1.4 : e.face, s, col);
+        this.poseEnemy(e.type, e, now, ew);
         if (heart && e.state === 1 && isCharger(e)) this.chargeLane(e, ex, ez, eg); // 1.68.0 : la charge du Gardien
       } else if (e.type === 1) {
-        this.enemyW[1].put(ex, ey, ez, e.face, s, col, 0, 0, s, s * S.enemyStretch);
-        this.poseEnemy(1, e, now);
+        ew.put(ex, ey, ez, e.face, s, col, 0, 0, s, s * S.enemyStretch);
+        this.poseEnemy(e.type, e, now, ew);
         if (e.state === 1 && isCharger(e)) this.chargeLane(e, ex, ez, eg); // corrompus : Ruée du Dard
       } else {
         const roll = Math.sin(now * 5 + e.bob) * 0.2 * this.enemyRoll;
-        this.enemyW[e.type].put(ex, ey, ez, e.face, s, col, roll, 0, s, s * S.enemyStretch);
-        this.poseEnemy(e.type, e, now);
+        ew.put(ex, ey, ez, e.face, s, col, roll, 0, s, s * S.enemyStretch);
+        this.poseEnemy(e.type, e, now, ew);
         if (e.type === 5 && e.aim > 0) this.aims.add(ex, 0.9, ez, px, 0.9, pz, e.aim); // ligne de visée du Cracheur
         // phase 16 : ligne de visée de l'Archer, figée dans la direction du tir (16 u : la portée de la flèche)
         if (e.type === ARCHER_TYPE && e.state === 1)
@@ -2173,6 +2301,11 @@ export class GameScene {
       if (mt && this.enemyMorph[t] && wr.n > 0) mt.needsUpdate = true;
       const o = this.bossOutline[t];
       if (o) o.count = wr.n;
+      const fw = this.enemyFarW[t];
+      if (fw) {
+        fw.end();
+        if (fw.n > 0) fw.mesh.morphTexture!.needsUpdate = true;
+      }
     }
     this.shadowW.end();
     this.aims.end();
@@ -2622,8 +2755,18 @@ export class GameScene {
     this.boomW.begin();
     this.mineW.begin();
     this.bombW.begin();
+    // 1.69.2 : rendu allégé, au plus LITE.projCap projectiles du héros en vol dessinés (les plus proches de lui) et un
+    // seul fantôme de traînée ; leurs coups (flash, son, chiffre) passent par les événements de la sim, intacts
+    const cut = this.lite ? this.projCut(w, px, pz) : Infinity,
+      ghostsB = this.lite ? LITE.ghosts : 3,
+      ghostsO = this.lite ? LITE.ghosts : FEEL.trail.projGhosts;
+    let ties = this.projTies;
+    this.projDrawn = 0;
     for (let i = 0; i < w.projCount; i++) {
       const p = w.projs[i];
+      if (p.kind === ProjKind.Lance) continue; // dessinée avec les lames (même modèle d'épée)
+      if (cut !== Infinity && this.projD2[i] >= cut && !(this.projD2[i] === cut && ties-- > 0)) continue;
+      if (p.kind === ProjKind.Orbe || p.kind === ProjKind.Boomerang) this.projDrawn++;
       const x = lerp(p.px, p.x, alpha),
         z = lerp(p.pz, p.z, alpha),
         y = p.y + this.gy(x, z); // phase 18 : y de la sim au-dessus du sol local
@@ -2631,7 +2774,7 @@ export class GameScene {
         brx = this.particles.billboardRx;
       if (p.kind === ProjKind.Boomerang) {
         this.boomW.put(x, y, z, p.age * 22, sB, this.tBoom.c);
-        for (let j = 1; j <= 3; j++) {
+        for (let j = 1; j <= ghostsB; j++) {
           const back = Math.min(j * 0.035, p.age);
           this.glowW.put(
             x - p.vx * back,
@@ -2661,7 +2804,6 @@ export class GameScene {
         }
         continue;
       }
-      if (p.kind === ProjKind.Lance) continue; // dessinée avec les lames (même modèle d'épée)
       if (p.kind === ProjKind.Fire) {
         // plaque de feu : s'éteint en rétrécissant, vacille
         const fade = Math.max(0.2, p.life / TRAIT.trainee.life);
@@ -2673,7 +2815,7 @@ export class GameScene {
       const sc = (1.7 + Math.sin(now * 40 + p.x) * 0.2) * grow * orbeScale;
       // phase 30 : orbe = traînée dégradée (or → rouge), halo doré, cœur blanc chaud
       const k = (sc / 1.7) * sO;
-      for (let j = FEEL.trail.projGhosts; j >= 1; j--) {
+      for (let j = ghostsO; j >= 1; j--) {
         const back = Math.min(j * FEEL.trail.projGhostDt, p.age);
         this.glowW.put(
           x - p.vx * back,
@@ -2753,6 +2895,8 @@ export class GameScene {
       for (let i = 0; i < w.projCount; i++) {
         const p = w.projs[i];
         if (p.kind !== ProjKind.Lance) continue;
+        if (cut !== Infinity && this.projD2[i] >= cut && !(this.projD2[i] === cut && ties-- > 0)) continue;
+        this.projDrawn++;
         const x = lerp(p.px, p.x, alpha),
           z = lerp(p.pz, p.z, alpha),
           y = p.y + this.gy(x, z);
@@ -2764,7 +2908,7 @@ export class GameScene {
           tz = (p.vz / sp) * 0.75 * ls,
           brx = this.particles.billboardRx;
         this.glowW.put(x + tx, y, z + tz, 0, FEEL.glow.lanceTip * sN, this.tLanceTip.c, brx, 0);
-        for (let k = 1; k <= FEEL.trail.bladeGhosts; k++) {
+        for (let k = 1; k <= (this.lite ? LITE.ghosts : FEEL.trail.bladeGhosts); k++) {
           const back = Math.min(k * 0.03, p.age);
           this.glowW.put(
             x - p.vx * back,
@@ -2939,7 +3083,11 @@ export class GameScene {
       this.shake = Math.max(0, this.shake - dt * FEEL.shake.decay);
     }
     this.camera.lookAt(this.camLook);
+    // 1.69.2 (spec, décision 5 précisée le 21 nov.) : l'envoi au GPU peut attendre une file de commandes pleine ; son
+    // temps est mesuré à part pour que `main.ts` ne le compte pas comme du JS
+    const s0 = performance.now();
     this.renderer.render(this.scene, this.camera);
+    this.submitMs = performance.now() - s0;
     this.keepFrustum();
   }
 
@@ -2968,7 +3116,7 @@ export class GameScene {
     out.z = this.scr.z;
   }
 
-  info(): { calls: number; triangles: number; width: number; height: number; level: number } {
+  info(): { calls: number; triangles: number; width: number; height: number; level: number; step: number } {
     const c = this.renderer.domElement;
     return {
       calls: this.renderer.info.render.calls,
@@ -2976,6 +3124,7 @@ export class GameScene {
       width: c.width,
       height: c.height,
       level: this.qualityLevel,
+      step: this.step,
     };
   }
 }

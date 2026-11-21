@@ -339,7 +339,7 @@ tools/
 | Draw calls | ≤ 40 | ≤ 80 |
 | Triangles | ≤ 250 k en rendu net, ≤ 150 k en pixel (phase 21, décision de Jimmy du 5 nov. : ennemis en vrais modèles) | ≤ 500 k |
 | Allocation JS / frame | 0 en régime permanent (pools partout) | idem |
-| Résolution interne | 1 × DPR (≤ 2) en net, repli automatique ×0,75 puis pixel (≈ 380 px de haut) si p95 > 24 ms | 1 × DPR |
+| Résolution interne | 1 × DPR (≤ 2) en net ; en auto, si p95 > 24 ms, rendu allégé puis ×0,85, ×0,7, ×0,6 (lisse), remontée quand ça redevient fluide ; le pixel (≈ 380 px de haut) n'est plus qu'un réglage manuel (1.69.2, `docs/specs/rendu-allege.md`) | 1 × DPR |
 | Poids initial (gz) | ≤ 1,5 Mo | idem |
 | Temps jusqu'au menu | ≤ 2 s en 4G | ≤ 1 s |
 
