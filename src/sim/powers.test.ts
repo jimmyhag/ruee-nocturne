@@ -69,10 +69,16 @@ describe('bonus au sol : contenu et apparition', () => {
     const w = calm(7);
     w.powerNext = POWER.mapFirst;
     startRun(w);
+    // Ni horde, ni élite, ni vague (comme spells.test.ts) : le bonus de carte ne dépend pas des ennemis. Une horde qui
+    // grossissait 160 s autour d'un héros sans arme coûtait les trois quarts du test : 28 à 31 s sous couverture sur
+    // les runners lents de la CI, contre 30 s de délai.
     w.enemyCount = 0;
+    w.nextElite = w.nextWave = 1e9;
+    w.spawnAcc = -1e9;
+    const ahead: Input = { ...still, mx: 0.001, mz: 1 }; // le héros regarde vers +z (quasi immobile)
     const times: number[] = [];
     for (let f = 0; f < 60 * 160 && w.mode === Mode.Play; f++) {
-      step(w, { ...still, mx: 0.001, mz: 1 }, STEP); // le héros regarde vers +z (quasi immobile)
+      step(w, ahead, STEP);
       w.player.x = 0;
       w.player.z = 0;
       for (let k = 0; k < w.eventCount; k++) {
