@@ -67,5 +67,17 @@ Fonctionnalité: Une sauvegarde qui ne recule jamais
 ## Vérification attendue
 
 - Vitest pour la lecture des deux copies (chaque scénario, plus le stockage bloqué).
+- Tests Vitest en plus des scénarios (`src/meta/save.test.ts`), et la décision que chacun couvre :
+  - « On a tie, IndexedDB is kept » : décision 1 (égalité) ;
+  - « A more recent IndexedDB copy wins over localStorage » : décision 1 (la plus récente, même dans IndexedDB) ;
+  - « An import replaces the revision number with a fresh one » : hors périmètre, l'import reçoit un numéro neuf ;
+  - « A blocked localStorage leaves IndexedDB enough » et « An unavailable IndexedDB leaves localStorage enough » :
+    décision 5 ;
+  - « An old save in localStorage alone loads as before » : décision 2 ;
+  - « Two tabs never let an older copy win » et « Two tabs with a full localStorage keep the latest IndexedDB copy » :
+    décisions 1 et 4 (un numéro au-dessus de celui de la copie localStorage, relu à chaque sauvegarde ; la réparation
+    n'écrase pas une écriture plus récente).
+- e2e « The revision number does not leave the device » (`e2e/sauvegarde.spec.ts`) : décision 3, pour un joueur connecté
+  (compte factice).
 - e2e PC et mobile : un rechargement immédiat après un changement de langue, répété au moins 10 fois.
 - `e2e/stages.spec.ts` reste tel quel : il doit passer sans être modifié.
