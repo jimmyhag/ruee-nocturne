@@ -40,8 +40,17 @@ export function has(key: string): boolean {
 }
 
 const NF: Partial<Record<Lang, Intl.NumberFormat>> = {};
+/** Séparateur des milliers d'Intl.NumberFormat : espace fine insécable en français, virgule en anglais. */
+const GROUP: Record<Lang, string> = { fr: '\u202f', en: ',' };
 /** Nombre dans la langue courante : « 2,2 » et « 2 000 » en français, « 2.2 » et « 2,000 » en anglais. */
 export function fmtNum(n: number): string {
+  // un entier s'écrit sans Intl, comme Intl l'écrit (test) : la première construction d'Intl.NumberFormat est l'une des
+  // plus longues tâches du démarrage (or de l'accueil, récompenses de l'écran Héros ; docs/specs/demarrage-rapide.md)
+  if (Number.isSafeInteger(n) && !Object.is(n, -0)) {
+    let s = String(n < 0 ? -n : n);
+    for (let i = s.length - 3; i > 0; i -= 3) s = s.slice(0, i) + GROUP[lang] + s.slice(i);
+    return n < 0 ? '-' + s : s;
+  }
   return (NF[lang] ??= new Intl.NumberFormat(LOCALE[lang], { maximumFractionDigits: 2 })).format(n);
 }
 const DF: Partial<Record<Lang, Intl.DateTimeFormat>> = {};
