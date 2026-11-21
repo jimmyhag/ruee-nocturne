@@ -44,7 +44,8 @@ export function moveText(b: KeyBinds): string {
 export function renderKeyHints(b: KeyBinds): void {
   for (const el of document.querySelectorAll<HTMLElement>('[data-key]')) {
     const k = el.dataset.key!;
-    el.textContent = k === 'move' ? moveText(b) : keyText(b, k as KeyAction);
+    const s = k === 'move' ? moveText(b) : keyText(b, k as KeyAction);
+    if (el.textContent !== s) el.textContent = s; // déjà juste (aide du premier lancement, index.html) : pas réécrit
   }
 }
 

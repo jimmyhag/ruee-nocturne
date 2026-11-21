@@ -138,12 +138,30 @@ import type { AchTab } from './ui/meta-ui';
 import { LOCKED_TABS, profileAria, renderHome, stepHero, tabsLocked } from './ui/home';
 import type { CharacterKey, ItemKey } from './sim/types';
 import { installDebugHooks, debugEnabled } from './debug';
+import {
+  QUALITY_STEPS,
+  QualityChange,
+  newAutoQuality,
+  qualityIdle,
+  qualityNewRun,
+  qualityWindow,
+  windowP95,
+} from './render/quality';
 import { Pwa } from './platform/pwa';
 import { loadConfig } from './platform/firebase-config';
 import { Retention } from './platform/retention';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const VERSION = __APP_VERSION__;
+/**
+ * Démarrage en plusieurs tâches (docs/specs/demarrage-rapide.md, décision 2) : la suite part dans une autre tâche, après
+ * que le navigateur a pu peindre et répondre. `scheduler.yield` la reprend avant les autres tâches en attente ; sinon une
+ * minuterie. (Pas d'attente au niveau du module : elle couperait le script principal en plusieurs fichiers.)
+ */
+function nextTask(): Promise<void> {
+  const s = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  return s?.yield ? s.yield() : new Promise((r) => setTimeout(r, 0));
+}
 
 // ---------- rendu (module chargé à part : three + src/render ≈ 150 ko gzip) ----------
 // Le menu s'affiche et répond sans WebGL. Le module de rendu n'est pas préchargé avec la page (interface « Nocturne » :
@@ -244,7 +262,7 @@ function loadScene(urgent = false): Promise<GameScene> {
     }
     scene = s;
     s.reducedFx = reducedFx(); // corrompus : réduction des effets
-    s.setQuality(qualityLevel()); // phase 9 : niveau de rendu (réglage ou repli automatique de la session)
+    s.setQuality(meta.settings.quality === 'pixel', autoStep()); // phase 9 : réglage ; 1.69.2 : palier auto
     await atRest();
     s.setCharacter(meta.character, outfitOf(meta, meta.character)); // héros de la prochaine partie, chargé et compilé d'avance
     sizeW = sizeH = 0;
@@ -374,15 +392,16 @@ function pressed(group: HTMLElement, attr: string, v: string): void {
   for (const b of group.querySelectorAll<HTMLElement>(`[data-${attr}]`))
     b.setAttribute('aria-pressed', String(b.dataset[attr] === v));
 }
-// rendu (phase 9) : réglage auto|net|pixel ; en auto, le niveau de session descend quand les frames dépassent le budget
-let autoLevel = 2;
-let slowWindows = 0;
-function qualityLevel(): number {
-  const q = meta.settings.quality;
-  return q === 'net' ? 2 : q === 'pixel' ? 0 : autoLevel;
+// rendu (phase 9) : réglage auto|net|pixel. 1.69.2 (docs/specs/rendu-allege.md) : en auto, l'automate de
+// `render/quality.ts` choisit un palier (net, allégé, puis résolution ×0,85 → ×0,6, jamais le pixel) d'après les mesures
+// de chaque fenêtre de 2 s, et remonte quand les images redeviennent confortables
+let autoQ = newAutoQuality();
+/** Palier du rendu : celui de l'automate en auto ; net (0) sinon (le pixel est un réglage à part). */
+function autoStep(): number {
+  return meta.settings.quality === 'auto' ? autoQ.step : 0;
 }
 function applyQuality(): void {
-  scene?.setQuality(qualityLevel());
+  scene?.setQuality(meta.settings.quality === 'pixel', autoStep());
   $('qualityBtn').textContent = t('settings.quality.' + meta.settings.quality);
   pressed($('setQuality'), 'quality', meta.settings.quality);
 }
@@ -417,7 +436,8 @@ function refitGear(): void {
 addEventListener('resize', resize);
 addEventListener('orientationchange', resize);
 visualViewport?.addEventListener('resize', resize);
-resize();
+// la première taille est relevée par la première image (`frame`) et par la scène quand elle se construit : pas de lecture
+// de la mise en page ici, qui la forcerait dans la tâche du démarrage (docs/specs/demarrage-rapide.md)
 
 /** La partie est à l'écran (en jeu ou sous un écran de partie) : la scène 3D se rend ; au menu, plus rien (décision 6). */
 function gameShown(): boolean {
@@ -626,9 +646,11 @@ function vibrate(ms: number): void {
     /* non supporté */
   }
 }
+/** `keepScroll` : l'écran est déjà affiché (l'aide du premier lancement, par index.html) ; il garde son défilement. */
 function openScreen(
   id:
     'shop' | 'achievements' | 'library' | 'settings' | 'account' | 'board' | 'characters' | 'help' | 'daily' | 'notes',
+  keepScroll = false,
 ): void {
   if (app === 'menu' || app === 'over' || app === 'pause' || app === 'settings') {
     backTo = app === 'settings' ? 'menu' : app;
@@ -669,7 +691,8 @@ function openScreen(
     applySettings();
     $('settingsMsg').textContent = '';
   }
-  showTop(id);
+  if (keepScroll) showOnly(id);
+  else showTop(id);
 }
 /** Passe d'ergonomie (décision 12) : un écran ouvert commence toujours en haut (titre et flèche retour visibles). */
 function showTop(id: AppMode): void {
@@ -801,7 +824,11 @@ function renderShopScreen(): void {
 function applyLangStatic(): void {
   document.documentElement.lang = getLang();
   document.documentElement.classList.remove('lang-pending'); // posé par le script inline de index.html
-  for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) el.textContent = t(el.dataset.i18n!);
+  // un texte déjà juste (accueil traduit par le script précoce) n'est pas réécrit : pas de second affichage
+  for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+    const s = t(el.dataset.i18n!);
+    if (el.textContent !== s) el.textContent = s;
+  }
   for (const el of document.querySelectorAll<HTMLElement>('[data-i18n-attr]'))
     for (const pair of el.dataset.i18nAttr!.split(';')) {
       const [attr, key] = pair.split(':');
@@ -914,6 +941,7 @@ function startGame(
   if (challenge) daily = true; // lot L4 : le défi d'un ami se joue avec les règles du défi du jour
   if (daily) tutorial = false;
   timestopOn = false; // phase 35
+  qualityNewRun(autoQ); // 1.69.2 : le palier reste (même appareil) ; blocage anti yo-yo et bannière repartent de zéro
   bossTotemNote = -1; // phase 51 : le nombre de totems de boss se réannonce à chaque partie
   document.body.classList.remove('timestop');
   if (!meta.seenReset) {
@@ -2278,10 +2306,7 @@ $('setQuality').addEventListener('click', (e) => {
 });
 function setQuality(q: (typeof QUALITY_SETTINGS)[number]): void {
   meta.settings.quality = q;
-  if (meta.settings.quality === 'auto') {
-    autoLevel = 2; // geste explicite du joueur : on repart du net (la remontée automatique, elle, n'existe pas)
-    slowWindows = 0;
-  }
+  if (meta.settings.quality === 'auto') autoQ = newAutoQuality(); // geste explicite du joueur : on repart du net
   saveMeta(meta);
   applyQuality();
   audio.init();
@@ -3664,18 +3689,22 @@ function handleEvents(w: World, now: number): void {
 // ---------- boucle principale : pas fixe + interpolation ----------
 let last = performance.now();
 let acc = 0;
-// onglet perf : anneau de 120 frames (2 s à 60 Hz) et copie triée préallouée : aucune allocation par frame
-const PERF_WINDOW = 120;
-const frameTimes = new Float64Array(PERF_WINDOW).fill(16);
+// temps JS de chaque image : anneau de 240 frames (2 s à 120 Hz, 4 s à 60 Hz) et copie triée préallouée, aucune
+// allocation par frame. 1.69.2 : toujours mesuré (plus seulement onglet perf ouvert) : l'automate du rendu y lit si le JS
+// est le goulot ; une fenêtre de 2 s tient dans l'anneau jusqu'à 120 Hz (windowP95)
+const PERF_WINDOW = 240;
+const frameTimes = new Float64Array(PERF_WINDOW).fill(4);
 const frameSorted = new Float64Array(PERF_WINDOW);
 let frameIdx = 0;
+let jsP95 = 4;
 // intervalles entre frames rAF (phase 9) : toujours mesurés, c'est ce qui déclenche le repli automatique de qualité
 const gapTimes = new Float64Array(PERF_WINDOW).fill(16);
 const gapSorted = new Float64Array(PERF_WINDOW);
 let gapIdx = 0;
+let gapIdx0 = 0; // 1.69.2 : index des anneaux au début de la fenêtre de mesure (le p95 ne lit que ses images)
+let frameIdx0 = 0;
 let gapP95 = 16;
-let gapT0 = 0; // fenêtres de 2 s de temps réel (indépendantes du fps)
-const GAP_P95_LIMIT = 24; // ms : au-delà pendant 3 fenêtres de 2 s, on descend d'un niveau (jamais de remontée en cours de run)
+let gapT0 = 0; // fenêtres de 2 s de temps réel (indépendantes du fps) ; seuils : AUTO_QUALITY de render/quality.ts
 // fps réels : frames rAF comptées sur une fenêtre de 2 s (ce que voit le joueur, pas seulement notre temps JS)
 let fpsT0 = 0;
 let fpsFrames = 0;
@@ -3695,22 +3724,20 @@ function frame(nowMs: number): void {
   const gapMs = debugRt && debugRt.slowFrames > 0 ? debugRt.slowFrames : nowMs - last;
   let realDt = Math.min(0.1, (nowMs - last) / 1000);
   last = nowMs;
-  // repli automatique de qualité : p95 des intervalles sur 2 s, en jeu seulement, après les 3 premières secondes du run
+  // rendu auto : p95 des intervalles et du temps JS sur 2 s, en jeu seulement, après les 3 premières secondes du run
   gapTimes[gapIdx++ % PERF_WINDOW] = gapMs;
   if (nowMs - gapT0 >= 2000) {
     gapT0 = nowMs;
-    gapSorted.set(gapTimes);
-    gapSorted.sort();
-    gapP95 = gapSorted[(PERF_WINDOW * 0.95) | 0];
+    gapP95 = windowP95(gapTimes, gapIdx, gapIdx - gapIdx0, gapSorted);
+    jsP95 = windowP95(frameTimes, frameIdx, frameIdx - frameIdx0, frameSorted);
+    gapIdx0 = gapIdx;
+    frameIdx0 = frameIdx;
     if (app === 'play' && world && world.t > 3 && meta.settings.quality === 'auto') {
-      slowWindows = gapP95 > GAP_P95_LIMIT ? slowWindows + 1 : 0;
-      if (slowWindows >= 3 && autoLevel > 0) {
-        autoLevel--;
-        slowWindows = 0;
-        applyQuality();
-        hud.banner(t('banner.quality'), 'info');
-      }
-    } else slowWindows = 0;
+      const change = qualityWindow(autoQ, gapP95, jsP95, nowMs / 1000);
+      if (change !== QualityChange.None) applyQuality();
+      // décision 7 : une bannière à la première baisse de résolution de la partie, aucune pour l'allègement ni la remontée
+      if (change === QualityChange.FirstResolutionDrop) hud.banner(t('banner.quality'), 'info');
+    } else qualityIdle(autoQ);
   }
   if (debugRt) realDt *= debugRt.speed; // captures et tests uniquement (null en prod)
   const now = nowMs / 1000;
@@ -3820,16 +3847,22 @@ function frame(nowMs: number): void {
   }
   // interface Nocturne (décision 6) : le menu et ses écrans ont un fond illustré, opaque ; la scène 3D ne rend que
   // la partie (en jeu, et derrière les écrans de partie : pause, cartes, marchand, carte, victoire, fin)
+  let submitMs = 0; // envoi au GPU de cette image (renderer.render) : pas du JS pour le rendu auto
   if (world && scene && gameShown()) {
     const alpha = app === 'play' ? Math.min(1, acc / STEP) : 1;
     scene.render(world, alpha, realDt * (app === 'play' ? hitStop.timeScale : 0.2), now, hurtT > 0);
+    submitMs = scene.submitMs;
     scene.dmg.update(realDt, scene.camera, innerWidth, innerHeight);
     scene.marks.update(world.powers, world.powerCount, now, scene.camera, innerWidth, innerHeight); // phase 35
   }
   if (world) tuto.arrowFrame(world, innerWidth, innerHeight); // après le rendu : la caméra de cette image
 
+  // temps JS de l'image (1.69.2 : toujours mesuré) : simulation et préparation de la scène, sans l'envoi au GPU, qui
+  // attend une file de commandes pleine quand le GPU est le goulot (spec, décision 5, précisée le 21 nov.) ;
+  // `debug.jsTime` le remplace dans les tests
+  frameTimes[frameIdx++ % PERF_WINDOW] =
+    debugRt && debugRt.jsTime > 0 ? debugRt.jsTime : performance.now() - t0 - submitMs;
   if (perfOn && scene) {
-    frameTimes[frameIdx++ % PERF_WINDOW] = performance.now() - t0;
     fpsFrames++;
     if (fpsT0 === 0) {
       fpsT0 = nowMs;
@@ -3852,7 +3885,7 @@ function frame(nowMs: number): void {
       const p95 = frameSorted[(PERF_WINDOW * 0.95) | 0];
       const info = scene.info();
       hud.perf(
-        `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (2 s)\n` +
+        `fps ${fps.toFixed(0)}  js p50 ${p50.toFixed(2)} ms  p95 ${p95.toFixed(2)} ms (240 images, sans envoi GPU)\n` +
           `temps ×${simRatio.toFixed(2)}  hit-stop ${hitStop.enabled ? 'on' : 'off'} ×${stopRatio.toFixed(2)}\n` +
           `draw calls ${info.calls}  tris ${(info.triangles / 1000).toFixed(0)}k\n` +
           (world
@@ -3860,20 +3893,22 @@ function frame(nowMs: number): void {
             : '') +
           `voix audio ${audio.voiceCount}/${audio.maxVoices}\n` +
           `modèles : héros ${scene.heroKind}, ennemis ${scene.enemyStatus}\n` +
-          `rendu niv ${info.level} (${meta.settings.quality})  res ${info.width}×${info.height}  frame p95 ${gapP95.toFixed(1)} ms`,
+          `rendu ${info.level === 0 ? 'pixel' : QUALITY_STEPS[info.step].name} (${meta.settings.quality})  res ${info.width}×${info.height}\n` +
+          `frame p95 ${gapP95.toFixed(1)} ms  js p95 ${jsP95.toFixed(1)} ms (fenêtre du rendu auto)`,
       );
     }
   }
 }
 
 // ---------- démarrage ----------
-function applyMeta(): void {
+/** Applique la méta à l'écran ; `home` faux : l'accueil, caché sous l'aide du premier lancement, sera rendu plus tard. */
+function applyMeta(home = true): void {
   heroView = meta.character; // le carrousel repart du héros choisi de la sauvegarde
   audio.setMuted(meta.muted);
   applyFx();
   applyQuality();
   applySettings();
-  updateBestLine();
+  if (home) updateBestLine();
   syncLang();
   refreshAccount();
 }
@@ -3909,7 +3944,11 @@ addEventListener('keydown', firstGesture, true);
     box.querySelector('summary')?.focus({ preventScroll: true });
   });
 }
-applyMeta(); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
+// docs/specs/demarrage-rapide.md : l'aide du premier lancement, déjà affichée par index.html, couvre l'accueil ; il est
+// rendu dans la tâche suivante (décision 2)
+const helpShown = document.body.classList.contains('help-first');
+let homeLater = helpShown;
+applyMeta(!homeLater); // depuis le repli localStorage, tout de suite : aucun décalage de mise en page quand IndexedDB répond
 refreshAccount();
 retention.open(); // lot L1 : le lancement est une ouverture (rien ne part sans accord)
 // lot L4 : un lien de défi (`/#defi=…`, dans le fragment : rien ne part vers l'hébergeur) ouvre sa feuille au menu
@@ -3944,16 +3983,26 @@ addEventListener('hashchange', () => {
 // premier lancement : l'aide « Comment jouer » (phase 14), une fois ; pas dans les tests sauf demande (?help=1)
 // partie guidée (1.65.1, retour de Jimmy) : un nouveau joueur voit d'abord les touches, sans retour possible ;
 // seul « Jouer » ferme l'aide, et lance la partie guidée
+// docs/specs/demarrage-rapide.md : le script en ligne d'index.html l'a déjà affichée (même décision, sans attendre ce
+// script) ; ce qui suit la reprend sans rien changer à l'écran. S'il s'est trompé (lien de défi illisible, sauvegarde
+// hors norme), on corrige ici.
+document.documentElement.classList.remove('help-due'); // le script de l'aide ne s'est pas exécuté : plus de masque
 if (!linked && !meta.seenHelp && (!debugEnabled() || location.search.includes('help=1'))) {
   if (tutorialDue(meta)) {
     setHelpFirst(true);
-    openScreen('help');
+    openScreen('help', helpShown); // déjà à l'écran : le joueur a pu la faire défiler
     if (!input.isTouch) queueMicrotask(() => $('helpPlayBtn').focus({ preventScroll: true }));
   } else {
+    setHelpFirst(false);
     meta.seenHelp = true;
     saveMeta(meta);
     openScreen('help');
   }
+} else if (helpShown) {
+  setHelpFirst(false);
+  homeLater = false;
+  updateBestLine();
+  showOnly('menu');
 }
 // phase 49 : une partie gardée sur l'appareil ? Lecture synchrone d'abord (menu juste dès l'affichage), IndexedDB ensuite
 function takeRun(r: RunRead): void {
@@ -3965,6 +4014,8 @@ function takeRun(r: RunRead): void {
 }
 takeRun(peekRun());
 updateResumeBtn();
+// docs/specs/demarrage-rapide.md (décision 2) : l'accueil caché sous l'aide est rendu dans une tâche à part
+if (homeLater) void nextTask().then(updateBestLine);
 if (!savedRun)
   void readRun().then((r) => {
     if (app !== 'menu' || savedRun) return;
@@ -4035,6 +4086,10 @@ const debugRt = installDebugHooks({
     tuto.refresh();
   },
   tutoScale: () => tuto.timeScale(reducedFx()),
+  renderStep(n) {
+    autoQ.step = Math.max(0, Math.min(QUALITY_STEPS.length - 1, n | 0));
+    applyQuality();
+  },
   audioVoices: () => audio.voiceCount,
   audioState: () => audio.state,
   getMeta: () => meta,
@@ -4104,5 +4159,22 @@ const debugRt = installDebugHooks({
     for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const)
       addEventListener(ev, warm, { once: true, passive: true });
     $('playBtn').addEventListener('pointerenter', warm, { once: true });
+    // docs/specs/demarrage-rapide.md : un geste fait sur l'aide avant ce script (noté par index.html avec son instant)
+    // compte comme le premier : la scène se prépare dès que l'écran est au repos. Le son, lui, attend un vrai geste
+    // (`firstGesture` : un AudioContext ne démarre que dans un geste ; le relâchement du doigt suffit, même ici)
+    const touched = Number(document.documentElement.dataset.touched);
+    if (touched > 0) {
+      lastPress = Math.max(lastPress, touched);
+      warm();
+    }
+  }
+}
+// docs/specs/demarrage-rapide.md : « Jouer » de l'aide touché (ou Entrée) avant que ce script ne la reprenne ; le script
+// d'index.html l'a noté, la partie guidée part maintenant
+{
+  const b = $('helpPlayBtn');
+  if (b.dataset.early) {
+    delete b.dataset.early;
+    if (!$('help').hidden) b.click(); // l'aide est toujours là (pas de seconde partie)
   }
 }

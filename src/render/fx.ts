@@ -37,6 +37,8 @@ export class Particles {
   private items: Particle[] = [];
   private count = 0;
   private next = 0; // remplacement circulaire quand plein
+  /** Plafond courant (≤ PART_CAP) : 1.69.2, plus bas au rendu allégé ; plein, la plus ancienne est remplacée. */
+  cap: number = PART_CAP;
   /** Inclinaison (rotation X) qui fait face à la caméra ; mise à jour par la scène à chaque frame. */
   billboardRx = -0.87;
   /** Particules vivantes (onglet perf, tests). */
@@ -57,9 +59,10 @@ export class Particles {
       this.items.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, max: 1, c: new THREE.Color(), grav: true });
   }
   private alloc(): Particle {
-    if (this.count < PART_CAP) return this.items[this.count++];
+    if (this.count < this.cap) return this.items[this.count++];
+    if (this.next >= this.cap) this.next = 0;
     const p = this.items[this.next];
-    this.next = (this.next + 1) % PART_CAP;
+    this.next = (this.next + 1) % this.cap;
     return p;
   }
   /**

@@ -5,6 +5,8 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { parsePatchNotes } from './src/meta/patch-notes.ts';
+import { injectEarlyI18n } from './src/i18n/early.ts';
+import en from './src/i18n/en.json' with { type: 'json' };
 import pkg from './package.json' with { type: 'json' };
 
 // SINGLE=1 : build en un seul fichier HTML (publication en artifact / test rapide), sans PWA.
@@ -14,6 +16,45 @@ const SINGLE = !!process.env.SINGLE;
 /** Remplace %APP_VERSION% dans les pages HTML (la page « À propos » n'a pas de module JS pour lire `define`). */
 function htmlVersion(): Plugin {
   return { name: 'ruee:html-version', transformIndexHtml: (html) => html.replace(/%APP_VERSION%/g, pkg.version) };
+}
+
+/**
+ * Accueil traduit avant le premier affichage (docs/specs/accueil-rapide.md) et aide du premier lancement affichée sans
+ * attendre le script principal (docs/specs/demarrage-rapide.md) : scripts en ligne tirés de en.json.
+ */
+function earlyI18n(): Plugin {
+  return { name: 'ruee:early-i18n', transformIndexHtml: (html, ctx) => injectEarlyI18n(html, en, !!ctx.server) };
+}
+
+/**
+ * Un premier lancement rapide (docs/specs/demarrage-rapide.md) : l'entrée de la page (src/boot.ts) importe le script
+ * principal à la demande ; la page le précharge dès son début (`modulepreload`), pour qu'il soit prêt quand l'entrée le
+ * demande. Les morceaux qu'il importe (partagés avec la scène) sont préchargés aussi, sauf quand l'aide du premier
+ * lancement est décidée (`help-due`, script de <head>) : rien de plus n'est alors téléchargé avant qu'elle soit à
+ * l'écran, l'import du script principal les demande ensuite. Build seulement (en développement, Vite sert les modules).
+ */
+function preloadMain(): Plugin {
+  return {
+    name: 'ruee:preload-main',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (ctx.path !== '/index.html') return html; // la page du jeu seule : « À propos » n'exécute aucun script
+        const chunks = Object.values(ctx.bundle ?? {});
+        const main = chunks.find((c) => c.type === 'chunk' && !!c.facadeModuleId?.endsWith('/src/main.ts'));
+        if (main?.type !== 'chunk') return html; // build en un seul fichier : tout est dans la page
+        const entries = new Set(chunks.filter((c) => c.type === 'chunk' && c.isEntry).map((c) => c.fileName));
+        const deps = main.imports.filter((f) => !entries.has(f)).map((f) => '/' + f);
+        const later =
+          `(function(){if(document.documentElement.classList.contains('help-due'))return;` +
+          `${JSON.stringify(deps)}.forEach(function(f){var l=document.createElement('link');` +
+          `l.rel='modulepreload';l.crossOrigin='anonymous';l.href=f;document.head.appendChild(l)})})();`;
+        const tags = `<link rel="modulepreload" crossorigin href="/${main.fileName}">\n<script>${later}</script>`;
+        return html.replace('</head>', `${tags}\n</head>`);
+      },
+    },
+  };
 }
 
 /**
@@ -39,6 +80,8 @@ function patchNotes(): Plugin {
 export default defineConfig({
   plugins: [
     htmlVersion(),
+    earlyI18n(),
+    preloadMain(),
     patchNotes(),
     ...(SINGLE ? [viteSingleFile()] : []),
     VitePWA({
@@ -113,7 +156,8 @@ export default defineConfig({
       ? undefined
       : {
           input: {
-            main: fileURLToPath(new URL('./index.html', import.meta.url)),
+            // l'entrée du jeu est src/boot.ts : son fichier s'appelle boot-*.js, main-*.js est le script principal
+            boot: fileURLToPath(new URL('./index.html', import.meta.url)),
             about: fileURLToPath(new URL('./a-propos/index.html', import.meta.url)),
           },
         },
