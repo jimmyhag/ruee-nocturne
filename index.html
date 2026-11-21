@@ -1173,9 +1173,11 @@
       /* partie guidée (docs/specs/tutoriel.md) : bulle de consigne sous le chrono et la puce d'objectif, flèche */
       #tuto {
         position: fixed;
-        left: 50%;
+        /* centrée par ses marges, sans transform : la flèche lit sa place (offsetLeft…) sans rien allouer (1.69.1) */
+        left: 0;
+        right: 0;
+        margin: 0 auto;
         top: calc(env(safe-area-inset-top, 0px) + 136px);
-        transform: translateX(-50%);
         display: flex;
         align-items: center;
         gap: 10px;
@@ -1219,6 +1221,76 @@
         #tuto {
           top: calc(env(safe-area-inset-top, 0px) + 170px); /* sous la minicarte, qui occupe le haut à droite */
           font-size: 14.5px;
+        }
+      }
+      /* 1.69.1 (docs/specs/tuto-petits-ecrans.md, décision 2) : en portrait, la barre de boss ne fait plus remonter la
+         bulle sous la minicarte (à 150 px, elle passait sur son bas) : elle reste à 170 px, déjà sous la barre */
+      @media (max-width: 480px) {
+        #hud:has(#bossbar:not([hidden])) ~ #tuto {
+          top: calc(env(safe-area-inset-top, 0px) + 170px);
+        }
+      }
+      /* portrait étroit (320 px) : la bulle reste dans l'écran (elle en débordait de 2 px de chaque côté) */
+      @media (max-width: 359.98px) {
+        #tuto {
+          box-sizing: border-box;
+          max-width: calc(100vw - 16px);
+        }
+      }
+      /* 1.69.1 (docs/specs/tuto-petits-ecrans.md, décision 2) : téléphone à l'horizontale (568 × 320 à 932 × 430). À
+         136 px, la bulle tombait sur le héros (au centre de l'écran) et sous la minicarte : elle remonte juste sous le
+         chrono, centrée, aussi large que le permet la minicarte de chaque côté (le bloc de gauche, sous ses PV, ne
+         dépasse pas cette marge), sur deux ou trois lignes de 14 px. Les longueurs suivent la taille du HUD des
+         réglages (--hud-scale), qui agrandit le chrono, les puces et la minicarte */
+      @media (orientation: landscape) and (max-height: 500px) {
+        #tuto {
+          --tuto-side: calc((max(16px, env(safe-area-inset-right, 0px)) + 96px) * var(--hud-scale, 1) + 12px);
+          box-sizing: border-box;
+          top: calc(env(safe-area-inset-top, 0px) + 78px * var(--hud-scale, 1));
+          max-width: calc(100vw - 2 * var(--tuto-side));
+          gap: 8px;
+          padding: 4px 10px;
+          font-size: 14px;
+          line-height: 1.15;
+          letter-spacing: 0.01em;
+        }
+        #tutoCmd {
+          padding: 1px 6px;
+        }
+        /* la puce d'objectif ou celle du marchand sous le chrono : la bulle passe dessous */
+        #hud:has(#goalChip:not([hidden])) ~ #tuto,
+        #hud:has(#merchantChip:not([hidden])) ~ #tuto {
+          top: calc(env(safe-area-inset-top, 0px) + 98px * var(--hud-scale, 1));
+        }
+        /* barre de boss, ou les deux puces : plus de place au-dessus du héros ; la bulle passe à sa gauche, sous la
+           barre, et laisse au héros 28 px de chaque côté du centre */
+        #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          top: calc(env(safe-area-inset-top, 0px) + 146px * var(--hud-scale, 1));
+          left: max(16px, env(safe-area-inset-left, 0px));
+          right: auto;
+          margin: 0;
+          max-width: calc(50vw - max(16px, env(safe-area-inset-left, 0px)) - 28px);
+        }
+        /* Gaucher : les boutons tactiles sont en bas à gauche, sous cette place ; la bulle passe à droite du héros, sous
+           la minicarte (62 + 96 px, 8 px d'écart) */
+        body.lefty #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        body.lefty #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          --tuto-under-map: 166px;
+          top: calc(env(safe-area-inset-top, 0px) + var(--tuto-under-map) * var(--hud-scale, 1));
+          left: auto;
+          right: max(16px, env(safe-area-inset-right, 0px));
+          max-width: calc(50vw - max(16px, env(safe-area-inset-right, 0px)) - 28px);
+        }
+      }
+      /* la minicarte fait 140 px à partir de 900 px de large */
+      @media (orientation: landscape) and (max-height: 500px) and (min-width: 900px) {
+        #tuto {
+          --tuto-side: calc((max(16px, env(safe-area-inset-right, 0px)) + 140px) * var(--hud-scale, 1) + 12px);
+        }
+        body.lefty #hud:has(#bossbar:not([hidden])) ~ #tuto,
+        body.lefty #hud:has(#goalChip:not([hidden])):has(#merchantChip:not([hidden])) ~ #tuto {
+          --tuto-under-map: 210px;
         }
       }
       #tutoArrow {

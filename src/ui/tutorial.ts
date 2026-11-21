@@ -28,6 +28,8 @@ export const TUTO_FEEL = {
   forceMs: 4000, // ms : bannière « Va activer le totem rouge » au moment où elle commence
   edge: 44, // px : marge de la flèche au bord de l'écran
   above: 56, // px : la flèche se pose au-dessus du lieu quand il est à l'écran
+  clear: 24, // px : demi-diagonale de la flèche tournée (23) : l'écart de son centre au haut de l'écran et à la bulle
+  boxMs: 250, // ms : relecture de la place de la bulle (4 fois par seconde, comme la minicarte), hors changement de texte
   wave: 1.2, // s réelles entre deux ondes au sol de l'étape du saut
 };
 
@@ -77,6 +79,16 @@ export class TutorialView {
   private stage = 0;
   private vis = true;
   private shownStep = -1;
+  // place de la bulle à l'écran (px), pour la flèche : relue au changement de texte ou de taille d'écran, sinon 4 fois
+  // par seconde (une puce ou la barre de boss la déplace), jamais à chaque image (lecture de mise en page forcée)
+  private bx0 = 0;
+  private bx1 = 0;
+  private by0 = 0;
+  private by1 = 0;
+  private boxAt = -1e9;
+  private boxW = 0;
+  private boxH = 0;
+  private boxDirty = true;
   constructor(private readonly host: TutorialHost) {}
 
   /** Début (ou reprise) d'une partie : le guide de cette partie. */
@@ -201,6 +213,7 @@ export class TutorialView {
     this.txt.textContent = text;
     this.cmd.textContent = cmd;
     this.box.hidden = text === '';
+    this.boxDirty = true;
     this.highlight(hl >= 0 && this.host.isTouch() ? (document.getElementById(HL_OF[hl as Step] ?? '') ?? null) : null);
   }
 
@@ -271,6 +284,35 @@ export class TutorialView {
       py = height / 2 + dy * k;
       ang = (Math.atan2(dx, -dy) * 180) / Math.PI;
     }
+    // 1.69.1 (docs/specs/tuto-petits-ecrans.md, décision 4) : la flèche reste dans l'écran et ne passe pas sur la bulle.
+    // Au-dessus d'un lieu tout en haut de l'écran, ou sur la bulle (écran bas : le lieu juste devant le héros), elle se
+    // pose sous le lieu, pointe vers le haut ; au bord de l'écran, elle glisse sous la bulle. La place de la bulle se lit
+    // en nombres (offset*, centrée par ses marges), sans rien allouer, et seulement quand elle a pu bouger (bx0…).
+    const B = this.box,
+      c = F.clear;
+    let across = false;
+    if (!B.hidden) {
+      const now = performance.now();
+      if (this.boxDirty || width !== this.boxW || height !== this.boxH || now - this.boxAt >= F.boxMs) {
+        this.boxDirty = false;
+        this.boxAt = now;
+        this.boxW = width;
+        this.boxH = height;
+        this.bx0 = B.offsetLeft;
+        this.bx1 = B.offsetLeft + B.offsetWidth;
+        this.by0 = B.offsetTop;
+        this.by1 = B.offsetTop + B.offsetHeight;
+      }
+      across = px > this.bx0 - c && px < this.bx1 + c;
+    }
+    const bt = this.by0 - c,
+      bb = this.by1 + c;
+    if (inside && (py < c || (across && py > bt && py < bb))) {
+      py += 2 * F.above;
+      ang = 0;
+    }
+    if (across && py > bt && py < bb) py = bb;
+    py = Math.min(py, height - c);
     px = Math.round(px / 2) * 2;
     py = Math.round(py / 2) * 2;
     ang = Math.round(ang / 3) * 3;
