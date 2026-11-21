@@ -30,3 +30,35 @@ test('A setting changed just before a reload is kept', async ({ page }) => {
   }
   expect(errors).toEqual([]);
 });
+
+test('The revision number does not leave the device', async ({ page }) => {
+  const errors = collectConsoleErrors(page);
+  await openGame(page);
+  // un joueur connecté (compte factice, aucun appel Firebase) : sa progression part vers le compte
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, runs: 1, gold: 10 });
+    (window as any).__fake = g.fakeAccount('u-revision', [], { sync: true });
+  });
+  await page.waitForFunction(() => (window as any).__fake.saves.length >= 1);
+  // une sauvegarde de plus (numéro neuf sur l'appareil), puis son envoi groupé
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.setMeta({ ...g.meta, gold: 25 });
+  });
+  await page.waitForFunction(
+    () => {
+      const s = (window as any).__fake.saves;
+      return s.length >= 2 && s[s.length - 1].progress.gold === 25;
+    },
+    null,
+    { timeout: 15_000 },
+  );
+  // la copie de l'appareil porte bien un numéro…
+  const local = await page.evaluate(() => JSON.parse(localStorage.getItem('ruee-meta') ?? '{}').rev);
+  expect(local).toBeGreaterThan(0);
+  // … et aucun document envoyé ne le contient
+  const sent = await page.evaluate(() => (window as any).__fake.saves.map((d: unknown) => JSON.stringify(d)));
+  for (const doc of sent) expect(doc).not.toContain('"rev"');
+  expect(errors).toEqual([]);
+});
